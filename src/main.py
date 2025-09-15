@@ -102,7 +102,7 @@ try:
         QMainWindow, QToolBar, QLabel, QFileDialog, QMessageBox, QApplication,
         QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton,
         QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
-        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu
+        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget
     )
     from PyQt6.QtGui import QAction, QFont, QTextDocument
     from PyQt6.QtCore import Qt
@@ -331,6 +331,10 @@ except Exception:
         def setMinimumHeight(self, *_): ...
 
         def setSizePolicy(self, *_): ...
+
+    class QTabWidget:
+        def __init__(self, *_, **__): ...
+        def addTab(self, *_, **__): ...
 
 
 # --- Helper Exceptions ---
@@ -1113,6 +1117,9 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
                       sev_counts: Optional[dict] = None,
                       cat_counts: Optional[dict] = None) -> bool:
     try:
+        if not QApplication.instance():
+            import matplotlib
+            matplotlib.use("Agg")
         os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
         import math, textwrap
         import matplotlib.pyplot as plt  # type: ignore
@@ -2155,7 +2162,7 @@ def _run_gui() -> Optional[int]:
     from datetime import datetime, date, timedelta
 
     # We need a QApplication instance to show a message box, so create it early.
-    app = QApplication(sys.argv)
+    app = QApplication.instance() or QApplication(sys.argv)
 
     trial_duration_days = get_int_setting("trial_duration_days", 30)
 
@@ -2285,8 +2292,9 @@ def _run_gui() -> Optional[int]:
             self.btn_save_rubric = QPushButton("Save (App Only)")
             self.btn_remove_rubric = QPushButton("Remove Rubric")
             for b in (self.btn_upload_rubric, self.btn_manage_rubrics, self.btn_save_rubric, self.btn_remove_rubric):
-                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px", fixed_width=160)
+                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px")
                 row_rubric_btns.addWidget(b)
+            row_rubric_btns.addStretch(1)
             try:
                 self.btn_upload_rubric.clicked.connect(self.action_upload_rubric)  # type: ignore[attr-defined]
                 self.btn_manage_rubrics.clicked.connect(self.action_manage_rubrics)  # type: ignore[attr-defined]
@@ -2329,9 +2337,10 @@ def _run_gui() -> Optional[int]:
             self.btn_remove_file = QPushButton("Remove File")
             self.btn_clear_all = QPushButton("Clear All")
             for b in (self.btn_upload_report, self.btn_upload_folder, self.btn_analyze_all,
-                      self.btn_cancel_batch, self.btn_remove_file):
-                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px", fixed_width=160)
+                      self.btn_cancel_batch, self.btn_remove_file, self.btn_clear_all):
+                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px")
                 row_report_btns.addWidget(b)
+            row_report_btns.addStretch(1)
             try:
                 self.btn_upload_report.clicked.connect(self.action_open_report)  # type: ignore[attr-defined]
                 self.btn_upload_folder.clicked.connect(self.action_open_folder)  # type: ignore[attr-defined]
@@ -2472,8 +2481,8 @@ def _run_gui() -> Optional[int]:
             vmain.addLayout(input_row_bottom)
 
             try:
-                self.grp_logs.setStyleSheet(self.grp_logs.styleSheet() + " QGroupBox::title { padding-top: 6px; }")
-                self.grp_logs.raise_()
+                self.grp_queue_logs.setStyleSheet(self.grp_queue_logs.styleSheet() + " QGroupBox::title { padding-top: 6px; }")
+                self.grp_queue_logs.raise_()
                 self.grp_results.raise_()
             except Exception:
                 ...
@@ -2507,7 +2516,7 @@ def _run_gui() -> Optional[int]:
                 ...
 
         # Helpers and actions
-        def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px", fixed_width: Optional[int] = None):
+        def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px"):
             try:
                 f = QFont()
                 f.setPointSize(font_size)
@@ -2515,10 +2524,7 @@ def _run_gui() -> Optional[int]:
                 button.setFont(f)
                 button.setMinimumHeight(height)
                 button.setStyleSheet(f"text-align:center; padding:{padding};")
-                if fixed_width:
-                    button.setFixedWidth(fixed_width)
-                else:
-                    button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+                button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
             except Exception:
                 ...
 
@@ -3236,7 +3242,6 @@ def _run_gui() -> Optional[int]:
             except Exception as e:
                 self.set_error(str(e))
 
-    app = QApplication(sys.argv)
     apply_theme(app)
     win = MainWindow()
     try:
