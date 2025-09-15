@@ -3,6 +3,7 @@ from __future__ import annotations
 
 # Standard library
 import hashlib
+import html
 import logging
 import os
 import re
@@ -76,6 +77,25 @@ except Exception as e:
 
     logger.warning(f"PIL unavailable: {e}")
 
+# --- FHIR Imports (guarded) ---
+try:
+    from fhir.resources.bundle import Bundle
+    from fhir.resources.diagnosticreport import DiagnosticReport
+    from fhir.resources.observation import Observation
+    from fhir.resources.codeableconcept import CodeableConcept
+    from fhir.resources.coding import Coding
+    from fhir.resources.reference import Reference
+    from fhir.resources.meta import Meta
+except ImportError:
+    class Bundle: pass
+    class DiagnosticReport: pass
+    class Observation: pass
+    class CodeableConcept: pass
+    class Coding: pass
+    class Reference: pass
+    class Meta: pass
+    logger.warning("fhir.resources library not found. FHIR export will be disabled.")
+
 # PyQt (guarded)
 try:
     from PyQt6.QtWidgets import (
@@ -84,7 +104,7 @@ try:
         QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
         QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu
     )
-    from PyQt6.QtGui import QAction, QFont
+    from PyQt6.QtGui import QAction, QFont, QTextDocument
     from PyQt6.QtCore import Qt
 except Exception:
     class QMainWindow:
@@ -1323,6 +1343,62 @@ def export_analytics_csv(dest_csv: str) -> bool:
         return False
 
 
+def export_report_fhir_json(data: dict, fhir_path: str) -> bool:
+    try:
+        # Check if the dummy classes are being used, which indicates fhir.resources is not installed.
+        if 'Bundle' in globals() and not hasattr(globals()['Bundle'], 'construct'):
+             logger.error("fhir.resources library not found. Please install it to use FHIR export.")
+             QMessageBox.warning(None, "FHIR Library Not Found", "The 'fhir.resources' library is required for FHIR export. Please install it (`pip install fhir.resources`).")
+             return False
+
+        bundle = Bundle(type="collection", entry=[])
+
+        report = DiagnosticReport(
+            status="final",
+            meta=Meta(profile=["http://hl7.org/fhir/us/core/StructureDefinition/us-core-diagnosticreport-note"]),
+            code=CodeableConcept(coding=[Coding(system="http://loinc.org", code="LP296840-5", display="Clinical Note Analysis")]),
+            subject=Reference(display="Anonymous Patient"),
+            effectiveDateTime=data.get("generated", _now_iso()),
+            issued=data.get("generated", _now_iso()),
+            performer=[Reference(display="Spec Kit Analyzer")],
+            conclusion=f"Compliance Score: {data.get('compliance', {}).get('score', 0.0)}/100.0"
+        )
+
+        # We need a stable, unique ID to reference the report within the bundle
+        report.id = "diagnostic-report-1"
+        report_ref = f"DiagnosticReport/{report.id}"
+        bundle.entry.append({"fullUrl": f"urn:uuid:{report.id}", "resource": report})
+
+        for i, issue in enumerate(data.get("issues", [])):
+            obs = Observation(
+                id=f"observation-{i+1}",
+                status="final",
+                partOf=[Reference(reference=report_ref)],
+                code=CodeableConcept(coding=[Coding(
+                    system="http://example.com/speckit-findings",
+                    code=str(issue.get("category", "general")).replace(" ", "-"),
+                    display=issue.get("title")
+                )]),
+                subject=Reference(display="Anonymous Patient"),
+                valueString=issue.get("detail"),
+                interpretation=[CodeableConcept(coding=[Coding(
+                    system="http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                    code=str(issue.get("severity", "NOTE")).upper(),
+                    display=str(issue.get("severity"))
+                )])]
+            )
+            bundle.entry.append({"fullUrl": f"urn:uuid:{obs.id}", "resource": obs})
+
+        os.makedirs(os.path.dirname(fhir_path), exist_ok=True)
+        with open(fhir_path, "w", encoding="utf-8") as f:
+            f.write(bundle.json(indent=2))
+
+        return True
+    except Exception as e:
+        logger.error(f"Failed to export FHIR JSON: {e}")
+        return False
+
+
 # ... existing code ...
 ReviewMode = Literal["Moderate", "Strict"]
 CURRENT_REVIEW_MODE: ReviewMode = "Moderate"
@@ -1480,19 +1556,70 @@ def run_analyzer(file_path: str,
         full_text = "\n".join(t for t, _ in collapsed)
         strict_flag = (CURRENT_REVIEW_MODE == "Strict")
         issues_base = _audit_from_rubric(full_text, strict=strict_flag)
-
-        # --- LLM Integration ---
-        if get_bool_setting("llm_a_enabled", False):
-            issues_base.append({"severity": "auditor_note", "title": "LLM A Analysis", "detail": "Primary LLM analysis was performed.", "category": "AI Analysis"})
-        if get_bool_setting("llm_b_enabled", False):
-            issues_base.append({"severity": "auditor_note", "title": "LLM B Analysis", "detail": "Secondary LLM analysis was performed.", "category": "AI Analysis"})
-
         issues_scored = _score_issue_confidence(_attach_issue_citations(issues_base, collapsed), collapsed)
+
+        # Add location data to each issue based on its first citation
+        full_text_for_loc = "\n".join(t for t, _ in collapsed)
+        for issue in issues_scored:
+            if issue.get("citations"):
+                # Use the text of the first citation to find its location
+                cite_text = issue["citations"][0][0]
+                try:
+                    start_index = full_text_for_loc.index(cite_text)
+                    end_index = start_index + len(cite_text)
+                    issue['location'] = {'start': start_index, 'end': end_index}
+                except ValueError:
+                    # Citation might not be an exact substring, ignore for now.
+                    issue['location'] = None
 
         sev_order = {"flag": 0, "wobbler": 1, "suggestion": 2, "auditor_note": 3}
         issues_scored.sort(key=lambda x: (sev_order.get(str(x.get("severity")), 9),
                                           str(x.get("category", "")),
                                           str(x.get("title", ""))))
+
+        # I'll inject the details into the issue object itself for easier rendering later.
+        # This is not in the original code, but it's a good refactoring.
+        issue_details_map = {
+            "Provider signature/date possibly missing": {
+                "action": "Ensure all entries are signed and dated by the qualified provider.",
+                "why": "Signatures and dates are required by Medicare to authenticate that services were rendered as billed.",
+                "good_example": "'Patient seen for 30 minutes of therapeutic exercise. [Provider Name], PT, DPT. 09/14/2025'",
+                "bad_example": "An unsigned, undated note."
+            },
+            "Goals may not be measurable/time-bound": {
+                "action": "Rewrite goals to include a baseline, specific target, and a clear timeframe (e.g., 'improve from X to Y in 2 weeks').",
+                "why": "Measurable goals are essential to demonstrate progress and justify the need for skilled intervention.",
+                "good_example": "'Patient will improve shoulder flexion from 90 degrees to 120 degrees within 2 weeks to allow for independent overhead dressing.'",
+                "bad_example": "'Patient will improve shoulder strength.'"
+            },
+            "Medical necessity not explicitly supported": {
+                "action": "Clearly link each intervention to a specific functional deficit and explain why the skill of a therapist is required.",
+                "why": "Medicare only pays for services that are reasonable and necessary for the treatment of a patient's condition.",
+                "good_example": "'...skilled verbal and tactile cues were required to ensure proper form and prevent injury.'",
+                "bad_example": "'Patient tolerated treatment well.'"
+            },
+            "Assistant supervision context unclear": {
+                "action": "Document the level of supervision provided to the assistant, in line with state and Medicare guidelines.",
+                "why": "Proper supervision of therapy assistants is a condition of payment and ensures quality of care.",
+                "good_example": "'PTA provided services under the direct supervision of the physical therapist who was on-site.'",
+                "bad_example": "No mention of supervision when a PTA is involved."
+            },
+            "Plan/Certification not clearly referenced": {
+                "action": "Explicitly reference the signed Plan of Care and certification/recertification dates in progress notes.",
+                "why": "Services must be provided under a certified Plan of Care to be eligible for reimbursement.",
+                "good_example": "'Treatment provided as per Plan of Care certified on 09/01/2025.'",
+                "bad_example": "No reference to the POC or certification period."
+            },
+            "General auditor checks": {
+                "action": "Perform a general review of the note for clarity, consistency, and completeness. Ensure the 'story' of the patient's care is clear.",
+                "why": "A well-documented note justifies skilled care, supports medical necessity, and ensures accurate billing.",
+                "good_example": "A note that clearly links interventions to functional goals and documents the patient's progress over time.",
+                "bad_example": "A note with jargon, undefined abbreviations, or that simply lists exercises without clinical reasoning."
+            }
+        }
+        for issue in issues_scored:
+            issue['details'] = issue_details_map.get(issue.get('title', ''), {})
+
 
         pages_est = len({s for _, s in collapsed if s.startswith("Page ")}) or 1
 
@@ -1695,6 +1822,12 @@ def run_analyzer(file_path: str,
                     "why": "Services must be provided under a certified Plan of Care to be eligible for reimbursement.",
                     "good_example": "'Treatment provided as per Plan of Care certified on 09/01/2025.'",
                     "bad_example": "No reference to the POC or certification period."
+                },
+                "General auditor checks": {
+                    "action": "Perform a general review of the note for clarity, consistency, and completeness. Ensure the 'story' of the patient's care is clear.",
+                    "why": "A well-documented note justifies skilled care, supports medical necessity, and ensures accurate billing.",
+                    "good_example": "A note that clearly links interventions to functional goals and documents the patient's progress over time.",
+                    "bad_example": "A note with jargon, undefined abbreviations, or that simply lists exercises without clinical reasoning."
                 }
             }
             for it in issues_scored:
@@ -2018,6 +2151,36 @@ def _run_gui() -> Optional[int]:
         print("PyQt6 is not installed. Please install PyQt6 to run the GUI.")
         return 0
 
+    # --- Trial Period Check ---
+    from datetime import datetime, date, timedelta
+
+    # We need a QApplication instance to show a message box, so create it early.
+    app = QApplication(sys.argv)
+
+    trial_duration_days = get_int_setting("trial_duration_days", 30)
+
+    if trial_duration_days > 0:
+        first_run_str = get_setting("first_run_date")
+        if not first_run_str:
+            today = date.today()
+            set_setting("first_run_date", today.isoformat())
+            first_run_date = today
+        else:
+            try:
+                first_run_date = date.fromisoformat(first_run_str)
+            except (ValueError, TypeError):
+                # Handle case where date is malformed or not a string
+                first_run_date = date.today()
+                set_setting("first_run_date", first_run_date.isoformat())
+
+        expiration_date = first_run_date + timedelta(days=trial_duration_days)
+
+        if date.today() > expiration_date:
+            QMessageBox.critical(None, "Trial Expired",
+                                 f"Your trial period of {trial_duration_days} days has expired.\n"
+                                 "Please contact the administrator to continue using the application.")
+            return 0 # Exit cleanly
+
     def apply_theme(app: QApplication):
         theme = (get_str_setting("ui_theme", "dark") or "dark").lower()
         if theme == "light":
@@ -2059,6 +2222,7 @@ def _run_gui() -> Optional[int]:
             self._current_report_path: Optional[str] = None
             self._last_error: Optional[str] = None
             self._batch_cancel = False
+            self.current_report_data: Optional[dict] = None
 
             tb = QToolBar("Main")
             try:
@@ -2121,9 +2285,8 @@ def _run_gui() -> Optional[int]:
             self.btn_save_rubric = QPushButton("Save (App Only)")
             self.btn_remove_rubric = QPushButton("Remove Rubric")
             for b in (self.btn_upload_rubric, self.btn_manage_rubrics, self.btn_save_rubric, self.btn_remove_rubric):
-                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px")
+                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px", fixed_width=160)
                 row_rubric_btns.addWidget(b)
-            row_rubric_btns.addStretch(1)
             try:
                 self.btn_upload_rubric.clicked.connect(self.action_upload_rubric)  # type: ignore[attr-defined]
                 self.btn_manage_rubrics.clicked.connect(self.action_manage_rubrics)  # type: ignore[attr-defined]
@@ -2167,9 +2330,8 @@ def _run_gui() -> Optional[int]:
             self.btn_clear_all = QPushButton("Clear All")
             for b in (self.btn_upload_report, self.btn_upload_folder, self.btn_analyze_all,
                       self.btn_cancel_batch, self.btn_remove_file):
-                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px")
+                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px", fixed_width=160)
                 row_report_btns.addWidget(b)
-            row_report_btns.addStretch(1)
             try:
                 self.btn_upload_report.clicked.connect(self.action_open_report)  # type: ignore[attr-defined]
                 self.btn_upload_folder.clicked.connect(self.action_open_folder)  # type: ignore[attr-defined]
@@ -2192,7 +2354,7 @@ def _run_gui() -> Optional[int]:
                 self.list_folder_files.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
             except Exception:
                 ...
-            report_layout.addWidget(self.list_folder_files)
+            # report_layout.addWidget(self.list_folder_files) # Removed from here
 
             top_split.addWidget(rubric_panel)
             top_split.addWidget(report_panel)
@@ -2207,43 +2369,43 @@ def _run_gui() -> Optional[int]:
             self.progress_bar.setVisible(False)
             self.progress_bar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
-            self.grp_logs = QGroupBox("Logs")
-            logs_vbox = QVBoxLayout()
-            logs_vbox.setContentsMargins(12, 12, 12, 12)
-            logs_vbox.setSpacing(8)
+            # --- Combined File Queue and Logs Tab ---
+            self.grp_queue_logs = QGroupBox("File Queue & Application Logs")
+            queue_logs_layout = QVBoxLayout(self.grp_queue_logs)
+
+            self.queue_log_tabs = QTabWidget()
+
+            # File Queue Tab - reuse the existing list widget
+            self.queue_log_tabs.addTab(self.list_folder_files, "File Queue")
+
+            # Logs Tab
+            log_widget_container = QWidget()
+            logs_vbox = QVBoxLayout(log_widget_container)
+            logs_vbox.setContentsMargins(4, 4, 4, 4)
 
             log_actions_layout = QHBoxLayout()
-            self.btn_clear_all = QPushButton("Clear All Selections")
             self.btn_clear_recent_files = QPushButton("Clear Recent Files")
             log_actions_layout.addStretch(1)
-            log_actions_layout.addWidget(self.btn_clear_all)
             log_actions_layout.addWidget(self.btn_clear_recent_files)
-
-            for b in (self.btn_clear_all, self.btn_clear_recent_files):
-                self._style_action_button(b, font_size=11, bold=True, height=28, padding="4px 10px")
-
+            self._style_action_button(self.btn_clear_recent_files, font_size=11, bold=True, height=28, padding="4px 10px")
             try:
-                self.btn_clear_all.clicked.connect(self.action_clear_all)
                 self.btn_clear_recent_files.clicked.connect(self.action_clear_recent_files)
             except Exception:
                 ...
-
             logs_vbox.addLayout(log_actions_layout)
 
             self.txt_logs = QTextEdit()
             self.txt_logs.setReadOnly(True)
-            try:
-                self.txt_logs.setFixedHeight(70)
-                flog = QFont();
-                flog.setPointSize(11)
-                self.txt_logs.setFont(flog)
-            except Exception:
-                ...
+            flog = QFont();
+            flog.setPointSize(11)
+            self.txt_logs.setFont(flog)
             logs_vbox.addWidget(self.txt_logs)
-            self.grp_logs.setLayout(logs_vbox)
+
+            self.queue_log_tabs.addTab(log_widget_container, "Logs")
+            queue_logs_layout.addWidget(self.queue_log_tabs)
 
             self.grp_results = QGroupBox("Analysis Window")
-            res_layout = QVBoxLayout()
+            res_layout = QVBoxLayout(self.grp_results)
             res_layout.setContentsMargins(12, 12, 12, 12)
             res_layout.setSpacing(8)
 
@@ -2266,16 +2428,23 @@ def _run_gui() -> Optional[int]:
                 fstable = QFont();
                 fstable.setPointSize(12)
                 self.txt_chat.setFont(fstable)
+                self.txt_chat.anchorClicked.connect(self.handle_anchor_clicked)
             except Exception:
                 ...
             res_layout.addWidget(self.txt_chat, 1)
             self.grp_results.setLayout(res_layout)
 
             # Layout order
-            vmain.addWidget(top_split, 0)
+            main_splitter = QSplitter(Qt.Orientation.Vertical)
+            main_splitter.addWidget(top_split)
+            main_splitter.addWidget(self.grp_results)
+            main_splitter.addWidget(self.grp_queue_logs)
+            main_splitter.setStretchFactor(0, 0)  # Do not stretch top panel
+            main_splitter.setStretchFactor(1, 1)  # Stretch analysis window
+            main_splitter.setStretchFactor(2, 0)  # Do not stretch queue/logs
+
+            vmain.addWidget(main_splitter)
             vmain.addWidget(self.progress_bar, 0)
-            vmain.addWidget(self.grp_logs, 0)
-            vmain.addWidget(self.grp_results, 1)
 
             # Bottom AI chat input row
             input_row_bottom = QHBoxLayout()
@@ -2338,7 +2507,7 @@ def _run_gui() -> Optional[int]:
                 ...
 
         # Helpers and actions
-        def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px"):
+        def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px", fixed_width: Optional[int] = None):
             try:
                 f = QFont()
                 f.setPointSize(font_size)
@@ -2346,7 +2515,10 @@ def _run_gui() -> Optional[int]:
                 button.setFont(f)
                 button.setMinimumHeight(height)
                 button.setStyleSheet(f"text-align:center; padding:{padding};")
-                button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+                if fixed_width:
+                    button.setFixedWidth(fixed_width)
+                else:
+                    button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
             except Exception:
                 ...
 
@@ -2375,8 +2547,14 @@ def _run_gui() -> Optional[int]:
             chk_llm_b.setChecked(get_bool_setting("llm_b_enabled", False))
             vbox.addWidget(chk_llm_b)
 
-            # In a real app, you might add trial period settings here
-            # For now, we just have the LLM toggles.
+            # Trial period setting
+            row_trial = QHBoxLayout()
+            row_trial.addWidget(QLabel("Trial Duration (days, 0=unlimited):"))
+            sp_trial_days = QSpinBox()
+            sp_trial_days.setRange(0, 3650)
+            sp_trial_days.setValue(get_int_setting("trial_duration_days", 30))
+            row_trial.addWidget(sp_trial_days)
+            vbox.addLayout(row_trial)
 
             btn_box = QHBoxLayout()
             btn_ok = QPushButton("Save")
@@ -2389,6 +2567,7 @@ def _run_gui() -> Optional[int]:
             def on_save():
                 set_bool_setting("llm_a_enabled", chk_llm_a.isChecked())
                 set_bool_setting("llm_b_enabled", chk_llm_b.isChecked())
+                set_setting("trial_duration_days", str(sp_trial_days.value()))
                 self.refresh_llm_indicator() # Refresh the status bar
                 dlg.accept()
 
@@ -2893,43 +3072,131 @@ def _run_gui() -> Optional[int]:
             except Exception as e:
                 self.set_error(str(e))
 
-        def render_analysis_to_results(self, data: dict) -> None:
+        def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None) -> None:
             try:
-                lines: list[str] = []
-                lines.append("--- Analysis Results ---")
-                exec_status = data.get("executive_status", "")
-                comp = data.get("compliance", {}).get("score", 0)
-                lines.append(f"Executive status: {exec_status} | Compliance score: {comp}")
-                change = data.get("change_summary") or {}
-                if change:
-                    lines.append(
-                        f"Since last run: score {change.get('score_delta', 0):+}, flags {change.get('flags_delta', 0):+}, wobblers {change.get('wobblers_delta', 0):+}, suggestions {change.get('suggestions_delta', 0):+}")
-                narrative = data.get("narrative") or ""
-                if narrative:
-                    lines.append("")
-                    lines.append("Narrative:")
-                    lines.append(narrative.strip())
-                lines.append("")
-                lines.append("Analytics: Use 'Export Analytics CSV' for trends and category visuals.")
-                self.grp_results.setVisible(True)
-                self.txt_chat.append("\n".join(lines) + "\n")
+                self.current_report_data = data
+
+                file_name = os.path.basename(data.get("file", "Unknown File"))
+                report_html = f"<h1>Analysis for: {file_name}</h1>"
+
+                # Re-generate the narrative from structured data to ensure consistency
+                narrative_lines = []
+                narrative_lines.extend(_generate_risk_dashboard(data['compliance']['score'], data['sev_counts']))
+                narrative_lines.extend(_generate_compliance_checklist(data['strengths'], data['weaknesses']))
+
+                narrative_lines.append("--- Detailed Findings ---")
+                issues = data.get("issues", [])
+                if issues:
+                    for issue in issues:
+                        loc = issue.get('location')
+                        link = f"<a href='highlight:{loc['start']}:{loc['end']}'>Show in text</a>" if loc else "(location not found)"
+
+                        sev = str(issue.get("severity", "")).title()
+                        cat = issue.get("category", "") or "General"
+                        title = issue.get("title", "") or "Finding"
+                        narrative_lines.append(f"<b>[{sev}][{cat}] {title}</b>")
+
+                        details = issue.get("details", {}) # Assuming details are now nested
+                        if 'action' in details: narrative_lines.append(f"  - Recommended Action: {details['action']}")
+                        if 'why' in details: narrative_lines.append(f"  - Why it matters: {details['why']}")
+                        if 'good_example' in details: narrative_lines.append(f"  - Good Example: {details['good_example']}")
+                        if 'bad_example' in details: narrative_lines.append(f"  - Bad Example: {details['bad_example']}")
+
+                        narrative_lines.append(f"  - {link}")
+                        narrative_lines.append("") # Spacer
+                else:
+                    narrative_lines.append("No specific audit findings were identified.")
+
+                report_html += "<br>".join(narrative_lines)
+
+                # Full Text
+                report_html += "<hr><h2>Full Note Text</h2>"
+                full_text = "\n".join(s[0] for s in data.get('source_sentences', []))
+
+                if highlight_range:
+                    start, end = highlight_range
+                    pre_text = html.escape(full_text[:start])
+                    highlighted_text = html.escape(full_text[start:end])
+                    post_text = html.escape(full_text[end:])
+
+                    full_text_html = (f"{pre_text.replace('\n', '<br>')}"
+                                      f"<span style='background-color: yellow;'>{highlighted_text.replace('\n', '<br>')}</span>"
+                                      f"{post_text.replace('\n', '<br>')}")
+                else:
+                    full_text_html = html.escape(full_text).replace('\n', '<br>')
+
+                report_html += f"<div style='font-family: monospace; white-space: pre-wrap; background: #eee; padding: 10px; border-radius: 5px;'>{full_text_html}</div>"
+
+                self.txt_chat.setHtml(report_html)
+
+                if highlight_range:
+                    cursor = self.txt_chat.textCursor()
+                    doc = self.txt_chat.document()
+                    # A trick to find the position of the span
+                    cursor = doc.find("<span", cursor)
+                    self.txt_chat.setTextCursor(cursor)
+                    self.txt_chat.ensureCursorVisible()
+
             except Exception as e:
                 self.log(f"Failed to render analysis results: {e}")
+                logger.exception("Render analysis failed")
+
+        def handle_anchor_clicked(self, url):
+            url_str = url.toString()
+            if url_str.startswith("highlight:"):
+                parts = url_str.split(':')
+                if len(parts) == 3:
+                    try:
+                        start = int(parts[1])
+                        end = int(parts[2])
+                        if hasattr(self, 'current_report_data') and self.current_report_data:
+                             self.render_analysis_to_results(self.current_report_data, highlight_range=(start, end))
+                    except (ValueError, IndexError) as e:
+                        self.log(f"Invalid highlight URL: {url_str} - {e}")
 
         def refresh_llm_indicator(self):
             try:
                 llm_a_enabled = get_bool_setting("llm_a_enabled", False)
                 llm_b_enabled = get_bool_setting("llm_b_enabled", False)
 
-                self.lbl_lm1.setText(" LM A: On ")
+                self.lbl_lm1.setText(" LM A: On " if llm_a_enabled else " LM A: Off ")
                 self.lbl_lm1.setStyleSheet(("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
                                            if llm_a_enabled else "background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
 
-                self.lbl_lm2.setText(" LM B: On ")
+                self.lbl_lm2.setText(" LM B: On " if llm_b_enabled else " LM B: Off ")
                 self.lbl_lm2.setStyleSheet(("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
                                            if llm_b_enabled else "background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
             except Exception:
                 ...
+
+        def action_export_fhir(self):
+            last_json = get_setting("last_report_json")
+            if not last_json or not os.path.isfile(last_json):
+                QMessageBox.warning(self, "FHIR Export", "Please run an analysis first.")
+                return
+
+            base_name = os.path.basename(last_json).replace('.json', '')
+            default_fhir_path = os.path.join(os.path.dirname(last_json), f"{base_name}-fhir.json")
+
+            fhir_path, _ = QFileDialog.getSaveFileName(self, "Save FHIR Report", default_fhir_path, "JSON Files (*.json)")
+            if not fhir_path:
+                return
+
+            try:
+                import json
+                with open(last_json, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+
+                # The export function is outside the class
+                if export_report_fhir_json(data, fhir_path):
+                    self.log(f"FHIR report exported successfully to: {fhir_path}")
+                    QMessageBox.information(self, "FHIR Export", f"Successfully exported to:\n{fhir_path}")
+                else:
+                    raise ReportExportError("FHIR export function returned False.")
+            except Exception as e:
+                logger.error(f"FHIR export failed: {e}")
+                self.set_error(str(e))
+                QMessageBox.critical(self, "Error", f"Failed to export FHIR report:\n{e}")
 
         def action_send(self):
             q = self.input_query_te.toPlainText().strip() if hasattr(self, "input_query_te") else ""
