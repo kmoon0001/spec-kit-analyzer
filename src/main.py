@@ -869,6 +869,14 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                         )
                     """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_snapshots_time ON analysis_snapshots(created_at)")
+
+        # --- Simple schema migration for compliance_score ---
+        cur.execute("PRAGMA table_info(analysis_runs)")
+        columns = [row[1] for row in cur.fetchall()]
+        if "compliance_score" not in columns:
+            cur.execute("ALTER TABLE analysis_runs ADD COLUMN compliance_score REAL")
+            logger.info("Upgraded analysis_runs table to include 'compliance_score' column.")
+
         conn.commit()
     except Exception as e:
         logger.warning(f"Ensure analytics schema failed: {e}")
@@ -1974,7 +1982,7 @@ def _run_gui() -> Optional[int]:
                 QPushButton:hover { background: #1d4ed8; }
                 QToolBar { background: #e5e7eb; spacing: 10px; border: 2px solid #3b82f6; padding: 6px; }
                 QStatusBar { background: #e5e7eb; color: #111827; }
-                QGroupBox { border: 2px solid #3b82f6; margin-top: 12px; border-radius: 10px; }
+                QGroupBox { border: 2px solid #3b82f6; margin-top: 20px; border-radius: 10px; }
                 QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 10px; padding: 6px 8px; font-weight: 700; font-size: 18px; color: #111827; }
             """)
         else:
@@ -1986,7 +1994,7 @@ def _run_gui() -> Optional[int]:
                 QPushButton:hover { background: #163dc0; }
                 QToolBar { background: #111827; spacing: 10px; border: 2px solid #1f4fd1; padding: 6px; }
                 QStatusBar { background: #111827; color: #e5e7eb; }
-                QGroupBox { border: 2px solid #1f4fd1; margin-top: 12px; border-radius: 10px; }
+                QGroupBox { border: 2px solid #1f4fd1; margin-top: 20px; border-radius: 10px; }
                 QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 10px; padding: 6px 8px; font-weight: 700; font-size: 18px; color: #e5e7eb; }
             """)
         f = QFont()
