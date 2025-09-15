@@ -3252,7 +3252,6 @@ def _run_gui() -> Optional[int]:
             except Exception as e:
                 self.set_error(str(e))
 
-    app = QApplication(sys.argv)
     apply_theme(app)
     win = MainWindow()
     try:
