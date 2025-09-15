@@ -1480,6 +1480,13 @@ def run_analyzer(file_path: str,
         full_text = "\n".join(t for t, _ in collapsed)
         strict_flag = (CURRENT_REVIEW_MODE == "Strict")
         issues_base = _audit_from_rubric(full_text, strict=strict_flag)
+
+        # --- LLM Integration ---
+        if get_bool_setting("llm_a_enabled", False):
+            issues_base.append({"severity": "auditor_note", "title": "LLM A Analysis", "detail": "Primary LLM analysis was performed.", "category": "AI Analysis"})
+        if get_bool_setting("llm_b_enabled", False):
+            issues_base.append({"severity": "auditor_note", "title": "LLM B Analysis", "detail": "Secondary LLM analysis was performed.", "category": "AI Analysis"})
+
         issues_scored = _score_issue_confidence(_attach_issue_citations(issues_base, collapsed), collapsed)
 
         sev_order = {"flag": 0, "wobbler": 1, "suggestion": 2, "auditor_note": 3}
@@ -2081,6 +2088,10 @@ def _run_gui() -> Optional[int]:
                 lambda: (_show_settings_dialog(self), self.reapply_theme()))  # type: ignore[attr-defined]
             tb.addAction(act_settings)
 
+            act_admin_settings = QAction("Admin Settings...", self)
+            act_admin_settings.triggered.connect(self._show_admin_settings_dialog)
+            tb.addAction(act_admin_settings)
+
             act_exit = QAction("Exit", self)
             act_exit.triggered.connect(self.close)  # type: ignore[attr-defined]
             tb.addAction(act_exit)
@@ -2110,8 +2121,9 @@ def _run_gui() -> Optional[int]:
             self.btn_save_rubric = QPushButton("Save (App Only)")
             self.btn_remove_rubric = QPushButton("Remove Rubric")
             for b in (self.btn_upload_rubric, self.btn_manage_rubrics, self.btn_save_rubric, self.btn_remove_rubric):
-                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px", fixed_width=160)
+                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px")
                 row_rubric_btns.addWidget(b)
+            row_rubric_btns.addStretch(1)
             try:
                 self.btn_upload_rubric.clicked.connect(self.action_upload_rubric)  # type: ignore[attr-defined]
                 self.btn_manage_rubrics.clicked.connect(self.action_manage_rubrics)  # type: ignore[attr-defined]
@@ -2155,8 +2167,9 @@ def _run_gui() -> Optional[int]:
             self.btn_clear_all = QPushButton("Clear All")
             for b in (self.btn_upload_report, self.btn_upload_folder, self.btn_analyze_all,
                       self.btn_cancel_batch, self.btn_remove_file):
-                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px", fixed_width=160)
+                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px")
                 row_report_btns.addWidget(b)
+            row_report_btns.addStretch(1)
             try:
                 self.btn_upload_report.clicked.connect(self.action_open_report)  # type: ignore[attr-defined]
                 self.btn_upload_folder.clicked.connect(self.action_open_folder)  # type: ignore[attr-defined]
@@ -2325,7 +2338,7 @@ def _run_gui() -> Optional[int]:
                 ...
 
         # Helpers and actions
-        def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px", fixed_width: Optional[int] = None):
+        def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px"):
             try:
                 f = QFont()
                 f.setPointSize(font_size)
@@ -2333,12 +2346,56 @@ def _run_gui() -> Optional[int]:
                 button.setFont(f)
                 button.setMinimumHeight(height)
                 button.setStyleSheet(f"text-align:center; padding:{padding};")
-                if fixed_width:
-                    button.setFixedWidth(fixed_width)
-                else:
-                    button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+                button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
             except Exception:
                 ...
+
+        def _show_admin_settings_dialog(self):
+            from PyQt6.QtWidgets import QInputDialog
+
+            password, ok = QInputDialog.getText(self, "Admin Access", "Enter Admin Password:", QLineEdit.EchoMode.Password)
+            if not ok:
+                return
+
+            # Simple hardcoded password check
+            if password != get_str_setting("admin_password", "admin123"):
+                QMessageBox.warning(self, "Admin Access", "Incorrect password.")
+                return
+
+            # --- Admin Dialog ---
+            dlg = QDialog(self)
+            dlg.setWindowTitle("Admin Settings")
+            vbox = QVBoxLayout(dlg)
+
+            chk_llm_a = QCheckBox("Enable Primary LLM (Model A)")
+            chk_llm_a.setChecked(get_bool_setting("llm_a_enabled", False))
+            vbox.addWidget(chk_llm_a)
+
+            chk_llm_b = QCheckBox("Enable Secondary LLM (Model B)")
+            chk_llm_b.setChecked(get_bool_setting("llm_b_enabled", False))
+            vbox.addWidget(chk_llm_b)
+
+            # In a real app, you might add trial period settings here
+            # For now, we just have the LLM toggles.
+
+            btn_box = QHBoxLayout()
+            btn_ok = QPushButton("Save")
+            btn_cancel = QPushButton("Cancel")
+            btn_box.addStretch(1)
+            btn_box.addWidget(btn_ok)
+            btn_box.addWidget(btn_cancel)
+            vbox.addLayout(btn_box)
+
+            def on_save():
+                set_bool_setting("llm_a_enabled", chk_llm_a.isChecked())
+                set_bool_setting("llm_b_enabled", chk_llm_b.isChecked())
+                self.refresh_llm_indicator() # Refresh the status bar
+                dlg.accept()
+
+            btn_ok.clicked.connect(on_save)
+            btn_cancel.clicked.connect(dlg.reject)
+
+            dlg.exec()
 
         def reapply_theme(self):
             try:
@@ -2861,19 +2918,16 @@ def _run_gui() -> Optional[int]:
 
         def refresh_llm_indicator(self):
             try:
-                name_a = get_str_setting("clinical_ner_model", "d4data/biomedical-ner-all")
-                name_b = get_str_setting("clinical_ner_model_b", "").strip()
-                enabled = get_bool_setting("clinical_ner_enabled", False)
-                short_a = name_a.split("/")[-1] if "/" in name_a else name_a
-                short_b = (name_b.split("/")[-1] if "/" in name_b else name_b) if name_b else "disabled"
-                ok_a = enabled
-                ok_b = enabled and bool(name_b)
-                self.lbl_lm1.setText(f" LM A: {short_a or 'n/a'} ")
+                llm_a_enabled = get_bool_setting("llm_a_enabled", False)
+                llm_b_enabled = get_bool_setting("llm_b_enabled", False)
+
+                self.lbl_lm1.setText(" LM A: On ")
                 self.lbl_lm1.setStyleSheet(("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
-                                           if ok_a else "background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
-                self.lbl_lm2.setText(f" LM B: {short_b} ")
+                                           if llm_a_enabled else "background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
+
+                self.lbl_lm2.setText(" LM B: On ")
                 self.lbl_lm2.setStyleSheet(("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
-                                           if ok_b else "background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
+                                           if llm_b_enabled else "background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
             except Exception:
                 ...
 
