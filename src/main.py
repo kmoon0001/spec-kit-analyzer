@@ -9,10 +9,13 @@ import os
 import re
 import sqlite3
 import sys
+import threading
 from typing import Callable, List, Literal, Tuple, Optional
 
 # Third-party used throughout
 import pandas as pd  # type: ignore
+
+from local_llm import LocalRAG
 
 # --- Configuration defaults and constants ---
 REPORT_TEMPLATE_VERSION = "v2.0"
@@ -812,7 +815,7 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                         INTEGER,
                         flags
                         INTEGER,
-                        wobblers
+                        findings
                         INTEGER,
                         suggestions
                         INTEGER,
@@ -914,12 +917,12 @@ def persist_analysis_run(file_path: str, run_time: str, metrics: dict, issues_sc
         with _get_db_connection() as conn:
             cur = conn.cursor()
             cur.execute("""
-                        INSERT INTO analysis_runs (file_name, run_time, pages_est, flags, wobblers, suggestions, notes,
+                        INSERT INTO analysis_runs (file_name, run_time, pages_est, flags, findings, suggestions, notes,
                                                    sentences_final, dedup_removed, compliance_score, mode)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (
                             os.path.basename(file_path), run_time,
-                            int(metrics.get("pages", 0)), int(metrics.get("flags", 0)), int(metrics.get("wobblers", 0)),
+                            int(metrics.get("pages", 0)), int(metrics.get("flags", 0)), int(metrics.get("findings", 0)),
                             int(metrics.get("suggestions", 0)), int(metrics.get("notes", 0)),
                             int(metrics.get("sentences_final", 0)), int(metrics.get("dedup_removed", 0)),
                             float(compliance.get("score", 0.0)), mode
@@ -944,13 +947,13 @@ def _compute_recent_trends(max_runs: int = 10) -> dict:
         "score_delta": 0.0,
         "avg_score": 0.0,
         "avg_flags": 0.0,
-        "avg_wobblers": 0.0,
+        "avg_findings": 0.0,
         "avg_suggestions": 0.0,
     }
     try:
         with _get_db_connection() as conn:
             runs = pd.read_sql_query(
-                "SELECT compliance_score, flags, wobblers, suggestions FROM analysis_runs ORDER BY run_time ASC", conn
+                "SELECT compliance_score, flags, findings, suggestions FROM analysis_runs ORDER BY run_time ASC", conn
             )
         if runs.empty:
             return out
@@ -960,7 +963,7 @@ def _compute_recent_trends(max_runs: int = 10) -> dict:
         out["avg_score"] = round(float(sum(scores) / len(scores)), 1) if scores else 0.0
         out["score_delta"] = round((scores[-1] - scores[0]) if len(scores) >= 2 else 0.0, 1)
         out["avg_flags"] = round(float(sub["flags"].mean()), 2)
-        out["avg_wobblers"] = round(float(sub["wobblers"].mean()), 2)
+        out["avg_findings"] = round(float(sub["findings"].mean()), 2)
         out["avg_suggestions"] = round(float(sub["suggestions"].mean()), 2)
     except Exception:
         ...
@@ -1039,21 +1042,21 @@ def _audit_from_rubric(text: str, strict: bool | None = None) -> list[dict]:
 
     s = bool(strict)
     if not any(k in t for k in ("signature", "signed", "dated")):
-        add("flag" if s else "wobbler", "Provider signature/date possibly missing",
+        add("flag" if s else "finding", "Provider signature/date possibly missing",
             "No explicit evidence of dated/signature entries found.", "Signatures/Dates")
     if "goal" in t and not any(k in t for k in ("measurable", "time", "timed")):
-        add("flag" if s else "wobbler", "Goals may not be measurable/time-bound",
+        add("flag" if s else "finding", "Goals may not be measurable/time-bound",
             "Consider restating goals with measurable, time-bound targets and baselines.", "Goals")
     if not any(k in t for k in ("medical necessity", "reasonable and necessary", "necessity")):
-        add("flag" if s else "wobbler", "Medical necessity not explicitly supported",
+        add("flag" if s else "finding", "Medical necessity not explicitly supported",
             "Ensure documentation ties interventions to functional limitations and outcomes aligned with Medicare Part B.",
             "Medical Necessity")
     if "assistant" in t and "supervis" not in t:
-        add("wobbler" if s else "suggestion", "Assistant supervision context unclear",
+        add("finding" if s else "suggestion", "Assistant supervision context unclear",
             "When assistants are involved, document supervision/oversight per Medicare/state requirements.",
             "Assistant Supervision")
     if not any(k in t for k in ("plan of care", "poc", "certification", "recert")):
-        add("flag" if s else "wobbler", "Plan/Certification not clearly referenced",
+        add("flag" if s else "finding", "Plan/Certification not clearly referenced",
             "Explicitly reference plan of care/certification dates and responsible signatures.", "Plan/Certification")
     issues.append({
         "severity": "auditor_note",
@@ -1231,8 +1234,8 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
 
                 if page_idx == 0 and chart_on_top:
                     try:
-                        cats = ["Flags", "Wobblers", "Suggestions", "Notes"]
-                        vals = [sev_counts.get("flag", 0), sev_counts.get("wobbler", 0),
+                        cats = ["Flags", "Findings", "Suggestions", "Notes"]
+                        vals = [sev_counts.get("flag", 0), sev_counts.get("finding", 0),
                                 sev_counts.get("suggestion", 0), sev_counts.get("auditor_note", 0)] if sev_counts else [
                             0, 0, 0, 0]
                         ax_chart = fig.add_axes([0.07, 0.81, 0.86, 0.12])
@@ -1285,8 +1288,8 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
                         y0 = 0.08
                         h = 0.16
                         if sev_counts:
-                            cats = ["Flags", "Wobblers", "Suggestions", "Notes"]
-                            vals = [sev_counts.get("flag", 0), sev_counts.get("wobbler", 0),
+                            cats = ["Flags", "Findings", "Suggestions", "Notes"]
+                            vals = [sev_counts.get("flag", 0), sev_counts.get("finding", 0),
                                     sev_counts.get("suggestion", 0), sev_counts.get("auditor_note", 0)]
                             ax_s = fig.add_axes([0.07, y0, 0.40, h])
                             ax_s.bar(cats, vals, color=["#ef4444", "#f59e0b", "#10b981", "#9ca3af"])
@@ -1420,7 +1423,7 @@ def _generate_risk_dashboard(compliance_score: float, sev_counts: dict) -> list[
     lines = ["--- Risk Dashboard ---"]
     score = compliance_score
     flags = sev_counts.get("flag", 0)
-    wobblers = sev_counts.get("wobbler", 0)
+    findings = sev_counts.get("finding", 0)
 
     if score >= 90 and flags == 0:
         risk = "Low"
@@ -1436,7 +1439,7 @@ def _generate_risk_dashboard(compliance_score: float, sev_counts: dict) -> list[
     lines.append(f"Compliance Score: {score:.1f}/100")
     lines.append(f"Summary: {summary}")
     lines.append(f"Critical Findings (Flags): {flags}")
-    lines.append(f"Areas of Concern (Wobblers): {wobblers}")
+    lines.append(f"Areas of Concern (Findings): {findings}")
     lines.append("")
     return lines
 
@@ -1572,7 +1575,7 @@ def run_analyzer(file_path: str,
                     # Citation might not be an exact substring, ignore for now.
                     issue['location'] = None
 
-        sev_order = {"flag": 0, "wobbler": 1, "suggestion": 2, "auditor_note": 3}
+        sev_order = {"flag": 0, "finding": 1, "suggestion": 2, "auditor_note": 3}
         issues_scored.sort(key=lambda x: (sev_order.get(str(x.get("severity")), 9),
                                           str(x.get("category", "")),
                                           str(x.get("title", ""))))
@@ -1657,7 +1660,7 @@ def run_analyzer(file_path: str,
 
         sev_counts = {
             "flag": sum(1 for i in issues_scored if i.get("severity") == "flag"),
-            "wobbler": sum(1 for i in issues_scored if i.get("severity") == "wobbler"),
+            "finding": sum(1 for i in issues_scored if i.get("severity") == "finding"),
             "suggestion": sum(1 for i in issues_scored if i.get("severity") == "suggestion"),
             "auditor_note": sum(1 for i in issues_scored if i.get("severity") == "auditor_note"),
         }
@@ -1666,22 +1669,22 @@ def run_analyzer(file_path: str,
         def compute_compliance_score(issues: list[dict], strengths_in: list[str], missing_in: list[str],
                                      mode: ReviewMode) -> dict:
             flags = sum(1 for i in issues if i.get("severity") == "flag")
-            wob = sum(1 for i in issues if i.get("severity") == "wobbler")
+            finds = sum(1 for i in issues if i.get("severity") == "finding")
             sug = sum(1 for i in issues if i.get("severity") == "suggestion")
             base = 100.0
             if mode == "Strict":
                 base -= flags * 6.0
-                base -= wob * 3.0
+                base -= finds * 3.0
                 base -= sug * 1.5
                 base -= len(missing_in) * 4.0
             else:
                 base -= flags * 4.0
-                base -= wob * 2.0
+                base -= finds * 2.0
                 base -= sug * 1.0
                 base -= len(missing_in) * 2.5
             base += min(5.0, len(strengths_in) * 0.5)
             score = max(0.0, min(100.0, base))
-            breakdown = f"Flags={flags}, Wobblers={wob}, Suggestions={sug}, Missing={len(missing_in)}, Strengths={len(strengths_in)}; Mode={mode}"
+            breakdown = f"Flags={flags}, Findings={finds}, Suggestions={sug}, Missing={len(missing_in)}, Strengths={len(strengths_in)}; Mode={mode}"
             return {"score": round(score, 1), "breakdown": breakdown}
 
         compliance = compute_compliance_score(issues_scored, strengths, missing, CURRENT_REVIEW_MODE)
@@ -1782,7 +1785,7 @@ def run_analyzer(file_path: str,
                 "score_delta": round(
                     float(compliance["score"]) - float(last_snap.get("compliance", {}).get("score", 0.0)), 1),
                 "flags_delta": sev_counts["flag"] - int(prev.get("flags", 0)),
-                "wobblers_delta": sev_counts["wobbler"] - int(prev.get("wobblers", 0)),
+                "findings_delta": sev_counts["finding"] - int(prev.get("findings", 0)),
                 "suggestions_delta": sev_counts["suggestion"] - int(prev.get("suggestions", 0)),
             }
 
@@ -1870,7 +1873,7 @@ def run_analyzer(file_path: str,
             narrative_lines.append(
                 f" • Score delta: {trends['score_delta']:+.1f} | Average score: {trends['avg_score']:.1f}")
             narrative_lines.append(
-                f" • Avg Flags: {trends['avg_flags']:.2f} | Avg Wobblers: {trends['avg_wobblers']:.2f} | Avg Suggestions: {trends['avg_suggestions']:.2f}")
+                f" • Avg Flags: {trends['avg_flags']:.2f} | Avg Findings: {trends['avg_findings']:.2f} | Avg Suggestions: {trends['avg_suggestions']:.2f}")
         else:
             narrative_lines.append(" • Not enough history to compute trends yet.")
         narrative_lines.append("")
@@ -1879,7 +1882,7 @@ def run_analyzer(file_path: str,
             "pages": pages_est,
             "findings_total": len(issues_scored),
             "flags": sev_counts["flag"],
-            "wobblers": sev_counts["wobbler"],
+            "findings": sev_counts["finding"],
             "suggestions": sev_counts["suggestion"],
             "notes": sev_counts["auditor_note"],
             "sentences_raw": summary["total_sentences_raw"],
@@ -1968,7 +1971,7 @@ def run_analyzer(file_path: str,
                 "dedup_method": dedup_method,
                 "pages_est": pages_est,
                 "flags": sev_counts["flag"],
-                "wobblers": sev_counts["wobbler"],
+            "findings": sev_counts["finding"],
                 "suggestions": sev_counts["suggestion"],
                 "notes": sev_counts["auditor_note"],
                 "sentences_raw": summary["total_sentences_raw"],
@@ -2223,6 +2226,7 @@ def _run_gui() -> Optional[int]:
             self._last_error: Optional[str] = None
             self._batch_cancel = False
             self.current_report_data: Optional[dict] = None
+            self.rag_system: Optional[LocalRAG] = None
 
             tb = QToolBar("Main")
             try:
@@ -2503,8 +2507,32 @@ def _run_gui() -> Optional[int]:
                 self.lbl_report_name.setText("(No report selected)")
                 self.refresh_llm_indicator()
                 self.refresh_recent_files()
+                self.statusBar().showMessage("Initializing AI Chat System...")
+                self._initialize_rag_system_in_background()
             except Exception:
                 ...
+
+        def _initialize_rag_system_in_background(self):
+            """Initializes the RAG system in a background thread to avoid freezing the GUI."""
+            thread = threading.Thread(target=self._initialize_rag_system, daemon=True)
+            thread.start()
+
+        def _initialize_rag_system(self):
+            """The actual initialization of the RAG system."""
+            self.log("Initializing local AI chat system...")
+            # Using a low n_gpu_layers count to be safe for CPU-only environments.
+            self.rag_system = LocalRAG(
+                model_repo_id="TroyDoesAI/Tiny-RAG-gguf",
+                model_filename="Tiny-RAG.gguf",
+                n_gpu_layers=0
+            )
+            if self.rag_system.is_ready():
+                self.log("Local AI chat system initialized successfully.")
+                self.statusBar().showMessage("AI Chat Ready.", 5000)
+            else:
+                self.log("Failed to initialize local AI chat system. See logs for details.")
+                self.statusBar().showMessage("AI Chat Failed to Load.", 5000)
+                self.set_error("Local AI chat disabled.")
 
         # Helpers and actions
         def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px", fixed_width: Optional[int] = None):
@@ -2865,6 +2893,9 @@ def _run_gui() -> Optional[int]:
                     ...
                 try:
                     self.txt_chat.clear()
+                    if self.rag_system:
+                        self.rag_system.index = None
+                        self.log("Cleared document context for AI chat.")
                 except Exception:
                     ...
                 self.log("Cleared all selections.")
@@ -2952,13 +2983,27 @@ def _run_gui() -> Optional[int]:
                         except Exception:
                             ...
                     self.log("Analysis complete:\n" + "\n".join(" - " + x for x in outs))
+                    data = None
                     try:
                         import json
                         with open(res["json"], "r", encoding="utf-8") as f:
                             data = json.load(f)
                         self.render_analysis_to_results(data)
-                    except Exception:
-                        ...
+                    except Exception as e:
+                        self.log(f"Failed to render analysis results: {e}")
+
+                    try:
+                        if data and self.rag_system and self.rag_system.is_ready():
+                            self.log("Creating document index for AI chat...")
+                            sentences = [s[0] for s in data.get('source_sentences', []) if s]
+                            if sentences:
+                                self.rag_system.create_index(sentences)
+                                self.log("Document index created. Ready for questions.")
+                                self.txt_chat.append("\n<b>AI chat is ready for questions about this document.</b>\n")
+                            else:
+                                self.log("No text found in document to index for AI chat.")
+                    except Exception as e:
+                        self.log(f"Failed to create document index for AI chat: {e}")
                     try:
                         _open_path(res["pdf"])
                     except Exception:
@@ -3019,6 +3064,17 @@ def _run_gui() -> Optional[int]:
                         res = run_analyzer(path, progress_cb=_cb, cancel_cb=_cancel)
                         if res.get("pdf") or res.get("json") or res.get("csv"):
                             ok_count += 1
+                            try:
+                                if self.rag_system and self.rag_system.is_ready() and res.get("json"):
+                                    import json
+                                    with open(res["json"], "r", encoding="utf-8") as f:
+                                        data = json.load(f)
+                                    sentences = [s[0] for s in data.get('source_sentences', []) if s]
+                                    if sentences:
+                                        self.rag_system.create_index(sentences)
+                                        self.log(f"Updated AI chat context to: {os.path.basename(path)}")
+                            except Exception as e:
+                                self.log(f"Failed to update RAG index for {path}: {e}")
                         else:
                             fail_count += 1
                     except Exception:
@@ -3037,6 +3093,10 @@ def _run_gui() -> Optional[int]:
                     else:
                         title = "Batch Complete"
                         body_top = f"All set! Your batch is complete.\n\nSummary:\n- Success: {ok_count}\n- Failed:  {fail_count}"
+
+                    if ok_count > 0:
+                        self.txt_chat.append(f"\n<b>Batch analysis complete. AI chat context is set to the last successfully analyzed file.</b>\n")
+
                     msg = [body_top, "", f"Location: {folder}", "", "Open that folder now?"]
                     reply2 = QMessageBox.question(self, title, "\n".join(msg))  # type: ignore
                     if str(reply2).lower().endswith("yes"):
@@ -3076,6 +3136,13 @@ def _run_gui() -> Optional[int]:
             try:
                 self.current_report_data = data
 
+                definitions = {
+                    "Flag": "A critical compliance issue that will almost certainly lead to a claim denial (e.g., a missing signature).",
+                    "Finding": "A significant issue that increases audit risk and should be addressed, but may not be an automatic denial (e.g., goals are not clearly measurable).",
+                    "Suggestion": "A minor issue or a best-practice recommendation for documentation improvement.",
+                    "Auditor_Note": "A general observation from the automated auditor."
+                }
+
                 file_name = os.path.basename(data.get("file", "Unknown File"))
                 report_html = f"<h1>Analysis for: {file_name}</h1>"
 
@@ -3091,10 +3158,15 @@ def _run_gui() -> Optional[int]:
                         loc = issue.get('location')
                         link = f"<a href='highlight:{loc['start']}:{loc['end']}'>Show in text</a>" if loc else "(location not found)"
 
-                        sev = str(issue.get("severity", "")).title()
+                        sev_raw = str(issue.get("severity", ""))
+                        # Handle auditor_note -> Auditor_Note for title casing
+                        sev = "Auditor_Note" if sev_raw == "auditor_note" else sev_raw.title()
+                        sev_tooltip = definitions.get(sev, "No definition available.")
+
                         cat = issue.get("category", "") or "General"
                         title = issue.get("title", "") or "Finding"
-                        narrative_lines.append(f"<b>[{sev}][{cat}] {title}</b>")
+
+                        narrative_lines.append(f"<b>[<span title='{html.escape(sev_tooltip)}'>{sev}</span>][{cat}] {title}</b>")
 
                         details = issue.get("details", {}) # Assuming details are now nested
                         if 'action' in details: narrative_lines.append(f"  - Recommended Action: {details['action']}")
@@ -3202,39 +3274,34 @@ def _run_gui() -> Optional[int]:
             q = self.input_query_te.toPlainText().strip() if hasattr(self, "input_query_te") else ""
             if not q:
                 return
+
+            self.txt_chat.append(f"\n<b>User:</b><br>{html.escape(q)}\n")
+            self.input_query_te.setPlainText("")
+            QApplication.processEvents()  # Update the UI to show the user's question
+
             try:
-                last_json = get_setting("last_report_json")
-                if not last_json or not os.path.isfile(last_json):
-                    self.txt_chat.append("No analysis context available. Analyze a file first.\n")
-                    return
-                import json
-                with open(last_json, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-
-                # Search the original document sentences, not the narrative summary
-                sentences = data.get("source_sentences", [])
-                if not sentences:
-                    self.txt_chat.append("No document text available to search. Please analyze a file first.\n")
+                if not self.rag_system or not self.rag_system.is_ready():
+                    self.txt_chat.append("<b>AI Assistant:</b><br>The local AI chat system is not available. Please check the logs.\n")
                     return
 
-                # The sentences are stored as [text, source] pairs. We search the text.
-                lines = [item[0] for item in sentences if isinstance(item, list) and len(item) > 0]
+                if not self.rag_system.index:
+                    self.txt_chat.append("<b>AI Assistant:</b><br>Please analyze a document first. The AI needs context to answer questions.\n")
+                    return
 
-                ql = q.lower()
-                search_terms = set(re.findall(r"[a-z0-9]{3,}", ql))
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+                self.statusBar().showMessage("AI is thinking...")
 
-                hits = []
-                if search_terms:
-                    for line in lines:
-                        line_lower = line.lower()
-                        if any(term in line_lower for term in search_terms):
-                            hits.append(line.strip())
+                answer = self.rag_system.query(q)
 
-                ans = "\n".join(hits[:5]) if hits else "(No specific passages found. Try rephrasing.)"
-                self.txt_chat.append(f"User:\n{q}\n\nAnswer:\n{ans}\n")
-                self.input_query_te.setPlainText("")
+                # Use html.escape to be safe with the LLM output
+                self.txt_chat.append(f"<b>AI Assistant:</b><br>{html.escape(answer)}\n")
+
             except Exception as e:
                 self.set_error(str(e))
+                self.txt_chat.append("<b>AI Assistant:</b><br>An error occurred while getting a response.\n")
+            finally:
+                self.statusBar().showMessage("Ready")
+                QApplication.restoreOverrideCursor()
 
     app = QApplication(sys.argv)
     apply_theme(app)

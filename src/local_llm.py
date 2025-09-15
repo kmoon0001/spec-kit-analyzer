@@ -1,0 +1,148 @@
+from __future__ import annotations
+
+import logging
+import os
+from typing import List, Optional
+
+import faiss
+import numpy as np
+from huggingface_hub import hf_hub_download
+from llama_cpp import Llama
+from sentence_transformers import SentenceTransformer
+
+# --- Configuration ---
+# Using a small, fast, and effective model for sentence embeddings.
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+
+# --- Logging ---
+logger = logging.getLogger(__name__)
+
+
+class LocalRAG:
+    """
+    A class to manage a local Retrieval-Augmented Generation (RAG) system.
+    It uses a sentence transformer for embeddings, FAISS for similarity search,
+    and a local LLM for generating responses based on retrieved context.
+    """
+
+    def __init__(self, model_repo_id: str, model_filename: str, n_gpu_layers: int = 0):
+        """
+        Initializes the LocalRAG system.
+
+        Args:
+            model_repo_id (str): The Hugging Face repository ID of the GGUF model.
+            model_filename (str): The filename of the GGUF model in the repository.
+            n_gpu_layers (int): Number of layers to offload to GPU. 0 for CPU only.
+        """
+        self.llm: Optional[Llama] = None
+        self.embedding_model: Optional[SentenceTransformer] = None
+        self.index: Optional[faiss.Index] = None
+        self.text_chunks: List[str] = []
+
+        try:
+            # 1. Load the sentence transformer model for creating embeddings
+            logger.info(f"Loading embedding model: {EMBEDDING_MODEL}")
+            self.embedding_model = SentenceTransformer(EMBEDDING_MODEL)
+            logger.info("Embedding model loaded successfully.")
+
+            # 2. Download and load the local LLM
+            logger.info(f"Downloading LLM from {model_repo_id}...")
+            model_path = hf_hub_download(repo_id=model_repo_id, filename=model_filename)
+            logger.info(f"LLM downloaded to: {model_path}")
+
+            self.llm = Llama(
+                model_path=model_path,
+                n_ctx=4096,  # Context window size
+                n_gpu_layers=n_gpu_layers,  # Set to 0 for CPU, or a positive number for GPU layers
+                verbose=False,
+            )
+            logger.info("Local LLM loaded successfully.")
+
+        except Exception as e:
+            logger.exception(f"Failed to initialize LocalRAG: {e}")
+            # This allows the main application to continue running even if the LLM fails to load.
+            self.llm = None
+            self.embedding_model = None
+
+    def is_ready(self) -> bool:
+        """Check if the RAG system is fully initialized and ready to use."""
+        return self.llm is not None and self.embedding_model is not None
+
+    def create_index(self, texts: List[str]):
+        """
+        Creates a FAISS index from a list of text chunks.
+
+        Args:
+            texts (List[str]): A list of strings, where each string is a chunk of text.
+        """
+        if not self.is_ready() or not self.embedding_model:
+            logger.warning("RAG system is not ready. Cannot create index.")
+            return
+
+        logger.info(f"Creating FAISS index for {len(texts)} text chunks.")
+        self.text_chunks = texts
+
+        # Generate embeddings for each text chunk
+        embeddings = self.embedding_model.encode(texts, convert_to_tensor=False)
+        embedding_dim = embeddings.shape[1]
+
+        # Create a FAISS index
+        self.index = faiss.IndexFlatL2(embedding_dim)
+        self.index.add(np.array(embeddings, dtype=np.float32))
+        logger.info("FAISS index created successfully.")
+
+    def query(self, question: str, k: int = 3) -> str:
+        """
+        Queries the RAG system.
+
+        Args:
+            question (str): The user's question.
+            k (int): The number of relevant text chunks to retrieve.
+
+        Returns:
+            str: The LLM's generated answer.
+        """
+        if not self.is_ready() or not self.index or not self.embedding_model or not self.llm:
+            return "The local AI chat is not available. Please check the logs for errors."
+
+        logger.info(f"Received query: {question}")
+
+        # 1. Find relevant text chunks from the FAISS index
+        query_embedding = self.embedding_model.encode([question])
+        _, I = self.index.search(np.array(query_embedding, dtype=np.float32), k)
+
+        retrieved_chunks = [self.text_chunks[i] for i in I[0]]
+
+        # NOTE: This is where we can extend the system in the future.
+        # We could also retrieve structured data from the compliance analysis
+        # (e.g., flagged issues) and add it to the context.
+
+        # 2. Construct the prompt using the special format required by the model
+        context_str = ""
+        for i, chunk in enumerate(retrieved_chunks):
+            context_str += f"BEGININPUT\nBEGINCONTEXT\nsource: document_chunk_{i}\nENDCONTEXT\n{chunk}\nENDINPUT\n"
+
+        prompt = (
+            "Contextual-Request:\n"
+            f"{context_str}"
+            "BEGININSTRUCTION\n"
+            f"Based on the provided context, answer the following question: {question}\n"
+            "ENDINSTRUCTION\n"
+        )
+
+        logger.info("Sending prompt to LLM...")
+
+        # 3. Call the LLM to get the answer
+        try:
+            output = self.llm(prompt, max_tokens=512, stop=["ENDINSTRUCTION"], echo=False)
+            answer = output["choices"][0]["text"].strip()
+
+            # NOTE: The structured output from the LLM can be captured here.
+            # For now, we just return the text, but we could return a dict
+            # with the answer and the sources used, for inclusion in reports.
+
+            logger.info(f"LLM generated answer: {answer}")
+            return answer
+        except Exception as e:
+            logger.exception(f"Error during LLM inference: {e}")
+            return "An error occurred while generating a response."
