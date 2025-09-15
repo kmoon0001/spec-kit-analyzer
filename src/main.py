@@ -1795,6 +1795,7 @@ def run_analyzer(file_path: str,
                 "pdf_chart_theme": get_str_setting("pdf_chart_theme", "dark"),
                 "report_severity_ordering": "flags_first",
                 "clinical_ner_enabled": False,
+                "source_sentences": collapsed,
                 "sev_counts": sev_counts,
                 "cat_counts": cat_counts,
                 "trends": trends,
@@ -2595,6 +2596,11 @@ def _run_gui() -> Optional[int]:
                 if files:
                     self.list_folder_files.addItems(files)
                     self.log(f"Loaded folder with {len(files)} files.")
+                    reply = QMessageBox.question(self, "Batch Analysis",
+                                                 f"{len(files)} supported files were found in the folder.\n\nDo you want to start the analysis for all of them now?",
+                                                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                    if reply == QMessageBox.StandardButton.Yes:
+                        self.action_analyze_batch()
                 else:
                     self.log("No supported documents found in the selected folder.")
             except Exception as e:
@@ -2883,11 +2889,27 @@ def _run_gui() -> Optional[int]:
                 import json
                 with open(last_json, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                narrative = (data.get("narrative") or "")
-                lines = [ln.strip() for ln in narrative.splitlines() if ln.strip()]
+
+                # Search the original document sentences, not the narrative summary
+                sentences = data.get("source_sentences", [])
+                if not sentences:
+                    self.txt_chat.append("No document text available to search. Please analyze a file first.\n")
+                    return
+
+                # The sentences are stored as [text, source] pairs. We search the text.
+                lines = [item[0] for item in sentences if isinstance(item, list) and len(item) > 0]
+
                 ql = q.lower()
-                hits = [ln for ln in lines if any(w and w in ln.lower() for w in re.findall(r"[a-z0-9]{3,}", ql))]
-                ans = "\n".join(hits[:8]) if hits else "(No specific passages found. Try rephrasing.)"
+                search_terms = set(re.findall(r"[a-z0-9]{3,}", ql))
+
+                hits = []
+                if search_terms:
+                    for line in lines:
+                        line_lower = line.lower()
+                        if any(term in line_lower for term in search_terms):
+                            hits.append(line.strip())
+
+                ans = "\n".join(hits[:5]) if hits else "(No specific passages found. Try rephrasing.)"
                 self.txt_chat.append(f"User:\n{q}\n\nAnswer:\n{ans}\n")
                 self.input_query_te.setPlainText("")
             except Exception as e:
