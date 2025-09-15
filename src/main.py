@@ -2112,7 +2112,6 @@ def _run_gui() -> Optional[int]:
                 self.btn_remove_rubric.clicked.connect(self.action_remove_rubric)  # type: ignore[attr-defined]
             except Exception:
                 ...
-            row_rubric_btns.addStretch(1)
             rubric_layout.addLayout(row_rubric_btns)
 
             self.lbl_rubric_title = QLabel("Medicare B Guidelines")
@@ -2411,86 +2410,123 @@ def _run_gui() -> Optional[int]:
             try:
                 dlg = QDialog(self)
                 dlg.setWindowTitle("Manage Rubrics")
-                v = QVBoxLayout(dlg)
-                v.setContentsMargins(12, 12, 12, 12)
-                v.setSpacing(8)
+                dlg.setMinimumSize(600, 500)
+
+                main_layout = QHBoxLayout(dlg)
+                main_layout.setContentsMargins(12, 12, 12, 12)
+                main_layout.setSpacing(8)
+
+                # Left side: List and controls
+                left_vbox = QVBoxLayout()
+
                 lst = QListWidget()
                 import json
                 raw = get_setting("rubric_catalog") or "[]"
                 catalog = json.loads(raw) if raw else []
-                for it in (catalog if isinstance(catalog, list) else []):
+                if not isinstance(catalog, list): catalog = []
+
+                for it in catalog:
                     lst.addItem(it.get("name", "Untitled"))
-                v.addWidget(lst)
-                row = QHBoxLayout()
-                btn_add = QPushButton("Add From File")
-                btn_set_active = QPushButton("Set Active")
-                btn_remove = QPushButton("Remove")
-                for b in (btn_add, btn_set_active, btn_remove):
-                    fb = QFont();
-                    fb.setPointSize(12);
-                    fb.setBold(True);
-                    b.setFont(fb);
-                    b.setMinimumHeight(36)
-                    row.addWidget(b)
-                v.addLayout(row)
+                left_vbox.addWidget(lst)
+
+                # Right side: Editor
+                right_vbox = QVBoxLayout()
+                editor = QTextEdit()
+                editor.setPlaceholderText("Select a rubric to view or edit its content.")
+                right_vbox.addWidget(editor)
+
+                # Bottom buttons
+                bottom_hbox = QHBoxLayout()
+                btn_add = QPushButton("Add From File...")
+                btn_remove = QPushButton("Remove Selected")
+                btn_save = QPushButton("Save Changes")
+                btn_set_active = QPushButton("Set Active & Close")
+
+                bottom_hbox.addWidget(btn_add)
+                bottom_hbox.addWidget(btn_remove)
+                bottom_hbox.addStretch(1)
+                bottom_hbox.addWidget(btn_save)
+                bottom_hbox.addWidget(btn_set_active)
+
+                left_vbox.addLayout(bottom_hbox)
+
+                main_layout.addLayout(left_vbox, 1)
+                main_layout.addLayout(right_vbox, 2)
+
+                def populate_editor():
+                    rowi = lst.currentRow()
+                    if rowi < 0 or rowi >= len(catalog):
+                        editor.setPlainText("")
+                        return
+                    editor.setPlainText(catalog[rowi].get("content", ""))
 
                 def add_file():
-                    path, _ = QFileDialog.getOpenFileName(self, "Select rubric text file", "",
-                                                          "Text files (*.txt);;All Files (*)")
-                    if not path:
-                        return
+                    path, _ = QFileDialog.getOpenFileName(self, "Select rubric text file", "", "Text files (*.txt);;All Files (*)")
+                    if not path: return
                     try:
                         with open(path, "r", encoding="utf-8") as f:
                             txt = f.read()
                         name = os.path.basename(path)
-                        items = catalog if isinstance(catalog, list) else []
-                        items.append({"name": name, "path": path, "content": txt})
-                        set_setting("rubric_catalog", json.dumps(items, ensure_ascii=False))
+                        if any(item.get("name") == name for item in catalog):
+                            QMessageBox.warning(self, "Rubric", "A rubric with this name already exists.")
+                            return
+                        catalog.append({"name": name, "path": path, "content": txt})
+                        set_setting("rubric_catalog", json.dumps(catalog, ensure_ascii=False))
                         lst.addItem(name)
                     except Exception as e:
                         QMessageBox.warning(self, "Rubrics", f"Failed to add rubric:\n{e}")
 
-                def set_active():
-                    rowi = lst.currentRow()
-                    if rowi < 0:
-                        QMessageBox.information(self, "Rubrics", "Select a rubric first.")
-                        return
-                    items = catalog if isinstance(catalog, list) else []
-                    if rowi >= len(items):
-                        return
-                    it = items[rowi]
-                    set_setting("rubric_active_name", it.get("name", ""))
-                    set_setting("rubric_current_text", it.get("content", ""))
-                    self.txt_rubric.setPlainText(it.get("content", ""))
-                    self.lbl_rubric_file.setText(it.get("name", "Rubric Loaded"))
-                    self.lbl_rubric_file.setStyleSheet("color:#60a5fa; font-weight:700;")
-                    QMessageBox.information(self, "Rubrics", f"Active rubric set to: {it.get('name', '')}")
-                    dlg.accept()
-
                 def remove_selected():
                     rowi = lst.currentRow()
-                    if rowi < 0:
-                        return
-                    items = catalog if isinstance(catalog, list) else []
-                    if rowi >= len(items):
-                        return
-                    name = items[rowi].get("name", "")
-                    del items[rowi]
-                    set_setting("rubric_catalog", json.dumps(items, ensure_ascii=False))
+                    if rowi < 0 or rowi >= len(catalog): return
+
+                    name = catalog[rowi].get("name", "")
+                    reply = QMessageBox.question(self, "Remove Rubric", f"Are you sure you want to remove '{name}'?")
+                    if not str(reply).lower().endswith("yes"): return
+
+                    del catalog[rowi]
+                    set_setting("rubric_catalog", json.dumps(catalog, ensure_ascii=False))
                     lst.takeItem(rowi)
+                    editor.clear()
+
                     if get_setting("rubric_active_name") == name:
                         set_setting("rubric_active_name", "")
                         self.lbl_rubric_file.setText("(No rubric selected)")
                         self.lbl_rubric_file.setStyleSheet("")
                     QMessageBox.information(self, "Rubrics", f"Removed: {name}")
 
+                def save_changes():
+                    rowi = lst.currentRow()
+                    if rowi < 0 or rowi >= len(catalog):
+                        QMessageBox.warning(self, "Rubric", "Select a rubric to save.")
+                        return
+                    catalog[rowi]["content"] = editor.toPlainText()
+                    set_setting("rubric_catalog", json.dumps(catalog, ensure_ascii=False))
+                    QMessageBox.information(self, "Rubrics", f"Changes to '{catalog[rowi]['name']}' saved.")
+
+                def set_active():
+                    rowi = lst.currentRow()
+                    if rowi < 0 or rowi >= len(catalog):
+                        QMessageBox.information(self, "Rubrics", "Select a rubric first.")
+                        return
+
+                    save_changes() # Save changes before setting active
+                    it = catalog[rowi]
+                    set_setting("rubric_active_name", it.get("name", ""))
+                    set_setting("rubric_current_text", it.get("content", ""))
+                    self.txt_rubric.setPlainText(it.get("content", ""))
+                    self.lbl_rubric_file.setText(it.get("name", "Rubric Loaded"))
+                    self.lbl_rubric_file.setStyleSheet("color:#60a5fa; font-weight:700;")
+                    dlg.accept()
+
                 try:
-                    btn_add.clicked.connect(add_file)  # type: ignore[attr-defined]
-                    btn_set_active.clicked.connect(set_active)  # type: ignore[attr-defined]
-                    btn_remove.clicked.connect(remove_selected)  # type: ignore[attr-defined]
-                except Exception:
-                    ...
-                dlg.show();
+                    lst.currentRowChanged.connect(populate_editor)
+                    btn_add.clicked.connect(add_file)
+                    btn_remove.clicked.connect(remove_selected)
+                    btn_save.clicked.connect(save_changes)
+                    btn_set_active.clicked.connect(set_active)
+                except Exception: ...
+
                 dlg.exec()
             except Exception as e:
                 self.set_error(str(e))
