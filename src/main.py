@@ -24,7 +24,7 @@ REPORTS_DIR = os.getenv("SPEC_KIT_REPORTS", os.path.join(os.path.expanduser("~")
 LOGS_DIR = os.path.join(os.path.expanduser("~"), "Documents", "SpecKitData", "logs")
 
 # PDF report defaults
-REPORT_FONT_FAMILY = "DejaVu Sans Mono"
+REPORT_FONT_FAMILY = "DejaVu Sans"
 REPORT_FONT_SIZE = 8.5
 REPORT_PAGE_SIZE = (8.27, 11.69)  # A4 inches
 REPORT_MARGINS = (1.1, 1.0, 1.3, 1.0)  # top, right, bottom, left inches
@@ -1234,10 +1234,24 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
                 cursor_y = y_text_top
                 y_step = line_height_in / (page_h - (margin_top + margin_bottom))
                 for ln in page_lines:
-                    is_header = bool(ln and (ln.endswith(":") or (ln.istitle() and len(ln) <= 80)))
-                    size = font_size + (0.8 if is_header else 0.25)
-                    ax.text(0, cursor_y, ln, va="top", ha="left", family=font_family,
-                            fontsize=size, color=xtick)
+                    is_section_header = bool(ln and ln.startswith("---") and ln.endswith("---"))
+
+                    if is_section_header:
+                        cursor_y -= y_step * 0.5
+                        ax.axhline(y=cursor_y + (y_step * 0.2), xmin=0, xmax=1, color=spine, linewidth=0.7)
+                        cursor_y -= y_step * 0.2
+                        ax.text(0.5, cursor_y, ln.strip("- "), va="top", ha="center", family=font_family,
+                                fontsize=font_size + 1.5, color=xtick, weight="bold")
+                        cursor_y -= y_step * 1.2
+                        ax.axhline(y=cursor_y + (y_step * 0.5), xmin=0, xmax=1, color=spine, linewidth=0.7)
+                        cursor_y -= y_step * 0.5
+                    else:
+                        is_finding_header = bool(ln and ln.startswith("["))
+                        weight = "bold" if is_finding_header else "normal"
+                        size = font_size + (0.5 if is_finding_header else 0)
+                        ax.text(0, cursor_y, ln, va="top", ha="left", family=font_family,
+                                fontsize=size, color=xtick, weight=weight)
+
                     cursor_y -= y_step
 
                 if (page_idx == total_pages - 1) and chart_on_bottom and (sev_counts or cat_counts):
@@ -1641,23 +1655,33 @@ def run_analyzer(file_path: str,
             issue_details = {
                 "Provider signature/date possibly missing": {
                     "action": "Ensure all entries are signed and dated by the qualified provider.",
-                    "why": "Signatures and dates are required by Medicare to authenticate services."
+                    "why": "Signatures and dates are required by Medicare to authenticate that services were rendered as billed.",
+                    "good_example": "'Patient seen for 30 minutes of therapeutic exercise. [Provider Name], PT, DPT. 09/14/2025'",
+                    "bad_example": "An unsigned, undated note."
                 },
                 "Goals may not be measurable/time-bound": {
                     "action": "Rewrite goals to include a baseline, specific target, and a clear timeframe (e.g., 'improve from X to Y in 2 weeks').",
-                    "why": "Measurable, time-bound goals are essential to demonstrate progress and justify skilled intervention."
+                    "why": "Measurable goals are essential to demonstrate progress and justify the need for skilled intervention.",
+                    "good_example": "'Patient will improve shoulder flexion from 90 degrees to 120 degrees within 2 weeks to allow for independent overhead dressing.'",
+                    "bad_example": "'Patient will improve shoulder strength.'"
                 },
                 "Medical necessity not explicitly supported": {
                     "action": "Clearly link each intervention to a specific functional deficit and explain why the skill of a therapist is required.",
-                    "why": "Medicare only pays for services that are reasonable and necessary for the treatment of a patient's condition."
+                    "why": "Medicare only pays for services that are reasonable and necessary for the treatment of a patient's condition.",
+                    "good_example": "'...skilled verbal and tactile cues were required to ensure proper form and prevent injury.'",
+                    "bad_example": "'Patient tolerated treatment well.'"
                 },
                 "Assistant supervision context unclear": {
                     "action": "Document the level of supervision provided to the assistant, in line with state and Medicare guidelines.",
-                    "why": "Proper supervision of therapy assistants is a condition of payment."
+                    "why": "Proper supervision of therapy assistants is a condition of payment and ensures quality of care.",
+                    "good_example": "'PTA provided services under the direct supervision of the physical therapist who was on-site.'",
+                    "bad_example": "No mention of supervision when a PTA is involved."
                 },
                 "Plan/Certification not clearly referenced": {
                     "action": "Explicitly reference the signed Plan of Care and certification/recertification dates in progress notes.",
-                    "why": "Services must be provided under a certified Plan of Care to be eligible for reimbursement."
+                    "why": "Services must be provided under a certified Plan of Care to be eligible for reimbursement.",
+                    "good_example": "'Treatment provided as per Plan of Care certified on 09/01/2025.'",
+                    "bad_example": "No reference to the POC or certification period."
                 }
             }
             for it in issues_scored:
@@ -1670,6 +1694,8 @@ def run_analyzer(file_path: str,
                 if details:
                     narrative_lines.append(f"  - Recommended Action: {details['action']}")
                     narrative_lines.append(f"  - Why it matters: {details['why']}")
+                    narrative_lines.append(f"  - Good Example: {details['good_example']}")
+                    narrative_lines.append(f"  - Bad Example: {details['bad_example']}")
 
                 cites = it.get("citations") or []
                 if cites:
@@ -1684,6 +1710,13 @@ def run_analyzer(file_path: str,
             narrative_lines.append("No specific audit findings were identified.")
 
         narrative_lines.append("")
+        narrative_lines.append("--- General Recommendations ---")
+        narrative_lines.append(" • Consistency is key. Ensure all notes follow a standard format.")
+        narrative_lines.append(" • Be specific and objective. Use numbers and standardized tests to measure progress.")
+        narrative_lines.append(" • Always link treatment to function. Explain how the therapy helps the patient achieve their functional goals.")
+        narrative_lines.append(" • Tell a story. The documentation should paint a clear picture of the patient's journey from evaluation to discharge.")
+        narrative_lines.append("")
+
         narrative_lines.append("--- Trends & Analytics (Last 10 Runs) ---")
         if trends.get("recent_scores"):
             sc = trends["recent_scores"]
@@ -2079,6 +2112,7 @@ def _run_gui() -> Optional[int]:
                 self.btn_remove_rubric.clicked.connect(self.action_remove_rubric)  # type: ignore[attr-defined]
             except Exception:
                 ...
+            row_rubric_btns.addStretch(1)
             rubric_layout.addLayout(row_rubric_btns)
 
             self.lbl_rubric_title = QLabel("Medicare B Guidelines")
@@ -2195,12 +2229,7 @@ def _run_gui() -> Optional[int]:
             row_results_actions = QHBoxLayout()
             self.btn_results_analytics = QPushButton("Export Analytics CSV")
             try:
-                fba = QFont();
-                fba.setPointSize(13);
-                fba.setBold(True)
-                self.btn_results_analytics.setFont(fba)
-                self.btn_results_analytics.setMinimumHeight(40)
-                self.btn_results_analytics.setStyleSheet("text-align:center; padding:6px 10px;")
+                self._style_action_button(self.btn_results_analytics, font_size=11, bold=True, height=28, padding="4px 10px")
                 self.btn_results_analytics.clicked.connect(
                     lambda: self._export_analytics_csv())  # type: ignore[attr-defined]
             except Exception:
