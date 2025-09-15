@@ -674,6 +674,12 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
                         sentences.append((s, "Image (OCR)"))
             except UnidentifiedImageError as e:
                 return [(f"Error: Unidentified image: {e}", "OCR Parser")]
+        elif ext == ".txt":
+            with open(file_path, "r", encoding="utf-8") as f:
+                txt = f.read()
+            for s in split_sentences(txt):
+                if s:
+                    sentences.append((s, "Text File"))
         else:
             return [(f"Error: Unsupported file type: {ext}", "File Handler")]
         return sentences if sentences else [("Info: No text could be extracted from the document.", "System")]
@@ -2103,7 +2109,7 @@ def _run_gui() -> Optional[int]:
             self.btn_save_rubric = QPushButton("Save (App Only)")
             self.btn_remove_rubric = QPushButton("Remove Rubric")
             for b in (self.btn_upload_rubric, self.btn_manage_rubrics, self.btn_save_rubric, self.btn_remove_rubric):
-                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px")
+                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px", fixed_width=160)
                 row_rubric_btns.addWidget(b)
             try:
                 self.btn_upload_rubric.clicked.connect(self.action_upload_rubric)  # type: ignore[attr-defined]
@@ -2144,10 +2150,11 @@ def _run_gui() -> Optional[int]:
             self.btn_upload_folder = QPushButton("Open Folder")
             self.btn_analyze_all = QPushButton("Analyze")
             self.btn_cancel_batch = QPushButton("Cancel Batch")
+            self.btn_remove_file = QPushButton("Remove File")
             self.btn_clear_all = QPushButton("Clear All")
             for b in (self.btn_upload_report, self.btn_upload_folder, self.btn_analyze_all,
-                      self.btn_cancel_batch):
-                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px")
+                      self.btn_cancel_batch, self.btn_remove_file):
+                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px", fixed_width=160)
                 row_report_btns.addWidget(b)
             try:
                 self.btn_upload_report.clicked.connect(self.action_open_report)  # type: ignore[attr-defined]
@@ -2155,6 +2162,7 @@ def _run_gui() -> Optional[int]:
                 self.btn_analyze_all.clicked.connect(self.action_analyze_combined)  # type: ignore[attr-defined]
                 self.btn_cancel_batch.clicked.connect(self.action_cancel_batch)  # type: ignore[attr-defined]
                 self.btn_cancel_batch.setDisabled(True)
+                self.btn_remove_file.clicked.connect(self.action_remove_file) # type: ignore[attr-defined]
                 self.btn_clear_all.clicked.connect(self.action_clear_all)  # type: ignore[attr-defined]
             except Exception:
                 ...
@@ -2316,7 +2324,7 @@ def _run_gui() -> Optional[int]:
                 ...
 
         # Helpers and actions
-        def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px"):
+        def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px", fixed_width: Optional[int] = None):
             try:
                 f = QFont()
                 f.setPointSize(font_size)
@@ -2324,7 +2332,10 @@ def _run_gui() -> Optional[int]:
                 button.setFont(f)
                 button.setMinimumHeight(height)
                 button.setStyleSheet(f"text-align:center; padding:{padding};")
-                button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+                if fixed_width:
+                    button.setFixedWidth(fixed_width)
+                else:
+                    button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
             except Exception:
                 ...
 
@@ -2588,6 +2599,17 @@ def _run_gui() -> Optional[int]:
                     self.log("No supported documents found in the selected folder.")
             except Exception as e:
                 logger.exception("Open folder failed")
+                self.set_error(str(e))
+
+        def action_remove_file(self):
+            try:
+                items = self.list_folder_files.selectedItems()
+                if not items:
+                    QMessageBox.information(self, "Remove File", "Please select a file from the list to remove.")
+                    return
+                for item in items:
+                    self.list_folder_files.takeItem(self.list_folder_files.row(item))
+            except Exception as e:
                 self.set_error(str(e))
 
         def action_clear_all(self):
