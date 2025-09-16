@@ -147,6 +147,31 @@ class LLMWorker(QObject):
             self.error.emit(f"Failed to load AI model: {e}")
 
 
+class EducationDialog(QDialog):
+    """A custom dialog to display formatted educational content."""
+    def __init__(self, title: str, content_text: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Learning: {title}")
+        self.setMinimumSize(600, 400)
+
+        layout = QVBoxLayout(self)
+
+        text_edit = QTextEdit()
+        text_edit.setReadOnly(True)
+
+        # Basic HTML formatting for the content
+        html_content = content_text.replace("\n", "<br>")
+        html_content = html_content.replace("1. **A Good Example:**", "<h3>A Good Example:</h3>")
+        html_content = html_content.replace("2. **Corrected Version:**", "<h3>Corrected Version:</h3>")
+
+        text_edit.setHtml(html_content)
+        layout.addWidget(text_edit)
+
+        close_button = QPushButton("Close")
+        close_button.clicked.connect(self.accept)
+        layout.addWidget(close_button)
+
+
 except Exception:
     class QMainWindow:
         ...
@@ -3455,9 +3480,11 @@ def _run_gui() -> Optional[int]:
                         issue_id = issue.get('id')
                         review_links = ""
                         if issue_id:
+                            encoded_title = quote(issue.get('title', ''))
                             review_links = f"""
                             <a href='review:{issue_id}:correct' style='text-decoration:none; color:green;'>✔️ Correct</a>
                             <a href='review:{issue_id}:incorrect' style='text-decoration:none; color:red;'>❌ Incorrect</a>
+                            <a href='educate:{encoded_title}' style='text-decoration:none; color:#60a5fa; margin-left: 10px;'>🎓 Learn More</a>
                             """
 
                         sev = str(issue.get("severity", "")).title()
@@ -3626,6 +3653,60 @@ def _run_gui() -> Optional[int]:
                     self.action_send()
                 except Exception as e:
                     self.log(f"Failed to handle ask link: {url_str} - {e}")
+            elif url_str.startswith("educate:"):
+                try:
+                    issue_title = unquote(url_str[8:])
+                    self._show_educational_dialog(issue_title)
+                except Exception as e:
+                    self.log(f"Failed to handle educate link: {url_str} - {e}")
+
+        def _show_educational_dialog(self, issue_title: str):
+            """Generates and displays a personalized educational dialog for a given issue."""
+            if not self.local_rag or not self.local_rag.is_ready():
+                QMessageBox.warning(self, "AI Not Ready", "The AI model is not available. Please wait for it to load or check the logs.")
+                return
+
+            # 1. Find the relevant data
+            rule = next((r for r in self.compliance_rules if r.issue_title == issue_title), None)
+            issue = next((i for i in self.current_report_data.get('issues', []) if i.get('title') == issue_title), None)
+
+            if not rule or not issue:
+                QMessageBox.critical(self, "Error", "Could not find the details for this issue.")
+                return
+
+            user_text_html = issue.get('citations', [("No citation found.", "")])[0][0]
+            user_text = re.sub('<[^<]+?>', '', user_text_html)
+
+            # 2. Construct the prompt
+            prompt = (
+                "You are an expert on clinical documentation compliance. Your task is to create a personalized educational "
+                "example based on a compliance rule and a user's text that violated that rule.\n\n"
+                f"THE RULE:\nTitle: {rule.issue_title}\n"
+                f"Explanation: {rule.issue_detail}\n\n"
+                f"THE USER'S TEXT (which was flagged):\n\"{user_text}\"\n\n"
+                "YOUR TASK:\n"
+                "Create a clear, educational response with exactly two sections. Use the following format:\n"
+                "1. **A Good Example:** Provide a textbook-perfect example of a note that correctly follows this rule.\n"
+                "2. **Corrected Version:** Rewrite the user's original text to be compliant. Change only what is necessary to fix the error.\n"
+            )
+
+            # 3. Query the AI
+            try:
+                self.statusBar().showMessage("AI is generating educational content...")
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+
+                education_text = self.local_rag.query(prompt)
+
+                # Use the new custom dialog for better formatting
+                dialog = EducationDialog(issue_title, education_text, self)
+                dialog.exec()
+
+            except Exception as e:
+                self.set_error(f"An error occurred while generating educational content: {e}")
+                QMessageBox.warning(self, "AI Error", f"An error occurred: {e}")
+            finally:
+                self.statusBar().showMessage("Ready")
+                QApplication.restoreOverrideCursor()
 
         def save_finding_feedback(self, issue_id: int, feedback: str, citation_text: str, model_prediction: str):
             try:
