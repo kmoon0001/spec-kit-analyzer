@@ -1584,11 +1584,17 @@ def run_analyzer(file_path: str,
         if ner_service and ner_service.is_ready():
             report(75, "Extracting medical entities")
             try:
-                # The extract_entities method returns dataclasses, convert them to dicts for JSON serialization
                 sentences_for_ner = [s[0] for s in collapsed]
-                ner_results = [entity.__dict__ for entity in ner_service.extract_entities(full_text, sentences=sentences_for_ner)]
+                # ner_service.extract_entities now returns a dict like {'biobert': [NEREntity], 'gatortron': [NEREntity]}
+                model_outputs = ner_service.extract_entities(full_text, sentences=sentences_for_ner)
+
+                # Convert the dataclasses in each list to dicts for JSON serialization
+                ner_results = {}
+                for model_name, entities in model_outputs.items():
+                    ner_results[model_name] = [entity.__dict__ for entity in entities]
             except Exception as e:
                 logger.error(f"NER extraction failed: {e}")
+                ner_results = {} # Ensure ner_results is a dict on failure
 
         strict_flag = (CURRENT_REVIEW_MODE == "Strict")
         issues_base = _audit_from_rubric(full_text, strict=strict_flag)
@@ -2583,9 +2589,13 @@ def _run_gui() -> Optional[int]:
 
             # 3. Initialize NERService, passing the context service to it
             try:
-                self.log("Initializing NER service...")
+                self.log("Initializing NER service with multiple models...")
+                ner_models = {
+                    "biobert": "dmis-lab/biobert-v1.1-ner-bc5cdr",
+                    "gatortron": "longluu/Clinical-NER-MedMentions-GatorTronBase"
+                }
                 self.ner_service = NERService(
-                    model_name="dmis-lab/biobert-v1.1-ner-bc5cdr",
+                    model_configs=ner_models,
                     context_service=self.context_service
                 )
                 if self.ner_service.is_ready():
@@ -3261,56 +3271,47 @@ def _run_gui() -> Optional[int]:
                 report_html += "<br>".join(narrative_lines)
 
                 # --- NER Results Section ---
-                ner_results = data.get("ner_results", [])
-                if ner_results:
+                ner_results_by_model = data.get("ner_results", {})
+                if ner_results_by_model:
                     report_html += "<hr><h2>Medical Entity Recognition</h2>"
 
-                    # Create a simple mapping of character offsets to sentences
                     source_sentences = [s[0] for s in data.get('source_sentences', [])]
-                    full_text_for_mapping = "\n".join(source_sentences)
 
-                    # Group entities by sentence to avoid repeating sentences
-                    sentence_to_entities = {}
-                    for entity in ner_results:
-                        # Find the sentence for this entity
-                        # This is a simple but potentially slow way to do it for long texts.
-                        # A more optimized approach would build an interval tree.
-                        containing_sentence = ""
-                        for sent in source_sentences:
-                            if sent.find(entity['text']) != -1: # Simple substring search
-                                # A better check would use start/end offsets, but this is a good start
-                                # For this to work, we need to find the sentence containing the entity's start/end
-                                # This is complex, so for now we will just find the first sentence with the text
-                                containing_sentence = sent
-                                break
+                    for model_name, ner_results in ner_results_by_model.items():
+                        if not ner_results:
+                            continue
 
-                        if containing_sentence not in sentence_to_entities:
-                            sentence_to_entities[containing_sentence] = []
-                        sentence_to_entities[containing_sentence].append(entity)
+                        report_html += f"<h3>Results from {model_name.replace('_', ' ').title()}</h3>"
 
-                    report_html += "<ul>"
-                    for sentence, entities in sentence_to_entities.items():
-                        highlighted_sentence = html.escape(sentence)
-                        # Sort entities by start position to highlight from left to right
-                        entities.sort(key=lambda x: x['start'])
+                        sentence_to_entities = {}
+                        for entity in ner_results:
+                            containing_sentence = ""
+                            for sent in source_sentences:
+                                if sent.find(entity['text']) != -1:
+                                    containing_sentence = sent
+                                    break
 
-                        # Highlight entities in the sentence
-                        # This is a simplified highlighting, a more robust version would handle overlaps
-                        for entity in reversed(entities): # Reverse to avoid index shifts
-                            start, end = entity['start'], entity['end']
-                            # We need to map the global start/end to the sentence's local start/end
-                            # This is complex. A simpler approach for now is to just bold the entity text.
-                            highlighted_sentence = highlighted_sentence.replace(
-                                html.escape(entity['text']),
-                                f"<b>{html.escape(entity['text'])}</b>"
-                            )
+                            if containing_sentence not in sentence_to_entities:
+                                sentence_to_entities[containing_sentence] = []
+                            sentence_to_entities[containing_sentence].append(entity)
 
-                        report_html += f"<li>In \"<i>{highlighted_sentence}</i>\":<ul>"
-                        for entity in entities:
-                            context_html = f" (Context: <b>{html.escape(entity['context'])}</b>)" if entity.get('context') else ""
-                            report_html += f"<li>Found <b>{html.escape(entity['label'])}</b>: {html.escape(entity['text'])}{context_html} (Score: {entity['score']:.2f})</li>"
-                        report_html += "</ul></li>"
-                    report_html += "</ul>"
+                        report_html += "<ul>"
+                        for sentence, entities in sentence_to_entities.items():
+                            highlighted_sentence = html.escape(sentence)
+                            entities.sort(key=lambda x: x['start'])
+
+                            for entity in reversed(entities):
+                                highlighted_sentence = highlighted_sentence.replace(
+                                    html.escape(entity['text']),
+                                    f"<b>{html.escape(entity['text'])}</b>"
+                                )
+
+                            report_html += f"<li>In \"<i>{highlighted_sentence}</i>\":<ul>"
+                            for entity in entities:
+                                context_html = f" (Context: <b>{html.escape(str(entity.get('context')))}</b>)" if entity.get('context') else ""
+                                report_html += f"<li>Found <b>{html.escape(entity['label'])}</b>: {html.escape(entity['text'])}{context_html} (Score: {entity['score']:.2f})</li>"
+                            report_html += "</ul></li>"
+                        report_html += "</ul>"
 
 
                 # Full Text
