@@ -115,6 +115,7 @@ try:
 
     # Local imports
     from .local_llm import LocalRAG
+    from .rubric_service import RubricService, ComplianceRule
 
 # --- LLM Loader Worker ---
 class LLMWorker(QObject):
@@ -2410,6 +2411,7 @@ def _run_gui() -> Optional[int]:
             self.current_report_data: Optional[dict] = None
             self.local_rag: Optional[LocalRAG] = None
             self.chat_history: list[tuple[str, str]] = []
+            self.compliance_rules: list[ComplianceRule] = []
 
             tb = QToolBar("Main")
             try:
@@ -2709,8 +2711,15 @@ def _run_gui() -> Optional[int]:
                 self.refresh_llm_indicator()
                 self.refresh_recent_files()
                 self._init_llm_thread()
-            except Exception:
-                ...
+
+                # Load compliance rules
+                self.log("Loading compliance rubric...")
+                self.rubric_service = RubricService('src/compliance_rubric.ttl')
+                self.compliance_rules = self.rubric_service.get_rules()
+                self.log(f"Loaded {len(self.compliance_rules)} compliance rules.")
+
+            except Exception as e:
+                self.log(f"Error during initialization: {e}")
 
         def _init_llm_thread(self):
             """Initializes and starts the LLM loading worker thread."""
@@ -3243,29 +3252,32 @@ def _run_gui() -> Optional[int]:
             if 'executive_status' in data:
                  chunks.append(f"[Summary] The executive status is '{data['executive_status']}'.")
 
-            # 2. Add each issue as a detailed chunk
+            # 2. Add each issue as a detailed chunk, enriched with rubric data
             for issue in data.get('issues', []):
-                sev = issue.get('severity', 'N/A').title()
-                cat = issue.get('category', 'N/A')
-                title = issue.get('title', 'N/A')
-                detail = issue.get('detail', 'N/A')
+                issue_title = issue.get('title')
+                # Find the corresponding full rule from the rubric
+                matching_rule = next((r for r in self.compliance_rules if r.issue_title == issue_title), None)
 
-                issue_str = (f"[Finding] Severity: {sev}. Category: {cat}. Title: {title}. "
-                             f"Detail: {detail}.")
+                if matching_rule:
+                    # If we found the rule, create a detailed, structured chunk
+                    issue_str = (
+                        f"[Finding] A finding with severity '{matching_rule.severity}' was identified.\n"
+                        f"Category: {matching_rule.issue_category}\n"
+                        f"Title: {matching_rule.issue_title}\n"
+                        f"Why it matters: {matching_rule.issue_detail}"
+                    )
+                    chunks.append(issue_str)
+                else:
+                    # Fallback to the basic information if no rule is found
+                    sev = issue.get('severity', 'N/A').title()
+                    cat = issue.get('category', 'N/A')
+                    detail = issue.get('detail', 'N/A')
+                    chunks.append(f"[Finding] Severity: {sev}. Category: {cat}. Title: {issue_title}. Detail: {detail}.")
 
-                details = issue.get('details', {})
-                if 'action' in details:
-                    issue_str += f" Recommended Action: {details['action']}"
-                if 'why' in details:
-                    issue_str += f" Why it matters: {details['why']}"
-
-                chunks.append(issue_str)
-
-                # Add citations as separate chunks
+                # Add citations as separate, clearly linked chunks
                 for i, (citation_text, source) in enumerate(issue.get('citations', [])[:2]):
-                    # Clean the citation text from HTML tags
                     clean_citation = re.sub('<[^<]+?>', '', citation_text)
-                    chunks.append(f"[Evidence] The finding '{title}' is supported by evidence from '{source}': \"{clean_citation}\"")
+                    chunks.append(f"[Evidence] The finding '{issue_title}' is supported by evidence from '{source}': \"{clean_citation}\"")
 
             # 3. Add the original document sentences
             for text, source in data.get('source_sentences', []):
