@@ -66,6 +66,12 @@ except Exception as e:
     logger.warning(f"pytesseract unavailable: {e}")
 
 try:
+    from transformers import pipeline
+except ImportError:
+    pipeline = None
+    logger.warning("transformers library not found. BioBERT NER will be disabled.")
+
+try:
     from PIL import Image, UnidentifiedImageError
 except Exception as e:
     Image = None  # type: ignore
@@ -1122,6 +1128,25 @@ def _score_issue_confidence(issues_in: list[dict], records: list[tuple[str, str]
     return out
 
 
+def run_biobert_ner(sentences: List[str]) -> List[dict]:
+    """
+    Performs Named Entity Recognition on a list of sentences using a BioBERT model.
+    """
+    if not pipeline:
+        logger.warning("Transformers pipeline is not available. Skipping BioBERT NER.")
+        return []
+
+    try:
+        # Using a pipeline for NER
+        # The 'simple' aggregation strategy groups subword tokens into whole words.
+        ner_pipeline = pipeline("ner", model="longluu/Clinical-NER-MedMentions-GatorTronBase", aggregation_strategy="simple")
+        results = ner_pipeline(sentences)
+        return results
+    except Exception as e:
+        logger.error(f"BioBERT NER failed: {e}")
+        return []
+
+
 # --- Exports ---
 def export_report_json(obj: dict, json_path: str) -> bool:
     try:
@@ -1575,6 +1600,14 @@ def run_analyzer(file_path: str,
         else:
             collapsed = collapse_similar_sentences_simple(processed, threshold)
         collapsed = list(collapsed)
+
+        # Run BioBERT NER
+        if get_bool_setting("enable_biobert_ner", False):
+            report(65, "Running BioBERT NER")
+            ner_sentences = [text for text, src in collapsed]
+            ner_results = run_biobert_ner(ner_sentences)
+            if ner_results:
+                logger.info(f"BioBERT NER results: {ner_results}")
 
         check_cancel()
         report(60, "Computing summary")
