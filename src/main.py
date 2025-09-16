@@ -913,6 +913,44 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
             cur.execute("ALTER TABLE analysis_runs ADD COLUMN compliance_score REAL")
             logger.info("Upgraded analysis_runs table to include 'compliance_score' column.")
 
+        cur.execute("""
+                    CREATE TABLE IF NOT EXISTS reviewed_findings
+                    (
+                        id
+                        INTEGER
+                        PRIMARY
+                        KEY
+                        AUTOINCREMENT,
+                        analysis_issue_id
+                        INTEGER
+                        NOT
+                        NULL,
+                        user_feedback
+                        TEXT
+                        NOT
+                        NULL,
+                        reviewed_at
+                        TEXT
+                        NOT
+                        NULL,
+                        notes
+                        TEXT,
+                        citation_text
+                        TEXT,
+                        model_prediction
+                        TEXT,
+                        FOREIGN
+                        KEY
+                    (
+                        analysis_issue_id
+                    ) REFERENCES analysis_issues
+                    (
+                        id
+                    ) ON DELETE CASCADE
+                        )
+                    """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_reviews_issue ON reviewed_findings(analysis_issue_id)")
+
         conn.commit()
     except Exception as e:
         logger.warning(f"Ensure analytics schema failed: {e}")
@@ -1117,6 +1155,22 @@ def _attach_issue_citations(issues_in: list[dict], records: list[tuple[str, str]
         out.append({**it, "citations": cites})
     return out
 
+
+def _get_shap_prediction_wrapper(rule_title: str) -> Callable[[list[str]], list[float]]:
+    """
+    Creates a prediction function for a specific rule that SHAP can use.
+    """
+    def predict(texts: list[str]) -> list[float]:
+        scores = []
+        for text in texts:
+            # We run a "strict" audit because we want to know if the rule *could* be triggered.
+            issues = _audit_from_rubric(text, strict=True)
+            if any(issue['title'] == rule_title for issue in issues):
+                scores.append(1.0)
+            else:
+                scores.append(0.0)
+        return scores
+    return predict
 
 def _score_issue_confidence(issues_in: list[dict], records: list[tuple[str, str]]) -> list[dict]:
     all_text = " ".join(t for t, _ in records).lower()
@@ -1647,6 +1701,36 @@ def run_analyzer(file_path: str,
 
         # I'll inject the details into the issue object itself for easier rendering later.
         # This is not in the original code, but it's a good refactoring.
+
+        # --- SHAP Integration ---
+        # Generate explanations for issues that have citations
+        for issue in issues_scored:
+            if issue.get("citations"):
+                try:
+                    # We can only explain rules with a clear title
+                    rule_title = issue.get("title")
+                    if not rule_title:
+                        continue
+
+                    # Create a prediction function for the specific rule
+                    prediction_fn = _get_shap_prediction_wrapper(rule_title)
+
+                    # Use the first citation as the text to explain
+                    text_to_explain = issue["citations"][0][0].replace("<b>", "").replace("</b>", "")
+
+                    # Create a SHAP explainer
+                    explainer = shap.Explainer(prediction_fn, shap.maskers.Text(r"\W+"))
+
+                    # Generate SHAP values
+                    shap_values = explainer([text_to_explain])
+
+                    # Store the explanation object to be used later for visualization
+                    issue['shap_explanation'] = shap_values
+
+                except Exception as e:
+                    logger.warning(f"SHAP explanation failed for issue '{issue.get('title')}': {e}")
+        # --- End SHAP Integration ---
+
         issue_details_map = {
             "Provider signature/date possibly missing": {
                 "action": "Ensure all entries are signed and dated by the qualified provider.",
@@ -2327,6 +2411,16 @@ def _run_gui() -> Optional[int]:
             act_exit = QAction("Exit", self)
             act_exit.triggered.connect(self.close)  # type: ignore[attr-defined]
             tb.addAction(act_exit)
+
+            tb.addSeparator()
+
+            act_export_feedback = QAction("Export Feedback...", self)
+            act_export_feedback.triggered.connect(self.action_export_feedback)
+            tb.addAction(act_export_feedback)
+
+            act_analyze_performance = QAction("Analyze Performance", self)
+            act_analyze_performance.triggered.connect(self.action_analyze_performance)
+            tb.addAction(act_analyze_performance)
 
             central = QWidget()
             self.setCentralWidget(central)
@@ -3151,6 +3245,33 @@ def _run_gui() -> Optional[int]:
 
         def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None) -> None:
             try:
+                # --- Bug Fix: Ensure issue IDs are present for loaded reports ---
+                issues = data.get("issues", [])
+                if issues and 'id' not in issues[0]:
+                    try:
+                        with _get_db_connection() as conn:
+                            # Find the run_id from the file name and generated timestamp
+                            run_df = pd.read_sql_query(
+                                "SELECT id FROM analysis_runs WHERE file_name = ? AND run_time = ? LIMIT 1",
+                                conn,
+                                params=(os.path.basename(data.get("file")), data.get("generated"))
+                            )
+                            if not run_df.empty:
+                                run_id = run_df.iloc[0]['id']
+                                # Get all issues with IDs for that run
+                                issues_from_db_df = pd.read_sql_query(
+                                    "SELECT id, title, detail FROM analysis_issues WHERE run_id = ?",
+                                    conn,
+                                    params=(run_id,)
+                                )
+                                # Create a lookup map and inject the IDs
+                                issue_map = { (row['title'], row['detail']): row['id'] for _, row in issues_from_db_df.iterrows() }
+                                for issue in issues:
+                                    issue['id'] = issue_map.get((issue.get('title'), issue.get('detail')))
+                    except Exception as e:
+                        self.log(f"Could not enrich loaded report with issue IDs: {e}")
+                # --- End Bug Fix ---
+
                 self.current_report_data = data
 
                 file_name = os.path.basename(data.get("file", "Unknown File"))
@@ -3168,16 +3289,73 @@ def _run_gui() -> Optional[int]:
                         loc = issue.get('location')
                         link = f"<a href='highlight:{loc['start']}:{loc['end']}'>Show in text</a>" if loc else "(location not found)"
 
+                        # Add review links
+                        issue_id = issue.get('id')
+                        review_links = ""
+                        if issue_id:
+                            review_links = f"""
+                            <a href='review:{issue_id}:correct' style='text-decoration:none; color:green;'>✔️ Correct</a>
+                            <a href='review:{issue_id}:incorrect' style='text-decoration:none; color:red;'>❌ Incorrect</a>
+                            """
+
                         sev = str(issue.get("severity", "")).title()
                         cat = issue.get("category", "") or "General"
                         title = issue.get("title", "") or "Finding"
-                        narrative_lines.append(f"<b>[{sev}][{cat}] {title}</b>")
+                        narrative_lines.append(f"<b>[{sev}][{cat}] {title}</b> {review_links}")
 
                         details = issue.get("details", {}) # Assuming details are now nested
                         if 'action' in details: narrative_lines.append(f"  - Recommended Action: {details['action']}")
                         if 'why' in details: narrative_lines.append(f"  - Why it matters: {details['why']}")
                         if 'good_example' in details: narrative_lines.append(f"  - Good Example: {details['good_example']}")
                         if 'bad_example' in details: narrative_lines.append(f"  - Bad Example: {details['bad_example']}")
+
+                        # --- SHAP Visualization ---
+                        if 'shap_explanation' in issue and issue['shap_explanation'] is not None:
+                            try:
+                                # Generate the full HTML for the SHAP plot
+                                shap_html_full = shap.plots.text(issue['shap_explanation'], display=False)
+
+                                # Extract style and body content using regex
+                                style_match = re.search(r'<style>(.*?)</style>', shap_html_full, re.DOTALL)
+                                body_match = re.search(r'<body>(.*?)</body>', shap_html_full, re.DOTALL)
+
+                                if style_match and body_match:
+                                    style_content = style_match.group(1)
+                                    body_content = body_match.group(1)
+
+                                    # Parse CSS rules and store them in a dict
+                                    styles = {}
+                                    # A more robust regex for CSS rules
+                                    rules = re.findall(r'\.([\w.-]+)\s*\{(.*?)\}', style_content)
+                                    for class_name, rule_body in rules:
+                                        # Convert to inline style format, removing newlines and extra spaces
+                                        inline_style = ' '.join(rule_body.strip().split())
+                                        styles[class_name] = inline_style
+
+                                    # Replace class attributes with inline style attributes
+                                    html_with_inline_styles = body_content
+                                    def replace_class(match):
+                                        class_attr = match.group(1)
+                                        # Handles multiple classes, but SHAP plots usually have one
+                                        classes = class_attr.split()
+                                        style_rules = ';'.join(styles.get(c, '') for c in classes)
+                                        return f'style="{style_rules}"'
+
+                                    html_with_inline_styles = re.sub(r'class="([^"]*)"', replace_class, body_content)
+
+                                    narrative_lines.append("  - <b>Explanation (SHAP)</b>:")
+                                    narrative_lines.append(
+                                        f"<div style='border: 1px solid #ccc; padding: 5px; border-radius: 3px; background-color: #f9f9f9;'>{html_with_inline_styles}</div>")
+                                else:
+                                    narrative_lines.append(
+                                        "  - <b>Explanation (SHAP)</b>: <i>Could not parse SHAP plot HTML.</i>")
+
+                            except Exception as e:
+                                self.log(f"SHAP plot generation failed for issue '{title}': {e}")
+                                logger.warning(f"SHAP plot generation failed for issue '{title}': {e}")
+                                narrative_lines.append(
+                                    f"  - <b>Explanation (SHAP)</b>: <i>Visualization failed to generate. See logs.</i>")
+                        # --- End SHAP Visualization ---
 
                         narrative_lines.append(f"  - {link}")
                         narrative_lines.append("") # Spacer
@@ -3227,9 +3405,54 @@ def _run_gui() -> Optional[int]:
                         start = int(parts[1])
                         end = int(parts[2])
                         if hasattr(self, 'current_report_data') and self.current_report_data:
-                             self.render_analysis_to_results(self.current_report_data, highlight_range=(start, end))
+                            self.render_analysis_to_results(self.current_report_data, highlight_range=(start, end))
                     except (ValueError, IndexError) as e:
                         self.log(f"Invalid highlight URL: {url_str} - {e}")
+            elif url_str.startswith("review:"):
+                parts = url_str.split(':')
+                if len(parts) == 3:
+                    try:
+                        issue_id = int(parts[1])
+                        feedback = parts[2]
+
+                        # Find the issue to get the citation text and model prediction
+                        issue_to_review = None
+                        if self.current_report_data and self.current_report_data.get('issues'):
+                            for issue in self.current_report_data['issues']:
+                                if issue.get('id') == issue_id:
+                                    issue_to_review = issue
+                                    break
+
+                        if issue_to_review:
+                            # Use the raw text of the first citation
+                            citation_text = ""
+                            if issue_to_review.get('citations'):
+                                raw_citation_html = issue_to_review['citations'][0][0]
+                                # Strip HTML tags to get raw text
+                                citation_text = re.sub('<[^<]+?>', '', raw_citation_html)
+
+                            model_prediction = issue_to_review.get('severity', 'unknown')
+                            self.save_finding_feedback(issue_id, feedback, citation_text, model_prediction)
+                        else:
+                            self.log(f"Could not find issue with ID {issue_id} to save feedback.")
+                            QMessageBox.warning(self, "Feedback", f"Could not find issue with ID {issue_id} in the current report.")
+
+                    except (ValueError, IndexError) as e:
+                        self.log(f"Invalid review URL: {url_str} - {e}")
+
+        def save_finding_feedback(self, issue_id: int, feedback: str, citation_text: str, model_prediction: str):
+            try:
+                with _get_db_connection() as conn:
+                    cur = conn.cursor()
+                    cur.execute("""
+                        INSERT INTO reviewed_findings (analysis_issue_id, user_feedback, reviewed_at, citation_text, model_prediction)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (issue_id, feedback, _now_iso(), citation_text, model_prediction))
+                    conn.commit()
+                self.log(f"Saved feedback for finding {issue_id}: {feedback}")
+                self.statusBar().showMessage(f"Feedback '{feedback}' saved for finding {issue_id}.", 3000)
+            except Exception as e:
+                self.set_error(f"Failed to save feedback: {e}")
 
         def refresh_llm_indicator(self):
             try:
@@ -3312,6 +3535,77 @@ def _run_gui() -> Optional[int]:
                 self.input_query_te.setPlainText("")
             except Exception as e:
                 self.set_error(str(e))
+
+        def action_export_feedback(self):
+            try:
+                default_path = os.path.join(ensure_reports_dir_configured(), "feedback_export.csv")
+                dest_csv, _ = QFileDialog.getSaveFileName(self, "Export Feedback Data", default_path, "CSV Files (*.csv)")
+                if not dest_csv:
+                    return
+
+                if export_feedback_csv(dest_csv):
+                    QMessageBox.information(self, "Export Successful", f"Feedback data successfully exported to:\\n{dest_csv}")
+                    _open_path(os.path.dirname(dest_csv))
+                else:
+                    QMessageBox.information(self, "Export Feedback", "No feedback data available to export.")
+            except Exception as e:
+                self.set_error(f"Failed to export feedback: {e}")
+                QMessageBox.warning(self, "Error", f"Failed to export feedback:\\n{e}")
+
+        def action_analyze_performance(self):
+            try:
+                self.log("Starting performance analysis with slicer...")
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+
+                # 1. Get feedback data
+                with _get_db_connection() as conn:
+                    df = pd.read_sql_query("SELECT * FROM reviewed_findings", conn)
+
+                if df.empty or len(df) < 5:
+                    QMessageBox.information(self, "Analyze Performance", "Not enough feedback data to analyze. Please review more findings first (at least 5 are recommended).")
+                    return
+
+                # 2. Prepare data for slicer
+                # Ground truth: 1 if the user agrees with the model, 0 otherwise.
+                # A "correct" feedback means the user agrees the finding was indeed an issue.
+                df['y'] = (df['user_feedback'] == 'correct').astype(int)
+
+                # Model prediction: for now, we assume if it's in the table, the model predicted "1" (issue found)
+                df['preds'] = 1
+
+                # Features are the text
+                df['text'] = df['citation_text']
+
+                slicer_data = df.to_dict('list')
+
+                # 3. Define slicing features
+                @slicer.feature
+                def sentence_length(row):
+                    return len(row['text'].split())
+
+                @slicer.feature
+                def has_goal_keyword(row):
+                    return "goal" in row['text'].lower()
+
+                @slicer.feature
+                def has_date_keyword(row):
+                    return "date" in row['text'].lower()
+
+                # 4. Run slicer
+                self.log("Launching slicer dashboard in web browser...")
+                slicer.run(
+                    slicer_data,
+                    features=[sentence_length, has_goal_keyword, has_date_keyword],
+                    title="Model Performance Analysis"
+                )
+                self.log("Slicer run command issued.")
+
+            except Exception as e:
+                self.set_error(f"Failed to run performance analysis: {e}")
+                logger.exception("Slicer analysis failed")
+                QMessageBox.critical(self, "Error", f"Failed to run performance analysis:\\n{e}")
+            finally:
+                QApplication.restoreOverrideCursor()
 
     apply_theme(app)
     win = MainWindow()
