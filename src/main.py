@@ -108,7 +108,7 @@ try:
         QMainWindow, QToolBar, QLabel, QFileDialog, QMessageBox, QApplication,
         QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton,
         QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
-        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu
+        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget
     )
     from PyQt6.QtGui import QAction, QFont, QTextDocument
     from PyQt6.QtCore import Qt
@@ -337,6 +337,10 @@ except Exception:
         def setMinimumHeight(self, *_): ...
 
         def setSizePolicy(self, *_): ...
+
+    class QTabWidget:
+        def __init__(self, *_, **__): ...
+        def addTab(self, *_, **__): ...
 
 
 # --- Helper Exceptions ---
@@ -1165,6 +1169,9 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
                       sev_counts: Optional[dict] = None,
                       cat_counts: Optional[dict] = None) -> bool:
     try:
+        if not QApplication.instance():
+            import matplotlib
+            matplotlib.use("Agg")
         os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
         import math, textwrap
         import matplotlib.pyplot as plt  # type: ignore
@@ -2216,7 +2223,7 @@ def _run_gui() -> Optional[int]:
     from datetime import datetime, date, timedelta
 
     # We need a QApplication instance to show a message box, so create it early.
-    app = QApplication(sys.argv)
+    app = QApplication.instance() or QApplication(sys.argv)
 
     trial_duration_days = get_int_setting("trial_duration_days", 30)
 
@@ -2330,7 +2337,6 @@ def _run_gui() -> Optional[int]:
             top_split = QSplitter(Qt.Orientation.Horizontal)
             try:
                 top_split.setChildrenCollapsible(False)
-                top_split.setFixedHeight(65)
             except Exception:
                 ...
 
@@ -2342,14 +2348,17 @@ def _run_gui() -> Optional[int]:
 
             row_rubric_btns = QHBoxLayout()
             self.btn_upload_rubric = QPushButton("Upload Rubric")
+            self.btn_preview_rubric = QPushButton("Preview Rubric")
             self.btn_manage_rubrics = QPushButton("Manage Rubrics")
             self.btn_save_rubric = QPushButton("Save (App Only)")
             self.btn_remove_rubric = QPushButton("Remove Rubric")
-            for b in (self.btn_upload_rubric, self.btn_manage_rubrics, self.btn_save_rubric, self.btn_remove_rubric):
-                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px", fixed_width=160)
+            for b in (self.btn_upload_rubric, self.btn_preview_rubric, self.btn_manage_rubrics, self.btn_save_rubric, self.btn_remove_rubric):
+                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px")
                 row_rubric_btns.addWidget(b)
+            row_rubric_btns.addStretch(1)
             try:
                 self.btn_upload_rubric.clicked.connect(self.action_upload_rubric)  # type: ignore[attr-defined]
+                self.btn_preview_rubric.clicked.connect(self.action_toggle_rubric_preview)  # type: ignore[attr-defined]
                 self.btn_manage_rubrics.clicked.connect(self.action_manage_rubrics)  # type: ignore[attr-defined]
                 self.btn_save_rubric.clicked.connect(self.action_save_rubric_app_only)  # type: ignore[attr-defined]
                 self.btn_remove_rubric.clicked.connect(self.action_remove_rubric)  # type: ignore[attr-defined]
@@ -2359,6 +2368,7 @@ def _run_gui() -> Optional[int]:
 
             self.lbl_rubric_title = QLabel("Medicare B Guidelines")
             self.lbl_rubric_file = QLabel("(No rubric selected)")
+            self.lbl_rubric_file.setWordWrap(True)
             rubric_layout.addWidget(self.lbl_rubric_title)
             rubric_layout.addWidget(self.lbl_rubric_file)
 
@@ -2384,28 +2394,26 @@ def _run_gui() -> Optional[int]:
 
             row_report_btns = QHBoxLayout()
             self.btn_upload_report = QPushButton("Open File")
-            self.btn_upload_folder = QPushButton("Open Folder")
             self.btn_analyze_all = QPushButton("Analyze")
             self.btn_cancel_batch = QPushButton("Cancel Batch")
-            self.btn_remove_file = QPushButton("Remove File")
             self.btn_clear_all = QPushButton("Clear All")
-            for b in (self.btn_upload_report, self.btn_upload_folder, self.btn_analyze_all,
-                      self.btn_cancel_batch, self.btn_remove_file):
-                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px", fixed_width=160)
+            for b in (self.btn_upload_report, self.btn_analyze_all,
+                      self.btn_cancel_batch, self.btn_clear_all):
+                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px")
                 row_report_btns.addWidget(b)
+            row_report_btns.addStretch(1)
             try:
                 self.btn_upload_report.clicked.connect(self.action_open_report)  # type: ignore[attr-defined]
-                self.btn_upload_folder.clicked.connect(self.action_open_folder)  # type: ignore[attr-defined]
                 self.btn_analyze_all.clicked.connect(self.action_analyze_combined)  # type: ignore[attr-defined]
                 self.btn_cancel_batch.clicked.connect(self.action_cancel_batch)  # type: ignore[attr-defined]
                 self.btn_cancel_batch.setDisabled(True)
-                self.btn_remove_file.clicked.connect(self.action_remove_file) # type: ignore[attr-defined]
                 self.btn_clear_all.clicked.connect(self.action_clear_all)  # type: ignore[attr-defined]
             except Exception:
                 ...
             report_layout.addLayout(row_report_btns)
 
             self.lbl_report_name = QLabel("(No report selected)")
+            self.lbl_report_name.setWordWrap(True)
             report_layout.addWidget(self.lbl_report_name)
 
             self.list_folder_files = QListWidget()
@@ -2498,11 +2506,11 @@ def _run_gui() -> Optional[int]:
             # Layout order
             main_splitter = QSplitter(Qt.Orientation.Vertical)
             main_splitter.addWidget(top_split)
-            main_splitter.addWidget(self.grp_results)
             main_splitter.addWidget(self.grp_queue_logs)
+            main_splitter.addWidget(self.grp_results)
             main_splitter.setStretchFactor(0, 0)  # Do not stretch top panel
-            main_splitter.setStretchFactor(1, 1)  # Stretch analysis window
-            main_splitter.setStretchFactor(2, 0)  # Do not stretch queue/logs
+            main_splitter.setStretchFactor(1, 1)  # Stretch logs/queue
+            main_splitter.setStretchFactor(2, 2)  # Stretch analysis window more
 
             vmain.addWidget(main_splitter)
             vmain.addWidget(self.progress_bar, 0)
@@ -2533,8 +2541,8 @@ def _run_gui() -> Optional[int]:
             vmain.addLayout(input_row_bottom)
 
             try:
-                self.grp_logs.setStyleSheet(self.grp_logs.styleSheet() + " QGroupBox::title { padding-top: 6px; }")
-                self.grp_logs.raise_()
+                self.grp_queue_logs.setStyleSheet(self.grp_queue_logs.styleSheet() + " QGroupBox::title { padding-top: 6px; }")
+                self.grp_queue_logs.raise_()
                 self.grp_results.raise_()
             except Exception:
                 ...
@@ -2543,8 +2551,12 @@ def _run_gui() -> Optional[int]:
             try:
                 sb: QStatusBar = self.statusBar()
                 sb.clearMessage()
-                self.lbl_brand = QLabel("Spec Kit Analyzer")
+                self.lbl_brand = QLabel("Pacific Coast Therapy 🏝️")
+                brand_font = QFont("cursive")
+                brand_font.setPointSize(12)
+                self.lbl_brand.setFont(brand_font)
                 self.lbl_brand.setStyleSheet("color:#93c5fd; padding-left:8px; font-weight:700;")
+                self.lbl_brand.setToolTip("𝔎𝔢𝔳𝔦𝔫 𝔐𝔬𝔬𝔫")
                 self.lbl_err = QLabel(" Status: OK ")
                 self.lbl_err.setStyleSheet("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
                 self.lbl_lm1 = QLabel(" LM A: n/a ")
@@ -2568,7 +2580,7 @@ def _run_gui() -> Optional[int]:
                 ...
 
         # Helpers and actions
-        def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px", fixed_width: Optional[int] = None):
+        def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px"):
             try:
                 f = QFont()
                 f.setPointSize(font_size)
@@ -2576,10 +2588,7 @@ def _run_gui() -> Optional[int]:
                 button.setFont(f)
                 button.setMinimumHeight(height)
                 button.setStyleSheet(f"text-align:center; padding:{padding};")
-                if fixed_width:
-                    button.setFixedWidth(fixed_width)
-                else:
-                    button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+                button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
             except Exception:
                 ...
 
@@ -2839,6 +2848,13 @@ def _run_gui() -> Optional[int]:
                 dlg.exec()
             except Exception as e:
                 self.set_error(str(e))
+
+        def action_toggle_rubric_preview(self):
+            try:
+                is_visible = self.txt_rubric.isVisible()
+                self.txt_rubric.setVisible(not is_visible)
+            except Exception as e:
+                self.set_error(f"Failed to toggle rubric preview: {e}")
 
         def action_remove_rubric(self):
             try:
@@ -3297,7 +3313,6 @@ def _run_gui() -> Optional[int]:
             except Exception as e:
                 self.set_error(str(e))
 
-    app = QApplication(sys.argv)
     apply_theme(app)
     win = MainWindow()
     try:
