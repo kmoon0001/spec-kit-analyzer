@@ -16,6 +16,7 @@ from typing import Callable, List, Literal, Tuple, Optional
 import pandas as pd  # type: ignore
 
 from local_llm import LocalRAG
+from rubric_service import RubricService
 
 # --- Configuration defaults and constants ---
 REPORT_TEMPLATE_VERSION = "v2.0"
@@ -1037,27 +1038,43 @@ def _audit_from_rubric(text: str, strict: bool | None = None) -> list[dict]:
     t = (text or "").lower()
     issues: list[dict] = []
 
-    def add(sev: str, title: str, detail: str, cat: str) -> None:
-        issues.append({"severity": sev, "title": title, "detail": detail, "category": cat})
+    # Path to the ontology file, assuming it's in the same directory as this script
+    ontology_path = os.path.join(os.path.dirname(__file__), "compliance_rubric.ttl")
 
-    s = bool(strict)
-    if not any(k in t for k in ("signature", "signed", "dated")):
-        add("flag" if s else "finding", "Provider signature/date possibly missing",
-            "No explicit evidence of dated/signature entries found.", "Signatures/Dates")
-    if "goal" in t and not any(k in t for k in ("measurable", "time", "timed")):
-        add("flag" if s else "finding", "Goals may not be measurable/time-bound",
-            "Consider restating goals with measurable, time-bound targets and baselines.", "Goals")
-    if not any(k in t for k in ("medical necessity", "reasonable and necessary", "necessity")):
-        add("flag" if s else "finding", "Medical necessity not explicitly supported",
-            "Ensure documentation ties interventions to functional limitations and outcomes aligned with Medicare Part B.",
-            "Medical Necessity")
-    if "assistant" in t and "supervis" not in t:
-        add("finding" if s else "suggestion", "Assistant supervision context unclear",
-            "When assistants are involved, document supervision/oversight per Medicare/state requirements.",
-            "Assistant Supervision")
-    if not any(k in t for k in ("plan of care", "poc", "certification", "recert")):
-        add("flag" if s else "finding", "Plan/Certification not clearly referenced",
-            "Explicitly reference plan of care/certification dates and responsible signatures.", "Plan/Certification")
+    # Load rules from the service
+    rubric_service = RubricService(ontology_path)
+    rules = rubric_service.get_rules()
+
+    for rule in rules:
+        # Determine the severity based on strict mode
+        severity = rule.strict_severity if strict else rule.severity
+
+        # Check if the rule's conditions are met
+        triggered = False
+        if rule.positive_keywords:
+            # Rule has positive keywords, so they must be present
+            if any(kw in t for kw in rule.positive_keywords):
+                if rule.negative_keywords:
+                    # If negative keywords also exist, they must be absent
+                    if not any(kw in t for kw in rule.negative_keywords):
+                        triggered = True
+                else:
+                    # No negative keywords, so presence of positive is enough
+                    triggered = True
+        elif rule.negative_keywords:
+            # Rule only has negative keywords, so trigger if none are present
+            if not any(kw in t for kw in rule.negative_keywords):
+                triggered = True
+
+        if triggered:
+            issues.append({
+                "severity": severity,
+                "title": rule.issue_title,
+                "detail": rule.issue_detail,
+                "category": rule.issue_category,
+            })
+
+    # The general auditor note is not a dynamic rule, so we can keep it here.
     issues.append({
         "severity": "auditor_note",
         "title": "General auditor checks",
