@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
-from typing import List, Dict, Any
+from dataclasses import dataclass, field
+from typing import List, Dict, Any, Optional
 
 from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
 
@@ -19,6 +19,7 @@ class NEREntity:
     start: int
     end: int
     context: Optional[str] = None
+    models: List[str] = field(default_factory=list)
 
 class NERService:
     """
@@ -104,7 +105,8 @@ class NERService:
                             score=round(float(res['score']), 4),
                             start=res['start'],
                             end=res['end'],
-                            context=context
+                            context=context,
+                            models=[name]
                         )
                     )
                 all_results[name] = enriched_entities
