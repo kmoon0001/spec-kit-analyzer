@@ -17,6 +17,7 @@ import pandas as pd  # type: ignore
 
 from local_llm import LocalRAG
 from rubric_service import RubricService
+from ner_service import NERService
 
 # --- Configuration defaults and constants ---
 REPORT_TEMPLATE_VERSION = "v2.0"
@@ -1492,7 +1493,8 @@ def run_analyzer(file_path: str,
                  review_mode_override: Optional[str] = None,
                  dedup_method_override: Optional[str] = None,
                  progress_cb: Optional[Callable[[int, str], None]] = None,
-                 cancel_cb: Optional[Callable[[], bool]] = None) -> dict:
+                 cancel_cb: Optional[Callable[[], bool]] = None,
+                 ner_service: Optional[NERService] = None) -> dict:
     def report(pct: int, msg: str):
         if progress_cb:
             try:
@@ -1574,6 +1576,17 @@ def run_analyzer(file_path: str,
 
         report(70, "Analyzing compliance")
         full_text = "\n".join(t for t, _ in collapsed)
+
+        # --- NER Extraction ---
+        ner_results = []
+        if ner_service and ner_service.is_ready():
+            report(75, "Extracting medical entities")
+            try:
+                # The extract_entities method returns dataclasses, convert them to dicts for JSON serialization
+                ner_results = [entity.__dict__ for entity in ner_service.extract_entities(full_text)]
+            except Exception as e:
+                logger.error(f"NER extraction failed: {e}")
+
         strict_flag = (CURRENT_REVIEW_MODE == "Strict")
         issues_base = _audit_from_rubric(full_text, strict=strict_flag)
         issues_scored = _score_issue_confidence(_attach_issue_citations(issues_base, collapsed), collapsed)
@@ -1954,7 +1967,8 @@ def run_analyzer(file_path: str,
                 "pdf_chart_position": get_str_setting("pdf_chart_position", "bottom"),
                 "pdf_chart_theme": get_str_setting("pdf_chart_theme", "dark"),
                 "report_severity_ordering": "flags_first",
-                "clinical_ner_enabled": False,
+                "clinical_ner_enabled": True,
+                "ner_results": ner_results,
                 "source_sentences": collapsed,
                 "sev_counts": sev_counts,
                 "cat_counts": cat_counts,
@@ -2244,6 +2258,7 @@ def _run_gui() -> Optional[int]:
             self._batch_cancel = False
             self.current_report_data: Optional[dict] = None
             self.rag_system: Optional[LocalRAG] = None
+            self.ner_service: Optional[NERService] = None
 
             tb = QToolBar("Main")
             try:
@@ -2526,8 +2541,24 @@ def _run_gui() -> Optional[int]:
                 self.refresh_recent_files()
                 self.statusBar().showMessage("Initializing AI Chat System...")
                 self._initialize_rag_system_in_background()
+                self._initialize_ner_service_in_background()
             except Exception:
                 ...
+
+        def _initialize_ner_service_in_background(self):
+            """Initializes the NER service in a background thread."""
+            thread = threading.Thread(target=self._initialize_ner_service, daemon=True)
+            thread.start()
+
+        def _initialize_ner_service(self):
+            """The actual initialization of the NER service."""
+            self.log("Initializing NER service...")
+            self.ner_service = NERService(model_name="dmis-lab/biobert-v1.1-ner-bc5cdr")
+            if self.ner_service.is_ready():
+                self.log("NER service initialized successfully.")
+            else:
+                self.log("Failed to initialize NER service.")
+                self.set_error("NER service disabled.")
 
         def _initialize_rag_system_in_background(self):
             """Initializes the RAG system in a background thread to avoid freezing the GUI."""
@@ -2982,7 +3013,7 @@ def _run_gui() -> Optional[int]:
                 def _cancel():
                     return self._progress_was_canceled()
 
-                res = run_analyzer(self._current_report_path, progress_cb=_cb, cancel_cb=_cancel)
+                res = run_analyzer(self._current_report_path, progress_cb=_cb, cancel_cb=_cancel, ner_service=self.ner_service)
 
                 outs = []
                 if res.get("pdf"):
@@ -3078,7 +3109,7 @@ def _run_gui() -> Optional[int]:
                         def _cancel():
                             return self._progress_was_canceled() or self._batch_cancel
 
-                        res = run_analyzer(path, progress_cb=_cb, cancel_cb=_cancel)
+                        res = run_analyzer(path, progress_cb=_cb, cancel_cb=_cancel, ner_service=self.ner_service)
                         if res.get("pdf") or res.get("json") or res.get("csv"):
                             ok_count += 1
                             try:
@@ -3197,6 +3228,58 @@ def _run_gui() -> Optional[int]:
                     narrative_lines.append("No specific audit findings were identified.")
 
                 report_html += "<br>".join(narrative_lines)
+
+                # --- NER Results Section ---
+                ner_results = data.get("ner_results", [])
+                if ner_results:
+                    report_html += "<hr><h2>Medical Entity Recognition</h2>"
+
+                    # Create a simple mapping of character offsets to sentences
+                    source_sentences = [s[0] for s in data.get('source_sentences', [])]
+                    full_text_for_mapping = "\n".join(source_sentences)
+
+                    # Group entities by sentence to avoid repeating sentences
+                    sentence_to_entities = {}
+                    for entity in ner_results:
+                        # Find the sentence for this entity
+                        # This is a simple but potentially slow way to do it for long texts.
+                        # A more optimized approach would build an interval tree.
+                        containing_sentence = ""
+                        for sent in source_sentences:
+                            if sent.find(entity['text']) != -1: # Simple substring search
+                                # A better check would use start/end offsets, but this is a good start
+                                # For this to work, we need to find the sentence containing the entity's start/end
+                                # This is complex, so for now we will just find the first sentence with the text
+                                containing_sentence = sent
+                                break
+
+                        if containing_sentence not in sentence_to_entities:
+                            sentence_to_entities[containing_sentence] = []
+                        sentence_to_entities[containing_sentence].append(entity)
+
+                    report_html += "<ul>"
+                    for sentence, entities in sentence_to_entities.items():
+                        highlighted_sentence = html.escape(sentence)
+                        # Sort entities by start position to highlight from left to right
+                        entities.sort(key=lambda x: x['start'])
+
+                        # Highlight entities in the sentence
+                        # This is a simplified highlighting, a more robust version would handle overlaps
+                        for entity in reversed(entities): # Reverse to avoid index shifts
+                            start, end = entity['start'], entity['end']
+                            # We need to map the global start/end to the sentence's local start/end
+                            # This is complex. A simpler approach for now is to just bold the entity text.
+                            highlighted_sentence = highlighted_sentence.replace(
+                                html.escape(entity['text']),
+                                f"<b>{html.escape(entity['text'])}</b>"
+                            )
+
+                        report_html += f"<li>In \"<i>{highlighted_sentence}</i>\":<ul>"
+                        for entity in entities:
+                             report_html += f"<li>Found <b>{html.escape(entity['label'])}</b>: {html.escape(entity['text'])} (Score: {entity['score']:.2f})</li>"
+                        report_html += "</ul></li>"
+                    report_html += "</ul>"
+
 
                 # Full Text
                 report_html += "<hr><h2>Full Note Text</h2>"
