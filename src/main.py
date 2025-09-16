@@ -915,6 +915,40 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
             cur.execute("ALTER TABLE analysis_runs ADD COLUMN compliance_score REAL")
             logger.info("Upgraded analysis_runs table to include 'compliance_score' column.")
 
+        cur.execute("""
+                    CREATE TABLE IF NOT EXISTS reviewed_findings
+                    (
+                        id
+                        INTEGER
+                        PRIMARY
+                        KEY
+                        AUTOINCREMENT,
+                        analysis_issue_id
+                        INTEGER
+                        NOT
+                        NULL,
+                        user_feedback
+                        TEXT
+                        NOT
+                        NULL,
+                        reviewed_at
+                        TEXT
+                        NOT
+                        NULL,
+                        notes
+                        TEXT,
+                        FOREIGN
+                        KEY
+                    (
+                        analysis_issue_id
+                    ) REFERENCES analysis_issues
+                    (
+                        id
+                    ) ON DELETE CASCADE
+                        )
+                    """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_reviews_issue ON reviewed_findings(analysis_issue_id)")
+
         conn.commit()
     except Exception as e:
         logger.warning(f"Ensure analytics schema failed: {e}")
@@ -930,19 +964,23 @@ def persist_analysis_run(file_path: str, run_time: str, metrics: dict, issues_sc
                                                    sentences_final, dedup_removed, compliance_score, mode)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (
-                            os.path.basename(file_path), run_time,
-                            int(metrics.get("pages", 0)), int(metrics.get("flags", 0)), int(metrics.get("wobblers", 0)),
-                            int(metrics.get("suggestions", 0)), int(metrics.get("notes", 0)),
-                            int(metrics.get("sentences_final", 0)), int(metrics.get("dedup_removed", 0)),
-                            float(compliance.get("score", 0.0)), mode
-                        ))
+                os.path.basename(file_path), run_time,
+                int(metrics.get("pages", 0)), int(metrics.get("flags", 0)), int(metrics.get("wobblers", 0)),
+                int(metrics.get("suggestions", 0)), int(metrics.get("notes", 0)),
+                int(metrics.get("sentences_final", 0)), int(metrics.get("dedup_removed", 0)),
+                float(compliance.get("score", 0.0)), mode
+            ))
             run_id = int(cur.lastrowid)
             if issues_scored:
-                cur.executemany("""
-                                INSERT INTO analysis_issues (run_id, severity, category, title, detail, confidence)
-                                VALUES (?, ?, ?, ?, ?, ?)
-                                """, [(run_id, it.get("severity", ""), it.get("category", ""), it.get("title", ""),
-                                       it.get("detail", ""), float(it.get("confidence", 0.0))) for it in issues_scored])
+                for issue in issues_scored:
+                    cur.execute("""
+                        INSERT INTO analysis_issues (run_id, severity, category, title, detail, confidence)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """, (
+                        run_id, issue.get("severity", ""), issue.get("category", ""), issue.get("title", ""),
+                        issue.get("detail", ""), float(issue.get("confidence", 0.0))
+                    ))
+                    issue['id'] = cur.lastrowid  # Add the new ID back to the issue dict
             conn.commit()
             return run_id
     except Exception as e:
@@ -1390,6 +1428,35 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
 
 
 # --- Analytics export fix ---
+def export_feedback_csv(dest_csv: str) -> bool:
+    try:
+        with _get_db_connection() as conn:
+            query = """
+                SELECT
+                    r.file_name,
+                    i.severity,
+                    i.category,
+                    i.title,
+                    i.detail,
+                    i.confidence,
+                    f.user_feedback,
+                    f.reviewed_at,
+                    f.notes
+                FROM reviewed_findings f
+                JOIN analysis_issues i ON f.analysis_issue_id = i.id
+                JOIN analysis_runs r ON i.run_id = r.id
+                ORDER BY f.reviewed_at DESC
+            """
+            df = pd.read_sql_query(query, conn)
+            if df.empty:
+                return False
+            os.makedirs(os.path.dirname(dest_csv), exist_ok=True)
+            df.to_csv(dest_csv, index=False, encoding="utf-8")
+            return True
+    except Exception as e:
+        logger.error(f"export_feedback_csv failed: {e}")
+        return False
+
 def export_analytics_csv(dest_csv: str) -> bool:
     try:
         with _get_db_connection() as conn:
@@ -2339,6 +2406,12 @@ def _run_gui() -> Optional[int]:
             act_exit.triggered.connect(self.close)  # type: ignore[attr-defined]
             tb.addAction(act_exit)
 
+            tb.addSeparator()
+
+            act_export_feedback = QAction("Export Feedback...", self)
+            act_export_feedback.triggered.connect(self.action_export_feedback)
+            tb.addAction(act_export_feedback)
+
             central = QWidget()
             self.setCentralWidget(central)
             vmain = QVBoxLayout(central)
@@ -3189,6 +3262,33 @@ def _run_gui() -> Optional[int]:
 
         def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None) -> None:
             try:
+                # --- Bug Fix: Ensure issue IDs are present for loaded reports ---
+                issues = data.get("issues", [])
+                if issues and 'id' not in issues[0]:
+                    try:
+                        with _get_db_connection() as conn:
+                            # Find the run_id from the file name and generated timestamp
+                            run_df = pd.read_sql_query(
+                                "SELECT id FROM analysis_runs WHERE file_name = ? AND run_time = ? LIMIT 1",
+                                conn,
+                                params=(os.path.basename(data.get("file")), data.get("generated"))
+                            )
+                            if not run_df.empty:
+                                run_id = run_df.iloc[0]['id']
+                                # Get all issues with IDs for that run
+                                issues_from_db_df = pd.read_sql_query(
+                                    "SELECT id, title, detail FROM analysis_issues WHERE run_id = ?",
+                                    conn,
+                                    params=(run_id,)
+                                )
+                                # Create a lookup map and inject the IDs
+                                issue_map = { (row['title'], row['detail']): row['id'] for _, row in issues_from_db_df.iterrows() }
+                                for issue in issues:
+                                    issue['id'] = issue_map.get((issue.get('title'), issue.get('detail')))
+                    except Exception as e:
+                        self.log(f"Could not enrich loaded report with issue IDs: {e}")
+                # --- End Bug Fix ---
+
                 self.current_report_data = data
 
                 file_name = os.path.basename(data.get("file", "Unknown File"))
@@ -3206,10 +3306,19 @@ def _run_gui() -> Optional[int]:
                         loc = issue.get('location')
                         link = f"<a href='highlight:{loc['start']}:{loc['end']}'>Show in text</a>" if loc else "(location not found)"
 
+                        # Add review links
+                        issue_id = issue.get('id')
+                        review_links = ""
+                        if issue_id:
+                            review_links = f"""
+                            <a href='review:{issue_id}:correct' style='text-decoration:none; color:green;'>✔️ Correct</a>
+                            <a href='review:{issue_id}:incorrect' style='text-decoration:none; color:red;'>❌ Incorrect</a>
+                            """
+
                         sev = str(issue.get("severity", "")).title()
                         cat = issue.get("category", "") or "General"
                         title = issue.get("title", "") or "Finding"
-                        narrative_lines.append(f"<b>[{sev}][{cat}] {title}</b>")
+                        narrative_lines.append(f"<b>[{sev}][{cat}] {title}</b> {review_links}")
 
                         details = issue.get("details", {}) # Assuming details are now nested
                         if 'action' in details: narrative_lines.append(f"  - Recommended Action: {details['action']}")
@@ -3265,9 +3374,32 @@ def _run_gui() -> Optional[int]:
                         start = int(parts[1])
                         end = int(parts[2])
                         if hasattr(self, 'current_report_data') and self.current_report_data:
-                             self.render_analysis_to_results(self.current_report_data, highlight_range=(start, end))
+                            self.render_analysis_to_results(self.current_report_data, highlight_range=(start, end))
                     except (ValueError, IndexError) as e:
                         self.log(f"Invalid highlight URL: {url_str} - {e}")
+            elif url_str.startswith("review:"):
+                parts = url_str.split(':')
+                if len(parts) == 3:
+                    try:
+                        issue_id = int(parts[1])
+                        feedback = parts[2]
+                        self.save_finding_feedback(issue_id, feedback)
+                    except (ValueError, IndexError) as e:
+                        self.log(f"Invalid review URL: {url_str} - {e}")
+
+        def save_finding_feedback(self, issue_id: int, feedback: str):
+            try:
+                with _get_db_connection() as conn:
+                    cur = conn.cursor()
+                    cur.execute("""
+                        INSERT INTO reviewed_findings (analysis_issue_id, user_feedback, reviewed_at)
+                        VALUES (?, ?, ?)
+                    """, (issue_id, feedback, _now_iso()))
+                    conn.commit()
+                self.log(f"Saved feedback for finding {issue_id}: {feedback}")
+                self.statusBar().showMessage(f"Feedback '{feedback}' saved for finding {issue_id}.", 3000)
+            except Exception as e:
+                self.set_error(f"Failed to save feedback: {e}")
 
         def refresh_llm_indicator(self):
             try:
@@ -3283,6 +3415,22 @@ def _run_gui() -> Optional[int]:
                                            if llm_b_enabled else "background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
             except Exception:
                 ...
+
+        def action_export_feedback(self):
+            try:
+                default_path = os.path.join(ensure_reports_dir_configured(), "feedback_export.csv")
+                dest_csv, _ = QFileDialog.getSaveFileName(self, "Export Feedback Data", default_path, "CSV Files (*.csv)")
+                if not dest_csv:
+                    return
+
+                if export_feedback_csv(dest_csv):
+                    QMessageBox.information(self, "Export Successful", f"Feedback data successfully exported to:\n{dest_csv}")
+                    _open_path(os.path.dirname(dest_csv))
+                else:
+                    QMessageBox.information(self, "Export Feedback", "No feedback data available to export.")
+            except Exception as e:
+                self.set_error(f"Failed to export feedback: {e}")
+                QMessageBox.warning(self, "Error", f"Failed to export feedback:\n{e}")
 
         def action_export_fhir(self):
             last_json = get_setting("last_report_json")
