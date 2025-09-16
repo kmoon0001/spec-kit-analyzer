@@ -1,3 +1,4 @@
+feature/local-ai-chat
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc
@@ -66,3 +67,14 @@ venv.bak/
 # OS-specific
 .DS_Store
 Thumbs.db
+=======
+__pycache__/
+*.pyc
+*.db
+*.db-journal
+*.log
+*.bak
+*.csv
+*.json
+*.pdf
+main
