@@ -66,6 +66,12 @@ except Exception as e:
     logger.warning(f"pytesseract unavailable: {e}")
 
 try:
+    from transformers import pipeline
+except ImportError:
+    pipeline = None
+    logger.warning("transformers library not found. BioBERT NER will be disabled.")
+
+try:
     from PIL import Image, UnidentifiedImageError
 except Exception as e:
     Image = None  # type: ignore
@@ -1034,8 +1040,8 @@ def _audit_from_rubric(text: str, strict: bool | None = None) -> list[dict]:
     t = (text or "").lower()
     issues: list[dict] = []
 
-    def add(sev: str, title: str, detail: str, cat: str) -> None:
-        issues.append({"severity": sev, "title": title, "detail": detail, "category": cat})
+    def add(sev: str, title: str, detail: str, cat: str, trigger_keywords: Optional[List[str]] = None) -> None:
+        issues.append({"severity": sev, "title": title, "detail": detail, "category": cat, "trigger_keywords": trigger_keywords or []})
 
     s = bool(strict)
     if not any(k in t for k in ("signature", "signed", "dated")):
@@ -1043,7 +1049,7 @@ def _audit_from_rubric(text: str, strict: bool | None = None) -> list[dict]:
             "No explicit evidence of dated/signature entries found.", "Signatures/Dates")
     if "goal" in t and not any(k in t for k in ("measurable", "time", "timed")):
         add("flag" if s else "wobbler", "Goals may not be measurable/time-bound",
-            "Consider restating goals with measurable, time-bound targets and baselines.", "Goals")
+            "Consider restating goals with measurable, time-bound targets and baselines.", "Goals", trigger_keywords=["goal"])
     if not any(k in t for k in ("medical necessity", "reasonable and necessary", "necessity")):
         add("flag" if s else "wobbler", "Medical necessity not explicitly supported",
             "Ensure documentation ties interventions to functional limitations and outcomes aligned with Medicare Part B.",
@@ -1051,16 +1057,13 @@ def _audit_from_rubric(text: str, strict: bool | None = None) -> list[dict]:
     if "assistant" in t and "supervis" not in t:
         add("wobbler" if s else "suggestion", "Assistant supervision context unclear",
             "When assistants are involved, document supervision/oversight per Medicare/state requirements.",
-            "Assistant Supervision")
+            "Assistant Supervision", trigger_keywords=["assistant"])
     if not any(k in t for k in ("plan of care", "poc", "certification", "recert")):
         add("flag" if s else "wobbler", "Plan/Certification not clearly referenced",
             "Explicitly reference plan of care/certification dates and responsible signatures.", "Plan/Certification")
-    issues.append({
-        "severity": "auditor_note",
-        "title": "General auditor checks",
-        "detail": "Review compliance with Medicare Part B (qualified personnel, plan establishment/recert, timings/units, documentation integrity).",
-        "category": "General"
-    })
+    add("auditor_note", "General auditor checks",
+        "Review compliance with Medicare Part B (qualified personnel, plan establishment/recert, timings/units, documentation integrity).",
+        "General")
     return issues
 
 
@@ -1070,11 +1073,41 @@ def _attach_issue_citations(issues_in: list[dict], records: list[tuple[str, str]
         q = (it.get("title", "") + " " + it.get("detail", "")).lower()
         tok = [w for w in re.findall(r"[a-z]{4,}", q)]
         cites: list[tuple[str, str]] = []
+        trigger_keywords = it.get("trigger_keywords")
+
         for (text, src) in records:
             tl = text.lower()
             score = sum(1 for w in tok if w in tl)
-            if score >= max(1, len(tok) // 4):
-                cites.append((text.strip(), src))
+
+            is_citation = score >= max(1, len(tok) // 4)
+            if not is_citation and trigger_keywords:
+                if any(kw.lower() in tl for kw in trigger_keywords):
+                    is_citation = True
+
+            if is_citation:
+                text_to_cite = text.strip()
+
+                if trigger_keywords:
+                    # Sort keywords by length, descending, to handle cases like "plan of care" vs "plan"
+                    sorted_kws = sorted(trigger_keywords, key=len, reverse=True)
+                    # Build a single regex for all keywords, with word boundaries
+                    pattern = r'(' + '|'.join(r'\b' + re.escape(kw) + r'\b' for kw in sorted_kws) + r')'
+
+                    parts = re.split(pattern, text_to_cite, flags=re.IGNORECASE)
+
+                    result_parts = []
+                    for i, part in enumerate(parts):
+                        # Matched keywords are at odd indices
+                        if i % 2 == 1:
+                            result_parts.append(f"<b>{html.escape(part)}</b>")
+                        else:
+                            result_parts.append(html.escape(part))
+
+                    final_text = "".join(result_parts)
+                    cites.append((final_text, src))
+                else:
+                    cites.append((html.escape(text_to_cite), src))
+
             if len(cites) >= cap:
                 break
         out.append({**it, "citations": cites})
@@ -1093,6 +1126,25 @@ def _score_issue_confidence(issues_in: list[dict], records: list[tuple[str, str]
             conf = min(1.0, conf + 0.15)
         out.append({**it, "confidence": round(float(conf), 2)})
     return out
+
+
+def run_biobert_ner(sentences: List[str]) -> List[dict]:
+    """
+    Performs Named Entity Recognition on a list of sentences using a BioBERT model.
+    """
+    if not pipeline:
+        logger.warning("Transformers pipeline is not available. Skipping BioBERT NER.")
+        return []
+
+    try:
+        # Using a pipeline for NER
+        # The 'simple' aggregation strategy groups subword tokens into whole words.
+        ner_pipeline = pipeline("ner", model="longluu/Clinical-NER-MedMentions-GatorTronBase", aggregation_strategy="simple")
+        results = ner_pipeline(sentences)
+        return results
+    except Exception as e:
+        logger.error(f"BioBERT NER failed: {e}")
+        return []
 
 
 # --- Exports ---
@@ -1147,6 +1199,7 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
         wrapped: list[str] = []
         for ln in lines:
             s = "" if ln is None else str(ln)
+            s = s.replace("<b>", "*").replace("</b>", "*")
             if not s:
                 wrapped.append("")
                 continue
@@ -1547,6 +1600,14 @@ def run_analyzer(file_path: str,
         else:
             collapsed = collapse_similar_sentences_simple(processed, threshold)
         collapsed = list(collapsed)
+
+        # Run BioBERT NER
+        if get_bool_setting("enable_biobert_ner", False):
+            report(65, "Running BioBERT NER")
+            ner_sentences = [text for text, src in collapsed]
+            ner_results = run_biobert_ner(ner_sentences)
+            if ner_results:
+                logger.info(f"BioBERT NER results: {ner_results}")
 
         check_cancel()
         report(60, "Computing summary")
