@@ -1530,9 +1530,11 @@ def get_similarity_threshold() -> float:
     return float(DEDUP_DEFAULTS.get(CURRENT_REVIEW_MODE, {"threshold": 0.50})["threshold"])
 
 
-def _generate_risk_dashboard(compliance_score: float, sev_counts: dict) -> list[str]:
+def _generate_risk_dashboard(compliance: dict, sev_counts: dict) -> list[str]:
     lines = ["--- Risk Dashboard ---"]
-    score = compliance_score
+    score = compliance.get("score", 0.0)
+    total_risk = compliance.get("total_risk", 0.0)
+    strength_bonus = compliance.get("strength_bonus", 0.0)
     flags = sev_counts.get("flag", 0)
     wobblers = sev_counts.get("wobbler", 0)
 
@@ -1548,6 +1550,8 @@ def _generate_risk_dashboard(compliance_score: float, sev_counts: dict) -> list[
 
     lines.append(f"Overall Risk: {risk}")
     lines.append(f"Compliance Score: {score:.1f}/100")
+    lines.append(f"  - Total Risk: {total_risk:.2f}")
+    lines.append(f"  - Strength Bonus: {strength_bonus:.2f}")
     lines.append(f"Summary: {summary}")
     lines.append(f"Critical Findings (Flags): {flags}")
     lines.append(f"Areas of Concern (Wobblers): {wobblers}")
@@ -1815,26 +1819,85 @@ def run_analyzer(file_path: str,
         }
         cat_counts = count_categories(issues_scored)
 
+        RISK_MODEL = {
+            "weights": {
+                "severity": {
+                    "flag": 0.6,
+                    "wobbler": 0.3,
+                    "suggestion": 0.1,
+                },
+                "financial_impact": {
+                    "High": 1.5,
+                    "Medium": 1.0,
+                    "Low": 0.5,
+                },
+            },
+            "financial_impact_mapping": {
+                "Signatures/Dates": "High",
+                "Plan/Certification": "High",
+                "Medical Necessity": "High",
+                "Goals": "Medium",
+                "Assistant Supervision": "Medium",
+                "General": "Low",
+            },
+            "base_score": 100,
+            "strength_bonus": 0.5,
+            "max_strength_bonus": 5.0,
+        }
+
+        class EnhancedRiskScore:
+            def __init__(self, risk_model):
+                self.risk_model = risk_model
+
+            def calculate(self, issues: list[dict], strengths: list[str]) -> dict:
+                total_risk = 0
+
+                # Calculate risk from issues
+                for issue in issues:
+                    severity = issue.get("severity")
+                    category = issue.get("category")
+
+                    severity_weight = self.risk_model["weights"]["severity"].get(severity, 0)
+
+                    financial_impact_level = self.risk_model["financial_impact_mapping"].get(category, "Low")
+                    financial_impact_weight = self.risk_model["weights"]["financial_impact"].get(financial_impact_level, 0.5)
+
+                    issue_risk = severity_weight * financial_impact_weight
+                    total_risk += issue_risk
+
+                # Apply bonus for strengths
+                strength_bonus = len(strengths) * self.risk_model["strength_bonus"]
+                strength_bonus = min(strength_bonus, self.risk_model["max_strength_bonus"])
+
+                # Calculate final score
+                final_score = self.risk_model["base_score"] - (total_risk * 10) # a scaling factor to make the score more readable
+                final_score += strength_bonus
+
+                final_score = max(0, min(100, final_score))
+
+                return {
+                    "score": round(final_score, 1),
+                    "total_risk": round(total_risk, 2),
+                    "strength_bonus": round(strength_bonus, 2),
+                }
+
         def compute_compliance_score(issues: list[dict], strengths_in: list[str], missing_in: list[str],
                                      mode: ReviewMode) -> dict:
+            risk_score_calculator = EnhancedRiskScore(RISK_MODEL)
+            risk_score_data = risk_score_calculator.calculate(issues, strengths_in)
+
             flags = sum(1 for i in issues if i.get("severity") == "flag")
             wob = sum(1 for i in issues if i.get("severity") == "wobbler")
             sug = sum(1 for i in issues if i.get("severity") == "suggestion")
-            base = 100.0
-            if mode == "Strict":
-                base -= flags * 6.0
-                base -= wob * 3.0
-                base -= sug * 1.5
-                base -= len(missing_in) * 4.0
-            else:
-                base -= flags * 4.0
-                base -= wob * 2.0
-                base -= sug * 1.0
-                base -= len(missing_in) * 2.5
-            base += min(5.0, len(strengths_in) * 0.5)
-            score = max(0.0, min(100.0, base))
+
             breakdown = f"Flags={flags}, Wobblers={wob}, Suggestions={sug}, Missing={len(missing_in)}, Strengths={len(strengths_in)}; Mode={mode}"
-            return {"score": round(score, 1), "breakdown": breakdown}
+
+            return {
+                "score": risk_score_data["score"],
+                "total_risk": risk_score_data["total_risk"],
+                "strength_bonus": risk_score_data["strength_bonus"],
+                "breakdown": breakdown
+            }
 
         compliance = compute_compliance_score(issues_scored, strengths, missing, CURRENT_REVIEW_MODE)
 
@@ -1939,7 +2002,7 @@ def run_analyzer(file_path: str,
             }
 
         narrative_lines = []
-        narrative_lines.extend(_generate_risk_dashboard(compliance['score'], sev_counts))
+        narrative_lines.extend(_generate_risk_dashboard(compliance, sev_counts))
         narrative_lines.extend(_generate_compliance_checklist(strengths, weaknesses))
 
         narrative_lines.append("--- Detailed Findings ---")
