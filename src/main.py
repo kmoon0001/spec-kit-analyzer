@@ -111,7 +111,7 @@ try:
         QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
         QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget
     )
-    from PyQt6.QtGui import QAction, QFont, QTextDocument
+    from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter
     from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal
 
     # Local imports
@@ -147,29 +147,33 @@ class LLMWorker(QObject):
             self.error.emit(f"Failed to load AI model: {e}")
 
 
-class EducationDialog(QDialog):
-    """A custom dialog to display formatted educational content."""
-    def __init__(self, title: str, content_text: str, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(f"Learning: {title}")
-        self.setMinimumSize(600, 400)
 
-        layout = QVBoxLayout(self)
 
-        text_edit = QTextEdit()
-        text_edit.setReadOnly(True)
+def _generate_suggested_questions(issues: list) -> list[str]:
+    """Generates a list of suggested questions based on high-priority findings."""
+    suggestions = []
 
-        # Basic HTML formatting for the content
-        html_content = content_text.replace("\n", "<br>")
-        html_content = html_content.replace("1. **A Good Example:**", "<h3>A Good Example:</h3>")
-        html_content = html_content.replace("2. **Corrected Version:**", "<h3>Corrected Version:</h3>")
+    QUESTION_MAP = {
+        "Provider signature/date possibly missing": "Why are signatures and dates important for compliance?",
+        "Goals may not be measurable/time-bound": "What makes a therapy goal 'measurable' and 'time-bound'?",
+        "Medical necessity not explicitly supported": "Can you explain 'Medical Necessity' in the context of a therapy note?",
+        "Assistant supervision context unclear": "What are the supervision requirements for therapy assistants?",
+        "Plan/Certification not clearly referenced": "How should the Plan of Care be referenced in a note?",
+    }
 
-        text_edit.setHtml(html_content)
-        layout.addWidget(text_edit)
+    # Prioritize flags, then wobblers
+    sorted_issues = sorted(issues, key=lambda x: ({"flag": 0, "wobbler": 1}.get(x.get('severity'), 2)))
 
-        close_button = QPushButton("Close")
-        close_button.clicked.connect(self.accept)
-        layout.addWidget(close_button)
+    for issue in sorted_issues:
+        if len(suggestions) >= 3:
+            break
+
+        title = issue.get('title')
+        if title in QUESTION_MAP and QUESTION_MAP[title] not in suggestions:
+            suggestions.append(QUESTION_MAP[title])
+
+    logger.info(f"Generated {len(suggestions)} suggested questions.")
+    return suggestions
 
 
 except Exception:
@@ -2075,6 +2079,15 @@ def run_analyzer(file_path: str,
         narrative_lines.append(" • Tell a story. The documentation should paint a clear picture of the patient's journey from evaluation to discharge.")
         narrative_lines.append("")
 
+        # --- Generate and add suggested questions ---
+        suggested_questions = _generate_suggested_questions(issues_scored)
+        if suggested_questions:
+            narrative_lines.append("--- Suggested Questions for Follow-up ---")
+            for q in suggested_questions:
+                narrative_lines.append(f" • {q}")
+            narrative_lines.append("")
+        # --- End suggested questions ---
+
         narrative_lines.append("--- Trends & Analytics (Last 10 Runs) ---")
         if trends.get("recent_scores"):
             sc = trends["recent_scores"]
@@ -2151,6 +2164,7 @@ def run_analyzer(file_path: str,
                 "sev_counts": sev_counts,
                 "cat_counts": cat_counts,
                 "trends": trends,
+                "suggested_questions": suggested_questions,
             }, json_path)
             result_info["json"] = json_path
         except Exception as e:
@@ -2645,6 +2659,12 @@ def _run_gui() -> Optional[int]:
                 ...
             row_results_actions.addStretch(1)
             row_results_actions.addWidget(self.btn_results_analytics)
+
+            self.btn_export_view = QPushButton("Export View to PDF")
+            self._style_action_button(self.btn_export_view, font_size=11, bold=True, height=28, padding="4px 10px")
+            self.btn_export_view.clicked.connect(self.action_export_view_to_pdf)
+            row_results_actions.addWidget(self.btn_export_view)
+
             res_layout.addLayout(row_results_actions)
 
             self.txt_chat = QTextEdit()
@@ -3312,31 +3332,6 @@ def _run_gui() -> Optional[int]:
             self.log(f"Generated {len(chunks)} text chunks for AI context.")
             return chunks
 
-        def _generate_suggested_questions(self, issues: list) -> list[str]:
-            """Generates a list of suggested questions based on high-priority findings."""
-            suggestions = []
-
-            QUESTION_MAP = {
-                "Provider signature/date possibly missing": "Why are signatures and dates important for compliance?",
-                "Goals may not be measurable/time-bound": "What makes a therapy goal 'measurable' and 'time-bound'?",
-                "Medical necessity not explicitly supported": "Can you explain 'Medical Necessity' in the context of a therapy note?",
-                "Assistant supervision context unclear": "What are the supervision requirements for therapy assistants?",
-                "Plan/Certification not clearly referenced": "How should the Plan of Care be referenced in a note?",
-            }
-
-            # Prioritize flags, then wobblers
-            sorted_issues = sorted(issues, key=lambda x: ({"flag": 0, "wobbler": 1}.get(x.get('severity'), 2)))
-
-            for issue in sorted_issues:
-                if len(suggestions) >= 3:
-                    break
-
-                title = issue.get('title')
-                if title in QUESTION_MAP and QUESTION_MAP[title] not in suggestions:
-                    suggestions.append(QUESTION_MAP[title])
-
-            self.log(f"Generated {len(suggestions)} suggested questions.")
-            return suggestions
 
         def action_analyze_batch(self):
             try:
@@ -3427,6 +3422,47 @@ def _run_gui() -> Optional[int]:
                     QMessageBox.information(self, "Analytics", "No analytics available yet.")
             except Exception as e:
                 self.set_error(str(e))
+
+        def action_export_view_to_pdf(self):
+            """Exports the current content of the main chat/analysis view to a PDF."""
+            if not self.current_report_data:
+                QMessageBox.warning(self, "Export Error", "Please analyze a document first.")
+                return
+
+            default_filename = os.path.basename(self.current_report_data.get('file', 'report.pdf'))
+            default_filename = os.path.splitext(default_filename)[0] + "_annotated.pdf"
+
+            save_path, _ = QFileDialog.getSaveFileName(
+                self, "Save PDF", default_filename, "PDF Files (*.pdf)"
+            )
+
+            if not save_path:
+                return
+
+            try:
+                self.statusBar().showMessage("Exporting to PDF...")
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+
+                html_content = self.txt_chat.toHtml()
+
+                doc = QTextDocument()
+                doc.setHtml(html_content)
+
+                writer = QPdfWriter(save_path)
+                writer.setPageSize(QPdfWriter.PageSize.A4)
+                # Set margins if needed: writer.setPageMargins(...)
+
+                doc.print_(writer)
+
+                self.log(f"Successfully exported view to {save_path}")
+                QMessageBox.information(self, "Export Successful", f"The current view has been exported to:\n{save_path}")
+
+            except Exception as e:
+                self.set_error(f"Failed to export view to PDF: {e}")
+                QMessageBox.critical(self, "Export Error", f"An error occurred while exporting to PDF:\n{e}")
+            finally:
+                self.statusBar().showMessage("Ready")
+                QApplication.restoreOverrideCursor()
 
         def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None) -> None:
             try:
@@ -3554,7 +3590,7 @@ def _run_gui() -> Optional[int]:
                 report_html += "<br>".join(narrative_lines)
 
                 # --- Add Suggested Questions ---
-                suggested_questions = self._generate_suggested_questions(data.get('issues', []))
+                suggested_questions = data.get('suggested_questions', [])
                 if suggested_questions:
                     report_html += "<hr><h2>Suggested Questions</h2>"
                     suggestions_html = "<ul>"
@@ -3656,12 +3692,12 @@ def _run_gui() -> Optional[int]:
             elif url_str.startswith("educate:"):
                 try:
                     issue_title = unquote(url_str[8:])
-                    self._show_educational_dialog(issue_title)
+                    self._display_educational_content(issue_title)
                 except Exception as e:
                     self.log(f"Failed to handle educate link: {url_str} - {e}")
 
-        def _show_educational_dialog(self, issue_title: str):
-            """Generates and displays a personalized educational dialog for a given issue."""
+        def _display_educational_content(self, issue_title: str):
+            """Generates educational content and appends it to the main view."""
             if not self.local_rag or not self.local_rag.is_ready():
                 QMessageBox.warning(self, "AI Not Ready", "The AI model is not available. Please wait for it to load or check the logs.")
                 return
@@ -3697,9 +3733,9 @@ def _run_gui() -> Optional[int]:
 
                 education_text = self.local_rag.query(prompt)
 
-                # Use the new custom dialog for better formatting
-                dialog = EducationDialog(issue_title, education_text, self)
-                dialog.exec()
+                # Append to chat history and re-render
+                self.chat_history.append(('education', (issue_title, education_text)))
+                self._render_chat_history()
 
             except Exception as e:
                 self.set_error(f"An error occurred while generating educational content: {e}")
@@ -3809,8 +3845,20 @@ def _run_gui() -> Optional[int]:
             for sender, message in self.chat_history:
                 if sender == "user":
                     chat_html += f"<div style='margin-top: 15px;'><b>You:</b> {html.escape(message)}</div>"
-                else:
+                elif sender == "ai":
                     chat_html += f"<div style='margin-top: 5px; padding: 8px; background-color: #2c3a4f; border-radius: 8px;'><b>AI:</b> {html.escape(message)}</div>"
+                elif sender == "education":
+                    issue_title, education_text = message
+                    # Basic HTML formatting for the content
+                    formatted_edu_text = education_text.replace("\n", "<br>")
+                    formatted_edu_text = formatted_edu_text.replace("1. **A Good Example:**", "<b>A Good Example:</b>")
+                    formatted_edu_text = formatted_edu_text.replace("2. **Corrected Version:**", "<b>Corrected Version:</b>")
+                    chat_html += (
+                        f"<div style='margin-top: 15px; padding: 12px; background-color: #eef6ff; border-left: 5px solid #60a5fa; border-radius: 8px;'>"
+                        f"<h3 style='margin-top:0;'>🎓 Learning Opportunity: {html.escape(issue_title)}</h3>"
+                        f"{formatted_edu_text}"
+                        f"</div>"
+                    )
 
             full_html = base_html
             if chat_html:
