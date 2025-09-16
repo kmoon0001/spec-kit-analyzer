@@ -3470,6 +3470,7 @@ def _run_gui() -> Optional[int]:
                 self.input_query_te.setPlainText("")
                 QApplication.processEvents()
 
+                # Use RAG if it's fully ready (model loaded and index created)
                 if self.rag_system and self.rag_system.is_ready() and self.rag_system.index is not None:
                     QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
                     self.statusBar().showMessage("Generating response...")
@@ -3480,15 +3481,44 @@ def _run_gui() -> Optional[int]:
 
                     QApplication.restoreOverrideCursor()
                     self.statusBar().showMessage("Ready")
-                elif not self.rag_system or not self.rag_system.is_ready():
-                    self.txt_chat.append("<b>ChatBot:</b> The local AI chat is not available. Please check the logs.")
-                else:  # RAG system is ready, but index is not.
-                    self.txt_chat.append("<b>ChatBot:</b> Please analyze a document first to enable the chat.")
+                else:
+                    # Fallback to simple keyword search
+                    self.log("RAG system not ready, falling back to keyword search.")
+                    self.statusBar().showMessage("AI Chat not available, using fallback search.", 3000)
+
+                    last_json = get_setting("last_report_json")
+                    if not last_json or not os.path.isfile(last_json):
+                        self.txt_chat.append("<b>ChatBot (Fallback):</b> No analysis context available. Please analyze a file first.")
+                        return
+
+                    import json
+                    with open(last_json, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+
+                    sentences = data.get("source_sentences", [])
+                    if not sentences:
+                        self.txt_chat.append("<b>ChatBot (Fallback):</b> No document text available to search.")
+                        return
+
+                    lines = [item[0] for item in sentences if isinstance(item, list) and len(item) > 0]
+                    ql = q.lower()
+                    search_terms = set(re.findall(r"[a-z0-9]{3,}", ql))
+
+                    hits = []
+                    if search_terms:
+                        for line in lines:
+                            line_lower = line.lower()
+                            if any(term in line_lower for term in search_terms):
+                                hits.append(line.strip())
+
+                    ans = "\n".join(hits[:5]) if hits else "(No specific passages found. Try rephrasing.)"
+                    self.txt_chat.append(f"<b>ChatBot (Fallback):</b>\n{html.escape(ans)}")
 
             except Exception as e:
                 self.set_error(str(e))
                 self.txt_chat.append(f"<b>ChatBot:</b> An error occurred: {html.escape(str(e))}")
-                QApplication.restoreOverrideCursor()
+                if QApplication.overrideCursor() is not None:
+                    QApplication.restoreOverrideCursor()
 
     apply_theme(app)
     win = MainWindow()
