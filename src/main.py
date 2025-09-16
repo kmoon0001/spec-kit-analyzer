@@ -10,6 +10,7 @@ import re
 import sqlite3
 import sys
 from typing import Callable, List, Literal, Tuple, Optional
+from urllib.parse import quote, unquote
 
 # Third-party used throughout
 import pandas as pd  # type: ignore
@@ -27,6 +28,31 @@ LOGS_DIR = os.path.join(os.path.expanduser("~"), "Documents", "SpecKitData", "lo
 # PDF report defaults
 REPORT_FONT_FAMILY = "DejaVu Sans"
 REPORT_FONT_SIZE = 8.5
+
+REPORT_STYLESHEET = """
+    body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 10pt; line-height: 1.4; }
+    h1 { font-size: 18pt; color: #1f4fd1; margin-bottom: 20px; }
+    h2 { font-size: 14pt; color: #111827; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 25px; }
+    h3 { font-size: 12pt; color: #374151; margin-top: 20px; }
+    .user-message { margin-top: 15px; }
+    .ai-message { margin-top: 5px; padding: 8px; background-color: #f3f4f6; border-radius: 8px; }
+    .education-block {
+        margin-top: 15px;
+        padding: 12px;
+        background-color: #eef6ff;
+        border-left: 5px solid #60a5fa;
+        border-radius: 8px;
+    }
+    .education-block h3 {
+        margin-top: 0;
+        color: #1f4fd1;
+    }
+    hr { border: none; border-top: 1px solid #ccc; margin: 20px 0; }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 5px; }
+    .suggestion-link { text-decoration: none; color: #1f4fd1; }
+    .suggestion-link:hover { text-decoration: underline; }
+"""
 REPORT_PAGE_SIZE = (8.27, 11.69)  # A4 inches
 REPORT_MARGINS = (1.1, 1.0, 1.3, 1.0)  # top, right, bottom, left inches
 REPORT_HEADER_LINES = 2
@@ -64,6 +90,13 @@ try:
 except Exception as e:
     pytesseract = None  # type: ignore
     logger.warning(f"pytesseract unavailable: {e}")
+
+try:
+    from transformers import pipeline
+    from nlg_service import NLGService
+except ImportError:
+    pipeline = None
+    logger.warning("transformers library not found. BioBERT NER will be disabled.")
 
 try:
     from PIL import Image, UnidentifiedImageError
@@ -108,6 +141,7 @@ try:
         QMainWindow, QToolBar, QLabel, QFileDialog, QMessageBox, QApplication,
         QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton,
         QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
+        feature/modern-ui-and-analytics
         QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout
     )
     from PyQt6.QtGui import QAction, QFont, QTextDocument
@@ -116,6 +150,75 @@ try:
     # Matplotlib for analytics chart
     from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.figure import Figure
+
+        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget
+    )
+    from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter
+    from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal
+
+    # Local imports
+    from .local_llm import LocalRAG
+    from .rubric_service import RubricService, ComplianceRule
+
+# --- LLM Loader Worker ---
+class LLMWorker(QObject):
+    """
+    A worker class to load the LocalRAG model in a separate thread.
+    """
+    finished = Signal(object)
+    error = Signal(str)
+
+    def __init__(self, model_repo_id: str, model_filename: str):
+        super().__init__()
+        self.model_repo_id = model_repo_id
+        self.model_filename = model_filename
+
+    def run(self):
+        """Loads the RAG model and emits a signal when done."""
+        try:
+            rag_instance = LocalRAG(
+                model_repo_id=self.model_repo_id,
+                model_filename=self.model_filename
+            )
+            if rag_instance.is_ready():
+                self.finished.emit(rag_instance)
+            else:
+                self.error.emit("RAG instance failed to initialize.")
+        except Exception as e:
+            logger.exception("LLMWorker failed to load model.")
+            self.error.emit(f"Failed to load AI model: {e}")
+
+
+
+
+def _generate_suggested_questions(issues: list) -> list[str]:
+    """Generates a list of suggested questions based on high-priority findings."""
+    suggestions = []
+
+    QUESTION_MAP = {
+        "Provider signature/date possibly missing": "Why are signatures and dates important for compliance?",
+        "Goals may not be measurable/time-bound": "What makes a therapy goal 'measurable' and 'time-bound'?",
+        "Medical necessity not explicitly supported": "Can you explain 'Medical Necessity' in the context of a therapy note?",
+        "Assistant supervision context unclear": "What are the supervision requirements for therapy assistants?",
+        "Plan/Certification not clearly referenced": "How should the Plan of Care be referenced in a note?",
+    }
+
+    # Prioritize flags, then wobblers
+    sorted_issues = sorted(issues, key=lambda x: ({"flag": 0, "wobbler": 1}.get(x.get('severity'), 2)))
+
+    for issue in sorted_issues:
+        if len(suggestions) >= 3:
+            break
+
+        title = issue.get('title')
+        if title in QUESTION_MAP and QUESTION_MAP[title] not in suggestions:
+            suggestions.append(QUESTION_MAP[title])
+
+    logger.info(f"Generated {len(suggestions)} suggested questions.")
+    return suggestions
+
+
+main
 except Exception:
     class QMainWindow:
         ...
@@ -341,6 +444,10 @@ except Exception:
         def setMinimumHeight(self, *_): ...
 
         def setSizePolicy(self, *_): ...
+
+    class QTabWidget:
+        def __init__(self, *_, **__): ...
+        def addTab(self, *_, **__): ...
 
 
 # --- Helper Exceptions ---
@@ -913,6 +1020,44 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
             cur.execute("ALTER TABLE analysis_runs ADD COLUMN compliance_score REAL")
             logger.info("Upgraded analysis_runs table to include 'compliance_score' column.")
 
+        cur.execute("""
+                    CREATE TABLE IF NOT EXISTS reviewed_findings
+                    (
+                        id
+                        INTEGER
+                        PRIMARY
+                        KEY
+                        AUTOINCREMENT,
+                        analysis_issue_id
+                        INTEGER
+                        NOT
+                        NULL,
+                        user_feedback
+                        TEXT
+                        NOT
+                        NULL,
+                        reviewed_at
+                        TEXT
+                        NOT
+                        NULL,
+                        notes
+                        TEXT,
+                        citation_text
+                        TEXT,
+                        model_prediction
+                        TEXT,
+                        FOREIGN
+                        KEY
+                    (
+                        analysis_issue_id
+                    ) REFERENCES analysis_issues
+                    (
+                        id
+                    ) ON DELETE CASCADE
+                        )
+                    """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_reviews_issue ON reviewed_findings(analysis_issue_id)")
+
         conn.commit()
     except Exception as e:
         logger.warning(f"Ensure analytics schema failed: {e}")
@@ -1044,8 +1189,8 @@ def _audit_from_rubric(text: str, strict: bool | None = None) -> list[dict]:
     t = (text or "").lower()
     issues: list[dict] = []
 
-    def add(sev: str, title: str, detail: str, cat: str) -> None:
-        issues.append({"severity": sev, "title": title, "detail": detail, "category": cat})
+    def add(sev: str, title: str, detail: str, cat: str, trigger_keywords: Optional[List[str]] = None) -> None:
+        issues.append({"severity": sev, "title": title, "detail": detail, "category": cat, "trigger_keywords": trigger_keywords or []})
 
     s = bool(strict)
     if not any(k in t for k in ("signature", "signed", "dated")):
@@ -1053,7 +1198,7 @@ def _audit_from_rubric(text: str, strict: bool | None = None) -> list[dict]:
             "No explicit evidence of dated/signature entries found.", "Signatures/Dates")
     if "goal" in t and not any(k in t for k in ("measurable", "time", "timed")):
         add("flag" if s else "wobbler", "Goals may not be measurable/time-bound",
-            "Consider restating goals with measurable, time-bound targets and baselines.", "Goals")
+            "Consider restating goals with measurable, time-bound targets and baselines.", "Goals", trigger_keywords=["goal"])
     if not any(k in t for k in ("medical necessity", "reasonable and necessary", "necessity")):
         add("flag" if s else "wobbler", "Medical necessity not explicitly supported",
             "Ensure documentation ties interventions to functional limitations and outcomes aligned with Medicare Part B.",
@@ -1061,16 +1206,13 @@ def _audit_from_rubric(text: str, strict: bool | None = None) -> list[dict]:
     if "assistant" in t and "supervis" not in t:
         add("wobbler" if s else "suggestion", "Assistant supervision context unclear",
             "When assistants are involved, document supervision/oversight per Medicare/state requirements.",
-            "Assistant Supervision")
+            "Assistant Supervision", trigger_keywords=["assistant"])
     if not any(k in t for k in ("plan of care", "poc", "certification", "recert")):
         add("flag" if s else "wobbler", "Plan/Certification not clearly referenced",
             "Explicitly reference plan of care/certification dates and responsible signatures.", "Plan/Certification")
-    issues.append({
-        "severity": "auditor_note",
-        "title": "General auditor checks",
-        "detail": "Review compliance with Medicare Part B (qualified personnel, plan establishment/recert, timings/units, documentation integrity).",
-        "category": "General"
-    })
+    add("auditor_note", "General auditor checks",
+        "Review compliance with Medicare Part B (qualified personnel, plan establishment/recert, timings/units, documentation integrity).",
+        "General")
     return issues
 
 
@@ -1080,16 +1222,62 @@ def _attach_issue_citations(issues_in: list[dict], records: list[tuple[str, str]
         q = (it.get("title", "") + " " + it.get("detail", "")).lower()
         tok = [w for w in re.findall(r"[a-z]{4,}", q)]
         cites: list[tuple[str, str]] = []
+        trigger_keywords = it.get("trigger_keywords")
+
         for (text, src) in records:
             tl = text.lower()
             score = sum(1 for w in tok if w in tl)
-            if score >= max(1, len(tok) // 4):
-                cites.append((text.strip(), src))
+
+            is_citation = score >= max(1, len(tok) // 4)
+            if not is_citation and trigger_keywords:
+                if any(kw.lower() in tl for kw in trigger_keywords):
+                    is_citation = True
+
+            if is_citation:
+                text_to_cite = text.strip()
+
+                if trigger_keywords:
+                    # Sort keywords by length, descending, to handle cases like "plan of care" vs "plan"
+                    sorted_kws = sorted(trigger_keywords, key=len, reverse=True)
+                    # Build a single regex for all keywords, with word boundaries
+                    pattern = r'(' + '|'.join(r'\b' + re.escape(kw) + r'\b' for kw in sorted_kws) + r')'
+
+                    parts = re.split(pattern, text_to_cite, flags=re.IGNORECASE)
+
+                    result_parts = []
+                    for i, part in enumerate(parts):
+                        # Matched keywords are at odd indices
+                        if i % 2 == 1:
+                            result_parts.append(f"<b>{html.escape(part)}</b>")
+                        else:
+                            result_parts.append(html.escape(part))
+
+                    final_text = "".join(result_parts)
+                    cites.append((final_text, src))
+                else:
+                    cites.append((html.escape(text_to_cite), src))
+
             if len(cites) >= cap:
                 break
         out.append({**it, "citations": cites})
     return out
 
+
+def _get_shap_prediction_wrapper(rule_title: str) -> Callable[[list[str]], list[float]]:
+    """
+    Creates a prediction function for a specific rule that SHAP can use.
+    """
+    def predict(texts: list[str]) -> list[float]:
+        scores = []
+        for text in texts:
+            # We run a "strict" audit because we want to know if the rule *could* be triggered.
+            issues = _audit_from_rubric(text, strict=True)
+            if any(issue['title'] == rule_title for issue in issues):
+                scores.append(1.0)
+            else:
+                scores.append(0.0)
+        return scores
+    return predict
 
 def _score_issue_confidence(issues_in: list[dict], records: list[tuple[str, str]]) -> list[dict]:
     all_text = " ".join(t for t, _ in records).lower()
@@ -1103,6 +1291,25 @@ def _score_issue_confidence(issues_in: list[dict], records: list[tuple[str, str]
             conf = min(1.0, conf + 0.15)
         out.append({**it, "confidence": round(float(conf), 2)})
     return out
+
+
+def run_biobert_ner(sentences: List[str]) -> List[dict]:
+    """
+    Performs Named Entity Recognition on a list of sentences using a BioBERT model.
+    """
+    if not pipeline:
+        logger.warning("Transformers pipeline is not available. Skipping BioBERT NER.")
+        return []
+
+    try:
+        # Using a pipeline for NER
+        # The 'simple' aggregation strategy groups subword tokens into whole words.
+        ner_pipeline = pipeline("ner", model="longluu/Clinical-NER-MedMentions-GatorTronBase", aggregation_strategy="simple")
+        results = ner_pipeline(sentences)
+        return results
+    except Exception as e:
+        logger.error(f"BioBERT NER failed: {e}")
+        return []
 
 
 # --- Exports ---
@@ -1123,6 +1330,9 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
                       sev_counts: Optional[dict] = None,
                       cat_counts: Optional[dict] = None) -> bool:
     try:
+        if not QApplication.instance():
+            import matplotlib
+            matplotlib.use("Agg")
         os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
         import math, textwrap
         import matplotlib.pyplot as plt  # type: ignore
@@ -1157,6 +1367,7 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
         wrapped: list[str] = []
         for ln in lines:
             s = "" if ln is None else str(ln)
+            s = s.replace("<b>", "*").replace("</b>", "*")
             if not s:
                 wrapped.append("")
                 continue
@@ -1564,6 +1775,14 @@ def run_analyzer(file_path: str,
             collapsed = collapse_similar_sentences_simple(processed, threshold)
         collapsed = list(collapsed)
 
+        # Run BioBERT NER
+        if get_bool_setting("enable_biobert_ner", False):
+            report(65, "Running BioBERT NER")
+            ner_sentences = [text for text, src in collapsed]
+            ner_results = run_biobert_ner(ner_sentences)
+            if ner_results:
+                logger.info(f"BioBERT NER results: {ner_results}")
+
         check_cancel()
         report(60, "Computing summary")
         summary = build_rich_summary(processed, collapsed)
@@ -1593,8 +1812,47 @@ def run_analyzer(file_path: str,
                                           str(x.get("category", "")),
                                           str(x.get("title", ""))))
 
+
         # I'll inject the details into the issue object itself for easier rendering later.
         # This is not in the original code, but it's a good refactoring.
+
+        # --- SHAP Integration ---
+        # Generate explanations for issues that have citations
+        for issue in issues_scored:
+            if issue.get("citations"):
+                try:
+                    # We can only explain rules with a clear title
+                    rule_title = issue.get("title")
+                    if not rule_title:
+                        continue
+
+                    # Create a prediction function for the specific rule
+                    prediction_fn = _get_shap_prediction_wrapper(rule_title)
+
+                    # Use the first citation as the text to explain
+                    text_to_explain = issue["citations"][0][0].replace("<b>", "").replace("</b>", "")
+
+                    # Create a SHAP explainer
+                    explainer = shap.Explainer(prediction_fn, shap.maskers.Text(r"\W+"))
+
+                    # Generate SHAP values
+                    shap_values = explainer([text_to_explain])
+
+                    # Store the explanation object to be used later for visualization
+                    issue['shap_explanation'] = shap_values
+
+                except Exception as e:
+                    logger.warning(f"SHAP explanation failed for issue '{issue.get('title')}': {e}")
+        # --- End SHAP Integration ---
+
+        # --- NLG Integration ---
+        nlg_service = NLGService()
+        for issue in issues_scored:
+            prompt = f"Generate a brief, actionable tip for a physical therapist to address this finding: {issue.get('title', '')} ({issue.get('severity', '')}) - {issue.get('detail', '')}"
+            tip = nlg_service.generate_tip(prompt)
+            issue['nlg_tip'] = tip
+        # --- End NLG Integration ---
+
         issue_details_map = {
             "Provider signature/date possibly missing": {
                 "action": "Ensure all entries are signed and dated by the qualified provider.",
@@ -1854,7 +2112,9 @@ def run_analyzer(file_path: str,
 
                 details = issue_details.get(title, {})
                 if details:
-                    narrative_lines.append(f"  - Recommended Action: {details['action']}")
+                    action_text = it.get("nlg_tip") or details.get("action")
+                    if action_text:
+                        narrative_lines.append(f"  - Recommended Action: {action_text}")
                     narrative_lines.append(f"  - Why it matters: {details['why']}")
                     narrative_lines.append(f"  - Good Example: {details['good_example']}")
                     narrative_lines.append(f"  - Bad Example: {details['bad_example']}")
@@ -1878,6 +2138,15 @@ def run_analyzer(file_path: str,
         narrative_lines.append(" • Always link treatment to function. Explain how the therapy helps the patient achieve their functional goals.")
         narrative_lines.append(" • Tell a story. The documentation should paint a clear picture of the patient's journey from evaluation to discharge.")
         narrative_lines.append("")
+
+        # --- Generate and add suggested questions ---
+        suggested_questions = _generate_suggested_questions(issues_scored)
+        if suggested_questions:
+            narrative_lines.append("--- Suggested Questions for Follow-up ---")
+            for q in suggested_questions:
+                narrative_lines.append(f" • {q}")
+            narrative_lines.append("")
+        # --- End suggested questions ---
 
         narrative_lines.append("--- Trends & Analytics (Last 10 Runs) ---")
         if trends.get("recent_scores"):
@@ -1955,6 +2224,7 @@ def run_analyzer(file_path: str,
                 "sev_counts": sev_counts,
                 "cat_counts": cat_counts,
                 "trends": trends,
+                "suggested_questions": suggested_questions,
             }, json_path)
             result_info["json"] = json_path
         except Exception as e:
@@ -2171,7 +2441,7 @@ def _run_gui() -> Optional[int]:
     from datetime import datetime, date, timedelta
 
     # We need a QApplication instance to show a message box, so create it early.
-    app = QApplication(sys.argv)
+    app = QApplication.instance() or QApplication(sys.argv)
 
     trial_duration_days = get_int_setting("trial_duration_days", 30)
 
@@ -2260,6 +2530,9 @@ def _run_gui() -> Optional[int]:
             self._last_error: Optional[str] = None
             self._batch_cancel = False
             self.current_report_data: Optional[dict] = None
+            self.local_rag: Optional[LocalRAG] = None
+            self.chat_history: list[tuple[str, str]] = []
+            self.compliance_rules: list[ComplianceRule] = []
 
             tb = QToolBar("Main")
             try:
@@ -2297,6 +2570,16 @@ def _run_gui() -> Optional[int]:
             act_exit.triggered.connect(self.close)  # type: ignore[attr-defined]
             tb.addAction(act_exit)
 
+            tb.addSeparator()
+
+            act_export_feedback = QAction("Export Feedback...", self)
+            act_export_feedback.triggered.connect(self.action_export_feedback)
+            tb.addAction(act_export_feedback)
+
+            act_analyze_performance = QAction("Analyze Performance", self)
+            act_analyze_performance.triggered.connect(self.action_analyze_performance)
+            tb.addAction(act_analyze_performance)
+
             central = QWidget()
             self.setCentralWidget(central)
             vmain = QVBoxLayout(central)
@@ -2322,6 +2605,7 @@ def _run_gui() -> Optional[int]:
             btn_refresh_analytics = QPushButton("Refresh Analytics")
             self._style_action_button(btn_refresh_analytics, font_size=11, bold=True, height=32)
             try:
+            feature/modern-ui-and-analytics
                 btn_refresh_analytics.clicked.connect(self._update_analytics_tab)
             except Exception: pass
             analytics_controls.addWidget(btn_refresh_analytics)
@@ -2356,6 +2640,11 @@ def _run_gui() -> Optional[int]:
             setup_layout = QVBoxLayout(setup_tab)
 
             top_setup_layout = QHBoxLayout()
+            
+                top_split.setChildrenCollapsible(False)
+            except Exception:
+                ...
+         main
 
             # Left: Rubric panel
             rubric_panel = QGroupBox("Rubric")
@@ -2363,7 +2652,9 @@ def _run_gui() -> Optional[int]:
 
             row_rubric_btns = QHBoxLayout()
             self.btn_upload_rubric = QPushButton("Upload Rubric")
+            self.btn_preview_rubric = QPushButton("Preview Rubric")
             self.btn_manage_rubrics = QPushButton("Manage Rubrics")
+            feature/modern-ui-and-analytics
             for b in (self.btn_upload_rubric, self.btn_manage_rubrics):
                 self._style_action_button(b, font_size=11, bold=True, height=32, padding="6px 10px")
                 row_rubric_btns.addWidget(b)
@@ -2372,11 +2663,30 @@ def _run_gui() -> Optional[int]:
             try:
                 self.btn_upload_rubric.clicked.connect(self.action_upload_rubric)
                 self.btn_manage_rubrics.clicked.connect(self.action_manage_rubrics)
+
+            self.btn_save_rubric = QPushButton("Save (App Only)")
+            self.btn_remove_rubric = QPushButton("Remove Rubric")
+            for b in (self.btn_upload_rubric, self.btn_preview_rubric, self.btn_manage_rubrics, self.btn_save_rubric, self.btn_remove_rubric):
+                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px")
+                row_rubric_btns.addWidget(b)
+            row_rubric_btns.addStretch(1)
+            try:
+                self.btn_upload_rubric.clicked.connect(self.action_upload_rubric)  # type: ignore[attr-defined]
+                self.btn_preview_rubric.clicked.connect(self.action_toggle_rubric_preview)  # type: ignore[attr-defined]
+                self.btn_manage_rubrics.clicked.connect(self.action_manage_rubrics)  # type: ignore[attr-defined]
+                self.btn_save_rubric.clicked.connect(self.action_save_rubric_app_only)  # type: ignore[attr-defined]
+                self.btn_remove_rubric.clicked.connect(self.action_remove_rubric)  # type: ignore[attr-defined]
+        main
             except Exception:
                 ...
             rubric_layout.addLayout(row_rubric_btns)
 
             self.lbl_rubric_file = QLabel("(No rubric selected)")
+        feature/modern-ui-and-analytics
+
+            self.lbl_rubric_file.setWordWrap(True)
+            rubric_layout.addWidget(self.lbl_rubric_title)
+        main
             rubric_layout.addWidget(self.lbl_rubric_file)
 
             self.txt_rubric = QTextEdit()
@@ -2390,6 +2700,7 @@ def _run_gui() -> Optional[int]:
 
             row_report_btns = QHBoxLayout()
             self.btn_upload_report = QPushButton("Open File")
+         feature/modern-ui-and-analytics
             self.btn_upload_folder = QPushButton("Open Folder")
             for b in (self.btn_upload_report, self.btn_upload_folder):
                 self._style_action_button(b, font_size=11, bold=True, height=32, padding="6px 10px")
@@ -2399,11 +2710,32 @@ def _run_gui() -> Optional[int]:
             try:
                 self.btn_upload_report.clicked.connect(self.action_open_report)
                 self.btn_upload_folder.clicked.connect(self.action_open_folder)
+
+            self.btn_analyze_all = QPushButton("Analyze")
+            self.btn_cancel_batch = QPushButton("Cancel Batch")
+            self.btn_clear_all = QPushButton("Clear All")
+            for b in (self.btn_upload_report, self.btn_analyze_all,
+                      self.btn_cancel_batch, self.btn_clear_all):
+                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px")
+                row_report_btns.addWidget(b)
+            row_report_btns.addStretch(1)
+            try:
+                self.btn_upload_report.clicked.connect(self.action_open_report)  # type: ignore[attr-defined]
+                self.btn_analyze_all.clicked.connect(self.action_analyze_combined)  # type: ignore[attr-defined]
+                self.btn_cancel_batch.clicked.connect(self.action_cancel_batch)  # type: ignore[attr-defined]
+                self.btn_cancel_batch.setDisabled(True)
+                self.btn_clear_all.clicked.connect(self.action_clear_all)  # type: ignore[attr-defined]
+        main
             except Exception:
                 ...
             report_layout.addLayout(row_report_btns)
 
+        feature/modern-ui-and-analytics
             self.lbl_report_name = QLabel("(No file selected for single analysis)")
+
+            self.lbl_report_name = QLabel("(No report selected)")
+            self.lbl_report_name.setWordWrap(True)
+         main
             report_layout.addWidget(self.lbl_report_name)
 
             top_setup_layout.addWidget(report_panel)
@@ -2474,8 +2806,47 @@ def _run_gui() -> Optional[int]:
             # --- Main Layout Assembly ---
             vmain.addWidget(self.tabs)
             try:
+        feature/modern-ui-and-analytics
                 self.tabs.currentChanged.connect(self._on_tab_changed)
             except Exception: pass
+    
+                self._style_action_button(self.btn_results_analytics, font_size=11, bold=True, height=28, padding="4px 10px")
+                self.btn_results_analytics.clicked.connect(
+                    lambda: self._export_analytics_csv())  # type: ignore[attr-defined]
+            except Exception:
+                ...
+            row_results_actions.addStretch(1)
+            row_results_actions.addWidget(self.btn_results_analytics)
+
+            self.btn_export_view = QPushButton("Export View to PDF")
+            self._style_action_button(self.btn_export_view, font_size=11, bold=True, height=28, padding="4px 10px")
+            self.btn_export_view.clicked.connect(self.action_export_view_to_pdf)
+            row_results_actions.addWidget(self.btn_export_view)
+
+            res_layout.addLayout(row_results_actions)
+
+            self.txt_chat = QTextEdit()
+            self.txt_chat.setPlaceholderText("Analysis summary will appear here.")
+            try:
+                self.txt_chat.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+                fstable = QFont();
+                fstable.setPointSize(12)
+                self.txt_chat.setFont(fstable)
+                self.txt_chat.anchorClicked.connect(self.handle_anchor_clicked)
+            except Exception:
+                ...
+            res_layout.addWidget(self.txt_chat, 1)
+            self.grp_results.setLayout(res_layout)
+
+            # Layout order
+            main_splitter = QSplitter(Qt.Orientation.Vertical)
+            main_splitter.addWidget(top_split)
+            main_splitter.addWidget(self.grp_queue_logs)
+            main_splitter.addWidget(self.grp_results)
+            main_splitter.setStretchFactor(0, 0)  # Do not stretch top panel
+            main_splitter.setStretchFactor(1, 1)  # Stretch logs/queue
+            main_splitter.setStretchFactor(2, 2)  # Stretch analysis window more
+        main
 
             self.progress_bar = QProgressBar()
             self.progress_bar.setRange(0, 100)
@@ -2510,8 +2881,8 @@ def _run_gui() -> Optional[int]:
             vmain.addLayout(input_row_bottom)
 
             try:
-                self.grp_logs.setStyleSheet(self.grp_logs.styleSheet() + " QGroupBox::title { padding-top: 6px; }")
-                self.grp_logs.raise_()
+                self.grp_queue_logs.setStyleSheet(self.grp_queue_logs.styleSheet() + " QGroupBox::title { padding-top: 6px; }")
+                self.grp_queue_logs.raise_()
                 self.grp_results.raise_()
             except Exception:
                 ...
@@ -2520,15 +2891,22 @@ def _run_gui() -> Optional[int]:
             try:
                 sb: QStatusBar = self.statusBar()
                 sb.clearMessage()
-                self.lbl_brand = QLabel("Spec Kit Analyzer")
+                self.lbl_brand = QLabel("Pacific Coast Therapy 🏝️")
+                brand_font = QFont("cursive")
+                brand_font.setPointSize(12)
+                self.lbl_brand.setFont(brand_font)
                 self.lbl_brand.setStyleSheet("color:#93c5fd; padding-left:8px; font-weight:700;")
+                self.lbl_brand.setToolTip("𝔎𝔢𝔳𝔦𝔫 𝔐𝔬𝔬𝔫")
                 self.lbl_err = QLabel(" Status: OK ")
                 self.lbl_err.setStyleSheet("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
                 self.lbl_lm1 = QLabel(" LM A: n/a ")
                 self.lbl_lm1.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
                 self.lbl_lm2 = QLabel(" LM B: disabled ")
                 self.lbl_lm2.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
+                self.lbl_rag_status = QLabel(" AI: Loading... ")
+                self.lbl_rag_status.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
                 sb.addPermanentWidget(self.lbl_brand)
+                sb.addPermanentWidget(self.lbl_rag_status)
                 sb.addPermanentWidget(self.lbl_lm1)
                 sb.addPermanentWidget(self.lbl_lm2)
                 sb.addPermanentWidget(self.lbl_err)
@@ -2541,9 +2919,52 @@ def _run_gui() -> Optional[int]:
                 self.lbl_report_name.setText("(No report selected)")
                 self.refresh_llm_indicator()
                 self.refresh_recent_files()
+         feature/modern-ui-and-analytics
                 self._update_analytics_tab() # Initial load
             except Exception:
                 ...
+
+                self._init_llm_thread()
+
+                # Load compliance rules
+                self.log("Loading compliance rubric...")
+                self.rubric_service = RubricService('src/compliance_rubric.ttl')
+                self.compliance_rules = self.rubric_service.get_rules()
+                self.log(f"Loaded {len(self.compliance_rules)} compliance rules.")
+
+            except Exception as e:
+                self.log(f"Error during initialization: {e}")
+
+        def _init_llm_thread(self):
+            """Initializes and starts the LLM loading worker thread."""
+            self.llm_thread = QThread()
+            self.llm_worker = LLMWorker(
+                model_repo_id="TheBloke/TinyLlama-1.1B-1T-OpenOrca-GGUF",
+                model_filename="tinyllama-1.1b-1t-openorca.Q4_K_M.gguf"
+            )
+            self.llm_worker.moveToThread(self.llm_thread)
+            self.llm_thread.started.connect(self.llm_worker.run)
+            self.llm_worker.finished.connect(self._on_rag_load_finished)
+            self.llm_worker.error.connect(self._on_rag_load_error)
+            self.llm_thread.finished.connect(self.llm_thread.deleteLater)
+            self.llm_thread.start()
+
+        def _on_rag_load_finished(self, rag_instance: LocalRAG):
+            """Handles the successful loading of the RAG instance."""
+            self.local_rag = rag_instance
+            self.lbl_rag_status.setText(" AI: Ready ")
+            self.lbl_rag_status.setStyleSheet("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
+            self.log("Local RAG AI is ready.")
+            self.llm_thread.quit()
+
+        def _on_rag_load_error(self, error_message: str):
+            """Handles errors during RAG model loading."""
+            self.local_rag = None
+            self.lbl_rag_status.setText(" AI: Error ")
+            self.lbl_rag_status.setStyleSheet("background:#ef4444; color:#fff; padding:3px 8px; border-radius:12px;")
+            self.log(f"Error loading RAG AI: {error_message}")
+            self.llm_thread.quit()
+        main
 
         def _on_tab_changed(self, index):
             if self.tabs.tabText(index) == "Analytics Dashboard":
@@ -2616,7 +3037,7 @@ def _run_gui() -> Optional[int]:
             self.analytics_canvas.draw()
 
         # Helpers and actions
-        def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px", fixed_width: Optional[int] = None):
+        def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px"):
             try:
                 f = QFont()
                 f.setPointSize(font_size)
@@ -2624,10 +3045,7 @@ def _run_gui() -> Optional[int]:
                 button.setFont(f)
                 button.setMinimumHeight(height)
                 button.setStyleSheet(f"text-align:center; padding:{padding};")
-                if fixed_width:
-                    button.setFixedWidth(fixed_width)
-                else:
-                    button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+                button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
             except Exception:
                 ...
 
@@ -2888,6 +3306,13 @@ def _run_gui() -> Optional[int]:
             except Exception as e:
                 self.set_error(str(e))
 
+        def action_toggle_rubric_preview(self):
+            try:
+                is_visible = self.txt_rubric.isVisible()
+                self.txt_rubric.setVisible(not is_visible)
+            except Exception as e:
+                self.set_error(f"Failed to toggle rubric preview: {e}")
+
         def action_remove_rubric(self):
             try:
                 reply = QMessageBox.question(self, "Remove Rubric",
@@ -3066,6 +3491,17 @@ def _run_gui() -> Optional[int]:
                         with open(res["json"], "r", encoding="utf-8") as f:
                             data = json.load(f)
                         self.render_analysis_to_results(data)
+
+                        # --- Create and index the context for the AI ---
+                        if self.local_rag and self.local_rag.is_ready():
+                            self.log("Creating AI context index...")
+                            context_chunks = self._create_context_chunks(data)
+                            self.local_rag.create_index(context_chunks)
+                            self.log("AI context index created successfully.")
+                        else:
+                            self.log("AI not ready, skipping context indexing.")
+                        # --- End AI context indexing ---
+
                     except Exception:
                         ...
                     try:
@@ -3090,6 +3526,51 @@ def _run_gui() -> Optional[int]:
                     self.btn_analyze_all.setDisabled(False)
                 except Exception:
                     ...
+
+        def _create_context_chunks(self, data: dict) -> list[str]:
+            """Creates a list of text chunks from the analysis data for the RAG index."""
+            chunks = []
+
+            # 1. Add summary information
+            if 'compliance' in data and 'score' in data['compliance']:
+                chunks.append(f"[Summary] The overall compliance score is {data['compliance']['score']}/100.")
+            if 'executive_status' in data:
+                 chunks.append(f"[Summary] The executive status is '{data['executive_status']}'.")
+
+            # 2. Add each issue as a detailed chunk, enriched with rubric data
+            for issue in data.get('issues', []):
+                issue_title = issue.get('title')
+                # Find the corresponding full rule from the rubric
+                matching_rule = next((r for r in self.compliance_rules if r.issue_title == issue_title), None)
+
+                if matching_rule:
+                    # If we found the rule, create a detailed, structured chunk
+                    issue_str = (
+                        f"[Finding] A finding with severity '{matching_rule.severity}' was identified.\n"
+                        f"Category: {matching_rule.issue_category}\n"
+                        f"Title: {matching_rule.issue_title}\n"
+                        f"Why it matters: {matching_rule.issue_detail}"
+                    )
+                    chunks.append(issue_str)
+                else:
+                    # Fallback to the basic information if no rule is found
+                    sev = issue.get('severity', 'N/A').title()
+                    cat = issue.get('category', 'N/A')
+                    detail = issue.get('detail', 'N/A')
+                    chunks.append(f"[Finding] Severity: {sev}. Category: {cat}. Title: {issue_title}. Detail: {detail}.")
+
+                # Add citations as separate, clearly linked chunks
+                for i, (citation_text, source) in enumerate(issue.get('citations', [])[:2]):
+                    clean_citation = re.sub('<[^<]+?>', '', citation_text)
+                    chunks.append(f"[Evidence] The finding '{issue_title}' is supported by evidence from '{source}': \"{clean_citation}\"")
+
+            # 3. Add the original document sentences
+            for text, source in data.get('source_sentences', []):
+                 chunks.append(f"[Document Text] From {source}: \"{text}\"")
+
+            self.log(f"Generated {len(chunks)} text chunks for AI context.")
+            return chunks
+
 
         def action_analyze_batch(self):
             try:
@@ -3181,10 +3662,87 @@ def _run_gui() -> Optional[int]:
             except Exception as e:
                 self.set_error(str(e))
 
+        feature/modern-ui-and-analytics
         def render_analysis_to_results(self, data: dict) -> None:
+
+        def action_export_view_to_pdf(self):
+            """Exports the current content of the main chat/analysis view to a PDF."""
+            if not self.current_report_data:
+                QMessageBox.warning(self, "Export Error", "Please analyze a document first.")
+                return
+
+            default_filename = os.path.basename(self.current_report_data.get('file', 'report.pdf'))
+            default_filename = os.path.splitext(default_filename)[0] + "_annotated.pdf"
+
+            save_path, _ = QFileDialog.getSaveFileName(
+                self, "Save PDF", default_filename, "PDF Files (*.pdf)"
+            )
+
+            if not save_path:
+                return
+
             try:
+                self.statusBar().showMessage("Exporting to PDF...")
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+
+                html_content = self.txt_chat.toHtml()
+
+                doc = QTextDocument()
+                doc.setHtml(html_content)
+
+                writer = QPdfWriter(save_path)
+                writer.setPageSize(QPdfWriter.PageSize.A4)
+                # Set margins if needed: writer.setPageMargins(...)
+
+                doc.print_(writer)
+
+                self.log(f"Successfully exported view to {save_path}")
+                QMessageBox.information(self, "Export Successful", f"The current view has been exported to:\n{save_path}")
+
+            except Exception as e:
+                self.set_error(f"Failed to export view to PDF: {e}")
+                QMessageBox.critical(self, "Export Error", f"An error occurred while exporting to PDF:\n{e}")
+            finally:
+                self.statusBar().showMessage("Ready")
+                QApplication.restoreOverrideCursor()
+
+        def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None) -> None:
+      main
+            try:
+                # --- Bug Fix: Ensure issue IDs are present for loaded reports ---
+                issues = data.get("issues", [])
+                if issues and 'id' not in issues[0]:
+                    try:
+                        with _get_db_connection() as conn:
+                            # Find the run_id from the file name and generated timestamp
+                            run_df = pd.read_sql_query(
+                                "SELECT id FROM analysis_runs WHERE file_name = ? AND run_time = ? LIMIT 1",
+                                conn,
+                                params=(os.path.basename(data.get("file")), data.get("generated"))
+                            )
+                            if not run_df.empty:
+                                run_id = run_df.iloc[0]['id']
+                                # Get all issues with IDs for that run
+                                issues_from_db_df = pd.read_sql_query(
+                                    "SELECT id, title, detail FROM analysis_issues WHERE run_id = ?",
+                                    conn,
+                                    params=(run_id,)
+                                )
+                                # Create a lookup map and inject the IDs
+                                issue_map = { (row['title'], row['detail']): row['id'] for _, row in issues_from_db_df.iterrows() }
+                                for issue in issues:
+                                    issue['id'] = issue_map.get((issue.get('title'), issue.get('detail')))
+                    except Exception as e:
+                        self.log(f"Could not enrich loaded report with issue IDs: {e}")
+                # --- End Bug Fix ---
+
                 self.current_report_data = data
+        feature/modern-ui-and-analytics
                 self.tabs.setCurrentIndex(1) # Switch to results tab
+
+                # When a new report is loaded, clear the previous chat history
+                self.chat_history = []
+              main
 
                 file_name = os.path.basename(data.get("file", "Unknown File"))
 
@@ -3202,22 +3760,111 @@ def _run_gui() -> Optional[int]:
 
                         sev_color = {"Flag": "#dc3545", "Wobbler": "#ffc107", "Suggestion": "#17a2b8"}.get(issue.get("severity", "").title(), "#6c757d")
 
+        feature/modern-ui-and-analytics
                         report_html_lines.append(f"<div style='border-left: 3px solid {sev_color}; padding-left: 10px; margin-bottom: 15px;'>")
                         report_html_lines.append(f"<strong>{issue.get('title', 'Finding')}</strong><br>")
                         report_html_lines.append(f"<small>Severity: {issue.get('severity', '').title()} | Category: {issue.get('category', 'General')} | {link}</small>")
+
+                        # Add review links
+                        issue_id = issue.get('id')
+                        review_links = ""
+                        if issue_id:
+                            encoded_title = quote(issue.get('title', ''))
+                            review_links = f"""
+                            <a href='review:{issue_id}:correct' style='text-decoration:none; color:green;'>✔️ Correct</a>
+                            <a href='review:{issue_id}:incorrect' style='text-decoration:none; color:red;'>❌ Incorrect</a>
+                            <a href='educate:{encoded_title}' style='text-decoration:none; color:#60a5fa; margin-left: 10px;'>🎓 Learn More</a>
+                            """
+
+                        sev = str(issue.get("severity", "")).title()
+                        cat = issue.get("category", "") or "General"
+                        title = issue.get("title", "") or "Finding"
+                        narrative_lines.append(f"<b>[{sev}][{cat}] {title}</b> {review_links}")
+          main
 
                         details = issue.get("details", {})
                         if details:
                             report_html_lines.append(f"<p><strong>Action:</strong> {details.get('action', 'N/A')}</p>")
                             report_html_lines.append(f"<p><strong>Why:</strong> {details.get('why', 'N/A')}</p>")
 
+        feature/modern-ui-and-analytics
                         report_html_lines.append("</div>")
+          
+                        # --- SHAP Visualization ---
+                        if 'shap_explanation' in issue and issue['shap_explanation'] is not None:
+                            try:
+                                # Generate the full HTML for the SHAP plot
+                                shap_html_full = shap.plots.text(issue['shap_explanation'], display=False)
+
+                                # Extract style and body content using regex
+                                style_match = re.search(r'<style>(.*?)</style>', shap_html_full, re.DOTALL)
+                                body_match = re.search(r'<body>(.*?)</body>', shap_html_full, re.DOTALL)
+
+                                if style_match and body_match:
+                                    style_content = style_match.group(1)
+                                    body_content = body_match.group(1)
+
+                                    # Parse CSS rules and store them in a dict
+                                    styles = {}
+                                    # A more robust regex for CSS rules
+                                    rules = re.findall(r'\.([\w.-]+)\s*\{(.*?)\}', style_content)
+                                    for class_name, rule_body in rules:
+                                        # Convert to inline style format, removing newlines and extra spaces
+                                        inline_style = ' '.join(rule_body.strip().split())
+                                        styles[class_name] = inline_style
+
+                                    # Replace class attributes with inline style attributes
+                                    html_with_inline_styles = body_content
+                                    def replace_class(match):
+                                        class_attr = match.group(1)
+                                        # Handles multiple classes, but SHAP plots usually have one
+                                        classes = class_attr.split()
+                                        style_rules = ';'.join(styles.get(c, '') for c in classes)
+                                        return f'style="{style_rules}"'
+
+                                    html_with_inline_styles = re.sub(r'class="([^"]*)"', replace_class, body_content)
+
+                                    narrative_lines.append("  - <b>Explanation (SHAP)</b>:")
+                                    narrative_lines.append(
+                                        f"<div style='border: 1px solid #ccc; padding: 5px; border-radius: 3px; background-color: #f9f9f9;'>{html_with_inline_styles}</div>")
+                                else:
+                                    narrative_lines.append(
+                                        "  - <b>Explanation (SHAP)</b>: <i>Could not parse SHAP plot HTML.</i>")
+
+                            except Exception as e:
+                                self.log(f"SHAP plot generation failed for issue '{title}': {e}")
+                                logger.warning(f"SHAP plot generation failed for issue '{title}': {e}")
+                                narrative_lines.append(
+                                    f"  - <b>Explanation (SHAP)</b>: <i>Visualization failed to generate. See logs.</i>")
+                        # --- End SHAP Visualization ---
+
+                        narrative_lines.append(f"  - {link}")
+                        narrative_lines.append("") # Spacer
+        main
                 else:
                     report_html_lines.append("<p>No specific audit findings were identified.</p>")
 
                 self.txt_chat.setHtml("".join(report_html_lines))
 
+        feature/modern-ui-and-analytics
                 # --- Build Right Pane (Full Text) ---
+
+                # --- Add Suggested Questions ---
+                suggested_questions = data.get('suggested_questions', [])
+                if suggested_questions:
+                    report_html += "<hr><h2>Suggested Questions</h2>"
+                    suggestions_html = "<ul>"
+                    for q in suggested_questions:
+                        # URL-encode the question to handle special characters safely in the href
+                        encoded_q = quote(q)
+                        suggestions_html += f"<li><a href='ask:{encoded_q}' class='suggestion-link'>{html.escape(q)}</a></li>"
+                    suggestions_html += "</ul>"
+                    report_html += suggestions_html
+                # --- End Suggested Questions ---
+
+                # Full Text
+                report_html += "<hr><h2>Full Note Text</h2>"
+        main
                 full_text = "\n".join(s[0] for s in data.get('source_sentences', []))
                 self.txt_full_note.setPlainText(full_text)
 
@@ -3241,7 +3888,14 @@ def _run_gui() -> Optional[int]:
                                   f"<span style='background-color: {highlight_color}; color: {text_color};'>{highlighted_text}</span>"
                                   f"{post_text}</pre>")
 
+        feature/modern-ui-and-analytics
                 self.txt_full_note.setHtml(full_text_html)
+
+                # Store the generated HTML and render the chat view
+                self.current_report_data['narrative_html'] = report_html
+                self._render_chat_history()
+
+        main
 
                 # Scroll to the highlighted text
                 cursor = self.txt_full_note.textCursor()
@@ -3260,9 +3914,122 @@ def _run_gui() -> Optional[int]:
                     try:
                         start = int(parts[1])
                         end = int(parts[2])
+        feature/modern-ui-and-analytics
                         self.highlight_text_in_note(start, end)
+
+                        if hasattr(self, 'current_report_data') and self.current_report_data:
+                            self.render_analysis_to_results(self.current_report_data, highlight_range=(start, end))
+        main
                     except (ValueError, IndexError) as e:
                         self.log(f"Invalid highlight URL: {url_str} - {e}")
+            elif url_str.startswith("review:"):
+                parts = url_str.split(':')
+                if len(parts) == 3:
+                    try:
+                        issue_id = int(parts[1])
+                        feedback = parts[2]
+
+                        # Find the issue to get the citation text and model prediction
+                        issue_to_review = None
+                        if self.current_report_data and self.current_report_data.get('issues'):
+                            for issue in self.current_report_data['issues']:
+                                if issue.get('id') == issue_id:
+                                    issue_to_review = issue
+                                    break
+
+                        if issue_to_review:
+                            # Use the raw text of the first citation
+                            citation_text = ""
+                            if issue_to_review.get('citations'):
+                                raw_citation_html = issue_to_review['citations'][0][0]
+                                # Strip HTML tags to get raw text
+                                citation_text = re.sub('<[^<]+?>', '', raw_citation_html)
+
+                            model_prediction = issue_to_review.get('severity', 'unknown')
+                            self.save_finding_feedback(issue_id, feedback, citation_text, model_prediction)
+                        else:
+                            self.log(f"Could not find issue with ID {issue_id} to save feedback.")
+                            QMessageBox.warning(self, "Feedback", f"Could not find issue with ID {issue_id} in the current report.")
+
+                    except (ValueError, IndexError) as e:
+                        self.log(f"Invalid review URL: {url_str} - {e}")
+            elif url_str.startswith("ask:"):
+                try:
+                    # Decode the question from the URL
+                    question_text = unquote(url_str[4:])
+                    # Set the text in the input box and automatically send
+                    self.input_query_te.setPlainText(question_text)
+                    self.action_send()
+                except Exception as e:
+                    self.log(f"Failed to handle ask link: {url_str} - {e}")
+            elif url_str.startswith("educate:"):
+                try:
+                    issue_title = unquote(url_str[8:])
+                    self._display_educational_content(issue_title)
+                except Exception as e:
+                    self.log(f"Failed to handle educate link: {url_str} - {e}")
+
+        def _display_educational_content(self, issue_title: str):
+            """Generates educational content and appends it to the main view."""
+            if not self.local_rag or not self.local_rag.is_ready():
+                QMessageBox.warning(self, "AI Not Ready", "The AI model is not available. Please wait for it to load or check the logs.")
+                return
+
+            # 1. Find the relevant data
+            rule = next((r for r in self.compliance_rules if r.issue_title == issue_title), None)
+            issue = next((i for i in self.current_report_data.get('issues', []) if i.get('title') == issue_title), None)
+
+            if not rule or not issue:
+                QMessageBox.critical(self, "Error", "Could not find the details for this issue.")
+                return
+
+            user_text_html = issue.get('citations', [("No citation found.", "")])[0][0]
+            user_text = re.sub('<[^<]+?>', '', user_text_html)
+
+            # 2. Construct the prompt
+            prompt = (
+                "You are an expert on clinical documentation compliance. Your task is to create a personalized educational "
+                "example based on a compliance rule and a user's text that violated that rule.\n\n"
+                f"THE RULE:\nTitle: {rule.issue_title}\n"
+                f"Explanation: {rule.issue_detail}\n\n"
+                f"THE USER'S TEXT (which was flagged):\n\"{user_text}\"\n\n"
+                "YOUR TASK:\n"
+                "Create a clear, educational response with exactly two sections. Use the following format:\n"
+                "1. **A Good Example:** Provide a textbook-perfect example of a note that correctly follows this rule.\n"
+                "2. **Corrected Version:** Rewrite the user's original text to be compliant. Change only what is necessary to fix the error.\n"
+            )
+
+            # 3. Query the AI
+            try:
+                self.statusBar().showMessage("AI is generating educational content...")
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+
+                education_text = self.local_rag.query(prompt)
+
+                # Append to chat history and re-render
+                self.chat_history.append(('education', (issue_title, education_text)))
+                self._render_chat_history()
+
+            except Exception as e:
+                self.set_error(f"An error occurred while generating educational content: {e}")
+                QMessageBox.warning(self, "AI Error", f"An error occurred: {e}")
+            finally:
+                self.statusBar().showMessage("Ready")
+                QApplication.restoreOverrideCursor()
+
+        def save_finding_feedback(self, issue_id: int, feedback: str, citation_text: str, model_prediction: str):
+            try:
+                with _get_db_connection() as conn:
+                    cur = conn.cursor()
+                    cur.execute("""
+                        INSERT INTO reviewed_findings (analysis_issue_id, user_feedback, reviewed_at, citation_text, model_prediction)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (issue_id, feedback, _now_iso(), citation_text, model_prediction))
+                    conn.commit()
+                self.log(f"Saved feedback for finding {issue_id}: {feedback}")
+                self.statusBar().showMessage(f"Feedback '{feedback}' saved for finding {issue_id}.", 3000)
+            except Exception as e:
+                self.set_error(f"Failed to save feedback: {e}")
 
         def refresh_llm_indicator(self):
             try:
@@ -3309,44 +4076,169 @@ def _run_gui() -> Optional[int]:
                 QMessageBox.critical(self, "Error", f"Failed to export FHIR report:\n{e}")
 
         def action_send(self):
-            q = self.input_query_te.toPlainText().strip() if hasattr(self, "input_query_te") else ""
-            if not q:
+            question = self.input_query_te.toPlainText().strip()
+            if not question:
                 return
+
+            if not self.local_rag or not self.local_rag.is_ready() or not self.local_rag.index:
+                QMessageBox.warning(self, "AI Not Ready", "Please analyze a document first to activate the AI chat.")
+                return
+
             try:
-                last_json = get_setting("last_report_json")
-                if not last_json or not os.path.isfile(last_json):
-                    self.txt_chat.append("No analysis context available. Analyze a file first.\n")
-                    return
-                import json
-                with open(last_json, "r", encoding="utf-8") as f:
-                    data = json.load(f)
+                self.statusBar().showMessage("AI is thinking...")
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
-                # Search the original document sentences, not the narrative summary
-                sentences = data.get("source_sentences", [])
-                if not sentences:
-                    self.txt_chat.append("No document text available to search. Please analyze a file first.\n")
-                    return
+                answer = self.local_rag.query(question)
 
-                # The sentences are stored as [text, source] pairs. We search the text.
-                lines = [item[0] for item in sentences if isinstance(item, list) and len(item) > 0]
+                # Add to history and re-render the chat
+                self.chat_history.append(("user", question))
+                self.chat_history.append(("ai", answer))
+                self._render_chat_history()
 
-                ql = q.lower()
-                search_terms = set(re.findall(r"[a-z0-9]{3,}", ql))
-
-                hits = []
-                if search_terms:
-                    for line in lines:
-                        line_lower = line.lower()
-                        if any(term in line_lower for term in search_terms):
-                            hits.append(line.strip())
-
-                ans = "\n".join(hits[:5]) if hits else "(No specific passages found. Try rephrasing.)"
-                self.txt_chat.append(f"User:\n{q}\n\nAnswer:\n{ans}\n")
                 self.input_query_te.setPlainText("")
-            except Exception as e:
-                self.set_error(str(e))
 
-    app = QApplication(sys.argv)
+            except Exception as e:
+                self.set_error(f"An error occurred while querying the AI: {e}")
+                QMessageBox.warning(self, "AI Error", f"An error occurred: {e}")
+            finally:
+                self.statusBar().showMessage("Ready")
+                QApplication.restoreOverrideCursor()
+
+        def _render_chat_history(self):
+            """Renders the analysis report and the full chat history."""
+            if not self.current_report_data:
+                self.txt_chat.setHtml("<div>Please analyze a file to begin.</div>")
+                return
+
+            # Start with the base analysis report
+            base_html = self.current_report_data.get("narrative_html", "")
+
+            # Append chat history
+            chat_html = ""
+            for sender, message in self.chat_history:
+                if sender == "user":
+                    chat_html += f"<div class='user-message'><b>You:</b> {html.escape(message)}</div>"
+                elif sender == "ai":
+                    chat_html += f"<div class='ai-message'><b>AI:</b> {html.escape(message)}</div>"
+                elif sender == "education":
+                    issue_title, education_text = message
+                    # Basic HTML formatting for the content
+                    formatted_edu_text = education_text.replace("\n", "<br>")
+                    formatted_edu_text = formatted_edu_text.replace("1. **A Good Example:**", "<b>A Good Example:</b>")
+                    formatted_edu_text = formatted_edu_text.replace("2. **Corrected Version:**", "<b>Corrected Version:</b>")
+                    chat_html += (
+                        f"<div class='education-block'>"
+                        f"<h3>🎓 Learning Opportunity: {html.escape(issue_title)}</h3>"
+                        f"<p>{formatted_edu_text}</p>"
+                        f"</div>"
+                    )
+
+            title_page_html = ""
+            if self.current_report_data:
+                file_name = os.path.basename(self.current_report_data.get('file', 'N/A'))
+                run_time = self.current_report_data.get('generated', 'N/A')
+                score = self.current_report_data.get('compliance', {}).get('score', 'N/A')
+                title_page_html = f"""
+                <div style="text-align: center; page-break-after: always;">
+                    <h1>Compliance Analysis Report</h1>
+                    <hr>
+                    <h2 style="font-size: 14pt;">File: {html.escape(file_name)}</h2>
+                    <p><b>Analysis Date:</b> {html.escape(run_time)}</p>
+                    <p><b>Compliance Score:</b> {score} / 100.0</p>
+                </div>
+                """
+
+            body_content = base_html
+            if chat_html:
+                body_content += f"<h2>Conversation</h2>{chat_html}"
+
+            body_with_title = title_page_html + body_content
+
+            full_html = f"""
+            <html>
+                <head>
+                    <style>{REPORT_STYLESHEET}</style>
+                </head>
+                <body>
+                    {body_with_title}
+                </body>
+            </html>
+            """
+
+            self.txt_chat.setHtml(full_html)
+            self.txt_chat.verticalScrollBar().setValue(self.txt_chat.verticalScrollBar().maximum())
+
+        def action_export_feedback(self):
+            try:
+                default_path = os.path.join(ensure_reports_dir_configured(), "feedback_export.csv")
+                dest_csv, _ = QFileDialog.getSaveFileName(self, "Export Feedback Data", default_path, "CSV Files (*.csv)")
+                if not dest_csv:
+                    return
+
+                if export_feedback_csv(dest_csv):
+                    QMessageBox.information(self, "Export Successful", f"Feedback data successfully exported to:\\n{dest_csv}")
+                    _open_path(os.path.dirname(dest_csv))
+                else:
+                    QMessageBox.information(self, "Export Feedback", "No feedback data available to export.")
+            except Exception as e:
+                self.set_error(f"Failed to export feedback: {e}")
+                QMessageBox.warning(self, "Error", f"Failed to export feedback:\\n{e}")
+
+        def action_analyze_performance(self):
+            try:
+                self.log("Starting performance analysis with slicer...")
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+
+                # 1. Get feedback data
+                with _get_db_connection() as conn:
+                    df = pd.read_sql_query("SELECT * FROM reviewed_findings", conn)
+
+                if df.empty or len(df) < 5:
+                    QMessageBox.information(self, "Analyze Performance", "Not enough feedback data to analyze. Please review more findings first (at least 5 are recommended).")
+                    return
+
+                # 2. Prepare data for slicer
+                # Ground truth: 1 if the user agrees with the model, 0 otherwise.
+                # A "correct" feedback means the user agrees the finding was indeed an issue.
+                df['y'] = (df['user_feedback'] == 'correct').astype(int)
+
+                # Model prediction: for now, we assume if it's in the table, the model predicted "1" (issue found)
+                df['preds'] = 1
+
+                # Features are the text
+                df['text'] = df['citation_text']
+
+                slicer_data = df.to_dict('list')
+
+                # 3. Define slicing features
+                @slicer.feature
+                def sentence_length(row):
+                    return len(row['text'].split())
+
+                @slicer.feature
+                def has_goal_keyword(row):
+                    return "goal" in row['text'].lower()
+
+                @slicer.feature
+                def has_date_keyword(row):
+                    return "date" in row['text'].lower()
+
+                # 4. Run slicer
+                self.log("Launching slicer dashboard in web browser...")
+                slicer.run(
+                    slicer_data,
+                    features=[sentence_length, has_goal_keyword, has_date_keyword],
+                    title="Model Performance Analysis"
+                )
+                self.log("Slicer run command issued.")
+
+            except Exception as e:
+                self.set_error(f"Failed to run performance analysis: {e}")
+                logger.exception("Slicer analysis failed")
+                QMessageBox.critical(self, "Error", f"Failed to run performance analysis:\\n{e}")
+            finally:
+                QApplication.restoreOverrideCursor()
+
     apply_theme(app)
     win = MainWindow()
     try:
