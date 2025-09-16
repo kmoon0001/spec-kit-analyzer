@@ -25,25 +25,29 @@ class LocalRAG:
     and a local LLM for generating responses based on retrieved context.
     """
 
-    def __init__(self, model_repo_id: str, model_filename: str, n_gpu_layers: int = 0):
+    def __init__(self, model_repo_id: str, model_filename: str, model: Optional[SentenceTransformer] = None, n_gpu_layers: int = 0):
         """
         Initializes the LocalRAG system.
 
         Args:
             model_repo_id (str): The Hugging Face repository ID of the GGUF model.
             model_filename (str): The filename of the GGUF model in the repository.
+            model (Optional[SentenceTransformer]): An optional pre-loaded sentence transformer model.
             n_gpu_layers (int): Number of layers to offload to GPU. 0 for CPU only.
         """
         self.llm: Optional[Llama] = None
-        self.embedding_model: Optional[SentenceTransformer] = None
+        self.embedding_model: Optional[SentenceTransformer] = model
         self.index: Optional[faiss.Index] = None
         self.text_chunks: List[str] = []
 
         try:
-            # 1. Load the sentence transformer model for creating embeddings
-            logger.info(f"Loading embedding model: {EMBEDDING_MODEL}")
-            self.embedding_model = SentenceTransformer(EMBEDDING_MODEL)
-            logger.info("Embedding model loaded successfully.")
+            # 1. Load the sentence transformer model if not provided
+            if self.embedding_model is None:
+                logger.info(f"Loading embedding model: {EMBEDDING_MODEL}")
+                self.embedding_model = SentenceTransformer(EMBEDDING_MODEL)
+                logger.info("Embedding model loaded successfully.")
+            else:
+                logger.info("Using pre-loaded sentence transformer model.")
 
             # 2. Download and load the local LLM
             logger.info(f"Downloading LLM from {model_repo_id}...")

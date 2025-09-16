@@ -18,6 +18,8 @@ import pandas as pd  # type: ignore
 from local_llm import LocalRAG
 from rubric_service import RubricService
 from ner_service import NERService
+from context_service import ContextService
+from sentence_transformers import SentenceTransformer
 
 # --- Configuration defaults and constants ---
 REPORT_TEMPLATE_VERSION = "v2.0"
@@ -1583,7 +1585,8 @@ def run_analyzer(file_path: str,
             report(75, "Extracting medical entities")
             try:
                 # The extract_entities method returns dataclasses, convert them to dicts for JSON serialization
-                ner_results = [entity.__dict__ for entity in ner_service.extract_entities(full_text)]
+                sentences_for_ner = [s[0] for s in collapsed]
+                ner_results = [entity.__dict__ for entity in ner_service.extract_entities(full_text, sentences=sentences_for_ner)]
             except Exception as e:
                 logger.error(f"NER extraction failed: {e}")
 
@@ -2259,6 +2262,8 @@ def _run_gui() -> Optional[int]:
             self.current_report_data: Optional[dict] = None
             self.rag_system: Optional[LocalRAG] = None
             self.ner_service: Optional[NERService] = None
+            self.context_service: Optional[ContextService] = None
+            self.sentence_model: Optional[SentenceTransformer] = None
 
             tb = QToolBar("Main")
             try:
@@ -2539,48 +2544,74 @@ def _run_gui() -> Optional[int]:
                 self.lbl_report_name.setText("(No report selected)")
                 self.refresh_llm_indicator()
                 self.refresh_recent_files()
-                self.statusBar().showMessage("Initializing AI Chat System...")
-                self._initialize_rag_system_in_background()
-                self._initialize_ner_service_in_background()
+                self.statusBar().showMessage("Initializing AI Services...")
+                self._initialize_ai_services_in_background()
             except Exception:
                 ...
 
-        def _initialize_ner_service_in_background(self):
-            """Initializes the NER service in a background thread."""
-            thread = threading.Thread(target=self._initialize_ner_service, daemon=True)
+        def _initialize_ai_services_in_background(self):
+            """Initializes all AI services in a single background thread."""
+            thread = threading.Thread(target=self._initialize_ai_services, daemon=True)
             thread.start()
 
-        def _initialize_ner_service(self):
-            """The actual initialization of the NER service."""
-            self.log("Initializing NER service...")
-            self.ner_service = NERService(model_name="dmis-lab/biobert-v1.1-ner-bc5cdr")
-            if self.ner_service.is_ready():
-                self.log("NER service initialized successfully.")
-            else:
-                self.log("Failed to initialize NER service.")
-                self.set_error("NER service disabled.")
+        def _initialize_ai_services(self):
+            """The actual initialization of all AI-powered services."""
+            self.log("Initializing AI services...")
 
-        def _initialize_rag_system_in_background(self):
-            """Initializes the RAG system in a background thread to avoid freezing the GUI."""
-            thread = threading.Thread(target=self._initialize_rag_system, daemon=True)
-            thread.start()
+            # 1. Load the shared SentenceTransformer model
+            try:
+                self.log("Loading sentence transformer model...")
+                self.sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+                self.log("Sentence transformer model loaded.")
+            except Exception as e:
+                self.log(f"Failed to load sentence transformer model: {e}")
+                self.set_error("Core AI model failed to load.")
+                self.statusBar().showMessage("AI Services Failed.", 5000)
+                return
 
-        def _initialize_rag_system(self):
-            """The actual initialization of the RAG system."""
-            self.log("Initializing local AI chat system...")
-            # Using a low n_gpu_layers count to be safe for CPU-only environments.
-            self.rag_system = LocalRAG(
-                model_repo_id="TroyDoesAI/Tiny-RAG-gguf",
-                model_filename="Tiny-RAG.gguf",
-                n_gpu_layers=0
-            )
-            if self.rag_system.is_ready():
-                self.log("Local AI chat system initialized successfully.")
-                self.statusBar().showMessage("AI Chat Ready.", 5000)
-            else:
-                self.log("Failed to initialize local AI chat system. See logs for details.")
-                self.statusBar().showMessage("AI Chat Failed to Load.", 5000)
-                self.set_error("Local AI chat disabled.")
+            # 2. Initialize ContextService
+            try:
+                self.log("Initializing Context Service...")
+                context_path = os.path.join(os.path.dirname(__file__), "context_categories.json")
+                self.context_service = ContextService(context_path, self.sentence_model)
+                if self.context_service.is_ready():
+                    self.log("Context Service initialized.")
+                else:
+                    self.log("Context Service failed to initialize.")
+            except Exception as e:
+                self.log(f"Failed to initialize ContextService: {e}")
+
+            # 3. Initialize NERService, passing the context service to it
+            try:
+                self.log("Initializing NER service...")
+                self.ner_service = NERService(
+                    model_name="dmis-lab/biobert-v1.1-ner-bc5cdr",
+                    context_service=self.context_service
+                )
+                if self.ner_service.is_ready():
+                    self.log("NER service initialized.")
+                else:
+                    self.log("NER service failed to initialize.")
+            except Exception as e:
+                self.log(f"Failed to initialize NERService: {e}")
+
+            # 4. Initialize LocalRAG
+            try:
+                self.log("Initializing local AI chat system...")
+                self.rag_system = LocalRAG(
+                    model_repo_id="TroyDoesAI/Tiny-RAG-gguf",
+                    model_filename="Tiny-RAG.gguf",
+                    model=self.sentence_model, # Pass the shared model
+                    n_gpu_layers=0
+                )
+                if self.rag_system.is_ready():
+                    self.log("Local AI chat system initialized.")
+                else:
+                    self.log("Local AI chat system failed to initialize.")
+            except Exception as e:
+                self.log(f"Failed to initialize LocalRAG: {e}")
+
+            self.statusBar().showMessage("AI Services Ready.", 5000)
 
         # Helpers and actions
         def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px", fixed_width: Optional[int] = None):
@@ -3276,7 +3307,8 @@ def _run_gui() -> Optional[int]:
 
                         report_html += f"<li>In \"<i>{highlighted_sentence}</i>\":<ul>"
                         for entity in entities:
-                             report_html += f"<li>Found <b>{html.escape(entity['label'])}</b>: {html.escape(entity['text'])} (Score: {entity['score']:.2f})</li>"
+                            context_html = f" (Context: <b>{html.escape(entity['context'])}</b>)" if entity.get('context') else ""
+                            report_html += f"<li>Found <b>{html.escape(entity['label'])}</b>: {html.escape(entity['text'])}{context_html} (Score: {entity['score']:.2f})</li>"
                         report_html += "</ul></li>"
                     report_html += "</ul>"
 
