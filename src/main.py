@@ -67,6 +67,7 @@ except Exception as e:
 
 try:
     from transformers import pipeline
+    from nlg_service import NLGService
 except ImportError:
     pipeline = None
     logger.warning("transformers library not found. BioBERT NER will be disabled.")
@@ -1699,6 +1700,7 @@ def run_analyzer(file_path: str,
                                           str(x.get("category", "")),
                                           str(x.get("title", ""))))
 
+
         # I'll inject the details into the issue object itself for easier rendering later.
         # This is not in the original code, but it's a good refactoring.
 
@@ -1730,6 +1732,14 @@ def run_analyzer(file_path: str,
                 except Exception as e:
                     logger.warning(f"SHAP explanation failed for issue '{issue.get('title')}': {e}")
         # --- End SHAP Integration ---
+
+        # --- NLG Integration ---
+        nlg_service = NLGService()
+        for issue in issues_scored:
+            prompt = f"Generate a brief, actionable tip for a physical therapist to address this finding: {issue.get('title', '')} ({issue.get('severity', '')}) - {issue.get('detail', '')}"
+            tip = nlg_service.generate_tip(prompt)
+            issue['nlg_tip'] = tip
+        # --- End NLG Integration ---
 
         issue_details_map = {
             "Provider signature/date possibly missing": {
@@ -1990,7 +2000,9 @@ def run_analyzer(file_path: str,
 
                 details = issue_details.get(title, {})
                 if details:
-                    narrative_lines.append(f"  - Recommended Action: {details['action']}")
+                    action_text = it.get("nlg_tip") or details.get("action")
+                    if action_text:
+                        narrative_lines.append(f"  - Recommended Action: {action_text}")
                     narrative_lines.append(f"  - Why it matters: {details['why']}")
                     narrative_lines.append(f"  - Good Example: {details['good_example']}")
                     narrative_lines.append(f"  - Bad Example: {details['bad_example']}")
