@@ -28,6 +28,31 @@ LOGS_DIR = os.path.join(os.path.expanduser("~"), "Documents", "SpecKitData", "lo
 # PDF report defaults
 REPORT_FONT_FAMILY = "DejaVu Sans"
 REPORT_FONT_SIZE = 8.5
+
+REPORT_STYLESHEET = """
+    body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 10pt; line-height: 1.4; }
+    h1 { font-size: 18pt; color: #1f4fd1; margin-bottom: 20px; }
+    h2 { font-size: 14pt; color: #111827; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 25px; }
+    h3 { font-size: 12pt; color: #374151; margin-top: 20px; }
+    .user-message { margin-top: 15px; }
+    .ai-message { margin-top: 5px; padding: 8px; background-color: #f3f4f6; border-radius: 8px; }
+    .education-block {
+        margin-top: 15px;
+        padding: 12px;
+        background-color: #eef6ff;
+        border-left: 5px solid #60a5fa;
+        border-radius: 8px;
+    }
+    .education-block h3 {
+        margin-top: 0;
+        color: #1f4fd1;
+    }
+    hr { border: none; border-top: 1px solid #ccc; margin: 20px 0; }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 5px; }
+    .suggestion-link { text-decoration: none; color: #1f4fd1; }
+    .suggestion-link:hover { text-decoration: underline; }
+"""
 REPORT_PAGE_SIZE = (8.27, 11.69)  # A4 inches
 REPORT_MARGINS = (1.1, 1.0, 1.3, 1.0)  # top, right, bottom, left inches
 REPORT_HEADER_LINES = 2
@@ -3597,7 +3622,7 @@ def _run_gui() -> Optional[int]:
                     for q in suggested_questions:
                         # URL-encode the question to handle special characters safely in the href
                         encoded_q = quote(q)
-                        suggestions_html += f"<li><a href='ask:{encoded_q}' style='text-decoration:none; color:#60a5fa;'>{html.escape(q)}</a></li>"
+                        suggestions_html += f"<li><a href='ask:{encoded_q}' class='suggestion-link'>{html.escape(q)}</a></li>"
                     suggestions_html += "</ul>"
                     report_html += suggestions_html
                 # --- End Suggested Questions ---
@@ -3844,9 +3869,9 @@ def _run_gui() -> Optional[int]:
             chat_html = ""
             for sender, message in self.chat_history:
                 if sender == "user":
-                    chat_html += f"<div style='margin-top: 15px;'><b>You:</b> {html.escape(message)}</div>"
+                    chat_html += f"<div class='user-message'><b>You:</b> {html.escape(message)}</div>"
                 elif sender == "ai":
-                    chat_html += f"<div style='margin-top: 5px; padding: 8px; background-color: #2c3a4f; border-radius: 8px;'><b>AI:</b> {html.escape(message)}</div>"
+                    chat_html += f"<div class='ai-message'><b>AI:</b> {html.escape(message)}</div>"
                 elif sender == "education":
                     issue_title, education_text = message
                     # Basic HTML formatting for the content
@@ -3854,15 +3879,43 @@ def _run_gui() -> Optional[int]:
                     formatted_edu_text = formatted_edu_text.replace("1. **A Good Example:**", "<b>A Good Example:</b>")
                     formatted_edu_text = formatted_edu_text.replace("2. **Corrected Version:**", "<b>Corrected Version:</b>")
                     chat_html += (
-                        f"<div style='margin-top: 15px; padding: 12px; background-color: #eef6ff; border-left: 5px solid #60a5fa; border-radius: 8px;'>"
-                        f"<h3 style='margin-top:0;'>🎓 Learning Opportunity: {html.escape(issue_title)}</h3>"
-                        f"{formatted_edu_text}"
+                        f"<div class='education-block'>"
+                        f"<h3>🎓 Learning Opportunity: {html.escape(issue_title)}</h3>"
+                        f"<p>{formatted_edu_text}</p>"
                         f"</div>"
                     )
 
-            full_html = base_html
+            title_page_html = ""
+            if self.current_report_data:
+                file_name = os.path.basename(self.current_report_data.get('file', 'N/A'))
+                run_time = self.current_report_data.get('generated', 'N/A')
+                score = self.current_report_data.get('compliance', {}).get('score', 'N/A')
+                title_page_html = f"""
+                <div style="text-align: center; page-break-after: always;">
+                    <h1>Compliance Analysis Report</h1>
+                    <hr>
+                    <h2 style="font-size: 14pt;">File: {html.escape(file_name)}</h2>
+                    <p><b>Analysis Date:</b> {html.escape(run_time)}</p>
+                    <p><b>Compliance Score:</b> {score} / 100.0</p>
+                </div>
+                """
+
+            body_content = base_html
             if chat_html:
-                full_html += f"<hr><h2>Conversation</h2>{chat_html}"
+                body_content += f"<h2>Conversation</h2>{chat_html}"
+
+            body_with_title = title_page_html + body_content
+
+            full_html = f"""
+            <html>
+                <head>
+                    <style>{REPORT_STYLESHEET}</style>
+                </head>
+                <body>
+                    {body_with_title}
+                </body>
+            </html>
+            """
 
             self.txt_chat.setHtml(full_html)
             self.txt_chat.verticalScrollBar().setValue(self.txt_chat.verticalScrollBar().maximum())
