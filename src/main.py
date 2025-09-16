@@ -11,6 +11,8 @@ import sqlite3
 import sys
 from typing import Callable, List, Literal, Tuple, Optional
 
+from .local_llm import LocalRAG
+
 # Third-party used throughout
 import pandas as pd  # type: ignore
 
@@ -1616,6 +1618,15 @@ def run_analyzer(file_path: str,
             if ner_results:
                 logger.info(f"BioBERT NER results: {ner_results}")
 
+        # Create RAG index
+        try:
+            main_window = QApplication.instance().activeWindow()
+            if main_window and hasattr(main_window, 'rag_system') and main_window.rag_system and main_window.rag_system.is_ready():
+                report(68, "Creating chat index...")
+                main_window.rag_system.create_index([text for text, src in collapsed])
+        except Exception as e:
+            logger.error(f"Failed to create RAG index: {e}")
+
         check_cancel()
         report(60, "Computing summary")
         summary = build_rich_summary(processed, collapsed)
@@ -2574,10 +2585,37 @@ def _run_gui() -> Optional[int]:
             try:
                 self._current_report_path = None
                 self.lbl_report_name.setText("(No report selected)")
+                self.rag_system: Optional[LocalRAG] = None
+                self.initialize_rag_system()
                 self.refresh_llm_indicator()
                 self.refresh_recent_files()
             except Exception:
                 ...
+
+        def initialize_rag_system(self):
+            try:
+                self.log("Initializing local RAG system...")
+                self.lbl_lm1.setText(" RAG: Loading... ")
+                self.lbl_lm1.setStyleSheet("background:#f59e0b; color:#111; padding:3px 8px; border-radius:12px;")
+                QApplication.processEvents()
+
+                self.rag_system = LocalRAG(
+                    model_repo_id="TheBloke/Mistral-7B-Instruct-v0.2-GGUF",
+                    model_filename="mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+                )
+
+                if self.rag_system and self.rag_system.is_ready():
+                    self.log("Local RAG system initialized successfully.")
+                    self.lbl_lm1.setText(" RAG: Ready ")
+                    self.lbl_lm1.setStyleSheet("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
+                else:
+                    raise Exception("RAG system failed to initialize or is not ready.")
+
+            except Exception as e:
+                self.log(f"Failed to initialize RAG system: {e}")
+                self.rag_system = None
+                self.lbl_lm1.setText(" RAG: Error ")
+                self.lbl_lm1.setStyleSheet("background:#ef4444; color:#fff; padding:3px 8px; border-radius:12px;")
 
         # Helpers and actions
         def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px"):
@@ -3280,38 +3318,29 @@ def _run_gui() -> Optional[int]:
             if not q:
                 return
             try:
-                last_json = get_setting("last_report_json")
-                if not last_json or not os.path.isfile(last_json):
-                    self.txt_chat.append("No analysis context available. Analyze a file first.\n")
-                    return
-                import json
-                with open(last_json, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-
-                # Search the original document sentences, not the narrative summary
-                sentences = data.get("source_sentences", [])
-                if not sentences:
-                    self.txt_chat.append("No document text available to search. Please analyze a file first.\n")
-                    return
-
-                # The sentences are stored as [text, source] pairs. We search the text.
-                lines = [item[0] for item in sentences if isinstance(item, list) and len(item) > 0]
-
-                ql = q.lower()
-                search_terms = set(re.findall(r"[a-z0-9]{3,}", ql))
-
-                hits = []
-                if search_terms:
-                    for line in lines:
-                        line_lower = line.lower()
-                        if any(term in line_lower for term in search_terms):
-                            hits.append(line.strip())
-
-                ans = "\n".join(hits[:5]) if hits else "(No specific passages found. Try rephrasing.)"
-                self.txt_chat.append(f"User:\n{q}\n\nAnswer:\n{ans}\n")
+                self.txt_chat.append(f"<b>You:</b> {html.escape(q)}")
                 self.input_query_te.setPlainText("")
+                QApplication.processEvents()
+
+                if self.rag_system and self.rag_system.is_ready() and self.rag_system.index is not None:
+                    QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+                    self.statusBar().showMessage("Generating response...")
+
+                    answer = self.rag_system.query(q)
+
+                    self.txt_chat.append(f"<b>ChatBot:</b> {html.escape(answer)}")
+
+                    QApplication.restoreOverrideCursor()
+                    self.statusBar().showMessage("Ready")
+                elif not self.rag_system or not self.rag_system.is_ready():
+                    self.txt_chat.append("<b>ChatBot:</b> The local AI chat is not available. Please check the logs.")
+                else:  # RAG system is ready, but index is not.
+                    self.txt_chat.append("<b>ChatBot:</b> Please analyze a document first to enable the chat.")
+
             except Exception as e:
                 self.set_error(str(e))
+                self.txt_chat.append(f"<b>ChatBot:</b> An error occurred: {html.escape(str(e))}")
+                QApplication.restoreOverrideCursor()
 
     apply_theme(app)
     win = MainWindow()
