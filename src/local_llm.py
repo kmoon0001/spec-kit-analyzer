@@ -95,6 +95,27 @@ class LocalRAG:
         self.index.add(np.array(embeddings, dtype=np.float32))
         logger.info("FAISS index created successfully.")
 
+    def search_index(self, query: str, k: int = 3) -> List[str]:
+        """
+        Searches the FAISS index for the most relevant text chunks.
+
+        Args:
+            query (str): The query string.
+            k (int): The number of chunks to retrieve.
+
+        Returns:
+            List[str]: A list of the top k most relevant text chunks.
+        """
+        if not self.is_ready() or not self.index or not self.embedding_model:
+            logger.warning("RAG system or index is not ready. Cannot perform search.")
+            return []
+
+        query_embedding = self.embedding_model.encode([query])
+        _, I = self.index.search(np.array(query_embedding, dtype=np.float32), k)
+
+        retrieved_chunks = [self.text_chunks[i] for i in I[0]]
+        return retrieved_chunks
+
     def query(self, question: str, k: int = 3) -> str:
         """
         Queries the RAG system.

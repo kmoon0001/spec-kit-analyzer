@@ -143,6 +143,7 @@ try:
     # Local imports
     from .local_llm import LocalRAG
     from .rubric_service import RubricService, ComplianceRule
+    from .guideline_service import GuidelineService
 
 # --- LLM Loader Worker ---
 class LLMWorker(QObject):
@@ -173,6 +174,33 @@ class LLMWorker(QObject):
             self.error.emit(f"Failed to load AI model: {e}")
 
 
+class GuidelineWorker(QObject):
+    """
+    A worker class to load and index guidelines in a separate thread.
+    """
+    finished = Signal(object)
+    error = Signal(str)
+
+    def __init__(self, rag_instance: LocalRAG):
+        super().__init__()
+        self.rag_instance = rag_instance
+
+    def run(self):
+        """Loads and indexes the guidelines and emits a signal when done."""
+        try:
+            guideline_service = GuidelineService(self.rag_instance)
+            sources = [
+                "https://www.cms.gov/files/document/r12532bp.pdf",
+                "test_data/static_guidelines.txt"
+            ]
+            guideline_service.load_and_index_guidelines(sources)
+            if guideline_service.is_index_ready:
+                self.finished.emit(guideline_service)
+            else:
+                self.error.emit("Guideline index failed to build.")
+        except Exception as e:
+            logger.exception("GuidelineWorker failed.")
+            self.error.emit(f"Failed to load guidelines: {e}")
 
 
 def _generate_suggested_questions(issues: list) -> list[str]:
@@ -1871,6 +1899,14 @@ def run_analyzer(file_path: str,
         for issue in issues_scored:
             issue['details'] = issue_details_map.get(issue.get('title', ''), {})
 
+        # --- Guideline Search Integration ---
+        if self.guideline_service and self.guideline_service.is_index_ready:
+            self.log("Searching for relevant guidelines for each finding...")
+            for issue in issues_scored:
+                query = f"{issue.get('title', '')}: {issue.get('detail', '')}"
+                guideline_results = self.guideline_service.search(query, top_k=2)
+                issue['guidelines'] = guideline_results
+        # --- End Guideline Search Integration ---
 
         pages_est = len({s for _, s in collapsed if s.startswith("Page ")}) or 1
 
@@ -2487,6 +2523,7 @@ def _run_gui() -> Optional[int]:
             self._batch_cancel = False
             self.current_report_data: Optional[dict] = None
             self.local_rag: Optional[LocalRAG] = None
+            self.guideline_service: Optional[GuidelineService] = None
             self.chat_history: list[tuple[str, str]] = []
             self.compliance_rules: list[ComplianceRule] = []
 
@@ -2825,6 +2862,32 @@ def _run_gui() -> Optional[int]:
             self.lbl_rag_status.setStyleSheet("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
             self.log("Local RAG AI is ready.")
             self.llm_thread.quit()
+
+            # Now that the RAG instance is ready, we can load the guidelines
+            self.log("Loading compliance guidelines...")
+            self.guideline_thread = QThread()
+            self.guideline_worker = GuidelineWorker(self.local_rag)
+            self.guideline_worker.moveToThread(self.guideline_thread)
+            self.guideline_thread.started.connect(self.guideline_worker.run)
+            self.guideline_worker.finished.connect(self._on_guideline_load_finished)
+            self.guideline_worker.error.connect(self._on_guideline_load_error)
+            self.guideline_thread.finished.connect(self.guideline_thread.deleteLater)
+            self.guideline_thread.start()
+
+
+        def _on_guideline_load_finished(self, guideline_service: GuidelineService):
+            """Handles the successful loading of the guidelines."""
+            self.guideline_service = guideline_service
+            self.log("Compliance guidelines loaded and indexed successfully.")
+            # You could add another status label for guidelines if desired
+            self.guideline_thread.quit()
+
+        def _on_guideline_load_error(self, error_message: str):
+            """Handles errors during guideline loading."""
+            self.guideline_service = None
+            self.log(f"Error loading guidelines: {error_message}")
+            # You could add another status label for guidelines if desired
+            self.guideline_thread.quit()
 
         def _on_rag_load_error(self, error_message: str):
             """Handles errors during RAG model loading."""
@@ -3570,6 +3633,15 @@ def _run_gui() -> Optional[int]:
                         if 'why' in details: narrative_lines.append(f"  - Why it matters: {details['why']}")
                         if 'good_example' in details: narrative_lines.append(f"  - Good Example: {details['good_example']}")
                         if 'bad_example' in details: narrative_lines.append(f"  - Bad Example: {details['bad_example']}")
+
+                        # --- Guideline Display ---
+                        if issue.get('guidelines'):
+                            narrative_lines.append("  - <b>Relevant Medicare Guidelines:</b>")
+                            for guideline in issue['guidelines']:
+                                text = html.escape(guideline.get('text', ''))
+                                source = html.escape(guideline.get('source', ''))
+                                narrative_lines.append(f"    - <i>“{text}”</i> (Source: {source})")
+                        # --- End Guideline Display ---
 
                         # --- SHAP Visualization ---
                         if 'shap_explanation' in issue and issue['shap_explanation'] is not None:
