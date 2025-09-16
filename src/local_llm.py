@@ -95,13 +95,35 @@ class LocalRAG:
         self.index.add(np.array(embeddings, dtype=np.float32))
         logger.info("FAISS index created successfully.")
 
-    def query(self, question: str, k: int = 3) -> str:
+    def search_index(self, query: str, k: int = 3) -> List[str]:
         """
-        Queries the RAG system.
+        Searches the FAISS index for the most relevant text chunks.
+
+        Args:
+            query (str): The query string.
+            k (int): The number of chunks to retrieve.
+
+        Returns:
+            List[str]: A list of the top k most relevant text chunks.
+        """
+        if not self.is_ready() or not self.index or not self.embedding_model:
+            logger.warning("RAG system or index is not ready. Cannot perform search.")
+            return []
+
+        query_embedding = self.embedding_model.encode([query])
+        _, I = self.index.search(np.array(query_embedding, dtype=np.float32), k)
+
+        retrieved_chunks = [self.text_chunks[i] for i in I[0]]
+        return retrieved_chunks
+
+    def query(self, question: str, k: int = 3, chat_history: List[tuple[str, str]] | None = None) -> str:
+        """
+        Queries the RAG system, now with conversational history.
 
         Args:
             question (str): The user's question.
             k (int): The number of relevant text chunks to retrieve.
+            chat_history (Optional[List[tuple[str, str]]]): The last N turns of the conversation.
 
         Returns:
             str: The LLM's generated answer.
@@ -114,23 +136,35 @@ class LocalRAG:
         # 1. Find relevant text chunks from the FAISS index
         query_embedding = self.embedding_model.encode([question])
         _, I = self.index.search(np.array(query_embedding, dtype=np.float32), k)
-
         retrieved_chunks = [self.text_chunks[i] for i in I[0]]
 
-        # NOTE: This is where we can extend the system in the future.
-        # We could also retrieve structured data from the compliance analysis
-        # (e.g., flagged issues) and add it to the context.
+        # 2. Construct the prompt
 
-        # 2. Construct the prompt using the special format required by the model
+        # Format the conversational history
+        history_str = ""
+        if chat_history:
+            # Take the last 6 turns (3 pairs of user/ai messages)
+            for sender, message in chat_history[-6:]:
+                if sender == 'user':
+                    history_str += f"Previous User Question: {message}\n"
+                elif sender == 'ai':
+                    history_str += f"Your Previous Answer: {message}\n"
+
+        # Format the retrieved document context
         context_str = ""
         for i, chunk in enumerate(retrieved_chunks):
             context_str += f"BEGININPUT\nBEGINCONTEXT\nsource: document_chunk_{i}\nENDCONTEXT\n{chunk}\nENDINPUT\n"
 
+        # Combine all parts into the final prompt
         prompt = (
-            "Contextual-Request:\n"
-            f"{context_str}"
+            "You are a helpful AI assistant. Answer the user's question based on the provided document context and the recent conversation history.\n\n"
+            "--- CONVERSATION HISTORY ---\n"
+            f"{history_str}\n"
+            "--- DOCUMENT CONTEXT ---\n"
+            f"{context_str}\n"
+            "--- CURRENT QUESTION ---\n"
             "BEGININSTRUCTION\n"
-            f"Based on the provided context, answer the following question: {question}\n"
+            f"Based on the provided context and conversation history, answer the following question: {question}\n"
             "ENDINSTRUCTION\n"
         )
 

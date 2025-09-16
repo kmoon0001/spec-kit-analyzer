@@ -159,6 +159,7 @@ try:
     # Local imports
     from .local_llm import LocalRAG
     from .rubric_service import RubricService, ComplianceRule
+    from .guideline_service import GuidelineService
 
 # --- LLM Loader Worker ---
 class LLMWorker(QObject):
@@ -189,6 +190,33 @@ class LLMWorker(QObject):
             self.error.emit(f"Failed to load AI model: {e}")
 
 
+class GuidelineWorker(QObject):
+    """
+    A worker class to load and index guidelines in a separate thread.
+    """
+    finished = Signal(object)
+    error = Signal(str)
+
+    def __init__(self, rag_instance: LocalRAG):
+        super().__init__()
+        self.rag_instance = rag_instance
+
+    def run(self):
+        """Loads and indexes the guidelines and emits a signal when done."""
+        try:
+            guideline_service = GuidelineService(self.rag_instance)
+            sources = [
+                "https://www.cms.gov/files/document/r12532bp.pdf",
+                "test_data/static_guidelines.txt"
+            ]
+            guideline_service.load_and_index_guidelines(sources)
+            if guideline_service.is_index_ready:
+                self.finished.emit(guideline_service)
+            else:
+                self.error.emit("Guideline index failed to build.")
+        except Exception as e:
+            logger.exception("GuidelineWorker failed.")
+            self.error.emit(f"Failed to load guidelines: {e}")
 
 
 def _generate_suggested_questions(issues: list) -> list[str]:
@@ -1930,6 +1958,14 @@ def run_analyzer(file_path: str,
         for issue in issues_scored:
             issue['details'] = issue_details_map.get(issue.get('title', ''), {})
 
+        # --- Guideline Search Integration ---
+        if self.guideline_service and self.guideline_service.is_index_ready:
+            self.log("Searching for relevant guidelines for each finding...")
+            for issue in issues_scored:
+                query = f"{issue.get('title', '')}: {issue.get('detail', '')}"
+                guideline_results = self.guideline_service.search(query, top_k=2)
+                issue['guidelines'] = guideline_results
+        # --- End Guideline Search Integration ---
 
         pages_est = len({s for _, s in collapsed if s.startswith("Page ")}) or 1
 
@@ -2567,6 +2603,7 @@ def _run_gui() -> Optional[int]:
             self._batch_cancel = False
             self.current_report_data: Optional[dict] = None
             self.local_rag: Optional[LocalRAG] = None
+            self.guideline_service: Optional[GuidelineService] = None
             self.chat_history: list[tuple[str, str]] = []
             self.compliance_rules: list[ComplianceRule] = []
 
@@ -2942,6 +2979,15 @@ def _run_gui() -> Optional[int]:
                 ...
             input_row_bottom.addWidget(self.input_query_te, 1)
             input_row_bottom.addWidget(btn_send, 0)
+
+            btn_reset = QPushButton("Reset Chat")
+            self._style_action_button(btn_reset, font_size=13, bold=False, height=40, padding="8px 12px")
+            try:
+                btn_reset.clicked.connect(self.action_reset_chat)
+            except Exception:
+                ...
+            input_row_bottom.addWidget(btn_reset, 0)
+
             vmain.addLayout(input_row_bottom)
 
             try:
@@ -3110,6 +3156,32 @@ def _run_gui() -> Optional[int]:
             self.lbl_rag_status.setStyleSheet("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
             self.log("Local RAG AI is ready.")
             self.llm_thread.quit()
+
+            # Now that the RAG instance is ready, we can load the guidelines
+            self.log("Loading compliance guidelines...")
+            self.guideline_thread = QThread()
+            self.guideline_worker = GuidelineWorker(self.local_rag)
+            self.guideline_worker.moveToThread(self.guideline_thread)
+            self.guideline_thread.started.connect(self.guideline_worker.run)
+            self.guideline_worker.finished.connect(self._on_guideline_load_finished)
+            self.guideline_worker.error.connect(self._on_guideline_load_error)
+            self.guideline_thread.finished.connect(self.guideline_thread.deleteLater)
+            self.guideline_thread.start()
+
+
+        def _on_guideline_load_finished(self, guideline_service: GuidelineService):
+            """Handles the successful loading of the guidelines."""
+            self.guideline_service = guideline_service
+            self.log("Compliance guidelines loaded and indexed successfully.")
+            # You could add another status label for guidelines if desired
+            self.guideline_thread.quit()
+
+        def _on_guideline_load_error(self, error_message: str):
+            """Handles errors during guideline loading."""
+            self.guideline_service = None
+            self.log(f"Error loading guidelines: {error_message}")
+            # You could add another status label for guidelines if desired
+            self.guideline_thread.quit()
 
         def _on_rag_load_error(self, error_message: str):
             """Handles errors during RAG model loading."""
@@ -3896,6 +3968,15 @@ def _run_gui() -> Optional[int]:
         def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None) -> None:
       main
             try:
+                # --- Clear on New Analysis Prompt ---
+                if self.chat_history:
+                    reply = QMessageBox.question(self, "Clear Chat History",
+                                                 "You have an existing conversation. Would you like to clear it for this new analysis?")
+                    if str(reply).lower().endswith("yes"):
+                        self.chat_history = []
+                        self.log("Chat history cleared for new analysis.")
+                # --- End Clear on New Analysis Prompt ---
+
                 # --- Bug Fix: Ensure issue IDs are present for loaded reports ---
                 issues = data.get("issues", [])
                 if issues and 'id' not in issues[0]:
@@ -3974,9 +4055,21 @@ def _run_gui() -> Optional[int]:
                             report_html_lines.append(f"<p><strong>Action:</strong> {details.get('action', 'N/A')}</p>")
                             report_html_lines.append(f"<p><strong>Why:</strong> {details.get('why', 'N/A')}</p>")
 
+        feat/semantic-search
+                        # --- Guideline Display ---
+                        if issue.get('guidelines'):
+                            narrative_lines.append("  - <b>Relevant Medicare Guidelines:</b>")
+                            for guideline in issue['guidelines']:
+                                text = html.escape(guideline.get('text', ''))
+                                source = html.escape(guideline.get('source', ''))
+                                narrative_lines.append(f"    - <i>“{text}”</i> (Source: {source})")
+                        # --- End Guideline Display ---
+
+
         feature/modern-ui-and-analytics
                         report_html_lines.append("</div>")
           
+        main
                         # --- SHAP Visualization ---
                         if 'shap_explanation' in issue and issue['shap_explanation'] is not None:
                             try:
@@ -4275,7 +4368,8 @@ def _run_gui() -> Optional[int]:
                 self.statusBar().showMessage("AI is thinking...")
                 QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
-                answer = self.local_rag.query(question)
+                # Pass the chat history to the query method
+                answer = self.local_rag.query(question, chat_history=self.chat_history)
 
                 # Add to history and re-render the chat
                 self.chat_history.append(("user", question))
@@ -4290,6 +4384,23 @@ def _run_gui() -> Optional[int]:
             finally:
                 self.statusBar().showMessage("Ready")
                 QApplication.restoreOverrideCursor()
+
+        def action_reset_chat(self):
+            """Clears the chat history and resets the chat view to the base report."""
+            if not self.chat_history:
+                return
+
+            reply = QMessageBox.question(self, "Reset Chat", "Are you sure you want to clear the current conversation?")
+            if str(reply).lower().endswith("yes"):
+                self.chat_history = []
+                self.log("Chat history has been manually reset.")
+                # Re-render the view to show only the base report
+                if self.current_report_data:
+                    self._render_chat_history()
+                else:
+                    self.txt_chat.clear() # Should not happen if there's history, but as a fallback
+                self.statusBar().showMessage("Chat Reset", 3000)
+
 
         def _render_chat_history(self):
             """Renders the analysis report and the full chat history."""
