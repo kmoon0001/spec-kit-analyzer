@@ -2789,6 +2789,15 @@ def _run_gui() -> Optional[int]:
                 ...
             input_row_bottom.addWidget(self.input_query_te, 1)
             input_row_bottom.addWidget(btn_send, 0)
+
+            btn_reset = QPushButton("Reset Chat")
+            self._style_action_button(btn_reset, font_size=13, bold=False, height=40, padding="8px 12px")
+            try:
+                btn_reset.clicked.connect(self.action_reset_chat)
+            except Exception:
+                ...
+            input_row_bottom.addWidget(btn_reset, 0)
+
             vmain.addLayout(input_row_bottom)
 
             try:
@@ -3566,6 +3575,15 @@ def _run_gui() -> Optional[int]:
 
         def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None) -> None:
             try:
+                # --- Clear on New Analysis Prompt ---
+                if self.chat_history:
+                    reply = QMessageBox.question(self, "Clear Chat History",
+                                                 "You have an existing conversation. Would you like to clear it for this new analysis?")
+                    if str(reply).lower().endswith("yes"):
+                        self.chat_history = []
+                        self.log("Chat history cleared for new analysis.")
+                # --- End Clear on New Analysis Prompt ---
+
                 # --- Bug Fix: Ensure issue IDs are present for loaded reports ---
                 issues = data.get("issues", [])
                 if issues and 'id' not in issues[0]:
@@ -3924,7 +3942,8 @@ def _run_gui() -> Optional[int]:
                 self.statusBar().showMessage("AI is thinking...")
                 QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
-                answer = self.local_rag.query(question)
+                # Pass the chat history to the query method
+                answer = self.local_rag.query(question, chat_history=self.chat_history)
 
                 # Add to history and re-render the chat
                 self.chat_history.append(("user", question))
@@ -3939,6 +3958,23 @@ def _run_gui() -> Optional[int]:
             finally:
                 self.statusBar().showMessage("Ready")
                 QApplication.restoreOverrideCursor()
+
+        def action_reset_chat(self):
+            """Clears the chat history and resets the chat view to the base report."""
+            if not self.chat_history:
+                return
+
+            reply = QMessageBox.question(self, "Reset Chat", "Are you sure you want to clear the current conversation?")
+            if str(reply).lower().endswith("yes"):
+                self.chat_history = []
+                self.log("Chat history has been manually reset.")
+                # Re-render the view to show only the base report
+                if self.current_report_data:
+                    self._render_chat_history()
+                else:
+                    self.txt_chat.clear() # Should not happen if there's history, but as a fallback
+                self.statusBar().showMessage("Chat Reset", 3000)
+
 
         def _render_chat_history(self):
             """Renders the analysis report and the full chat history."""
