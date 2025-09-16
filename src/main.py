@@ -111,7 +111,40 @@ try:
         QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget
     )
     from PyQt6.QtGui import QAction, QFont, QTextDocument
-    from PyQt6.QtCore import Qt
+    from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal
+
+    # Local imports
+    from .local_llm import LocalRAG
+
+# --- LLM Loader Worker ---
+class LLMWorker(QObject):
+    """
+    A worker class to load the LocalRAG model in a separate thread.
+    """
+    finished = Signal(object)
+    error = Signal(str)
+
+    def __init__(self, model_repo_id: str, model_filename: str):
+        super().__init__()
+        self.model_repo_id = model_repo_id
+        self.model_filename = model_filename
+
+    def run(self):
+        """Loads the RAG model and emits a signal when done."""
+        try:
+            rag_instance = LocalRAG(
+                model_repo_id=self.model_repo_id,
+                model_filename=self.model_filename
+            )
+            if rag_instance.is_ready():
+                self.finished.emit(rag_instance)
+            else:
+                self.error.emit("RAG instance failed to initialize.")
+        except Exception as e:
+            logger.exception("LLMWorker failed to load model.")
+            self.error.emit(f"Failed to load AI model: {e}")
+
+
 except Exception:
     class QMainWindow:
         ...
@@ -2375,6 +2408,8 @@ def _run_gui() -> Optional[int]:
             self._last_error: Optional[str] = None
             self._batch_cancel = False
             self.current_report_data: Optional[dict] = None
+            self.local_rag: Optional[LocalRAG] = None
+            self.chat_history: list[tuple[str, str]] = []
 
             tb = QToolBar("Main")
             try:
@@ -2657,7 +2692,10 @@ def _run_gui() -> Optional[int]:
                 self.lbl_lm1.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
                 self.lbl_lm2 = QLabel(" LM B: disabled ")
                 self.lbl_lm2.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
+                self.lbl_rag_status = QLabel(" AI: Loading... ")
+                self.lbl_rag_status.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
                 sb.addPermanentWidget(self.lbl_brand)
+                sb.addPermanentWidget(self.lbl_rag_status)
                 sb.addPermanentWidget(self.lbl_lm1)
                 sb.addPermanentWidget(self.lbl_lm2)
                 sb.addPermanentWidget(self.lbl_err)
@@ -2670,8 +2708,39 @@ def _run_gui() -> Optional[int]:
                 self.lbl_report_name.setText("(No report selected)")
                 self.refresh_llm_indicator()
                 self.refresh_recent_files()
+                self._init_llm_thread()
             except Exception:
                 ...
+
+        def _init_llm_thread(self):
+            """Initializes and starts the LLM loading worker thread."""
+            self.llm_thread = QThread()
+            self.llm_worker = LLMWorker(
+                model_repo_id="TheBloke/TinyLlama-1.1B-1T-OpenOrca-GGUF",
+                model_filename="tinyllama-1.1b-1t-openorca.Q4_K_M.gguf"
+            )
+            self.llm_worker.moveToThread(self.llm_thread)
+            self.llm_thread.started.connect(self.llm_worker.run)
+            self.llm_worker.finished.connect(self._on_rag_load_finished)
+            self.llm_worker.error.connect(self._on_rag_load_error)
+            self.llm_thread.finished.connect(self.llm_thread.deleteLater)
+            self.llm_thread.start()
+
+        def _on_rag_load_finished(self, rag_instance: LocalRAG):
+            """Handles the successful loading of the RAG instance."""
+            self.local_rag = rag_instance
+            self.lbl_rag_status.setText(" AI: Ready ")
+            self.lbl_rag_status.setStyleSheet("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
+            self.log("Local RAG AI is ready.")
+            self.llm_thread.quit()
+
+        def _on_rag_load_error(self, error_message: str):
+            """Handles errors during RAG model loading."""
+            self.local_rag = None
+            self.lbl_rag_status.setText(" AI: Error ")
+            self.lbl_rag_status.setStyleSheet("background:#ef4444; color:#fff; padding:3px 8px; border-radius:12px;")
+            self.log(f"Error loading RAG AI: {error_message}")
+            self.llm_thread.quit()
 
         # Helpers and actions
         def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px"):
@@ -3128,6 +3197,17 @@ def _run_gui() -> Optional[int]:
                         with open(res["json"], "r", encoding="utf-8") as f:
                             data = json.load(f)
                         self.render_analysis_to_results(data)
+
+                        # --- Create and index the context for the AI ---
+                        if self.local_rag and self.local_rag.is_ready():
+                            self.log("Creating AI context index...")
+                            context_chunks = self._create_context_chunks(data)
+                            self.local_rag.create_index(context_chunks)
+                            self.log("AI context index created successfully.")
+                        else:
+                            self.log("AI not ready, skipping context indexing.")
+                        # --- End AI context indexing ---
+
                     except Exception:
                         ...
                     try:
@@ -3152,6 +3232,47 @@ def _run_gui() -> Optional[int]:
                     self.btn_analyze_all.setDisabled(False)
                 except Exception:
                     ...
+
+        def _create_context_chunks(self, data: dict) -> list[str]:
+            """Creates a list of text chunks from the analysis data for the RAG index."""
+            chunks = []
+
+            # 1. Add summary information
+            if 'compliance' in data and 'score' in data['compliance']:
+                chunks.append(f"[Summary] The overall compliance score is {data['compliance']['score']}/100.")
+            if 'executive_status' in data:
+                 chunks.append(f"[Summary] The executive status is '{data['executive_status']}'.")
+
+            # 2. Add each issue as a detailed chunk
+            for issue in data.get('issues', []):
+                sev = issue.get('severity', 'N/A').title()
+                cat = issue.get('category', 'N/A')
+                title = issue.get('title', 'N/A')
+                detail = issue.get('detail', 'N/A')
+
+                issue_str = (f"[Finding] Severity: {sev}. Category: {cat}. Title: {title}. "
+                             f"Detail: {detail}.")
+
+                details = issue.get('details', {})
+                if 'action' in details:
+                    issue_str += f" Recommended Action: {details['action']}"
+                if 'why' in details:
+                    issue_str += f" Why it matters: {details['why']}"
+
+                chunks.append(issue_str)
+
+                # Add citations as separate chunks
+                for i, (citation_text, source) in enumerate(issue.get('citations', [])[:2]):
+                    # Clean the citation text from HTML tags
+                    clean_citation = re.sub('<[^<]+?>', '', citation_text)
+                    chunks.append(f"[Evidence] The finding '{title}' is supported by evidence from '{source}': \"{clean_citation}\"")
+
+            # 3. Add the original document sentences
+            for text, source in data.get('source_sentences', []):
+                 chunks.append(f"[Document Text] From {source}: \"{text}\"")
+
+            self.log(f"Generated {len(chunks)} text chunks for AI context.")
+            return chunks
 
         def action_analyze_batch(self):
             try:
@@ -3273,6 +3394,8 @@ def _run_gui() -> Optional[int]:
                 # --- End Bug Fix ---
 
                 self.current_report_data = data
+                # When a new report is loaded, clear the previous chat history
+                self.chat_history = []
 
                 file_name = os.path.basename(data.get("file", "Unknown File"))
                 report_html = f"<h1>Analysis for: {file_name}</h1>"
@@ -3382,7 +3505,10 @@ def _run_gui() -> Optional[int]:
 
                 report_html += f"<div style='font-family: monospace; white-space: pre-wrap; background: #eee; padding: 10px; border-radius: 5px;'>{full_text_html}</div>"
 
-                self.txt_chat.setHtml(report_html)
+                # Store the generated HTML and render the chat view
+                self.current_report_data['narrative_html'] = report_html
+                self._render_chat_history()
+
 
                 if highlight_range:
                     cursor = self.txt_chat.textCursor()
@@ -3499,42 +3625,57 @@ def _run_gui() -> Optional[int]:
                 QMessageBox.critical(self, "Error", f"Failed to export FHIR report:\n{e}")
 
         def action_send(self):
-            q = self.input_query_te.toPlainText().strip() if hasattr(self, "input_query_te") else ""
-            if not q:
+            question = self.input_query_te.toPlainText().strip()
+            if not question:
                 return
+
+            if not self.local_rag or not self.local_rag.is_ready() or not self.local_rag.index:
+                QMessageBox.warning(self, "AI Not Ready", "Please analyze a document first to activate the AI chat.")
+                return
+
             try:
-                last_json = get_setting("last_report_json")
-                if not last_json or not os.path.isfile(last_json):
-                    self.txt_chat.append("No analysis context available. Analyze a file first.\n")
-                    return
-                import json
-                with open(last_json, "r", encoding="utf-8") as f:
-                    data = json.load(f)
+                self.statusBar().showMessage("AI is thinking...")
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
-                # Search the original document sentences, not the narrative summary
-                sentences = data.get("source_sentences", [])
-                if not sentences:
-                    self.txt_chat.append("No document text available to search. Please analyze a file first.\n")
-                    return
+                answer = self.local_rag.query(question)
 
-                # The sentences are stored as [text, source] pairs. We search the text.
-                lines = [item[0] for item in sentences if isinstance(item, list) and len(item) > 0]
+                # Add to history and re-render the chat
+                self.chat_history.append(("user", question))
+                self.chat_history.append(("ai", answer))
+                self._render_chat_history()
 
-                ql = q.lower()
-                search_terms = set(re.findall(r"[a-z0-9]{3,}", ql))
-
-                hits = []
-                if search_terms:
-                    for line in lines:
-                        line_lower = line.lower()
-                        if any(term in line_lower for term in search_terms):
-                            hits.append(line.strip())
-
-                ans = "\n".join(hits[:5]) if hits else "(No specific passages found. Try rephrasing.)"
-                self.txt_chat.append(f"User:\n{q}\n\nAnswer:\n{ans}\n")
                 self.input_query_te.setPlainText("")
+
             except Exception as e:
-                self.set_error(str(e))
+                self.set_error(f"An error occurred while querying the AI: {e}")
+                QMessageBox.warning(self, "AI Error", f"An error occurred: {e}")
+            finally:
+                self.statusBar().showMessage("Ready")
+                QApplication.restoreOverrideCursor()
+
+        def _render_chat_history(self):
+            """Renders the analysis report and the full chat history."""
+            if not self.current_report_data:
+                self.txt_chat.setHtml("<div>Please analyze a file to begin.</div>")
+                return
+
+            # Start with the base analysis report
+            base_html = self.current_report_data.get("narrative_html", "")
+
+            # Append chat history
+            chat_html = ""
+            for sender, message in self.chat_history:
+                if sender == "user":
+                    chat_html += f"<div style='margin-top: 15px;'><b>You:</b> {html.escape(message)}</div>"
+                else:
+                    chat_html += f"<div style='margin-top: 5px; padding: 8px; background-color: #2c3a4f; border-radius: 8px;'><b>AI:</b> {html.escape(message)}</div>"
+
+            full_html = base_html
+            if chat_html:
+                full_html += f"<hr><h2>Conversation</h2>{chat_html}"
+
+            self.txt_chat.setHtml(full_html)
+            self.txt_chat.verticalScrollBar().setValue(self.txt_chat.verticalScrollBar().maximum())
 
         def action_export_feedback(self):
             try:
