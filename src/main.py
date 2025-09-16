@@ -1185,34 +1185,69 @@ def _save_cached_outputs(file_fp: str, settings_fp: str, outputs: dict) -> None:
 _RUBRIC_DEFAULT = "MEDICARE PART B REHABILITATION RUBRIC – SKILLED NURSING FACILITY (SNF)"
 
 
-def _audit_from_rubric(text: str, strict: bool | None = None) -> list[dict]:
-    t = (text or "").lower()
-    issues: list[dict] = []
+def _audit_from_rubric(text: str, selected_disciplines: List[str], strict: bool | None = None) -> list[dict]:
+    """
+    Performs a dynamic audit based on the selected discipline rubrics.
+    """
+    if not selected_disciplines:
+        return []
 
-    def add(sev: str, title: str, detail: str, cat: str, trigger_keywords: Optional[List[str]] = None) -> None:
-        issues.append({"severity": sev, "title": title, "detail": detail, "category": cat, "trigger_keywords": trigger_keywords or []})
+    rubric_map = {
+        "pt": os.path.join(BASE_DIR, "pt_compliance_rubric.ttl"),
+        "ot": os.path.join(BASE_DIR, "ot_compliance_rubric.ttl"),
+        "slp": os.path.join(BASE_DIR, "slp_compliance_rubric.ttl"),
+    }
 
+    all_rules = []
+    for discipline in selected_disciplines:
+        path = rubric_map.get(discipline)
+        if path and os.path.exists(path):
+            try:
+                service = RubricService(path)
+                all_rules.extend(service.get_rules())
+            except Exception as e:
+                logger.warning(f"Failed to load rubric for {discipline}: {e}")
+
+    # Remove duplicate rules by title, as some may be shared across rubrics
+    seen_titles = set()
+    unique_rules = []
+    for rule in all_rules:
+        if rule.issue_title not in seen_titles:
+            unique_rules.append(rule)
+            seen_titles.add(rule.issue_title)
+
+    t_lower = text.lower()
+    issues = []
     s = bool(strict)
-    if not any(k in t for k in ("signature", "signed", "dated")):
-        add("flag" if s else "wobbler", "Provider signature/date possibly missing",
-            "No explicit evidence of dated/signature entries found.", "Signatures/Dates")
-    if "goal" in t and not any(k in t for k in ("measurable", "time", "timed")):
-        add("flag" if s else "wobbler", "Goals may not be measurable/time-bound",
-            "Consider restating goals with measurable, time-bound targets and baselines.", "Goals", trigger_keywords=["goal"])
-    if not any(k in t for k in ("medical necessity", "reasonable and necessary", "necessity")):
-        add("flag" if s else "wobbler", "Medical necessity not explicitly supported",
-            "Ensure documentation ties interventions to functional limitations and outcomes aligned with Medicare Part B.",
-            "Medical Necessity")
-    if "assistant" in t and "supervis" not in t:
-        add("wobbler" if s else "suggestion", "Assistant supervision context unclear",
-            "When assistants are involved, document supervision/oversight per Medicare/state requirements.",
-            "Assistant Supervision", trigger_keywords=["assistant"])
-    if not any(k in t for k in ("plan of care", "poc", "certification", "recert")):
-        add("flag" if s else "wobbler", "Plan/Certification not clearly referenced",
-            "Explicitly reference plan of care/certification dates and responsible signatures.", "Plan/Certification")
-    add("auditor_note", "General auditor checks",
-        "Review compliance with Medicare Part B (qualified personnel, plan establishment/recert, timings/units, documentation integrity).",
-        "General")
+
+    for rule in unique_rules:
+        positive_kws = [kw.lower() for kw in rule.positive_keywords]
+        negative_kws = [kw.lower() for kw in rule.negative_keywords]
+
+        triggered = False
+        # Case 1: Rule triggers if a positive keyword is found AND a negative keyword is NOT found.
+        if rule.positive_keywords and rule.negative_keywords:
+            if any(kw in t_lower for kw in positive_kws) and not any(kw in t_lower for kw in negative_kws):
+                triggered = True
+        # Case 2: Rule triggers if a positive keyword is found (and there are no negative keywords).
+        elif rule.positive_keywords and not rule.negative_keywords:
+            if any(kw in t_lower for kw in positive_kws):
+                triggered = True
+        # Case 3: Rule triggers if a negative keyword is NOT found (and there are no positive keywords).
+        elif not rule.positive_keywords and rule.negative_keywords:
+            if not any(kw in t_lower for kw in negative_kws):
+                triggered = True
+
+        if triggered:
+            severity = rule.strict_severity if s else rule.severity
+            issues.append({
+                "severity": severity,
+                "title": rule.issue_title,
+                "detail": rule.issue_detail,
+                "category": rule.issue_category,
+                "trigger_keywords": rule.positive_keywords
+            })
+
     return issues
 
 
@@ -1695,6 +1730,7 @@ def _generate_compliance_checklist(strengths: list[str], weaknesses: list[str]) 
 
 
 def run_analyzer(file_path: str,
+                 selected_disciplines: List[str],
                  scrub_override: Optional[bool] = None,
                  review_mode_override: Optional[str] = None,
                  dedup_method_override: Optional[str] = None,
@@ -1790,7 +1826,7 @@ def run_analyzer(file_path: str,
         report(70, "Analyzing compliance")
         full_text = "\n".join(t for t, _ in collapsed)
         strict_flag = (CURRENT_REVIEW_MODE == "Strict")
-        issues_base = _audit_from_rubric(full_text, strict=strict_flag)
+        issues_base = _audit_from_rubric(full_text, selected_disciplines, strict=strict_flag)
         issues_scored = _score_issue_confidence(_attach_issue_citations(issues_base, collapsed), collapsed)
 
         # Add location data to each issue based on its first citation
@@ -2681,6 +2717,34 @@ def _run_gui() -> Optional[int]:
                 ...
             rubric_layout.addLayout(row_rubric_btns)
 
+            # --- Discipline Selection Checkboxes ---
+            discipline_group = QGroupBox("Select Disciplines for Analysis")
+            discipline_layout = QHBoxLayout(discipline_group)
+            discipline_layout.setSpacing(15)
+
+            self.chk_pt = QCheckBox("Physical Therapy")
+            self.chk_ot = QCheckBox("Occupational Therapy")
+            self.chk_slp = QCheckBox("Speech-Language Pathology")
+            self.chk_all_disciplines = QCheckBox("All")
+            self.chk_all_disciplines.setTristate(True)
+
+            discipline_layout.addWidget(self.chk_pt)
+            discipline_layout.addWidget(self.chk_ot)
+            discipline_layout.addWidget(self.chk_slp)
+            discipline_layout.addStretch(1)
+            discipline_layout.addWidget(self.chk_all_disciplines)
+
+            try:
+                self.chk_all_disciplines.stateChanged.connect(self._toggle_all_disciplines)
+                self.chk_pt.stateChanged.connect(self._update_all_checkbox_state)
+                self.chk_ot.stateChanged.connect(self._update_all_checkbox_state)
+                self.chk_slp.stateChanged.connect(self._update_all_checkbox_state)
+            except Exception:
+                pass
+
+            rubric_layout.addWidget(discipline_group)
+            # --- End Discipline Selection ---
+
             self.lbl_rubric_file = QLabel("(No rubric selected)")
         feature/modern-ui-and-analytics
 
@@ -2926,14 +2990,104 @@ def _run_gui() -> Optional[int]:
 
                 self._init_llm_thread()
 
-                # Load compliance rules
-                self.log("Loading compliance rubric...")
-                self.rubric_service = RubricService('src/compliance_rubric.ttl')
-                self.compliance_rules = self.rubric_service.get_rules()
-                self.log(f"Loaded {len(self.compliance_rules)} compliance rules.")
-
             except Exception as e:
                 self.log(f"Error during initialization: {e}")
+
+        def _toggle_all_disciplines(self, state):
+            # Block signals to prevent infinite loops
+            self.chk_pt.blockSignals(True)
+            self.chk_ot.blockSignals(True)
+            self.chk_slp.blockSignals(True)
+
+            is_checked = (state == Qt.CheckState.Checked.value)
+            self.chk_pt.setChecked(is_checked)
+            self.chk_ot.setChecked(is_checked)
+            self.chk_slp.setChecked(is_checked)
+
+            self.chk_pt.blockSignals(False)
+            self.chk_ot.blockSignals(False)
+            self.chk_slp.blockSignals(False)
+
+        def _update_all_checkbox_state(self):
+            # This function is triggered when an individual discipline checkbox changes.
+            # It updates the "All" checkbox to be checked, unchecked, or partially checked.
+
+            # Block signals on the "All" checkbox to prevent recursive calls
+            self.chk_all_disciplines.blockSignals(True)
+
+            states = [self.chk_pt.isChecked(), self.chk_ot.isChecked(), self.chk_slp.isChecked()]
+
+            if all(states):
+                self.chk_all_disciplines.setCheckState(Qt.CheckState.Checked)
+            elif any(states):
+                self.chk_all_disciplines.setCheckState(Qt.CheckState.PartiallyChecked)
+            else:
+                self.chk_all_disciplines.setCheckState(Qt.CheckState.Unchecked)
+
+            # Re-enable signals
+            self.chk_all_disciplines.blockSignals(False)
+
+        def _clear_previous_analysis_state(self):
+            """Resets UI and state variables before a new analysis."""
+            self.log("Clearing previous analysis state.")
+            self.current_report_data = None
+            self.chat_history = []
+            self.txt_chat.clear()
+            self.txt_full_note.clear()
+            # Clear any highlighting or specific formatting
+            self.txt_chat.setHtml("")
+            self.txt_full_note.setPlainText("")
+            self.txt_chat.setPlaceholderText("Analysis summary will appear here.")
+            self.txt_full_note.setPlaceholderText("Full note text will appear here after analysis.")
+
+
+        def _auto_select_discipline(self, text_to_analyze: str):
+            if not self.local_rag or not self.local_rag.embedding_model:
+                return
+
+            try:
+                from sklearn.metrics.pairwise import cosine_similarity
+
+                self.log("Auto-detecting discipline from text...")
+
+                prototypes = {
+                    "pt": "Physical therapy, gross motor skills, mobility, strength, balance, range of motion, gait training, therapeutic exercise.",
+                    "ot": "Occupational therapy, fine motor skills, activities of daily living (ADLs), sensory integration, self-care, functional independence, assistive technology.",
+                    "slp": "Speech-language pathology, communication, language, cognition, voice, fluency, dysphagia, swallowing, aphasia, articulation."
+                }
+
+                # Create embeddings for the prototype descriptions
+                proto_embeddings = self.local_rag.embedding_model.encode(list(prototypes.values()))
+
+                # Use the first 500 characters of the document for a quick classification
+                doc_embedding = self.local_rag.embedding_model.encode([text_to_analyze[:500]])
+
+                # Calculate similarities
+                similarities = cosine_similarity(doc_embedding, proto_embeddings)[0]
+
+                best_match_index = np.argmax(similarities)
+                best_score = similarities[best_match_index]
+
+                # Reset all checkboxes first
+                self.chk_pt.setChecked(False)
+                self.chk_ot.setChecked(False)
+                self.chk_slp.setChecked(False)
+
+                if best_score > 0.2: # Confidence threshold
+                    best_discipline = list(prototypes.keys())[best_match_index]
+                    if best_discipline == "pt":
+                        self.chk_pt.setChecked(True)
+                        self.log("Auto-selected: Physical Therapy")
+                    elif best_discipline == "ot":
+                        self.chk_ot.setChecked(True)
+                        self.log("Auto-selected: Occupational Therapy")
+                    elif best_discipline == "slp":
+                        self.chk_slp.setChecked(True)
+                        self.log("Auto-selected: Speech-Language Pathology")
+
+            except Exception as e:
+                self.log(f"Auto-discipline detection failed: {e}")
+
 
         def _init_llm_thread(self):
             """Initializes and starts the LLM loading worker thread."""
@@ -3344,6 +3498,16 @@ def _run_gui() -> Optional[int]:
                 self.lbl_report_name.setText(os.path.basename(path))
                 self.lbl_report_name.setStyleSheet("color:#60a5fa; font-weight:700;")
                 self.set_error(None)
+
+                # Auto-select discipline
+                try:
+                    parsed_content = parse_document_content(path)
+                    full_text = " ".join([t for t, s in parsed_content])
+                    if full_text:
+                        self._auto_select_discipline(full_text)
+                except Exception as e:
+                    self.log(f"Failed to auto-select discipline during file open: {e}")
+
             except Exception as e:
                 logger.exception("Open report failed")
                 self.set_error(str(e))
@@ -3455,6 +3619,9 @@ def _run_gui() -> Optional[int]:
             if not self._current_report_path:
                 QMessageBox.information(self, "Analyze", "Please upload/select a report first.")
                 return
+
+            self._clear_previous_analysis_state()
+
             try:
                 self.btn_analyze_all.setDisabled(True)
                 QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
@@ -3468,7 +3635,16 @@ def _run_gui() -> Optional[int]:
                 def _cancel():
                     return self._progress_was_canceled()
 
-                res = run_analyzer(self._current_report_path, progress_cb=_cb, cancel_cb=_cancel)
+                selected_disciplines = []
+                if self.chk_pt.isChecked(): selected_disciplines.append('pt')
+                if self.chk_ot.isChecked(): selected_disciplines.append('ot')
+                if self.chk_slp.isChecked(): selected_disciplines.append('slp')
+
+                if not selected_disciplines:
+                    QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to analyze.")
+                    return
+
+                res = run_analyzer(self._current_report_path, selected_disciplines=selected_disciplines, progress_cb=_cb, cancel_cb=_cancel)
 
                 outs = []
                 if res.get("pdf"):
@@ -3582,6 +3758,17 @@ def _run_gui() -> Optional[int]:
                                              f"Process {n} file(s) sequentially?")  # type: ignore
                 if not str(reply).lower().endswith("yes"):
                     return
+
+                selected_disciplines = []
+                if self.chk_pt.isChecked(): selected_disciplines.append('pt')
+                if self.chk_ot.isChecked(): selected_disciplines.append('ot')
+                if self.chk_slp.isChecked(): selected_disciplines.append('slp')
+
+                if not selected_disciplines:
+                    QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to run a batch analysis.")
+                    return
+
+                self._clear_previous_analysis_state()
                 self._batch_cancel = False
                 self.btn_cancel_batch.setDisabled(False)
 
@@ -3606,7 +3793,7 @@ def _run_gui() -> Optional[int]:
                         def _cancel():
                             return self._progress_was_canceled() or self._batch_cancel
 
-                        res = run_analyzer(path, progress_cb=_cb, cancel_cb=_cancel)
+                        res = run_analyzer(path, selected_disciplines=selected_disciplines, progress_cb=_cb, cancel_cb=_cancel)
                         if res.get("pdf") or res.get("json") or res.get("csv"):
                             ok_count += 1
                         else:
