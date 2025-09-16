@@ -10,6 +10,7 @@ import re
 import sqlite3
 import sys
 from typing import Callable, List, Literal, Tuple, Optional
+from urllib.parse import quote, unquote
 
 # Third-party used throughout
 import pandas as pd  # type: ignore
@@ -3286,6 +3287,32 @@ def _run_gui() -> Optional[int]:
             self.log(f"Generated {len(chunks)} text chunks for AI context.")
             return chunks
 
+        def _generate_suggested_questions(self, issues: list) -> list[str]:
+            """Generates a list of suggested questions based on high-priority findings."""
+            suggestions = []
+
+            QUESTION_MAP = {
+                "Provider signature/date possibly missing": "Why are signatures and dates important for compliance?",
+                "Goals may not be measurable/time-bound": "What makes a therapy goal 'measurable' and 'time-bound'?",
+                "Medical necessity not explicitly supported": "Can you explain 'Medical Necessity' in the context of a therapy note?",
+                "Assistant supervision context unclear": "What are the supervision requirements for therapy assistants?",
+                "Plan/Certification not clearly referenced": "How should the Plan of Care be referenced in a note?",
+            }
+
+            # Prioritize flags, then wobblers
+            sorted_issues = sorted(issues, key=lambda x: ({"flag": 0, "wobbler": 1}.get(x.get('severity'), 2)))
+
+            for issue in sorted_issues:
+                if len(suggestions) >= 3:
+                    break
+
+                title = issue.get('title')
+                if title in QUESTION_MAP and QUESTION_MAP[title] not in suggestions:
+                    suggestions.append(QUESTION_MAP[title])
+
+            self.log(f"Generated {len(suggestions)} suggested questions.")
+            return suggestions
+
         def action_analyze_batch(self):
             try:
                 n = self.list_folder_files.count()
@@ -3499,6 +3526,19 @@ def _run_gui() -> Optional[int]:
 
                 report_html += "<br>".join(narrative_lines)
 
+                # --- Add Suggested Questions ---
+                suggested_questions = self._generate_suggested_questions(data.get('issues', []))
+                if suggested_questions:
+                    report_html += "<hr><h2>Suggested Questions</h2>"
+                    suggestions_html = "<ul>"
+                    for q in suggested_questions:
+                        # URL-encode the question to handle special characters safely in the href
+                        encoded_q = quote(q)
+                        suggestions_html += f"<li><a href='ask:{encoded_q}' style='text-decoration:none; color:#60a5fa;'>{html.escape(q)}</a></li>"
+                    suggestions_html += "</ul>"
+                    report_html += suggestions_html
+                # --- End Suggested Questions ---
+
                 # Full Text
                 report_html += "<hr><h2>Full Note Text</h2>"
                 full_text = "\n".join(s[0] for s in data.get('source_sentences', []))
@@ -3577,6 +3617,15 @@ def _run_gui() -> Optional[int]:
 
                     except (ValueError, IndexError) as e:
                         self.log(f"Invalid review URL: {url_str} - {e}")
+            elif url_str.startswith("ask:"):
+                try:
+                    # Decode the question from the URL
+                    question_text = unquote(url_str[4:])
+                    # Set the text in the input box and automatically send
+                    self.input_query_te.setPlainText(question_text)
+                    self.action_send()
+                except Exception as e:
+                    self.log(f"Failed to handle ask link: {url_str} - {e}")
 
         def save_finding_feedback(self, issue_id: int, feedback: str, citation_text: str, model_prediction: str):
             try:
