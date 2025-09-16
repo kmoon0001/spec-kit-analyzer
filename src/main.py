@@ -77,6 +77,12 @@ except Exception as e:
 
     logger.warning(f"PIL unavailable: {e}")
 
+try:
+    import numpy as np
+except ImportError:
+    np = None
+    logger.warning("Numpy unavailable. Some analytics features will be disabled.")
+
 # --- FHIR Imports (guarded) ---
 try:
     from fhir.resources.bundle import Bundle
@@ -102,10 +108,14 @@ try:
         QMainWindow, QToolBar, QLabel, QFileDialog, QMessageBox, QApplication,
         QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton,
         QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
-        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu
+        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout
     )
     from PyQt6.QtGui import QAction, QFont, QTextDocument
     from PyQt6.QtCore import Qt
+
+    # Matplotlib for analytics chart
+    from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+    from matplotlib.figure import Figure
 except Exception:
     class QMainWindow:
         ...
@@ -1441,7 +1451,7 @@ def _generate_risk_dashboard(compliance_score: float, sev_counts: dict) -> list[
     return lines
 
 def _generate_compliance_checklist(strengths: list[str], weaknesses: list[str]) -> list[str]:
-    lines = ["--- Compliance Checklist ---"]
+    lines = ["<h3>Compliance Checklist</h3>"]
 
     checklist_items = {
         "Provider Authentication": "Provider authentication (signature/date)",
@@ -1451,17 +1461,23 @@ def _generate_compliance_checklist(strengths: list[str], weaknesses: list[str]) 
         "Plan/Certification": "Plan/certification is referenced"
     }
 
-    for key, text in checklist_items.items():
+    def get_status_icon(key, text):
         if any(text in s for s in strengths):
-            lines.append(f"[✔] {key}")
+            return "<span style='color: #28a745; font-weight: bold;'>✔</span>"
         elif any(text in w for w in weaknesses):
-            lines.append(f"[❌] {key}")
+            return "<span style='color: #dc3545; font-weight: bold;'>❌</span>"
         else:
             simplified_weakness_text = text.split('(')[0].strip()
             if any(simplified_weakness_text in w for w in weaknesses):
-                 lines.append(f"[❌] {key}")
+                return "<span style='color: #dc3545; font-weight: bold;'>❌</span>"
             else:
-                 lines.append(f"[○] {key} (Not mentioned)")
+                return "<span style='color: #6c757d; font-weight: bold;'>○</span>"
+
+    lines.append("<table>")
+    for key, text in checklist_items.items():
+        icon = get_status_icon(key, text)
+        lines.append(f"<tr><td style='padding-right: 10px;'>{icon}</td><td>{key}</td></tr>")
+    lines.append("</table>")
 
     lines.append("")
     return lines
@@ -2181,32 +2197,53 @@ def _run_gui() -> Optional[int]:
                                  "Please contact the administrator to continue using the application.")
             return 0 # Exit cleanly
 
+    def _read_stylesheet(filename: str) -> str:
+        """Reads a stylesheet from the src/ directory."""
+        try:
+            path = os.path.join(BASE_DIR, filename)
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read()
+        except Exception as e:
+            logger.warning(f"Could not load stylesheet {filename}: {e}")
+            return ""
+
     def apply_theme(app: QApplication):
         theme = (get_str_setting("ui_theme", "dark") or "dark").lower()
+        stylesheet = ""
         if theme == "light":
-            app.setStyleSheet("""
-                QMainWindow { background: #f3f4f6; color: #111827; border: 2px solid #3b82f6; }
-                QWidget { background: #f3f4f6; color: #111827; }
-                QTextEdit, QLineEdit { background: #ffffff; color: #111827; border: 2px solid #93c5fd; border-radius: 10px; }
-                QPushButton { background: #2563eb; color: #ffffff; border: none; padding: 10px 14px; border-radius: 12px; font-size: 14px; font-weight: 700; }
-                QPushButton:hover { background: #1d4ed8; }
-                QToolBar { background: #e5e7eb; spacing: 10px; border: 2px solid #3b82f6; padding: 6px; }
-                QStatusBar { background: #e5e7eb; color: #111827; }
-                QGroupBox { border: 2px solid #3b82f6; margin-top: 20px; border-radius: 10px; }
-                QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 10px; padding: 6px 8px; font-weight: 700; font-size: 18px; color: #111827; }
-            """)
+            stylesheet = _read_stylesheet("light_theme.qss")
         else:
-            app.setStyleSheet("""
-                QMainWindow { background: #1f2937; color: #e5e7eb; border: 2px solid #1f4fd1; }
-                QWidget { background: #1f2937; color: #e5e7eb; }
-                QTextEdit, QLineEdit { background: #111827; color: #e5e7eb; border: 2px solid #1f4fd1; border-radius: 10px; }
-                QPushButton { background: #1f4fd1; color: #ffffff; border: none; padding: 10px 14px; border-radius: 12px; font-size: 14px; font-weight: 700; }
-                QPushButton:hover { background: #163dc0; }
-                QToolBar { background: #111827; spacing: 10px; border: 2px solid #1f4fd1; padding: 6px; }
-                QStatusBar { background: #111827; color: #e5e7eb; }
-                QGroupBox { border: 2px solid #1f4fd1; margin-top: 20px; border-radius: 10px; }
-                QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 10px; padding: 6px 8px; font-weight: 700; font-size: 18px; color: #e5e7eb; }
-            """)
+            stylesheet = _read_stylesheet("dark_theme.qss")
+
+        if stylesheet:
+            app.setStyleSheet(stylesheet)
+        else:
+            # Fallback to original hardcoded styles if files are missing
+            if theme == "light":
+                app.setStyleSheet("""
+                    QMainWindow { background: #f3f4f6; color: #111827; border: 2px solid #3b82f6; }
+                    QWidget { background: #f3f4f6; color: #111827; }
+                    QTextEdit, QLineEdit { background: #ffffff; color: #111827; border: 2px solid #93c5fd; border-radius: 10px; }
+                    QPushButton { background: #2563eb; color: #ffffff; border: none; padding: 10px 14px; border-radius: 12px; font-size: 14px; font-weight: 700; }
+                    QPushButton:hover { background: #1d4ed8; }
+                    QToolBar { background: #e5e7eb; spacing: 10px; border: 2px solid #3b82f6; padding: 6px; }
+                    QStatusBar { background: #e5e7eb; color: #111827; }
+                    QGroupBox { border: 2px solid #3b82f6; margin-top: 20px; border-radius: 10px; }
+                    QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 10px; padding: 6px 8px; font-weight: 700; font-size: 18px; color: #111827; }
+                """)
+            else:
+                app.setStyleSheet("""
+                    QMainWindow { background: #1f2937; color: #e5e7eb; border: 2px solid #1f4fd1; }
+                    QWidget { background: #1f2937; color: #e5e7eb; }
+                    QTextEdit, QLineEdit { background: #111827; color: #e5e7eb; border: 2px solid #1f4fd1; border-radius: 10px; }
+                    QPushButton { background: #1f4fd1; color: #ffffff; border: none; padding: 10px 14px; border-radius: 12px; font-size: 14px; font-weight: 700; }
+                    QPushButton:hover { background: #163dc0; }
+                    QToolBar { background: #111827; spacing: 10px; border: 2px solid #1f4fd1; padding: 6px; }
+                    QStatusBar { background: #111827; color: #e5e7eb; }
+                    QGroupBox { border: 2px solid #1f4fd1; margin-top: 20px; border-radius: 10px; }
+                    QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 10px; padding: 6px 8px; font-weight: 700; font-size: 18px; color: #e5e7eb; }
+                """)
+
         f = QFont()
         f.setPointSize(14)
         app.setFont(f)
@@ -2266,185 +2303,186 @@ def _run_gui() -> Optional[int]:
             vmain.setContentsMargins(12, 12, 12, 12)
             vmain.setSpacing(14)
 
-            top_split = QSplitter(Qt.Orientation.Horizontal)
+            # --- Create Tab Widget and Tabs ---
+            self.tabs = QTabWidget()
+            setup_tab = QWidget()
+            results_tab = QWidget()
+            logs_tab = QWidget()
+
+            self.tabs.addTab(setup_tab, "Setup & File Queue")
+            self.tabs.addTab(results_tab, "Analysis Results")
+            self.tabs.addTab(logs_tab, "Application Logs")
+
+            # --- Analytics Tab ---
+            analytics_tab = QWidget()
+            self.tabs.addTab(analytics_tab, "Analytics Dashboard")
+            analytics_layout = QVBoxLayout(analytics_tab)
+
+            analytics_controls = QHBoxLayout()
+            btn_refresh_analytics = QPushButton("Refresh Analytics")
+            self._style_action_button(btn_refresh_analytics, font_size=11, bold=True, height=32)
             try:
-                top_split.setChildrenCollapsible(False)
-                top_split.setFixedHeight(65)
-            except Exception:
-                ...
+                btn_refresh_analytics.clicked.connect(self._update_analytics_tab)
+            except Exception: pass
+            analytics_controls.addWidget(btn_refresh_analytics)
+            analytics_controls.addStretch(1)
+            analytics_layout.addLayout(analytics_controls)
+
+            # Matplotlib chart
+            self.analytics_figure = Figure(figsize=(5, 3))
+            self.analytics_canvas = FigureCanvas(self.analytics_figure)
+            analytics_layout.addWidget(self.analytics_canvas)
+
+            # Summary stats
+            stats_group = QGroupBox("Summary Statistics")
+            stats_layout = QGridLayout(stats_group)
+            self.lbl_total_runs = QLabel("N/A")
+            self.lbl_avg_score = QLabel("N/A")
+            self.lbl_avg_flags = QLabel("N/A")
+            self.lbl_top_category = QLabel("N/A")
+
+            stats_layout.addWidget(QLabel("Total Runs Analyzed:"), 0, 0)
+            stats_layout.addWidget(self.lbl_total_runs, 0, 1)
+            stats_layout.addWidget(QLabel("Average Compliance Score:"), 1, 0)
+            stats_layout.addWidget(self.lbl_avg_score, 1, 1)
+            stats_layout.addWidget(QLabel("Average Flags per Run:"), 2, 0)
+            stats_layout.addWidget(self.lbl_avg_flags, 2, 1)
+            stats_layout.addWidget(QLabel("Most Frequent Finding Category:"), 3, 0)
+            stats_layout.addWidget(self.lbl_top_category, 3, 1)
+
+            analytics_layout.addWidget(stats_group)
+
+            # --- Setup Tab Layout ---
+            setup_layout = QVBoxLayout(setup_tab)
+
+            top_setup_layout = QHBoxLayout()
 
             # Left: Rubric panel
-            rubric_panel = QWidget()
+            rubric_panel = QGroupBox("Rubric")
             rubric_layout = QVBoxLayout(rubric_panel)
-            rubric_layout.setContentsMargins(12, 12, 12, 12)
-            rubric_layout.setSpacing(8)
 
             row_rubric_btns = QHBoxLayout()
             self.btn_upload_rubric = QPushButton("Upload Rubric")
             self.btn_manage_rubrics = QPushButton("Manage Rubrics")
-            self.btn_save_rubric = QPushButton("Save (App Only)")
-            self.btn_remove_rubric = QPushButton("Remove Rubric")
-            for b in (self.btn_upload_rubric, self.btn_manage_rubrics, self.btn_save_rubric, self.btn_remove_rubric):
-                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px", fixed_width=160)
+            for b in (self.btn_upload_rubric, self.btn_manage_rubrics):
+                self._style_action_button(b, font_size=11, bold=True, height=32, padding="6px 10px")
                 row_rubric_btns.addWidget(b)
+            row_rubric_btns.addStretch(1)
+
             try:
-                self.btn_upload_rubric.clicked.connect(self.action_upload_rubric)  # type: ignore[attr-defined]
-                self.btn_manage_rubrics.clicked.connect(self.action_manage_rubrics)  # type: ignore[attr-defined]
-                self.btn_save_rubric.clicked.connect(self.action_save_rubric_app_only)  # type: ignore[attr-defined]
-                self.btn_remove_rubric.clicked.connect(self.action_remove_rubric)  # type: ignore[attr-defined]
+                self.btn_upload_rubric.clicked.connect(self.action_upload_rubric)
+                self.btn_manage_rubrics.clicked.connect(self.action_manage_rubrics)
             except Exception:
                 ...
             rubric_layout.addLayout(row_rubric_btns)
 
-            self.lbl_rubric_title = QLabel("Medicare B Guidelines")
             self.lbl_rubric_file = QLabel("(No rubric selected)")
-            rubric_layout.addWidget(self.lbl_rubric_title)
             rubric_layout.addWidget(self.lbl_rubric_file)
 
             self.txt_rubric = QTextEdit()
-            self.txt_rubric.setPlaceholderText("Rubric (hidden for compact view).")
-            self.txt_rubric.setVisible(False)
-            try:
-                current_txt = get_setting("rubric_current_text")
-                self.txt_rubric.setPlainText(current_txt if current_txt else _RUBRIC_DEFAULT)
-                self.lbl_rubric_file.setText(
-                    "Rubric Loaded" if self.txt_rubric.toPlainText().strip() else "(No rubric selected)")
-                if self.txt_rubric.toPlainText().strip():
-                    self.lbl_rubric_file.setStyleSheet("color:#60a5fa; font-weight:700;")
-            except Exception:
-                self.txt_rubric.setPlainText(_RUBRIC_DEFAULT)
-            rubric_layout.addWidget(self.txt_rubric)
+            self.txt_rubric.setVisible(False) # Not shown in main UI
+
+            top_setup_layout.addWidget(rubric_panel)
 
             # Right: Report panel
-            report_panel = QWidget()
+            report_panel = QGroupBox("File Selection")
             report_layout = QVBoxLayout(report_panel)
-            report_layout.setContentsMargins(12, 12, 12, 12)
-            report_layout.setSpacing(8)
 
             row_report_btns = QHBoxLayout()
             self.btn_upload_report = QPushButton("Open File")
             self.btn_upload_folder = QPushButton("Open Folder")
-            self.btn_analyze_all = QPushButton("Analyze")
-            self.btn_cancel_batch = QPushButton("Cancel Batch")
-            self.btn_remove_file = QPushButton("Remove File")
-            self.btn_clear_all = QPushButton("Clear All")
-            for b in (self.btn_upload_report, self.btn_upload_folder, self.btn_analyze_all,
-                      self.btn_cancel_batch, self.btn_remove_file):
-                self._style_action_button(b, font_size=13, bold=True, height=40, padding="8px 12px", fixed_width=160)
+            for b in (self.btn_upload_report, self.btn_upload_folder):
+                self._style_action_button(b, font_size=11, bold=True, height=32, padding="6px 10px")
                 row_report_btns.addWidget(b)
+            row_report_btns.addStretch(1)
+
             try:
-                self.btn_upload_report.clicked.connect(self.action_open_report)  # type: ignore[attr-defined]
-                self.btn_upload_folder.clicked.connect(self.action_open_folder)  # type: ignore[attr-defined]
-                self.btn_analyze_all.clicked.connect(self.action_analyze_combined)  # type: ignore[attr-defined]
-                self.btn_cancel_batch.clicked.connect(self.action_cancel_batch)  # type: ignore[attr-defined]
-                self.btn_cancel_batch.setDisabled(True)
-                self.btn_remove_file.clicked.connect(self.action_remove_file) # type: ignore[attr-defined]
-                self.btn_clear_all.clicked.connect(self.action_clear_all)  # type: ignore[attr-defined]
+                self.btn_upload_report.clicked.connect(self.action_open_report)
+                self.btn_upload_folder.clicked.connect(self.action_open_folder)
             except Exception:
                 ...
             report_layout.addLayout(row_report_btns)
 
-            self.lbl_report_name = QLabel("(No report selected)")
+            self.lbl_report_name = QLabel("(No file selected for single analysis)")
             report_layout.addWidget(self.lbl_report_name)
 
-            self.list_folder_files = QListWidget()
-            try:
-                self.list_folder_files.setMinimumHeight(60)
-                self.list_folder_files.setMaximumHeight(100)
-                self.list_folder_files.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-            except Exception:
-                ...
-            # report_layout.addWidget(self.list_folder_files) # Removed from here
+            top_setup_layout.addWidget(report_panel)
+            setup_layout.addLayout(top_setup_layout)
 
-            top_split.addWidget(rubric_panel)
-            top_split.addWidget(report_panel)
-            top_split.setStretchFactor(0, 1)
-            top_split.setStretchFactor(1, 1)
+            # File Queue
+            queue_group = QGroupBox("File Queue (for batch analysis)")
+            queue_layout = QVBoxLayout(queue_group)
+
+            queue_actions_layout = QHBoxLayout()
+            self.btn_analyze_all = QPushButton("Analyze All in Queue")
+            self.btn_cancel_batch = QPushButton("Cancel Batch")
+            self.btn_remove_file = QPushButton("Remove Selected")
+            self.btn_clear_all = QPushButton("Clear Queue")
+            self._style_action_button(self.btn_analyze_all, font_size=11, bold=True, height=32)
+            self._style_action_button(self.btn_cancel_batch, font_size=11, bold=True, height=32)
+            self._style_action_button(self.btn_remove_file, font_size=11, bold=True, height=32)
+            self._style_action_button(self.btn_clear_all, font_size=11, bold=True, height=32)
+
+            queue_actions_layout.addWidget(self.btn_analyze_all)
+            queue_actions_layout.addWidget(self.btn_cancel_batch)
+            queue_actions_layout.addStretch(1)
+            queue_actions_layout.addWidget(self.btn_remove_file)
+            queue_actions_layout.addWidget(self.btn_clear_all)
+
+            self.list_folder_files = QListWidget()
+            queue_layout.addLayout(queue_actions_layout)
+            queue_layout.addWidget(self.list_folder_files)
+
+            setup_layout.addWidget(queue_group)
+
+            # --- Results Tab Layout ---
+            results_layout = QVBoxLayout(results_tab)
+            results_splitter = QSplitter(Qt.Orientation.Horizontal)
+
+            # Left side: Analysis Report
+            self.txt_chat = QTextEdit()
+            self.txt_chat.setPlaceholderText("Analysis summary will appear here.")
+            self.txt_chat.setReadOnly(True)
+            self.txt_chat.anchorClicked.connect(self.handle_anchor_clicked)
+
+            # Right side: Full Note Text
+            self.txt_full_note = QTextEdit()
+            self.txt_full_note.setPlaceholderText("Full note text will appear here after analysis.")
+            self.txt_full_note.setReadOnly(True)
+
+            results_splitter.addWidget(self.txt_chat)
+            results_splitter.addWidget(self.txt_full_note)
+            results_splitter.setSizes([400, 600]) # Initial sizing
+
+            results_layout.addWidget(results_splitter)
+
+            # --- Logs Tab Layout ---
+            logs_layout = QVBoxLayout(logs_tab)
+            log_actions_layout = QHBoxLayout()
+            self.btn_clear_recent_files = QPushButton("Clear Recent Files History")
+            self._style_action_button(self.btn_clear_recent_files, font_size=11, bold=True, height=28, padding="4px 10px")
+            log_actions_layout.addStretch(1)
+            log_actions_layout.addWidget(self.btn_clear_recent_files)
+
+            self.txt_logs = QTextEdit()
+            self.txt_logs.setReadOnly(True)
+            flog = QFont(); flog.setPointSize(11); self.txt_logs.setFont(flog)
+
+            logs_layout.addLayout(log_actions_layout)
+            logs_layout.addWidget(self.txt_logs)
+
+            # --- Main Layout Assembly ---
+            vmain.addWidget(self.tabs)
+            try:
+                self.tabs.currentChanged.connect(self._on_tab_changed)
+            except Exception: pass
 
             self.progress_bar = QProgressBar()
             self.progress_bar.setRange(0, 100)
             self.progress_bar.setValue(0)
             self.progress_bar.setFormat("Ready")
-            self.progress_bar.setMinimumHeight(20)
             self.progress_bar.setVisible(False)
-            self.progress_bar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-
-            # --- Combined File Queue and Logs Tab ---
-            self.grp_queue_logs = QGroupBox("File Queue & Application Logs")
-            queue_logs_layout = QVBoxLayout(self.grp_queue_logs)
-
-            self.queue_log_tabs = QTabWidget()
-
-            # File Queue Tab - reuse the existing list widget
-            self.queue_log_tabs.addTab(self.list_folder_files, "File Queue")
-
-            # Logs Tab
-            log_widget_container = QWidget()
-            logs_vbox = QVBoxLayout(log_widget_container)
-            logs_vbox.setContentsMargins(4, 4, 4, 4)
-
-            log_actions_layout = QHBoxLayout()
-            self.btn_clear_recent_files = QPushButton("Clear Recent Files")
-            log_actions_layout.addStretch(1)
-            log_actions_layout.addWidget(self.btn_clear_recent_files)
-            self._style_action_button(self.btn_clear_recent_files, font_size=11, bold=True, height=28, padding="4px 10px")
-            try:
-                self.btn_clear_recent_files.clicked.connect(self.action_clear_recent_files)
-            except Exception:
-                ...
-            logs_vbox.addLayout(log_actions_layout)
-
-            self.txt_logs = QTextEdit()
-            self.txt_logs.setReadOnly(True)
-            flog = QFont();
-            flog.setPointSize(11)
-            self.txt_logs.setFont(flog)
-            logs_vbox.addWidget(self.txt_logs)
-
-            self.queue_log_tabs.addTab(log_widget_container, "Logs")
-            queue_logs_layout.addWidget(self.queue_log_tabs)
-
-            self.grp_results = QGroupBox("Analysis Window")
-            res_layout = QVBoxLayout(self.grp_results)
-            res_layout.setContentsMargins(12, 12, 12, 12)
-            res_layout.setSpacing(8)
-
-            row_results_actions = QHBoxLayout()
-            self.btn_results_analytics = QPushButton("Export Analytics CSV")
-            try:
-                self._style_action_button(self.btn_results_analytics, font_size=11, bold=True, height=28, padding="4px 10px")
-                self.btn_results_analytics.clicked.connect(
-                    lambda: self._export_analytics_csv())  # type: ignore[attr-defined]
-            except Exception:
-                ...
-            row_results_actions.addStretch(1)
-            row_results_actions.addWidget(self.btn_results_analytics)
-            res_layout.addLayout(row_results_actions)
-
-            self.txt_chat = QTextEdit()
-            self.txt_chat.setPlaceholderText("Analysis summary will appear here.")
-            try:
-                self.txt_chat.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-                fstable = QFont();
-                fstable.setPointSize(12)
-                self.txt_chat.setFont(fstable)
-                self.txt_chat.anchorClicked.connect(self.handle_anchor_clicked)
-            except Exception:
-                ...
-            res_layout.addWidget(self.txt_chat, 1)
-            self.grp_results.setLayout(res_layout)
-
-            # Layout order
-            main_splitter = QSplitter(Qt.Orientation.Vertical)
-            main_splitter.addWidget(top_split)
-            main_splitter.addWidget(self.grp_results)
-            main_splitter.addWidget(self.grp_queue_logs)
-            main_splitter.setStretchFactor(0, 0)  # Do not stretch top panel
-            main_splitter.setStretchFactor(1, 1)  # Stretch analysis window
-            main_splitter.setStretchFactor(2, 0)  # Do not stretch queue/logs
-
-            vmain.addWidget(main_splitter)
-            vmain.addWidget(self.progress_bar, 0)
+            vmain.addWidget(self.progress_bar)
 
             # Bottom AI chat input row
             input_row_bottom = QHBoxLayout()
@@ -2503,8 +2541,79 @@ def _run_gui() -> Optional[int]:
                 self.lbl_report_name.setText("(No report selected)")
                 self.refresh_llm_indicator()
                 self.refresh_recent_files()
+                self._update_analytics_tab() # Initial load
             except Exception:
                 ...
+
+        def _on_tab_changed(self, index):
+            if self.tabs.tabText(index) == "Analytics Dashboard":
+                self._update_analytics_tab()
+
+        def _fetch_analytics_data(self):
+            try:
+                with _get_db_connection() as conn:
+                    runs = pd.read_sql_query("SELECT run_time, compliance_score, flags FROM analysis_runs ORDER BY run_time ASC", conn)
+                    issues = pd.read_sql_query("SELECT category FROM analysis_issues", conn)
+                return {"runs": runs, "issues": issues}
+            except Exception as e:
+                self.log(f"Failed to fetch analytics data: {e}")
+                return None
+
+        def _update_analytics_tab(self):
+            data = self._fetch_analytics_data()
+            if data is None or data["runs"].empty:
+                self.log("No analytics data found to generate dashboard.")
+                # Clear the chart and stats if no data
+                self.analytics_figure.clear()
+                self.analytics_canvas.draw()
+                self.lbl_total_runs.setText("0")
+                self.lbl_avg_score.setText("N/A")
+                self.lbl_avg_flags.setText("N/A")
+                self.lbl_top_category.setText("N/A")
+                return
+
+            runs_df = data["runs"]
+            issues_df = data["issues"]
+
+            # Update summary stats
+            total_runs = len(runs_df)
+            avg_score = runs_df["compliance_score"].mean()
+            avg_flags = runs_df["flags"].mean()
+            top_category = "N/A"
+            if not issues_df.empty and not issues_df["category"].empty:
+                top_category = issues_df["category"].mode()[0]
+
+            self.lbl_total_runs.setText(str(total_runs))
+            self.lbl_avg_score.setText(f"{avg_score:.1f} / 100.0")
+            self.lbl_avg_flags.setText(f"{avg_flags:.2f}")
+            self.lbl_top_category.setText(top_category)
+
+            # Update chart
+            self.analytics_figure.clear()
+            ax = self.analytics_figure.add_subplot(111)
+
+            scores = runs_df["compliance_score"].tolist()
+            ax.plot(range(total_runs), scores, marker='o', linestyle='-', label="Compliance Score")
+
+            # Add a trend line
+            if total_runs > 1 and np:
+                x = list(range(total_runs))
+                try:
+                    z = np.polyfit(x, scores, 1)
+                    p = np.poly1d(z)
+                    ax.plot(x, p(x), "r--", label="Trend")
+                except Exception as e:
+                    logger.warning(f"Could not compute trendline: {e}")
+
+
+            ax.set_title("Compliance Score Trend")
+            ax.set_xlabel("Analysis Run")
+            ax.set_ylabel("Score")
+            ax.grid(True, linestyle='--', alpha=0.6)
+            ax.legend()
+
+            self.analytics_figure.tight_layout()
+            self.analytics_canvas.draw()
 
         # Helpers and actions
         def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px", fixed_width: Optional[int] = None):
@@ -3072,74 +3181,76 @@ def _run_gui() -> Optional[int]:
             except Exception as e:
                 self.set_error(str(e))
 
-        def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None) -> None:
+        def render_analysis_to_results(self, data: dict) -> None:
             try:
                 self.current_report_data = data
+                self.tabs.setCurrentIndex(1) # Switch to results tab
 
                 file_name = os.path.basename(data.get("file", "Unknown File"))
-                report_html = f"<h1>Analysis for: {file_name}</h1>"
 
-                # Re-generate the narrative from structured data to ensure consistency
-                narrative_lines = []
-                narrative_lines.extend(_generate_risk_dashboard(data['compliance']['score'], data['sev_counts']))
-                narrative_lines.extend(_generate_compliance_checklist(data['strengths'], data['weaknesses']))
+                # --- Build Left Pane (Report) ---
+                report_html_lines = [f"<h2>Analysis for: {file_name}</h2>"]
+                report_html_lines.extend(_generate_risk_dashboard(data['compliance']['score'], data['sev_counts']))
+                report_html_lines.extend(_generate_compliance_checklist(data['strengths'], data['weaknesses']))
 
-                narrative_lines.append("--- Detailed Findings ---")
+                report_html_lines.append("<h3>Detailed Findings</h3>")
                 issues = data.get("issues", [])
                 if issues:
                     for issue in issues:
                         loc = issue.get('location')
-                        link = f"<a href='highlight:{loc['start']}:{loc['end']}'>Show in text</a>" if loc else "(location not found)"
+                        link = f"<a href='highlight:{loc['start']}:{loc['end']}'>Show in text</a>" if loc else ""
 
-                        sev = str(issue.get("severity", "")).title()
-                        cat = issue.get("category", "") or "General"
-                        title = issue.get("title", "") or "Finding"
-                        narrative_lines.append(f"<b>[{sev}][{cat}] {title}</b>")
+                        sev_color = {"Flag": "#dc3545", "Wobbler": "#ffc107", "Suggestion": "#17a2b8"}.get(issue.get("severity", "").title(), "#6c757d")
 
-                        details = issue.get("details", {}) # Assuming details are now nested
-                        if 'action' in details: narrative_lines.append(f"  - Recommended Action: {details['action']}")
-                        if 'why' in details: narrative_lines.append(f"  - Why it matters: {details['why']}")
-                        if 'good_example' in details: narrative_lines.append(f"  - Good Example: {details['good_example']}")
-                        if 'bad_example' in details: narrative_lines.append(f"  - Bad Example: {details['bad_example']}")
+                        report_html_lines.append(f"<div style='border-left: 3px solid {sev_color}; padding-left: 10px; margin-bottom: 15px;'>")
+                        report_html_lines.append(f"<strong>{issue.get('title', 'Finding')}</strong><br>")
+                        report_html_lines.append(f"<small>Severity: {issue.get('severity', '').title()} | Category: {issue.get('category', 'General')} | {link}</small>")
 
-                        narrative_lines.append(f"  - {link}")
-                        narrative_lines.append("") # Spacer
+                        details = issue.get("details", {})
+                        if details:
+                            report_html_lines.append(f"<p><strong>Action:</strong> {details.get('action', 'N/A')}</p>")
+                            report_html_lines.append(f"<p><strong>Why:</strong> {details.get('why', 'N/A')}</p>")
+
+                        report_html_lines.append("</div>")
                 else:
-                    narrative_lines.append("No specific audit findings were identified.")
+                    report_html_lines.append("<p>No specific audit findings were identified.</p>")
 
-                report_html += "<br>".join(narrative_lines)
+                self.txt_chat.setHtml("".join(report_html_lines))
 
-                # Full Text
-                report_html += "<hr><h2>Full Note Text</h2>"
+                # --- Build Right Pane (Full Text) ---
                 full_text = "\n".join(s[0] for s in data.get('source_sentences', []))
-
-                if highlight_range:
-                    start, end = highlight_range
-                    pre_text = html.escape(full_text[:start])
-                    highlighted_text = html.escape(full_text[start:end])
-                    post_text = html.escape(full_text[end:])
-
-                    full_text_html = (f"{pre_text.replace('\n', '<br>')}"
-                                      f"<span style='background-color: yellow;'>{highlighted_text.replace('\n', '<br>')}</span>"
-                                      f"{post_text.replace('\n', '<br>')}")
-                else:
-                    full_text_html = html.escape(full_text).replace('\n', '<br>')
-
-                report_html += f"<div style='font-family: monospace; white-space: pre-wrap; background: #eee; padding: 10px; border-radius: 5px;'>{full_text_html}</div>"
-
-                self.txt_chat.setHtml(report_html)
-
-                if highlight_range:
-                    cursor = self.txt_chat.textCursor()
-                    doc = self.txt_chat.document()
-                    # A trick to find the position of the span
-                    cursor = doc.find("<span", cursor)
-                    self.txt_chat.setTextCursor(cursor)
-                    self.txt_chat.ensureCursorVisible()
+                self.txt_full_note.setPlainText(full_text)
 
             except Exception as e:
                 self.log(f"Failed to render analysis results: {e}")
                 logger.exception("Render analysis failed")
+
+        def highlight_text_in_note(self, start: int, end: int):
+            try:
+                full_text = self.txt_full_note.toPlainText()
+
+                pre_text = html.escape(full_text[:start])
+                highlighted_text = html.escape(full_text[start:end])
+                post_text = html.escape(full_text[end:])
+
+                # Use a color that works well in both light and dark themes
+                highlight_color = "yellow"
+                text_color = "black"
+
+                full_text_html = (f"<pre>{pre_text}"
+                                  f"<span style='background-color: {highlight_color}; color: {text_color};'>{highlighted_text}</span>"
+                                  f"{post_text}</pre>")
+
+                self.txt_full_note.setHtml(full_text_html)
+
+                # Scroll to the highlighted text
+                cursor = self.txt_full_note.textCursor()
+                cursor.setPosition(start)
+                self.txt_full_note.setTextCursor(cursor)
+                self.txt_full_note.ensureCursorVisible()
+
+            except Exception as e:
+                 self.log(f"Failed to highlight text: {e}")
 
         def handle_anchor_clicked(self, url):
             url_str = url.toString()
@@ -3149,8 +3260,7 @@ def _run_gui() -> Optional[int]:
                     try:
                         start = int(parts[1])
                         end = int(parts[2])
-                        if hasattr(self, 'current_report_data') and self.current_report_data:
-                             self.render_analysis_to_results(self.current_report_data, highlight_range=(start, end))
+                        self.highlight_text_in_note(start, end)
                     except (ValueError, IndexError) as e:
                         self.log(f"Invalid highlight URL: {url_str} - {e}")
 
