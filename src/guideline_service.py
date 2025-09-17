@@ -144,16 +144,16 @@ class GuidelineService:
             logger.warning("Search attempted before guideline index was ready.")
             return []
 
-        # Use the new search_index method from LocalRAG
-        retrieved_texts = self.rag.search_index(query, k=top_k)
+        # Use the new search_index method from LocalRAG, which returns text and score
+        retrieved_results = self.rag.search_index(query, k=top_k)
 
         # The retrieved_texts are just the text content. We need to find the original source.
         # We can do this by creating a lookup map from text to source.
         text_to_source_map = {text: source for text, source in self.guideline_chunks}
 
         results = []
-        for text in retrieved_texts:
+        for text, score in retrieved_results:
             source = text_to_source_map.get(text, "Unknown Source")
-            results.append({"text": text, "source": source})
+            results.append({"text": text, "source": source, "score": score})
 
         return results

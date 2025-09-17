@@ -25,7 +25,7 @@ class LocalRAG:
     and a local LLM for generating responses based on retrieved context.
     """
 
-    def __init__(self, model_repo_id: str, model_filename: str, model: Optional[SentenceTransformer] = None, n_gpu_layers: int = 0):
+    def __init__(self, model_repo_id: str, model_filename: str, model: Optional[SentenceTransformer] = None, n_gpu_layers: int = 0, load_llm: bool = True):
         """
         Initializes the LocalRAG system.
 
@@ -34,6 +34,7 @@ class LocalRAG:
             model_filename (str): The filename of the GGUF model in the repository.
             model (Optional[SentenceTransformer]): An optional pre-loaded sentence transformer model.
             n_gpu_layers (int): Number of layers to offload to GPU. 0 for CPU only.
+            load_llm (bool): Whether to load the LLM. If False, only the embedding model is loaded.
         """
         self.llm: Optional[Llama] = None
         self.embedding_model: Optional[SentenceTransformer] = model
@@ -49,18 +50,19 @@ class LocalRAG:
             else:
                 logger.info("Using pre-loaded sentence transformer model.")
 
-            # 2. Download and load the local LLM
-            logger.info(f"Downloading LLM from {model_repo_id}...")
-            model_path = hf_hub_download(repo_id=model_repo_id, filename=model_filename)
-            logger.info(f"LLM downloaded to: {model_path}")
+            if load_llm:
+                # 2. Download and load the local LLM
+                logger.info(f"Downloading LLM from {model_repo_id}...")
+                model_path = hf_hub_download(repo_id=model_repo_id, filename=model_filename)
+                logger.info(f"LLM downloaded to: {model_path}")
 
-            self.llm = Llama(
-                model_path=model_path,
-                n_ctx=4096,  # Context window size
-                n_gpu_layers=n_gpu_layers,  # Set to 0 for CPU, or a positive number for GPU layers
-                verbose=False,
-            )
-            logger.info("Local LLM loaded successfully.")
+                self.llm = Llama(
+                    model_path=model_path,
+                    n_ctx=4096,  # Context window size
+                    n_gpu_layers=n_gpu_layers,  # Set to 0 for CPU, or a positive number for GPU layers
+                    verbose=False,
+                )
+                logger.info("Local LLM loaded successfully.")
 
         except Exception as e:
             logger.exception(f"Failed to initialize LocalRAG: {e}")
@@ -95,7 +97,7 @@ class LocalRAG:
         self.index.add(np.array(embeddings, dtype=np.float32))
         logger.info("FAISS index created successfully.")
 
-    def search_index(self, query: str, k: int = 3) -> List[str]:
+    def search_index(self, query: str, k: int = 3) -> List[Tuple[str, float]]:
         """
         Searches the FAISS index for the most relevant text chunks.
 
@@ -104,17 +106,22 @@ class LocalRAG:
             k (int): The number of chunks to retrieve.
 
         Returns:
-            List[str]: A list of the top k most relevant text chunks.
+            List[Tuple[str, float]]: A list of tuples, where each tuple contains
+                                     the retrieved text chunk and its similarity score.
         """
         if not self.is_ready() or not self.index or not self.embedding_model:
             logger.warning("RAG system or index is not ready. Cannot perform search.")
             return []
 
         query_embedding = self.embedding_model.encode([query])
-        _, I = self.index.search(np.array(query_embedding, dtype=np.float32), k)
+        distances, indices = self.index.search(np.array(query_embedding, dtype=np.float32), k)
 
-        retrieved_chunks = [self.text_chunks[i] for i in I[0]]
-        return retrieved_chunks
+        results = []
+        if len(indices) > 0:
+            for i, dist in zip(indices[0], distances[0]):
+                if i != -1:  # faiss returns -1 for no result
+                    results.append((self.text_chunks[i], float(dist)))
+        return results
 
     def query(self, question: str, k: int = 3, chat_history: List[tuple[str, str]] | None = None) -> str:
         """
