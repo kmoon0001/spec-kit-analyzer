@@ -1047,6 +1047,9 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
         if "compliance_score" not in columns:
             cur.execute("ALTER TABLE analysis_runs ADD COLUMN compliance_score REAL")
             logger.info("Upgraded analysis_runs table to include 'compliance_score' column.")
+        if "disciplines" not in columns:
+            cur.execute("ALTER TABLE analysis_runs ADD COLUMN disciplines TEXT")
+            logger.info("Upgraded analysis_runs table to include 'disciplines' column.")
 
         cur.execute("""
                     CREATE TABLE IF NOT EXISTS reviewed_findings
@@ -1092,20 +1095,22 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
 
 
 def persist_analysis_run(file_path: str, run_time: str, metrics: dict, issues_scored: list[dict],
-                         compliance: dict, mode: str) -> Optional[int]:
+                         compliance: dict, mode: str, disciplines: List[str]) -> Optional[int]:
     try:
         with _get_db_connection() as conn:
             cur = conn.cursor()
+            disciplines_str = ",".join(sorted(disciplines)).upper()
             cur.execute("""
                         INSERT INTO analysis_runs (file_name, run_time, pages_est, flags, wobblers, suggestions, notes,
-                                                   sentences_final, dedup_removed, compliance_score, mode)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                                   sentences_final, dedup_removed, compliance_score, mode, disciplines)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (
                             os.path.basename(file_path), run_time,
                             int(metrics.get("pages", 0)), int(metrics.get("flags", 0)), int(metrics.get("wobblers", 0)),
                             int(metrics.get("suggestions", 0)), int(metrics.get("notes", 0)),
                             int(metrics.get("sentences_final", 0)), int(metrics.get("dedup_removed", 0)),
-                            float(compliance.get("score", 0.0)), mode
+                            float(compliance.get("score", 0.0)), mode,
+                            disciplines_str
                         ))
             run_id = int(cur.lastrowid)
             if issues_scored:
@@ -1148,6 +1153,55 @@ def _compute_recent_trends(max_runs: int = 10) -> dict:
     except Exception:
         ...
     return out
+
+
+def _get_dashboard_data() -> Optional[dict]:
+    """
+    Fetches and computes all data needed for the analytics dashboard.
+    """
+    try:
+        with _get_db_connection() as conn:
+            # Fetch all runs and issues, ensuring disciplines is not null
+            runs_df = pd.read_sql_query("SELECT run_time, compliance_score, disciplines FROM analysis_runs WHERE disciplines IS NOT NULL", conn)
+            issues_df = pd.read_sql_query("SELECT i.run_id, i.title FROM analysis_issues i JOIN analysis_runs r ON i.run_id = r.id", conn)
+
+        if runs_df.empty:
+            logger.info("No analytics data found for dashboard.")
+            return None
+
+        # --- Overall Stats ---
+        total_runs = len(runs_df)
+        avg_score = runs_df["compliance_score"].mean()
+
+        # --- Score by Discipline ---
+        # Clean up disciplines column, split, and explode
+        runs_df['disciplines'] = runs_df['disciplines'].str.strip().str.split(',')
+        exploded_df = runs_df.explode('disciplines')
+        exploded_df['disciplines'] = exploded_df['disciplines'].str.strip()
+        # Calculate average score per discipline
+        avg_score_by_discipline = exploded_df.groupby('disciplines')['compliance_score'].mean().round(1).to_dict()
+
+        # --- Top 5 Findings ---
+        top_findings = issues_df['title'].value_counts().nlargest(5).to_dict()
+
+        # --- Compliance Score Over Time ---
+        runs_df['run_time'] = pd.to_datetime(runs_df['run_time'])
+        runs_df = runs_df.sort_values('run_time')
+        scores_over_time = runs_df[['run_time', 'compliance_score']].to_dict('records')
+
+        logger.info(f"Fetched dashboard data: {total_runs} runs, {len(top_findings)} top findings.")
+
+        return {
+            "total_runs": total_runs,
+            "avg_score": round(avg_score, 1) if pd.notna(avg_score) else 0.0,
+            "avg_score_by_discipline": avg_score_by_discipline,
+            "top_findings": top_findings,
+            "scores_over_time": scores_over_time,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get dashboard data: {e}")
+        return None
 
 
 # --- Caching helpers ---
@@ -2245,7 +2299,7 @@ def run_analyzer(file_path: str,
         }
 
         try:
-            persist_analysis_run(file_path, _now_iso(), metrics, issues_scored, compliance, CURRENT_REVIEW_MODE)
+            persist_analysis_run(file_path, _now_iso(), metrics, issues_scored, compliance, CURRENT_REVIEW_MODE, selected_disciplines)
         except Exception:
             ...
         try:
@@ -2674,39 +2728,47 @@ def _run_gui() -> Optional[int]:
             self.tabs.addTab(analytics_tab, "Analytics Dashboard")
             analytics_layout = QVBoxLayout(analytics_tab)
 
-            analytics_controls = QHBoxLayout()
+            # Controls
+            analytics_controls_layout = QHBoxLayout()
             btn_refresh_analytics = QPushButton("Refresh Analytics")
             self._style_action_button(btn_refresh_analytics, font_size=11, bold=True, height=32)
             try:
-            feature/modern-ui-and-analytics
                 btn_refresh_analytics.clicked.connect(self._update_analytics_tab)
             except Exception: pass
-            analytics_controls.addWidget(btn_refresh_analytics)
-            analytics_controls.addStretch(1)
-            analytics_layout.addLayout(analytics_controls)
+            analytics_controls_layout.addWidget(btn_refresh_analytics)
+            analytics_controls_layout.addStretch(1)
+            analytics_layout.addLayout(analytics_controls_layout)
 
-            # Matplotlib chart
-            self.analytics_figure = Figure(figsize=(5, 3))
-            self.analytics_canvas = FigureCanvas(self.analytics_figure)
-            analytics_layout.addWidget(self.analytics_canvas)
+            # Charts
+            charts_splitter = QSplitter(Qt.Orientation.Horizontal)
+            self.scores_figure = Figure(figsize=(5, 4))
+            self.scores_canvas = FigureCanvas(self.scores_figure)
+            charts_splitter.addWidget(self.scores_canvas)
 
-            # Summary stats
+            self.findings_figure = Figure(figsize=(5, 4))
+            self.findings_canvas = FigureCanvas(self.findings_figure)
+            charts_splitter.addWidget(self.findings_canvas)
+            analytics_layout.addWidget(charts_splitter)
+
+            # Summary Stats
             stats_group = QGroupBox("Summary Statistics")
             stats_layout = QGridLayout(stats_group)
             self.lbl_total_runs = QLabel("N/A")
             self.lbl_avg_score = QLabel("N/A")
-            self.lbl_avg_flags = QLabel("N/A")
-            self.lbl_top_category = QLabel("N/A")
+            self.lbl_avg_score_pt = QLabel("N/A")
+            self.lbl_avg_score_ot = QLabel("N/A")
+            self.lbl_avg_score_slp = QLabel("N/A")
 
-            stats_layout.addWidget(QLabel("Total Runs Analyzed:"), 0, 0)
+            stats_layout.addWidget(QLabel("Total Runs:"), 0, 0)
             stats_layout.addWidget(self.lbl_total_runs, 0, 1)
-            stats_layout.addWidget(QLabel("Average Compliance Score:"), 1, 0)
+            stats_layout.addWidget(QLabel("Overall Avg Score:"), 1, 0)
             stats_layout.addWidget(self.lbl_avg_score, 1, 1)
-            stats_layout.addWidget(QLabel("Average Flags per Run:"), 2, 0)
-            stats_layout.addWidget(self.lbl_avg_flags, 2, 1)
-            stats_layout.addWidget(QLabel("Most Frequent Finding Category:"), 3, 0)
-            stats_layout.addWidget(self.lbl_top_category, 3, 1)
-
+            stats_layout.addWidget(QLabel("Avg Score (PT):"), 0, 2)
+            stats_layout.addWidget(self.lbl_avg_score_pt, 0, 3)
+            stats_layout.addWidget(QLabel("Avg Score (OT):"), 1, 2)
+            stats_layout.addWidget(self.lbl_avg_score_ot, 1, 3)
+            stats_layout.addWidget(QLabel("Avg Score (SLP):"), 2, 2)
+            stats_layout.addWidget(self.lbl_avg_score_slp, 2, 3)
             analytics_layout.addWidget(stats_group)
 
             # --- Setup Tab Layout ---
@@ -3196,71 +3258,71 @@ def _run_gui() -> Optional[int]:
             if self.tabs.tabText(index) == "Analytics Dashboard":
                 self._update_analytics_tab()
 
-        def _fetch_analytics_data(self):
-            try:
-                with _get_db_connection() as conn:
-                    runs = pd.read_sql_query("SELECT run_time, compliance_score, flags FROM analysis_runs ORDER BY run_time ASC", conn)
-                    issues = pd.read_sql_query("SELECT category FROM analysis_issues", conn)
-                return {"runs": runs, "issues": issues}
-            except Exception as e:
-                self.log(f"Failed to fetch analytics data: {e}")
-                return None
-
         def _update_analytics_tab(self):
-            data = self._fetch_analytics_data()
-            if data is None or data["runs"].empty:
-                self.log("No analytics data found to generate dashboard.")
-                # Clear the chart and stats if no data
-                self.analytics_figure.clear()
-                self.analytics_canvas.draw()
+            self.log("Updating analytics tab...")
+            data = _get_dashboard_data()
+
+            if data is None:
+                self.log("No analytics data to display.")
+                self.scores_figure.clear()
+                self.findings_figure.clear()
+                self.scores_canvas.draw()
+                self.findings_canvas.draw()
                 self.lbl_total_runs.setText("0")
                 self.lbl_avg_score.setText("N/A")
-                self.lbl_avg_flags.setText("N/A")
-                self.lbl_top_category.setText("N/A")
+                self.lbl_avg_score_pt.setText("N/A")
+                self.lbl_avg_score_ot.setText("N/A")
+                self.lbl_avg_score_slp.setText("N/A")
                 return
 
-            runs_df = data["runs"]
-            issues_df = data["issues"]
+            # Update summary labels
+            self.lbl_total_runs.setText(str(data.get("total_runs", 0)))
+            self.lbl_avg_score.setText(f"{data.get('avg_score', 0.0):.1f}")
+            self.lbl_avg_score_pt.setText(f"{data.get('avg_score_by_discipline', {}).get('PT', 0.0):.1f}")
+            self.lbl_avg_score_ot.setText(f"{data.get('avg_score_by_discipline', {}).get('OT', 0.0):.1f}")
+            self.lbl_avg_score_slp.setText(f"{data.get('avg_score_by_discipline', {}).get('SLP', 0.0):.1f}")
 
-            # Update summary stats
-            total_runs = len(runs_df)
-            avg_score = runs_df["compliance_score"].mean()
-            avg_flags = runs_df["flags"].mean()
-            top_category = "N/A"
-            if not issues_df.empty and not issues_df["category"].empty:
-                top_category = issues_df["category"].mode()[0]
+            # --- Draw Scores Over Time Chart ---
+            self.scores_figure.clear()
+            ax_scores = self.scores_figure.add_subplot(111)
+            scores_data = data.get("scores_over_time", [])
+            if scores_data:
+                times = [item['run_time'] for item in scores_data]
+                scores = [item['compliance_score'] for item in scores_data]
+                ax_scores.plot(times, scores, marker='o', linestyle='-', color='b')
 
-            self.lbl_total_runs.setText(str(total_runs))
-            self.lbl_avg_score.setText(f"{avg_score:.1f} / 100.0")
-            self.lbl_avg_flags.setText(f"{avg_flags:.2f}")
-            self.lbl_top_category.setText(top_category)
+                # Add trend line
+                if len(times) > 1 and np:
+                    try:
+                        # Convert datetimes to numerical values for polyfit
+                        numeric_times = [t.timestamp() for t in times]
+                        z = np.polyfit(numeric_times, scores, 1)
+                        p = np.poly1d(z)
+                        ax_scores.plot(times, p(numeric_times), "r--", label="Trend")
+                    except Exception as e:
+                        logger.warning(f"Could not compute trendline: {e}")
 
-            # Update chart
-            self.analytics_figure.clear()
-            ax = self.analytics_figure.add_subplot(111)
+            ax_scores.set_title("Compliance Score Over Time")
+            ax_scores.set_ylabel("Score")
+            ax_scores.tick_params(axis='x', rotation=45)
+            ax_scores.grid(True, linestyle='--', alpha=0.6)
+            self.scores_figure.tight_layout()
+            self.scores_canvas.draw()
 
-            scores = runs_df["compliance_score"].tolist()
-            ax.plot(range(total_runs), scores, marker='o', linestyle='-', label="Compliance Score")
+            # --- Draw Top Findings Chart ---
+            self.findings_figure.clear()
+            ax_findings = self.findings_figure.add_subplot(111)
+            top_findings = data.get("top_findings", {})
+            if top_findings:
+                labels = list(top_findings.keys())
+                values = list(top_findings.values())
+                ax_findings.barh(labels, values, color='c')
+            ax_findings.set_title("Top 5 Common Findings")
+            ax_findings.set_xlabel("Frequency")
+            self.findings_figure.tight_layout()
+            self.findings_canvas.draw()
 
-            # Add a trend line
-            if total_runs > 1 and np:
-                x = list(range(total_runs))
-                try:
-                    z = np.polyfit(x, scores, 1)
-                    p = np.poly1d(z)
-                    ax.plot(x, p(x), "r--", label="Trend")
-                except Exception as e:
-                    logger.warning(f"Could not compute trendline: {e}")
-
-
-            ax.set_title("Compliance Score Trend")
-            ax.set_xlabel("Analysis Run")
-            ax.set_ylabel("Score")
-            ax.grid(True, linestyle='--', alpha=0.6)
-            ax.legend()
-
-            self.analytics_figure.tight_layout()
-            self.analytics_canvas.draw()
+            self.log("Analytics tab updated successfully.")
 
         # Helpers and actions
         def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px"):
