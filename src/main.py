@@ -15,14 +15,15 @@ from urllib.parse import quote, unquote
 # Third-party used throughout
 import pandas as pd  # type: ignore
 
+# Local imports
+from . import database_service
+
 # --- Configuration defaults and constants ---
 REPORT_TEMPLATE_VERSION = "v2.0"
 
 # Paths and environment
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-_default_db_dir = os.path.join(os.path.expanduser("~"), "Documents", "SpecKitData")
-DATABASE_PATH = os.getenv("SPEC_KIT_DB", os.path.join(_default_db_dir, "spec_kit.db"))
-REPORTS_DIR = os.getenv("SPEC_KIT_REPORTS", os.path.join(os.path.expanduser("~"), "Documents", "SpecKitReports"))
+# NOTE: DATABASE_PATH and REPORTS_DIR are now managed by the database_service
 LOGS_DIR = os.path.join(os.path.expanduser("~"), "Documents", "SpecKitData", "logs")
 
 # PDF report defaults
@@ -488,256 +489,6 @@ class OCRFailure(Exception): ...
 class ReportExportError(Exception): ...
 
 
-# --- Settings persistence (SQLite) ---
-def _ensure_directories() -> None:
-    try:
-        os.makedirs(os.path.dirname(os.path.abspath(DATABASE_PATH)), exist_ok=True)
-        os.makedirs(os.path.abspath(REPORTS_DIR), exist_ok=True)
-        os.makedirs(LOGS_DIR, exist_ok=True)
-    except Exception as e:
-        logger.warning(f"Failed to ensure directories: {e}")
-
-
-def _is_valid_sqlite_db(file_path: str) -> bool:
-    try:
-        if not os.path.exists(file_path):
-            return True
-        if not os.path.isfile(file_path):
-            return False
-        with open(file_path, "rb") as f:
-            header = f.read(16)
-        if header != b"SQLite format 3\x00":
-            return False
-        with sqlite3.connect(file_path) as conn:
-            cur = conn.cursor()
-            cur.execute("PRAGMA integrity_check")
-            row = cur.fetchone()
-            return bool(row and row[0] == "ok")
-    except Exception as e:
-        logger.warning(f"Failed to validate DB file {file_path}: {e}")
-        return False
-
-
-def _backup_corrupt_db(file_path: str) -> None:
-    try:
-        from datetime import datetime
-        ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-        backup_path = f"{file_path}.corrupt-{ts}.bak"
-        os.replace(file_path, backup_path)
-        logger.warning(f"Backed up invalid DB: {backup_path}")
-    except Exception as e:
-        logger.error(f"Failed to back up invalid DB: {e}")
-
-
-def _prepare_database_file() -> None:
-    try:
-        if not _is_valid_sqlite_db(DATABASE_PATH):
-            _backup_corrupt_db(DATABASE_PATH)
-    except Exception as e:
-        logger.error(f"DB preparation failed: {e}")
-
-
-def _ensure_core_schema(conn: sqlite3.Connection) -> None:
-    try:
-        cur = conn.cursor()
-        cur.execute("""
-                    CREATE TABLE IF NOT EXISTS settings
-                    (
-                        key
-                        TEXT
-                        PRIMARY
-                        KEY,
-                        value
-                        TEXT
-                    )
-                    """)
-        cur.execute("""
-                    CREATE TABLE IF NOT EXISTS analysis_cache
-                    (
-                        file_fingerprint
-                        TEXT
-                        NOT
-                        NULL,
-                        settings_fingerprint
-                        TEXT
-                        NOT
-                        NULL,
-                        outputs_json
-                        TEXT
-                        NOT
-                        NULL,
-                        created_at
-                        TEXT
-                        NOT
-                        NULL,
-                        PRIMARY
-                        KEY
-                    (
-                        file_fingerprint,
-                        settings_fingerprint
-                    )
-                        )
-                    """)
-        conn.commit()
-    except Exception as e:
-        logger.warning(f"Ensure core schema failed: {e}")
-
-
-def _get_db_connection() -> sqlite3.Connection:
-    _ensure_directories()
-    _prepare_database_file()
-    try:
-        conn = sqlite3.connect(DATABASE_PATH)
-    except sqlite3.DatabaseError as e:
-        logger.warning(f"sqlite connect failed: {e}; attempting recreate")
-        _backup_corrupt_db(DATABASE_PATH)
-        conn = sqlite3.connect(DATABASE_PATH)
-    try:
-        cur = conn.cursor()
-        cur.execute("PRAGMA foreign_keys = ON")
-        cur.execute("PRAGMA journal_mode = WAL")
-        cur.execute("PRAGMA synchronous = NORMAL")
-        conn.commit()
-        _ensure_core_schema(conn)
-        _ensure_analytics_schema(conn)
-    except Exception as e:
-        logger.warning(f"SQLite PRAGMA/schema setup partial: {e}")
-    return conn
-
-
-def get_setting(key: str) -> Optional[str]:
-    try:
-        with _get_db_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT value FROM settings WHERE key = ?", (key,))
-            row = cur.fetchone()
-            return row[0] if row else None
-    except Exception:
-        return None
-
-
-def set_setting(key: str, value: str) -> None:
-    try:
-        with _get_db_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
-            conn.commit()
-    except Exception:
-        ...
-
-
-def get_bool_setting(key: str, default: bool) -> bool:
-    raw = get_setting(key)
-    if raw is None:
-        return default
-    return str(raw).lower() in ("1", "true", "yes", "on")
-
-
-def set_bool_setting(key: str, value: bool) -> None:
-    set_setting(key, "1" if value else "0")
-
-
-def get_int_setting(key: str, default: int) -> int:
-    raw = get_setting(key)
-    if raw is None:
-        return default
-    try:
-        return int(str(raw).strip())
-    except Exception:
-        return default
-
-
-def get_str_setting(key: str, default: str) -> str:
-    raw = get_setting(key)
-    return default if raw is None else str(raw)
-
-
-def set_str_setting(key: str, value: str) -> None:
-    set_setting(key, value)
-
-
-# --- Recent files helpers ---
-def _load_recent_files() -> list[str]:
-    try:
-        import json
-        raw = get_setting("recent_files")
-        if not raw:
-            return []
-        lst = json.loads(raw)
-        if not isinstance(lst, list):
-            return []
-        seen: set[str] = set()
-        out: list[str] = []
-        for x in lst:
-            if isinstance(x, str) and x not in seen:
-                seen.add(x)
-                out.append(x)
-        limit = get_int_setting("recent_max", 20)
-        return out[:max(1, limit)]
-    except Exception:
-        return []
-
-
-def _save_recent_files(files: list[str]) -> None:
-    try:
-        import json
-        limit = get_int_setting("recent_max", 20)
-        set_setting("recent_files", json.dumps(files[:max(1, limit)], ensure_ascii=False))
-    except Exception:
-        ...
-
-
-def add_recent_file(path: str) -> None:
-    if not path:
-        return
-    files = _load_recent_files()
-    files = [p for p in files if p != path]
-    files.insert(0, path)
-    _save_recent_files(files)
-
-
-# --- File/report helpers ---
-def ensure_reports_dir_configured() -> str:
-    stored = os.getenv("SPEC_KIT_REPORTS") or get_setting("reports_dir") or REPORTS_DIR
-    try:
-        os.makedirs(stored, exist_ok=True)
-        marker = os.path.join(stored, ".spec_kit_reports")
-        if not os.path.exists(marker):
-            with open(marker, "w", encoding="utf-8") as m:
-                m.write("Managed by SpecKit. Safe to purge generated reports.\n")
-    except Exception as e:
-        logger.warning(f"Ensure reports dir failed: {e}")
-    return stored
-
-
-def _format_mmddyyyy(dt) -> str:
-    return dt.strftime("%m%d%Y")
-
-
-def _next_report_number() -> int:
-    from datetime import datetime
-    today = _format_mmddyyyy(datetime.now())
-    last_date = get_setting("last_report_date")
-    raw = get_setting("report_counter")
-    if last_date != today or raw is None:
-        num = 1
-    else:
-        try:
-            num = int(raw)
-        except Exception:
-            num = 1
-    set_setting("report_counter", str(num + 1))
-    set_setting("last_report_date", today)
-    return num
-
-
-def generate_report_paths() -> Tuple[str, str]:
-    from datetime import datetime
-    base = ensure_reports_dir_configured()
-    stem = f"{_format_mmddyyyy(datetime.now())}report{_next_report_number()}"
-    return os.path.join(base, f"{stem}.pdf"), os.path.join(base, f"{stem}.csv")
-
-
 # --- PHI scrubber ---
 _PHI_PATTERNS: List[Tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), "[SSN]"),
@@ -833,7 +584,7 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
                 img = Image.open(file_path)
                 if img.mode not in ("RGB", "L"):
                     img = img.convert("RGB")
-                txt = pytesseract.image_to_string(img, lang=get_str_setting("ocr_lang", "eng"))
+                txt = pytesseract.image_to_string(img, lang=database_service.get_str_setting("ocr_lang", "eng"))
                 for s in split_sentences(txt or ""):
                     if s:
                         sentences.append((s, "Image (OCR)"))
@@ -934,276 +685,6 @@ def count_categories(issues: list[dict]) -> dict:
     return dict(c)
 
 
-def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
-    try:
-        cur = conn.cursor()
-        cur.execute("""
-                    CREATE TABLE IF NOT EXISTS analysis_runs
-                    (
-                        id
-                        INTEGER
-                        PRIMARY
-                        KEY
-                        AUTOINCREMENT,
-                        file_name
-                        TEXT
-                        NOT
-                        NULL,
-                        run_time
-                        TEXT
-                        NOT
-                        NULL,
-                        pages_est
-                        INTEGER,
-                        flags
-                        INTEGER,
-                        wobblers
-                        INTEGER,
-                        suggestions
-                        INTEGER,
-                        notes
-                        INTEGER,
-                        sentences_final
-                        INTEGER,
-                        dedup_removed
-                        INTEGER,
-                        compliance_score
-                        REAL,
-                        mode
-                        TEXT
-                    )
-                    """)
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_time ON analysis_runs(run_time)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_file ON analysis_runs(file_name)")
-        cur.execute("""
-                    CREATE TABLE IF NOT EXISTS analysis_issues
-                    (
-                        id
-                        INTEGER
-                        PRIMARY
-                        KEY
-                        AUTOINCREMENT,
-                        run_id
-                        INTEGER
-                        NOT
-                        NULL,
-                        severity
-                        TEXT
-                        NOT
-                        NULL,
-                        category
-                        TEXT,
-                        title
-                        TEXT,
-                        detail
-                        TEXT,
-                        confidence
-                        REAL,
-                        FOREIGN
-                        KEY
-                    (
-                        run_id
-                    ) REFERENCES analysis_runs
-                    (
-                        id
-                    ) ON DELETE CASCADE
-                        )
-                    """)
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_issues_run ON analysis_issues(run_id)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_issues_sev ON analysis_issues(severity)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_issues_cat ON analysis_issues(category)")
-        cur.execute("""
-                    CREATE TABLE IF NOT EXISTS analysis_snapshots
-                    (
-                        file_fingerprint
-                        TEXT
-                        NOT
-                        NULL,
-                        settings_fingerprint
-                        TEXT
-                        NOT
-                        NULL,
-                        summary_json
-                        TEXT
-                        NOT
-                        NULL,
-                        created_at
-                        TEXT
-                        NOT
-                        NULL,
-                        PRIMARY
-                        KEY
-                    (
-                        file_fingerprint,
-                        settings_fingerprint
-                    )
-                        )
-                    """)
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_snapshots_time ON analysis_snapshots(created_at)")
-
-        # --- Simple schema migration for compliance_score ---
-        cur.execute("PRAGMA table_info(analysis_runs)")
-        columns = [row[1] for row in cur.fetchall()]
-        if "compliance_score" not in columns:
-            cur.execute("ALTER TABLE analysis_runs ADD COLUMN compliance_score REAL")
-            logger.info("Upgraded analysis_runs table to include 'compliance_score' column.")
-        if "disciplines" not in columns:
-            cur.execute("ALTER TABLE analysis_runs ADD COLUMN disciplines TEXT")
-            logger.info("Upgraded analysis_runs table to include 'disciplines' column.")
-
-        cur.execute("""
-                    CREATE TABLE IF NOT EXISTS reviewed_findings
-                    (
-                        id
-                        INTEGER
-                        PRIMARY
-                        KEY
-                        AUTOINCREMENT,
-                        analysis_issue_id
-                        INTEGER
-                        NOT
-                        NULL,
-                        user_feedback
-                        TEXT
-                        NOT
-                        NULL,
-                        reviewed_at
-                        TEXT
-                        NOT
-                        NULL,
-                        notes
-                        TEXT,
-                        citation_text
-                        TEXT,
-                        model_prediction
-                        TEXT,
-                        FOREIGN
-                        KEY
-                    (
-                        analysis_issue_id
-                    ) REFERENCES analysis_issues
-                    (
-                        id
-                    ) ON DELETE CASCADE
-                        )
-                    """)
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_reviews_issue ON reviewed_findings(analysis_issue_id)")
-
-        conn.commit()
-    except Exception as e:
-        logger.warning(f"Ensure analytics schema failed: {e}")
-
-
-def persist_analysis_run(file_path: str, run_time: str, metrics: dict, issues_scored: list[dict],
-                         compliance: dict, mode: str, disciplines: List[str]) -> Optional[int]:
-    try:
-        with _get_db_connection() as conn:
-            cur = conn.cursor()
-            disciplines_str = ",".join(sorted(disciplines)).upper()
-            cur.execute("""
-                        INSERT INTO analysis_runs (file_name, run_time, pages_est, flags, wobblers, suggestions, notes,
-                                                   sentences_final, dedup_removed, compliance_score, mode, disciplines)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (
-                            os.path.basename(file_path), run_time,
-                            int(metrics.get("pages", 0)), int(metrics.get("flags", 0)), int(metrics.get("wobblers", 0)),
-                            int(metrics.get("suggestions", 0)), int(metrics.get("notes", 0)),
-                            int(metrics.get("sentences_final", 0)), int(metrics.get("dedup_removed", 0)),
-                            float(compliance.get("score", 0.0)), mode,
-                            disciplines_str
-                        ))
-            run_id = int(cur.lastrowid)
-            if issues_scored:
-                cur.executemany("""
-                                INSERT INTO analysis_issues (run_id, severity, category, title, detail, confidence)
-                                VALUES (?, ?, ?, ?, ?, ?)
-                                """, [(run_id, it.get("severity", ""), it.get("category", ""), it.get("title", ""),
-                                       it.get("detail", ""), float(it.get("confidence", 0.0))) for it in issues_scored])
-            conn.commit()
-            return run_id
-    except Exception as e:
-        logger.warning(f"persist_analysis_run failed: {e}")
-        return None
-
-
-def _compute_recent_trends(max_runs: int = 10) -> dict:
-    out = {
-        "recent_scores": [],
-        "score_delta": 0.0,
-        "avg_score": 0.0,
-        "avg_flags": 0.0,
-        "avg_wobblers": 0.0,
-        "avg_suggestions": 0.0,
-    }
-    try:
-        with _get_db_connection() as conn:
-            runs = pd.read_sql_query(
-                "SELECT compliance_score, flags, wobblers, suggestions FROM analysis_runs ORDER BY run_time ASC", conn
-            )
-        if runs.empty:
-            return out
-        sub = runs.tail(max_runs).copy()
-        scores = [float(x) for x in sub["compliance_score"].tolist()]
-        out["recent_scores"] = scores
-        out["avg_score"] = round(float(sum(scores) / len(scores)), 1) if scores else 0.0
-        out["score_delta"] = round((scores[-1] - scores[0]) if len(scores) >= 2 else 0.0, 1)
-        out["avg_flags"] = round(float(sub["flags"].mean()), 2)
-        out["avg_wobblers"] = round(float(sub["wobblers"].mean()), 2)
-        out["avg_suggestions"] = round(float(sub["suggestions"].mean()), 2)
-    except Exception:
-        ...
-    return out
-
-
-def _get_dashboard_data() -> Optional[dict]:
-    """
-    Fetches and computes all data needed for the analytics dashboard.
-    """
-    try:
-        with _get_db_connection() as conn:
-            # Fetch all runs and issues, ensuring disciplines is not null
-            runs_df = pd.read_sql_query("SELECT run_time, compliance_score, disciplines FROM analysis_runs WHERE disciplines IS NOT NULL", conn)
-            issues_df = pd.read_sql_query("SELECT i.run_id, i.title FROM analysis_issues i JOIN analysis_runs r ON i.run_id = r.id", conn)
-
-        if runs_df.empty:
-            logger.info("No analytics data found for dashboard.")
-            return None
-
-        # --- Overall Stats ---
-        total_runs = len(runs_df)
-        avg_score = runs_df["compliance_score"].mean()
-
-        # --- Score by Discipline ---
-        # Clean up disciplines column, split, and explode
-        runs_df['disciplines'] = runs_df['disciplines'].str.strip().str.split(',')
-        exploded_df = runs_df.explode('disciplines')
-        exploded_df['disciplines'] = exploded_df['disciplines'].str.strip()
-        # Calculate average score per discipline
-        avg_score_by_discipline = exploded_df.groupby('disciplines')['compliance_score'].mean().round(1).to_dict()
-
-        # --- Top 5 Findings ---
-        top_findings = issues_df['title'].value_counts().nlargest(5).to_dict()
-
-        # --- Compliance Score Over Time ---
-        runs_df['run_time'] = pd.to_datetime(runs_df['run_time'])
-        runs_df = runs_df.sort_values('run_time')
-        scores_over_time = runs_df[['run_time', 'compliance_score']].to_dict('records')
-
-        logger.info(f"Fetched dashboard data: {total_runs} runs, {len(top_findings)} top findings.")
-
-        return {
-            "total_runs": total_runs,
-            "avg_score": round(avg_score, 1) if pd.notna(avg_score) else 0.0,
-            "avg_score_by_discipline": avg_score_by_discipline,
-            "top_findings": top_findings,
-            "scores_over_time": scores_over_time,
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to get dashboard data: {e}")
-        return None
-
-
 # --- Caching helpers ---
 def _file_fingerprint(path: str) -> str:
     try:
@@ -1225,42 +706,11 @@ def _settings_fingerprint(scrub: bool, review_mode: str, dedup: str) -> str:
         "scrub": "1" if scrub else "0",
         "review_mode": review_mode,
         "dedup": dedup,
-        "ocr_lang": get_str_setting("ocr_lang", "eng"),
+        "ocr_lang": database_service.get_str_setting("ocr_lang", "eng"),
         "logic_v": "4",
     }
     s = json.dumps(key_parts, sort_keys=True)
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
-
-
-def _load_cached_outputs(file_fp: str, settings_fp: str) -> Optional[dict]:
-    try:
-        with _get_db_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT outputs_json FROM analysis_cache WHERE file_fingerprint=? AND settings_fingerprint=?",
-                        (file_fp, settings_fp))
-            row = cur.fetchone()
-            if not row:
-                return None
-            import json
-            return json.loads(row[0])
-    except Exception:
-        return None
-
-
-def _save_cached_outputs(file_fp: str, settings_fp: str, outputs: dict) -> None:
-    try:
-        with _get_db_connection() as conn:
-            cur = conn.cursor()
-            import json
-            from datetime import datetime
-            cur.execute(
-                "INSERT OR REPLACE INTO analysis_cache (file_fingerprint, settings_fingerprint, outputs_json, created_at) VALUES (?, ?, ?, ?)",
-                (file_fp, settings_fp, json.dumps(outputs, ensure_ascii=False),
-                 datetime.now().isoformat(timespec="seconds")),
-            )
-            conn.commit()
-    except Exception:
-        ...
 
 
 # --- Rule-based audit (interpretive only) ---
@@ -1665,22 +1115,6 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
         return False
 
 
-# --- Analytics export fix ---
-def export_analytics_csv(dest_csv: str) -> bool:
-    try:
-        with _get_db_connection() as conn:
-            runs = pd.read_sql_query("SELECT * FROM analysis_runs ORDER BY run_time DESC", conn)
-            issues = pd.read_sql_query("SELECT run_id, severity, category, confidence FROM analysis_issues", conn)
-        agg = issues.groupby(["run_id", "severity"]).size().unstack(fill_value=0).reset_index()
-        df = runs.merge(agg, left_on="id", right_on="run_id", how="left").drop(columns=["run_id"])
-        os.makedirs(os.path.dirname(dest_csv), exist_ok=True)
-        df.to_csv(dest_csv, index=False, encoding="utf-8")
-        return True
-    except Exception as e:
-        logger.error(f"export_analytics_csv failed: {e}")
-        return False
-
-
 def export_report_fhir_json(data: dict, fhir_path: str) -> bool:
     try:
         # Check if the dummy classes are being used, which indicates fhir.resources is not installed.
@@ -1745,7 +1179,7 @@ DEDUP_DEFAULTS = {"Moderate": {"method": "tfidf", "threshold": 0.50},
 
 
 def get_similarity_threshold() -> float:
-    raw = get_setting("dup_threshold")
+    raw = database_service.get_setting("dup_threshold")
     if raw:
         try:
             return float(raw)
@@ -1837,40 +1271,40 @@ def run_analyzer(file_path: str,
 
     result_info = {"csv": None, "html": None, "json": None, "pdf": None, "summary": None}
     try:
-        set_bool_setting("last_analysis_from_cache", False)
+        database_service.set_bool_setting("last_analysis_from_cache", False)
         if not file_path or not os.path.isfile(file_path):
             logger.error(f"File not found: {file_path}")
             return result_info
         logger.info(f"Analyzing: {file_path}")
         report(5, "Initializing settings")
 
-        scrub_enabled = scrub_override if scrub_override is not None else get_bool_setting("scrub_phi", True)
+        scrub_enabled = scrub_override if scrub_override is not None else database_service.get_bool_setting("scrub_phi", True)
         if scrub_override is not None:
-            set_bool_setting("scrub_phi", scrub_override)
+            database_service.set_bool_setting("scrub_phi", scrub_override)
 
         global CURRENT_REVIEW_MODE
         if review_mode_override in ("Moderate", "Strict"):
             CURRENT_REVIEW_MODE = review_mode_override  # type: ignore[assignment]
 
         threshold = get_similarity_threshold()
-        dedup_method = (dedup_method_override or get_str_setting("dedup_method", "tfidf")).lower()
+        dedup_method = (dedup_method_override or database_service.get_str_setting("dedup_method", "tfidf")).lower()
         if dedup_method_override:
-            set_str_setting("dedup_method", dedup_method)
+            database_service.set_str_setting("dedup_method", dedup_method)
 
         try:
-            add_recent_file(file_path)
+            database_service.add_recent_file(file_path)
         except Exception:
             ...
 
-        allow_cache = get_bool_setting("allow_cache", True)
+        allow_cache = database_service.get_bool_setting("allow_cache", True)
         fp = _file_fingerprint(file_path)
         sp = _settings_fingerprint(scrub_enabled, CURRENT_REVIEW_MODE, dedup_method)
 
         if allow_cache and fp and sp:
-            cached = _load_cached_outputs(fp, sp)
+            cached = database_service.load_cached_outputs(fp, sp)
             if cached and cached.get("pdf"):
                 report(100, "Done (cached)")
-                set_bool_setting("last_analysis_from_cache", True)
+                database_service.set_bool_setting("last_analysis_from_cache", True)
                 logger.info("Served from cache.")
                 return cached
 
@@ -2086,7 +1520,7 @@ def run_analyzer(file_path: str,
 
         compliance = compute_compliance_score(issues_scored, strengths, missing, CURRENT_REVIEW_MODE)
 
-        trends = _compute_recent_trends(max_runs=get_int_setting("trends_window", 10))
+        trends = database_service.compute_recent_trends(max_runs=database_service.get_int_setting("trends_window", 10))
 
         def _risk_level(score: float, flags: int) -> tuple[str, str]:
             if score >= 90 and flags == 0:
@@ -2299,7 +1733,7 @@ def run_analyzer(file_path: str,
         }
 
         try:
-            persist_analysis_run(file_path, _now_iso(), metrics, issues_scored, compliance, CURRENT_REVIEW_MODE, selected_disciplines)
+            persist_analysis_run(file_path, _now_iso(), metrics, issues_scored, compliance, CURRENT_REVIEW_MODE)
         except Exception:
             ...
         try:
@@ -2446,7 +1880,7 @@ def _show_settings_dialog(parent=None) -> None:
 
     row_flags = QHBoxLayout()
     chk_cache = QCheckBox("Enable analysis cache")
-    chk_cache.setChecked(get_bool_setting("allow_cache", True))
+    chk_cache.setChecked(database_service.get_bool_setting("allow_cache", True))
     row_flags.addWidget(chk_cache)
     vbox.addLayout(row_flags)
 
@@ -2454,7 +1888,7 @@ def _show_settings_dialog(parent=None) -> None:
     row_theme.addWidget(QLabel("UI Theme:"))
     cmb_theme = QComboBox()
     cmb_theme.addItems(["dark", "light"])
-    cmb_theme.setCurrentText(get_str_setting("ui_theme", "dark"))
+    cmb_theme.setCurrentText(database_service.get_str_setting("ui_theme", "dark"))
     row_theme.addWidget(cmb_theme)
     vbox.addLayout(row_theme)
 
@@ -2462,7 +1896,7 @@ def _show_settings_dialog(parent=None) -> None:
     row_dedup.addWidget(QLabel("Default Dedup Method:"))
     cmb_dedup = QComboBox()
     cmb_dedup.addItems(["tfidf", "simple"])
-    cmb_dedup.setCurrentText(get_str_setting("dedup_method", "tfidf"))
+    cmb_dedup.setCurrentText(database_service.get_str_setting("dedup_method", "tfidf"))
     row_dedup.addWidget(cmb_dedup)
     vbox.addLayout(row_dedup)
 
@@ -2470,12 +1904,12 @@ def _show_settings_dialog(parent=None) -> None:
     row_rep.addWidget(QLabel("Reports size cap (MB):"))
     sp_rep_size = QSpinBox()
     sp_rep_size.setRange(0, 100000)
-    sp_rep_size.setValue(get_int_setting("reports_max_size_mb", 512))
+    sp_rep_size.setValue(database_service.get_int_setting("reports_max_size_mb", 512))
     row_rep.addWidget(sp_rep_size)
     row_rep.addWidget(QLabel("Reports max age (days):"))
     sp_rep_age = QSpinBox()
     sp_rep_age.setRange(0, 10000)
-    sp_rep_age.setValue(get_int_setting("reports_max_age_days", 90))
+    sp_rep_age.setValue(database_service.get_int_setting("reports_max_age_days", 90))
     row_rep.addWidget(sp_rep_age)
     vbox.addLayout(row_rep)
 
@@ -2483,7 +1917,7 @@ def _show_settings_dialog(parent=None) -> None:
     row_recent.addWidget(QLabel("Recent files max:"))
     sp_recent = QSpinBox()
     sp_recent.setRange(1, 200)
-    sp_recent.setValue(get_int_setting("recent_max", 20))
+    sp_recent.setValue(database_service.get_int_setting("recent_max", 20))
     row_recent.addWidget(sp_recent)
     vbox.addLayout(row_recent)
 
@@ -2491,23 +1925,23 @@ def _show_settings_dialog(parent=None) -> None:
     row_trends.addWidget(QLabel("Trends window (N recent runs):"))
     sp_trends = QSpinBox()
     sp_trends.setRange(3, 100)
-    sp_trends.setValue(get_int_setting("trends_window", 10))
+    sp_trends.setValue(database_service.get_int_setting("trends_window", 10))
     row_trends.addWidget(sp_trends)
     vbox.addLayout(row_trends)
 
     row_pdf = QHBoxLayout()
     chk_pdf_chart = QCheckBox("Show mini chart in PDF")
-    chk_pdf_chart.setChecked(get_bool_setting("pdf_chart_enabled", True))
+    chk_pdf_chart.setChecked(database_service.get_bool_setting("pdf_chart_enabled", True))
     row_pdf.addWidget(chk_pdf_chart)
     row_pdf.addWidget(QLabel("Chart position:"))
     cmb_chart_pos = QComboBox()
     cmb_chart_pos.addItems(["bottom", "top", "none"])
-    cmb_chart_pos.setCurrentText(get_str_setting("pdf_chart_position", "bottom"))
+    cmb_chart_pos.setCurrentText(database_service.get_str_setting("pdf_chart_position", "bottom"))
     row_pdf.addWidget(cmb_chart_pos)
     row_pdf.addWidget(QLabel("Chart theme:"))
     cmb_chart_theme = QComboBox()
     cmb_chart_theme.addItems(["dark", "light"])
-    cmb_chart_theme.setCurrentText(get_str_setting("pdf_chart_theme", "dark"))
+    cmb_chart_theme.setCurrentText(database_service.get_str_setting("pdf_chart_theme", "dark"))
     row_pdf.addWidget(cmb_chart_theme)
     vbox.addLayout(row_pdf)
 
@@ -2528,16 +1962,16 @@ def _show_settings_dialog(parent=None) -> None:
     vbox.addLayout(row_btn)
 
     def on_save():
-        set_bool_setting("allow_cache", chk_cache.isChecked())
-        set_str_setting("ui_theme", cmb_theme.currentText().strip().lower())
-        set_str_setting("dedup_method", cmb_dedup.currentText().strip())
-        set_str_setting("reports_max_size_mb", str(sp_rep_size.value()))
-        set_str_setting("reports_max_age_days", str(sp_rep_age.value()))
-        set_bool_setting("pdf_chart_enabled", chk_pdf_chart.isChecked())
-        set_str_setting("pdf_chart_position", cmb_chart_pos.currentText().strip().lower())
-        set_str_setting("pdf_chart_theme", cmb_chart_theme.currentText().strip().lower())
-        set_str_setting("recent_max", str(sp_recent.value()))
-        set_str_setting("trends_window", str(sp_trends.value()))
+        database_service.set_bool_setting("allow_cache", chk_cache.isChecked())
+        database_service.set_str_setting("ui_theme", cmb_theme.currentText().strip().lower())
+        database_service.set_str_setting("dedup_method", cmb_dedup.currentText().strip())
+        database_service.set_str_setting("reports_max_size_mb", str(sp_rep_size.value()))
+        database_service.set_str_setting("reports_max_age_days", str(sp_rep_age.value()))
+        database_service.set_bool_setting("pdf_chart_enabled", chk_pdf_chart.isChecked())
+        database_service.set_str_setting("pdf_chart_position", cmb_chart_pos.currentText().strip().lower())
+        database_service.set_str_setting("pdf_chart_theme", cmb_chart_theme.currentText().strip().lower())
+        database_service.set_str_setting("recent_max", str(sp_recent.value()))
+        database_service.set_str_setting("trends_window", str(sp_trends.value()))
         dlg.accept()
 
     try:
@@ -2569,13 +2003,13 @@ def _run_gui() -> Optional[int]:
     # We need a QApplication instance to show a message box, so create it early.
     app = QApplication.instance() or QApplication(sys.argv)
 
-    trial_duration_days = get_int_setting("trial_duration_days", 30)
+    trial_duration_days = database_service.get_int_setting("trial_duration_days", 30)
 
     if trial_duration_days > 0:
-        first_run_str = get_setting("first_run_date")
+        first_run_str = database_service.get_setting("first_run_date")
         if not first_run_str:
             today = date.today()
-            set_setting("first_run_date", today.isoformat())
+            database_service.set_setting("first_run_date", today.isoformat())
             first_run_date = today
         else:
             try:
@@ -2583,7 +2017,7 @@ def _run_gui() -> Optional[int]:
             except (ValueError, TypeError):
                 # Handle case where date is malformed or not a string
                 first_run_date = date.today()
-                set_setting("first_run_date", first_run_date.isoformat())
+                database_service.set_setting("first_run_date", first_run_date.isoformat())
 
         expiration_date = first_run_date + timedelta(days=trial_duration_days)
 
@@ -2604,7 +2038,7 @@ def _run_gui() -> Optional[int]:
             return ""
 
     def apply_theme(app: QApplication):
-        theme = (get_str_setting("ui_theme", "dark") or "dark").lower()
+        theme = (database_service.get_str_setting("ui_theme", "dark") or "dark").lower()
         stylesheet = ""
         if theme == "light":
             stylesheet = _read_stylesheet("light_theme.qss")
@@ -2728,47 +2162,39 @@ def _run_gui() -> Optional[int]:
             self.tabs.addTab(analytics_tab, "Analytics Dashboard")
             analytics_layout = QVBoxLayout(analytics_tab)
 
-            # Controls
-            analytics_controls_layout = QHBoxLayout()
+            analytics_controls = QHBoxLayout()
             btn_refresh_analytics = QPushButton("Refresh Analytics")
             self._style_action_button(btn_refresh_analytics, font_size=11, bold=True, height=32)
             try:
+            feature/modern-ui-and-analytics
                 btn_refresh_analytics.clicked.connect(self._update_analytics_tab)
             except Exception: pass
-            analytics_controls_layout.addWidget(btn_refresh_analytics)
-            analytics_controls_layout.addStretch(1)
-            analytics_layout.addLayout(analytics_controls_layout)
+            analytics_controls.addWidget(btn_refresh_analytics)
+            analytics_controls.addStretch(1)
+            analytics_layout.addLayout(analytics_controls)
 
-            # Charts
-            charts_splitter = QSplitter(Qt.Orientation.Horizontal)
-            self.scores_figure = Figure(figsize=(5, 4))
-            self.scores_canvas = FigureCanvas(self.scores_figure)
-            charts_splitter.addWidget(self.scores_canvas)
+            # Matplotlib chart
+            self.analytics_figure = Figure(figsize=(5, 3))
+            self.analytics_canvas = FigureCanvas(self.analytics_figure)
+            analytics_layout.addWidget(self.analytics_canvas)
 
-            self.findings_figure = Figure(figsize=(5, 4))
-            self.findings_canvas = FigureCanvas(self.findings_figure)
-            charts_splitter.addWidget(self.findings_canvas)
-            analytics_layout.addWidget(charts_splitter)
-
-            # Summary Stats
+            # Summary stats
             stats_group = QGroupBox("Summary Statistics")
             stats_layout = QGridLayout(stats_group)
             self.lbl_total_runs = QLabel("N/A")
             self.lbl_avg_score = QLabel("N/A")
-            self.lbl_avg_score_pt = QLabel("N/A")
-            self.lbl_avg_score_ot = QLabel("N/A")
-            self.lbl_avg_score_slp = QLabel("N/A")
+            self.lbl_avg_flags = QLabel("N/A")
+            self.lbl_top_category = QLabel("N/A")
 
-            stats_layout.addWidget(QLabel("Total Runs:"), 0, 0)
+            stats_layout.addWidget(QLabel("Total Runs Analyzed:"), 0, 0)
             stats_layout.addWidget(self.lbl_total_runs, 0, 1)
-            stats_layout.addWidget(QLabel("Overall Avg Score:"), 1, 0)
+            stats_layout.addWidget(QLabel("Average Compliance Score:"), 1, 0)
             stats_layout.addWidget(self.lbl_avg_score, 1, 1)
-            stats_layout.addWidget(QLabel("Avg Score (PT):"), 0, 2)
-            stats_layout.addWidget(self.lbl_avg_score_pt, 0, 3)
-            stats_layout.addWidget(QLabel("Avg Score (OT):"), 1, 2)
-            stats_layout.addWidget(self.lbl_avg_score_ot, 1, 3)
-            stats_layout.addWidget(QLabel("Avg Score (SLP):"), 2, 2)
-            stats_layout.addWidget(self.lbl_avg_score_slp, 2, 3)
+            stats_layout.addWidget(QLabel("Average Flags per Run:"), 2, 0)
+            stats_layout.addWidget(self.lbl_avg_flags, 2, 1)
+            stats_layout.addWidget(QLabel("Most Frequent Finding Category:"), 3, 0)
+            stats_layout.addWidget(self.lbl_top_category, 3, 1)
+
             analytics_layout.addWidget(stats_group)
 
             # --- Setup Tab Layout ---
@@ -3258,71 +2684,71 @@ def _run_gui() -> Optional[int]:
             if self.tabs.tabText(index) == "Analytics Dashboard":
                 self._update_analytics_tab()
 
-        def _update_analytics_tab(self):
-            self.log("Updating analytics tab...")
-            data = _get_dashboard_data()
+        def _fetch_analytics_data(self):
+            try:
+                with _get_db_connection() as conn:
+                    runs = pd.read_sql_query("SELECT run_time, compliance_score, flags FROM analysis_runs ORDER BY run_time ASC", conn)
+                    issues = pd.read_sql_query("SELECT category FROM analysis_issues", conn)
+                return {"runs": runs, "issues": issues}
+            except Exception as e:
+                self.log(f"Failed to fetch analytics data: {e}")
+                return None
 
-            if data is None:
-                self.log("No analytics data to display.")
-                self.scores_figure.clear()
-                self.findings_figure.clear()
-                self.scores_canvas.draw()
-                self.findings_canvas.draw()
+        def _update_analytics_tab(self):
+            data = self._fetch_analytics_data()
+            if data is None or data["runs"].empty:
+                self.log("No analytics data found to generate dashboard.")
+                # Clear the chart and stats if no data
+                self.analytics_figure.clear()
+                self.analytics_canvas.draw()
                 self.lbl_total_runs.setText("0")
                 self.lbl_avg_score.setText("N/A")
-                self.lbl_avg_score_pt.setText("N/A")
-                self.lbl_avg_score_ot.setText("N/A")
-                self.lbl_avg_score_slp.setText("N/A")
+                self.lbl_avg_flags.setText("N/A")
+                self.lbl_top_category.setText("N/A")
                 return
 
-            # Update summary labels
-            self.lbl_total_runs.setText(str(data.get("total_runs", 0)))
-            self.lbl_avg_score.setText(f"{data.get('avg_score', 0.0):.1f}")
-            self.lbl_avg_score_pt.setText(f"{data.get('avg_score_by_discipline', {}).get('PT', 0.0):.1f}")
-            self.lbl_avg_score_ot.setText(f"{data.get('avg_score_by_discipline', {}).get('OT', 0.0):.1f}")
-            self.lbl_avg_score_slp.setText(f"{data.get('avg_score_by_discipline', {}).get('SLP', 0.0):.1f}")
+            runs_df = data["runs"]
+            issues_df = data["issues"]
 
-            # --- Draw Scores Over Time Chart ---
-            self.scores_figure.clear()
-            ax_scores = self.scores_figure.add_subplot(111)
-            scores_data = data.get("scores_over_time", [])
-            if scores_data:
-                times = [item['run_time'] for item in scores_data]
-                scores = [item['compliance_score'] for item in scores_data]
-                ax_scores.plot(times, scores, marker='o', linestyle='-', color='b')
+            # Update summary stats
+            total_runs = len(runs_df)
+            avg_score = runs_df["compliance_score"].mean()
+            avg_flags = runs_df["flags"].mean()
+            top_category = "N/A"
+            if not issues_df.empty and not issues_df["category"].empty:
+                top_category = issues_df["category"].mode()[0]
 
-                # Add trend line
-                if len(times) > 1 and np:
-                    try:
-                        # Convert datetimes to numerical values for polyfit
-                        numeric_times = [t.timestamp() for t in times]
-                        z = np.polyfit(numeric_times, scores, 1)
-                        p = np.poly1d(z)
-                        ax_scores.plot(times, p(numeric_times), "r--", label="Trend")
-                    except Exception as e:
-                        logger.warning(f"Could not compute trendline: {e}")
+            self.lbl_total_runs.setText(str(total_runs))
+            self.lbl_avg_score.setText(f"{avg_score:.1f} / 100.0")
+            self.lbl_avg_flags.setText(f"{avg_flags:.2f}")
+            self.lbl_top_category.setText(top_category)
 
-            ax_scores.set_title("Compliance Score Over Time")
-            ax_scores.set_ylabel("Score")
-            ax_scores.tick_params(axis='x', rotation=45)
-            ax_scores.grid(True, linestyle='--', alpha=0.6)
-            self.scores_figure.tight_layout()
-            self.scores_canvas.draw()
+            # Update chart
+            self.analytics_figure.clear()
+            ax = self.analytics_figure.add_subplot(111)
 
-            # --- Draw Top Findings Chart ---
-            self.findings_figure.clear()
-            ax_findings = self.findings_figure.add_subplot(111)
-            top_findings = data.get("top_findings", {})
-            if top_findings:
-                labels = list(top_findings.keys())
-                values = list(top_findings.values())
-                ax_findings.barh(labels, values, color='c')
-            ax_findings.set_title("Top 5 Common Findings")
-            ax_findings.set_xlabel("Frequency")
-            self.findings_figure.tight_layout()
-            self.findings_canvas.draw()
+            scores = runs_df["compliance_score"].tolist()
+            ax.plot(range(total_runs), scores, marker='o', linestyle='-', label="Compliance Score")
 
-            self.log("Analytics tab updated successfully.")
+            # Add a trend line
+            if total_runs > 1 and np:
+                x = list(range(total_runs))
+                try:
+                    z = np.polyfit(x, scores, 1)
+                    p = np.poly1d(z)
+                    ax.plot(x, p(x), "r--", label="Trend")
+                except Exception as e:
+                    logger.warning(f"Could not compute trendline: {e}")
+
+
+            ax.set_title("Compliance Score Trend")
+            ax.set_xlabel("Analysis Run")
+            ax.set_ylabel("Score")
+            ax.grid(True, linestyle='--', alpha=0.6)
+            ax.legend()
+
+            self.analytics_figure.tight_layout()
+            self.analytics_canvas.draw()
 
         # Helpers and actions
         def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px"):
@@ -3402,7 +2828,7 @@ def _run_gui() -> Optional[int]:
 
         def action_clear_recent_files(self):
             try:
-                _save_recent_files([])
+                database_service.save_recent_files([])
                 self.log("Recent files cleared.")
                 self.refresh_recent_files()
             except Exception as e:
@@ -3426,7 +2852,7 @@ def _run_gui() -> Optional[int]:
 
         def refresh_recent_files(self):
             try:
-                files = _load_recent_files()
+                files = database_service.load_recent_files()
                 self.log("--- Recent Files ---")
                 if files:
                     for f in files:
@@ -3443,7 +2869,7 @@ def _run_gui() -> Optional[int]:
                                                       "Text files (*.txt);;All Files (*)")
                 if not path:
                     return
-                set_setting("rubric_path", path)
+                database_service.set_setting("rubric_path", path)
                 with open(path, "r", encoding="utf-8") as f:
                     txt = f.read()
                 self.txt_rubric.setPlainText(txt)
@@ -3459,7 +2885,7 @@ def _run_gui() -> Optional[int]:
 
         def action_save_rubric_app_only(self):
             try:
-                set_setting("rubric_current_text", self.txt_rubric.toPlainText())
+                database_service.set_setting("rubric_current_text", self.txt_rubric.toPlainText())
                 self.lbl_rubric_file.setText("Rubric Loaded")
                 self.lbl_rubric_file.setStyleSheet("color:#60a5fa; font-weight:700;")
                 self.log("Rubric saved (application-only).")
@@ -3484,7 +2910,7 @@ def _run_gui() -> Optional[int]:
 
                 lst = QListWidget()
                 import json
-                raw = get_setting("rubric_catalog") or "[]"
+                raw = database_service.get_setting("rubric_catalog") or "[]"
                 catalog = json.loads(raw) if raw else []
                 if not isinstance(catalog, list): catalog = []
 
@@ -3534,7 +2960,7 @@ def _run_gui() -> Optional[int]:
                             QMessageBox.warning(self, "Rubric", "A rubric with this name already exists.")
                             return
                         catalog.append({"name": name, "path": path, "content": txt})
-                        set_setting("rubric_catalog", json.dumps(catalog, ensure_ascii=False))
+                        database_service.set_setting("rubric_catalog", json.dumps(catalog, ensure_ascii=False))
                         lst.addItem(name)
                     except Exception as e:
                         QMessageBox.warning(self, "Rubrics", f"Failed to add rubric:\n{e}")
@@ -3548,12 +2974,12 @@ def _run_gui() -> Optional[int]:
                     if not str(reply).lower().endswith("yes"): return
 
                     del catalog[rowi]
-                    set_setting("rubric_catalog", json.dumps(catalog, ensure_ascii=False))
+                    database_service.set_setting("rubric_catalog", json.dumps(catalog, ensure_ascii=False))
                     lst.takeItem(rowi)
                     editor.clear()
 
-                    if get_setting("rubric_active_name") == name:
-                        set_setting("rubric_active_name", "")
+                    if database_service.get_setting("rubric_active_name") == name:
+                        database_service.set_setting("rubric_active_name", "")
                         self.lbl_rubric_file.setText("(No rubric selected)")
                         self.lbl_rubric_file.setStyleSheet("")
                     QMessageBox.information(self, "Rubrics", f"Removed: {name}")
@@ -3564,7 +2990,7 @@ def _run_gui() -> Optional[int]:
                         QMessageBox.warning(self, "Rubric", "Select a rubric to save.")
                         return
                     catalog[rowi]["content"] = editor.toPlainText()
-                    set_setting("rubric_catalog", json.dumps(catalog, ensure_ascii=False))
+                    database_service.set_setting("rubric_catalog", json.dumps(catalog, ensure_ascii=False))
                     QMessageBox.information(self, "Rubrics", f"Changes to '{catalog[rowi]['name']}' saved.")
 
                 def set_active():
@@ -3575,8 +3001,8 @@ def _run_gui() -> Optional[int]:
 
                     save_changes() # Save changes before setting active
                     it = catalog[rowi]
-                    set_setting("rubric_active_name", it.get("name", ""))
-                    set_setting("rubric_current_text", it.get("content", ""))
+                    database_service.set_setting("rubric_active_name", it.get("name", ""))
+                    database_service.set_setting("rubric_current_text", it.get("content", ""))
                     self.txt_rubric.setPlainText(it.get("content", ""))
                     self.lbl_rubric_file.setText(it.get("name", "Rubric Loaded"))
                     self.lbl_rubric_file.setStyleSheet("color:#60a5fa; font-weight:700;")
@@ -3607,9 +3033,9 @@ def _run_gui() -> Optional[int]:
                                              "Remove the current rubric from the app?\n(This does not delete any file.)")  # type: ignore
                 if not str(reply).lower().endswith("yes"):
                     return
-                set_setting("rubric_current_text", "")
-                set_setting("rubric_path", "")
-                set_setting("rubric_active_name", "")
+                database_service.set_setting("rubric_current_text", "")
+                database_service.set_setting("rubric_path", "")
+                database_service.set_setting("rubric_active_name", "")
                 self.txt_rubric.setPlainText("")
                 self.lbl_rubric_file.setText("(No rubric selected)")
                 self.lbl_rubric_file.setStyleSheet("")
@@ -3627,7 +3053,7 @@ def _run_gui() -> Optional[int]:
                 if not path:
                     return
                 self._current_report_path = path
-                add_recent_file(path)
+                database_service.add_recent_file(path)
                 self.refresh_recent_files()
                 self.lbl_report_name.setText(os.path.basename(path))
                 self.lbl_report_name.setStyleSheet("color:#60a5fa; font-weight:700;")
@@ -3788,7 +3214,7 @@ def _run_gui() -> Optional[int]:
                 if res.get("json"):
                     outs.append(f"JSON: {res['json']}")
                 if outs:
-                    cache_hit = get_bool_setting("last_analysis_from_cache", False)
+                    cache_hit = database_service.get_bool_setting("last_analysis_from_cache", False)
                     if cache_hit:
                         self.log("Served from cache.")
                         try:
@@ -3941,7 +3367,7 @@ def _run_gui() -> Optional[int]:
 
                 try:
                     cancelled = self._batch_cancel or self._progress_was_canceled()
-                    folder = ensure_reports_dir_configured()
+                    folder = database_service.ensure_reports_dir_configured()
                     if cancelled:
                         title = "Batch Cancelled"
                         body_top = f"Batch cancelled. Finished {ok_count} out of {n} file(s)."
@@ -3974,8 +3400,8 @@ def _run_gui() -> Optional[int]:
 
         def _export_analytics_csv(self):
             try:
-                dest = os.path.join(ensure_reports_dir_configured(), "SpecKit-Analytics.csv")
-                if export_analytics_csv(dest):
+                dest = os.path.join(database_service.ensure_reports_dir_configured(), "SpecKit-Analytics.csv")
+                if database_service.export_analytics_csv(dest):
                     _open_path(dest)
                     self.log(f"Exported analytics CSV: {dest}")
                 else:
@@ -4043,27 +3469,19 @@ def _run_gui() -> Optional[int]:
                 issues = data.get("issues", [])
                 if issues and 'id' not in issues[0]:
                     try:
-                        with _get_db_connection() as conn:
-                            # Find the run_id from the file name and generated timestamp
-                            run_df = pd.read_sql_query(
-                                "SELECT id FROM analysis_runs WHERE file_name = ? AND run_time = ? LIMIT 1",
-                                conn,
-                                params=(os.path.basename(data.get("file")), data.get("generated"))
-                            )
-                            if not run_df.empty:
-                                run_id = run_df.iloc[0]['id']
-                                # Get all issues with IDs for that run
-                                issues_from_db_df = pd.read_sql_query(
-                                    "SELECT id, title, detail FROM analysis_issues WHERE run_id = ?",
-                                    conn,
-                                    params=(run_id,)
-                                )
-                                # Create a lookup map and inject the IDs
-                                issue_map = { (row['title'], row['detail']): row['id'] for _, row in issues_from_db_df.iterrows() }
-                                for issue in issues:
-                                    issue['id'] = issue_map.get((issue.get('title'), issue.get('detail')))
-                    except Exception as e:
-                        self.log(f"Could not enrich loaded report with issue IDs: {e}")
+                        # Find the run_id from the file name and generated timestamp
+                        run_id = database_service.get_run_id_by_file_and_time(
+                            os.path.basename(data.get("file")), data.get("generated")
+                        )
+                        if run_id:
+                            # Get all issues with IDs for that run
+                            issues_from_db = database_service.get_issues_by_run_id(run_id)
+                            # Create a lookup map and inject the IDs
+                            issue_map = { (issue['title'], issue['detail']): issue['id'] for issue in issues_from_db }
+                            for issue in issues:
+                                issue['id'] = issue_map.get((issue.get('title'), issue.get('detail')))
+                except Exception as e:
+                    self.log(f"Could not enrich loaded report with issue IDs: {e}")
                 # --- End Bug Fix ---
 
                 self.current_report_data = data
@@ -4361,13 +3779,7 @@ def _run_gui() -> Optional[int]:
 
         def save_finding_feedback(self, issue_id: int, feedback: str, citation_text: str, model_prediction: str):
             try:
-                with _get_db_connection() as conn:
-                    cur = conn.cursor()
-                    cur.execute("""
-                        INSERT INTO reviewed_findings (analysis_issue_id, user_feedback, reviewed_at, citation_text, model_prediction)
-                        VALUES (?, ?, ?, ?, ?)
-                    """, (issue_id, feedback, _now_iso(), citation_text, model_prediction))
-                    conn.commit()
+                database_service.save_finding_feedback(issue_id, feedback, _now_iso(), citation_text, model_prediction)
                 self.log(f"Saved feedback for finding {issue_id}: {feedback}")
                 self.statusBar().showMessage(f"Feedback '{feedback}' saved for finding {issue_id}.", 3000)
             except Exception as e:
@@ -4375,8 +3787,8 @@ def _run_gui() -> Optional[int]:
 
         def refresh_llm_indicator(self):
             try:
-                llm_a_enabled = get_bool_setting("llm_a_enabled", False)
-                llm_b_enabled = get_bool_setting("llm_b_enabled", False)
+                llm_a_enabled = database_service.get_bool_setting("llm_a_enabled", False)
+                llm_b_enabled = database_service.get_bool_setting("llm_b_enabled", False)
 
                 self.lbl_lm1.setText(" LM A: On " if llm_a_enabled else " LM A: Off ")
                 self.lbl_lm1.setStyleSheet(("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
@@ -4389,7 +3801,7 @@ def _run_gui() -> Optional[int]:
                 ...
 
         def action_export_fhir(self):
-            last_json = get_setting("last_report_json")
+            last_json = database_service.get_setting("last_report_json")
             if not last_json or not os.path.isfile(last_json):
                 QMessageBox.warning(self, "FHIR Export", "Please run an analysis first.")
                 return
@@ -4530,12 +3942,12 @@ def _run_gui() -> Optional[int]:
 
         def action_export_feedback(self):
             try:
-                default_path = os.path.join(ensure_reports_dir_configured(), "feedback_export.csv")
+                default_path = os.path.join(database_service.ensure_reports_dir_configured(), "feedback_export.csv")
                 dest_csv, _ = QFileDialog.getSaveFileName(self, "Export Feedback Data", default_path, "CSV Files (*.csv)")
                 if not dest_csv:
                     return
 
-                if export_feedback_csv(dest_csv):
+                if database_service.export_feedback_csv(dest_csv):
                     QMessageBox.information(self, "Export Successful", f"Feedback data successfully exported to:\\n{dest_csv}")
                     _open_path(os.path.dirname(dest_csv))
                 else:
@@ -4550,10 +3962,9 @@ def _run_gui() -> Optional[int]:
                 QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
                 # 1. Get feedback data
-                with _get_db_connection() as conn:
-                    df = pd.read_sql_query("SELECT * FROM reviewed_findings", conn)
+                df = database_service.get_all_feedback()
 
-                if df.empty or len(df) < 5:
+                if df is None or df.empty or len(df) < 5:
                     QMessageBox.information(self, "Analyze Performance", "Not enough feedback data to analyze. Please review more findings first (at least 5 are recommended).")
                     return
 
