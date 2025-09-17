@@ -57,6 +57,8 @@ class TestGuidelineService(unittest.TestCase):
         # Mock the response from requests.get
         mock_response = MagicMock()
         mock_response.status_code = 200
+        mock_response.content = b"dummy pdf content"
+        mock_get.return_value = mock_response
         # We need to provide PDF content. We can create a dummy PDF in memory.
         # For simplicity, we will mock the _extract_text_from_pdf call instead.
 
