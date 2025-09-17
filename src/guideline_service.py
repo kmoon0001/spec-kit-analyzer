@@ -93,7 +93,7 @@ class GuidelineService:
                             cleaned_para = para.replace('\n', ' ').strip()
                             if cleaned_para:
                                 chunks.append((cleaned_para, f"{source_name} (Page {i+1})"))
-        except Exception as e:
+        except pdfplumber.pdfa.PDFSyntaxError as e:
             logger.error(f"Failed to extract text from '{file_path}': {e}")
             raise
         return chunks

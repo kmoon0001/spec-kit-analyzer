@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 import logging
+import json
 from dataclasses import dataclass, field
-from typing import List, Optional
-
-from rdflib import Graph, Namespace
-from rdflib.plugins.sparql import prepareQuery
+from typing import List
 
 logger = logging.getLogger(__name__)
 
-# Define a dataclass to hold the rule information in a structured way
 @dataclass
 class ComplianceRule:
     uri: str
@@ -24,82 +21,42 @@ class ComplianceRule:
 
 class RubricService:
     """
-    Service to load and query the compliance rubric ontology.
+    Service to load compliance rules from a JSON file.
     """
-    def __init__(self, ontology_path: str):
+    def __init__(self, json_path: str):
         """
-        Initializes the service by loading the ontology.
+        Initializes the service.
 
         Args:
-            ontology_path (str): The file path to the ontology (e.g., 'compliance_rubric.ttl').
+            json_path (str): The file path to the JSON rubric file.
         """
-        self.graph = Graph()
-        try:
-            self.graph.parse(ontology_path, format="turtle")
-            logger.info(f"Successfully loaded rubric ontology from {ontology_path}")
-        except Exception as e:
-            logger.exception(f"Failed to load or parse the rubric ontology at {ontology_path}: {e}")
+        self.json_path = json_path
+        logger.debug(f"RubricService initialized for {json_path}")
 
     def get_rules(self) -> List[ComplianceRule]:
         """
-        Queries the ontology to retrieve all compliance rules.
+        Loads and parses the JSON file to retrieve all compliance rules.
 
         Returns:
             List[ComplianceRule]: A list of dataclass objects, each representing a rule.
         """
-        if not len(self.graph):
-            logger.warning("Ontology graph is empty. Cannot retrieve rules.")
-            return []
-
-        # Define our namespace
-        NS = Namespace("http://example.com/speckit/ontology#")
-
-        # Prepare a SPARQL query to get all rules and their properties.
-        # OPTIONAL blocks are used because not all rules have all properties (e.g., positive_keywords).
-        query = prepareQuery("""
-            SELECT ?rule ?severity ?strict_severity ?title ?detail ?category
-                   (GROUP_CONCAT(DISTINCT ?pos_kw; SEPARATOR="|") AS ?positive_keywords)
-                   (GROUP_CONCAT(DISTINCT ?neg_kw; SEPARATOR="|") AS ?negative_keywords)
-            WHERE {
-                ?rule a :ComplianceRule .
-                ?rule :hasSeverity ?severity .
-                ?rule :hasStrictSeverity ?strict_severity .
-                ?rule :hasIssueTitle ?title .
-                ?rule :hasIssueDetail ?detail .
-                ?rule :hasIssueCategory ?category .
-                OPTIONAL {
-                    ?rule :hasPositiveKeywords ?pos_kw_set .
-                    ?pos_kw_set :hasKeyword ?pos_kw .
-                }
-                OPTIONAL {
-                    ?rule :hasNegativeKeywords ?neg_kw_set .
-                    ?neg_kw_set :hasKeyword ?neg_kw .
-                }
-            }
-            GROUP BY ?rule ?severity ?strict_severity ?title ?detail ?category
-        """, initNs={"rdf": NS.rdf, "rdfs": NS.rdfs, ":": NS})
-
-        rules = []
         try:
-            results = self.graph.query(query)
-            for row in results:
-                # The GROUP_CONCAT returns a single string, so we split it by our separator
-                pos_kws = str(row.positive_keywords).split('|') if row.positive_keywords else []
-                neg_kws = str(row.negative_keywords).split('|') if row.negative_keywords else []
+            with open(self.json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
 
-                rule = ComplianceRule(
-                    uri=str(row.rule),
-                    severity=str(row.severity),
-                    strict_severity=str(row.strict_severity),
-                    issue_title=str(row.title),
-                    issue_detail=str(row.detail),
-                    issue_category=str(row.category),
-                    positive_keywords=[kw for kw in pos_kws if kw], # Filter out empty strings
-                    negative_keywords=[kw for kw in neg_kws if kw]  # Filter out empty strings
-                )
-                rules.append(rule)
-            logger.info(f"Successfully retrieved {len(rules)} rules from the ontology.")
-        except Exception as e:
-            logger.exception(f"Failed to query rules from ontology: {e}")
+            rules = [ComplianceRule(**rule_data) for rule_data in data]
 
-        return rules
+            logger.info(f"Successfully loaded {len(rules)} rules from {self.json_path}")
+            return rules
+        except FileNotFoundError:
+            logger.error(f"Rubric file not found: {self.json_path}")
+            return []
+        except json.JSONDecodeError:
+            logger.exception(f"Failed to parse JSON from {self.json_path}")
+            return []
+        except TypeError as e: # Catches errors if JSON structure doesn't match dataclass
+            logger.exception(f"Mismatched data in {self.json_path}: {e}")
+            return []
+        except Exception:
+            logger.exception(f"An unexpected error occurred loading rules from {self.json_path}")
+            return []

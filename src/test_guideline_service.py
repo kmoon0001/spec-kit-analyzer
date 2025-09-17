@@ -6,8 +6,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 # Local
-from .guideline_service import GuidelineService
-from .local_llm import LocalRAG
+from src.guideline_service import GuidelineService
+from src.local_llm import LocalRAG
 
 
 class TestGuidelineService(unittest.TestCase):
