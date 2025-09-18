@@ -7,6 +7,8 @@ sentence-transformers==5.1.0
 faiss-cpu==1.12.0
 llama-cpp-python==0.3.16
 rdflib
+requests
+
 # Added for XAI, plotting, and new data format features
 shap
 slicer
@@ -15,3 +17,7 @@ transformers
 Pillow
 matplotlib
 openpyxl
+
+# Added for UI Testing
+pytest
+pytest-qt
