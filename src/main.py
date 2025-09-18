@@ -20,22 +20,46 @@ REPORT_TEMPLATE_VERSION = "v2.0"
 
 # Paths and environment
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-_default_db_dir = os.path.join(os.path.expanduser("~"), "Documents", "SpecKitData")
-DATABASE_PATH = os.getenv("SPEC_KIT_DB", os.path.join(_default_db_dir, "spec_kit.db"))
-REPORTS_DIR = os.getenv("SPEC_KIT_REPORTS", os.path.join(os.path.expanduser("~"), "Documents", "SpecKitReports"))
-LOGS_DIR = os.path.join(os.path.expanduser("~"), "Documents", "SpecKitData", "logs")
+_default_db_dir = os.path.join(
+    os.path.expanduser("~"), "Documents", "SpecKitData"
+)
+DATABASE_PATH = os.getenv(
+    "SPEC_KIT_DB", os.path.join(_default_db_dir, "spec_kit.db")
+)
+REPORTS_DIR = os.getenv(
+    "SPEC_KIT_REPORTS",
+    os.path.join(os.path.expanduser("~"), "Documents", "SpecKitReports"),
+)
+LOGS_DIR = os.path.join(
+    os.path.expanduser("~"), "Documents", "SpecKitData", "logs"
+)
 
 # PDF report defaults
 REPORT_FONT_FAMILY = "DejaVu Sans"
 REPORT_FONT_SIZE = 8.5
 
 REPORT_STYLESHEET = """
-    body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 10pt; line-height: 1.4; }
+    body {
+        font-family: DejaVu Sans, Arial, sans-serif;
+        font-size: 10pt;
+        line-height: 1.4;
+    }
     h1 { font-size: 18pt; color: #1f4fd1; margin-bottom: 20px; }
-    h2 { font-size: 14pt; color: #111827; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 25px; }
+    h2 {
+        font-size: 14pt;
+        color: #111827;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 5px;
+        margin-top: 25px;
+    }
     h3 { font-size: 12pt; color: #374151; margin-top: 20px; }
     .user-message { margin-top: 15px; }
-    .ai-message { margin-top: 5px; padding: 8px; background-color: #f3f4f6; border-radius: 8px; }
+    .ai-message {
+        margin-top: 5px;
+        padding: 8px;
+        background-color: #f3f4f6;
+        border-radius: 8px;
+    }
     .education-block {
         margin-top: 15px;
         padding: 12px;
@@ -61,60 +85,104 @@ REPORT_FOOTER_LINES = 1
 # --- Logging setup ---
 logger = logging.getLogger(__name__)
 if not logger.handlers:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     try:
         os.makedirs(LOGS_DIR, exist_ok=True)
         log_path = os.path.join(LOGS_DIR, "app.log")
         from logging.handlers import RotatingFileHandler
 
-        fh = RotatingFileHandler(log_path, maxBytes=2_000_000, backupCount=5, encoding="utf-8")
+        fh = RotatingFileHandler(
+            log_path, maxBytes=2_000_000, backupCount=5, encoding="utf-8"
+        )
         fh.setLevel(logging.INFO)
-        fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        fh.setFormatter(
+            logging.Formatter(
+                "%(asctime)s %(levelname)s %(name)s: %(message)s"
+            )
+        )
         logging.getLogger().addHandler(fh)
         logger.info(f"File logging to: {log_path}")
     except Exception as _e:
         logger.warning(f"Failed to set up file logging: {_e}")
 
+
 # spaCy disabled placeholder
-nlp = None  # type: ignore
+nlp = None
+
 
 # --- Third-party imports (guarded) ---
 try:
     import pdfplumber
 except Exception as e:
-    pdfplumber = None  # type: ignore
+    pdfplumber = None
     logger.warning(f"pdfplumber unavailable: {e}")
+
 
 try:
     import pytesseract
 except Exception as e:
-    pytesseract = None  # type: ignore
+    pytesseract = None
     logger.warning(f"pytesseract unavailable: {e}")
+
 
 try:
     from transformers import pipeline
     from nlg_service import NLGService
 except ImportError:
     pipeline = None
-    logger.warning("transformers library not found. BioBERT NER will be disabled.")
+    logger.warning(
+        "transformers library not found. BioBERT NER will be disabled."
+    )
+
 
 try:
     from PIL import Image, UnidentifiedImageError
-except Exception as e:
-    Image = None  # type: ignore
-
+except Exception:
+    Image = None
 
     class UnidentifiedImageError(Exception):
-        ...
+        pass
 
+    logger.warning("PIL unavailable")
 
-    logger.warning(f"PIL unavailable: {e}")
 
 try:
     import numpy as np
 except ImportError:
     np = None
-    logger.warning("Numpy unavailable. Some analytics features will be disabled.")
+    logger.warning(
+        "Numpy unavailable. Some analytics features will be disabled."
+    )
+
+
+try:
+    import shap
+except ImportError:
+    shap = None
+    logger.warning(
+        "shap unavailable. Some analytics features will be disabled."
+    )
+
+
+try:
+    import slicer
+except ImportError:
+    slicer = None
+    logger.warning(
+        "slicer unavailable. Some analytics features will be disabled."
+    )
+
+
+try:
+    import jsonschema
+except ImportError:
+    jsonschema = None
+    logger.warning(
+        "jsonschema unavailable. Report validation will be disabled."
+    )
+
 
 # --- FHIR Imports (guarded) ---
 try:
@@ -126,45 +194,74 @@ try:
     from fhir.resources.reference import Reference
     from fhir.resources.meta import Meta
 except ImportError:
-    class Bundle: pass
-    class DiagnosticReport: pass
-    class Observation: pass
-    class CodeableConcept: pass
-    class Coding: pass
-    class Reference: pass
-    class Meta: pass
-    logger.warning("fhir.resources library not found. FHIR export will be disabled.")
+    class Bundle:
+        pass
+
+    class DiagnosticReport:
+        pass
+
+    class Observation:
+        pass
+
+    class CodeableConcept:
+        pass
+
+    class Coding:
+        pass
+
+    class Reference:
+        pass
+
+    class Meta:
+        pass
+
+    logger.warning(
+        "fhir.resources library not found. FHIR export will be disabled."
+    )
 
 # PyQt (guarded)
 try:
-    from PyQt6.QtWidgets import (
-        QMainWindow, QToolBar, QLabel, QFileDialog, QMessageBox, QApplication,
-        QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton,
-        QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
-        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout
-    )
-    from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter
-    from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject
-
+    from PyQt6.QtCore import QObject, Qt, QThread
+    from PyQt6.QtCore import pyqtSignal as Signal
+    from PyQt6.QtGui import QAction, QFont, QPdfWriter, QTextDocument
+    from PyQt6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog,
+                                 QDoubleSpinBox, QFileDialog, QGridLayout,
+                                 QGroupBox, QHBoxLayout, QLabel, QLineEdit,
+                                 QListWidget, QMainWindow, QMessageBox,
+                                 QProgressBar, QProgressDialog, QPushButton,
+                                 QSizePolicy, QSpinBox, QSplitter,
+                                 QStatusBar, QTabWidget, QTextEdit,
+                                 QToolBar, QVBoxLayout, QWidget)
+    from matplotlib.backends.backend_qt5agg import \
+        FigureCanvasQTAgg as FigureCanvas
+    from matplotlib.figure import Figure
     # Local imports
     try:
-        from .local_llm import LocalRAG
-        from .rubric_service import RubricService, ComplianceRule
         from .guideline_service import GuidelineService
+        from .local_llm import LocalRAG
+        from .rubric_service import ComplianceRule, RubricService
     except ImportError as e:
-        logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
+        logger.error(
+            f"Failed to import local modules: {e}. "
+            "Ensure you're running as a package."
+        )
         # Define dummy classes if imports fail, to prevent crashing on startup
-        class LocalRAG: pass
-        class RubricService: pass
-        class ComplianceRule: pass
-        class GuidelineService: pass
 
+        class LocalRAG:
+            pass
+
+        class RubricService:
+            pass
+
+        class ComplianceRule:
+            pass
+
+        class GuidelineService:
+            pass
 
     # --- LLM Loader Worker ---
     class LLMWorker(QObject):
-        """
-        A worker class to load the LocalRAG model in a separate thread.
-        """
+        """A worker class to load the LocalRAG model in a separate thread."""
         finished = Signal(object)
         error = Signal(str)
 
@@ -188,11 +285,8 @@ try:
                 logger.exception("LLMWorker failed to load model.")
                 self.error.emit(f"Failed to load AI model: {e}")
 
-
     class GuidelineWorker(QObject):
-        """
-        A worker class to load and index guidelines in a separate thread.
-        """
+        """A worker to load and index guidelines in a separate thread."""
         finished = Signal(object)
         error = Signal(str)
 
@@ -201,7 +295,7 @@ try:
             self.rag_instance = rag_instance
 
         def run(self):
-            """Loads and indexes the guidelines and emits a signal when done."""
+            """Loads and indexes the guidelines and emits a signal."""
             try:
                 guideline_service = GuidelineService(self.rag_instance)
                 sources = [
@@ -217,21 +311,28 @@ try:
                 logger.exception("GuidelineWorker failed.")
                 self.error.emit(f"Failed to load guidelines: {e}")
 
-
     def _generate_suggested_questions(issues: list) -> list[str]:
-        """Generates a list of suggested questions based on high-priority findings."""
+        """Generates suggested questions based on high-priority findings."""
         suggestions = []
 
         QUESTION_MAP = {
-            "Provider signature/date possibly missing": "Why are signatures and dates important for compliance?",
-            "Goals may not be measurable/time-bound": "What makes a therapy goal 'measurable' and 'time-bound'?",
-            "Medical necessity not explicitly supported": "Can you explain 'Medical Necessity' in the context of a therapy note?",
-            "Assistant supervision context unclear": "What are the supervision requirements for therapy assistants?",
-            "Plan/Certification not clearly referenced": "How should the Plan of Care be referenced in a note?",
+            "Provider signature/date possibly missing":
+                "Why are signatures and dates important for compliance?",
+            "Goals may not be measurable/time-bound":
+                "What makes a therapy goal 'measurable' and 'time-bound'?",
+            "Medical necessity not explicitly supported":
+                "Can you explain 'Medical Necessity' in a therapy note?",
+            "Assistant supervision context unclear":
+                "What are the supervision requirements for therapy assistants?",
+            "Plan/Certification not clearly referenced":
+                "How should the Plan of Care be referenced in a note?",
         }
 
         # Prioritize flags, then wobblers
-        sorted_issues = sorted(issues, key=lambda x: ({"flag": 0, "wobbler": 1}.get(x.get('severity'), 2)))
+        sorted_issues = sorted(
+            issues,
+            key=lambda x: ({"flag": 0, "wobbler": 1}.get(x.get('severity'), 2))
+        )
 
         for issue in sorted_issues:
             if len(suggestions) >= 3:
@@ -241,234 +342,193 @@ try:
             if title in QUESTION_MAP and QUESTION_MAP[title] not in suggestions:
                 suggestions.append(QUESTION_MAP[title])
 
-        logger.info(f"Generated {len(suggestions)} suggested questions.")
+        logger.info(
+            f"Generated {len(suggestions)} suggested questions."
+        )
         return suggestions
-
 
 except Exception:
     class QMainWindow:
-        ...
-
+        pass
 
     class QToolBar:
-        def addWidget(self, *_, **__): ...
+        def addWidget(self, *_, **__):
+            pass
 
-        def setMovable(self, *_: object) -> None: ...
-
+        def setMovable(self, *_: object) -> None:
+            pass
 
     class QLabel:
-        def __init__(self, *_, **__): ...
+        def __init__(self, *_, **__):
+            pass
 
-        def setText(self, *_): ...
+        def setText(self, *_):
+            pass
 
-        def setStyleSheet(self, *_): ...
-
+        def setStyleSheet(self, *_):
+            pass
 
     class QFileDialog:
         @staticmethod
-        def getOpenFileName(*_, **__) -> Tuple[str, str]: return ("", "")
+        def getOpenFileName(*_, **__) -> Tuple[str, str]:
+            return ("", "")
 
         @staticmethod
-        def getExistingDirectory(*_, **__) -> str: return ""
-
+        def getExistingDirectory(*_, **__) -> str:
+            return ""
 
     class QMessageBox:
         @staticmethod
-        def information(*_, **__): ...
+        def information(*_, **__):
+            pass
 
         @staticmethod
-        def warning(*_, **__): ...
+        def warning(*_, **__):
+            pass
 
         @staticmethod
-        def question(*_, **__): return "Yes"
-
+        def question(*_, **__):
+            return "Yes"
 
     class QApplication:
-        def __init__(self, *_): ...
+        def __init__(self, *_):
+            pass
 
         @staticmethod
-        def instance(): return None
+        def instance():
+            return None
 
         @staticmethod
-        def setOverrideCursor(*_): ...
+        def setOverrideCursor(*_):
+            pass
 
         @staticmethod
-        def restoreOverrideCursor(): ...
+        def restoreOverrideCursor():
+            pass
 
-        def setStyleSheet(self, *_): ...
+        def setStyleSheet(self, *_):
+            pass
 
-        def setFont(self, *_): ...
-
+        def setFont(self, *_):
+            pass
 
     class QAction:
-        def __init__(self, *_, **__): ...
+        def __init__(self, *_, **__):
+            pass
 
-        def triggered(self, *_): ...
+        def triggered(self, *_):
+            pass
 
-        def setShortcut(self, *_): ...
-
+        def setShortcut(self, *_):
+            pass
 
     class QDialog:
         def __init__(self, *_, **__): ...
-
         def exec(self): ...
-
         def setWindowTitle(self, *_): ...
-
         def accept(self): ...
-
         def reject(self): ...
-
         def show(self): ...
-
 
     class QVBoxLayout:
         def __init__(self, *_, **__): ...
-
         def addLayout(self, *_): ...
-
         def addWidget(self, *_): ...
-
         def setContentsMargins(self, *_): ...
-
         def setSpacing(self, *_): ...
-
 
     class QHBoxLayout:
         def addWidget(self, *_): ...
-
         def addStretch(self, *_): ...
-
         def setSpacing(self, *_): ...
-
 
     class QLineEdit:
         def __init__(self, *_, **__): ...
-
         def setText(self, *_): ...
 
-        def text(self): return ""
-
+        def text(self):
+            return ""
 
     class QComboBox:
         def __init__(self, *_, **__): ...
-
         def addItems(self, *_): ...
-
         def setCurrentText(self, *_): ...
 
-        def currentText(self): return ""
-
+        def currentText(self):
+            return ""
 
     class QPushButton:
         def __init__(self, *_, **__): ...
-
         def clicked(self): ...
-
         def setMinimumHeight(self, *_): ...
-
         def setFont(self, *_): ...
-
         def setText(self, *_): ...
-
         def setStyleSheet(self, *_): ...
-
         def setSizePolicy(self, *_): ...
-
 
     class QSpinBox:
         def __init__(self, *_, **__): ...
-
         def setRange(self, *_): ...
-
         def setValue(self, *_): ...
 
-        def value(self): return 0
-
+        def value(self):
+            return 0
 
     class QCheckBox:
         def __init__(self, *_, **__): ...
-
         def setChecked(self, *_): ...
 
-        def isChecked(self): return False
-
+        def isChecked(self):
+            return False
 
     class QTextEdit:
         def __init__(self, *_, **__): ...
-
         def setReadOnly(self, *_): ...
-
         def setPlainText(self, *_): ...
-
         def setPlaceholderText(self, *_): ...
-
         def setMinimumHeight(self, *_): ...
-
         def setMaximumHeight(self, *_): ...
-
         def setFixedHeight(self, *_): ...
-
         def setSizePolicy(self, *_): ...
-
         def append(self, *_): ...
 
-        def toPlainText(self): return ""
-
+        def toPlainText(self):
+            return ""
 
     class QSplitter:
         def __init__(self, *_, **__): ...
-
         def addWidget(self, *_): ...
-
         def setChildrenCollapsible(self, *_): ...
-
         def setFixedHeight(self, *_): ...
-
 
     class QGroupBox:
         def __init__(self, title=""): ...
-
         def setLayout(self, *_): ...
-
 
     class QWidget:
         def __init__(self, *_, **__): ...
-
         def setLayout(self, *_): ...
-
 
     class QProgressDialog:
         ...
-
 
     class QSizePolicy:
         class Policy:
             Expanding = 0
             Preferred = 0
 
-
     class QStatusBar:
         def clearMessage(self): ...
-
         def addPermanentWidget(self, *_): ...
-
         def showMessage(self, *_): ...
-
 
     class QProgressBar:
         def __init__(self, *_, **__): ...
-
         def setRange(self, *_): ...
-
         def setValue(self, *_): ...
-
         def setFormat(self, *_): ...
-
         def setVisible(self, *_): ...
-
         def setMinimumHeight(self, *_): ...
-
         def setSizePolicy(self, *_): ...
 
     class QTabWidget:
@@ -477,19 +537,24 @@ except Exception:
 
 
 # --- Helper Exceptions ---
-class ParseError(Exception): ...
+class ParseError(Exception):
+    ...
 
 
-class OCRFailure(Exception): ...
+class OCRFailure(Exception):
+    ...
 
 
-class ReportExportError(Exception): ...
+class ReportExportError(Exception):
+    ...
 
 
 # --- Settings persistence (SQLite) ---
 def _ensure_directories() -> None:
+    """Ensure that all necessary directories exist."""
     try:
-        os.makedirs(os.path.dirname(os.path.abspath(DATABASE_PATH)), exist_ok=True)
+        os.makedirs(os.path.dirname(os.path.abspath(DATABASE_PATH)),
+                    exist_ok=True)
         os.makedirs(os.path.abspath(REPORTS_DIR), exist_ok=True)
         os.makedirs(LOGS_DIR, exist_ok=True)
     except Exception as e:
@@ -497,6 +562,7 @@ def _ensure_directories() -> None:
 
 
 def _is_valid_sqlite_db(file_path: str) -> bool:
+    """Check if a file is a valid SQLite3 database."""
     try:
         if not os.path.exists(file_path):
             return True
@@ -517,6 +583,7 @@ def _is_valid_sqlite_db(file_path: str) -> bool:
 
 
 def _backup_corrupt_db(file_path: str) -> None:
+    """Backup a corrupt database file."""
     try:
         from datetime import datetime
         ts = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -528,6 +595,7 @@ def _backup_corrupt_db(file_path: str) -> None:
 
 
 def _prepare_database_file() -> None:
+    """Prepare the database file for use."""
     try:
         if not _is_valid_sqlite_db(DATABASE_PATH):
             _backup_corrupt_db(DATABASE_PATH)
@@ -536,46 +604,24 @@ def _prepare_database_file() -> None:
 
 
 def _ensure_core_schema(conn: sqlite3.Connection) -> None:
+    """Ensure the core database schema exists."""
     try:
         cur = conn.cursor()
         cur.execute("""
-                    CREATE TABLE IF NOT EXISTS settings
-                    (
-                        key
-                        TEXT
-                        PRIMARY
-                        KEY,
-                        value
-                        TEXT
-                    )
-                    """)
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        """)
         cur.execute("""
-                    CREATE TABLE IF NOT EXISTS analysis_cache
-                    (
-                        file_fingerprint
-                        TEXT
-                        NOT
-                        NULL,
-                        settings_fingerprint
-                        TEXT
-                        NOT
-                        NULL,
-                        outputs_json
-                        TEXT
-                        NOT
-                        NULL,
-                        created_at
-                        TEXT
-                        NOT
-                        NULL,
-                        PRIMARY
-                        KEY
-                    (
-                        file_fingerprint,
-                        settings_fingerprint
-                    )
-                        )
-                    """)
+            CREATE TABLE IF NOT EXISTS analysis_cache (
+                file_fingerprint TEXT NOT NULL,
+                settings_fingerprint TEXT NOT NULL,
+                outputs_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (file_fingerprint, settings_fingerprint)
+            )
+        """)
         conn.commit()
     except Exception as e:
         logger.warning(f"Ensure core schema failed: {e}")
@@ -618,7 +664,8 @@ def set_setting(key: str, value: str) -> None:
     try:
         with _get_db_connection() as conn:
             cur = conn.cursor()
-            cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
+            cur.execute(
+                "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
             conn.commit()
     except Exception:
         ...
@@ -680,7 +727,8 @@ def _save_recent_files(files: list[str]) -> None:
     try:
         import json
         limit = get_int_setting("recent_max", 20)
-        set_setting("recent_files", json.dumps(files[:max(1, limit)], ensure_ascii=False))
+        set_setting("recent_files", json.dumps(
+            files[:max(1, limit)], ensure_ascii=False))
     except Exception:
         ...
 
@@ -696,7 +744,10 @@ def add_recent_file(path: str) -> None:
 
 # --- File/report helpers ---
 def ensure_reports_dir_configured() -> str:
-    stored = os.getenv("SPEC_KIT_REPORTS") or get_setting("reports_dir") or REPORTS_DIR
+    """Ensure the reports directory is configured and exists."""
+    stored = (os.getenv("SPEC_KIT_REPORTS") or
+              get_setting("reports_dir") or
+              REPORTS_DIR)
     try:
         os.makedirs(stored, exist_ok=True)
         marker = os.path.join(stored, ".spec_kit_reports")
@@ -734,6 +785,36 @@ def generate_report_paths() -> Tuple[str, str]:
     base = ensure_reports_dir_configured()
     stem = f"{_format_mmddyyyy(datetime.now())}report{_next_report_number()}"
     return os.path.join(base, f"{stem}.pdf"), os.path.join(base, f"{stem}.csv")
+
+
+def _load_report_schema() -> Optional[dict]:
+    """Loads the report JSON schema from file."""
+    if not jsonschema:
+        return None
+    try:
+        import json
+        schema_path = os.path.join(BASE_DIR, "report_schema.json")
+        with open(schema_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.warning(f"Failed to load report schema: {e}")
+        return None
+
+
+def _validate_report_data(data: dict, schema: dict) -> bool:
+    """Validates report data against the JSON schema."""
+    if not jsonschema:
+        return True  # Skip if library is unavailable
+    try:
+        jsonschema.validate(instance=data, schema=schema)
+        logger.info("Report data passed schema validation.")
+        return True
+    except jsonschema.exceptions.ValidationError as e:
+        logger.error(f"Report data failed schema validation: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"An unexpected error occurred during schema validation: {e}")
+        return False
 
 
 # --- PHI scrubber ---
@@ -775,17 +856,46 @@ def _open_path(p: str) -> None:
         logger.warning(f"Failed to open path {p}: {e}")
 
 
+def _hash_password(
+        password: str, salt: Optional[bytes] = None) -> Tuple[str, bytes]:
+    """Hashes a password with a salt. Generates a new salt if not provided."""
+    if salt is None:
+        salt = os.urandom(16)
+    hashed_password = hashlib.pbkdf2_hmac(
+        'sha256', password.encode('utf-8'), salt, 100000
+    )
+    return hashed_password.hex(), salt
+
+
+def _verify_password(
+    stored_password_hex: str, salt_hex: str, provided_password: str
+) -> bool:
+    """Verifies a provided password against a stored hash and salt."""
+    try:
+        salt = bytes.fromhex(salt_hex)
+    except (ValueError, TypeError):
+        return False
+    hashed_password, _ = _hash_password(provided_password, salt)
+    return hashed_password == stored_password_hex
+
+
 # --- Parsing (PDF/DOCX/CSV/XLSX/Images with optional OCR) ---
 def split_sentences(text: str) -> list[str]:
+    """Split text into sentences."""
     if not text:
         return []
-    sents = [p.strip() for p in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"'])", text) if p.strip()]
+    sents = [
+        p.strip()
+        for p in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"'])", text)
+        if p.strip()
+    ]
     if not sents:
         sents = text.splitlines()
     return [s for s in sents if s]
 
 
 def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
+    """Parse document content from various file types."""
     ext = os.path.splitext(file_path)[1].lower()
     try:
         sentences: list[tuple[str, str]] = []
@@ -823,15 +933,19 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
                     if s:
                         sentences.append((s, "Table"))
             except Exception as e:
-                return [(f"Error: Failed to read tabular file: {e}", "Data Parser")]
+                return [(f"Error: Failed to read tabular file: {e}",
+                         "Data Parser")]
         elif ext in [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff"]:
             if not Image or not pytesseract:
-                return [("Error: OCR dependencies not available.", "OCR Parser")]
+                return [("Error: OCR dependencies not available.",
+                         "OCR Parser")]
             try:
                 img = Image.open(file_path)
                 if img.mode not in ("RGB", "L"):
                     img = img.convert("RGB")
-                txt = pytesseract.image_to_string(img, lang=get_str_setting("ocr_lang", "eng"))
+                txt = pytesseract.image_to_string(
+                    img, lang=get_str_setting("ocr_lang", "eng")
+                )
                 for s in split_sentences(txt or ""):
                     if s:
                         sentences.append((s, "Image (OCR)"))
@@ -845,7 +959,9 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
                     sentences.append((s, "Text File"))
         else:
             return [(f"Error: Unsupported file type: {ext}", "File Handler")]
-        return sentences if sentences else [("Info: No text could be extracted from the document.", "System")]
+        return (sentences if sentences else
+                [("Info: No text could be extracted from the document.",
+                  "System")])
     except FileNotFoundError:
         return [(f"Error: File not found at {file_path}", "File System")]
     except Exception as e:
@@ -860,10 +976,15 @@ def _normalize_text(s: str) -> str:
 
 def _similarity(a: str, b: str) -> float:
     import difflib
-    return difflib.SequenceMatcher(a=_normalize_text(a), b=_normalize_text(b)).ratio()
+    return difflib.SequenceMatcher(
+        a=_normalize_text(a),
+        b=_normalize_text(b)).ratio()
 
 
-def collapse_similar_sentences_simple(items: list[Tuple[str, str]], threshold: float) -> list[Tuple[str, str]]:
+def collapse_similar_sentences_simple(
+    items: list[Tuple[str, str]], threshold: float
+) -> list[Tuple[str, str]]:
+    """Collapse similar sentences using a simple similarity metric."""
     kept: list[Tuple[str, str]] = []
     for t, s in items:
         if not kept:
@@ -875,12 +996,16 @@ def collapse_similar_sentences_simple(items: list[Tuple[str, str]], threshold: f
     return kept
 
 
-def collapse_similar_sentences_tfidf(items: list[Tuple[str, str]], threshold: float) -> list[Tuple[str, str]]:
+def collapse_similar_sentences_tfidf(
+    items: list[Tuple[str, str]], threshold: float
+) -> list[Tuple[str, str]]:
+    """Collapse similar sentences using TF-IDF and cosine similarity."""
     texts = [t for t, _ in items]
     try:
-        from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore
-        from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
-        vect = TfidfVectorizer(min_df=1, ngram_range=(1, 2), max_features=10000)
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity
+        vect = TfidfVectorizer(min_df=1, ngram_range=(1, 2),
+                               max_features=10000)
         X = vect.fit_transform([_normalize_text(t) for t in texts])
         sim = cosine_similarity(X)
     except Exception:
@@ -895,14 +1020,17 @@ def collapse_similar_sentences_tfidf(items: list[Tuple[str, str]], threshold: fl
     return [items[i] for i in kept_idx]
 
 
-# ... existing code ...
-def build_rich_summary(original: list[Tuple[str, str]], collapsed: list[Tuple[str, str]]) -> dict:
+def build_rich_summary(
+    original: list[Tuple[str, str]], collapsed: list[Tuple[str, str]]
+) -> dict:
+    """Build a rich summary of the document."""
     from collections import Counter
 
     def tok(text: str) -> list[str]:
         tokens = re.findall(r"[A-Za-z']+", text.lower())
-        stop = {"the", "a", "an", "and", "or", "of", "to", "in", "on", "for", "with", "is", "are", "was", "were", "be",
-                "as", "at", "by", "from", "that"}
+        stop = {"the", "a", "an", "and", "or", "of", "to", "in", "on",
+                "for", "with", "is", "are", "was", "were", "be", "as",
+                "at", "by", "from", "that"}
         return [t for t in tokens if t not in stop]
 
     total_raw = len(original)
@@ -971,8 +1099,10 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                         TEXT
                     )
                     """)
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_time ON analysis_runs(run_time)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_file ON analysis_runs(file_name)")
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_runs_time ON analysis_runs(run_time)")
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_runs_file ON analysis_runs(file_name)")
         cur.execute("""
                     CREATE TABLE IF NOT EXISTS analysis_issues
                     (
@@ -1007,9 +1137,12 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                     ) ON DELETE CASCADE
                         )
                     """)
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_issues_run ON analysis_issues(run_id)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_issues_sev ON analysis_issues(severity)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_issues_cat ON analysis_issues(category)")
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_issues_run ON analysis_issues(run_id)")
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_issues_sev ON analysis_issues(severity)")
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_issues_cat ON analysis_issues(category)")
         cur.execute("""
                     CREATE TABLE IF NOT EXISTS analysis_snapshots
                     (
@@ -1037,14 +1170,17 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                     )
                         )
                     """)
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_snapshots_time ON analysis_snapshots(created_at)")
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_snapshots_time ON analysis_snapshots(created_at)")
 
         # --- Simple schema migration for compliance_score ---
         cur.execute("PRAGMA table_info(analysis_runs)")
         columns = [row[1] for row in cur.fetchall()]
         if "compliance_score" not in columns:
-            cur.execute("ALTER TABLE analysis_runs ADD COLUMN compliance_score REAL")
-            logger.info("Upgraded analysis_runs table to include 'compliance_score' column.")
+            cur.execute(
+                "ALTER TABLE analysis_runs ADD COLUMN compliance_score REAL")
+            logger.info(
+                "Upgraded analysis_runs table to include 'compliance_score' column.")
 
         cur.execute("""
                     CREATE TABLE IF NOT EXISTS reviewed_findings
@@ -1082,36 +1218,49 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                     ) ON DELETE CASCADE
                         )
                     """)
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_reviews_issue ON reviewed_findings(analysis_issue_id)")
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_reviews_issue ON reviewed_findings(analysis_issue_id)")
 
         conn.commit()
     except Exception as e:
         logger.warning(f"Ensure analytics schema failed: {e}")
 
 
-def persist_analysis_run(file_path: str, run_time: str, metrics: dict, issues_scored: list[dict],
-                         compliance: dict, mode: str) -> Optional[int]:
+def persist_analysis_run(file_path: str, run_time: str, metrics: dict,
+                         issues_scored: list[dict], compliance: dict,
+                         mode: str) -> Optional[int]:
+    """Persist an analysis run to the database."""
     try:
         with _get_db_connection() as conn:
             cur = conn.cursor()
             cur.execute("""
-                        INSERT INTO analysis_runs (file_name, run_time, pages_est, flags, wobblers, suggestions, notes,
-                                                   sentences_final, dedup_removed, compliance_score, mode)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (
-                            os.path.basename(file_path), run_time,
-                            int(metrics.get("pages", 0)), int(metrics.get("flags", 0)), int(metrics.get("wobblers", 0)),
-                            int(metrics.get("suggestions", 0)), int(metrics.get("notes", 0)),
-                            int(metrics.get("sentences_final", 0)), int(metrics.get("dedup_removed", 0)),
-                            float(compliance.get("score", 0.0)), mode
-                        ))
+                INSERT INTO analysis_runs (
+                    file_name, run_time, pages_est, flags, wobblers,
+                    suggestions, notes, sentences_final, dedup_removed,
+                    compliance_score, mode
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                os.path.basename(file_path), run_time,
+                int(metrics.get("pages", 0)),
+                int(metrics.get("flags", 0)),
+                int(metrics.get("wobblers", 0)),
+                int(metrics.get("suggestions", 0)),
+                int(metrics.get("notes", 0)),
+                int(metrics.get("sentences_final", 0)),
+                int(metrics.get("dedup_removed", 0)),
+                float(compliance.get("score", 0.0)),
+                mode
+            ))
             run_id = int(cur.lastrowid)
             if issues_scored:
                 cur.executemany("""
-                                INSERT INTO analysis_issues (run_id, severity, category, title, detail, confidence)
-                                VALUES (?, ?, ?, ?, ?, ?)
-                                """, [(run_id, it.get("severity", ""), it.get("category", ""), it.get("title", ""),
-                                       it.get("detail", ""), float(it.get("confidence", 0.0))) for it in issues_scored])
+                    INSERT INTO analysis_issues (
+                        run_id, severity, category, title, detail, confidence
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                """, [(run_id, it.get("severity", ""), it.get("category", ""),
+                       it.get("title", ""), it.get("detail", ""),
+                       float(it.get("confidence", 0.0)))
+                      for it in issues_scored])
             conn.commit()
             return run_id
     except Exception as e:
@@ -1120,6 +1269,7 @@ def persist_analysis_run(file_path: str, run_time: str, metrics: dict, issues_sc
 
 
 def _compute_recent_trends(max_runs: int = 10) -> dict:
+    """Compute recent trends in analytics data."""
     out = {
         "recent_scores": [],
         "score_delta": 0.0,
@@ -1130,16 +1280,20 @@ def _compute_recent_trends(max_runs: int = 10) -> dict:
     }
     try:
         with _get_db_connection() as conn:
-            runs = pd.read_sql_query(
-                "SELECT compliance_score, flags, wobblers, suggestions FROM analysis_runs ORDER BY run_time ASC", conn
+            query = (
+                "SELECT compliance_score, flags, wobblers, suggestions "
+                "FROM analysis_runs ORDER BY run_time ASC"
             )
+            runs = pd.read_sql_query(query, conn)
         if runs.empty:
             return out
         sub = runs.tail(max_runs).copy()
         scores = [float(x) for x in sub["compliance_score"].tolist()]
         out["recent_scores"] = scores
-        out["avg_score"] = round(float(sum(scores) / len(scores)), 1) if scores else 0.0
-        out["score_delta"] = round((scores[-1] - scores[0]) if len(scores) >= 2 else 0.0, 1)
+        if scores:
+            out["avg_score"] = round(float(sum(scores) / len(scores)), 1)
+        if len(scores) >= 2:
+            out["score_delta"] = round(scores[-1] - scores[0], 1)
         out["avg_flags"] = round(float(sub["flags"].mean()), 2)
         out["avg_wobblers"] = round(float(sub["wobblers"].mean()), 2)
         out["avg_suggestions"] = round(float(sub["suggestions"].mean()), 2)
@@ -1150,6 +1304,7 @@ def _compute_recent_trends(max_runs: int = 10) -> dict:
 
 # --- Caching helpers ---
 def _file_fingerprint(path: str) -> str:
+    """Generate a fingerprint for a file."""
     try:
         h = hashlib.sha256()
         with open(path, "rb") as f:
@@ -1164,6 +1319,7 @@ def _file_fingerprint(path: str) -> str:
 
 
 def _settings_fingerprint(scrub: bool, review_mode: str, dedup: str) -> str:
+    """Generate a fingerprint for the current settings."""
     import json
     key_parts = {
         "scrub": "1" if scrub else "0",
@@ -1177,11 +1333,15 @@ def _settings_fingerprint(scrub: bool, review_mode: str, dedup: str) -> str:
 
 
 def _load_cached_outputs(file_fp: str, settings_fp: str) -> Optional[dict]:
+    """Load cached outputs from the database."""
     try:
         with _get_db_connection() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT outputs_json FROM analysis_cache WHERE file_fingerprint=? AND settings_fingerprint=?",
-                        (file_fp, settings_fp))
+            cur.execute(
+                "SELECT outputs_json FROM analysis_cache "
+                "WHERE file_fingerprint=? AND settings_fingerprint=?",
+                (file_fp, settings_fp)
+            )
             row = cur.fetchone()
             if not row:
                 return None
@@ -1191,16 +1351,21 @@ def _load_cached_outputs(file_fp: str, settings_fp: str) -> Optional[dict]:
         return None
 
 
-def _save_cached_outputs(file_fp: str, settings_fp: str, outputs: dict) -> None:
+def _save_cached_outputs(
+    file_fp: str, settings_fp: str, outputs: dict
+) -> None:
+    """Save outputs to the cache database."""
     try:
         with _get_db_connection() as conn:
             cur = conn.cursor()
             import json
             from datetime import datetime
             cur.execute(
-                "INSERT OR REPLACE INTO analysis_cache (file_fingerprint, settings_fingerprint, outputs_json, created_at) VALUES (?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO analysis_cache (file_fingerprint, "
+                "settings_fingerprint, outputs_json, created_at) "
+                "VALUES (?, ?, ?, ?)",
                 (file_fp, settings_fp, json.dumps(outputs, ensure_ascii=False),
-                 datetime.now().isoformat(timespec="seconds")),
+                 datetime.now().isoformat(timespec="seconds"))
             )
             conn.commit()
     except Exception:
@@ -1208,13 +1373,14 @@ def _save_cached_outputs(file_fp: str, settings_fp: str, outputs: dict) -> None:
 
 
 # --- Rule-based audit (interpretive only) ---
-_RUBRIC_DEFAULT = "MEDICARE PART B REHABILITATION RUBRIC – SKILLED NURSING FACILITY (SNF)"
+_RUBRIC_DEFAULT = (
+    "MEDICARE PART B REHABILITATION RUBRIC – SKILLED NURSING FACILITY (SNF)"
+)
 
 
-def _audit_from_rubric(text: str, selected_disciplines: List[str], strict: bool | None = None) -> list[dict]:
-    """
-    Performs a dynamic audit based on the selected discipline rubrics.
-    """
+def _audit_from_rubric(text: str, selected_disciplines: List[str],
+                       strict: bool | None = None) -> list[dict]:
+    """Performs a dynamic audit based on the selected discipline rubrics."""
     if not selected_disciplines:
         return []
 
@@ -1251,15 +1417,16 @@ def _audit_from_rubric(text: str, selected_disciplines: List[str], strict: bool 
         negative_kws = [kw.lower() for kw in rule.negative_keywords]
 
         triggered = False
-        # Case 1: Rule triggers if a positive keyword is found AND a negative keyword is NOT found.
+        # Case 1: Positive keyword found AND negative keyword NOT found.
         if rule.positive_keywords and rule.negative_keywords:
-            if any(kw in t_lower for kw in positive_kws) and not any(kw in t_lower for kw in negative_kws):
+            if (any(kw in t_lower for kw in positive_kws) and
+                    not any(kw in t_lower for kw in negative_kws)):
                 triggered = True
-        # Case 2: Rule triggers if a positive keyword is found (and there are no negative keywords).
+        # Case 2: Positive keyword found (no negative keywords).
         elif rule.positive_keywords and not rule.negative_keywords:
             if any(kw in t_lower for kw in positive_kws):
                 triggered = True
-        # Case 3: Rule triggers if a negative keyword is NOT found (and there are no positive keywords).
+        # Case 3: Negative keyword NOT found (no positive keywords).
         elif not rule.positive_keywords and rule.negative_keywords:
             if not any(kw in t_lower for kw in negative_kws):
                 triggered = True
@@ -1277,7 +1444,10 @@ def _audit_from_rubric(text: str, selected_disciplines: List[str], strict: bool 
     return issues
 
 
-def _attach_issue_citations(issues_in: list[dict], records: list[tuple[str, str]], cap: int = 3) -> list[dict]:
+def _attach_issue_citations(
+    issues_in: list[dict], records: list[tuple[str, str]], cap: int = 3
+) -> list[dict]:
+    """Attach issue citations to the issues."""
     out: list[dict] = []
     for it in issues_in:
         q = (it.get("title", "") + " " + it.get("detail", "")).lower()
@@ -1298,12 +1468,18 @@ def _attach_issue_citations(issues_in: list[dict], records: list[tuple[str, str]
                 text_to_cite = text.strip()
 
                 if trigger_keywords:
-                    # Sort keywords by length, descending, to handle cases like "plan of care" vs "plan"
-                    sorted_kws = sorted(trigger_keywords, key=len, reverse=True)
-                    # Build a single regex for all keywords, with word boundaries
-                    pattern = r'(' + '|'.join(r'\b' + re.escape(kw) + r'\b' for kw in sorted_kws) + r')'
+                    # Sort keywords by length, descending, to handle cases
+                    # like "plan of care" vs "plan"
+                    sorted_kws = sorted(trigger_keywords, key=len,
+                                        reverse=True)
+                    # Build a single regex for all keywords, with word
+                    # boundaries
+                    pattern = r'(' + '|'.join(
+                        r'\b' + re.escape(kw) + r'\b' for kw in sorted_kws
+                    ) + r')'
 
-                    parts = re.split(pattern, text_to_cite, flags=re.IGNORECASE)
+                    parts = re.split(pattern, text_to_cite,
+                                     flags=re.IGNORECASE)
 
                     result_parts = []
                     for i, part in enumerate(parts):
@@ -1324,14 +1500,14 @@ def _attach_issue_citations(issues_in: list[dict], records: list[tuple[str, str]
     return out
 
 
-def _get_shap_prediction_wrapper(rule_title: str) -> Callable[[list[str]], list[float]]:
-    """
-    Creates a prediction function for a specific rule that SHAP can use.
-    """
+def _get_shap_prediction_wrapper(
+        rule_title: str) -> Callable[[list[str]], list[float]]:
+    """Creates a prediction function for a specific rule that SHAP can use."""
     def predict(texts: list[str]) -> list[float]:
         scores = []
         for text in texts:
-            # We run a "strict" audit because we want to know if the rule *could* be triggered.
+            # We run a "strict" audit because we want to know if the rule
+            # *could* be triggered.
             issues = _audit_from_rubric(text, strict=True)
             if any(issue['title'] == rule_title for issue in issues):
                 scores.append(1.0)
@@ -1340,32 +1516,137 @@ def _get_shap_prediction_wrapper(rule_title: str) -> Callable[[list[str]], list[
         return scores
     return predict
 
-def _score_issue_confidence(issues_in: list[dict], records: list[tuple[str, str]]) -> list[dict]:
+
+def _score_issue_confidence(
+    issues_in: list[dict], records: list[tuple[str, str]]
+) -> list[dict]:
+    """Score the confidence of each issue."""
     all_text = " ".join(t for t, _ in records).lower()
     doc_tok = set(re.findall(r"[a-z]{4,}", all_text))
     out: list[dict] = []
     for it in issues_in:
         q = (it.get("title", "") + " " + it.get("detail", "")).lower()
         q_tok = set(re.findall(r"[a-z]{4,}", q))
-        conf = 0.3 if not q_tok else 0.25 + 0.75 * min(1.0, len(q_tok & doc_tok) / max(1, len(q_tok)))
+        conf = (0.3 if not q_tok else 0.25 + 0.75 * min(
+            1.0, len(q_tok & doc_tok) / max(1, len(q_tok))
+        ))
         if it.get("citations"):
             conf = min(1.0, conf + 0.15)
         out.append({**it, "confidence": round(float(conf), 2)})
     return out
 
 
+def _generate_compliance_checklist(
+        strengths: list[str],
+        weaknesses: list[str]) -> list[str]:
+    lines = ["<h3>Compliance Checklist</h3>"]
+
+    checklist_items = {
+        "Provider Authentication": "Provider authentication (signature/date)",
+        "Measurable Goals": "Goals appear to be measurable",
+        "Medical Necessity": "Medical necessity is explicitly discussed",
+        "Assistant Supervision": "Assistant involvement includes supervision context",
+        "Plan/Certification": "Plan/certification is referenced"}
+
+    def get_status_icon(key, text):
+        if any(text in s for s in strengths):
+            return "<span style='color: #28a745; font-weight: bold;'>✔</span>"
+        elif any(text in w for w in weaknesses):
+            return "<span style='color: #dc3545; font-weight: bold;'>❌</span>"
+        else:
+            simplified_weakness_text = text.split('(')[0].strip()
+            if any(simplified_weakness_text in w for w in weaknesses):
+                return "<span style='color: #dc3545; font-weight: bold;'>❌</span>"
+            else:
+                return "<span style='color: #6c757d; font-weight: bold;'>○</span>"
+
+    lines.append("<table>")
+    for key, text in checklist_items.items():
+        icon = get_status_icon(key, text)
+        lines.append(
+            f"<tr><td style='padding-right: 10px;'>{icon}</td><td>{key}</td></tr>")
+    lines.append("</table>")
+
+    lines.append("")
+    return lines
+
+
+def _generate_risk_dashboard(
+        compliance_score: float,
+        sev_counts: dict) -> list[str]:
+    lines = ["--- Risk Dashboard ---"]
+    score = compliance_score
+    flags = sev_counts.get("flag", 0)
+    wobblers = sev_counts.get("wobbler", 0)
+
+    if score >= 90 and flags == 0:
+        risk = "Low"
+        summary = "Good compliance posture."
+    elif score >= 70 and flags <= 1:
+        risk = "Medium"
+        summary = "Some areas need review."
+    else:
+        risk = "High"
+        summary = "Critical issues require attention."
+
+    lines.append(f"Overall Risk: {risk}")
+    lines.append(f"Compliance Score: {score:.1f}/100")
+    lines.append(f"Summary: {summary}")
+    lines.append(f"Critical Findings (Flags): {flags}")
+    lines.append(f"Areas of Concern (Wobblers): {wobblers}")
+    lines.append("")
+    return lines
+
+
+def compute_compliance_score(
+        issues: list[dict],
+        strengths_in: list[str],
+        missing_in: list[str],
+        mode: ReviewMode) -> dict:
+    flags = sum(1 for i in issues if i.get("severity") == "flag")
+    wob = sum(1 for i in issues if i.get("severity") == "wobbler")
+    sug = sum(1 for i in issues if i.get("severity") == "suggestion")
+    base = 100.0
+    if mode == "Strict":
+        base -= flags * 6.0
+        base -= wob * 3.0
+        base -= sug * 1.5
+        base -= len(missing_in) * 4.0
+    else:
+        base -= flags * 4.0
+        base -= wob * 2.0
+        base -= sug * 1.0
+        base -= len(missing_in) * 2.5
+    base += min(5.0, len(strengths_in) * 0.5)
+    score = max(0.0, min(100.0, base))
+    breakdown = (
+        f"Flags={flags}, Wobblers={wob}, Suggestions={sug}, "
+        f"Missing={len(missing_in)}, Strengths={len(strengths_in)}; "
+        f"Mode={mode}"
+    )
+    return {"score": round(score, 1), "breakdown": breakdown}
+
+
 def run_biobert_ner(sentences: List[str]) -> List[dict]:
     """
-    Performs Named Entity Recognition on a list of sentences using a BioBERT model.
+    Performs Named Entity Recognition on a list of sentences using a
+    BioBERT model.
     """
     if not pipeline:
-        logger.warning("Transformers pipeline is not available. Skipping BioBERT NER.")
+        logger.warning(
+            "Transformers pipeline is not available. Skipping BioBERT NER."
+        )
         return []
 
     try:
         # Using a pipeline for NER
-        # The 'simple' aggregation strategy groups subword tokens into whole words.
-        ner_pipeline = pipeline("ner", model="longluu/Clinical-NER-MedMentions-GatorTronBase", aggregation_strategy="simple")
+        # The 'simple' aggregation strategy groups subword tokens into whole
+        # words.
+        ner_pipeline = pipeline(
+            "ner",
+            model="longluu/Clinical-NER-MedMentions-GatorTronBase",
+            aggregation_strategy="simple"
+        )
         results = ner_pipeline(sentences)
         return results
     except Exception as e:
@@ -1386,16 +1667,20 @@ def export_report_json(obj: dict, json_path: str) -> bool:
         return False
 
 
-def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = None,
-                      chart_data: Optional[dict] = None,
-                      sev_counts: Optional[dict] = None,
-                      cat_counts: Optional[dict] = None) -> bool:
+def export_report_pdf(
+        lines: list[str],
+        pdf_path: str,
+        meta: Optional[dict] = None,
+        chart_data: Optional[dict] = None,
+        sev_counts: Optional[dict] = None,
+        cat_counts: Optional[dict] = None) -> bool:
     try:
         if not QApplication.instance():
             import matplotlib
             matplotlib.use("Agg")
         os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
-        import math, textwrap
+        import math
+        import textwrap
         import matplotlib.pyplot as plt  # type: ignore
         from matplotlib.backends.backend_pdf import PdfPages  # type: ignore
         from matplotlib.patches import FancyBboxPatch  # type: ignore
@@ -1417,10 +1702,13 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
             ylabel_color = "#e5e7eb"
 
         font_family = REPORT_FONT_FAMILY
-        font_size = REPORT_FONT_SIZE
+        font_size = float(get_str_setting("pdf_font_size", REPORT_FONT_SIZE))
 
         page_w, page_h = REPORT_PAGE_SIZE
-        margin_top, margin_right, margin_bottom, margin_left = REPORT_MARGINS
+        margin_top = float(get_str_setting("pdf_margin_top", "1.1"))
+        margin_right = float(get_str_setting("pdf_margin_right", "1.0"))
+        margin_bottom = float(get_str_setting("pdf_margin_bottom", "1.3"))
+        margin_left = float(get_str_setting("pdf_margin_left", "1.0"))
         usable_width_in = page_w - (margin_left + margin_right)
         approx_char_width_in = max(0.12, (font_size * 0.56) / 72.0)
         chars_per_line = max(56, int(usable_width_in / approx_char_width_in))
@@ -1432,7 +1720,11 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
             if not s:
                 wrapped.append("")
                 continue
-            for block in textwrap.wrap(s, width=chars_per_line, replace_whitespace=False, drop_whitespace=False):
+            for block in textwrap.wrap(
+                    s,
+                    width=chars_per_line,
+                    replace_whitespace=False,
+                    drop_whitespace=False):
                 wrapped.append(block)
             if s.endswith(":") or s.istitle():
                 wrapped.append("")
@@ -1443,7 +1735,10 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
         footer_lines = REPORT_FOOTER_LINES
 
         chart_enabled = get_bool_setting("pdf_chart_enabled", True)
-        chart_position = (get_str_setting("pdf_chart_position", "bottom") or "bottom").lower()
+        chart_position = (
+            get_str_setting(
+                "pdf_chart_position",
+                "bottom") or "bottom").lower()
         if not chart_enabled or chart_position == "none":
             chart_data = None
             sev_counts = None
@@ -1452,7 +1747,9 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
         top_chart_h = 0.12
         bottom_charts_h = 0.26
         chart_on_top = (chart_data is not None) and (chart_position == "top")
-        chart_on_bottom = (chart_data is not None) and (chart_position == "bottom")
+        chart_on_bottom = (
+            chart_data is not None) and (
+            chart_position == "bottom")
 
         reserved_top = top_chart_h if chart_on_top else 0.0
         reserved_bottom = bottom_charts_h if chart_on_bottom else 0.0
@@ -1460,7 +1757,7 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
         header_reserve_in = header_lines * line_height_in
         footer_reserve_in = footer_lines * line_height_in
         text_area_height_in = usable_height_in * (
-                1.0 - reserved_top - reserved_bottom) - header_reserve_in - footer_reserve_in
+            1.0 - reserved_top - reserved_bottom) - header_reserve_in - footer_reserve_in
         if text_area_height_in < (12 * line_height_in):
             chart_on_top = False
             chart_on_bottom = False
@@ -1472,7 +1769,10 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
         risk_label = (meta or {}).get("risk_label", "")
         risk_color = (meta or {}).get("risk_color", "#6b7280")
         header_left = meta.get("file_name", "") if meta else ""
-        header_right = f"{meta.get('run_time', _now_iso())} | Template {REPORT_TEMPLATE_VERSION}" if meta else _now_iso()
+        header_right = f"{
+            meta.get(
+                'run_time',
+                _now_iso())} | Template {REPORT_TEMPLATE_VERSION}" if meta else _now_iso()
 
         with PdfPages(pdf_path) as pdf:
             total_lines = len(wrapped)
@@ -1493,33 +1793,66 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
                 ax.set_facecolor(ax_face)
                 ax.axis("off")
 
-                ax.text(0, 1, header_left, va="top", ha="left", family=font_family, fontsize=font_size + 1.0,
-                        color=xtick)
-                ax.text(1, 1, header_right, va="top", ha="right", family=font_family, fontsize=font_size + 1.0,
-                        color=xtick)
+                ax.text(
+                    0,
+                    1,
+                    header_left,
+                    va="top",
+                    ha="left",
+                    family=font_family,
+                    fontsize=font_size +
+                    1.0,
+                    color=xtick)
+                ax.text(
+                    1,
+                    1,
+                    header_right,
+                    va="top",
+                    ha="right",
+                    family=font_family,
+                    fontsize=font_size +
+                    1.0,
+                    color=xtick)
 
                 try:
                     if risk_label:
-                        ax.add_patch(FancyBboxPatch(
-                            (0.82, 0.965), 0.16, 0.05, boxstyle="round,pad=0.008,rounding_size=0.01",
-                            linewidth=0.0, facecolor=risk_color, transform=ax.transAxes
-                        ))
-                        ax.text(0.90, 0.99, f"Risk: {risk_label}", va="top", ha="center",
-                                family=font_family, fontsize=font_size + 0.6,
-                                color="#111827" if risk_label != "High" else "#ffffff",
-                                transform=ax.transAxes)
+                        ax.add_patch(
+                            FancyBboxPatch(
+                                (0.82,
+                                 0.965),
+                                0.16,
+                                0.05,
+                                boxstyle="round,pad=0.008,rounding_size=0.01",
+                                linewidth=0.0,
+                                facecolor=risk_color,
+                                transform=ax.transAxes))
+                        ax.text(
+                            0.90,
+                            0.99,
+                            f"Risk: {risk_label}",
+                            va="top",
+                            ha="center",
+                            family=font_family,
+                            fontsize=font_size + 0.6,
+                            color="#111827" if risk_label != "High" else "#ffffff",
+                            transform=ax.transAxes)
                 except Exception:
                     ...
 
                 if page_idx == 0 and chart_on_top:
                     try:
                         cats = ["Flags", "Wobblers", "Suggestions", "Notes"]
-                        vals = [sev_counts.get("flag", 0), sev_counts.get("wobbler", 0),
-                                sev_counts.get("suggestion", 0), sev_counts.get("auditor_note", 0)] if sev_counts else [
+                        vals = [
+                            sev_counts.get(
+                                "flag", 0), sev_counts.get(
+                                "wobbler", 0), sev_counts.get(
+                                "suggestion", 0), sev_counts.get(
+                                "auditor_note", 0)] if sev_counts else [
                             0, 0, 0, 0]
                         ax_chart = fig.add_axes([0.07, 0.81, 0.86, 0.12])
                         ax_chart.bar(cats, vals, color=chart_colors)
-                        ax_chart.set_ylabel("Count", fontsize=font_size + 0.6, color=ylabel_color)
+                        ax_chart.set_ylabel(
+                            "Count", fontsize=font_size + 0.6, color=ylabel_color)
                         ax_chart.set_facecolor(ax_face)
                         for lab in ax_chart.get_xticklabels():
                             lab.set_fontsize(font_size + 0.3)
@@ -1532,47 +1865,93 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
                     except Exception:
                         ...
 
-                ax.text(0.5, 0, f"Page {page_idx + 1} / {total_pages}", va="bottom", ha="center",
-                        family=font_family, fontsize=font_size, color=xtick)
+                ax.text(
+                    0.5,
+                    0,
+                    f"Page {
+                        page_idx +
+                        1} / {total_pages}",
+                    va="bottom",
+                    ha="center",
+                    family=font_family,
+                    fontsize=font_size,
+                    color=xtick)
 
-                y_text_top = 1 - ((REPORT_HEADER_LINES * line_height_in) / (page_h - (margin_top + margin_bottom)))
+                y_text_top = 1 - \
+                    ((REPORT_HEADER_LINES * line_height_in) / (page_h - (margin_top + margin_bottom)))
                 if page_idx == 0 and chart_on_top:
                     y_text_top -= (top_chart_h + 0.02)
 
                 cursor_y = y_text_top
-                y_step = line_height_in / (page_h - (margin_top + margin_bottom))
+                y_step = line_height_in / \
+                    (page_h - (margin_top + margin_bottom))
                 for ln in page_lines:
-                    is_section_header = bool(ln and ln.startswith("---") and ln.endswith("---"))
+                    is_section_header = bool(
+                        ln and ln.startswith("---") and ln.endswith("---"))
 
                     if is_section_header:
                         cursor_y -= y_step * 0.5
-                        ax.axhline(y=cursor_y + (y_step * 0.2), xmin=0, xmax=1, color=spine, linewidth=0.7)
+                        ax.axhline(y=cursor_y + (y_step * 0.2), xmin=0,
+                                   xmax=1, color=spine, linewidth=0.7)
                         cursor_y -= y_step * 0.2
-                        ax.text(0.5, cursor_y, ln.strip("- "), va="top", ha="center", family=font_family,
-                                fontsize=font_size + 1.5, color=xtick, weight="bold")
+                        ax.text(
+                            0.5,
+                            cursor_y,
+                            ln.strip("- "),
+                            va="top",
+                            ha="center",
+                            family=font_family,
+                            fontsize=font_size + 1.5,
+                            color=xtick,
+                            weight="bold")
                         cursor_y -= y_step * 1.2
-                        ax.axhline(y=cursor_y + (y_step * 0.5), xmin=0, xmax=1, color=spine, linewidth=0.7)
+                        ax.axhline(y=cursor_y + (y_step * 0.5), xmin=0,
+                                   xmax=1, color=spine, linewidth=0.7)
                         cursor_y -= y_step * 0.5
                     else:
                         is_finding_header = bool(ln and ln.startswith("["))
                         weight = "bold" if is_finding_header else "normal"
                         size = font_size + (0.5 if is_finding_header else 0)
-                        ax.text(0, cursor_y, ln, va="top", ha="left", family=font_family,
-                                fontsize=size, color=xtick, weight=weight)
+                        ax.text(
+                            0,
+                            cursor_y,
+                            ln,
+                            va="top",
+                            ha="left",
+                            family=font_family,
+                            fontsize=size,
+                            color=xtick,
+                            weight=weight)
 
                     cursor_y -= y_step
 
-                if (page_idx == total_pages - 1) and chart_on_bottom and (sev_counts or cat_counts):
+                if (page_idx == total_pages -
+                        1) and chart_on_bottom and (sev_counts or cat_counts):
                     try:
                         y0 = 0.08
                         h = 0.16
                         if sev_counts:
-                            cats = ["Flags", "Wobblers", "Suggestions", "Notes"]
-                            vals = [sev_counts.get("flag", 0), sev_counts.get("wobbler", 0),
-                                    sev_counts.get("suggestion", 0), sev_counts.get("auditor_note", 0)]
+                            cats = [
+                                "Flags", "Wobblers", "Suggestions", "Notes"]
+                            vals = [
+                                sev_counts.get(
+                                    "flag", 0), sev_counts.get(
+                                    "wobbler", 0), sev_counts.get(
+                                    "suggestion", 0), sev_counts.get(
+                                    "auditor_note", 0)]
                             ax_s = fig.add_axes([0.07, y0, 0.40, h])
-                            ax_s.bar(cats, vals, color=["#ef4444", "#f59e0b", "#10b981", "#9ca3af"])
-                            ax_s.set_title("Findings by Severity", fontsize=font_size + 0.8, color=xtick)
+                            ax_s.bar(
+                                cats,
+                                vals,
+                                color=[
+                                    "#ef4444",
+                                    "#f59e0b",
+                                    "#10b981",
+                                    "#9ca3af"])
+                            ax_s.set_title(
+                                "Findings by Severity",
+                                fontsize=font_size + 0.8,
+                                color=xtick)
                             ax_s.set_facecolor(ax_face)
                             for lab in ax_s.get_xticklabels():
                                 lab.set_fontsize(font_size)
@@ -1588,7 +1967,8 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
                             vals = [cat_counts[c] for c in cats]
                             ax_c = fig.add_axes([0.55, y0, 0.38, h])
                             ax_c.bar(cats, vals, color="#60a5fa")
-                            ax_c.set_title("Top Categories", fontsize=font_size + 0.8, color=xtick)
+                            ax_c.set_title(
+                                "Top Categories", fontsize=font_size + 0.8, color=xtick)
                             ax_c.set_facecolor(ax_face)
                             for lab in ax_c.get_xticklabels():
                                 lab.set_fontsize(font_size)
@@ -1609,14 +1989,37 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
         return False
 
 
+def export_feedback_csv(dest_csv: str) -> bool:
+    """Exports the user feedback data to a CSV file."""
+    try:
+        with _get_db_connection() as conn:
+            df = pd.read_sql_query("SELECT * FROM reviewed_findings", conn)
+        if df.empty:
+            return False
+        os.makedirs(os.path.dirname(dest_csv), exist_ok=True)
+        df.to_csv(dest_csv, index=False, encoding="utf-8")
+        return True
+    except Exception as e:
+        logger.error(f"export_feedback_csv failed: {e}")
+        return False
+
+
 # --- Analytics export fix ---
 def export_analytics_csv(dest_csv: str) -> bool:
     try:
         with _get_db_connection() as conn:
-            runs = pd.read_sql_query("SELECT * FROM analysis_runs ORDER BY run_time DESC", conn)
-            issues = pd.read_sql_query("SELECT run_id, severity, category, confidence FROM analysis_issues", conn)
-        agg = issues.groupby(["run_id", "severity"]).size().unstack(fill_value=0).reset_index()
-        df = runs.merge(agg, left_on="id", right_on="run_id", how="left").drop(columns=["run_id"])
+            runs = pd.read_sql_query(
+                "SELECT * FROM analysis_runs ORDER BY run_time DESC", conn)
+            issues = pd.read_sql_query(
+                "SELECT run_id, severity, category, confidence FROM analysis_issues", conn)
+        agg = issues.groupby(["run_id", "severity"]).size().unstack(
+            fill_value=0).reset_index()
+        df = runs.merge(
+            agg,
+            left_on="id",
+            right_on="run_id",
+            how="left").drop(
+            columns=["run_id"])
         os.makedirs(os.path.dirname(dest_csv), exist_ok=True)
         df.to_csv(dest_csv, index=False, encoding="utf-8")
         return True
@@ -1627,33 +2030,57 @@ def export_analytics_csv(dest_csv: str) -> bool:
 
 def export_report_fhir_json(data: dict, fhir_path: str) -> bool:
     try:
-        # Check if the dummy classes are being used, which indicates fhir.resources is not installed.
-        if 'Bundle' in globals() and not hasattr(globals()['Bundle'], 'construct'):
-             logger.error("fhir.resources library not found. Please install it to use FHIR export.")
-             QMessageBox.warning(None, "FHIR Library Not Found", "The 'fhir.resources' library is required for FHIR export. Please install it (`pip install fhir.resources`).")
-             return False
+        # Check if the dummy classes are being used, which indicates
+        # fhir.resources is not installed.
+        if 'Bundle' in globals() and not hasattr(
+                globals()['Bundle'], 'construct'):
+            logger.error(
+                "fhir.resources library not found. Please install it to use FHIR export.")
+            QMessageBox.warning(
+                None,
+                "FHIR Library Not Found",
+                "The 'fhir.resources' library is required for FHIR export. Please install it (`pip install fhir.resources`).")
+            return False
 
         bundle = Bundle(type="collection", entry=[])
 
         report = DiagnosticReport(
             status="final",
-            meta=Meta(profile=["http://hl7.org/fhir/us/core/StructureDefinition/us-core-diagnosticreport-note"]),
-            code=CodeableConcept(coding=[Coding(system="http://loinc.org", code="LP296840-5", display="Clinical Note Analysis")]),
-            subject=Reference(display="Anonymous Patient"),
-            effectiveDateTime=data.get("generated", _now_iso()),
-            issued=data.get("generated", _now_iso()),
-            performer=[Reference(display="Spec Kit Analyzer")],
-            conclusion=f"Compliance Score: {data.get('compliance', {}).get('score', 0.0)}/100.0"
-        )
+            meta=Meta(
+                profile=["http://hl7.org/fhir/us/core/StructureDefinition/us-core-diagnosticreport-note"]),
+            code=CodeableConcept(
+                coding=[
+                    Coding(
+                        system="http://loinc.org",
+                        code="LP296840-5",
+                        display="Clinical Note Analysis")]),
+            subject=Reference(
+                display="Anonymous Patient"),
+            effectiveDateTime=data.get(
+                "generated",
+                _now_iso()),
+            issued=data.get(
+                "generated",
+                _now_iso()),
+            performer=[
+                Reference(
+                    display="Spec Kit Analyzer")],
+            conclusion=f"Compliance Score: {
+                data.get(
+                    'compliance',
+                    {}).get(
+                    'score',
+                    0.0)}/100.0")
 
         # We need a stable, unique ID to reference the report within the bundle
         report.id = "diagnostic-report-1"
         report_ref = f"DiagnosticReport/{report.id}"
-        bundle.entry.append({"fullUrl": f"urn:uuid:{report.id}", "resource": report})
+        bundle.entry.append(
+            {"fullUrl": f"urn:uuid:{report.id}", "resource": report})
 
         for i, issue in enumerate(data.get("issues", [])):
             obs = Observation(
-                id=f"observation-{i+1}",
+                id=f"observation-{i + 1}",
                 status="final",
                 partOf=[Reference(reference=report_ref)],
                 code=CodeableConcept(coding=[Coding(
@@ -1669,7 +2096,8 @@ def export_report_fhir_json(data: dict, fhir_path: str) -> bool:
                     display=str(issue.get("severity"))
                 )])]
             )
-            bundle.entry.append({"fullUrl": f"urn:uuid:{obs.id}", "resource": obs})
+            bundle.entry.append(
+                {"fullUrl": f"urn:uuid:{obs.id}", "resource": obs})
 
         os.makedirs(os.path.dirname(fhir_path), exist_ok=True)
         with open(fhir_path, "w", encoding="utf-8") as f:
@@ -1695,10 +2123,15 @@ def get_similarity_threshold() -> float:
             return float(raw)
         except Exception:
             ...
-    return float(DEDUP_DEFAULTS.get(CURRENT_REVIEW_MODE, {"threshold": 0.50})["threshold"])
+    return float(
+        DEDUP_DEFAULTS.get(
+            CURRENT_REVIEW_MODE, {
+                "threshold": 0.50})["threshold"])
 
 
-def _generate_risk_dashboard(compliance_score: float, sev_counts: dict) -> list[str]:
+def _generate_risk_dashboard(
+        compliance_score: float,
+        sev_counts: dict) -> list[str]:
     lines = ["--- Risk Dashboard ---"]
     score = compliance_score
     flags = sev_counts.get("flag", 0)
@@ -1722,7 +2155,10 @@ def _generate_risk_dashboard(compliance_score: float, sev_counts: dict) -> list[
     lines.append("")
     return lines
 
-def _generate_compliance_checklist(strengths: list[str], weaknesses: list[str]) -> list[str]:
+
+def _generate_compliance_checklist(
+        strengths: list[str],
+        weaknesses: list[str]) -> list[str]:
     lines = ["<h3>Compliance Checklist</h3>"]
 
     checklist_items = {
@@ -1730,8 +2166,7 @@ def _generate_compliance_checklist(strengths: list[str], weaknesses: list[str]) 
         "Measurable Goals": "Goals appear to be measurable",
         "Medical Necessity": "Medical necessity is explicitly discussed",
         "Assistant Supervision": "Assistant involvement includes supervision context",
-        "Plan/Certification": "Plan/certification is referenced"
-    }
+        "Plan/Certification": "Plan/certification is referenced"}
 
     def get_status_icon(key, text):
         if any(text in s for s in strengths):
@@ -1748,7 +2183,8 @@ def _generate_compliance_checklist(strengths: list[str], weaknesses: list[str]) 
     lines.append("<table>")
     for key, text in checklist_items.items():
         icon = get_status_icon(key, text)
-        lines.append(f"<tr><td style='padding-right: 10px;'>{icon}</td><td>{key}</td></tr>")
+        lines.append(
+            f"<tr><td style='padding-right: 10px;'>{icon}</td><td>{key}</td></tr>")
     lines.append("</table>")
 
     lines.append("")
@@ -1779,7 +2215,12 @@ def run_analyzer(self, file_path: str,
             except Exception:
                 ...
 
-    result_info = {"csv": None, "html": None, "json": None, "pdf": None, "summary": None}
+    result_info = {
+        "csv": None,
+        "html": None,
+        "json": None,
+        "pdf": None,
+        "summary": None}
     try:
         set_bool_setting("last_analysis_from_cache", False)
         if not file_path or not os.path.isfile(file_path):
@@ -1788,16 +2229,20 @@ def run_analyzer(self, file_path: str,
         logger.info(f"Analyzing: {file_path}")
         report(5, "Initializing settings")
 
-        scrub_enabled = scrub_override if scrub_override is not None else get_bool_setting("scrub_phi", True)
+        scrub_enabled = scrub_override if scrub_override is not None else get_bool_setting(
+            "scrub_phi", True)
         if scrub_override is not None:
             set_bool_setting("scrub_phi", scrub_override)
 
         global CURRENT_REVIEW_MODE
         if review_mode_override in ("Moderate", "Strict"):
-            CURRENT_REVIEW_MODE = review_mode_override  # type: ignore[assignment]
+            # type: ignore[assignment]
+            CURRENT_REVIEW_MODE = review_mode_override
 
         threshold = get_similarity_threshold()
-        dedup_method = (dedup_method_override or get_str_setting("dedup_method", "tfidf")).lower()
+        dedup_method = (
+            dedup_method_override or get_str_setting(
+                "dedup_method", "tfidf")).lower()
         if dedup_method_override:
             set_str_setting("dedup_method", dedup_method)
 
@@ -1808,7 +2253,10 @@ def run_analyzer(self, file_path: str,
 
         allow_cache = get_bool_setting("allow_cache", True)
         fp = _file_fingerprint(file_path)
-        sp = _settings_fingerprint(scrub_enabled, CURRENT_REVIEW_MODE, dedup_method)
+        sp = _settings_fingerprint(
+            scrub_enabled,
+            CURRENT_REVIEW_MODE,
+            dedup_method)
 
         if allow_cache and fp and sp:
             cached = _load_cached_outputs(fp, sp)
@@ -1821,13 +2269,15 @@ def run_analyzer(self, file_path: str,
         check_cancel()
         report(10, "Parsing document")
         original = parse_document_content(file_path)
-        if len(original) == 1 and original[0][0].startswith(("Error:", "Info:")):
+        if len(original) == 1 and original[0][0].startswith(
+                ("Error:", "Info:")):
             logger.warning(f"{original[0][1]}: {original[0][0]}")
             return result_info
 
         check_cancel()
         report(30, "Scrubbing PHI" if scrub_enabled else "Skipping PHI scrubbing")
-        processed = [(scrub_phi(t) if scrub_enabled else t, s) for (t, s) in original]
+        processed = [(scrub_phi(t) if scrub_enabled else t, s)
+                     for (t, s) in original]
 
         check_cancel()
         report(50, f"Reducing near-duplicates ({dedup_method})")
@@ -1852,8 +2302,11 @@ def run_analyzer(self, file_path: str,
         report(70, "Analyzing compliance")
         full_text = "\n".join(t for t, _ in collapsed)
         strict_flag = (CURRENT_REVIEW_MODE == "Strict")
-        issues_base = _audit_from_rubric(full_text, selected_disciplines, strict=strict_flag)
-        issues_scored = _score_issue_confidence(_attach_issue_citations(issues_base, collapsed), collapsed)
+        issues_base = _audit_from_rubric(
+            full_text, selected_disciplines, strict=strict_flag)
+        issues_scored = _score_issue_confidence(
+            _attach_issue_citations(
+                issues_base, collapsed), collapsed)
 
         # Add location data to each issue based on its first citation
         full_text_for_loc = "\n".join(t for t, _ in collapsed)
@@ -1864,16 +2317,20 @@ def run_analyzer(self, file_path: str,
                 try:
                     start_index = full_text_for_loc.index(cite_text)
                     end_index = start_index + len(cite_text)
-                    issue['location'] = {'start': start_index, 'end': end_index}
+                    issue['location'] = {
+                        'start': start_index, 'end': end_index}
                 except ValueError:
                     # Citation might not be an exact substring, ignore for now.
                     issue['location'] = None
 
-        sev_order = {"flag": 0, "wobbler": 1, "suggestion": 2, "auditor_note": 3}
+        sev_order = {
+            "flag": 0,
+            "wobbler": 1,
+            "suggestion": 2,
+            "auditor_note": 3}
         issues_scored.sort(key=lambda x: (sev_order.get(str(x.get("severity")), 9),
                                           str(x.get("category", "")),
                                           str(x.get("title", ""))))
-
 
         # I'll inject the details into the issue object itself for easier rendering later.
         # This is not in the original code, but it's a good refactoring.
@@ -1892,25 +2349,39 @@ def run_analyzer(self, file_path: str,
                     prediction_fn = _get_shap_prediction_wrapper(rule_title)
 
                     # Use the first citation as the text to explain
-                    text_to_explain = issue["citations"][0][0].replace("<b>", "").replace("</b>", "")
+                    text_to_explain = issue["citations"][0][0].replace(
+                        "<b>", "").replace("</b>", "")
 
                     # Create a SHAP explainer
-                    explainer = shap.Explainer(prediction_fn, shap.maskers.Text(r"\W+"))
+                    explainer = shap.Explainer(
+                        prediction_fn, shap.maskers.Text(r"\W+"))
 
                     # Generate SHAP values
                     shap_values = explainer([text_to_explain])
 
-                    # Store the explanation object to be used later for visualization
+                    # Store the explanation object to be used later for
+                    # visualization
                     issue['shap_explanation'] = shap_values
 
                 except Exception as e:
-                    logger.warning(f"SHAP explanation failed for issue '{issue.get('title')}': {e}")
+                    logger.warning(
+                        f"SHAP explanation failed for issue '{
+                            issue.get('title')}': {e}")
         # --- End SHAP Integration ---
 
         # --- NLG Integration ---
         nlg_service = NLGService()
         for issue in issues_scored:
-            prompt = f"Generate a brief, actionable tip for a physical therapist to address this finding: {issue.get('title', '')} ({issue.get('severity', '')}) - {issue.get('detail', '')}"
+            prompt = f"Generate a brief, actionable tip for a physical therapist to address this finding: {
+                issue.get(
+                    'title',
+                    '')} ({
+                issue.get(
+                    'severity',
+                    '')}) - {
+                issue.get(
+                    'detail',
+                    '')}"
             tip = nlg_service.generate_tip(prompt)
             issue['nlg_tip'] = tip
         # --- End NLG Integration ---
@@ -1954,49 +2425,74 @@ def run_analyzer(self, file_path: str,
             }
         }
         for issue in issues_scored:
-            issue['details'] = issue_details_map.get(issue.get('title', ''), {})
+            issue['details'] = issue_details_map.get(
+                issue.get('title', ''), {})
 
         # --- Guideline Search Integration ---
         if self.guideline_service and self.guideline_service.is_index_ready:
             self.log("Searching for relevant guidelines for each finding...")
             for issue in issues_scored:
                 query = f"{issue.get('title', '')}: {issue.get('detail', '')}"
-                guideline_results = self.guideline_service.search(query, top_k=2)
+                guideline_results = self.guideline_service.search(
+                    query, top_k=2)
                 issue['guidelines'] = guideline_results
         # --- End Guideline Search Integration ---
 
-        pages_est = len({s for _, s in collapsed if s.startswith("Page ")}) or 1
+        pages_est = len(
+            {s for _, s in collapsed if s.startswith("Page ")}) or 1
 
         strengths, weaknesses, missing = [], [], []
         tl = full_text.lower()
         if any(k in tl for k in ("signed", "signature", "dated")):
-            strengths.append("Provider authentication (signature/date) appears to be present.")
+            strengths.append(
+                "Provider authentication (signature/date) appears to be present.")
         else:
-            weaknesses.append("Provider authentication (signature/date) unclear or missing.")
+            weaknesses.append(
+                "Provider authentication (signature/date) unclear or missing.")
             missing.append("Signatures/Dates")
 
-        if "goal" in tl and any(k in tl for k in ("measurable", "time", "timed", "by ")):
-            strengths.append("Goals appear to be measurable and time-bound, with baseline/targets.")
+        if "goal" in tl and any(
+            k in tl for k in (
+                "measurable",
+                "time",
+                "timed",
+                "by ")):
+            strengths.append(
+                "Goals appear to be measurable and time-bound, with baseline/targets.")
         elif "goal" in tl:
-            weaknesses.append("Goals present but may not be measurable/time-bound.")
+            weaknesses.append(
+                "Goals present but may not be measurable/time-bound.")
             missing.append("Measurable/Time-bound Goals")
 
-        if any(k in tl for k in ("medical necessity", "reasonable and necessary", "necessity")):
+        if any(
+            k in tl for k in (
+                "medical necessity",
+                "reasonable and necessary",
+                "necessity")):
             strengths.append("Medical necessity is explicitly discussed.")
         else:
-            weaknesses.append("Medical necessity not explicitly supported throughout the documentation.")
+            weaknesses.append(
+                "Medical necessity not explicitly supported throughout the documentation.")
             missing.append("Medical Necessity")
 
         if "assistant" in tl and "supervis" in tl:
-            strengths.append("Assistant involvement includes supervision context.")
+            strengths.append(
+                "Assistant involvement includes supervision context.")
         elif "assistant" in tl:
-            weaknesses.append("Assistant activity present; supervision/oversight context is not clearly documented.")
+            weaknesses.append(
+                "Assistant activity present; supervision/oversight context is not clearly documented.")
             missing.append("Assistant Supervision Context")
 
-        if any(k in tl for k in ("plan of care", "poc", "certification", "recert")):
+        if any(
+            k in tl for k in (
+                "plan of care",
+                "poc",
+                "certification",
+                "recert")):
             strengths.append("Plan/certification is referenced in the record.")
         else:
-            weaknesses.append("Plan/certification not clearly referenced with dates and signatures.")
+            weaknesses.append(
+                "Plan/certification not clearly referenced with dates and signatures.")
             missing.append("Plan/Certification Reference")
 
         sev_counts = {
@@ -2007,30 +2503,12 @@ def run_analyzer(self, file_path: str,
         }
         cat_counts = count_categories(issues_scored)
 
-        def compute_compliance_score(issues: list[dict], strengths_in: list[str], missing_in: list[str],
-                                     mode: ReviewMode) -> dict:
-            flags = sum(1 for i in issues if i.get("severity") == "flag")
-            wob = sum(1 for i in issues if i.get("severity") == "wobbler")
-            sug = sum(1 for i in issues if i.get("severity") == "suggestion")
-            base = 100.0
-            if mode == "Strict":
-                base -= flags * 6.0
-                base -= wob * 3.0
-                base -= sug * 1.5
-                base -= len(missing_in) * 4.0
-            else:
-                base -= flags * 4.0
-                base -= wob * 2.0
-                base -= sug * 1.0
-                base -= len(missing_in) * 2.5
-            base += min(5.0, len(strengths_in) * 0.5)
-            score = max(0.0, min(100.0, base))
-            breakdown = f"Flags={flags}, Wobblers={wob}, Suggestions={sug}, Missing={len(missing_in)}, Strengths={len(strengths_in)}; Mode={mode}"
-            return {"score": round(score, 1), "breakdown": breakdown}
+        compliance = compute_compliance_score(
+            issues_scored, strengths, missing, CURRENT_REVIEW_MODE)
 
-        compliance = compute_compliance_score(issues_scored, strengths, missing, CURRENT_REVIEW_MODE)
-
-        trends = _compute_recent_trends(max_runs=get_int_setting("trends_window", 10))
+        trends = _compute_recent_trends(
+            max_runs=get_int_setting(
+                "trends_window", 10))
 
         def _risk_level(score: float, flags: int) -> tuple[str, str]:
             if score >= 90 and flags == 0:
@@ -2039,25 +2517,26 @@ def run_analyzer(self, file_path: str,
                 return ("Medium", "#f59e0b")
             return ("High", "#ef4444")
 
-        risk_label, risk_color = _risk_level(float(compliance["score"]), sev_counts["flag"])
+        risk_label, risk_color = _risk_level(
+            float(compliance["score"]), sev_counts["flag"])
 
         tips = []
         if sev_counts["flag"] > 0:
-            tips.append("Resolve flags first (signatures/dates, plan/certification), then clarify grey areas.")
+            tips.append(
+                "Resolve flags first (signatures/dates, plan/certification), then clarify grey areas.")
         if "Medical Necessity" in missing:
-            tips.append("Tie each skilled intervention to functional limitations and expected outcomes.")
+            tips.append(
+                "Tie each skilled intervention to functional limitations and expected outcomes.")
         if "Measurable/Time-bound Goals" in missing:
-            tips.append("Rewrite goals to include baselines, specific targets, and timelines.")
+            tips.append(
+                "Rewrite goals to include baselines, specific targets, and timelines.")
         if not strengths:
-            tips.append("Increase specificity with objective measures and clear clinical reasoning.")
+            tips.append(
+                "Increase specificity with objective measures and clear clinical reasoning.")
 
-        try:
-            with _get_db_connection() as conn:
-                pass
-        except Exception:
-            ...
-
-        def _load_last_snapshot(file_fp: str, settings_fp: str) -> Optional[dict]:
+        def _load_last_snapshot(
+                file_fp: str,
+                settings_fp: str) -> Optional[dict]:
             try:
                 with _get_db_connection() as conn:
                     cur = conn.cursor()
@@ -2075,7 +2554,10 @@ def run_analyzer(self, file_path: str,
             except Exception:
                 return None
 
-        def _save_snapshot(file_fp: str, settings_fp: str, payload: dict) -> None:
+        def _save_snapshot(
+                file_fp: str,
+                settings_fp: str,
+                payload: dict) -> None:
             try:
                 with _get_db_connection() as conn:
                     cur = conn.cursor()
@@ -2131,8 +2613,13 @@ def run_analyzer(self, file_path: str,
             }
 
         narrative_lines = []
-        narrative_lines.extend(_generate_risk_dashboard(compliance['score'], sev_counts))
-        narrative_lines.extend(_generate_compliance_checklist(strengths, weaknesses))
+        narrative_lines.extend(
+            _generate_risk_dashboard(
+                compliance['score'],
+                sev_counts))
+        narrative_lines.extend(
+            _generate_compliance_checklist(
+                strengths, weaknesses))
 
         narrative_lines.append("--- Detailed Findings ---")
         if issues_scored:
@@ -2184,10 +2671,14 @@ def run_analyzer(self, file_path: str,
                 if details:
                     action_text = it.get("nlg_tip") or details.get("action")
                     if action_text:
-                        narrative_lines.append(f"  - Recommended Action: {action_text}")
-                    narrative_lines.append(f"  - Why it matters: {details['why']}")
-                    narrative_lines.append(f"  - Good Example: {details['good_example']}")
-                    narrative_lines.append(f"  - Bad Example: {details['bad_example']}")
+                        narrative_lines.append(
+                            f"  - Recommended Action: {action_text}")
+                    narrative_lines.append(
+                        f"  - Why it matters: {details['why']}")
+                    narrative_lines.append(
+                        f"  - Good Example: {details['good_example']}")
+                    narrative_lines.append(
+                        f"  - Bad Example: {details['bad_example']}")
 
                 cites = it.get("citations") or []
                 if cites:
@@ -2199,14 +2690,19 @@ def run_analyzer(self, file_path: str,
                         narrative_lines.append(f"    - [{src}] “{q}”")
                 narrative_lines.append("")
         else:
-            narrative_lines.append("No specific audit findings were identified.")
+            narrative_lines.append(
+                "No specific audit findings were identified.")
 
         narrative_lines.append("")
         narrative_lines.append("--- General Recommendations ---")
-        narrative_lines.append(" • Consistency is key. Ensure all notes follow a standard format.")
-        narrative_lines.append(" • Be specific and objective. Use numbers and standardized tests to measure progress.")
-        narrative_lines.append(" • Always link treatment to function. Explain how the therapy helps the patient achieve their functional goals.")
-        narrative_lines.append(" • Tell a story. The documentation should paint a clear picture of the patient's journey from evaluation to discharge.")
+        narrative_lines.append(
+            " • Consistency is key. Ensure all notes follow a standard format.")
+        narrative_lines.append(
+            " • Be specific and objective. Use numbers and standardized tests to measure progress.")
+        narrative_lines.append(
+            " • Always link treatment to function. Explain how the therapy helps the patient achieve their functional goals.")
+        narrative_lines.append(
+            " • Tell a story. The documentation should paint a clear picture of the patient's journey from evaluation to discharge.")
         narrative_lines.append("")
 
         # --- Generate and add suggested questions ---
@@ -2221,13 +2717,20 @@ def run_analyzer(self, file_path: str,
         narrative_lines.append("--- Trends & Analytics (Last 10 Runs) ---")
         if trends.get("recent_scores"):
             sc = trends["recent_scores"]
-            narrative_lines.append(f" • Recent scores (oldest→newest): {', '.join(str(round(s, 1)) for s in sc)}")
             narrative_lines.append(
-                f" • Score delta: {trends['score_delta']:+.1f} | Average score: {trends['avg_score']:.1f}")
+                f" • Recent scores (oldest→newest): {', '.join(str(round(s, 1)) for s in sc)}")
             narrative_lines.append(
-                f" • Avg Flags: {trends['avg_flags']:.2f} | Avg Wobblers: {trends['avg_wobblers']:.2f} | Avg Suggestions: {trends['avg_suggestions']:.2f}")
+                f" • Score delta: {
+                    trends['score_delta']:+.1f} | Average score: {
+                    trends['avg_score']:.1f}")
+            narrative_lines.append(
+                f" • Avg Flags: {
+                    trends['avg_flags']:.2f} | Avg Wobblers: {
+                    trends['avg_wobblers']:.2f} | Avg Suggestions: {
+                    trends['avg_suggestions']:.2f}")
         else:
-            narrative_lines.append(" • Not enough history to compute trends yet.")
+            narrative_lines.append(
+                " • Not enough history to compute trends yet.")
         narrative_lines.append("")
 
         metrics = {
@@ -2243,7 +2746,13 @@ def run_analyzer(self, file_path: str,
         }
 
         try:
-            persist_analysis_run(file_path, _now_iso(), metrics, issues_scored, compliance, CURRENT_REVIEW_MODE)
+            persist_analysis_run(
+                file_path,
+                _now_iso(),
+                metrics,
+                issues_scored,
+                compliance,
+                CURRENT_REVIEW_MODE)
         except Exception:
             ...
         try:
@@ -2261,48 +2770,58 @@ def run_analyzer(self, file_path: str,
         pdf_path, csv_path = generate_report_paths()
         json_path = pdf_path[:-4] + ".json"
 
-        try:
-            export_report_json({
-                "json_schema_version": 6,
-                "report_template_version": REPORT_TEMPLATE_VERSION,
-                "file": file_path,
-                "generated": _now_iso(),
-                "scrub_phi": scrub_enabled,
-                "review_mode": CURRENT_REVIEW_MODE,
-                "dup_threshold": threshold,
-                "dedup_method": dedup_method,
-                "metrics": metrics,
-                "summary": summary,
-                "issues": issues_scored,
-                "strengths": strengths,
-                "weaknesses": weaknesses,
-                "missing": missing,
-                "compliance": compliance,
-                "executive_status": ("Pass" if compliance["score"] >= 90 and sev_counts["flag"] == 0
-                                     else "At-Risk" if (compliance["score"] >= 70 and sev_counts["flag"] <= 1)
-                else "Fail"),
-                "change_summary": change_summary,
-                "narrative": "\n".join(narrative_lines),
-                "tips": tips,
-                "report_style": "condensed",
-                "report_include_citations": get_bool_setting("show_citations", True),
-                "pdf_chart_position": get_str_setting("pdf_chart_position", "bottom"),
-                "pdf_chart_theme": get_str_setting("pdf_chart_theme", "dark"),
-                "report_severity_ordering": "flags_first",
-                "clinical_ner_enabled": False,
-                "source_sentences": collapsed,
-                "sev_counts": sev_counts,
-                "cat_counts": cat_counts,
-                "trends": trends,
-                "suggested_questions": suggested_questions,
-            }, json_path)
-            result_info["json"] = json_path
-        except Exception as e:
-            logger.error(f"Failed to write JSON: {e}")
+        report_data = {
+            "json_schema_version": 6,
+            "report_template_version": REPORT_TEMPLATE_VERSION,
+            "file": file_path,
+            "generated": _now_iso(),
+            "scrub_phi": scrub_enabled,
+            "review_mode": CURRENT_REVIEW_MODE,
+            "dup_threshold": threshold,
+            "dedup_method": dedup_method,
+            "metrics": metrics,
+            "summary": summary,
+            "issues": issues_scored,
+            "strengths": strengths,
+            "weaknesses": weaknesses,
+            "missing": missing,
+            "compliance": compliance,
+            "executive_status": ("Pass" if compliance["score"] >= 90 and sev_counts["flag"] == 0
+                                 else "At-Risk" if (compliance["score"] >= 70 and sev_counts["flag"] <= 1)
+                                 else "Fail"),
+            "change_summary": change_summary,
+            "narrative": "\n".join(narrative_lines),
+            "tips": tips,
+            "report_style": "condensed",
+            "report_include_citations": get_bool_setting("show_citations", True),
+            "pdf_chart_position": get_str_setting("pdf_chart_position", "bottom"),
+            "pdf_chart_theme": get_str_setting("pdf_chart_theme", "dark"),
+            "report_severity_ordering": "flags_first",
+            "clinical_ner_enabled": False,
+            "source_sentences": collapsed,
+            "sev_counts": sev_counts,
+            "cat_counts": cat_counts,
+            "trends": trends,
+            "suggested_questions": suggested_questions,
+        }
+
+        # Validate the report data against the schema before exporting
+        report_schema = _load_report_schema()
+        if report_schema and not _validate_report_data(report_data, report_schema):
+            logger.error("Report data failed validation. JSON will not be written.")
+        else:
+            try:
+                export_report_json(report_data, json_path)
+                result_info["json"] = json_path
+            except Exception as e:
+                logger.error(f"Failed to write JSON: {e}")
 
         try:
-            meta = {"file_name": os.path.basename(file_path), "run_time": _now_iso(),
-                    "risk_label": risk_label, "risk_color": risk_color}
+            meta = {
+                "file_name": os.path.basename(file_path),
+                "run_time": _now_iso(),
+                "risk_label": risk_label,
+                "risk_color": risk_color}
             export_report_pdf(
                 lines=narrative_lines,
                 pdf_path=pdf_path,
@@ -2342,9 +2861,13 @@ def run_analyzer(self, file_path: str,
 
         if allow_cache and fp and sp:
             try:
-                _save_cached_outputs(fp, sp, {"csv": result_info["csv"], "html": result_info["html"],
-                                              "json": result_info["json"], "pdf": result_info["pdf"],
-                                              "summary": result_info["summary"]})
+                _save_cached_outputs(fp,
+                                     sp,
+                                     {"csv": result_info["csv"],
+                                      "html": result_info["html"],
+                                         "json": result_info["json"],
+                                         "pdf": result_info["pdf"],
+                                         "summary": result_info["summary"]})
             except Exception:
                 ...
         try:
@@ -2383,7 +2906,7 @@ class MainWindow(QMainWindow):
         try:
             self.setMinimumSize(1000, 700)
         except Exception:
-            ...
+            pass
         self._current_report_path: Optional[str] = None
         self._last_error: Optional[str] = None
         self._batch_cancel = False
@@ -2397,28 +2920,28 @@ class MainWindow(QMainWindow):
         try:
             tb.setMovable(False)
         except Exception:
-            ...
+            pass
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
 
         act_open = QAction("Open File...", self)
-        act_open.triggered.connect(self.action_open_report)  # type: ignore[attr-defined]
+        act_open.triggered.connect(self.action_open_report)
         tb.addAction(act_open)
 
         act_analyze = QAction("Analyze", self)
-        act_analyze.triggered.connect(self.action_analyze_combined)  # type: ignore[attr-defined]
+        act_analyze.triggered.connect(self.action_analyze_combined)
         tb.addAction(act_analyze)
 
         act_logs = QAction("Open Logs Folder", self)
-        act_logs.triggered.connect(self.action_open_logs)  # type: ignore[attr-defined]
+        act_logs.triggered.connect(self.action_open_logs)
         tb.addAction(act_logs)
 
         act_analytics = QAction("Export Analytics CSV", self)
-        act_analytics.triggered.connect(lambda: self._export_analytics_csv())  # type: ignore[attr-defined]
+        act_analytics.triggered.connect(lambda: self._export_analytics_csv())
         tb.addAction(act_analytics)
 
         act_settings = QAction("Settings", self)
         act_settings.triggered.connect(
-            lambda: (_show_settings_dialog(self), self.reapply_theme()))  # type: ignore[attr-defined]
+            lambda: (_show_settings_dialog(self), self.reapply_theme()))
         tb.addAction(act_settings)
 
         act_admin_settings = QAction("Admin Settings...", self)
@@ -2426,7 +2949,7 @@ class MainWindow(QMainWindow):
         tb.addAction(act_admin_settings)
 
         act_exit = QAction("Exit", self)
-        act_exit.triggered.connect(self.close)  # type: ignore[attr-defined]
+        act_exit.triggered.connect(self.close)
         tb.addAction(act_exit)
 
         tb.addSeparator()
@@ -2436,7 +2959,8 @@ class MainWindow(QMainWindow):
         tb.addAction(act_export_feedback)
 
         act_analyze_performance = QAction("Analyze Performance", self)
-        act_analyze_performance.triggered.connect(self.action_analyze_performance)
+        act_analyze_performance.triggered.connect(
+            self.action_analyze_performance)
         tb.addAction(act_analyze_performance)
 
         central = QWidget()
@@ -2445,7 +2969,6 @@ class MainWindow(QMainWindow):
         vmain.setContentsMargins(12, 12, 12, 12)
         vmain.setSpacing(14)
 
-        # --- Create Tab Widget and Tabs ---
         self.tabs = QTabWidget()
         setup_tab = QWidget()
         results_tab = QWidget()
@@ -2455,14 +2978,15 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(results_tab, "Analysis Results")
         self.tabs.addTab(logs_tab, "Application Logs")
 
-        # --- Analytics Tab ---
         analytics_tab = QWidget()
         self.tabs.addTab(analytics_tab, "Analytics Dashboard")
         analytics_layout = QVBoxLayout(analytics_tab)
 
         analytics_controls = QHBoxLayout()
         btn_refresh_analytics = QPushButton("Refresh Analytics")
-        self._style_action_button(btn_refresh_analytics, font_size=11, bold=True, height=32)
+        self._style_action_button(
+            btn_refresh_analytics, font_size=11, bold=True, height=32
+        )
         try:
             btn_refresh_analytics.clicked.connect(self._update_analytics_tab)
         except Exception:
@@ -2471,7 +2995,6 @@ class MainWindow(QMainWindow):
         analytics_controls.addStretch(1)
         analytics_layout.addLayout(analytics_controls)
 
-        # Matplotlib chart
         self.analytics_figure = Figure(figsize=(5, 3))
         self.analytics_canvas = FigureCanvas(self.analytics_figure)
         analytics_layout.addWidget(self.analytics_canvas)
@@ -2508,7 +3031,8 @@ class MainWindow(QMainWindow):
         self.btn_upload_rubric = QPushButton("Upload Rubric")
         self.btn_manage_rubrics = QPushButton("Manage Rubrics")
         for b in (self.btn_upload_rubric, self.btn_manage_rubrics):
-            self._style_action_button(b, font_size=11, bold=True, height=32, padding="6px 10px")
+            self._style_action_button(
+                b, font_size=11, bold=True, height=32, padding="6px 10px")
             row_rubric_btns.addWidget(b)
         row_rubric_btns.addStretch(1)
 
@@ -2537,7 +3061,8 @@ class MainWindow(QMainWindow):
         discipline_layout.addWidget(self.chk_all_disciplines)
 
         try:
-            self.chk_all_disciplines.stateChanged.connect(self._toggle_all_disciplines)
+            self.chk_all_disciplines.stateChanged.connect(
+                self._toggle_all_disciplines)
             self.chk_pt.stateChanged.connect(self._update_all_checkbox_state)
             self.chk_ot.stateChanged.connect(self._update_all_checkbox_state)
             self.chk_slp.stateChanged.connect(self._update_all_checkbox_state)
@@ -2553,7 +3078,7 @@ class MainWindow(QMainWindow):
         rubric_layout.addWidget(self.lbl_rubric_file)
 
         self.txt_rubric = QTextEdit()
-        self.txt_rubric.setVisible(False) # Not shown in main UI
+        self.txt_rubric.setVisible(False)  # Not shown in main UI
 
         top_setup_layout.addWidget(rubric_panel)
 
@@ -2565,7 +3090,8 @@ class MainWindow(QMainWindow):
         self.btn_upload_report = QPushButton("Open File")
         self.btn_upload_folder = QPushButton("Open Folder")
         for b in (self.btn_upload_report, self.btn_upload_folder):
-            self._style_action_button(b, font_size=11, bold=True, height=32, padding="6px 10px")
+            self._style_action_button(
+                b, font_size=11, bold=True, height=32, padding="6px 10px")
             row_report_btns.addWidget(b)
         row_report_btns.addStretch(1)
 
@@ -2593,10 +3119,26 @@ class MainWindow(QMainWindow):
         self.btn_cancel_batch = QPushButton("Cancel Batch")
         self.btn_remove_file = QPushButton("Remove Selected")
         self.btn_clear_all = QPushButton("Clear Queue")
-        self._style_action_button(self.btn_analyze_all, font_size=11, bold=True, height=32)
-        self._style_action_button(self.btn_cancel_batch, font_size=11, bold=True, height=32)
-        self._style_action_button(self.btn_remove_file, font_size=11, bold=True, height=32)
-        self._style_action_button(self.btn_clear_all, font_size=11, bold=True, height=32)
+        self._style_action_button(
+            self.btn_analyze_all,
+            font_size=11,
+            bold=True,
+            height=32)
+        self._style_action_button(
+            self.btn_cancel_batch,
+            font_size=11,
+            bold=True,
+            height=32)
+        self._style_action_button(
+            self.btn_remove_file,
+            font_size=11,
+            bold=True,
+            height=32)
+        self._style_action_button(
+            self.btn_clear_all,
+            font_size=11,
+            bold=True,
+            height=32)
 
         queue_actions_layout.addWidget(self.btn_analyze_all)
         queue_actions_layout.addWidget(self.btn_cancel_batch)
@@ -2622,12 +3164,13 @@ class MainWindow(QMainWindow):
 
         # Right side: Full Note Text
         self.txt_full_note = QTextEdit()
-        self.txt_full_note.setPlaceholderText("Full note text will appear here after analysis.")
+        self.txt_full_note.setPlaceholderText(
+            "Full note text will appear here after analysis.")
         self.txt_full_note.setReadOnly(True)
 
         results_splitter.addWidget(self.txt_chat)
         results_splitter.addWidget(self.txt_full_note)
-        results_splitter.setSizes([400, 600]) # Initial sizing
+        results_splitter.setSizes([400, 600])  # Initial sizing
 
         results_layout.addWidget(results_splitter)
 
@@ -2635,13 +3178,20 @@ class MainWindow(QMainWindow):
         logs_layout = QVBoxLayout(logs_tab)
         log_actions_layout = QHBoxLayout()
         self.btn_clear_recent_files = QPushButton("Clear Recent Files History")
-        self._style_action_button(self.btn_clear_recent_files, font_size=11, bold=True, height=28, padding="4px 10px")
+        self._style_action_button(
+            self.btn_clear_recent_files,
+            font_size=11,
+            bold=True,
+            height=28,
+            padding="4px 10px")
         log_actions_layout.addStretch(1)
         log_actions_layout.addWidget(self.btn_clear_recent_files)
 
         self.txt_logs = QTextEdit()
         self.txt_logs.setReadOnly(True)
-        flog = QFont(); flog.setPointSize(11); self.txt_logs.setFont(flog)
+        flog = QFont()
+        flog.setPointSize(11)
+        self.txt_logs.setFont(flog)
 
         logs_layout.addLayout(log_actions_layout)
         logs_layout.addWidget(self.txt_logs)
@@ -2650,7 +3200,8 @@ class MainWindow(QMainWindow):
         vmain.addWidget(self.tabs)
         try:
             self.tabs.currentChanged.connect(self._on_tab_changed)
-        except Exception: pass
+        except Exception:
+            pass
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 100)
@@ -2663,28 +3214,37 @@ class MainWindow(QMainWindow):
         input_row_bottom = QHBoxLayout()
         input_row_bottom.setSpacing(8)
         self.input_query_te = QTextEdit()
-        self.input_query_te.setPlaceholderText("Ask a question about the analysis...")
+        self.input_query_te.setPlaceholderText(
+            "Ask a question about the analysis...")
         self.input_query_te.setFixedHeight(56)
-        self.input_query_te.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        finput = QFont();
+        self.input_query_te.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed)
+        finput = QFont()
         finput.setPointSize(12)
         self.input_query_te.setFont(finput)
         btn_send = QPushButton("Send")
-        fsend = QFont();
-        fsend.setPointSize(13);
+        fsend = QFont()
+        fsend.setPointSize(13)
         fsend.setBold(True)
         btn_send.setFont(fsend)
         btn_send.setMinimumHeight(40)
         btn_send.setStyleSheet("text-align:center; padding:8px 12px;")
         try:
-            btn_send.clicked.connect(self.action_send)  # type: ignore[attr-defined]
+            # type: ignore[attr-defined]
+            btn_send.clicked.connect(self.action_send)
         except Exception:
             ...
         input_row_bottom.addWidget(self.input_query_te, 1)
         input_row_bottom.addWidget(btn_send, 0)
 
         btn_reset = QPushButton("Reset Chat")
-        self._style_action_button(btn_reset, font_size=13, bold=False, height=40, padding="8px 12px")
+        self._style_action_button(
+            btn_reset,
+            font_size=13,
+            bold=False,
+            height=40,
+            padding="8px 12px")
         try:
             btn_reset.clicked.connect(self.action_reset_chat)
         except Exception:
@@ -2701,16 +3261,21 @@ class MainWindow(QMainWindow):
             brand_font = QFont("cursive")
             brand_font.setPointSize(12)
             self.lbl_brand.setFont(brand_font)
-            self.lbl_brand.setStyleSheet("color:#93c5fd; padding-left:8px; font-weight:700;")
+            self.lbl_brand.setStyleSheet(
+                "color:#93c5fd; padding-left:8px; font-weight:700;")
             self.lbl_brand.setToolTip("𝔎𝔢𝔳𝔦𝔫 𝔐𝔬𝔬𝔫")
             self.lbl_err = QLabel(" Status: OK ")
-            self.lbl_err.setStyleSheet("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
+            self.lbl_err.setStyleSheet(
+                "background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
             self.lbl_lm1 = QLabel(" LM A: n/a ")
-            self.lbl_lm1.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
+            self.lbl_lm1.setStyleSheet(
+                "background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
             self.lbl_lm2 = QLabel(" LM B: disabled ")
-            self.lbl_lm2.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
+            self.lbl_lm2.setStyleSheet(
+                "background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
             self.lbl_rag_status = QLabel(" AI: Loading... ")
-            self.lbl_rag_status.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
+            self.lbl_rag_status.setStyleSheet(
+                "background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
             sb.addPermanentWidget(self.lbl_brand)
             sb.addPermanentWidget(self.lbl_rag_status)
             sb.addPermanentWidget(self.lbl_lm1)
@@ -2725,7 +3290,7 @@ class MainWindow(QMainWindow):
             self.lbl_report_name.setText("(No report selected)")
             self.refresh_llm_indicator()
             self.refresh_recent_files()
-            self._update_analytics_tab() # Initial load
+            self._update_analytics_tab()  # Initial load
             self._init_llm_thread()
         except Exception as e:
             self.log(f"Error during initialization: {e}")
@@ -2747,17 +3312,22 @@ class MainWindow(QMainWindow):
 
     def _update_all_checkbox_state(self):
         # This function is triggered when an individual discipline checkbox changes.
-        # It updates the "All" checkbox to be checked, unchecked, or partially checked.
+        # It updates the "All" checkbox to be checked, unchecked, or partially
+        # checked.
 
         # Block signals on the "All" checkbox to prevent recursive calls
         self.chk_all_disciplines.blockSignals(True)
 
-        states = [self.chk_pt.isChecked(), self.chk_ot.isChecked(), self.chk_slp.isChecked()]
+        states = [
+            self.chk_pt.isChecked(),
+            self.chk_ot.isChecked(),
+            self.chk_slp.isChecked()]
 
         if all(states):
             self.chk_all_disciplines.setCheckState(Qt.CheckState.Checked)
         elif any(states):
-            self.chk_all_disciplines.setCheckState(Qt.CheckState.PartiallyChecked)
+            self.chk_all_disciplines.setCheckState(
+                Qt.CheckState.PartiallyChecked)
         else:
             self.chk_all_disciplines.setCheckState(Qt.CheckState.Unchecked)
 
@@ -2775,8 +3345,8 @@ class MainWindow(QMainWindow):
         self.txt_chat.setHtml("")
         self.txt_full_note.setPlainText("")
         self.txt_chat.setPlaceholderText("Analysis summary will appear here.")
-        self.txt_full_note.setPlaceholderText("Full note text will appear here after analysis.")
-
+        self.txt_full_note.setPlaceholderText(
+            "Full note text will appear here after analysis.")
 
     def _auto_select_discipline(self, text_to_analyze: str):
         if not self.local_rag or not self.local_rag.embedding_model:
@@ -2790,17 +3360,20 @@ class MainWindow(QMainWindow):
             prototypes = {
                 "pt": "Physical therapy, gross motor skills, mobility, strength, balance, range of motion, gait training, therapeutic exercise.",
                 "ot": "Occupational therapy, fine motor skills, activities of daily living (ADLs), sensory integration, self-care, functional independence, assistive technology.",
-                "slp": "Speech-language pathology, communication, language, cognition, voice, fluency, dysphagia, swallowing, aphasia, articulation."
-            }
+                "slp": "Speech-language pathology, communication, language, cognition, voice, fluency, dysphagia, swallowing, aphasia, articulation."}
 
             # Create embeddings for the prototype descriptions
-            proto_embeddings = self.local_rag.embedding_model.encode(list(prototypes.values()))
+            proto_embeddings = self.local_rag.embedding_model.encode(
+                list(prototypes.values()))
 
-            # Use the first 500 characters of the document for a quick classification
-            doc_embedding = self.local_rag.embedding_model.encode([text_to_analyze[:500]])
+            # Use the first 500 characters of the document for a quick
+            # classification
+            doc_embedding = self.local_rag.embedding_model.encode(
+                [text_to_analyze[:500]])
 
             # Calculate similarities
-            similarities = cosine_similarity(doc_embedding, proto_embeddings)[0]
+            similarities = cosine_similarity(
+                doc_embedding, proto_embeddings)[0]
 
             best_match_index = np.argmax(similarities)
             best_score = similarities[best_match_index]
@@ -2810,7 +3383,7 @@ class MainWindow(QMainWindow):
             self.chk_ot.setChecked(False)
             self.chk_slp.setChecked(False)
 
-            if best_score > 0.2: # Confidence threshold
+            if best_score > 0.2:  # Confidence threshold
                 best_discipline = list(prototypes.keys())[best_match_index]
                 if best_discipline == "pt":
                     self.chk_pt.setChecked(True)
@@ -2824,7 +3397,6 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             self.log(f"Auto-discipline detection failed: {e}")
-
 
     def _init_llm_thread(self):
         """Initializes and starts the LLM loading worker thread."""
@@ -2844,7 +3416,8 @@ class MainWindow(QMainWindow):
         """Handles the successful loading of the RAG instance."""
         self.local_rag = rag_instance
         self.lbl_rag_status.setText(" AI: Ready ")
-        self.lbl_rag_status.setStyleSheet("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
+        self.lbl_rag_status.setStyleSheet(
+            "background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
         self.log("Local RAG AI is ready.")
         self.llm_thread.quit()
 
@@ -2854,11 +3427,12 @@ class MainWindow(QMainWindow):
         self.guideline_worker = GuidelineWorker(self.local_rag)
         self.guideline_worker.moveToThread(self.guideline_thread)
         self.guideline_thread.started.connect(self.guideline_worker.run)
-        self.guideline_worker.finished.connect(self._on_guideline_load_finished)
+        self.guideline_worker.finished.connect(
+            self._on_guideline_load_finished)
         self.guideline_worker.error.connect(self._on_guideline_load_error)
-        self.guideline_thread.finished.connect(self.guideline_thread.deleteLater)
+        self.guideline_thread.finished.connect(
+            self.guideline_thread.deleteLater)
         self.guideline_thread.start()
-
 
     def _on_guideline_load_finished(self, guideline_service: GuidelineService):
         """Handles the successful loading of the guidelines."""
@@ -2878,7 +3452,8 @@ class MainWindow(QMainWindow):
         """Handles errors during RAG model loading."""
         self.local_rag = None
         self.lbl_rag_status.setText(" AI: Error ")
-        self.lbl_rag_status.setStyleSheet("background:#ef4444; color:#fff; padding:3px 8px; border-radius:12px;")
+        self.lbl_rag_status.setStyleSheet(
+            "background:#ef4444; color:#fff; padding:3px 8px; border-radius:12px;")
         self.log(f"Error loading RAG AI: {error_message}")
         self.llm_thread.quit()
 
@@ -2889,8 +3464,11 @@ class MainWindow(QMainWindow):
     def _fetch_analytics_data(self):
         try:
             with _get_db_connection() as conn:
-                runs = pd.read_sql_query("SELECT run_time, compliance_score, flags FROM analysis_runs ORDER BY run_time ASC", conn)
-                issues = pd.read_sql_query("SELECT category FROM analysis_issues", conn)
+                runs = pd.read_sql_query(
+                    "SELECT run_time, compliance_score, flags FROM analysis_runs ORDER BY run_time ASC",
+                    conn)
+                issues = pd.read_sql_query(
+                    "SELECT category FROM analysis_issues", conn)
             return {"runs": runs, "issues": issues}
         except Exception as e:
             self.log(f"Failed to fetch analytics data: {e}")
@@ -2930,7 +3508,12 @@ class MainWindow(QMainWindow):
         ax = self.analytics_figure.add_subplot(111)
 
         scores = runs_df["compliance_score"].tolist()
-        ax.plot(range(total_runs), scores, marker='o', linestyle='-', label="Compliance Score")
+        ax.plot(
+            range(total_runs),
+            scores,
+            marker='o',
+            linestyle='-',
+            label="Compliance Score")
 
         # Add a trend line
         if total_runs > 1 and np:
@@ -2942,7 +3525,6 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 logger.warning(f"Could not compute trendline: {e}")
 
-
         ax.set_title("Compliance Score Trend")
         ax.set_xlabel("Analysis Run")
         ax.set_ylabel("Score")
@@ -2953,7 +3535,13 @@ class MainWindow(QMainWindow):
         self.analytics_canvas.draw()
 
     # Helpers and actions
-    def _style_action_button(self, button: QPushButton, font_size: int = 11, bold: bool = True, height: int = 28, padding: str = "4px 10px"):
+    def _style_action_button(
+            self,
+            button: QPushButton,
+            font_size: int = 11,
+            bold: bool = True,
+            height: int = 28,
+            padding: str = "4px 10px"):
         try:
             f = QFont()
             f.setPointSize(font_size)
@@ -2961,21 +3549,73 @@ class MainWindow(QMainWindow):
             button.setFont(f)
             button.setMinimumHeight(height)
             button.setStyleSheet(f"text-align:center; padding:{padding};")
-            button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+            button.setSizePolicy(
+                QSizePolicy.Policy.Preferred,
+                QSizePolicy.Policy.Preferred)
         except Exception:
             ...
 
     def _show_admin_settings_dialog(self):
         from PyQt6.QtWidgets import QInputDialog
 
-        password, ok = QInputDialog.getText(self, "Admin Access", "Enter Admin Password:", QLineEdit.EchoMode.Password)
+        # Check if a password is set. If not, force creation.
+        stored_hash = get_str_setting("admin_password_hash", "")
+        stored_salt = get_str_setting("admin_password_salt", "")
+
+        if not stored_hash or not stored_salt:
+            # First time setup or password reset
+            new_password, ok = QInputDialog.getText(
+                self, "Create Admin Password", "No admin password is set. Please create one:", QLineEdit.EchoMode.Password)
+            if not ok or not new_password:
+                QMessageBox.warning(
+                    self,
+                    "Admin Access",
+                    "An admin password is required to access these settings.")
+                return
+
+            confirm_password, ok = QInputDialog.getText(
+                self, "Confirm Admin Password", "Please confirm your new password:", QLineEdit.EchoMode.Password)
+            if not ok or new_password != confirm_password:
+                QMessageBox.warning(
+                    self,
+                    "Admin Access",
+                    "Passwords do not match. Please try again.")
+                return
+
+            hashed_password_hex, salt = _hash_password(new_password)
+            set_str_setting("admin_password_hash", hashed_password_hex)
+            set_str_setting("admin_password_salt", salt.hex())
+            QMessageBox.information(
+                self, "Admin Access", "Admin password has been set.")
+            # Update for current session
+            stored_hash = hashed_password_hex
+            stored_salt = salt.hex()
+
+        # Regular password prompt
+        password, ok = QInputDialog.getText(
+            self, "Admin Access", "Enter Admin Password:", QLineEdit.EchoMode.Password)
         if not ok:
             return
 
-        # Simple hardcoded password check
-        if password != get_str_setting("admin_password", "admin123"):
-            QMessageBox.warning(self, "Admin Access", "Incorrect password.")
-            return
+        # Verify password
+        if not _verify_password(stored_hash, stored_salt, password):
+            # Fallback for old plaintext password
+            old_plain_password = get_str_setting("admin_password", None)
+            if old_plain_password and old_plain_password == password:
+                # Migrate to hashed password
+                hashed_password_hex, salt = _hash_password(password)
+                set_str_setting("admin_password_hash", hashed_password_hex)
+                set_str_setting("admin_password_salt", salt.hex())
+                # remove old plain text password
+                set_str_setting("admin_password", "")
+                QMessageBox.information(
+                    self,
+                    "Admin Access",
+                    "Password has been updated to a new, secure format.")
+            else:
+                QMessageBox.warning(
+                    self, "Admin Access", "Incorrect password.")
+                return
 
         # --- Admin Dialog ---
         dlg = QDialog(self)
@@ -2999,6 +3639,47 @@ class MainWindow(QMainWindow):
         row_trial.addWidget(sp_trial_days)
         vbox.addLayout(row_trial)
 
+        # Add change password button
+        btn_change_password = QPushButton("Change Admin Password...")
+        vbox.addWidget(btn_change_password)
+
+        def on_change_password():
+            # Logic to change password
+            old_pw, ok = QInputDialog.getText(
+                self, "Change Password", "Enter your current password:", QLineEdit.EchoMode.Password)
+            if not ok:
+                return
+
+            if not _verify_password(
+                get_str_setting(
+                    "admin_password_hash", ""), get_str_setting(
+                    "admin_password_salt", ""), old_pw):
+                QMessageBox.warning(
+                    self, "Change Password", "Incorrect current password.")
+                return
+
+            new_pw, ok = QInputDialog.getText(
+                self, "Change Password", "Enter new password:", QLineEdit.EchoMode.Password)
+            if not ok or not new_pw:
+                return
+
+            confirm_pw, ok = QInputDialog.getText(
+                self, "Change Password", "Confirm new password:", QLineEdit.EchoMode.Password)
+            if not ok or new_pw != confirm_pw:
+                QMessageBox.warning(
+                    self, "Change Password", "New passwords do not match.")
+                return
+
+            hashed_password_hex, salt = _hash_password(new_pw)
+            set_str_setting("admin_password_hash", hashed_password_hex)
+            set_str_setting("admin_password_salt", salt.hex())
+            QMessageBox.information(
+                self,
+                "Change Password",
+                "Admin password changed successfully.")
+
+        btn_change_password.clicked.connect(on_change_password)
+
         btn_box = QHBoxLayout()
         btn_ok = QPushButton("Save")
         btn_cancel = QPushButton("Cancel")
@@ -3011,7 +3692,7 @@ class MainWindow(QMainWindow):
             set_bool_setting("llm_a_enabled", chk_llm_a.isChecked())
             set_bool_setting("llm_b_enabled", chk_llm_b.isChecked())
             set_setting("trial_duration_days", str(sp_trial_days.value()))
-            self.refresh_llm_indicator() # Refresh the status bar
+            self.refresh_llm_indicator()  # Refresh the status bar
             dlg.accept()
 
         btn_ok.clicked.connect(on_save)
@@ -3046,11 +3727,13 @@ class MainWindow(QMainWindow):
         self._last_error = msg
         if msg:
             self.lbl_err.setText(" Error ")
-            self.lbl_err.setStyleSheet("background:#ef4444; color:#fff; padding:3px 8px; border-radius:12px;")
+            self.lbl_err.setStyleSheet(
+                "background:#ef4444; color:#fff; padding:3px 8px; border-radius:12px;")
             self.log(f"Error: {msg}")
         else:
             self.lbl_err.setText(" Status: OK ")
-            self.lbl_err.setStyleSheet("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
+            self.lbl_err.setStyleSheet(
+                "background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
 
     def refresh_recent_files(self):
         try:
@@ -3067,17 +3750,19 @@ class MainWindow(QMainWindow):
 
     def action_upload_rubric(self):
         try:
-            path, _ = QFileDialog.getOpenFileName(self, "Select rubric text file", "",
-                                                  "Text files (*.txt);;All Files (*)")
+            path, _ = QFileDialog.getOpenFileName(
+                self, "Select rubric text file", "", "Text files (*.txt);;All Files (*)")
             if not path:
                 return
             set_setting("rubric_path", path)
             with open(path, "r", encoding="utf-8") as f:
                 txt = f.read()
             self.txt_rubric.setPlainText(txt)
-            self.lbl_rubric_file.setText(os.path.basename(path) if txt.strip() else "(No rubric selected)")
+            self.lbl_rubric_file.setText(os.path.basename(
+                path) if txt.strip() else "(No rubric selected)")
             if txt.strip():
-                self.lbl_rubric_file.setStyleSheet("color:#60a5fa; font-weight:700;")
+                self.lbl_rubric_file.setStyleSheet(
+                    "color:#60a5fa; font-weight:700;")
             self.log(f"Loaded rubric from: {path}")
             self.set_error(None)
         except Exception as e:
@@ -3089,9 +3774,11 @@ class MainWindow(QMainWindow):
         try:
             set_setting("rubric_current_text", self.txt_rubric.toPlainText())
             self.lbl_rubric_file.setText("Rubric Loaded")
-            self.lbl_rubric_file.setStyleSheet("color:#60a5fa; font-weight:700;")
+            self.lbl_rubric_file.setStyleSheet(
+                "color:#60a5fa; font-weight:700;")
             self.log("Rubric saved (application-only).")
-            QMessageBox.information(self, "Rubric", "Saved in application (does not modify the original file).")
+            QMessageBox.information(
+                self, "Rubric", "Saved in application (does not modify the original file).")
         except Exception as e:
             logger.exception("Save rubric failed")
             self.set_error(str(e))
@@ -3114,7 +3801,8 @@ class MainWindow(QMainWindow):
             import json
             raw = get_setting("rubric_catalog") or "[]"
             catalog = json.loads(raw) if raw else []
-            if not isinstance(catalog, list): catalog = []
+            if not isinstance(catalog, list):
+                catalog = []
 
             for it in catalog:
                 lst.addItem(it.get("name", "Untitled"))
@@ -3123,7 +3811,8 @@ class MainWindow(QMainWindow):
             # Right side: Editor
             right_vbox = QVBoxLayout()
             editor = QTextEdit()
-            editor.setPlaceholderText("Select a rubric to view or edit its content.")
+            editor.setPlaceholderText(
+                "Select a rubric to view or edit its content.")
             right_vbox.addWidget(editor)
 
             # Bottom buttons
@@ -3152,31 +3841,43 @@ class MainWindow(QMainWindow):
                 editor.setPlainText(catalog[rowi].get("content", ""))
 
             def add_file():
-                path, _ = QFileDialog.getOpenFileName(self, "Select rubric text file", "", "Text files (*.txt);;All Files (*)")
-                if not path: return
+                path, _ = QFileDialog.getOpenFileName(
+                    self, "Select rubric text file", "", "Text files (*.txt);;All Files (*)")
+                if not path:
+                    return
                 try:
                     with open(path, "r", encoding="utf-8") as f:
                         txt = f.read()
                     name = os.path.basename(path)
                     if any(item.get("name") == name for item in catalog):
-                        QMessageBox.warning(self, "Rubric", "A rubric with this name already exists.")
+                        QMessageBox.warning(
+                            self, "Rubric", "A rubric with this name already exists.")
                         return
-                    catalog.append({"name": name, "path": path, "content": txt})
-                    set_setting("rubric_catalog", json.dumps(catalog, ensure_ascii=False))
+                    catalog.append(
+                        {"name": name, "path": path, "content": txt})
+                    set_setting(
+                        "rubric_catalog", json.dumps(
+                            catalog, ensure_ascii=False))
                     lst.addItem(name)
                 except Exception as e:
-                    QMessageBox.warning(self, "Rubrics", f"Failed to add rubric:\n{e}")
+                    QMessageBox.warning(
+                        self, "Rubrics", f"Failed to add rubric:\n{e}")
 
             def remove_selected():
                 rowi = lst.currentRow()
-                if rowi < 0 or rowi >= len(catalog): return
+                if rowi < 0 or rowi >= len(catalog):
+                    return
 
                 name = catalog[rowi].get("name", "")
-                reply = QMessageBox.question(self, "Remove Rubric", f"Are you sure you want to remove '{name}'?")
-                if not str(reply).lower().endswith("yes"): return
+                reply = QMessageBox.question(
+                    self, "Remove Rubric", f"Are you sure you want to remove '{name}'?")
+                if not str(reply).lower().endswith("yes"):
+                    return
 
                 del catalog[rowi]
-                set_setting("rubric_catalog", json.dumps(catalog, ensure_ascii=False))
+                set_setting(
+                    "rubric_catalog", json.dumps(
+                        catalog, ensure_ascii=False))
                 lst.takeItem(rowi)
                 editor.clear()
 
@@ -3189,25 +3890,32 @@ class MainWindow(QMainWindow):
             def save_changes():
                 rowi = lst.currentRow()
                 if rowi < 0 or rowi >= len(catalog):
-                    QMessageBox.warning(self, "Rubric", "Select a rubric to save.")
+                    QMessageBox.warning(
+                        self, "Rubric", "Select a rubric to save.")
                     return
                 catalog[rowi]["content"] = editor.toPlainText()
-                set_setting("rubric_catalog", json.dumps(catalog, ensure_ascii=False))
-                QMessageBox.information(self, "Rubrics", f"Changes to '{catalog[rowi]['name']}' saved.")
+                set_setting(
+                    "rubric_catalog", json.dumps(
+                        catalog, ensure_ascii=False))
+                QMessageBox.information(
+                    self, "Rubrics", f"Changes to '{
+                        catalog[rowi]['name']}' saved.")
 
             def set_active():
                 rowi = lst.currentRow()
                 if rowi < 0 or rowi >= len(catalog):
-                    QMessageBox.information(self, "Rubrics", "Select a rubric first.")
+                    QMessageBox.information(
+                        self, "Rubrics", "Select a rubric first.")
                     return
 
-                save_changes() # Save changes before setting active
+                save_changes()  # Save changes before setting active
                 it = catalog[rowi]
                 set_setting("rubric_active_name", it.get("name", ""))
                 set_setting("rubric_current_text", it.get("content", ""))
                 self.txt_rubric.setPlainText(it.get("content", ""))
                 self.lbl_rubric_file.setText(it.get("name", "Rubric Loaded"))
-                self.lbl_rubric_file.setStyleSheet("color:#60a5fa; font-weight:700;")
+                self.lbl_rubric_file.setStyleSheet(
+                    "color:#60a5fa; font-weight:700;")
                 dlg.accept()
 
             try:
@@ -3216,7 +3924,8 @@ class MainWindow(QMainWindow):
                 btn_remove.clicked.connect(remove_selected)
                 btn_save.clicked.connect(save_changes)
                 btn_set_active.clicked.connect(set_active)
-            except Exception: ...
+            except Exception:
+                ...
 
             dlg.exec()
         except Exception as e:
@@ -3231,8 +3940,10 @@ class MainWindow(QMainWindow):
 
     def action_remove_rubric(self):
         try:
-            reply = QMessageBox.question(self, "Remove Rubric",
-                                         "Remove the current rubric from the app?\n(This does not delete any file.)")  # type: ignore
+            reply = QMessageBox.question(
+                self,
+                "Remove Rubric",
+                "Remove the current rubric from the app?\n(This does not delete any file.)")  # type: ignore
             if not str(reply).lower().endswith("yes"):
                 return
             set_setting("rubric_current_text", "")
@@ -3258,7 +3969,8 @@ class MainWindow(QMainWindow):
             add_recent_file(path)
             self.refresh_recent_files()
             self.lbl_report_name.setText(os.path.basename(path))
-            self.lbl_report_name.setStyleSheet("color:#60a5fa; font-weight:700;")
+            self.lbl_report_name.setStyleSheet(
+                "color:#60a5fa; font-weight:700;")
             self.set_error(None)
 
             # Auto-select discipline
@@ -3268,7 +3980,8 @@ class MainWindow(QMainWindow):
                 if full_text:
                     self._auto_select_discipline(full_text)
             except Exception as e:
-                self.log(f"Failed to auto-select discipline during file open: {e}")
+                self.log(
+                    f"Failed to auto-select discipline during file open: {e}")
 
         except Exception as e:
             logger.exception("Open report failed")
@@ -3277,24 +3990,38 @@ class MainWindow(QMainWindow):
 
     def action_open_folder(self):
         try:
-            folder = QFileDialog.getExistingDirectory(self,
-                                                      "Select folder with documents")  # type: ignore[attr-defined]
+            folder = QFileDialog.getExistingDirectory(
+                self, "Select folder with documents")  # type: ignore[attr-defined]
             if not folder:
                 return
-            exts = {".pdf", ".docx", ".csv", ".xlsx", ".xls", ".png", ".jpg", ".jpeg", ".bmp", ".tiff"}
+            exts = {
+                ".pdf",
+                ".docx",
+                ".csv",
+                ".xlsx",
+                ".xls",
+                ".png",
+                ".jpg",
+                ".jpeg",
+                ".bmp",
+                ".tiff"}
             files = []
             for name in os.listdir(folder):
                 p = os.path.join(folder, name)
-                if os.path.isfile(p) and os.path.splitext(p)[1].lower() in exts:
+                if os.path.isfile(p) and os.path.splitext(p)[
+                        1].lower() in exts:
                     files.append(p)
             files.sort()
             self.list_folder_files.clear()
             if files:
                 self.list_folder_files.addItems(files)
                 self.log(f"Loaded folder with {len(files)} files.")
-                reply = QMessageBox.question(self, "Batch Analysis",
-                                             f"{len(files)} supported files were found in the folder.\n\nDo you want to start the analysis for all of them now?",
-                                             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                reply = QMessageBox.question(
+                    self,
+                    "Batch Analysis",
+                    f"{
+                        len(files)} supported files were found in the folder.\n\nDo you want to start the analysis for all of them now?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
                 if reply == QMessageBox.StandardButton.Yes:
                     self.action_analyze_batch()
             else:
@@ -3307,10 +4034,12 @@ class MainWindow(QMainWindow):
         try:
             items = self.list_folder_files.selectedItems()
             if not items:
-                QMessageBox.information(self, "Remove File", "Please select a file from the list to remove.")
+                QMessageBox.information(
+                    self, "Remove File", "Please select a file from the list to remove.")
                 return
             for item in items:
-                self.list_folder_files.takeItem(self.list_folder_files.row(item))
+                self.list_folder_files.takeItem(
+                    self.list_folder_files.row(item))
         except Exception as e:
             self.set_error(str(e))
 
@@ -3379,7 +4108,8 @@ class MainWindow(QMainWindow):
 
     def action_analyze(self):
         if not self._current_report_path:
-            QMessageBox.information(self, "Analyze", "Please upload/select a report first.")
+            QMessageBox.information(
+                self, "Analyze", "Please upload/select a report first.")
             return
 
         self._clear_previous_analysis_state()
@@ -3398,15 +4128,26 @@ class MainWindow(QMainWindow):
                 return self._progress_was_canceled()
 
             selected_disciplines = []
-            if self.chk_pt.isChecked(): selected_disciplines.append('pt')
-            if self.chk_ot.isChecked(): selected_disciplines.append('ot')
-            if self.chk_slp.isChecked(): selected_disciplines.append('slp')
+            if self.chk_pt.isChecked():
+                selected_disciplines.append('pt')
+            if self.chk_ot.isChecked():
+                selected_disciplines.append('ot')
+            if self.chk_slp.isChecked():
+                selected_disciplines.append('slp')
 
             if not selected_disciplines:
-                QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to analyze.")
+                QMessageBox.warning(
+                    self,
+                    "No Discipline Selected",
+                    "Please select at least one discipline (e.g., PT, OT, SLP) to analyze.")
                 return
 
-            res = run_analyzer(self, self._current_report_path, selected_disciplines=selected_disciplines, progress_cb=_cb, cancel_cb=_cancel)
+            res = run_analyzer(
+                self,
+                self._current_report_path,
+                selected_disciplines=selected_disciplines,
+                progress_cb=_cb,
+                cancel_cb=_cancel)
 
             outs = []
             if res.get("pdf"):
@@ -3420,10 +4161,15 @@ class MainWindow(QMainWindow):
                 if cache_hit:
                     self.log("Served from cache.")
                     try:
-                        self.txt_chat.append("Note: Served from cache for faster results.\n")
+                        self.txt_chat.append(
+                            "Note: Served from cache for faster results.\n")
                     except Exception:
                         ...
-                self.log("Analysis complete:\n" + "\n".join(" - " + x for x in outs))
+                self.log(
+                    "Analysis complete:\n" +
+                    "\n".join(
+                        " - " +
+                        x for x in outs))
                 try:
                     import json
                     with open(res["json"], "r", encoding="utf-8") as f:
@@ -3447,8 +4193,10 @@ class MainWindow(QMainWindow):
                 except Exception:
                     ...
             else:
-                self.log("Analysis finished, but no outputs were generated. See logs.")
-                QMessageBox.warning(self, "Analysis", "Finished, but no outputs were generated. See logs.")
+                self.log(
+                    "Analysis finished, but no outputs were generated. See logs.")
+                QMessageBox.warning(
+                    self, "Analysis", "Finished, but no outputs were generated. See logs.")
 
             self._progress_finish()
             self.statusBar().showMessage("Ready")
@@ -3471,63 +4219,77 @@ class MainWindow(QMainWindow):
 
         # 1. Add summary information
         if 'compliance' in data and 'score' in data['compliance']:
-            chunks.append(f"[Summary] The overall compliance score is {data['compliance']['score']}/100.")
+            chunks.append(
+                f"[Summary] The overall compliance score is {
+                    data['compliance']['score']}/100.")
         if 'executive_status' in data:
-             chunks.append(f"[Summary] The executive status is '{data['executive_status']}'.")
+            chunks.append(
+                f"[Summary] The executive status is '{
+                    data['executive_status']}'.")
 
         # 2. Add each issue as a detailed chunk, enriched with rubric data
         for issue in data.get('issues', []):
             issue_title = issue.get('title')
             # Find the corresponding full rule from the rubric
-            matching_rule = next((r for r in self.compliance_rules if r.issue_title == issue_title), None)
+            matching_rule = next(
+                (r for r in self.compliance_rules if r.issue_title == issue_title), None)
 
             if matching_rule:
                 # If we found the rule, create a detailed, structured chunk
                 issue_str = (
-                    f"[Finding] A finding with severity '{matching_rule.severity}' was identified.\n"
-                    f"Category: {matching_rule.issue_category}\n"
-                    f"Title: {matching_rule.issue_title}\n"
-                    f"Why it matters: {matching_rule.issue_detail}"
-                )
+                    f"[Finding] A finding with severity '{
+                        matching_rule.severity}' was identified.\n" f"Category: {
+                        matching_rule.issue_category}\n" f"Title: {
+                        matching_rule.issue_title}\n" f"Why it matters: {
+                        matching_rule.issue_detail}")
                 chunks.append(issue_str)
             else:
                 # Fallback to the basic information if no rule is found
                 sev = issue.get('severity', 'N/A').title()
                 cat = issue.get('category', 'N/A')
                 detail = issue.get('detail', 'N/A')
-                chunks.append(f"[Finding] Severity: {sev}. Category: {cat}. Title: {issue_title}. Detail: {detail}.")
+                chunks.append(
+                    f"[Finding] Severity: {sev}. Category: {cat}. Title: {issue_title}. Detail: {detail}.")
 
             # Add citations as separate, clearly linked chunks
-            for i, (citation_text, source) in enumerate(issue.get('citations', [])[:2]):
+            for i, (citation_text, source) in enumerate(
+                    issue.get('citations', [])[:2]):
                 clean_citation = re.sub('<[^<]+?>', '', citation_text)
-                chunks.append(f"[Evidence] The finding '{issue_title}' is supported by evidence from '{source}': \"{clean_citation}\"")
+                chunks.append(
+                    f"[Evidence] The finding '{issue_title}' is supported by evidence from '{source}': \"{clean_citation}\"")
 
         # 3. Add the original document sentences
         for text, source in data.get('source_sentences', []):
-             chunks.append(f"[Document Text] From {source}: \"{text}\"")
+            chunks.append(f"[Document Text] From {source}: \"{text}\"")
 
         self.log(f"Generated {len(chunks)} text chunks for AI context.")
         return chunks
-
 
     def action_analyze_batch(self):
         try:
             n = self.list_folder_files.count()
             if n == 0:
-                QMessageBox.information(self, "Analyze Batch", "Please upload a folder with documents first.")
+                QMessageBox.information(
+                    self, "Analyze Batch", "Please upload a folder with documents first.")
                 return
-            reply = QMessageBox.question(self, "Analyze Batch",
-                                         f"Process {n} file(s) sequentially?")  # type: ignore
+            reply = QMessageBox.question(
+                self, "Analyze Batch", f"Process {n} file(s) sequentially?")  # type: ignore
             if not str(reply).lower().endswith("yes"):
                 return
 
             selected_disciplines = []
-            if self.chk_pt.isChecked(): selected_disciplines.append('pt')
-            if self.chk_ot.isChecked(): selected_disciplines.append('ot')
-            if self.chk_slp.isChecked(): selected_disciplines.append('slp')
+            if self.chk_pt.isChecked():
+                selected_disciplines.append('pt')
+            if self.chk_ot.isChecked():
+                selected_disciplines.append('ot')
+            if self.chk_slp.isChecked():
+                selected_disciplines.append('slp')
 
             if not selected_disciplines:
-                QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to run a batch analysis.")
+                QMessageBox.warning(
+                    self,
+                    "No Discipline Selected",
+                    "Please select at least one discipline (e.g., PT, OT, SLP) to run a batch analysis.")
                 return
 
             self._clear_previous_analysis_state()
@@ -3546,16 +4308,23 @@ class MainWindow(QMainWindow):
                     if not os.path.isfile(path):
                         continue
                     self.lbl_report_name.setText(os.path.basename(path))
-                    self.statusBar().showMessage(f"Analyzing ({i + 1}/{n}): {os.path.basename(path)}")
+                    self.statusBar().showMessage(
+                        f"Analyzing ({i + 1}/{n}): {os.path.basename(path)}")
 
                     def _cb(p, m):
                         overall = int(((i + (p / 100.0)) / max(1, n)) * 100)
-                        self._progress_update(overall, f"File {i + 1}/{n}: {m}")
+                        self._progress_update(
+                            overall, f"File {i + 1}/{n}: {m}")
 
                     def _cancel():
                         return self._progress_was_canceled() or self._batch_cancel
 
-                    res = run_analyzer(self, path, selected_disciplines=selected_disciplines, progress_cb=_cb, cancel_cb=_cancel)
+                    res = run_analyzer(
+                        self,
+                        path,
+                        selected_disciplines=selected_disciplines,
+                        progress_cb=_cb,
+                        cancel_cb=_cancel)
                     if res.get("pdf") or res.get("json") or res.get("csv"):
                         ok_count += 1
                     else:
@@ -3576,13 +4345,21 @@ class MainWindow(QMainWindow):
                 else:
                     title = "Batch Complete"
                     body_top = f"All set! Your batch is complete.\n\nSummary:\n- Success: {ok_count}\n- Failed:  {fail_count}"
-                msg = [body_top, "", f"Location: {folder}", "", "Open that folder now?"]
-                reply2 = QMessageBox.question(self, title, "\n".join(msg))  # type: ignore
+                msg = [
+                    body_top,
+                    "",
+                    f"Location: {folder}",
+                    "",
+                    "Open that folder now?"]
+                reply2 = QMessageBox.question(
+                    self, title, "\n".join(msg))  # type: ignore
                 if str(reply2).lower().endswith("yes"):
                     _open_path(folder)
             except Exception:
                 ...
-            self.log(f"Batch finished. Success={ok_count}, Failed={fail_count}, Cancelled={self._batch_cancel}")
+            self.log(
+                f"Batch finished. Success={ok_count}, Failed={fail_count}, Cancelled={
+                    self._batch_cancel}")
         except Exception as e:
             logger.exception("Analyze batch failed")
             self.btn_cancel_batch.setDisabled(True)
@@ -3596,29 +4373,39 @@ class MainWindow(QMainWindow):
             elif self._current_report_path:
                 self.action_analyze()
             else:
-                QMessageBox.information(self, "Analyze", "Please upload/select a report or upload a folder first.")
+                QMessageBox.information(
+                    self, "Analyze", "Please upload/select a report or upload a folder first.")
         except Exception as e:
             self.set_error(str(e))
 
     def _export_analytics_csv(self):
         try:
-            dest = os.path.join(ensure_reports_dir_configured(), "SpecKit-Analytics.csv")
+            dest = os.path.join(
+                ensure_reports_dir_configured(),
+                "SpecKit-Analytics.csv")
             if export_analytics_csv(dest):
                 _open_path(dest)
                 self.log(f"Exported analytics CSV: {dest}")
             else:
-                QMessageBox.information(self, "Analytics", "No analytics available yet.")
+                QMessageBox.information(
+                    self, "Analytics", "No analytics available yet.")
         except Exception as e:
             self.set_error(str(e))
 
     def action_export_view_to_pdf(self):
         """Exports the current content of the main chat/analysis view to a PDF."""
         if not self.current_report_data:
-            QMessageBox.warning(self, "Export Error", "Please analyze a document first.")
+            QMessageBox.warning(
+                self,
+                "Export Error",
+                "Please analyze a document first.")
             return
 
-        default_filename = os.path.basename(self.current_report_data.get('file', 'report.pdf'))
-        default_filename = os.path.splitext(default_filename)[0] + "_annotated.pdf"
+        default_filename = os.path.basename(
+            self.current_report_data.get(
+                'file', 'report.pdf'))
+        default_filename = os.path.splitext(default_filename)[
+            0] + "_annotated.pdf"
 
         save_path, _ = QFileDialog.getSaveFileName(
             self, "Save PDF", default_filename, "PDF Files (*.pdf)"
@@ -3643,21 +4430,30 @@ class MainWindow(QMainWindow):
             doc.print_(writer)
 
             self.log(f"Successfully exported view to {save_path}")
-            QMessageBox.information(self, "Export Successful", f"The current view has been exported to:\n{save_path}")
+            QMessageBox.information(
+                self,
+                "Export Successful",
+                f"The current view has been exported to:\n{save_path}")
 
         except Exception as e:
             self.set_error(f"Failed to export view to PDF: {e}")
-            QMessageBox.critical(self, "Export Error", f"An error occurred while exporting to PDF:\n{e}")
+            QMessageBox.critical(
+                self,
+                "Export Error",
+                f"An error occurred while exporting to PDF:\n{e}")
         finally:
             self.statusBar().showMessage("Ready")
             QApplication.restoreOverrideCursor()
 
-    def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None) -> None:
+    def render_analysis_to_results(
+            self, data: dict, highlight_range: Optional[Tuple[int, int]] = None) -> None:
         try:
             # --- Clear on New Analysis Prompt ---
             if self.chat_history:
-                reply = QMessageBox.question(self, "Clear Chat History",
-                                             "You have an existing conversation. Would you like to clear it for this new analysis?")
+                reply = QMessageBox.question(
+                    self,
+                    "Clear Chat History",
+                    "You have an existing conversation. Would you like to clear it for this new analysis?")
                 if str(reply).lower().endswith("yes"):
                     self.chat_history = []
                     self.log("Chat history cleared for new analysis.")
@@ -3668,12 +4464,15 @@ class MainWindow(QMainWindow):
             if issues and 'id' not in issues[0]:
                 try:
                     with _get_db_connection() as conn:
-                        # Find the run_id from the file name and generated timestamp
+                        # Find the run_id from the file name and generated
+                        # timestamp
                         run_df = pd.read_sql_query(
                             "SELECT id FROM analysis_runs WHERE file_name = ? AND run_time = ? LIMIT 1",
                             conn,
-                            params=(os.path.basename(data.get("file")), data.get("generated"))
-                        )
+                            params=(
+                                os.path.basename(
+                                    data.get("file")),
+                                data.get("generated")))
                         if not run_df.empty:
                             run_id = run_df.iloc[0]['id']
                             # Get all issues with IDs for that run
@@ -3683,15 +4482,18 @@ class MainWindow(QMainWindow):
                                 params=(run_id,)
                             )
                             # Create a lookup map and inject the IDs
-                            issue_map = { (row['title'], row['detail']): row['id'] for _, row in issues_from_db_df.iterrows() }
+                            issue_map = {(row['title'], row['detail']): row['id']
+                                         for _, row in issues_from_db_df.iterrows()}
                             for issue in issues:
-                                issue['id'] = issue_map.get((issue.get('title'), issue.get('detail')))
+                                issue['id'] = issue_map.get(
+                                    (issue.get('title'), issue.get('detail')))
                 except Exception as e:
-                    self.log(f"Could not enrich loaded report with issue IDs: {e}")
+                    self.log(
+                        f"Could not enrich loaded report with issue IDs: {e}")
             # --- End Bug Fix ---
 
             self.current_report_data = data
-            self.tabs.setCurrentIndex(1) # Switch to results tab
+            self.tabs.setCurrentIndex(1)  # Switch to results tab
 
             # When a new report is loaded, clear the previous chat history
             self.chat_history = []
@@ -3700,21 +4502,48 @@ class MainWindow(QMainWindow):
 
             # --- Build Left Pane (Report) ---
             report_html_lines = [f"<h2>Analysis for: {file_name}</h2>"]
-            report_html_lines.extend(_generate_risk_dashboard(data['compliance']['score'], data['sev_counts']))
-            report_html_lines.extend(_generate_compliance_checklist(data['strengths'], data['weaknesses']))
+            report_html_lines.extend(
+                _generate_risk_dashboard(
+                    data['compliance']['score'],
+                    data['sev_counts']))
+            report_html_lines.extend(
+                _generate_compliance_checklist(
+                    data['strengths'],
+                    data['weaknesses']))
 
             report_html_lines.append("<h3>Detailed Findings</h3>")
             issues = data.get("issues", [])
             if issues:
                 for issue in issues:
                     loc = issue.get('location')
-                    link = f"<a href='highlight:{loc['start']}:{loc['end']}'>Show in text</a>" if loc else ""
+                    link = f"<a href='highlight:{
+                        loc['start']}:{
+                        loc['end']}'>Show in text</a>" if loc else ""
 
-                    sev_color = {"Flag": "#dc3545", "Wobbler": "#ffc107", "Suggestion": "#17a2b8"}.get(issue.get("severity", "").title(), "#6c757d")
+                    sev_color = {
+                        "Flag": "#dc3545",
+                        "Wobbler": "#ffc107",
+                        "Suggestion": "#17a2b8"}.get(
+                        issue.get(
+                            "severity",
+                            "").title(),
+                        "#6c757d")
 
-                    report_html_lines.append(f"<div style='border-left: 3px solid {sev_color}; padding-left: 10px; margin-bottom: 15px;'>")
-                    report_html_lines.append(f"<strong>{issue.get('title', 'Finding')}</strong><br>")
-                    report_html_lines.append(f"<small>Severity: {issue.get('severity', '').title()} | Category: {issue.get('category', 'General')} | {link}</small>")
+                    report_html_lines.append(
+                        f"<div style='border-left: 3px solid {sev_color}; padding-left: 10px; margin-bottom: 15px;'>")
+                    report_html_lines.append(
+                        f"<strong>{
+                            issue.get(
+                                'title',
+                                'Finding')}</strong><br>")
+                    report_html_lines.append(
+                        f"<small>Severity: {
+                            issue.get(
+                                'severity',
+                                '').title()} | Category: {
+                            issue.get(
+                                'category',
+                                'General')} | {link}</small>")
 
                     # Add review links
                     issue_id = issue.get('id')
@@ -3726,19 +4555,24 @@ class MainWindow(QMainWindow):
                         <a href='review:{issue_id}:incorrect' style='text-decoration:none; color:red;'>❌ Incorrect</a>
                         <a href='educate:{encoded_title}' style='text-decoration:none; color:#60a5fa; margin-left: 10px;'>🎓 Learn More</a>
                         """
+                    report_html_lines.append(review_links)
 
                     details = issue.get("details", {})
                     if details:
-                        report_html_lines.append(f"<p><strong>Action:</strong> {details.get('action', 'N/A')}</p>")
-                        report_html_lines.append(f"<p><strong>Why:</strong> {details.get('why', 'N/A')}</p>")
+                        report_html_lines.append(
+                            f"<p><strong>Action:</strong> {details.get('action', 'N/A')}</p>")
+                        report_html_lines.append(
+                            f"<p><strong>Why:</strong> {details.get('why', 'N/A')}</p>")
 
                     # --- Guideline Display ---
                     if issue.get('guidelines'):
-                        report_html_lines.append("<p><strong>Relevant Medicare Guidelines:</strong></p><ul>")
+                        report_html_lines.append(
+                            "<p><strong>Relevant Medicare Guidelines:</strong></p><ul>")
                         for guideline in issue['guidelines']:
                             text = html.escape(guideline.get('text', ''))
                             source = html.escape(guideline.get('source', ''))
-                            report_html_lines.append(f"<li><i>“{text}”</i> (Source: {source})</li>")
+                            report_html_lines.append(
+                                f"<li><i>“{text}”</i> (Source: {source})</li>")
                         report_html_lines.append("</ul>")
                     # --- End Guideline Display ---
 
@@ -3748,11 +4582,14 @@ class MainWindow(QMainWindow):
                     if 'shap_explanation' in issue and issue['shap_explanation'] is not None:
                         try:
                             # Generate the full HTML for the SHAP plot
-                            shap_html_full = shap.plots.text(issue['shap_explanation'], display=False)
+                            shap_html_full = shap.plots.text(
+                                issue['shap_explanation'], display=False)
 
                             # Extract style and body content using regex
-                            style_match = re.search(r'<style>(.*?)</style>', shap_html_full, re.DOTALL)
-                            body_match = re.search(r'<body>(.*?)</body>', shap_html_full, re.DOTALL)
+                            style_match = re.search(
+                                r'<style>(.*?)</style>', shap_html_full, re.DOTALL)
+                            body_match = re.search(
+                                r'<body>(.*?)</body>', shap_html_full, re.DOTALL)
 
                             if style_match and body_match:
                                 style_content = style_match.group(1)
@@ -3761,24 +4598,33 @@ class MainWindow(QMainWindow):
                                 # Parse CSS rules and store them in a dict
                                 styles = {}
                                 # A more robust regex for CSS rules
-                                rules = re.findall(r'\.([\w.-]+)\s*\{(.*?)\}', style_content)
+                                rules = re.findall(
+                                    r'\.([\w.-]+)\s*\{(.*?)\}', style_content)
                                 for class_name, rule_body in rules:
-                                    # Convert to inline style format, removing newlines and extra spaces
-                                    inline_style = ' '.join(rule_body.strip().split())
+                                    # Convert to inline style format, removing
+                                    # newlines and extra spaces
+                                    inline_style = ' '.join(
+                                        rule_body.strip().split())
                                     styles[class_name] = inline_style
 
-                                # Replace class attributes with inline style attributes
+                                # Replace class attributes with inline style
+                                # attributes
                                 html_with_inline_styles = body_content
+
                                 def replace_class(match):
                                     class_attr = match.group(1)
-                                    # Handles multiple classes, but SHAP plots usually have one
+                                    # Handles multiple classes, but SHAP plots
+                                    # usually have one
                                     classes = class_attr.split()
-                                    style_rules = ';'.join(styles.get(c, '') for c in classes)
+                                    style_rules = ';'.join(
+                                        styles.get(c, '') for c in classes)
                                     return f'style="{style_rules}"'
 
-                                html_with_inline_styles = re.sub(r'class="([^"]*)"', replace_class, body_content)
+                                html_with_inline_styles = re.sub(
+                                    r'class="([^"]*)"', replace_class, body_content)
 
-                                report_html_lines.append("  - <b>Explanation (SHAP)</b>:")
+                                report_html_lines.append(
+                                    "  - <b>Explanation (SHAP)</b>:")
                                 report_html_lines.append(
                                     f"<div style='border: 1px solid #ccc; padding: 5px; border-radius: 3px; background-color: #f9f9f9;'>{html_with_inline_styles}</div>")
                             else:
@@ -3786,13 +4632,18 @@ class MainWindow(QMainWindow):
                                     "  - <b>Explanation (SHAP)</b>: <i>Could not parse SHAP plot HTML.</i>")
 
                         except Exception as e:
-                            self.log(f"SHAP plot generation failed for issue '{issue.get('title')}': {e}")
-                            logger.warning(f"SHAP plot generation failed for issue '{issue.get('title')}': {e}")
+                            self.log(
+                                f"SHAP plot generation failed for issue '{
+                                    issue.get('title')}': {e}")
+                            logger.warning(
+                                f"SHAP plot generation failed for issue '{
+                                    issue.get('title')}': {e}")
                             report_html_lines.append(
                                 f"  - <b>Explanation (SHAP)</b>: <i>Visualization failed to generate. See logs.</i>")
                     # --- End SHAP Visualization ---
             else:
-                report_html_lines.append("<p>No specific audit findings were identified.</p>")
+                report_html_lines.append(
+                    "<p>No specific audit findings were identified.</p>")
 
             # --- Build Right Pane (Full Text) ---
 
@@ -3802,9 +4653,11 @@ class MainWindow(QMainWindow):
                 report_html_lines.append("<hr><h2>Suggested Questions</h2>")
                 suggestions_html = "<ul>"
                 for q in suggested_questions:
-                    # URL-encode the question to handle special characters safely in the href
+                    # URL-encode the question to handle special characters
+                    # safely in the href
                     encoded_q = quote(q)
-                    suggestions_html += f"<li><a href='ask:{encoded_q}' class='suggestion-link'>{html.escape(q)}</a></li>"
+                    suggestions_html += f"<li><a href='ask:{encoded_q}' class='suggestion-link'>{
+                        html.escape(q)}</a></li>"
                 suggestions_html += "</ul>"
                 report_html_lines.append(suggestions_html)
             # --- End Suggested Questions ---
@@ -3812,7 +4665,9 @@ class MainWindow(QMainWindow):
             self.txt_chat.setHtml("".join(report_html_lines))
 
             # Full Text
-            full_text = "\n".join(s[0] for s in data.get('source_sentences', []))
+            full_text = "\n".join(
+                s[0] for s in data.get(
+                    'source_sentences', []))
             self.txt_full_note.setPlainText(full_text)
 
         except Exception as e:
@@ -3844,7 +4699,7 @@ class MainWindow(QMainWindow):
             self.txt_full_note.ensureCursorVisible()
 
         except Exception as e:
-             self.log(f"Failed to highlight text: {e}")
+            self.log(f"Failed to highlight text: {e}")
 
     def handle_anchor_clicked(self, url):
         url_str = url.toString()
@@ -3864,9 +4719,11 @@ class MainWindow(QMainWindow):
                     issue_id = int(parts[1])
                     feedback = parts[2]
 
-                    # Find the issue to get the citation text and model prediction
+                    # Find the issue to get the citation text and model
+                    # prediction
                     issue_to_review = None
-                    if self.current_report_data and self.current_report_data.get('issues'):
+                    if self.current_report_data and self.current_report_data.get(
+                            'issues'):
                         for issue in self.current_report_data['issues']:
                             if issue.get('id') == issue_id:
                                 issue_to_review = issue
@@ -3878,13 +4735,20 @@ class MainWindow(QMainWindow):
                         if issue_to_review.get('citations'):
                             raw_citation_html = issue_to_review['citations'][0][0]
                             # Strip HTML tags to get raw text
-                            citation_text = re.sub('<[^<]+?>', '', raw_citation_html)
+                            citation_text = re.sub(
+                                '<[^<]+?>', '', raw_citation_html)
 
-                        model_prediction = issue_to_review.get('severity', 'unknown')
-                        self.save_finding_feedback(issue_id, feedback, citation_text, model_prediction)
+                        model_prediction = issue_to_review.get(
+                            'severity', 'unknown')
+                        self.save_finding_feedback(
+                            issue_id, feedback, citation_text, model_prediction)
                     else:
-                        self.log(f"Could not find issue with ID {issue_id} to save feedback.")
-                        QMessageBox.warning(self, "Feedback", f"Could not find issue with ID {issue_id} in the current report.")
+                        self.log(
+                            f"Could not find issue with ID {issue_id} to save feedback.")
+                        QMessageBox.warning(
+                            self,
+                            "Feedback",
+                            f"Could not find issue with ID {issue_id} in the current report.")
 
                 except (ValueError, IndexError) as e:
                     self.log(f"Invalid review URL: {url_str} - {e}")
@@ -3907,18 +4771,27 @@ class MainWindow(QMainWindow):
     def _display_educational_content(self, issue_title: str):
         """Generates educational content and appends it to the main view."""
         if not self.local_rag or not self.local_rag.is_ready():
-            QMessageBox.warning(self, "AI Not Ready", "The AI model is not available. Please wait for it to load or check the logs.")
+            QMessageBox.warning(
+                self,
+                "AI Not Ready",
+                "The AI model is not available. Please wait for it to load or check the logs.")
             return
 
         # 1. Find the relevant data
-        rule = next((r for r in self.compliance_rules if r.issue_title == issue_title), None)
-        issue = next((i for i in self.current_report_data.get('issues', []) if i.get('title') == issue_title), None)
+        rule = next(
+            (r for r in self.compliance_rules if r.issue_title == issue_title),
+            None)
+        issue = next((i for i in self.current_report_data.get(
+            'issues', []) if i.get('title') == issue_title), None)
 
         if not rule or not issue:
-            QMessageBox.critical(self, "Error", "Could not find the details for this issue.")
+            QMessageBox.critical(
+                self, "Error", "Could not find the details for this issue.")
             return
 
-        user_text_html = issue.get('citations', [("No citation found.", "")])[0][0]
+        user_text_html = issue.get(
+            'citations', [
+                ("No citation found.", "")])[0][0]
         user_text = re.sub('<[^<]+?>', '', user_text_html)
 
         # 2. Construct the prompt
@@ -3942,17 +4815,24 @@ class MainWindow(QMainWindow):
             education_text = self.local_rag.query(prompt)
 
             # Append to chat history and re-render
-            self.chat_history.append(('education', (issue_title, education_text)))
+            self.chat_history.append(
+                ('education', (issue_title, education_text)))
             self._render_chat_history()
 
         except Exception as e:
-            self.set_error(f"An error occurred while generating educational content: {e}")
+            self.set_error(
+                f"An error occurred while generating educational content: {e}")
             QMessageBox.warning(self, "AI Error", f"An error occurred: {e}")
         finally:
             self.statusBar().showMessage("Ready")
             QApplication.restoreOverrideCursor()
 
-    def save_finding_feedback(self, issue_id: int, feedback: str, citation_text: str, model_prediction: str):
+    def save_finding_feedback(
+            self,
+            issue_id: int,
+            feedback: str,
+            citation_text: str,
+            model_prediction: str):
         try:
             with _get_db_connection() as conn:
                 cur = conn.cursor()
@@ -3962,7 +4842,8 @@ class MainWindow(QMainWindow):
                 """, (issue_id, feedback, _now_iso(), citation_text, model_prediction))
                 conn.commit()
             self.log(f"Saved feedback for finding {issue_id}: {feedback}")
-            self.statusBar().showMessage(f"Feedback '{feedback}' saved for finding {issue_id}.", 3000)
+            self.statusBar().showMessage(
+                f"Feedback '{feedback}' saved for finding {issue_id}.", 3000)
         except Exception as e:
             self.set_error(f"Failed to save feedback: {e}")
 
@@ -3971,11 +4852,13 @@ class MainWindow(QMainWindow):
             llm_a_enabled = get_bool_setting("llm_a_enabled", False)
             llm_b_enabled = get_bool_setting("llm_b_enabled", False)
 
-            self.lbl_lm1.setText(" LM A: On " if llm_a_enabled else " LM A: Off ")
+            self.lbl_lm1.setText(
+                " LM A: On " if llm_a_enabled else " LM A: Off ")
             self.lbl_lm1.setStyleSheet(("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
                                        if llm_a_enabled else "background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
 
-            self.lbl_lm2.setText(" LM B: On " if llm_b_enabled else " LM B: Off ")
+            self.lbl_lm2.setText(
+                " LM B: On " if llm_b_enabled else " LM B: Off ")
             self.lbl_lm2.setStyleSheet(("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
                                        if llm_b_enabled else "background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
         except Exception:
@@ -3984,13 +4867,19 @@ class MainWindow(QMainWindow):
     def action_export_fhir(self):
         last_json = get_setting("last_report_json")
         if not last_json or not os.path.isfile(last_json):
-            QMessageBox.warning(self, "FHIR Export", "Please run an analysis first.")
+            QMessageBox.warning(
+                self,
+                "FHIR Export",
+                "Please run an analysis first.")
             return
 
         base_name = os.path.basename(last_json).replace('.json', '')
-        default_fhir_path = os.path.join(os.path.dirname(last_json), f"{base_name}-fhir.json")
+        default_fhir_path = os.path.join(
+            os.path.dirname(last_json),
+            f"{base_name}-fhir.json")
 
-        fhir_path, _ = QFileDialog.getSaveFileName(self, "Save FHIR Report", default_fhir_path, "JSON Files (*.json)")
+        fhir_path, _ = QFileDialog.getSaveFileName(
+            self, "Save FHIR Report", default_fhir_path, "JSON Files (*.json)")
         if not fhir_path:
             return
 
@@ -4002,13 +4891,15 @@ class MainWindow(QMainWindow):
             # The export function is outside the class
             if export_report_fhir_json(data, fhir_path):
                 self.log(f"FHIR report exported successfully to: {fhir_path}")
-                QMessageBox.information(self, "FHIR Export", f"Successfully exported to:\n{fhir_path}")
+                QMessageBox.information(
+                    self, "FHIR Export", f"Successfully exported to:\n{fhir_path}")
             else:
                 raise ReportExportError("FHIR export function returned False.")
         except Exception as e:
             logger.error(f"FHIR export failed: {e}")
             self.set_error(str(e))
-            QMessageBox.critical(self, "Error", f"Failed to export FHIR report:\n{e}")
+            QMessageBox.critical(
+                self, "Error", f"Failed to export FHIR report:\n{e}")
 
     def action_send(self):
         question = self.input_query_te.toPlainText().strip()
@@ -4016,7 +4907,10 @@ class MainWindow(QMainWindow):
             return
 
         if not self.local_rag or not self.local_rag.is_ready() or not self.local_rag.index:
-            QMessageBox.warning(self, "AI Not Ready", "Please analyze a document first to activate the AI chat.")
+            QMessageBox.warning(
+                self,
+                "AI Not Ready",
+                "Please analyze a document first to activate the AI chat.")
             return
 
         try:
@@ -4024,7 +4918,8 @@ class MainWindow(QMainWindow):
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
             # Pass the chat history to the query method
-            answer = self.local_rag.query(question, chat_history=self.chat_history)
+            answer = self.local_rag.query(
+                question, chat_history=self.chat_history)
 
             # Add to history and re-render the chat
             self.chat_history.append(("user", question))
@@ -4045,7 +4940,10 @@ class MainWindow(QMainWindow):
         if not self.chat_history:
             return
 
-        reply = QMessageBox.question(self, "Reset Chat", "Are you sure you want to clear the current conversation?")
+        reply = QMessageBox.question(
+            self,
+            "Reset Chat",
+            "Are you sure you want to clear the current conversation?")
         if str(reply).lower().endswith("yes"):
             self.chat_history = []
             self.log("Chat history has been manually reset.")
@@ -4053,9 +4951,8 @@ class MainWindow(QMainWindow):
             if self.current_report_data:
                 self._render_chat_history()
             else:
-                self.txt_chat.clear() # Should not happen if there's history, but as a fallback
+                self.txt_chat.clear()  # Should not happen if there's history, but as a fallback
             self.statusBar().showMessage("Chat Reset", 3000)
-
 
     def _render_chat_history(self):
         """Renders the analysis report and the full chat history."""
@@ -4070,15 +4967,19 @@ class MainWindow(QMainWindow):
         chat_html = ""
         for sender, message in self.chat_history:
             if sender == "user":
-                chat_html += f"<div class='user-message'><b>You:</b> {html.escape(message)}</div>"
+                chat_html += f"<div class='user-message'><b>You:</b> {
+                    html.escape(message)}</div>"
             elif sender == "ai":
-                chat_html += f"<div class='ai-message'><b>AI:</b> {html.escape(message)}</div>"
+                chat_html += f"<div class='ai-message'><b>AI:</b> {
+                    html.escape(message)}</div>"
             elif sender == "education":
                 issue_title, education_text = message
                 # Basic HTML formatting for the content
                 formatted_edu_text = education_text.replace("\n", "<br>")
-                formatted_edu_text = formatted_edu_text.replace("1. **A Good Example:**", "<b>A Good Example:</b>")
-                formatted_edu_text = formatted_edu_text.replace("2. **Corrected Version:**", "<b>Corrected Version:</b>")
+                formatted_edu_text = formatted_edu_text.replace(
+                    "1. **A Good Example:**", "<b>A Good Example:</b>")
+                formatted_edu_text = formatted_edu_text.replace(
+                    "2. **Corrected Version:**", "<b>Corrected Version:</b>")
                 chat_html += (
                     f"<div class='education-block'>"
                     f"<h3>🎓 Learning Opportunity: {html.escape(issue_title)}</h3>"
@@ -4088,9 +4989,12 @@ class MainWindow(QMainWindow):
 
         title_page_html = ""
         if self.current_report_data:
-            file_name = os.path.basename(self.current_report_data.get('file', 'N/A'))
+            file_name = os.path.basename(
+                self.current_report_data.get(
+                    'file', 'N/A'))
             run_time = self.current_report_data.get('generated', 'N/A')
-            score = self.current_report_data.get('compliance', {}).get('score', 'N/A')
+            score = self.current_report_data.get(
+                'compliance', {}).get('score', 'N/A')
             title_page_html = f"""
             <div style="text-align: center; page-break-after: always;">
                 <h1>Compliance Analysis Report</h1>
@@ -4119,23 +5023,32 @@ class MainWindow(QMainWindow):
         """
 
         self.txt_chat.setHtml(full_html)
-        self.txt_chat.verticalScrollBar().setValue(self.txt_chat.verticalScrollBar().maximum())
+        self.txt_chat.verticalScrollBar().setValue(
+            self.txt_chat.verticalScrollBar().maximum())
 
     def action_export_feedback(self):
         try:
-            default_path = os.path.join(ensure_reports_dir_configured(), "feedback_export.csv")
-            dest_csv, _ = QFileDialog.getSaveFileName(self, "Export Feedback Data", default_path, "CSV Files (*.csv)")
+            default_path = os.path.join(
+                ensure_reports_dir_configured(),
+                "feedback_export.csv")
+            dest_csv, _ = QFileDialog.getSaveFileName(
+                self, "Export Feedback Data", default_path, "CSV Files (*.csv)")
             if not dest_csv:
                 return
 
             if export_feedback_csv(dest_csv):
-                QMessageBox.information(self, "Export Successful", f"Feedback data successfully exported to:\\n{dest_csv}")
+                QMessageBox.information(
+                    self,
+                    "Export Successful",
+                    f"Feedback data successfully exported to:\\n{dest_csv}")
                 _open_path(os.path.dirname(dest_csv))
             else:
-                QMessageBox.information(self, "Export Feedback", "No feedback data available to export.")
+                QMessageBox.information(
+                    self, "Export Feedback", "No feedback data available to export.")
         except Exception as e:
             self.set_error(f"Failed to export feedback: {e}")
-            QMessageBox.warning(self, "Error", f"Failed to export feedback:\\n{e}")
+            QMessageBox.warning(
+                self, "Error", f"Failed to export feedback:\\n{e}")
 
     def action_analyze_performance(self):
         try:
@@ -4147,15 +5060,20 @@ class MainWindow(QMainWindow):
                 df = pd.read_sql_query("SELECT * FROM reviewed_findings", conn)
 
             if df.empty or len(df) < 5:
-                QMessageBox.information(self, "Analyze Performance", "Not enough feedback data to analyze. Please review more findings first (at least 5 are recommended).")
+                QMessageBox.information(
+                    self,
+                    "Analyze Performance",
+                    "Not enough feedback data to analyze. Please review more findings first (at least 5 are recommended).")
                 return
 
             # 2. Prepare data for slicer
             # Ground truth: 1 if the user agrees with the model, 0 otherwise.
-            # A "correct" feedback means the user agrees the finding was indeed an issue.
+            # A "correct" feedback means the user agrees the finding was indeed
+            # an issue.
             df['y'] = (df['user_feedback'] == 'correct').astype(int)
 
-            # Model prediction: for now, we assume if it's in the table, the model predicted "1" (issue found)
+            # Model prediction: for now, we assume if it's in the table, the
+            # model predicted "1" (issue found)
             df['preds'] = 1
 
             # Features are the text
@@ -4188,11 +5106,14 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.set_error(f"Failed to run performance analysis: {e}")
             logger.exception("Slicer analysis failed")
-            QMessageBox.critical(self, "Error", f"Failed to run performance analysis:\\n{e}")
+            QMessageBox.critical(
+                self, "Error", f"Failed to run performance analysis:\\n{e}")
         finally:
             QApplication.restoreOverrideCursor()
 
 # --- Settings dialog ---
+
+
 def _show_settings_dialog(parent=None) -> None:
     try:
         _ = QDialog
@@ -4262,7 +5183,10 @@ def _show_settings_dialog(parent=None) -> None:
     row_pdf.addWidget(QLabel("Chart position:"))
     cmb_chart_pos = QComboBox()
     cmb_chart_pos.addItems(["bottom", "top", "none"])
-    cmb_chart_pos.setCurrentText(get_str_setting("pdf_chart_position", "bottom"))
+    cmb_chart_pos.setCurrentText(
+        get_str_setting(
+            "pdf_chart_position",
+            "bottom"))
     row_pdf.addWidget(cmb_chart_pos)
     row_pdf.addWidget(QLabel("Chart theme:"))
     cmb_chart_theme = QComboBox()
@@ -4270,6 +5194,51 @@ def _show_settings_dialog(parent=None) -> None:
     cmb_chart_theme.setCurrentText(get_str_setting("pdf_chart_theme", "dark"))
     row_pdf.addWidget(cmb_chart_theme)
     vbox.addLayout(row_pdf)
+
+    # PDF Layout Settings
+    layout_group = QGroupBox("PDF Layout Settings")
+    layout_vbox = QVBoxLayout(layout_group)
+
+    row_font_size = QHBoxLayout()
+    row_font_size.addWidget(QLabel("Font Size (pt):"))
+    sp_font_size = QDoubleSpinBox()
+    sp_font_size.setRange(6.0, 16.0)
+    sp_font_size.setSingleStep(0.5)
+    sp_font_size.setValue(float(get_str_setting("pdf_font_size", "8.5")))
+    row_font_size.addWidget(sp_font_size)
+    layout_vbox.addLayout(row_font_size)
+
+    row_margins = QGridLayout()
+    row_margins.addWidget(QLabel("Top Margin (in):"), 0, 0)
+    sp_margin_top = QDoubleSpinBox()
+    sp_margin_top.setRange(0.1, 2.0)
+    sp_margin_top.setSingleStep(0.1)
+    sp_margin_top.setValue(float(get_str_setting("pdf_margin_top", "1.1")))
+    row_margins.addWidget(sp_margin_top, 0, 1)
+
+    row_margins.addWidget(QLabel("Bottom Margin (in):"), 0, 2)
+    sp_margin_bottom = QDoubleSpinBox()
+    sp_margin_bottom.setRange(0.1, 2.0)
+    sp_margin_bottom.setSingleStep(0.1)
+    sp_margin_bottom.setValue(float(get_str_setting("pdf_margin_bottom", "1.3")))
+    row_margins.addWidget(sp_margin_bottom, 0, 3)
+
+    row_margins.addWidget(QLabel("Left Margin (in):"), 1, 0)
+    sp_margin_left = QDoubleSpinBox()
+    sp_margin_left.setRange(0.1, 2.0)
+    sp_margin_left.setSingleStep(0.1)
+    sp_margin_left.setValue(float(get_str_setting("pdf_margin_left", "1.0")))
+    row_margins.addWidget(sp_margin_left, 1, 1)
+
+    row_margins.addWidget(QLabel("Right Margin (in):"), 1, 2)
+    sp_margin_right = QDoubleSpinBox()
+    sp_margin_right.setRange(0.1, 2.0)
+    sp_margin_right.setSingleStep(0.1)
+    sp_margin_right.setValue(float(get_str_setting("pdf_margin_right", "1.0")))
+    row_margins.addWidget(sp_margin_right, 1, 3)
+
+    layout_vbox.addLayout(row_margins)
+    vbox.addWidget(layout_group)
 
     row_btn = QHBoxLayout()
     btn_ok = QPushButton("Save")
@@ -4281,7 +5250,9 @@ def _show_settings_dialog(parent=None) -> None:
         b.setFont(f)
         b.setMinimumHeight(36)
         b.setStyleSheet("text-align:center; padding:8px 14px;")
-        b.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        b.setSizePolicy(
+            QSizePolicy.Policy.Preferred,
+            QSizePolicy.Policy.Preferred)
     row_btn.addStretch(1)
     row_btn.addWidget(btn_ok)
     row_btn.addWidget(btn_cancel)
@@ -4294,10 +5265,21 @@ def _show_settings_dialog(parent=None) -> None:
         set_str_setting("reports_max_size_mb", str(sp_rep_size.value()))
         set_str_setting("reports_max_age_days", str(sp_rep_age.value()))
         set_bool_setting("pdf_chart_enabled", chk_pdf_chart.isChecked())
-        set_str_setting("pdf_chart_position", cmb_chart_pos.currentText().strip().lower())
-        set_str_setting("pdf_chart_theme", cmb_chart_theme.currentText().strip().lower())
+        set_str_setting("pdf_chart_position",
+                        cmb_chart_pos.currentText().strip().lower())
+        set_str_setting(
+            "pdf_chart_theme",
+            cmb_chart_theme.currentText().strip().lower())
         set_str_setting("recent_max", str(sp_recent.value()))
         set_str_setting("trends_window", str(sp_trends.value()))
+
+        # Save new PDF layout settings
+        set_str_setting("pdf_font_size", str(sp_font_size.value()))
+        set_str_setting("pdf_margin_top", str(sp_margin_top.value()))
+        set_str_setting("pdf_margin_right", str(sp_margin_right.value()))
+        set_str_setting("pdf_margin_bottom", str(sp_margin_bottom.value()))
+        set_str_setting("pdf_margin_left", str(sp_margin_left.value()))
+
         dlg.accept()
 
     try:
@@ -4315,6 +5297,59 @@ def _show_settings_dialog(parent=None) -> None:
 
 
 # ... existing code ...
+def _read_stylesheet(filename: str) -> str:
+    """Reads a stylesheet from the src/ directory."""
+    try:
+        path = os.path.join(BASE_DIR, filename)
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        logger.warning(f"Could not load stylesheet {filename}: {e}")
+        return ""
+
+
+def apply_theme(app: QApplication):
+    theme = (get_str_setting("ui_theme", "dark") or "dark").lower()
+    stylesheet = ""
+    if theme == "light":
+        stylesheet = _read_stylesheet("light_theme.qss")
+    else:
+        stylesheet = _read_stylesheet("dark_theme.qss")
+
+    if stylesheet:
+        app.setStyleSheet(stylesheet)
+    else:
+        # Fallback to original hardcoded styles if files are missing
+        if theme == "light":
+            app.setStyleSheet("""
+                QMainWindow { background: #f3f4f6; color: #111827; border: 2px solid #3b82f6; }
+                QWidget { background: #f3f4f6; color: #111827; }
+                QTextEdit, QLineEdit { background: #ffffff; color: #111827; border: 2px solid #93c5fd; border-radius: 10px; }
+                QPushButton { background: #2563eb; color: #ffffff; border: none; padding: 10px 14px; border-radius: 12px; font-size: 14px; font-weight: 700; }
+                QPushButton:hover { background: #1d4ed8; }
+                QToolBar { background: #e5e7eb; spacing: 10px; border: 2px solid #3b82f6; padding: 6px; }
+                QStatusBar { background: #e5e7eb; color: #111827; }
+                QGroupBox { border: 2px solid #3b82f6; margin-top: 20px; border-radius: 10px; }
+                QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 10px; padding: 6px 8px; font-weight: 700; font-size: 18px; color: #111827; }
+            """)
+        else:
+            app.setStyleSheet("""
+                QMainWindow { background: #1f2937; color: #e5e7eb; border: 2px solid #1f4fd1; }
+                QWidget { background: #1f2937; color: #e5e7eb; }
+                QTextEdit, QLineEdit { background: #111827; color: #e5e7eb; border: 2px solid #1f4fd1; border-radius: 10px; }
+                QPushButton { background: #1f4fd1; color: #ffffff; border: none; padding: 10px 14px; border-radius: 12px; font-size: 14px; font-weight: 700; }
+                QPushButton:hover { background: #163dc0; }
+                QToolBar { background: #111827; spacing: 10px; border: 2px solid #1f4fd1; padding: 6px; }
+                QStatusBar { background: #111827; color: #e5e7eb; }
+                QGroupBox { border: 2px solid #1f4fd1; margin-top: 20px; border-radius: 10px; }
+                QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 10px; padding: 6px 8px; font-weight: 700; font-size: 18px; color: #e5e7eb; }
+            """)
+
+    f = QFont()
+    f.setPointSize(14)
+    app.setFont(f)
+
+
 def _run_gui() -> Optional[int]:
     try:
         _ = QApplication  # noqa
@@ -4324,9 +5359,10 @@ def _run_gui() -> Optional[int]:
         return 0
 
     # --- Trial Period Check ---
-    from datetime import datetime, date, timedelta
+    from datetime import date, timedelta
 
-    # We need a QApplication instance to show a message box, so create it early.
+    # We need a QApplication instance to show a message box, so create it
+    # early.
     app = QApplication.instance() or QApplication(sys.argv)
 
     trial_duration_days = get_int_setting("trial_duration_days", 30)
@@ -4351,58 +5387,7 @@ def _run_gui() -> Optional[int]:
             QMessageBox.critical(None, "Trial Expired",
                                  f"Your trial period of {trial_duration_days} days has expired.\n"
                                  "Please contact the administrator to continue using the application.")
-            return 0 # Exit cleanly
-
-    def _read_stylesheet(filename: str) -> str:
-        """Reads a stylesheet from the src/ directory."""
-        try:
-            path = os.path.join(BASE_DIR, filename)
-            with open(path, "r", encoding="utf-8") as f:
-                return f.read()
-        except Exception as e:
-            logger.warning(f"Could not load stylesheet {filename}: {e}")
-            return ""
-
-    def apply_theme(app: QApplication):
-        theme = (get_str_setting("ui_theme", "dark") or "dark").lower()
-        stylesheet = ""
-        if theme == "light":
-            stylesheet = _read_stylesheet("light_theme.qss")
-        else:
-            stylesheet = _read_stylesheet("dark_theme.qss")
-
-        if stylesheet:
-            app.setStyleSheet(stylesheet)
-        else:
-            # Fallback to original hardcoded styles if files are missing
-            if theme == "light":
-                app.setStyleSheet("""
-                    QMainWindow { background: #f3f4f6; color: #111827; border: 2px solid #3b82f6; }
-                    QWidget { background: #f3f4f6; color: #111827; }
-                    QTextEdit, QLineEdit { background: #ffffff; color: #111827; border: 2px solid #93c5fd; border-radius: 10px; }
-                    QPushButton { background: #2563eb; color: #ffffff; border: none; padding: 10px 14px; border-radius: 12px; font-size: 14px; font-weight: 700; }
-                    QPushButton:hover { background: #1d4ed8; }
-                    QToolBar { background: #e5e7eb; spacing: 10px; border: 2px solid #3b82f6; padding: 6px; }
-                    QStatusBar { background: #e5e7eb; color: #111827; }
-                    QGroupBox { border: 2px solid #3b82f6; margin-top: 20px; border-radius: 10px; }
-                    QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 10px; padding: 6px 8px; font-weight: 700; font-size: 18px; color: #111827; }
-                """)
-            else:
-                app.setStyleSheet("""
-                    QMainWindow { background: #1f2937; color: #e5e7eb; border: 2px solid #1f4fd1; }
-                    QWidget { background: #1f2937; color: #e5e7eb; }
-                    QTextEdit, QLineEdit { background: #111827; color: #e5e7eb; border: 2px solid #1f4fd1; border-radius: 10px; }
-                    QPushButton { background: #1f4fd1; color: #ffffff; border: none; padding: 10px 14px; border-radius: 12px; font-size: 14px; font-weight: 700; }
-                    QPushButton:hover { background: #163dc0; }
-                    QToolBar { background: #111827; spacing: 10px; border: 2px solid #1f4fd1; padding: 6px; }
-                    QStatusBar { background: #111827; color: #e5e7eb; }
-                    QGroupBox { border: 2px solid #1f4fd1; margin-top: 20px; border-radius: 10px; }
-                    QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 10px; padding: 6px 8px; font-weight: 700; font-size: 18px; color: #e5e7eb; }
-                """)
-
-        f = QFont()
-        f.setPointSize(14)
-        app.setFont(f)
+            return 0  # Exit cleanly
 
     apply_theme(app)
     win = MainWindow()
@@ -4410,27 +5395,32 @@ def _run_gui() -> Optional[int]:
         win.resize(1100, 780)
         act_folder = QAction("Open Folder", win)
         act_folder.setShortcut("Ctrl+Shift+O")
-        act_folder.triggered.connect(win.action_open_folder)  # type: ignore[attr-defined]
+        act_folder.triggered.connect(
+            win.action_open_folder)  # type: ignore[attr-defined]
         win.addAction(act_folder)
 
         act_open = QAction("Open File", win)
         act_open.setShortcut("Ctrl+O")
-        act_open.triggered.connect(win.action_open_report)  # type: ignore[attr-defined]
+        # type: ignore[attr-defined]
+        act_open.triggered.connect(win.action_open_report)
         win.addAction(act_open)
 
         act_prev = QAction("Preview/Edit (Rubric)", win)
         act_prev.setShortcut("Ctrl+Shift+V")
-        act_prev.triggered.connect(win.action_upload_rubric)  # type: ignore[attr-defined]
+        # type: ignore[attr-defined]
+        act_prev.triggered.connect(win.action_upload_rubric)
         win.addAction(act_prev)
 
         act_batch = QAction("Analyze Batch", win)
         act_batch.setShortcut("Ctrl+B")
-        act_batch.triggered.connect(win.action_analyze_batch)  # type: ignore[attr-defined]
+        act_batch.triggered.connect(
+            win.action_analyze_batch)  # type: ignore[attr-defined]
         win.addAction(act_batch)
 
         act_batchc = QAction("Cancel Batch", win)
         act_batchc.setShortcut("Ctrl+Shift+B")
-        act_batchc.triggered.connect(win.action_cancel_batch)  # type: ignore[attr-defined]
+        act_batchc.triggered.connect(
+            win.action_cancel_batch)  # type: ignore[attr-defined]
         win.addAction(act_batchc)
     except Exception:
         ...
