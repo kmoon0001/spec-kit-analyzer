@@ -49,7 +49,7 @@ def test_audit_from_rubric(mock_rubric_service, mock_exists):
     mock_ot_rule.issue_title = "Goals may not be measurable/time-bound"
     mock_ot_rule.issue_detail = "Goals for the patient are not clearly measurable or time-bound."
     mock_ot_rule.issue_category = "Goals"
-    mock_ot_rule.severity = "wobbler"
+    mock_ot_rule.severity = "finding"
     mock_ot_rule.strict_severity = "flag"
     mock_ot_rule.positive_keywords = ["goal"]
     mock_ot_rule.negative_keywords = ["measurable", "time-bound"]
