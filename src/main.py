@@ -1831,10 +1831,42 @@ def run_analyzer(self, file_path: str,
                 raw_ner_results = self.ner_service.extract_entities(full_text, ner_sentences)
 
                 # Consolidate the results
-                ner_results = self.entity_consolidation_service.consolidate_entities(raw_ner_results, full_text)
+                embedding_model = self.local_rag.embedding_model if self.local_rag else None
+                ner_results = self.entity_consolidation_service.consolidate_entities(
+                    raw_ner_results, full_text, embedding_model=embedding_model
+                )
 
                 if ner_results:
-                    logger.info(f"Consolidated NER results: {ner_results}")
+                    logger.info(f"Consolidated NER results: {len(ner_results)} entities found.")
+
+                    # --- LLM-based Fact-Checking ---
+                    if self.local_rag and self.local_rag.is_ready():
+                        report(68, "Fact-checking NER findings with AI")
+                        for entity in ner_results:
+                            if entity.label == "DISAGREEMENT":
+                                continue
+
+                            prompt = (
+                                "You are a clinical documentation expert. Based on the document context, "
+                                "is the following finding plausible and correctly labeled?\n\n"
+                                f"Finding: \"{entity.text}\"\n"
+                                f"Label: \"{entity.label}\"\n\n"
+                                "Answer with only one word: 'Confirmed', 'Rejected', or 'Uncertain'."
+                            )
+                            try:
+                                response = self.local_rag.query(prompt, k=2)
+                                validation_status = "Uncertain"
+                                if "confirmed" in response.lower():
+                                    validation_status = "Confirmed"
+                                elif "rejected" in response.lower():
+                                    validation_status = "Rejected"
+
+                                entity.llm_validation = validation_status
+                                logger.info(f"LLM validation for '{entity.text}' ({entity.label}): {validation_status}")
+
+                            except Exception as e:
+                                logger.warning(f"LLM fact-checking failed for entity '{entity.text}': {e}")
+                    # --- End LLM-based Fact-Checking ---
             else:
                 logger.warning("NER service was enabled but not ready. Skipping NER.")
 

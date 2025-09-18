@@ -65,3 +65,49 @@ def test_consolidate_entities_simple_overlap(consolidation_service):
     assert sorted(merged_entity.models) == ["BioBERT", "CliniBERT"], "Models list is incorrect."
     # The context should be carried over from the best entity
     assert merged_entity.context == "a history of hypertension", "Context is incorrect."
+
+
+def test_consolidate_entities_confidence_boost(consolidation_service):
+    """
+    Tests that the confidence score is boosted when two models identify an overlapping entity.
+    """
+    original_text = "The patient reports a history of hypertension and diabetes."
+    initial_score = 0.95
+    entities1 = [
+        NEREntity(text="hypertension", label="MedicalCondition", score=initial_score, start=30, end=42, models=["BioBERT"], context="a history of hypertension")
+    ]
+    entities2 = [
+        NEREntity(text="hypertension and diabetes", label="MedicalCondition", score=0.90, start=30, end=53, models=["CliniBERT"], context="history of hypertension and diabetes.")
+    ]
+    all_results = {"BioBERT": entities1, "CliniBERT": entities2}
+
+    consolidated_entities = consolidation_service.consolidate_entities(all_results, original_text)
+
+    assert len(consolidated_entities) == 1
+    merged_entity = consolidated_entities[0]
+    assert merged_entity.label == "MedicalCondition"
+    # The new score should be boosted from the original max score
+    assert merged_entity.score > initial_score
+    assert merged_entity.score <= 1.0
+    assert sorted(merged_entity.models) == ["BioBERT", "CliniBERT"]
+
+
+def test_consolidate_entities_disagreement(consolidation_service):
+    """
+    Tests that a 'DISAGREEMENT' entity is created when two models provide conflicting labels for similar text.
+    """
+    original_text = "The patient has a history of heart failure."
+    entities1 = [
+        NEREntity(text="heart failure", label="Condition", score=0.9, start=29, end=42, models=["model1"], context="")
+    ]
+    entities2 = [
+        NEREntity(text="heart failure", label="Symptom", score=0.85, start=29, end=42, models=["model2"], context="")
+    ]
+    all_results = {"model1": entities1, "model2": entities2}
+
+    consolidated_entities = consolidation_service.consolidate_entities(all_results, original_text)
+
+    assert len(consolidated_entities) == 1
+    merged_entity = consolidated_entities[0]
+    assert merged_entity.label == "DISAGREEMENT"
+    assert "Conflicting labels found" in merged_entity.context
