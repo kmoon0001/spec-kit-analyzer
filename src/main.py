@@ -2362,6 +2362,26 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(results_tab, "Analysis Results")
         self.tabs.addTab(logs_tab, "Application Logs")
 
+        # --- Semantic Search Tab ---
+        search_tab = QWidget()
+        self.tabs.addTab(search_tab, "Semantic Search")
+        search_layout = QVBoxLayout(search_tab)
+
+        search_input_layout = QHBoxLayout()
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Ask a question about the guidelines...")
+        search_input_layout.addWidget(self.search_input)
+
+        self.search_button = QPushButton("Search")
+        search_input_layout.addWidget(self.search_button)
+        search_layout.addLayout(search_input_layout)
+
+        self.search_results = QTextEdit()
+        self.search_results.setReadOnly(True)
+        search_layout.addWidget(self.search_results)
+
+        self.search_button.clicked.connect(self.perform_guideline_search)
+
         # --- Analytics Tab ---
         analytics_tab = QWidget()
         self.tabs.addTab(analytics_tab, "Analytics Dashboard")
@@ -2538,6 +2558,38 @@ class MainWindow(QMainWindow):
     def showEvent(self, event):
         super().showEvent(event)
         self._update_analytics_tab()
+
+    def perform_guideline_search(self):
+        """
+        Performs a semantic search on the guidelines based on user input.
+        """
+        query = self.search_input.text()
+        if not query:
+            QMessageBox.warning(self, "Empty Query", "Please enter a question to search.")
+            return
+
+        if not self.guideline_service or not self.guideline_service.is_index_ready:
+            QMessageBox.warning(self, "Index Not Ready", "The guideline search index is not ready. Please wait a moment.")
+            return
+
+        self.statusBar().showMessage("Searching guidelines...")
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+
+        try:
+            results = self.guideline_service.search(query, top_k=3)
+            self.search_results.clear()
+            if not results:
+                self.search_results.setText("No relevant guidelines found.")
+            else:
+                for result in results:
+                    self.search_results.append(f"<b>Source:</b> {result['source']}<br>")
+                    self.search_results.append(f"{result['text']}<br><br>")
+        except Exception as e:
+            logger.error(f"Guideline search failed: {e}")
+            QMessageBox.critical(self, "Search Error", f"An error occurred during the search: {e}")
+        finally:
+            self.statusBar().showMessage("Ready")
+            QApplication.restoreOverrideCursor()
         
     def action_clear_all(self):
         try:
