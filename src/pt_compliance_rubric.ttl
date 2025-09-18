@@ -49,6 +49,11 @@
     rdfs:domain :KeywordSet ;
     rdfs:range rdfs:Literal .
 
+:hasFinancialImpact a owl:DatatypeProperty ;
+    rdfs:comment "Estimated financial impact of this compliance finding, as an integer." ;
+    rdfs:domain :ComplianceRule ;
+    rdfs:range rdfs:Literal .
+
 # --- Individuals (Rules) ---
 
 # Rule 1: Signature/Date check
@@ -59,6 +64,7 @@
     :hasIssueTitle "Provider signature/date possibly missing" ;
     :hasIssueDetail "No explicit evidence of dated/signature entries found." ;
     :hasIssueCategory "Signatures/Dates" ;
+    :hasFinancialImpact "50" ;
     :hasNegativeKeywords :SignatureKeywords .
 
 :SignatureKeywords a :KeywordSet ;
@@ -72,6 +78,7 @@
     :hasIssueTitle "Goals may not be measurable/time-bound" ;
     :hasIssueDetail "Consider restating goals with measurable, time-bound targets and baselines." ;
     :hasIssueCategory "Goals" ;
+    :hasFinancialImpact "50" ;
     :hasPositiveKeywords :GoalsKeywordsPresent ;
     :hasNegativeKeywords :GoalsKeywordsMissing .
 
@@ -86,6 +93,7 @@
     :hasIssueTitle "Medical necessity not explicitly supported" ;
     :hasIssueDetail "Ensure documentation ties interventions to functional limitations and outcomes aligned with Medicare Part B." ;
     :hasIssueCategory "Medical Necessity" ;
+    :hasFinancialImpact "50" ;
     :hasNegativeKeywords :MedicalNecessityKeywords .
 
 :MedicalNecessityKeywords a :KeywordSet ;
@@ -99,6 +107,7 @@
     :hasIssueTitle "Assistant supervision context unclear" ;
     :hasIssueDetail "When assistants are involved, document supervision/oversight per Medicare/state requirements." ;
     :hasIssueCategory "Assistant Supervision" ;
+    :hasFinancialImpact "25" ;
     :hasPositiveKeywords :AssistantKeywordsPresent ;
     :hasNegativeKeywords :AssistantKeywordsMissing .
 
@@ -113,6 +122,7 @@
     :hasIssueTitle "Plan/Certification not clearly referenced" ;
     :hasIssueDetail "Explicitly reference plan of care/certification dates and responsible signatures." ;
     :hasIssueCategory "Plan/Certification" ;
+    :hasFinancialImpact "50" ;
     :hasNegativeKeywords :PlanOfCareKeywords .
 
 :PlanOfCareKeywords a :KeywordSet ;

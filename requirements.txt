@@ -21,3 +21,13 @@ openpyxl
 # Added for UI Testing
 pytest
 pytest-qt
+
+# Added for spell checking
+pyspellchecker
+
+# Added for interactive charts
+plotly
+PyQt6-WebEngine
+
+# Added for bias auditing
+fairlearn
