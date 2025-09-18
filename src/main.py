@@ -145,6 +145,7 @@ try:
     from .rubric_service import RubricService, ComplianceRule
     from .fallback_analyzer import FallbackAnalyzer
     from .seven_habits_analyzer import SevenHabitsAnalyzer
+    from .smart_chunker import SmartChunker
 
 # --- LLM Loader Worker ---
 class LLMWorker(QObject):
@@ -744,65 +745,61 @@ def split_sentences(text: str) -> list[str]:
 
 def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
     ext = os.path.splitext(file_path)[1].lower()
+    full_text = ""
+    source_type = "Unknown"
+
     try:
-        sentences: list[tuple[str, str]] = []
         if ext == ".pdf":
-            if not pdfplumber:
-                return [("Error: pdfplumber not available.", "PDF Parser")]
+            source_type = "PDF"
+            if not pdfplumber: return [("Error: pdfplumber not available.", "PDF Parser")]
             with pdfplumber.open(file_path) as pdf:
-                for i, page in enumerate(pdf.pages, start=1):
-                    txt = page.extract_text() or ""
-                    for s in split_sentences(txt):
-                        if s:
-                            sentences.append((s, f"Page {i}"))
+                full_text = "\n".join(page.extract_text() or "" for page in pdf.pages)
         elif ext == ".docx":
+            source_type = "DOCX"
             try:
                 from docx import Document
             except Exception:
                 return [("Error: python-docx not available.", "DOCX Parser")]
             docx_doc = Document(file_path)
-            for i, para in enumerate(docx_doc.paragraphs, start=1):
-                if not para.text.strip():
-                    continue
-                for s in split_sentences(para.text):
-                    if s:
-                        sentences.append((s, f"Paragraph {i}"))
+            full_text = "\n".join(para.text for para in docx_doc.paragraphs if para.text.strip())
         elif ext in [".xlsx", ".xls", ".csv"]:
+            source_type = "Table"
             try:
                 if ext in [".xlsx", ".xls"]:
                     df = pd.read_excel(file_path)
-                    if isinstance(df, dict):
-                        df = next(iter(df.values()))
+                    if isinstance(df, dict): df = next(iter(df.values()))
                 else:
                     df = pd.read_csv(file_path)
-                content = df.to_string(index=False)
-                for s in split_sentences(content):
-                    if s:
-                        sentences.append((s, "Table"))
+                full_text = df.to_string(index=False)
             except Exception as e:
                 return [(f"Error: Failed to read tabular file: {e}", "Data Parser")]
         elif ext in [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff"]:
-            if not Image or not pytesseract:
-                return [("Error: OCR dependencies not available.", "OCR Parser")]
+            source_type = "Image (OCR)"
+            if not Image or not pytesseract: return [("Error: OCR dependencies not available.", "OCR Parser")]
             try:
                 img = Image.open(file_path)
-                if img.mode not in ("RGB", "L"):
-                    img = img.convert("RGB")
-                txt = pytesseract.image_to_string(img, lang=get_str_setting("ocr_lang", "eng"))
-                for s in split_sentences(txt or ""):
-                    if s:
-                        sentences.append((s, "Image (OCR)"))
+                if img.mode not in ("RGB", "L"): img = img.convert("RGB")
+                full_text = pytesseract.image_to_string(img, lang=get_str_setting("ocr_lang", "eng"))
             except UnidentifiedImageError as e:
                 return [(f"Error: Unidentified image: {e}", "OCR Parser")]
         elif ext == ".txt":
+            source_type = "Text File"
             with open(file_path, "r", encoding="utf-8") as f:
-                txt = f.read()
-            for s in split_sentences(txt):
-                if s:
-                    sentences.append((s, "Text File"))
+                full_text = f.read()
         else:
             return [(f"Error: Unsupported file type: {ext}", "File Handler")]
-        return sentences if sentences else [("Info: No text could be extracted from the document.", "System")]
+
+        if not full_text or not full_text.strip():
+            return [("Info: No text could be extracted from the document.", "System")]
+
+        # Use the SmartChunker to split the full text
+        chunker = SmartChunker(chunk_size=800, chunk_overlap=150)
+        chunks = chunker.split_text(full_text)
+
+        # Return chunks with a generic source for now.
+        # Page/paragraph numbers are lost with this approach but chunking is better.
+        return [(chunk, source_type) for chunk in chunks]
+
     except FileNotFoundError:
         return [(f"Error: File not found at {file_path}", "File System")]
     except Exception as e:
@@ -3344,8 +3341,10 @@ def _run_gui() -> Optional[int]:
                 for file_path in guideline_files:
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
-                        # Simple split, can be improved with better chunking later
-                        all_texts.extend(f.read().split('\n\n'))
+                        text = f.read()
+                    chunker = SmartChunker(chunk_size=800, chunk_overlap=150)
+                    chunks = chunker.split_text(text)
+                    all_texts.extend(chunks)
                 except FileNotFoundError:
                     self.log(f"Warning: Guideline file not found: {file_path}")
                 except Exception as e:

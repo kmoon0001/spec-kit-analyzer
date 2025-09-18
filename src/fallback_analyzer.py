@@ -10,7 +10,8 @@ FALLBACK_LOGIC_NODES: List[Dict[str, Any]] = [
         "id": "skilled_need_unjustified",
         "name": "Skilled Need Not Justified",
         "trigger_keywords": [],
-        "trigger_logic": lambda text: not any(k in text.lower() for k in ["mbs", "moca", "objective data", "clinical data", "anticipated decline"]),
+        # More robust check: looks for common justification phrases.
+        "trigger_logic": lambda text: not re.search(r'(mbs|moca|objective data|clinical data|anticipated decline|skilled intervention.*justified)', text, re.IGNORECASE),
         "risk_flag": "🔴 High",
         "fallback_action": "Flag “Skilled need unclear”",
         "audit_safe_default": "Therapist to clarify skilled need using clinical data or anticipated decline",
@@ -40,7 +41,8 @@ FALLBACK_LOGIC_NODES: List[Dict[str, Any]] = [
         "id": "functional_goals_missing",
         "name": "Functional Goals Missing",
         "trigger_keywords": ["goal"],
-        "trigger_logic": lambda text: "goal" in text.lower() and not any(k in text.lower() for k in ["functional", "smart", "measurable"]),
+        # More robust check: finds "goal" but not followed by words indicating a functional description.
+        "trigger_logic": lambda text: re.search(r'\bgoal\b', text, re.IGNORECASE) and not re.search(r'\bgoal\b.*\b(functional|measurable|increase|decrease|improve|adl|patient will)\b', text, re.IGNORECASE),
         "risk_flag": "🟠 Moderate",
         "fallback_action": "Flag “Goals not functional”",
         "audit_safe_default": "Therapist to revise goals to reflect measurable functional outcomes",
