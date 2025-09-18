@@ -1,62 +1,99 @@
-# Python
-from __future__ import annotations
-
 import unittest
-from .smart_chunker import SmartChunker
+from src.smart_chunker import SmartChunker
 
 class TestSmartChunker(unittest.TestCase):
 
-    def test_simple_split(self):
-        """Test that a simple text is split into chunks of the correct size."""
+    def setUp(self):
+        """Set up common variables for tests."""
+        self.long_text = "This is the first sentence.\n\nThis is the second sentence. It is a bit longer.\n\nThis is the third sentence, designed to test the chunking functionality of the SmartChunker class. Let's add more words to make it wrap. And a bit more for good measure."
+        self.short_text = "This is a short text."
+
+    def test_initialization(self):
+        """Test that the chunker initializes with the correct parameters."""
         chunker = SmartChunker(chunk_size=50, chunk_overlap=10)
-        text = "This is a test sentence. This is another test sentence. This is a third one to make the text long enough."
-        chunks = chunker.split_text(text)
-        self.assertTrue(all(len(c) <= 50 for c in chunks))
-        self.assertGreater(len(chunks), 1)
+        self.assertEqual(chunker.chunk_size, 50)
+        self.assertEqual(chunker.chunk_overlap, 10)
+        self.assertEqual(chunker.separators, ["\n\n", "\n", ". ", " ", ""])
+
+    def test_chunking_long_text(self):
+        """Test that a long text is split into multiple chunks."""
+        chunker = SmartChunker(chunk_size=100, chunk_overlap=20)
+        chunks = chunker.chunk(self.long_text)
+        self.assertTrue(len(chunks) > 1, "The text should be split into multiple chunks")
+        for chunk in chunks:
+            self.assertTrue(len(chunk) <= 100, f"Chunk is too long: {len(chunk)}")
 
     def test_chunk_overlap(self):
-        """Test that the overlap between chunks is working correctly."""
-        chunker = SmartChunker(chunk_size=30, chunk_overlap=10)
-        text = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        chunks = chunker.split_text(text)
-        # The first chunk should end with 'd'. The second should start with the overlap from the first.
-        # Overlap should be the last 10 chars of the first chunk.
-        # A simple check is that the end of the first chunk is in the start of the second.
-        self.assertIn(chunks[0][-10:], chunks[1])
+        """Test that the overlap between chunks is correctly implemented."""
+        chunker = SmartChunker(chunk_size=80, chunk_overlap=15)
+        text = "This is a sentence that will be used to test the overlap. And this is another part to ensure splitting."
+        # Separator is ". "
+        # First part: "This is a sentence that will be used to test the overlap." (61 chars)
+        # Second part: "And this is another part to ensure splitting." (46 chars)
+        # They should be split. Let's make the first part longer.
+        text = "This is a very long first sentence that will definitely be used to test the overlap functionality because it needs to be longer than the chunk size."
+        # This text is 150 chars.
 
-    def test_recursive_fallback(self):
-        """Test that the chunker uses the prioritized list of separators."""
-        # This text has no double newlines, so it should split by single newlines first.
-        chunker = SmartChunker(chunk_size=50, chunk_overlap=10)
-        text = "First line.\nSecond line, which is a bit longer to test things.\nThird line is shorter."
-        chunks = chunker.split_text(text)
-        # We expect it to have split by the newline, and merged the first two lines.
-        self.assertIn("First line.\nSecond line", chunks[0])
-        self.assertIn("Third line", chunks[1])
-
-    def test_no_split_for_short_text(self):
-        """Test that text shorter than the chunk size is not split."""
         chunker = SmartChunker(chunk_size=100, chunk_overlap=20)
-        text = "This is a short text that should not be split at all."
-        chunks = chunker.split_text(text)
-        self.assertEqual(len(chunks), 1)
-        self.assertEqual(chunks[0], text)
+        chunks = chunker.chunk(text)
 
-    def test_empty_string(self):
+        self.assertTrue(len(chunks) > 1)
+        # The end of the first chunk should be the start of the second chunk (with overlap)
+        overlap_part = chunks[0][-20:]
+        self.assertTrue(chunks[1].startswith(overlap_part))
+
+    def test_no_chunking_for_short_text(self):
+        """Test that text shorter than chunk_size is not chunked."""
+        chunker = SmartChunker(chunk_size=100, chunk_overlap=10)
+        chunks = chunker.chunk(self.short_text)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0], self.short_text)
+
+    def test_custom_separators(self):
+        """Test chunking with a custom set of separators."""
+        text = "Sentence one|Sentence two|Sentence three"
+        chunker = SmartChunker(chunk_size=15, chunk_overlap=5, separators=["|"])
+        chunks = chunker.chunk(text)
+        self.assertEqual(len(chunks), 3)
+        self.assertEqual(chunks[0], "Sentence one")
+        self.assertEqual(chunks[1], "Sentence two")
+        self.assertEqual(chunks[2], "Sentence three")
+
+    def test_recursive_splitting(self):
+        """Test the recursive nature of the splitting logic."""
+        # This text has \n\n, \n, and . separators.
+        # The chunker should first split by \n\n.
+        # If a resulting chunk is still too large, it should be split by \n, then by .
+        text = "Part 1 is here.\nIt has one line break.\n\nPart 2 is here. It is a bit longer to ensure it gets split further. Yes, it really is."
+        chunker = SmartChunker(chunk_size=50, chunk_overlap=10)
+        chunks = chunker.chunk(text)
+
+        # Expected splits:
+        # Initial split by "\n\n":
+        # -> "Part 1 is here.\nIt has one line break." (40 chars) -> stays as is
+        # -> "Part 2 is here. It is a bit longer to ensure it gets split further. Yes, it really is." (96 chars) -> needs further splitting by ". "
+        #    -> "Part 2 is here" (16 chars)
+        #    -> "It is a bit longer to ensure it gets split further" (54 chars) -> needs splitting
+        #    -> "Yes, it really is." (19 chars)
+
+        self.assertTrue(len(chunks) > 2)
+        self.assertIn("Part 1 is here.\nIt has one line break.", chunks)
+        # Check that the long second part was split
+        self.assertTrue(any("Part 2 is here" in chunk for chunk in chunks))
+        self.assertTrue(any("gets split further" in chunk for chunk in chunks))
+        self.assertTrue(any("Yes, it really is." in chunk for chunk in chunks))
+
+    def test_empty_text(self):
         """Test that an empty string results in an empty list of chunks."""
         chunker = SmartChunker()
-        text = ""
-        chunks = chunker.split_text(text)
-        self.assertEqual(len(chunks), 0)
+        chunks = chunker.chunk("")
+        self.assertEqual(chunks, [])
 
-    def test_respects_paragraphs(self):
-        """Test that the chunker prioritizes splitting by paragraphs."""
-        chunker = SmartChunker(chunk_size=50, chunk_overlap=10)
-        text = "This is the first paragraph.\n\nThis is the second paragraph, which is kept together."
-        chunks = chunker.split_text(text)
-        self.assertIn("This is the first paragraph.", chunks[0])
-        self.assertIn("This is the second paragraph", chunks[1])
-
+    def test_text_with_only_separators(self):
+        """Test text that consists only of separators."""
+        chunker = SmartChunker()
+        chunks = chunker.chunk("\n\n\n. \n")
+        self.assertEqual(chunks, [])
 
 if __name__ == '__main__':
     unittest.main()

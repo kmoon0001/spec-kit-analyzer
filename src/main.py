@@ -135,7 +135,7 @@ try:
         QMainWindow, QToolBar, QLabel, QFileDialog, QMessageBox, QApplication,
         QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton,
         QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
-        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QFrame
+        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget
     )
     from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter
     from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal
@@ -143,9 +143,6 @@ try:
     # Local imports
     from .local_llm import LocalRAG
     from .rubric_service import RubricService, ComplianceRule
-    from .fallback_analyzer import FallbackAnalyzer
-    from .seven_habits_analyzer import SevenHabitsAnalyzer
-    from .smart_chunker import SmartChunker
 
 # --- LLM Loader Worker ---
 class LLMWorker(QObject):
@@ -174,6 +171,8 @@ class LLMWorker(QObject):
         except Exception as e:
             logger.exception("LLMWorker failed to load model.")
             self.error.emit(f"Failed to load AI model: {e}")
+
+
 
 
 def _generate_suggested_questions(issues: list) -> list[str]:
@@ -745,61 +744,65 @@ def split_sentences(text: str) -> list[str]:
 
 def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
     ext = os.path.splitext(file_path)[1].lower()
-    full_text = ""
-    source_type = "Unknown"
-
     try:
+        sentences: list[tuple[str, str]] = []
         if ext == ".pdf":
-            source_type = "PDF"
-            if not pdfplumber: return [("Error: pdfplumber not available.", "PDF Parser")]
+            if not pdfplumber:
+                return [("Error: pdfplumber not available.", "PDF Parser")]
             with pdfplumber.open(file_path) as pdf:
-                full_text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+                for i, page in enumerate(pdf.pages, start=1):
+                    txt = page.extract_text() or ""
+                    for s in split_sentences(txt):
+                        if s:
+                            sentences.append((s, f"Page {i}"))
         elif ext == ".docx":
-            source_type = "DOCX"
             try:
                 from docx import Document
             except Exception:
                 return [("Error: python-docx not available.", "DOCX Parser")]
             docx_doc = Document(file_path)
-            full_text = "\n".join(para.text for para in docx_doc.paragraphs if para.text.strip())
+            for i, para in enumerate(docx_doc.paragraphs, start=1):
+                if not para.text.strip():
+                    continue
+                for s in split_sentences(para.text):
+                    if s:
+                        sentences.append((s, f"Paragraph {i}"))
         elif ext in [".xlsx", ".xls", ".csv"]:
-            source_type = "Table"
             try:
                 if ext in [".xlsx", ".xls"]:
                     df = pd.read_excel(file_path)
-                    if isinstance(df, dict): df = next(iter(df.values()))
+                    if isinstance(df, dict):
+                        df = next(iter(df.values()))
                 else:
                     df = pd.read_csv(file_path)
-                full_text = df.to_string(index=False)
+                content = df.to_string(index=False)
+                for s in split_sentences(content):
+                    if s:
+                        sentences.append((s, "Table"))
             except Exception as e:
                 return [(f"Error: Failed to read tabular file: {e}", "Data Parser")]
         elif ext in [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff"]:
-            source_type = "Image (OCR)"
-            if not Image or not pytesseract: return [("Error: OCR dependencies not available.", "OCR Parser")]
+            if not Image or not pytesseract:
+                return [("Error: OCR dependencies not available.", "OCR Parser")]
             try:
                 img = Image.open(file_path)
-                if img.mode not in ("RGB", "L"): img = img.convert("RGB")
-                full_text = pytesseract.image_to_string(img, lang=get_str_setting("ocr_lang", "eng"))
+                if img.mode not in ("RGB", "L"):
+                    img = img.convert("RGB")
+                txt = pytesseract.image_to_string(img, lang=get_str_setting("ocr_lang", "eng"))
+                for s in split_sentences(txt or ""):
+                    if s:
+                        sentences.append((s, "Image (OCR)"))
             except UnidentifiedImageError as e:
                 return [(f"Error: Unidentified image: {e}", "OCR Parser")]
         elif ext == ".txt":
-            source_type = "Text File"
             with open(file_path, "r", encoding="utf-8") as f:
-                full_text = f.read()
+                txt = f.read()
+            for s in split_sentences(txt):
+                if s:
+                    sentences.append((s, "Text File"))
         else:
             return [(f"Error: Unsupported file type: {ext}", "File Handler")]
-
-        if not full_text or not full_text.strip():
-            return [("Info: No text could be extracted from the document.", "System")]
-
-        # Use the SmartChunker to split the full text
-        chunker = SmartChunker(chunk_size=800, chunk_overlap=150)
-        chunks = chunker.split_text(full_text)
-
-        # Return chunks with a generic source for now.
-        # Page/paragraph numbers are lost with this approach but chunking is better.
-        return [(chunk, source_type) for chunk in chunks]
-
+        return sentences if sentences else [("Info: No text could be extracted from the document.", "System")]
     except FileNotFoundError:
         return [(f"Error: File not found at {file_path}", "File System")]
     except Exception as e:
@@ -1868,16 +1871,6 @@ def run_analyzer(file_path: str,
         for issue in issues_scored:
             issue['details'] = issue_details_map.get(issue.get('title', ''), {})
 
-        # --- Semantic Search for Guidelines on Unified Index ---
-        if self.local_rag and self.local_rag.index and self.local_rag.is_ready():
-            self.log("Searching for relevant guidelines for each finding...")
-            for issue in issues_scored:
-                query = f"{issue.get('title', '')}: {issue.get('detail', '')}"
-                # Search the unified index
-                guideline_results = self.local_rag.search_index(query, k=2)
-                # We no longer have the source easily available, so we just attach the text
-                issue['guidelines'] = [{"text": text, "source": "Unified Knowledge Base"} for text in guideline_results]
-        # --- End Semantic Search ---
 
         pages_est = len({s for _, s in collapsed if s.startswith("Page ")}) or 1
 
@@ -2175,21 +2168,9 @@ def run_analyzer(file_path: str,
         pdf_path, csv_path = generate_report_paths()
         json_path = pdf_path[:-4] + ".json"
 
-        # --- Run Advanced Analyzers (Fallback & 7 Habits) ---
-        fallback_findings = []
-        if get_bool_setting("enable_fallback_analysis", True):
-            self.log("Running Fallback Logic Analyzer...")
-            fallback_findings = self.fallback_analyzer.analyze_text(full_text)
-
-        seven_habits_findings = []
-        if get_bool_setting("enable_7_habits_analysis", True):
-            self.log("Running 7 Habits Analyzer...")
-            seven_habits_findings = self.seven_habits_analyzer.analyze_text(full_text)
-        # --- End Advanced Analyzers ---
-
         try:
             export_report_json({
-                "json_schema_version": 7,
+                "json_schema_version": 6,
                 "report_template_version": REPORT_TEMPLATE_VERSION,
                 "file": file_path,
                 "generated": _now_iso(),
@@ -2221,8 +2202,6 @@ def run_analyzer(file_path: str,
                 "cat_counts": cat_counts,
                 "trends": trends,
                 "suggested_questions": suggested_questions,
-                "fallback_findings": fallback_findings,
-                "seven_habits_findings": seven_habits_findings,
             }, json_path)
             result_info["json"] = json_path
         except Exception as e:
@@ -2511,10 +2490,6 @@ def _run_gui() -> Optional[int]:
             self.chat_history: list[tuple[str, str]] = []
             self.compliance_rules: list[ComplianceRule] = []
 
-            # Instantiate the new analyzers
-            self.fallback_analyzer = FallbackAnalyzer()
-            self.seven_habits_analyzer = SevenHabitsAnalyzer()
-
             tb = QToolBar("Main")
             try:
                 tb.setMovable(False)
@@ -2706,48 +2681,6 @@ def _run_gui() -> Optional[int]:
             self.queue_log_tabs.addTab(log_widget_container, "Logs")
             queue_logs_layout.addWidget(self.queue_log_tabs)
 
-            # --- Analysis Configuration Panel ---
-            self.grp_config = QGroupBox("Analysis Configuration")
-            config_layout = QVBoxLayout(self.grp_config)
-
-            self.chk_enable_fallback = QCheckBox("Enable Fallback Logic Analysis")
-            self.chk_enable_fallback.setChecked(get_bool_setting("enable_fallback_analysis", True))
-            self.chk_enable_fallback.toggled.connect(lambda checked: set_bool_setting("enable_fallback_analysis", checked))
-            config_layout.addWidget(self.chk_enable_fallback)
-
-            self.chk_enable_7_habits = QCheckBox("Enable '7 Habits' Analysis")
-            self.chk_enable_7_habits.setChecked(get_bool_setting("enable_7_habits_analysis", True))
-            self.chk_enable_7_habits.toggled.connect(lambda checked: set_bool_setting("enable_7_habits_analysis", checked))
-            config_layout.addWidget(self.chk_enable_7_habits)
-
-            # Add a separator and a new section for guideline sources
-            separator = QFrame()
-            separator.setFrameShape(QFrame.Shape.HLine)
-            separator.setFrameShadow(QFrame.Shadow.Sunken)
-            config_layout.addWidget(separator)
-
-            guideline_label = QLabel("<b>Guideline Sources for AI Knowledge Base:</b>")
-            config_layout.addWidget(guideline_label)
-
-            self.chk_guideline_snf = QCheckBox("SNF Guidelines")
-            self.chk_guideline_snf.setChecked(get_bool_setting("enable_guideline_snf", True))
-            self.chk_guideline_snf.toggled.connect(lambda checked: set_bool_setting("enable_guideline_snf", checked))
-            config_layout.addWidget(self.chk_guideline_snf)
-
-            self.chk_guideline_bpm = QCheckBox("Benefit Policy Manual")
-            self.chk_guideline_bpm.setChecked(get_bool_setting("enable_guideline_bpm", True))
-            self.chk_guideline_bpm.toggled.connect(lambda checked: set_bool_setting("enable_guideline_bpm", checked))
-            config_layout.addWidget(self.chk_guideline_bpm)
-
-            self.chk_guideline_user = QCheckBox("User Checklist")
-            self.chk_guideline_user.setChecked(get_bool_setting("enable_guideline_user", True))
-            self.chk_guideline_user.toggled.connect(lambda checked: set_bool_setting("enable_guideline_user", checked))
-            config_layout.addWidget(self.chk_guideline_user)
-
-            config_layout.addStretch(1)
-            self.grp_config.setLayout(config_layout)
-
-
             self.grp_results = QGroupBox("Analysis Window")
             res_layout = QVBoxLayout(self.grp_results)
             res_layout.setContentsMargins(12, 12, 12, 12)
@@ -2787,13 +2720,11 @@ def _run_gui() -> Optional[int]:
             # Layout order
             main_splitter = QSplitter(Qt.Orientation.Vertical)
             main_splitter.addWidget(top_split)
-            main_splitter.addWidget(self.grp_config) # Add the new config panel
             main_splitter.addWidget(self.grp_queue_logs)
             main_splitter.addWidget(self.grp_results)
             main_splitter.setStretchFactor(0, 0)  # Do not stretch top panel
-            main_splitter.setStretchFactor(1, 0)  # Do not stretch config panel
-            main_splitter.setStretchFactor(2, 1)  # Stretch logs/queue
-            main_splitter.setStretchFactor(3, 2)  # Stretch analysis window more
+            main_splitter.setStretchFactor(1, 1)  # Stretch logs/queue
+            main_splitter.setStretchFactor(2, 2)  # Stretch analysis window more
 
             vmain.addWidget(main_splitter)
             vmain.addWidget(self.progress_bar, 0)
@@ -2821,15 +2752,6 @@ def _run_gui() -> Optional[int]:
                 ...
             input_row_bottom.addWidget(self.input_query_te, 1)
             input_row_bottom.addWidget(btn_send, 0)
-
-            btn_reset = QPushButton("Reset Chat")
-            self._style_action_button(btn_reset, font_size=13, bold=False, height=40, padding="8px 12px")
-            try:
-                btn_reset.clicked.connect(self.action_reset_chat)
-            except Exception:
-                ...
-            input_row_bottom.addWidget(btn_reset, 0)
-
             vmain.addLayout(input_row_bottom)
 
             try:
@@ -3319,40 +3241,6 @@ def _run_gui() -> Optional[int]:
             except Exception:
                 return False
 
-        def _get_knowledge_base_texts(self, analyzed_data: dict) -> List[str]:
-            """Gathers text from the analyzed doc and all selected guideline sources."""
-            all_texts = []
-
-            # 1. Add text from the analyzed document
-            if 'source_sentences' in analyzed_data:
-                all_texts.extend([text for text, src in analyzed_data['source_sentences']])
-
-            # 2. Add text from guideline files based on UI selection
-            guideline_files = []
-            if self.chk_guideline_snf.isChecked():
-                guideline_files.append("test_data/snf_guidelines.txt")
-            if self.chk_guideline_bpm.isChecked():
-                guideline_files.append("test_data/medicare_benefit_policy_manual.txt")
-            if self.chk_guideline_user.isChecked():
-                guideline_files.append("test_data/static_guidelines.txt")
-
-            if guideline_files:
-                self.log(f"Including {len(guideline_files)} guideline source(s) in knowledge base.")
-                for file_path in guideline_files:
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        text = f.read()
-                    chunker = SmartChunker(chunk_size=800, chunk_overlap=150)
-                    chunks = chunker.split_text(text)
-                    all_texts.extend(chunks)
-                except FileNotFoundError:
-                    self.log(f"Warning: Guideline file not found: {file_path}")
-                except Exception as e:
-                    self.log(f"Error reading guideline file {file_path}: {e}")
-
-            # Filter out any empty strings
-            return [text.strip() for text in all_texts if text.strip()]
-
         def action_cancel_batch(self):
             try:
                 self._batch_cancel = True
@@ -3402,8 +3290,14 @@ def _run_gui() -> Optional[int]:
                             data = json.load(f)
                         self.render_analysis_to_results(data)
 
-                        # --- Build and index the unified knowledge base for the AI ---
-                        self._build_and_index_unified_knowledge_base(data)
+                        # --- Create and index the context for the AI ---
+                        if self.local_rag and self.local_rag.is_ready():
+                            self.log("Creating AI context index...")
+                            context_chunks = self._create_context_chunks(data)
+                            self.local_rag.create_index(context_chunks)
+                            self.log("AI context index created successfully.")
+                        else:
+                            self.log("AI not ready, skipping context indexing.")
                         # --- End AI context indexing ---
 
                     except Exception:
@@ -3431,41 +3325,49 @@ def _run_gui() -> Optional[int]:
                 except Exception:
                     ...
 
-        def _build_and_index_unified_knowledge_base(self, analyzed_data: dict):
-            """
-            Gathers text from the analyzed doc and all guideline sources,
-            then builds a single, unified RAG index.
-            """
-            self.log("Building unified knowledge base for RAG...")
-            all_texts = []
+        def _create_context_chunks(self, data: dict) -> list[str]:
+            """Creates a list of text chunks from the analysis data for the RAG index."""
+            chunks = []
 
-            # 1. Add text from the analyzed document
-            if 'source_sentences' in analyzed_data:
-                all_texts.extend([text for text, src in analyzed_data['source_sentences']])
+            # 1. Add summary information
+            if 'compliance' in data and 'score' in data['compliance']:
+                chunks.append(f"[Summary] The overall compliance score is {data['compliance']['score']}/100.")
+            if 'executive_status' in data:
+                 chunks.append(f"[Summary] The executive status is '{data['executive_status']}'.")
 
-            # 2. Add text from guideline files (will be made dynamic in Phase 2)
-            guideline_files = [
-                "test_data/snf_guidelines.txt",
-                "test_data/medicare_benefit_policy_manual.txt",
-                "test_data/static_guidelines.txt"
-            ]
+            # 2. Add each issue as a detailed chunk, enriched with rubric data
+            for issue in data.get('issues', []):
+                issue_title = issue.get('title')
+                # Find the corresponding full rule from the rubric
+                matching_rule = next((r for r in self.compliance_rules if r.issue_title == issue_title), None)
 
-            for file_path in guideline_files:
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        all_texts.extend([p.strip() for p in f.read().split('\n\n') if p.strip()])
-                except FileNotFoundError:
-                    self.log(f"Warning: Guideline file not found during indexing: {file_path}")
-                except Exception as e:
-                    self.log(f"Error reading guideline file {file_path} for indexing: {e}")
+                if matching_rule:
+                    # If we found the rule, create a detailed, structured chunk
+                    issue_str = (
+                        f"[Finding] A finding with severity '{matching_rule.severity}' was identified.\n"
+                        f"Category: {matching_rule.issue_category}\n"
+                        f"Title: {matching_rule.issue_title}\n"
+                        f"Why it matters: {matching_rule.issue_detail}"
+                    )
+                    chunks.append(issue_str)
+                else:
+                    # Fallback to the basic information if no rule is found
+                    sev = issue.get('severity', 'N/A').title()
+                    cat = issue.get('category', 'N/A')
+                    detail = issue.get('detail', 'N/A')
+                    chunks.append(f"[Finding] Severity: {sev}. Category: {cat}. Title: {issue_title}. Detail: {detail}.")
 
-            # 3. Create the unified index
-            if self.local_rag and self.local_rag.is_ready():
-                self.log(f"Creating unified index from {len(all_texts)} total text chunks.")
-                self.local_rag.create_index(all_texts)
-                self.log("Unified RAG knowledge base is ready.")
-            else:
-                self.log("AI not ready, skipping unified index creation.")
+                # Add citations as separate, clearly linked chunks
+                for i, (citation_text, source) in enumerate(issue.get('citations', [])[:2]):
+                    clean_citation = re.sub('<[^<]+?>', '', citation_text)
+                    chunks.append(f"[Evidence] The finding '{issue_title}' is supported by evidence from '{source}': \"{clean_citation}\"")
+
+            # 3. Add the original document sentences
+            for text, source in data.get('source_sentences', []):
+                 chunks.append(f"[Document Text] From {source}: \"{text}\"")
+
+            self.log(f"Generated {len(chunks)} text chunks for AI context.")
+            return chunks
 
 
         def action_analyze_batch(self):
@@ -3601,15 +3503,6 @@ def _run_gui() -> Optional[int]:
 
         def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None) -> None:
             try:
-                # --- Clear on New Analysis Prompt ---
-                if self.chat_history:
-                    reply = QMessageBox.question(self, "Clear Chat History",
-                                                 "You have an existing conversation. Would you like to clear it for this new analysis?")
-                    if str(reply).lower().endswith("yes"):
-                        self.chat_history = []
-                        self.log("Chat history cleared for new analysis.")
-                # --- End Clear on New Analysis Prompt ---
-
                 # --- Bug Fix: Ensure issue IDs are present for loaded reports ---
                 issues = data.get("issues", [])
                 if issues and 'id' not in issues[0]:
@@ -3677,15 +3570,6 @@ def _run_gui() -> Optional[int]:
                         if 'why' in details: narrative_lines.append(f"  - Why it matters: {details['why']}")
                         if 'good_example' in details: narrative_lines.append(f"  - Good Example: {details['good_example']}")
                         if 'bad_example' in details: narrative_lines.append(f"  - Bad Example: {details['bad_example']}")
-
-                        # --- Guideline Display ---
-                        if issue.get('guidelines'):
-                            narrative_lines.append("  - <b>Relevant Medicare Guidelines:</b>")
-                            for guideline in issue['guidelines']:
-                                text = html.escape(guideline.get('text', ''))
-                                source = html.escape(guideline.get('source', ''))
-                                narrative_lines.append(f"    - <i>“{text}”</i> (Source: {source})")
-                        # --- End Guideline Display ---
 
                         # --- SHAP Visualization ---
                         if 'shap_explanation' in issue and issue['shap_explanation'] is not None:
@@ -3756,25 +3640,6 @@ def _run_gui() -> Optional[int]:
                 # --- End Suggested Questions ---
 
                 # Full Text
-                # --- Display Fallback Logic Findings ---
-                fallback_findings = data.get("fallback_findings", [])
-                if fallback_findings:
-                    report_html += "<hr><h2>Advanced Documentation Feedback (Fallback Logic)</h2>"
-                    for finding in fallback_findings:
-                        report_html += f"<b>{html.escape(finding.get('name', ''))}</b> ({html.escape(finding.get('risk', ''))})<br>"
-                        report_html += f"  - <u>Improvement Prompt:</u> {html.escape(finding.get('improvement_prompt', ''))}<br>"
-                        report_html += f"  - <u>Audit-Safe Default:</u> {html.escape(finding.get('audit_safe_default', ''))}<br><br>"
-
-                # --- Display 7 Habits Findings ---
-                seven_habits_findings = data.get("seven_habits_findings", [])
-                if seven_habits_findings:
-                    report_html += "<hr><h2>Advanced Documentation Feedback (7 Habits)</h2>"
-                    for finding in seven_habits_findings:
-                        report_html += f"<b>{html.escape(finding.get('habit', ''))}: {html.escape(finding.get('name', ''))}</b> ({html.escape(finding.get('risk', ''))})<br>"
-                        report_html += f"  - <u>Improvement Prompt:</u> {html.escape(finding.get('improvement_prompt', ''))}<br>"
-                        report_html += f"  - <u>Audit-Safe Default:</u> {html.escape(finding.get('audit_safe_default', ''))}<br><br>"
-
-
                 report_html += "<hr><h2>Full Note Text</h2>"
                 full_text = "\n".join(s[0] for s in data.get('source_sentences', []))
 
@@ -3987,8 +3852,7 @@ def _run_gui() -> Optional[int]:
                 self.statusBar().showMessage("AI is thinking...")
                 QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
-                # Pass the chat history to the query method
-                answer = self.local_rag.query(question, chat_history=self.chat_history)
+                answer = self.local_rag.query(question)
 
                 # Add to history and re-render the chat
                 self.chat_history.append(("user", question))
@@ -4003,23 +3867,6 @@ def _run_gui() -> Optional[int]:
             finally:
                 self.statusBar().showMessage("Ready")
                 QApplication.restoreOverrideCursor()
-
-        def action_reset_chat(self):
-            """Clears the chat history and resets the chat view to the base report."""
-            if not self.chat_history:
-                return
-
-            reply = QMessageBox.question(self, "Reset Chat", "Are you sure you want to clear the current conversation?")
-            if str(reply).lower().endswith("yes"):
-                self.chat_history = []
-                self.log("Chat history has been manually reset.")
-                # Re-render the view to show only the base report
-                if self.current_report_data:
-                    self._render_chat_history()
-                else:
-                    self.txt_chat.clear() # Should not happen if there's history, but as a fallback
-                self.statusBar().showMessage("Chat Reset", 3000)
-
 
         def _render_chat_history(self):
             """Renders the analysis report and the full chat history."""
