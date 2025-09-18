@@ -17,3 +17,7 @@ transformers
 Pillow
 matplotlib
 openpyxl
+
+# Added for UI Testing
+pytest
+pytest-qt
