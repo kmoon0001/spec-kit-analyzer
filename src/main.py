@@ -354,6 +354,28 @@ class GuidelineWorker(QObject):
             logger.exception("GuidelineWorker failed.")
             self.error.emit(f"Failed to load guidelines: {e}")
 
+def _format_entities_for_rag(entities: list[NEREntity]) -> list[str]:
+    """Converts a list of NEREntity objects into a list of descriptive strings."""
+    if not entities:
+        return []
+
+    formatted_strings = []
+    for entity in entities:
+        description = (
+            f"An entity of type '{entity.label}' with the text '{entity.text}' was found in the document."
+        )
+        if entity.context:
+            description += f" It was found in a sentence related to '{entity.context}'."
+
+        # Join models if there are multiple
+        models_str = ", ".join(entity.models)
+        description += f" (Detected by {models_str})"
+
+        formatted_strings.append(description)
+
+    logger.info(f"Formatted {len(formatted_strings)} consolidated entities for RAG context.")
+    return formatted_strings
+
 def _generate_suggested_questions(issues: list) -> list[str]:
     """Generates a list of suggested questions based on high-priority findings."""
     suggestions = []
@@ -1624,6 +1646,7 @@ def _generate_compliance_checklist(strengths: list[str], weaknesses: list[str]) 
 
 def run_analyzer(file_path: str,
                  selected_disciplines: List[str],
+                 entity_consolidation_service: EntityConsolidationService,
                  scrub_override: Optional[bool] = None,
                  review_mode_override: Optional[str] = None,
                  dedup_method_override: Optional[str] = None,
@@ -1712,6 +1735,8 @@ def run_analyzer(file_path: str,
             ner_results = run_biobert_ner(ner_sentences)
             if ner_results:
                 logger.info(f"BioBERT NER found {len(ner_results)} entities.")
+                consolidated_entities = entity_consolidation_service.consolidate_entities(ner_results, "\n".join(t for t, _ in collapsed))
+                formatted_entities = _format_entities_for_rag(consolidated_entities)
 
         check_cancel()
         report(60, "Computing summary")
@@ -2243,6 +2268,7 @@ def run_analyzer(file_path: str,
         if result_info["pdf"]:
             logger.info(f" - PDF:  {result_info['pdf']}")
         logger.info(f"(Reports directory: {os.path.dirname(pdf_path)})")
+        result_info["formatted_entities"] = formatted_entities
         return result_info
     except KeyboardInterrupt:
         logger.info("Analysis cancelled by user.")
@@ -2267,6 +2293,7 @@ class MainWindow(QMainWindow):
         self.local_rag: Optional[LocalRAG] = None
         self.guideline_service: Optional[GuidelineService] = None
         self.llm_compliance_service: Optional[LlmComplianceService] = None
+        self.entity_consolidation_service: EntityConsolidationService = EntityConsolidationService()
         self.chat_history: list[tuple[str, str]] = []
         self.compliance_rules: list[ComplianceRule] = []
 
@@ -2526,7 +2553,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to analyze.")
                 return
 
-            res = run_analyzer(self, self._current_report_path, selected_disciplines=selected_disciplines, progress_cb=_cb, cancel_cb=_cancel, main_window_instance=self)
+            res = run_analyzer(self, self._current_report_path, selected_disciplines=selected_disciplines, entity_consolidation_service=self.entity_consolidation_service, progress_cb=_cb, cancel_cb=_cancel, main_window_instance=self)
 
             outs = []
             if res.get("pdf"):
@@ -2553,7 +2580,7 @@ class MainWindow(QMainWindow):
                     # --- Create and index the context for the AI ---
                     if self.local_rag and self.local_rag.is_ready():
                         self.log("Creating AI context index...")
-                        context_chunks = self._create_context_chunks(data)
+                        context_chunks = self._create_context_chunks(data, res.get("formatted_entities", []))
                         self.local_rag.create_index(context_chunks)
                         self.log("AI context index created successfully.")
                     else:
@@ -2585,7 +2612,7 @@ class MainWindow(QMainWindow):
             except Exception:
                 ...
 
-    def _create_context_chunks(self, data: dict) -> list[str]:
+    def _create_context_chunks(self, data: dict, formatted_entities: list[str]) -> list[str]:
         """Creates a list of text chunks from the analysis data for the RAG index."""
         chunks = []
 
@@ -2625,6 +2652,9 @@ class MainWindow(QMainWindow):
         # 3. Add the original document sentences
         for text, source in data.get('source_sentences', []):
              chunks.append(f"[Document Text] From {source}: \"{text}\"")
+
+        # 4. Add formatted entities
+        chunks.extend(formatted_entities)
 
         self.log(f"Generated {len(chunks)} text chunks for AI context.")
         return chunks
@@ -2667,7 +2697,7 @@ class MainWindow(QMainWindow):
                         self._progress_update(overall, f"File {i + 1}/{n}: {m}")
                     def _cancel():
                         return self._progress_was_canceled() or self._batch_cancel
-                    res = run_analyzer(self, path, selected_disciplines=selected_disciplines, progress_cb=_cb, cancel_cb=_cancel, main_window_instance=self)
+                    res = run_analyzer(self, path, selected_disciplines=selected_disciplines, entity_consolidation_service=self.entity_consolidation_service, progress_cb=_cb, cancel_cb=_cancel, main_window_instance=self)
                     if res.get("pdf") or res.get("json") or res.get("csv"):
                         ok_count += 1
                     else:
