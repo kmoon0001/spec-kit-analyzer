@@ -21,3 +21,4 @@ openpyxl
 # Added for UI Testing
 pytest
 pytest-qt
+plotly

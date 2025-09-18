@@ -139,8 +139,10 @@ try:
         QMainWindow, QToolBar, QLabel, QFileDialog, QMessageBox, QApplication,
         QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton,
         QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
-        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout
+        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout,
+        QDateEdit
     )
+    from PyQt6.QtWebEngineWidgets import QWebEngineView
     from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter
     from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject
 except Exception:
@@ -282,10 +284,11 @@ except Exception:
 # Local imports
 from .llm_analyzer import run_llm_analysis
 try:
+    from .entity_consolidation_service import EntityConsolidationService
     from .local_llm import LocalRAG
     from .rubric_service import RubricService, ComplianceRule
     from .guideline_service import GuidelineService
-    from .text_chunking import RecursiveCharacterTextSplitter, SemanticTextSplitter
+    from .text_chunking import RecursiveCharacterTextSplitter
     from .nlg_service import NLGService
 except ImportError as e:
     logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
@@ -2375,10 +2378,24 @@ class MainWindow(QMainWindow):
         analytics_controls.addStretch(1)
         analytics_layout.addLayout(analytics_controls)
 
-        # Matplotlib chart
-        self.analytics_figure = Figure(figsize=(5, 3))
-        self.analytics_canvas = FigureCanvas(self.analytics_figure)
-        analytics_layout.addWidget(self.analytics_canvas)
+        # Add date filters
+        from datetime import datetime
+        self.start_date_edit = QDateEdit()
+        self.start_date_edit.setCalendarPopup(True)
+        self.start_date_edit.setDate(datetime.now().date() - pd.Timedelta(days=30))
+        self.end_date_edit = QDateEdit()
+        self.end_date_edit.setCalendarPopup(True)
+        self.end_date_edit.setDate(datetime.now().date())
+
+        # Add date filters to layout
+        analytics_controls.addWidget(QLabel("Start Date:"))
+        analytics_controls.addWidget(self.start_date_edit)
+        analytics_controls.addWidget(QLabel("End Date:"))
+        analytics_controls.addWidget(self.end_date_edit)
+
+        # Plotly chart
+        self.plotly_view = QWebEngineView()
+        analytics_layout.addWidget(self.plotly_view)
 
         # Summary stats
         stats_group = QGroupBox("Summary Statistics")
@@ -2459,7 +2476,68 @@ class MainWindow(QMainWindow):
         self.txt_rubric = QTextEdit()
         self.txt_rubric.setVisible(False) # Not shown in main UI
 
+        self.start_date_edit.dateChanged.connect(self._update_analytics_tab)
+        self.end_date_edit.dateChanged.connect(self._update_analytics_tab)
 
+    def _update_analytics_tab(self):
+        """Updates the analytics tab with the latest data."""
+        try:
+            start_date = self.start_date_edit.date().toString("yyyy-MM-dd")
+            end_date = self.end_date_edit.date().toString("yyyy-MM-dd")
+
+            with _get_db_connection() as conn:
+                query = "SELECT * FROM analysis_runs WHERE run_time BETWEEN ? AND ?"
+                runs_df = pd.read_sql_query(query, conn, params=(start_date, end_date))
+
+                if not runs_df.empty:
+                    run_ids = tuple(runs_df['id'].tolist())
+                    placeholders = ','.join('?' for _ in run_ids)
+                    issues_query = f"SELECT * FROM analysis_issues WHERE run_id IN ({placeholders})"
+                    issues_df = pd.read_sql_query(issues_query, conn, params=run_ids)
+                else:
+                    issues_df = pd.DataFrame()
+
+            if runs_df.empty:
+                self.log("No analytics data found for the selected date range.")
+                self.lbl_total_runs.setText("0")
+                self.lbl_avg_score.setText("N/A")
+                self.lbl_avg_flags.setText("N/A")
+                self.lbl_top_category.setText("N/A")
+                self.plotly_view.setHtml("")
+                return
+
+            # Update summary statistics
+            self.lbl_total_runs.setText(str(len(runs_df)))
+            self.lbl_avg_score.setText(f"{runs_df['compliance_score'].mean():.2f}")
+            self.lbl_avg_flags.setText(f"{runs_df['flags'].mean():.2f}")
+
+            if not issues_df.empty:
+                top_category = issues_df['category'].mode()[0]
+                self.lbl_top_category.setText(top_category)
+            else:
+                self.lbl_top_category.setText("N/A")
+
+            # Update the chart with Plotly
+            import plotly.express as px
+
+            if not issues_df.empty:
+                severity_counts = issues_df['severity'].value_counts().reset_index()
+                severity_counts.columns = ['severity', 'count']
+                fig = px.bar(severity_counts, x='severity', y='count', title="Findings by Severity")
+            else:
+                fig = px.bar(title="No findings in selected date range")
+
+            self.plotly_view.setHtml(fig.to_html(include_plotlyjs='cdn'))
+
+            self.log("Analytics tab updated.")
+
+        except Exception as e:
+            self.log(f"Failed to update analytics tab: {e}")
+            logger.exception("Failed to update analytics tab")
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._update_analytics_tab()
         
     def action_clear_all(self):
         try:
