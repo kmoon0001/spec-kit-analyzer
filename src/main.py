@@ -151,6 +151,8 @@ try:
         from .local_llm import LocalRAG
         from .rubric_service import RubricService, ComplianceRule
         from .guideline_service import GuidelineService
+        from .ner_service import NERService
+        from .entity_consolidation_service import EntityConsolidationService
     except ImportError as e:
         logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
         # Define dummy classes if imports fail, to prevent crashing on startup
@@ -158,6 +160,8 @@ try:
         class RubricService: pass
         class ComplianceRule: pass
         class GuidelineService: pass
+        class NERService: pass
+        class EntityConsolidationService: pass
 
 
     # --- LLM Loader Worker ---
@@ -1354,25 +1358,6 @@ def _score_issue_confidence(issues_in: list[dict], records: list[tuple[str, str]
     return out
 
 
-def run_biobert_ner(sentences: List[str]) -> List[dict]:
-    """
-    Performs Named Entity Recognition on a list of sentences using a BioBERT model.
-    """
-    if not pipeline:
-        logger.warning("Transformers pipeline is not available. Skipping BioBERT NER.")
-        return []
-
-    try:
-        # Using a pipeline for NER
-        # The 'simple' aggregation strategy groups subword tokens into whole words.
-        ner_pipeline = pipeline("ner", model="longluu/Clinical-NER-MedMentions-GatorTronBase", aggregation_strategy="simple")
-        results = ner_pipeline(sentences)
-        return results
-    except Exception as e:
-        logger.error(f"BioBERT NER failed: {e}")
-        return []
-
-
 # --- Exports ---
 def export_report_json(obj: dict, json_path: str) -> bool:
     try:
@@ -1837,13 +1822,21 @@ def run_analyzer(self, file_path: str,
             collapsed = collapse_similar_sentences_simple(processed, threshold)
         collapsed = list(collapsed)
 
-        # Run BioBERT NER
-        if get_bool_setting("enable_biobert_ner", False):
-            report(65, "Running BioBERT NER")
-            ner_sentences = [text for text, src in collapsed]
-            ner_results = run_biobert_ner(ner_sentences)
-            if ner_results:
-                logger.info(f"BioBERT NER results: {ner_results}")
+        # Run NER Ensemble
+        ner_results = []
+        if get_bool_setting("enable_ner_ensemble", True) and self.ner_service and self.entity_consolidation_service:
+            if self.ner_service.is_ready():
+                report(65, "Running NER Ensemble")
+                ner_sentences = [text for text, src in collapsed]
+                raw_ner_results = self.ner_service.extract_entities(full_text, ner_sentences)
+
+                # Consolidate the results
+                ner_results = self.entity_consolidation_service.consolidate_entities(raw_ner_results, full_text)
+
+                if ner_results:
+                    logger.info(f"Consolidated NER results: {ner_results}")
+            else:
+                logger.warning("NER service was enabled but not ready. Skipping NER.")
 
         check_cancel()
         report(60, "Computing summary")
@@ -2289,7 +2282,7 @@ def run_analyzer(self, file_path: str,
                 "pdf_chart_position": get_str_setting("pdf_chart_position", "bottom"),
                 "pdf_chart_theme": get_str_setting("pdf_chart_theme", "dark"),
                 "report_severity_ordering": "flags_first",
-                "clinical_ner_enabled": False,
+                "clinical_ner_enabled": get_bool_setting("enable_ner_ensemble", True),
                 "source_sentences": collapsed,
                 "sev_counts": sev_counts,
                 "cat_counts": cat_counts,
@@ -2390,8 +2383,20 @@ class MainWindow(QMainWindow):
         self.current_report_data: Optional[dict] = None
         self.local_rag: Optional[LocalRAG] = None
         self.guideline_service: Optional[GuidelineService] = None
+        self.ner_service: Optional[NERService] = None
+        self.entity_consolidation_service: Optional[EntityConsolidationService] = None
         self.chat_history: list[tuple[str, str]] = []
         self.compliance_rules: list[ComplianceRule] = []
+
+        # --- Initialize Services ---
+        self.entity_consolidation_service = EntityConsolidationService()
+        ner_model_configs = {
+            "biobert": "longluu/Clinical-NER-MedMentions-GatorTronBase",
+            "biomed_ner": "d4data/biomedical-ner-all"
+        }
+        # TODO: Add context_service initialization if needed
+        self.ner_service = NERService(model_configs=ner_model_configs)
+
 
         tb = QToolBar("Main")
         try:
@@ -2705,16 +2710,13 @@ class MainWindow(QMainWindow):
             self.lbl_brand.setToolTip("𝔎𝔢𝔳𝔦𝔫 𝔐𝔬𝔬𝔫")
             self.lbl_err = QLabel(" Status: OK ")
             self.lbl_err.setStyleSheet("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
-            self.lbl_lm1 = QLabel(" LM A: n/a ")
-            self.lbl_lm1.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
-            self.lbl_lm2 = QLabel(" LM B: disabled ")
-            self.lbl_lm2.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
             self.lbl_rag_status = QLabel(" AI: Loading... ")
             self.lbl_rag_status.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
+            self.lbl_ner_status = QLabel(" NER: Loading... ")
+            self.lbl_ner_status.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
             sb.addPermanentWidget(self.lbl_brand)
             sb.addPermanentWidget(self.lbl_rag_status)
-            sb.addPermanentWidget(self.lbl_lm1)
-            sb.addPermanentWidget(self.lbl_lm2)
+            sb.addPermanentWidget(self.lbl_ner_status)
             sb.addPermanentWidget(self.lbl_err)
         except Exception:
             ...
@@ -2982,13 +2984,10 @@ class MainWindow(QMainWindow):
         dlg.setWindowTitle("Admin Settings")
         vbox = QVBoxLayout(dlg)
 
-        chk_llm_a = QCheckBox("Enable Primary LLM (Model A)")
-        chk_llm_a.setChecked(get_bool_setting("llm_a_enabled", False))
-        vbox.addWidget(chk_llm_a)
-
-        chk_llm_b = QCheckBox("Enable Secondary LLM (Model B)")
-        chk_llm_b.setChecked(get_bool_setting("llm_b_enabled", False))
-        vbox.addWidget(chk_llm_b)
+        # NER Ensemble Setting
+        chk_ner_ensemble = QCheckBox("Enable NER Ensemble (requires restart)")
+        chk_ner_ensemble.setChecked(get_bool_setting("enable_ner_ensemble", True))
+        vbox.addWidget(chk_ner_ensemble)
 
         # Trial period setting
         row_trial = QHBoxLayout()
@@ -3008,8 +3007,7 @@ class MainWindow(QMainWindow):
         vbox.addLayout(btn_box)
 
         def on_save():
-            set_bool_setting("llm_a_enabled", chk_llm_a.isChecked())
-            set_bool_setting("llm_b_enabled", chk_llm_b.isChecked())
+            set_bool_setting("enable_ner_ensemble", chk_ner_ensemble.isChecked())
             set_setting("trial_duration_days", str(sp_trial_days.value()))
             self.refresh_llm_indicator() # Refresh the status bar
             dlg.accept()
@@ -3967,19 +3965,22 @@ class MainWindow(QMainWindow):
             self.set_error(f"Failed to save feedback: {e}")
 
     def refresh_llm_indicator(self):
+        """Updates the status bar indicators for AI services."""
         try:
-            llm_a_enabled = get_bool_setting("llm_a_enabled", False)
-            llm_b_enabled = get_bool_setting("llm_b_enabled", False)
-
-            self.lbl_lm1.setText(" LM A: On " if llm_a_enabled else " LM A: Off ")
-            self.lbl_lm1.setStyleSheet(("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
-                                       if llm_a_enabled else "background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
-
-            self.lbl_lm2.setText(" LM B: On " if llm_b_enabled else " LM B: Off ")
-            self.lbl_lm2.setStyleSheet(("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
-                                       if llm_b_enabled else "background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
-        except Exception:
-            ...
+            # NER Service Status
+            if get_bool_setting("enable_ner_ensemble", True):
+                if self.ner_service and self.ner_service.is_ready():
+                    self.lbl_ner_status.setText(" NER: Ready ")
+                    self.lbl_ner_status.setStyleSheet("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
+                else:
+                    # This case can happen during startup
+                    self.lbl_ner_status.setText(" NER: Loading... ")
+                    self.lbl_ner_status.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
+            else:
+                self.lbl_ner_status.setText(" NER: Disabled ")
+                self.lbl_ner_status.setStyleSheet("background:#ef4444; color:#fff; padding:3px 8px; border-radius:12px;")
+        except Exception as e:
+            self.log(f"Failed to refresh NER status: {e}")
 
     def action_export_fhir(self):
         last_json = get_setting("last_report_json")
