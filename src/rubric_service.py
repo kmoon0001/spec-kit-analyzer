@@ -58,8 +58,8 @@ class RubricService:
         # OPTIONAL blocks are used because not all rules have all properties (e.g., positive_keywords).
         query = prepareQuery("""
             SELECT ?rule ?severity ?strict_severity ?title ?detail ?category
-                   (GROUP_CONCAT(DISTINCT ?pos_kw; SEPARATOR="|") AS ?positive_keywords)
-                   (GROUP_CONCAT(DISTINCT ?neg_kw; SEPARATOR="|") AS ?negative_keywords)
+                   (GROUP_CONCAT(DISTINCT ?pos_kw_coalesced; SEPARATOR="|") AS ?positive_keywords)
+                   (GROUP_CONCAT(DISTINCT ?neg_kw_coalesced; SEPARATOR="|") AS ?negative_keywords)
             WHERE {
                 ?rule a :ComplianceRule .
                 ?rule :hasSeverity ?severity .
@@ -75,9 +75,11 @@ class RubricService:
                     ?rule :hasNegativeKeywords ?neg_kw_set .
                     ?neg_kw_set :hasKeyword ?neg_kw .
                 }
+                BIND(COALESCE(?pos_kw, "") AS ?pos_kw_coalesced)
+                BIND(COALESCE(?neg_kw, "") AS ?neg_kw_coalesced)
             }
             GROUP BY ?rule ?severity ?strict_severity ?title ?detail ?category
-        """, initNs={"rdf": NS.rdf, "rdfs": NS.rdfs, ":": NS})
+        """, initNs={"rdf": NS.rdf, "rdfs": NS.rdfs, "": NS})
 
         rules = []
         try:
