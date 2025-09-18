@@ -93,7 +93,6 @@ except Exception as e:
 
 try:
     from transformers import pipeline
-    from nlg_service import NLGService
 except ImportError:
     pipeline = None
     logger.warning("transformers library not found. BioBERT NER will be disabled.")
@@ -102,12 +101,7 @@ try:
     from PIL import Image, UnidentifiedImageError
 except Exception as e:
     Image = None  # type: ignore
-
-
-    class UnidentifiedImageError(Exception):
-        ...
-
-
+    class UnidentifiedImageError(Exception): ...
     logger.warning(f"PIL unavailable: {e}")
 
 try:
@@ -135,6 +129,10 @@ except ImportError:
     class Meta: pass
     logger.warning("fhir.resources library not found. FHIR export will be disabled.")
 
+# Matplotlib for analytics chart
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+
 # PyQt (guarded)
 try:
     from PyQt6.QtWidgets import (
@@ -144,104 +142,7 @@ try:
         QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout
     )
     from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter
-from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject
-
-# Matplotlib for analytics chart
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-
-# Local imports
-try:
-    from .local_llm import LocalRAG
-    from .rubric_service import RubricService, ComplianceRule
-    from .guideline_service import GuidelineService
-    from .text_chunking import RecursiveCharacterTextSplitter
-except ImportError as e:
-    logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
-    # Define dummy classes if imports fail, to prevent crashing on startup
-    class LocalRAG: pass
-    class RubricService: pass
-    class ComplianceRule: pass
-    class GuidelineService: pass
-    class RecursiveCharacterTextSplitter: pass
-
-
-    # --- LLM Loader Worker ---
-    class LLMWorker(QObject):
-        """
-        A worker class to load the LocalRAG model in a separate thread.
-        """
-        finished = Signal(object)
-        error = Signal(str)
-
-        def __init__(self, model_repo_id: str, model_filename: str):
-            super().__init__()
-            self.model_repo_id = model_repo_id
-            self.model_filename = model_filename
-
-        def run(self):
-            """Loads the RAG model and emits a signal when done."""
-            try:
-                rag_instance = LocalRAG(
-                    model_repo_id=self.model_repo_id,
-                    model_filename=self.model_filename
-                )
-                if rag_instance.is_ready():
-                    self.finished.emit(rag_instance)
-                else:
-                    self.error.emit("RAG instance failed to initialize.")
-            except Exception as e:
-                logger.exception("LLMWorker failed to load model.")
-                self.error.emit(f"Failed to load AI model: {e}")
-class GuidelineWorker(QObject):
-    """
-    A worker class to load and index guidelines in a separate thread.
-    """
-    finished = Signal(object)
-    error = Signal(str)
-
-    def __init__(self, rag_instance: LocalRAG):
-        super().__init__()
-        self.rag_instance = rag_instance
-
-    def run(self):
-        """Loads and indexes the guidelines and emits a signal when done."""
-        try:
-            guideline_service = GuidelineService(self.rag_instance)
-            sources = [
-                "https://www.cms.gov/files/document/r12532bp.pdf",
-                "test_data/static_guidelines.txt"
-            ]
-            guideline_service.load_and_index_guidelines(sources)
-            if guideline_service.is_index_ready:
-                self.finished.emit(guideline_service)
-            else:
-                self.error.emit("Guideline index failed to build.")
-        except Exception as e:
-            logger.exception("GuidelineWorker failed.")
-            self.error.emit(f"Failed to load guidelines: {e}")
-
-def _generate_suggested_questions(issues: list) -> list[str]:
-    """Generates a list of suggested questions based on high-priority findings."""
-    suggestions = []
-    QUESTION_MAP = {
-        "Provider signature/date possibly missing": "Why are signatures and dates important for compliance?",
-        "Goals may not be measurable/time-bound": "What makes a therapy goal 'measurable' and 'time-bound'?",
-        "Medical necessity not explicitly supported": "Can you explain 'Medical Necessity' in the context of a therapy note?",
-        "Assistant supervision context unclear": "What are the supervision requirements for therapy assistants?",
-        "Plan/Certification not clearly referenced": "How should the Plan of Care be referenced in a note?",
-    }
-    # Prioritize flags, then findings
-    sorted_issues = sorted(issues, key=lambda x: ({"flag": 0, "finding": 1}.get(x.get('severity'), 2)))
-    for issue in sorted_issues:
-        if len(suggestions) >= 3:
-            break
-        title = issue.get('title')
-        if title in QUESTION_MAP and QUESTION_MAP[title] not in suggestions:
-            suggestions.append(QUESTION_MAP[title])
-    logger.info(f"Generated {len(suggestions)} suggested questions.")
-    return suggestions
-
+    from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject
 except Exception:
     class QMainWindow: ...
     class QToolBar:
@@ -378,10 +279,84 @@ except Exception:
     class Qt: ...
     class QThread: ...
 
+# Local imports
+from .llm_analyzer import run_llm_analysis
+try:
+    from .local_llm import LocalRAG
+    from .rubric_service import RubricService, ComplianceRule
+    from .guideline_service import GuidelineService
+    from .text_chunking import RecursiveCharacterTextSplitter, SemanticTextSplitter
+    from .nlg_service import NLGService
+except ImportError as e:
+    logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
+    # Define dummy classes if imports fail, to prevent crashing on startup
+    class LocalRAG: pass
+    class RubricService: pass
+    class ComplianceRule: pass
+    class GuidelineService: pass
+    class RecursiveCharacterTextSplitter: pass
+    class SemanticTextSplitter: pass
+    class NLGService: pass
+
+# --- LLM Loader Worker ---
+class LLMWorker(QObject):
+    """
+    A worker class to load the LocalRAG model in a separate thread.
+    """
+    finished = Signal(object)
+    error = Signal(str)
+
+    def __init__(self, model_repo_id: str, model_filename: str):
+        super().__init__()
+        self.model_repo_id = model_repo_id
+        self.model_filename = model_filename
+
+    def run(self):
+        """Loads the RAG model and emits a signal when done."""
+        try:
+            rag_instance = LocalRAG(
+                model_repo_id=self.model_repo_id,
+                model_filename=self.model_filename
+            )
+            if rag_instance.is_ready():
+                self.finished.emit(rag_instance)
+            else:
+                self.error.emit("RAG instance failed to initialize.")
+        except Exception as e:
+            logger.exception("LLMWorker failed to load model.")
+            self.error.emit(f"Failed to load AI model: {e}")
+
+class GuidelineWorker(QObject):
+    """
+    A worker class to load and index guidelines in a separate thread.
+    """
+    finished = Signal(object)
+    error = Signal(str)
+
+    def __init__(self, rag_instance: LocalRAG):
+        super().__init__()
+        self.rag_instance = rag_instance
+
+    def run(self):
+        """Loads and indexes the guidelines and emits a signal when done."""
+        try:
+            guideline_service = GuidelineService(self.rag_instance)
+            sources = [
+                "https://www.cms.gov/files/document/r12532bp.pdf",
+                "test_data/static_guidelines.txt"
+            ]
+            guideline_service.load_and_index_guidelines(sources)
+            if guideline_service.is_index_ready:
+                self.finished.emit(guideline_service)
+            else:
+                self.error.emit("Guideline index failed to build.")
+        except Exception as e:
+            logger.exception("GuidelineWorker failed.")
+            self.error.emit(f"Failed to load guidelines: {e}")
+
 def _generate_suggested_questions(issues: list) -> list[str]:
     """Generates a list of suggested questions based on high-priority findings."""
     suggestions = []
-
     QUESTION_MAP = {
         "Provider signature/date possibly missing": "Why are signatures and dates important for compliance?",
         "Goals may not be measurable/time-bound": "What makes a therapy goal 'measurable' and 'time-bound'?",
@@ -389,18 +364,14 @@ def _generate_suggested_questions(issues: list) -> list[str]:
         "Assistant supervision context unclear": "What are the supervision requirements for therapy assistants?",
         "Plan/Certification not clearly referenced": "How should the Plan of Care be referenced in a note?",
     }
-
-    # Prioritize flags, then wobblers
-    sorted_issues = sorted(issues, key=lambda x: ({"flag": 0, "wobbler": 1}.get(x.get('severity'), 2)))
-
+    # Prioritize flags, then findings
+    sorted_issues = sorted(issues, key=lambda x: ({"flag": 0, "finding": 1}.get(x.get('severity'), 2)))
     for issue in sorted_issues:
         if len(suggestions) >= 3:
             break
-
         title = issue.get('title')
         if title in QUESTION_MAP and QUESTION_MAP[title] not in suggestions:
             suggestions.append(QUESTION_MAP[title])
-
     logger.info(f"Generated {len(suggestions)} suggested questions.")
     return suggestions
 
@@ -690,7 +661,6 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
     """
     if not os.path.exists(file_path):
         return [(f"Error: File not found at {file_path}", "File System")]
-    # (rest of parse_document_content implementation here)
 
     ext = os.path.splitext(file_path)[1].lower()
 
@@ -815,7 +785,6 @@ def collapse_similar_sentences_tfidf(items: list[Tuple[str, str]], threshold: fl
             kept_idx.append(i)
     return [items[i] for i in kept_idx]
 
-# ... existing code ...
 def build_rich_summary(original: list[Tuple[str, str]], collapsed: list[Tuple[str, str]]) -> dict:
     from collections import Counter
 
@@ -1583,7 +1552,6 @@ def export_report_fhir_json(data: dict, fhir_path: str) -> bool:
         logger.error(f"Failed to export FHIR JSON: {e}")
         return False
 
-# ... existing code ...
 ReviewMode = Literal["Moderate", "Strict"]
 CURRENT_REVIEW_MODE: ReviewMode = "Moderate"
 DEDUP_DEFAULTS = {"Moderate": {"method": "tfidf", "threshold": 0.50},
@@ -1654,14 +1622,14 @@ def _generate_compliance_checklist(strengths: list[str], weaknesses: list[str]) 
     lines.append("")
     return lines
 
-        feat/multi-discipline-analysis
 def run_analyzer(file_path: str,
                  selected_disciplines: List[str],
                  scrub_override: Optional[bool] = None,
                  review_mode_override: Optional[str] = None,
                  dedup_method_override: Optional[str] = None,
                  progress_cb: Optional[Callable[[int, str], None]] = None,
-                 cancel_cb: Optional[Callable[[], bool]] = None) -> dict:
+                 cancel_cb: Optional[Callable[[], bool]] = None,
+                 main_window_instance=None) -> dict:
     def report(pct: int, msg: str):
         if progress_cb:
             try:
@@ -1737,36 +1705,79 @@ def run_analyzer(file_path: str,
             collapsed = collapse_similar_sentences_simple(processed, threshold)
         collapsed = list(collapsed)
 
-        # Run BioBERT NER
-        if get_bool_setting("enable_biobert_ner", False):
+        ner_results = []
+        if get_bool_setting("enable_biobert_ner", True):
             report(65, "Running BioBERT NER")
             ner_sentences = [text for text, src in collapsed]
             ner_results = run_biobert_ner(ner_sentences)
             if ner_results:
-                logger.info(f"BioBERT NER results: {ner_results}")
+                logger.info(f"BioBERT NER found {len(ner_results)} entities.")
 
         check_cancel()
         report(60, "Computing summary")
         summary = build_rich_summary(processed, collapsed)
 
         report(70, "Analyzing compliance")
-        full_text = "\n".join(t for t, _ in collapsed)
-        strict_flag = (CURRENT_REVIEW_MODE == "Strict")
-        issues_base = _audit_from_rubric(full_text, selected_disciplines, strict=strict_flag)
-        issues_scored = _score_issue_confidence(_attach_issue_citations(issues_base, collapsed), collapsed)
 
-        # Add location data to each issue based on its first citation
+        use_llm_analysis = get_bool_setting("use_llm_analysis", True)
+        llm_is_ready = main_window_instance and main_window_instance.local_rag and main_window_instance.local_rag.is_ready()
+
+        if use_llm_analysis and llm_is_ready:
+            logger.info("--- Using LLM-based compliance analysis ---")
+            report(71, "Analyzing compliance with LLM...")
+
+            rubric_map = {
+                "pt": os.path.join(BASE_DIR, "pt_compliance_rubric.ttl"),
+                "ot": os.path.join(BASE_DIR, "ot_compliance_rubric.ttl"),
+                "slp": os.path.join(BASE_DIR, "slp_compliance_rubric.ttl"),
+            }
+            all_rules = []
+            for discipline in selected_disciplines:
+                path = rubric_map.get(discipline)
+                if path and os.path.exists(path):
+                    try:
+                        service = RubricService(path)
+                        all_rules.extend(service.get_rules())
+                    except Exception as e:
+                        logger.warning(f"Failed to load rubric for {discipline}: {e}")
+
+            seen_titles = set()
+            unique_rules = []
+            for rule in all_rules:
+                if rule.issue_title not in seen_titles:
+                    unique_rules.append(rule)
+                    seen_titles.add(rule.issue_title)
+
+            rules_as_dicts = [r.__dict__ for r in unique_rules]
+
+            issues_scored = run_llm_analysis(
+                llm=main_window_instance.local_rag.llm,
+                chunks=[text for text, src in collapsed],
+                rules=rules_as_dicts
+            )
+            logger.info(f"LLM analysis found {len(issues_scored)} issues.")
+
+        else:
+            if not llm_is_ready:
+                logger.warning("LLM not ready, falling back to keyword-based audit.")
+            logger.info("--- Using keyword-based compliance analysis ---")
+            report(71, "Analyzing compliance with keywords...")
+            full_text = "\n".join(t for t, _ in collapsed)
+            strict_flag = (CURRENT_REVIEW_MODE == "Strict")
+            issues_base = _audit_from_rubric(full_text, selected_disciplines, strict=strict_flag)
+            issues_scored = _score_issue_confidence(_attach_issue_citations(issues_base, collapsed), collapsed)
+
         full_text_for_loc = "\n".join(t for t, _ in collapsed)
         for issue in issues_scored:
             if issue.get("citations"):
-                # Use the text of the first citation to find its location
-                cite_text = issue["citations"][0][0]
+                cite_text_html = issue["citations"][0][0]
+                cite_text = re.sub('<[^<]+?>', '', cite_text_html)
                 try:
                     start_index = full_text_for_loc.index(cite_text)
                     end_index = start_index + len(cite_text)
                     issue['location'] = {'start': start_index, 'end': end_index}
                 except ValueError:
-                    # Citation might not be an exact substring, ignore for now.
+                    logger.warning(f"Could not find citation text in document: '{cite_text[:50]}...'")
                     issue['location'] = None
 
         sev_order = {"flag": 0, "finding": 1, "suggestion": 2, "auditor_note": 3}
@@ -1774,46 +1785,11 @@ def run_analyzer(file_path: str,
                                           str(x.get("category", "")),
                                           str(x.get("title", ""))))
 
-
-        # I'll inject the details into the issue object itself for easier rendering later.
-        # This is not in the original code, but it's a good refactoring.
-
-        # --- SHAP Integration ---
-        # Generate explanations for issues that have citations
-        for issue in issues_scored:
-            if issue.get("citations"):
-                try:
-                    # We can only explain rules with a clear title
-                    rule_title = issue.get("title")
-                    if not rule_title:
-                        continue
-
-                    # Create a prediction function for the specific rule
-                    prediction_fn = _get_shap_prediction_wrapper(rule_title)
-
-                    # Use the first citation as the text to explain
-                    text_to_explain = issue["citations"][0][0].replace("<b>", "").replace("</b>", "")
-
-                    # Create a SHAP explainer
-                    explainer = shap.Explainer(prediction_fn, shap.maskers.Text(r"\W+"))
-
-                    # Generate SHAP values
-                    shap_values = explainer([text_to_explain])
-
-                    # Store the explanation object to be used later for visualization
-                    issue['shap_explanation'] = shap_values
-
-                except Exception as e:
-                    logger.warning(f"SHAP explanation failed for issue '{issue.get('title')}': {e}")
-        # --- End SHAP Integration ---
-
-        # --- NLG Integration ---
         nlg_service = NLGService()
         for issue in issues_scored:
             prompt = f"Generate a brief, actionable tip for a physical therapist to address this finding: {issue.get('title', '')} ({issue.get('severity', '')}) - {issue.get('detail', '')}"
             tip = nlg_service.generate_tip(prompt)
             issue['nlg_tip'] = tip
-        # --- End NLG Integration ---
 
         issue_details_map = {
             "Provider signature/date possibly missing": {
@@ -1856,17 +1832,16 @@ def run_analyzer(file_path: str,
         for issue in issues_scored:
             issue['details'] = issue_details_map.get(issue.get('title', ''), {})
 
-        # --- Guideline Search Integration ---
-        if self.guideline_service and self.guideline_service.is_index_ready:
-            self.log("Searching for relevant guidelines for each finding...")
+        if main_window_instance and main_window_instance.guideline_service and main_window_instance.guideline_service.is_index_ready:
+            main_window_instance.log("Searching for relevant guidelines for each finding...")
             for issue in issues_scored:
                 query = f"{issue.get('title', '')}: {issue.get('detail', '')}"
-                guideline_results = self.guideline_service.search(query, top_k=2)
+                guideline_results = main_window_instance.guideline_service.search(query, top_k=2)
                 issue['guidelines'] = guideline_results
-        # --- End Guideline Search Integration ---
 
         pages_est = len({s for _, s in collapsed if s.startswith("Page ")}) or 1
 
+        full_text = "\n".join(t for t, _ in collapsed)
         strengths, weaknesses, missing = [], [], []
         tl = full_text.lower()
         if any(k in tl for k in ("signed", "signature", "dated")):
@@ -2070,7 +2045,7 @@ def run_analyzer(file_path: str,
                 "General auditor checks": {
                     "action": "Perform a general review of the note for clarity, consistency, and completeness. Ensure the 'story' of the patient's care is clear.",
                     "why": "A well-documented note justifies skilled care, supports medical necessity, and ensures accurate billing.",
-                    "good_example": "A note that clearly links interventions to functional goals and documents the patient's progress over time.",
+                    "good_example": "A note that a clear picture of the patient's journey from evaluation to discharge.",
                     "bad_example": "A note with jargon, undefined abbreviations, or that simply lists exercises without clinical reasoning."
                 }
             }
@@ -2189,7 +2164,8 @@ def run_analyzer(file_path: str,
                 "pdf_chart_position": get_str_setting("pdf_chart_position", "bottom"),
                 "pdf_chart_theme": get_str_setting("pdf_chart_theme", "dark"),
                 "report_severity_ordering": "flags_first",
-                "clinical_ner_enabled": False,
+                "clinical_ner_enabled": get_bool_setting("enable_biobert_ner", True),
+                "ner_results": ner_results,
                 "source_sentences": collapsed,
                 "sev_counts": sev_counts,
                 "cat_counts": cat_counts,
@@ -2290,6 +2266,7 @@ class MainWindow(QMainWindow):
         self.current_report_data: Optional[dict] = None
         self.local_rag: Optional[LocalRAG] = None
         self.guideline_service: Optional[GuidelineService] = None
+        self.llm_compliance_service: Optional[LlmComplianceService] = None
         self.chat_history: list[tuple[str, str]] = []
         self.compliance_rules: list[ComplianceRule] = []
 
@@ -2549,8 +2526,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to analyze.")
                 return
 
-            res = run_analyzer(self, self._current_report_path, selected_disciplines=selected_disciplines, progress_cb=_cb, cancel_cb=_cancel)
-        main
+            res = run_analyzer(self, self._current_report_path, selected_disciplines=selected_disciplines, progress_cb=_cb, cancel_cb=_cancel, main_window_instance=self)
 
             outs = []
             if res.get("pdf"):
@@ -2653,56 +2629,45 @@ class MainWindow(QMainWindow):
         self.log(f"Generated {len(chunks)} text chunks for AI context.")
         return chunks
 
-def action_analyze_batch(self):
-    try:
-        n = self.list_folder_files.count()
-        if n == 0:
-            QMessageBox.information(self, "Analyze Batch", "Please upload a folder with documents first.")
-            return
-        reply = QMessageBox.question(self, "Analyze Batch",
-                                     f"Process {n} file(s) sequentially?")  # type: ignore
-        if not str(reply).lower().endswith("yes"):
-            return
-        selected_disciplines = []
-        if self.chk_pt.isChecked(): selected_disciplines.append('pt')
-        if self.chk_ot.isChecked(): selected_disciplines.append('ot')
-        if self.chk_slp.isChecked(): selected_disciplines.append('slp')
-        if not selected_disciplines:
-            QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to run a batch analysis.")
-            return
-        self._clear_previous_analysis_state()
-        self._batch_cancel = False
-        self.btn_cancel_batch.setDisabled(False)
-        self._progress_start("Batch analyzing...")
-        ok_count = 0
-        fail_count = 0
-        for i in range(n):
-            if self._progress_was_canceled() or self._batch_cancel:
-                break
-            try:
-                item = self.list_folder_files.item(i)
-                path = item.text()
-                if not os.path.isfile(path):
-                    continue
-                self.lbl_report_name.setText(os.path.basename(path))
-                self.statusBar().showMessage(f"Analyzing ({i + 1}/{n}): {os.path.basename(path)}")
-                def _cb(p, m):
-                    overall = int(((i + (p / 100.0)) / max(1, n)) * 100)
-                    self._progress_update(overall, f"File {i + 1}/{n}: {m}")
-                def _cancel():
-                    return self._progress_was_canceled() or self._batch_cancel
-                res = run_analyzer(self, path, selected_disciplines=selected_disciplines, progress_cb=_cb, cancel_cb=_cancel)
-            except Exception as e:
-                fail_count += 1
-                self.log(f"Failed to analyze file {i+1}: {e}")
-            else:
-                ok_count += 1
-        self._progress_finish()
-        self.btn_cancel_batch.setDisabled(True)
-        self.statusBar().showMessage(f"Batch analysis complete. Success: {ok_count}, Failed: {fail_count}", 8000)
-    except Exception as e:
-        self.set_error(str(e))
-
+    def action_analyze_batch(self):
+        try:
+            n = self.list_folder_files.count()
+            if n == 0:
+                QMessageBox.information(self, "Analyze Batch", "Please upload a folder with documents first.")
+                return
+            reply = QMessageBox.question(self, "Analyze Batch",
+                                         f"Process {n} file(s) sequentially?")  # type: ignore
+            if not str(reply).lower().endswith("yes"):
+                return
+            selected_disciplines = []
+            if self.chk_pt.isChecked(): selected_disciplines.append('pt')
+            if self.chk_ot.isChecked(): selected_disciplines.append('ot')
+            if self.chk_slp.isChecked(): selected_disciplines.append('slp')
+            if not selected_disciplines:
+                QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to run a batch analysis.")
+                return
+            self._clear_previous_analysis_state()
+            self._batch_cancel = False
+            self.btn_cancel_batch.setDisabled(False)
+            self._progress_start("Batch analyzing...")
+            ok_count = 0
+            fail_count = 0
+            for i in range(n):
+                if self._progress_was_canceled() or self._batch_cancel:
+                    break
+                try:
+                    item = self.list_folder_files.item(i)
+                    path = item.text()
+                    if not os.path.isfile(path):
+                        continue
+                    self.lbl_report_name.setText(os.path.basename(path))
+                    self.statusBar().showMessage(f"Analyzing ({i + 1}/{n}): {os.path.basename(path)}")
+                    def _cb(p, m):
+                        overall = int(((i + (p / 100.0)) / max(1, n)) * 100)
+                        self._progress_update(overall, f"File {i + 1}/{n}: {m}")
+                    def _cancel():
+                        return self._progress_was_canceled() or self._batch_cancel
+                    res = run_analyzer(self, path, selected_disciplines=selected_disciplines, progress_cb=_cb, cancel_cb=_cancel, main_window_instance=self)
                     if res.get("pdf") or res.get("json") or res.get("csv"):
                         ok_count += 1
                     else:
@@ -2798,183 +2763,162 @@ def action_analyze_batch(self):
         finally:
             self.statusBar().showMessage("Ready")
             QApplication.restoreOverrideCursor()
-def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None) -> None:
-    try:
-        # --- Bug Fix: Ensure issue IDs are present for loaded reports ---
-        issues = data.get("issues", [])
-        if issues and 'id' not in issues[0]:
-            try:
-                with _get_db_connection() as conn:
-                    # Find the run_id from the file name and generated timestamp
-                    run_df = pd.read_sql_query(
-                        "SELECT id FROM analysis_runs WHERE file_name = ? AND run_time = ? LIMIT 1",
-                        conn,
-                        params=(os.path.basename(data.get("file")), data.get("generated"))
-                    )
-                    if not run_df.empty:
-                        run_id = run_df.iloc[0]['id']
-                        # Get all issues with IDs for that run
-                        issues_from_db_df = pd.read_sql_query(
-                            "SELECT id, title, detail FROM analysis_issues WHERE run_id = ?",
+
+    def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None) -> None:
+        try:
+            # --- Bug Fix: Ensure issue IDs are present for loaded reports ---
+            issues = data.get("issues", [])
+            if issues and 'id' not in issues[0]:
+                try:
+                    with _get_db_connection() as conn:
+                        # Find the run_id from the file name and generated timestamp
+                        run_df = pd.read_sql_query(
+                            "SELECT id FROM analysis_runs WHERE file_name = ? AND run_time = ? LIMIT 1",
                             conn,
-                            params=(run_id,)
+                            params=(os.path.basename(data.get("file")), data.get("generated"))
                         )
-                        # Create a lookup map and inject the IDs
-                        issue_map = { (row['title'], row['detail']): row['id'] for _, row in issues_from_db_df.iterrows() }
-                        for issue in issues:
-                            issue['id'] = issue_map.get((issue.get('title'), issue.get('detail')))
-            except Exception as e:
-                self.log(f"Could not enrich loaded report with issue IDs: {e}")
-        # --- End Bug Fix ---
+                        if not run_df.empty:
+                            run_id = run_df.iloc[0]['id']
+                            # Get all issues with IDs for that run
+                            issues_from_db_df = pd.read_sql_query(
+                                "SELECT id, title, detail FROM analysis_issues WHERE run_id = ?",
+                                conn,
+                                params=(run_id,)
+                            )
+                            # Create a lookup map and inject the IDs
+                            issue_map = { (row['title'], row['detail']): row['id'] for _, row in issues_from_db_df.iterrows() }
+                            for issue in issues:
+                                issue['id'] = issue_map.get((issue.get('title'), issue.get('detail')))
+                except Exception as e:
+                    self.log(f"Could not enrich loaded report with issue IDs: {e}")
+            # --- End Bug Fix ---
 
-        self.current_report_data = data
-        self.tabs.setCurrentIndex(1) # Switch to results tab
-        # When a new report is loaded, clear the previous chat history
-        self.chat_history = []
+            self.current_report_data = data
+            self.tabs.setCurrentIndex(1) # Switch to results tab
+            # When a new report is loaded, clear the previous chat history
+            self.chat_history = []
 
-        file_name = os.path.basename(data.get("file", "Unknown File"))
+            file_name = os.path.basename(data.get("file", "Unknown File"))
 
-        # --- Build Left Pane (Report) ---
-        report_html_lines = [f"<h2>Analysis for: {file_name}</h2>"]
+            # --- Build Left Pane (Report) ---
+            report_html_lines = [f"<h2>Analysis for: {file_name}</h2>"]
 
-        report_html_lines.extend(_generate_risk_dashboard(data['compliance']['score'], data['sev_counts']))
-        report_html_lines.extend(_generate_compliance_checklist(data['strengths'], data['weaknesses']))
-        report_html_lines.append("<h3>Detailed Findings</h3>")
-        issues = data.get("issues", [])
-        if issues:
-            for issue in issues:
-                loc = issue.get('location')
-                link = f"<a href='highlight:{loc['start']}:{loc['end']}'>Show in text</a>" if loc else ""
-                sev_color = {"Flag": "#dc3545", "Finding": "#ffc107", "Suggestion": "#17a2b8"}.get(issue.get("severity", "").title(), "#6c757d")
-                report_html_lines.append(f"<div style='border-left: 3px solid {sev_color}; padding-left: 10px; margin-bottom: 15px;'>")
-                report_html_lines.append(f"<strong>{issue.get('title', 'Finding')}</strong><br>")
-                report_html_lines.append(f"<small>Severity: {issue.get('severity', '').title()} | Category: {issue.get('category', 'General')} | {link}</small>")
-                # Add review links
-                issue_id = issue.get('id')
-                review_links = ""
-                if issue_id:
-                    encoded_title = quote(issue.get('title', ''))
-                    review_links = f"""
-                    <a href='review:{issue_id}:correct' style='text-decoration:none; color:green;'>✔️ Correct</a>
-                    <a href='review:{issue_id}:incorrect' style='text-decoration:none; color:red;'>❌ Incorrect</a>
-                    <a href='educate:{encoded_title}' style='text-decoration:none; color:#60a5fa; margin-left: 10px;'>🎓 Learn More</a>
-                    """
-                report_html_lines.append(review_links)
-                # --- SHAP Visualization ---
-                if 'shap_explanation' in issue and issue['shap_explanation'] is not None:
-                    try:
-                        # Generate the full HTML for the SHAP plot
-                        shap_html_full = shap.plots.text(issue['shap_explanation'], display=False)
-                        # Extract style and body content using regex
-                        style_match = re.search(r'<style>(.*?)</style>', shap_html_full, re.DOTALL)
-                        body_match = re.search(r'<body>(.*?)</body>', shap_html_full, re.DOTALL)
-                        if style_match and body_match:
-                            style_content = style_match.group(1)
-                            body_content = body_match.group(1)
-                            # Parse CSS rules and store them in a dict
-                            styles = {}
-                            rules = re.findall(r'\.([\w.-]+)\s*\{(.*?)\}', style_content)
-                            for class_name, rule_body in rules:
-                                inline_style = ' '.join(rule_body.strip().split())
-                                styles[class_name] = inline_style
-                            def replace_class(match):
-                                class_attr = match.group(1)
-                                classes = class_attr.split()
-                                style_rules = ';'.join(styles.get(c, '') for c in classes)
-                                return f'style="{style_rules}"'
-                            html_with_inline_styles = re.sub(r'class="([^"]*)"', replace_class, body_content)
-                            report_html_lines.append("  - <b>Explanation (SHAP)</b>:")
-                            report_html_lines.append(
-                                f"<div style='border: 1px solid #ccc; padding: 5px; border-radius: 3px; background-color: #f9f9f9;'>{html_with_inline_styles}</div>")
-                        else:
-                            report_html_lines.append(
-                                "  - <b>Explanation (SHAP)</b>: <i>Could not parse SHAP plot HTML.</i>")
-                    except Exception as e:
-                        self.log(f"SHAP plot generation failed for issue '{issue.get('title')}': {e}")
-                        logger.warning(f"SHAP plot generation failed for issue '{issue.get('title')}': {e}")
-                        report_html_lines.append(
-                            f"  - <b>Explanation (SHAP)</b>: <i>Visualization failed to generate. See logs.</i>")
-                # --- End SHAP Visualization ---
-                report_html_lines.append("</div>")
-        else:
-            report_html_lines.append("<p>No specific audit findings were identified.</p>")
+            report_html_lines.extend(_generate_risk_dashboard(data['compliance']['score'], data['sev_counts']))
+            report_html_lines.extend(_generate_compliance_checklist(data['strengths'], data['weaknesses']))
+            report_html_lines.append("<h3>Detailed Findings</h3>")
+            issues = data.get("issues", [])
+            if issues:
+                for issue in issues:
+                    loc = issue.get('location')
+                    link = f"<a href='highlight:{loc['start']}:{loc['end']}'>Show in text</a>" if loc else ""
+                    sev_color = {"Flag": "#dc3545", "Finding": "#ffc107", "Suggestion": "#17a2b8"}.get(issue.get("severity", "").title(), "#6c757d")
+                    report_html_lines.append(f"<div style='border-left: 3px solid {sev_color}; padding-left: 10px; margin-bottom: 15px;'>")
+                    report_html_lines.append(f"<strong>{issue.get('title', 'Finding')}</strong><br>")
 
-        # --- Add Suggested Questions ---
-        suggested_questions = data.get('suggested_questions', [])
-        if suggested_questions:
-            report_html_lines.append("<hr><h2>Suggested Questions</h2>")
-            suggestions_html = "<ul>"
-            for q in suggested_questions:
-                encoded_q = quote(q)
-                suggestions_html += f"<li><a href='ask:{encoded_q}' class='suggestion-link'>{html.escape(q)}</a></li>"
-            suggestions_html += "</ul>"
-            report_html_lines.append(suggestions_html)
-        # --- End Suggested Questions ---
+                    # Display the LLM's reasoning if available
+                    if issue.get('reasoning'):
+                        report_html_lines.append(f"<i>AI Reasoning: {html.escape(issue.get('reasoning'))}</i><br>")
 
-        self.txt_chat.setHtml("".join(report_html_lines))
-        # Full Text
-        full_text = "\n".join(s[0] for s in data.get('source_sentences', []))
-        self.txt_full_note.setPlainText(full_text)
-    except Exception as e:
-        self.log(f"Failed to render analysis results: {e}")
-        logger.exception("Render analysis failed")
+                    report_html_lines.append(f"<small>Severity: {issue.get('severity', '').title()} | Category: {issue.get('category', 'General')} | {link}</small>")
 
+                    # Add review links
+                    issue_id = issue.get('id')
+                    review_links = ""
+                    if issue_id:
+                        encoded_title = quote(issue.get('title', ''))
+                        review_links = f"""
+                        <a href='review:{issue_id}:correct' style='text-decoration:none; color:green;'>✔️ Correct</a>
+                        <a href='review:{issue_id}:incorrect' style='text-decoration:none; color:red;'>❌ Incorrect</a>
+                        <a href='educate:{encoded_title}' style='text-decoration:none; color:#60a5fa; margin-left: 10px;'>🎓 Learn More</a>
+                        """
+                    report_html_lines.append(review_links)
+                    report_html_lines.append("</div>")
+            else:
+                report_html_lines.append("<p>No specific audit findings were identified.</p>")
+
+            # --- Add Suggested Questions ---
+            suggested_questions = data.get('suggested_questions', [])
+            if suggested_questions:
+                report_html_lines.append("<hr><h2>Suggested Questions</h2>")
+                suggestions_html = "<ul>"
+                for q in suggested_questions:
+                    encoded_q = quote(q)
+                    suggestions_html += f"<li><a href='ask:{encoded_q}' class='suggestion-link'>{html.escape(q)}</a></li>"
+                suggestions_html += "</ul>"
+                report_html_lines.append(suggestions_html)
+            # --- End Suggested Questions ---
+
+            self.txt_chat.setHtml("".join(report_html_lines))
+            # Full Text
+            full_text = "\n".join(s[0] for s in data.get('source_sentences', []))
+            self.txt_full_note.setPlainText(full_text)
+        except Exception as e:
+            self.log(f"Failed to render analysis results: {e}")
+            logger.exception("Render analysis failed")
+
+
+    def highlight_text_in_note(self, start: int, end: int):
+        try:
+            # Create a QTextCursor for the full_note QTextEdit
+            cursor = self.txt_full_note.textCursor()
+
+            # Clear any previous selection
+            cursor.clearSelection()
+
+            # Set the new selection
+            cursor.setPosition(start)
+            cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+
+            # Apply the selection to the QTextEdit
+            self.txt_full_note.setTextCursor(cursor)
 
             # Scroll to the highlighted text
-            cursor = self.txt_full_note.textCursor()
-            cursor.setPosition(start)
-            self.txt_full_note.setTextCursor(cursor)
             self.txt_full_note.ensureCursorVisible()
 
         except Exception as e:
              self.log(f"Failed to highlight text: {e}")
-def handle_anchor_clicked(self, url):
-    url_str = url.toString()
-    if url_str.startswith("highlight:"):
-        parts = url_str.split(':')
-        if len(parts) == 3:
-            try:
-                start = int(parts[1])
-                end = int(parts[2])
-                self.highlight_text_in_note(start, end)
-                # Feature branch enhancement: optionally re-render the analysis with highlight_range
-                if hasattr(self, 'current_report_data') and self.current_report_data:
-                    self.render_analysis_to_results(self.current_report_data, highlight_range=(start, end))
-            except (ValueError, IndexError) as e:
-                self.log(f"Invalid highlight URL: {url_str} - {e}")
-    elif url_str.startswith("review:"):
-        parts = url_str.split(':')
-        if len(parts) == 3:
-            try:
-                issue_id = int(parts[1])
-                feedback = parts[2]
-                # Find the issue to get the citation text and model prediction
-                issue_to_review = None
-                if self.current_report_data and self.current_report_data.get('issues'):
-                    for issue in self.current_report_data['issues']:
-                        if issue.get('id') == issue_id:
-                            issue_to_review = issue
-                            break
-                if issue_to_review:
-                    # Use the raw text of the first citation
-                    citation_text = ""
-                    if issue_to_review.get('citations'):
-                        raw_citation_html = issue_to_review['citations'][0][0]
-                        # Strip HTML tags to get raw text
-                        citation_text = re.sub('<[^<]+?>', '', raw_citation_html)
-                    model_prediction = issue_to_review.get('severity', 'unknown')
-                    self.save_finding_feedback(issue_id, feedback, citation_text, model_prediction)
-                else:
-                    self.log(f"Could not find issue with ID {issue_id} to save feedback.")
-                    QMessageBox.warning(self, "Feedback", f"Could not find issue with ID {issue_id} in the current report.")
+
+    def handle_anchor_clicked(self, url):
+        url_str = url.toString()
+        if url_str.startswith("highlight:"):
+            parts = url_str.split(':')
+            if len(parts) == 3:
+                try:
+                    start = int(parts[1])
+                    end = int(parts[2])
+                    self.highlight_text_in_note(start, end)
+                    if hasattr(self, 'current_report_data') and self.current_report_data:
+                        self.render_analysis_to_results(self.current_report_data, highlight_range=(start, end))
+                except (ValueError, IndexError) as e:
+                    self.log(f"Invalid highlight URL: {url_str} - {e}")
+        elif url_str.startswith("review:"):
+            parts = url_str.split(':')
+            if len(parts) == 3:
+                try:
+                    issue_id = int(parts[1])
+                    feedback = parts[2]
+                    issue_to_review = None
+                    if self.current_report_data and self.current_report_data.get('issues'):
+                        for issue in self.current_report_data['issues']:
+                            if issue.get('id') == issue_id:
+                                issue_to_review = issue
+                                break
+                    if issue_to_review:
+                        citation_text = ""
+                        if issue_to_review.get('citations'):
+                            raw_citation_html = issue_to_review['citations'][0][0]
+                            citation_text = re.sub('<[^<]+?>', '', raw_citation_html)
+                        model_prediction = issue_to_review.get('severity', 'unknown')
+                        self.save_finding_feedback(issue_id, feedback, citation_text, model_prediction)
+                    else:
+                        self.log(f"Could not find issue with ID {issue_id} to save feedback.")
+                        QMessageBox.warning(self, "Feedback", f"Could not find issue with ID {issue_id} in the current report.")
 
                 except (ValueError, IndexError) as e:
                     self.log(f"Invalid review URL: {url_str} - {e}")
         elif url_str.startswith("ask:"):
             try:
-                # Decode the question from the URL
                 question_text = unquote(url_str[4:])
-                # Set the text in the input box and automatically send
                 self.input_query_te.setPlainText(question_text)
                 self.action_send()
             except Exception as e:
@@ -2992,7 +2936,6 @@ def handle_anchor_clicked(self, url):
             QMessageBox.warning(self, "AI Not Ready", "The AI model is not available. Please wait for it to load or check the logs.")
             return
 
-        # 1. Find the relevant data
         rule = next((r for r in self.compliance_rules if r.issue_title == issue_title), None)
         issue = next((i for i in self.current_report_data.get('issues', []) if i.get('title') == issue_title), None)
 
@@ -3003,7 +2946,6 @@ def handle_anchor_clicked(self, url):
         user_text_html = issue.get('citations', [("No citation found.", "")])[0][0]
         user_text = re.sub('<[^<]+?>', '', user_text_html)
 
-        # 2. Construct the prompt
         prompt = (
             "You are an expert on clinical documentation compliance. Your task is to create a personalized educational "
             "example based on a compliance rule and a user's text that violated that rule.\n\n"
@@ -3015,7 +2957,6 @@ def handle_anchor_clicked(self, url):
             "1. **A Good Example:** Provide a textbook-perfect example of a note that correctly follows this rule.\n"
             "2. **Corrected Version:** Rewrite the user's original text to be compliant. Change only what is necessary to fix the error.\n"
         )
-    # ... (previous methods)
 
     def action_send(self):
         question = self.input_query_te.toPlainText().strip()
@@ -3027,7 +2968,6 @@ def handle_anchor_clicked(self, url):
         try:
             self.statusBar().showMessage("AI is thinking...")
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-            # Pass the chat history to the query method for better multi-turn AI
             answer = self.local_rag.query(question, chat_history=self.chat_history)
             self.chat_history.append(("user", question))
             self.chat_history.append(("ai", answer))
@@ -3111,8 +3051,6 @@ def handle_anchor_clicked(self, url):
         """
         self.txt_chat.setHtml(full_html)
         self.txt_chat.verticalScrollBar().setValue(self.txt_chat.verticalScrollBar().maximum())
-
-    # -- keep all other methods from both branches as is --
 
 # --- Settings dialog (main branch format, robust) ---
 def _show_settings_dialog(parent=None) -> None:
