@@ -230,8 +230,8 @@ try:
             "Plan/Certification not clearly referenced": "How should the Plan of Care be referenced in a note?",
         }
 
-        # Prioritize flags, then wobblers
-        sorted_issues = sorted(issues, key=lambda x: ({"flag": 0, "wobbler": 1}.get(x.get('severity'), 2)))
+        # Prioritize flags, then findings
+        sorted_issues = sorted(issues, key=lambda x: ({"flag": 0, "finding": 1}.get(x.get('severity'), 2)))
 
         for issue in sorted_issues:
             if len(suggestions) >= 3:
@@ -955,7 +955,7 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                         INTEGER,
                         flags
                         INTEGER,
-                        wobblers
+                        findings
                         INTEGER,
                         suggestions
                         INTEGER,
@@ -1095,12 +1095,12 @@ def persist_analysis_run(file_path: str, run_time: str, metrics: dict, issues_sc
         with _get_db_connection() as conn:
             cur = conn.cursor()
             cur.execute("""
-                        INSERT INTO analysis_runs (file_name, run_time, pages_est, flags, wobblers, suggestions, notes,
+                        INSERT INTO analysis_runs (file_name, run_time, pages_est, flags, findings, suggestions, notes,
                                                    sentences_final, dedup_removed, compliance_score, mode)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (
                             os.path.basename(file_path), run_time,
-                            int(metrics.get("pages", 0)), int(metrics.get("flags", 0)), int(metrics.get("wobblers", 0)),
+                            int(metrics.get("pages", 0)), int(metrics.get("flags", 0)), int(metrics.get("findings", 0)),
                             int(metrics.get("suggestions", 0)), int(metrics.get("notes", 0)),
                             int(metrics.get("sentences_final", 0)), int(metrics.get("dedup_removed", 0)),
                             float(compliance.get("score", 0.0)), mode
@@ -1125,13 +1125,13 @@ def _compute_recent_trends(max_runs: int = 10) -> dict:
         "score_delta": 0.0,
         "avg_score": 0.0,
         "avg_flags": 0.0,
-        "avg_wobblers": 0.0,
+        "avg_findings": 0.0,
         "avg_suggestions": 0.0,
     }
     try:
         with _get_db_connection() as conn:
             runs = pd.read_sql_query(
-                "SELECT compliance_score, flags, wobblers, suggestions FROM analysis_runs ORDER BY run_time ASC", conn
+                "SELECT compliance_score, flags, findings, suggestions FROM analysis_runs ORDER BY run_time ASC", conn
             )
         if runs.empty:
             return out
@@ -1141,7 +1141,7 @@ def _compute_recent_trends(max_runs: int = 10) -> dict:
         out["avg_score"] = round(float(sum(scores) / len(scores)), 1) if scores else 0.0
         out["score_delta"] = round((scores[-1] - scores[0]) if len(scores) >= 2 else 0.0, 1)
         out["avg_flags"] = round(float(sub["flags"].mean()), 2)
-        out["avg_wobblers"] = round(float(sub["wobblers"].mean()), 2)
+        out["avg_findings"] = round(float(sub["findings"].mean()), 2)
         out["avg_suggestions"] = round(float(sub["suggestions"].mean()), 2)
     except Exception:
         ...
@@ -1513,8 +1513,8 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
 
                 if page_idx == 0 and chart_on_top:
                     try:
-                        cats = ["Flags", "Wobblers", "Suggestions", "Notes"]
-                        vals = [sev_counts.get("flag", 0), sev_counts.get("wobbler", 0),
+                        cats = ["Flags", "Findings", "Suggestions", "Notes"]
+                        vals = [sev_counts.get("flag", 0), sev_counts.get("finding", 0),
                                 sev_counts.get("suggestion", 0), sev_counts.get("auditor_note", 0)] if sev_counts else [
                             0, 0, 0, 0]
                         ax_chart = fig.add_axes([0.07, 0.81, 0.86, 0.12])
@@ -1567,8 +1567,8 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
                         y0 = 0.08
                         h = 0.16
                         if sev_counts:
-                            cats = ["Flags", "Wobblers", "Suggestions", "Notes"]
-                            vals = [sev_counts.get("flag", 0), sev_counts.get("wobbler", 0),
+                            cats = ["Flags", "Findings", "Suggestions", "Notes"]
+                            vals = [sev_counts.get("flag", 0), sev_counts.get("finding", 0),
                                     sev_counts.get("suggestion", 0), sev_counts.get("auditor_note", 0)]
                             ax_s = fig.add_axes([0.07, y0, 0.40, h])
                             ax_s.bar(cats, vals, color=["#ef4444", "#f59e0b", "#10b981", "#9ca3af"])
@@ -1702,7 +1702,7 @@ def _generate_risk_dashboard(compliance_score: float, sev_counts: dict) -> list[
     lines = ["--- Risk Dashboard ---"]
     score = compliance_score
     flags = sev_counts.get("flag", 0)
-    wobblers = sev_counts.get("wobbler", 0)
+    findings = sev_counts.get("finding", 0)
 
     if score >= 90 and flags == 0:
         risk = "Low"
@@ -1718,7 +1718,7 @@ def _generate_risk_dashboard(compliance_score: float, sev_counts: dict) -> list[
     lines.append(f"Compliance Score: {score:.1f}/100")
     lines.append(f"Summary: {summary}")
     lines.append(f"Critical Findings (Flags): {flags}")
-    lines.append(f"Areas of Concern (Wobblers): {wobblers}")
+    lines.append(f"Areas of Concern (Findings): {findings}")
     lines.append("")
     return lines
 
@@ -1869,7 +1869,7 @@ def run_analyzer(self, file_path: str,
                     # Citation might not be an exact substring, ignore for now.
                     issue['location'] = None
 
-        sev_order = {"flag": 0, "wobbler": 1, "suggestion": 2, "auditor_note": 3}
+        sev_order = {"flag": 0, "finding": 1, "suggestion": 2, "auditor_note": 3}
         issues_scored.sort(key=lambda x: (sev_order.get(str(x.get("severity")), 9),
                                           str(x.get("category", "")),
                                           str(x.get("title", ""))))
@@ -2001,7 +2001,7 @@ def run_analyzer(self, file_path: str,
 
         sev_counts = {
             "flag": sum(1 for i in issues_scored if i.get("severity") == "flag"),
-            "wobbler": sum(1 for i in issues_scored if i.get("severity") == "wobbler"),
+            "finding": sum(1 for i in issues_scored if i.get("severity") == "finding"),
             "suggestion": sum(1 for i in issues_scored if i.get("severity") == "suggestion"),
             "auditor_note": sum(1 for i in issues_scored if i.get("severity") == "auditor_note"),
         }
@@ -2010,22 +2010,22 @@ def run_analyzer(self, file_path: str,
         def compute_compliance_score(issues: list[dict], strengths_in: list[str], missing_in: list[str],
                                      mode: ReviewMode) -> dict:
             flags = sum(1 for i in issues if i.get("severity") == "flag")
-            wob = sum(1 for i in issues if i.get("severity") == "wobbler")
+            findings = sum(1 for i in issues if i.get("severity") == "finding")
             sug = sum(1 for i in issues if i.get("severity") == "suggestion")
             base = 100.0
             if mode == "Strict":
                 base -= flags * 6.0
-                base -= wob * 3.0
+                base -= findings * 3.0
                 base -= sug * 1.5
                 base -= len(missing_in) * 4.0
             else:
                 base -= flags * 4.0
-                base -= wob * 2.0
+                base -= findings * 2.0
                 base -= sug * 1.0
                 base -= len(missing_in) * 2.5
             base += min(5.0, len(strengths_in) * 0.5)
             score = max(0.0, min(100.0, base))
-            breakdown = f"Flags={flags}, Wobblers={wob}, Suggestions={sug}, Missing={len(missing_in)}, Strengths={len(strengths_in)}; Mode={mode}"
+            breakdown = f"Flags={flags}, Findings={findings}, Suggestions={sug}, Missing={len(missing_in)}, Strengths={len(strengths_in)}; Mode={mode}"
             return {"score": round(score, 1), "breakdown": breakdown}
 
         compliance = compute_compliance_score(issues_scored, strengths, missing, CURRENT_REVIEW_MODE)
@@ -2126,7 +2126,7 @@ def run_analyzer(self, file_path: str,
                 "score_delta": round(
                     float(compliance["score"]) - float(last_snap.get("compliance", {}).get("score", 0.0)), 1),
                 "flags_delta": sev_counts["flag"] - int(prev.get("flags", 0)),
-                "wobblers_delta": sev_counts["wobbler"] - int(prev.get("wobblers", 0)),
+                "findings_delta": sev_counts["finding"] - int(prev.get("findings", 0)),
                 "suggestions_delta": sev_counts["suggestion"] - int(prev.get("suggestions", 0)),
             }
 
@@ -2225,7 +2225,7 @@ def run_analyzer(self, file_path: str,
             narrative_lines.append(
                 f" • Score delta: {trends['score_delta']:+.1f} | Average score: {trends['avg_score']:.1f}")
             narrative_lines.append(
-                f" • Avg Flags: {trends['avg_flags']:.2f} | Avg Wobblers: {trends['avg_wobblers']:.2f} | Avg Suggestions: {trends['avg_suggestions']:.2f}")
+                f" • Avg Flags: {trends['avg_flags']:.2f} | Avg Findings: {trends['avg_findings']:.2f} | Avg Suggestions: {trends['avg_suggestions']:.2f}")
         else:
             narrative_lines.append(" • Not enough history to compute trends yet.")
         narrative_lines.append("")
@@ -2234,7 +2234,7 @@ def run_analyzer(self, file_path: str,
             "pages": pages_est,
             "findings_total": len(issues_scored),
             "flags": sev_counts["flag"],
-            "wobblers": sev_counts["wobbler"],
+            "findings": sev_counts["finding"],
             "suggestions": sev_counts["suggestion"],
             "notes": sev_counts["auditor_note"],
             "sentences_raw": summary["total_sentences_raw"],
@@ -2324,7 +2324,7 @@ def run_analyzer(self, file_path: str,
                 "dedup_method": dedup_method,
                 "pages_est": pages_est,
                 "flags": sev_counts["flag"],
-                "wobblers": sev_counts["wobbler"],
+                "findings": sev_counts["finding"],
                 "suggestions": sev_counts["suggestion"],
                 "notes": sev_counts["auditor_note"],
                 "sentences_raw": summary["total_sentences_raw"],
@@ -3710,7 +3710,7 @@ class MainWindow(QMainWindow):
                     loc = issue.get('location')
                     link = f"<a href='highlight:{loc['start']}:{loc['end']}'>Show in text</a>" if loc else ""
 
-                    sev_color = {"Flag": "#dc3545", "Wobbler": "#ffc107", "Suggestion": "#17a2b8"}.get(issue.get("severity", "").title(), "#6c757d")
+                    sev_color = {"Flag": "#dc3545", "Finding": "#ffc107", "Suggestion": "#17a2b8"}.get(issue.get("severity", "").title(), "#6c757d")
 
                     report_html_lines.append(f"<div style='border-left: 3px solid {sev_color}; padding-left: 10px; margin-bottom: 15px;'>")
                     report_html_lines.append(f"<strong>{issue.get('title', 'Finding')}</strong><br>")
