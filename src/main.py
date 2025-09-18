@@ -1088,6 +1088,18 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                     """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_reviews_issue ON reviewed_findings(analysis_issue_id)")
 
+        cur.execute("""
+                    CREATE TABLE IF NOT EXISTS ner_model_performance (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        model_name TEXT NOT NULL,
+                        entity_label TEXT NOT NULL,
+                        confirmations INTEGER DEFAULT 0,
+                        rejections INTEGER DEFAULT 0,
+                        UNIQUE(model_name, entity_label)
+                    )
+                    """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_ner_perf_model_label ON ner_model_performance(model_name, entity_label)")
+
         conn.commit()
     except Exception as e:
         logger.warning(f"Ensure analytics schema failed: {e}")
@@ -1121,6 +1133,36 @@ def persist_analysis_run(file_path: str, run_time: str, metrics: dict, issues_sc
     except Exception as e:
         logger.warning(f"persist_analysis_run failed: {e}")
         return None
+
+
+def update_ner_performance(model_name: str, entity_label: str, validation_status: str) -> None:
+    """
+    Updates the performance table for a given NER model and entity label.
+    """
+    if validation_status not in ("Confirmed", "Rejected"):
+        return
+
+    update_column = "confirmations" if validation_status == "Confirmed" else "rejections"
+
+    try:
+        with _get_db_connection() as conn:
+            cur = conn.cursor()
+            # Use INSERT OR IGNORE to ensure the row exists before updating.
+            cur.execute("""
+                INSERT OR IGNORE INTO ner_model_performance (model_name, entity_label, confirmations, rejections)
+                VALUES (?, ?, 0, 0)
+            """, (model_name, entity_label))
+
+            # Now, increment the appropriate counter.
+            cur.execute(f"""
+                UPDATE ner_model_performance
+                SET {update_column} = {update_column} + 1
+                WHERE model_name = ? AND entity_label = ?
+            """, (model_name, entity_label))
+            conn.commit()
+            logger.info(f"Updated NER performance for {model_name} on label {entity_label} with a {validation_status}.")
+    except Exception as e:
+        logger.warning(f"Failed to update NER performance for {model_name}: {e}")
 
 
 def _compute_recent_trends(max_runs: int = 10) -> dict:
@@ -1864,6 +1906,12 @@ def run_analyzer(self, file_path: str,
                                 entity.llm_validation = validation_status
                                 logger.info(f"LLM validation for '{entity.text}' ({entity.label}): {validation_status}")
 
+                                # --- Update NER Performance DB ---
+                                if validation_status in ("Confirmed", "Rejected"):
+                                    for model_name in entity.models:
+                                        update_ner_performance(model_name, entity.label, validation_status)
+                                # --- End Update ---
+
                             except Exception as e:
                                 logger.warning(f"LLM fact-checking failed for entity '{entity.text}': {e}")
                     # --- End LLM-based Fact-Checking ---
@@ -2421,7 +2469,7 @@ class MainWindow(QMainWindow):
         self.compliance_rules: list[ComplianceRule] = []
 
         # --- Initialize Services ---
-        self.entity_consolidation_service = EntityConsolidationService()
+        self.entity_consolidation_service = EntityConsolidationService(db_connection_provider=_get_db_connection)
         ner_model_configs = {
             "biobert": "longluu/Clinical-NER-MedMentions-GatorTronBase",
             "biomed_ner": "d4data/biomedical-ner-all"
