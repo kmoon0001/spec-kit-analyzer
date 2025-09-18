@@ -141,7 +141,8 @@ try:
         QMainWindow, QToolBar, QLabel, QFileDialog, QMessageBox, QApplication,
         QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton,
         QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
-        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout
+        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout,
+        QTableWidget, QTableWidgetItem, QAbstractItemView, QRadioButton
     )
     from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter
     from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject
@@ -153,6 +154,7 @@ try:
         from .guideline_service import GuidelineService
         from .ner_service import NERService
         from .entity_consolidation_service import EntityConsolidationService
+        from .adjudication_service import AdjudicationService
     except ImportError as e:
         logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
         # Define dummy classes if imports fail, to prevent crashing on startup
@@ -1014,6 +1016,13 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
         cur.execute("CREATE INDEX IF NOT EXISTS idx_issues_run ON analysis_issues(run_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_issues_sev ON analysis_issues(severity)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_issues_cat ON analysis_issues(category)")
+
+        # --- Simple schema migration for label column ---
+        cur.execute("PRAGMA table_info(analysis_issues)")
+        columns = [row[1] for row in cur.fetchall()]
+        if "label" not in columns:
+            cur.execute("ALTER TABLE analysis_issues ADD COLUMN label TEXT")
+            logger.info("Upgraded analysis_issues table to include 'label' column.")
         cur.execute("""
                     CREATE TABLE IF NOT EXISTS analysis_snapshots
                     (
@@ -1100,6 +1109,19 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                     """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_ner_perf_model_label ON ner_model_performance(model_name, entity_label)")
 
+        cur.execute("""
+                    CREATE TABLE IF NOT EXISTS adjudication_log (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        analysis_issue_id INTEGER NOT NULL,
+                        user_decision TEXT NOT NULL,
+                        corrected_label TEXT,
+                        notes TEXT,
+                        adjudicated_at TEXT NOT NULL,
+                        FOREIGN KEY(analysis_issue_id) REFERENCES analysis_issues(id) ON DELETE CASCADE
+                    )
+                    """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_adjudication_log_issue ON adjudication_log(analysis_issue_id)")
+
         conn.commit()
     except Exception as e:
         logger.warning(f"Ensure analytics schema failed: {e}")
@@ -1124,10 +1146,10 @@ def persist_analysis_run(file_path: str, run_time: str, metrics: dict, issues_sc
             run_id = int(cur.lastrowid)
             if issues_scored:
                 cur.executemany("""
-                                INSERT INTO analysis_issues (run_id, severity, category, title, detail, confidence)
-                                VALUES (?, ?, ?, ?, ?, ?)
+                                INSERT INTO analysis_issues (run_id, severity, category, title, detail, confidence, label)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
                                 """, [(run_id, it.get("severity", ""), it.get("category", ""), it.get("title", ""),
-                                       it.get("detail", ""), float(it.get("confidence", 0.0))) for it in issues_scored])
+                                       it.get("detail", ""), float(it.get("confidence", 0.0)), it.get("label")) for it in issues_scored])
             conn.commit()
             return run_id
     except Exception as e:
@@ -1163,6 +1185,69 @@ def update_ner_performance(model_name: str, entity_label: str, validation_status
             logger.info(f"Updated NER performance for {model_name} on label {entity_label} with a {validation_status}.")
     except Exception as e:
         logger.warning(f"Failed to update NER performance for {model_name}: {e}")
+
+
+class AdjudicationService:
+    """
+    Handles fetching and saving of adjudication data.
+    """
+    def __init__(self, db_connection_provider: Callable[[], sqlite3.Connection]):
+        self.get_db_connection = db_connection_provider
+
+    def get_adjudication_items(self) -> list[dict]:
+        """
+        Fetches all findings marked as 'DISAGREEMENT' that haven't been adjudicated yet.
+        """
+        items = []
+        try:
+            with self.get_db_connection() as conn:
+                cur = conn.cursor()
+                # Select issues that are disagreements and are not already in the adjudication log
+                cur.execute("""
+                    SELECT
+                        i.id,
+                        i.title,
+                        i.detail,
+                        i.confidence,
+                        r.file_name,
+                        r.run_time,
+                        i.label
+                    FROM analysis_issues i
+                    JOIN analysis_runs r ON i.run_id = r.id
+                    LEFT JOIN adjudication_log a ON i.id = a.analysis_issue_id
+                    WHERE i.label = 'DISAGREEMENT' AND a.id IS NULL
+                    ORDER BY r.run_time DESC, i.id
+                """)
+                rows = cur.fetchall()
+                for row in rows:
+                    items.append({
+                        "issue_id": row[0],
+                        "title": row[1],
+                        "detail": row[2],
+                        "confidence": row[3],
+                        "file_name": row[4],
+                        "run_time": row[5],
+                        "label": row[6]
+                    })
+        except Exception as e:
+            logger.error(f"Failed to get adjudication items: {e}")
+        return items
+
+    def save_adjudication(self, issue_id: int, decision: str, corrected_label: Optional[str], notes: Optional[str]) -> bool:
+        """Saves an adjudication decision to the database."""
+        try:
+            with self.get_db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute("""
+                    INSERT OR REPLACE INTO adjudication_log (analysis_issue_id, user_decision, corrected_label, notes, adjudicated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (issue_id, decision, corrected_label, notes, _now_iso()))
+                conn.commit()
+                logger.info(f"Saved adjudication for issue {issue_id}: {decision}")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to save adjudication for issue {issue_id}: {e}")
+            return False
 
 
 def _compute_recent_trends(max_runs: int = 10) -> dict:
@@ -1926,6 +2011,20 @@ def run_analyzer(self, file_path: str,
         full_text = "\n".join(t for t, _ in collapsed)
         strict_flag = (CURRENT_REVIEW_MODE == "Strict")
         issues_base = _audit_from_rubric(full_text, selected_disciplines, strict=strict_flag)
+
+        # Convert NER disagreements into issues so they can be adjudicated
+        for entity in ner_results:
+            if entity.label == "DISAGREEMENT":
+                issues_base.append({
+                    "severity": "finding",
+                    "title": "NER Model Disagreement",
+                    "detail": f"Models disagreed on the label for text: '{entity.text}'. Context: {entity.context}",
+                    "category": "AI Finding",
+                    "confidence": entity.score,
+                    "citations": [], # This can be enhanced later if needed
+                    "label": "DISAGREEMENT"
+                })
+
         issues_scored = _score_issue_confidence(_attach_issue_citations(issues_base, collapsed), collapsed)
 
         # Add location data to each issue based on its first citation
@@ -2465,11 +2564,13 @@ class MainWindow(QMainWindow):
         self.guideline_service: Optional[GuidelineService] = None
         self.ner_service: Optional[NERService] = None
         self.entity_consolidation_service: Optional[EntityConsolidationService] = None
+        self.adjudication_service: Optional[AdjudicationService] = None
         self.chat_history: list[tuple[str, str]] = []
         self.compliance_rules: list[ComplianceRule] = []
 
         # --- Initialize Services ---
         self.entity_consolidation_service = EntityConsolidationService(db_connection_provider=_get_db_connection)
+        self.adjudication_service = AdjudicationService(db_connection_provider=_get_db_connection)
         ner_model_configs = {
             "biobert": "longluu/Clinical-NER-MedMentions-GatorTronBase",
             "biomed_ner": "d4data/biomedical-ner-all"
@@ -2579,6 +2680,95 @@ class MainWindow(QMainWindow):
         stats_layout.addWidget(self.lbl_top_category, 3, 1)
 
         analytics_layout.addWidget(stats_group)
+
+        # --- Adjudication Tab ---
+        adjudication_tab = QWidget()
+        self.tabs.addTab(adjudication_tab, "Adjudication")
+        adjudication_layout = QVBoxLayout(adjudication_tab)
+
+        # Top controls
+        adjudication_controls = QHBoxLayout()
+        btn_refresh_adjudication = QPushButton("Refresh Queue")
+        self._style_action_button(btn_refresh_adjudication, font_size=11, bold=True, height=32)
+        try:
+            btn_refresh_adjudication.clicked.connect(self._update_adjudication_tab)
+        except Exception:
+            pass
+        adjudication_controls.addWidget(btn_refresh_adjudication)
+        adjudication_controls.addStretch(1)
+        adjudication_layout.addLayout(adjudication_controls)
+
+        # Main splitter for table and details
+        adjudication_splitter = QSplitter(Qt.Orientation.Vertical)
+
+        # Table for items
+        self.tbl_adjudication = QTableWidget()
+        self.tbl_adjudication.setColumnCount(5)
+        self.tbl_adjudication.setHorizontalHeaderLabels(["File", "Run Time", "Details", "Confidence", "Issue ID"])
+        self.tbl_adjudication.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tbl_adjudication.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.tbl_adjudication.setColumnHidden(4, True) # Hide issue ID
+        try:
+            self.tbl_adjudication.itemSelectionChanged.connect(self._on_adjudication_item_selected)
+        except Exception:
+            pass
+
+        adjudication_splitter.addWidget(self.tbl_adjudication)
+
+        # Adjudication controls panel
+        details_group = QGroupBox("Review Selected Disagreement")
+        self.review_details_group = details_group # Keep a reference
+        details_layout = QGridLayout(details_group)
+
+        details_layout.addWidget(QLabel("<b>Text:</b>"), 0, 0)
+        self.lbl_adjudication_text = QLabel("<i>Select an item from the queue above.</i>")
+        self.lbl_adjudication_text.setWordWrap(True)
+        details_layout.addWidget(self.lbl_adjudication_text, 0, 1, 1, 3)
+
+        details_layout.addWidget(QLabel("<b>Your Decision:</b>"), 1, 0, alignment=Qt.AlignmentFlag.AlignTop)
+
+        self.rad_confirm_a = QRadioButton()
+        self.rad_confirm_b = QRadioButton()
+        self.rad_reject_both = QRadioButton("Neither is Correct")
+
+        decision_box = QVBoxLayout()
+        decision_box.addWidget(self.rad_confirm_a)
+        decision_box.addWidget(self.rad_confirm_b)
+        decision_box.addWidget(self.rad_reject_both)
+        decision_box.addStretch(1)
+        details_layout.addLayout(decision_box, 1, 1)
+
+        details_layout.addWidget(QLabel("Corrected Label:"), 2, 0)
+        self.txt_corrected_label = QLineEdit()
+        self.txt_corrected_label.setPlaceholderText("Enter correct label if neither model was right")
+        self.txt_corrected_label.setEnabled(False)
+        details_layout.addWidget(self.txt_corrected_label, 2, 1, 1, 3)
+
+        try:
+            self.rad_reject_both.toggled.connect(self.txt_corrected_label.setEnabled)
+        except Exception:
+            pass
+
+        details_layout.addWidget(QLabel("Notes:"), 3, 0, alignment=Qt.AlignmentFlag.AlignTop)
+        self.txt_adjudication_notes = QTextEdit()
+        self.txt_adjudication_notes.setPlaceholderText("Optional notes about your decision.")
+        self.txt_adjudication_notes.setFixedHeight(80)
+        details_layout.addWidget(self.txt_adjudication_notes, 3, 1, 1, 3)
+
+        btn_save_adjudication = QPushButton("Save Adjudication")
+        self._style_action_button(btn_save_adjudication, font_size=11, bold=True, height=32)
+        try:
+            btn_save_adjudication.clicked.connect(self._save_current_adjudication)
+        except Exception:
+            pass
+        details_layout.addWidget(btn_save_adjudication, 4, 3)
+
+        details_group.setEnabled(False) # Disabled until an item is selected
+        adjudication_splitter.addWidget(details_group)
+        adjudication_splitter.setSizes([400, 300])
+
+        adjudication_layout.addWidget(adjudication_splitter)
+
 
         # --- Setup Tab Layout ---
         setup_layout = QVBoxLayout(setup_tab)
@@ -2967,6 +3157,8 @@ class MainWindow(QMainWindow):
     def _on_tab_changed(self, index):
         if self.tabs.tabText(index) == "Analytics Dashboard":
             self._update_analytics_tab()
+        elif self.tabs.tabText(index) == "Adjudication":
+            self._update_adjudication_tab()
 
     def _fetch_analytics_data(self):
         try:
@@ -4270,6 +4462,169 @@ class MainWindow(QMainWindow):
             self.set_error(f"Failed to run performance analysis: {e}")
             logger.exception("Slicer analysis failed")
             QMessageBox.critical(self, "Error", f"Failed to run performance analysis:\\n{e}")
+        finally:
+            QApplication.restoreOverrideCursor()
+
+    def _reset_adjudication_panel(self):
+        """Resets the adjudication detail panel to its default state."""
+        self.review_details_group.setEnabled(False)
+        self.lbl_adjudication_text.setText("<i>Select an item from the queue above.</i>")
+
+        # Detach signals temporarily to prevent issues when clearing
+        self.rad_confirm_a.blockSignals(True)
+        self.rad_confirm_b.blockSignals(True)
+        self.rad_reject_both.blockSignals(True)
+
+        self.rad_confirm_a.setText("Confirm Model A")
+        self.rad_confirm_b.setText("Confirm Model B")
+
+        self.rad_confirm_a.setChecked(False)
+        self.rad_confirm_b.setChecked(False)
+        self.rad_reject_both.setChecked(False)
+
+        self.rad_confirm_a.blockSignals(False)
+        self.rad_confirm_b.blockSignals(False)
+        self.rad_reject_both.blockSignals(False)
+
+        self.txt_corrected_label.clear()
+        self.txt_corrected_label.setEnabled(False)
+        self.txt_adjudication_notes.clear()
+
+    def _update_adjudication_tab(self):
+        if not self.adjudication_service:
+            self.log("Adjudication service not available.")
+            return
+
+        self.log("Refreshing adjudication queue...")
+        try:
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            items = self.adjudication_service.get_adjudication_items()
+
+            self.tbl_adjudication.setRowCount(0) # Clear table
+
+            for item in items:
+                row_position = self.tbl_adjudication.rowCount()
+                self.tbl_adjudication.insertRow(row_position)
+
+                self.tbl_adjudication.setItem(row_position, 0, QTableWidgetItem(item.get("file_name", "")))
+                self.tbl_adjudication.setItem(row_position, 1, QTableWidgetItem(item.get("run_time", "")))
+                self.tbl_adjudication.setItem(row_position, 2, QTableWidgetItem(item.get("detail", "")))
+                self.tbl_adjudication.setItem(row_position, 3, QTableWidgetItem(f"{item.get('confidence', 0.0):.2f}"))
+
+                issue_id_item = QTableWidgetItem() # No text needed for hidden column
+                issue_id_item.setData(Qt.ItemDataRole.UserRole, item)
+                self.tbl_adjudication.setItem(row_position, 4, issue_id_item)
+
+            self.tbl_adjudication.resizeColumnsToContents()
+            self.log(f"Found {len(items)} items for adjudication.")
+            if not items:
+                self._reset_adjudication_panel()
+
+        except Exception as e:
+            self.log(f"Failed to update adjudication tab: {e}")
+            QMessageBox.warning(self, "Error", f"Could not load adjudication queue: {e}")
+        finally:
+            QApplication.restoreOverrideCursor()
+
+    def _on_adjudication_item_selected(self):
+        selected_items = self.tbl_adjudication.selectedItems()
+        if not selected_items:
+            self._reset_adjudication_panel()
+            return
+
+        self._reset_adjudication_panel() # Reset first to clear old state
+        self.review_details_group.setEnabled(True)
+
+        selected_row = selected_items[0].row()
+        item_widget = self.tbl_adjudication.item(selected_row, 4)
+        if not item_widget: return
+        item_data = item_widget.data(Qt.ItemDataRole.UserRole)
+
+        if not item_data:
+            self.log("Error: Could not retrieve item data from selected row.")
+            self._reset_adjudication_panel()
+            return
+
+        detail_str = item_data.get('detail', '')
+
+        text_match = re.search(r"for text: '(.*?)'", detail_str)
+        context_match = re.search(r"Context: (.*)", detail_str)
+
+        text = text_match.group(1) if text_match else "N/A"
+        context = context_match.group(1) if context_match else ""
+
+        model_a_pred_match = re.search(r"Model A \((.*?)\) predicted '(.*?)'", context)
+        model_b_pred_match = re.search(r"Model B \((.*?)\) predicted '(.*?)'", context)
+
+        model_a_name = model_a_pred_match.group(1) if model_a_pred_match else "Model A"
+        model_a_label = model_a_pred_match.group(2) if model_a_pred_match else "N/A"
+
+        model_b_name = model_b_pred_match.group(1) if model_b_pred_match else "Model B"
+        model_b_label = model_b_pred_match.group(2) if model_b_pred_match else "N/A"
+
+        self.lbl_adjudication_text.setText(f"<b>{text}</b>")
+
+        self.rad_confirm_a.setText(f"Confirm '{model_a_label}' ({model_a_name})")
+        self.rad_confirm_b.setText(f"Confirm '{model_b_label}' ({model_b_name})")
+
+    def _save_current_adjudication(self):
+        selected_items = self.tbl_adjudication.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "Save Error", "Please select an item to adjudicate.")
+            return
+
+        selected_row = selected_items[0].row()
+        item_widget = self.tbl_adjudication.item(selected_row, 4)
+        if not item_widget: return
+        item_data = item_widget.data(Qt.ItemDataRole.UserRole)
+        issue_id = item_data.get('issue_id')
+
+        if not issue_id:
+            QMessageBox.warning(self, "Save Error", "Could not determine the issue ID for the selected item.")
+            return
+
+        decision = ""
+        corrected_label = None
+
+        if self.rad_confirm_a.isChecked():
+            decision = "confirm_a"
+            label_match = re.search(r"Confirm '(.*?)'", self.rad_confirm_a.text())
+            if label_match: corrected_label = label_match.group(1)
+        elif self.rad_confirm_b.isChecked():
+            decision = "confirm_b"
+            label_match = re.search(r"Confirm '(.*?)'", self.rad_confirm_b.text())
+            if label_match: corrected_label = label_match.group(1)
+        elif self.rad_reject_both.isChecked():
+            decision = "reject_both"
+            corrected_label = self.txt_corrected_label.text().strip()
+            if not corrected_label:
+                QMessageBox.warning(self, "Input Error", "Please provide a corrected label when rejecting both models.")
+                return
+        else:
+            QMessageBox.warning(self, "Input Error", "Please select a decision.")
+            return
+
+        notes = self.txt_adjudication_notes.toPlainText().strip()
+
+        if not self.adjudication_service:
+            self.log("Adjudication service not available.")
+            return
+
+        try:
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            success = self.adjudication_service.save_adjudication(issue_id, decision, corrected_label, notes)
+
+            if success:
+                self.log(f"Successfully saved adjudication for issue {issue_id}.")
+                QMessageBox.information(self, "Success", "Adjudication saved successfully.")
+                self._update_adjudication_tab()
+            else:
+                self.log(f"Failed to save adjudication for issue {issue_id}.")
+                QMessageBox.critical(self, "Database Error", "Failed to save adjudication to the database.")
+
+        except Exception as e:
+            self.log(f"An error occurred during save: {e}")
+            QMessageBox.critical(self, "Error", f"An unexpected error occurred: {e}")
         finally:
             QApplication.restoreOverrideCursor()
 
