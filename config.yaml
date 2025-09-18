@@ -1,0 +1,17 @@
+# config.yaml
+APP_NAME: Therapy Compliance Analyzer
+ENVIRONMENT: production
+DB_PATH: ./data/compliance.db
+ENCRYPTION_KEY: "{{GENERATE_YOUR_OWN_KEY}}"  # Replace with generated key
+OCR_ENGINE: Tesseract
+NLP_MODELS:
+  - ClinicalBERT
+  - BioBERT
+  - AraG
+RUBRIC_PATH: ./data/rubrics/
+REPORT_PATH: ./data/reports/
+REPORT_RETENTION_HOURS: 24
+AUTO_UPDATE: true
+ANALYTICS_PATH: ./data/analytics/
+PHI_SCRUBBER: enabled
+UI_MODE: responsive
