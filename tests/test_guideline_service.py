@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 import os
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
+# Add the src directory to the Python path to allow for absolute imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 # Local
-from .guideline_service import GuidelineService
-from .local_llm import LocalRAG
+from src.guideline_service import GuidelineService
+from src.local_llm import LocalRAG
 
 
 class TestGuidelineService(unittest.TestCase):
