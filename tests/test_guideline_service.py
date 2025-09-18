@@ -6,8 +6,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 # Local
-from .guideline_service import GuidelineService
-from .local_llm import LocalRAG
+from src.guideline_service import GuidelineService
+from src.local_llm import LocalRAG
 
 
 class TestGuidelineService(unittest.TestCase):
@@ -84,8 +84,8 @@ class TestGuidelineService(unittest.TestCase):
         ]
         self.guideline_service.is_index_ready = True
 
-        # Configure the mock search_index to return a specific text
-        self.mock_rag.search_index.return_value = ["This is the second."]
+        # Configure the mock search_index to return a specific text and score
+        self.mock_rag.search_index.return_value = [("This is the second.", 0.9)]
 
         # Act
         query = "a query about the second paragraph"
@@ -97,7 +97,8 @@ class TestGuidelineService(unittest.TestCase):
         self.assertEqual(len(results), 1)
         self.assertDictEqual(results[0], {
             "text": "This is the second.",
-            "source": "test_guidelines.txt"
+            "source": "test_guidelines.txt",
+            "score": 0.9
         })
 
 if __name__ == '__main__':
