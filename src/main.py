@@ -151,6 +151,7 @@ try:
         from .local_llm import LocalRAG
         from .rubric_service import RubricService, ComplianceRule
         from .guideline_service import GuidelineService
+        from .text_chunking import RecursiveCharacterTextSplitter
     except ImportError as e:
         logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
         # Define dummy classes if imports fail, to prevent crashing on startup
@@ -158,6 +159,7 @@ try:
         class RubricService: pass
         class ComplianceRule: pass
         class GuidelineService: pass
+        class RecursiveCharacterTextSplitter: pass
 
 
     # --- LLM Loader Worker ---
@@ -776,40 +778,49 @@ def _open_path(p: str) -> None:
 
 
 # --- Parsing (PDF/DOCX/CSV/XLSX/Images with optional OCR) ---
-def split_sentences(text: str) -> list[str]:
-    if not text:
-        return []
-    sents = [p.strip() for p in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"'])", text) if p.strip()]
-    if not sents:
-        sents = text.splitlines()
-    return [s for s in sents if s]
-
-
 def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
+    """
+    Parses the content of a document and splits it into chunks.
+    Uses a recursive character text splitter for more effective chunking.
+    """
     ext = os.path.splitext(file_path)[1].lower()
+
+    # Initialize the text splitter with configurable settings
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=get_int_setting("chunk_size", 1000),
+        chunk_overlap=get_int_setting("chunk_overlap", 200),
+    )
+
     try:
-        sentences: list[tuple[str, str]] = []
+        chunks_with_source: list[tuple[str, str]] = []
+        full_text = ""
+
+        # --- Step 1: Extract text from the document based on its type ---
         if ext == ".pdf":
             if not pdfplumber:
                 return [("Error: pdfplumber not available.", "PDF Parser")]
             with pdfplumber.open(file_path) as pdf:
+                # Process page by page to maintain source information
                 for i, page in enumerate(pdf.pages, start=1):
-                    txt = page.extract_text() or ""
-                    for s in split_sentences(txt):
-                        if s:
-                            sentences.append((s, f"Page {i}"))
+                    page_text = page.extract_text() or ""
+                    page_chunks = text_splitter.split_text(page_text)
+                    for chunk in page_chunks:
+                        if chunk:
+                            chunks_with_source.append((chunk, f"Page {i}"))
         elif ext == ".docx":
             try:
                 from docx import Document
             except Exception:
                 return [("Error: python-docx not available.", "DOCX Parser")]
             docx_doc = Document(file_path)
+            # Process paragraph by paragraph
             for i, para in enumerate(docx_doc.paragraphs, start=1):
                 if not para.text.strip():
                     continue
-                for s in split_sentences(para.text):
-                    if s:
-                        sentences.append((s, f"Paragraph {i}"))
+                para_chunks = text_splitter.split_text(para.text)
+                for chunk in para_chunks:
+                    if chunk:
+                        chunks_with_source.append((chunk, f"Paragraph {i}"))
         elif ext in [".xlsx", ".xls", ".csv"]:
             try:
                 if ext in [".xlsx", ".xls"]:
@@ -819,9 +830,10 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
                 else:
                     df = pd.read_csv(file_path)
                 content = df.to_string(index=False)
-                for s in split_sentences(content):
-                    if s:
-                        sentences.append((s, "Table"))
+                data_chunks = text_splitter.split_text(content)
+                for chunk in data_chunks:
+                    if chunk:
+                        chunks_with_source.append((chunk, "Table"))
             except Exception as e:
                 return [(f"Error: Failed to read tabular file: {e}", "Data Parser")]
         elif ext in [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff"]:
@@ -832,20 +844,24 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
                 if img.mode not in ("RGB", "L"):
                     img = img.convert("RGB")
                 txt = pytesseract.image_to_string(img, lang=get_str_setting("ocr_lang", "eng"))
-                for s in split_sentences(txt or ""):
-                    if s:
-                        sentences.append((s, "Image (OCR)"))
+                ocr_chunks = text_splitter.split_text(txt or "")
+                for chunk in ocr_chunks:
+                    if chunk:
+                        chunks_with_source.append((chunk, "Image (OCR)"))
             except UnidentifiedImageError as e:
                 return [(f"Error: Unidentified image: {e}", "OCR Parser")]
         elif ext == ".txt":
             with open(file_path, "r", encoding="utf-8") as f:
                 txt = f.read()
-            for s in split_sentences(txt):
-                if s:
-                    sentences.append((s, "Text File"))
+            txt_chunks = text_splitter.split_text(txt)
+            for chunk in txt_chunks:
+                if chunk:
+                    chunks_with_source.append((chunk, "Text File"))
         else:
             return [(f"Error: Unsupported file type: {ext}", "File Handler")]
-        return sentences if sentences else [("Info: No text could be extracted from the document.", "System")]
+
+        return chunks_with_source if chunks_with_source else [("Info: No text could be extracted from the document.", "System")]
+
     except FileNotFoundError:
         return [(f"Error: File not found at {file_path}", "File System")]
     except Exception as e:
