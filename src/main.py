@@ -141,7 +141,8 @@ try:
         QMainWindow, QToolBar, QLabel, QFileDialog, QMessageBox, QApplication,
         QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton,
         QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
-        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout
+        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout,
+        QListWidgetItem
     )
     from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter
     from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject
@@ -280,6 +281,7 @@ except Exception:
     class QPdfWriter: ...
     class Qt: ...
     class QThread: ...
+    class QListWidgetItem: ...
 
 # Local imports
 from .llm_analyzer import run_llm_analysis
@@ -491,13 +493,6 @@ def _ensure_core_schema(conn: sqlite3.Connection) -> None:
                         settings_fingerprint
                     )
                         )
-                    """)
-        cur.execute("""
-                    CREATE TABLE IF NOT EXISTS indexed_documents (
-                        file_fingerprint TEXT PRIMARY KEY,
-                        file_path TEXT NOT NULL,
-                        indexed_at TEXT NOT NULL
-                    )
                     """)
         conn.commit()
     except Exception as e:
@@ -888,7 +883,8 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                         compliance_score
                         REAL,
                         mode
-                        TEXT
+                        TEXT,
+                        file_path TEXT
                     )
                     """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_time ON analysis_runs(run_time)")
@@ -968,6 +964,9 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
         if "disciplines" not in columns:
             cur.execute("ALTER TABLE analysis_runs ADD COLUMN disciplines TEXT")
             logger.info("Upgraded analysis_runs table to include 'disciplines' column.")
+        if "file_path" not in columns:
+            cur.execute("ALTER TABLE analysis_runs ADD COLUMN file_path TEXT")
+            logger.info("Upgraded analysis_runs table to include 'file_path' column.")
 
         cur.execute("""
                     CREATE TABLE IF NOT EXISTS reviewed_findings
@@ -1020,14 +1019,14 @@ def persist_analysis_run(file_path: str, run_time: str, metrics: dict, issues_sc
             cur = conn.cursor()
             cur.execute("""
                         INSERT INTO analysis_runs (file_name, run_time, pages_est, flags, findings, suggestions, notes,
-                                                   sentences_final, dedup_removed, compliance_score, mode, disciplines)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                                   sentences_final, dedup_removed, compliance_score, mode, disciplines, file_path)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (
                             os.path.basename(file_path), run_time,
                             int(metrics.get("pages", 0)), int(metrics.get("flags", 0)), int(metrics.get("findings", 0)),
                             int(metrics.get("suggestions", 0)), int(metrics.get("notes", 0)),
                             int(metrics.get("sentences_final", 0)), int(metrics.get("dedup_removed", 0)),
-                            float(compliance.get("score", 0.0)), mode, disciplines_json
+                            float(compliance.get("score", 0.0)), mode, disciplines_json, file_path
                         ))
             run_id = int(cur.lastrowid)
             if issues_scored:
@@ -1744,21 +1743,6 @@ def run_analyzer(file_path: str,
             collapsed = collapse_similar_sentences_simple(processed, threshold)
         collapsed = list(collapsed)
 
-        # --- Index the document for global search ---
-        if main_window_instance and main_window_instance.local_rag and main_window_instance.local_rag.is_ready():
-            if not is_document_indexed(fp):
-                main_window_instance.log(f"Adding {os.path.basename(file_path)} to global search index...")
-                try:
-                    docs_to_index = [
-                        {"text": text, "metadata": {"file_path": file_path, "source": source}}
-                        for text, source in collapsed
-                    ]
-                    main_window_instance.local_rag.add_to_index(docs_to_index)
-                    mark_document_as_indexed(fp, file_path)
-                    main_window_instance.log("Document successfully indexed.")
-                except Exception as e:
-                    main_window_instance.log(f"Failed to index document: {e}")
-                    logger.error(f"Failed to index document {file_path}: {e}")
 
         ner_results = []
         if get_bool_setting("enable_biobert_ner", True):
@@ -1882,7 +1866,7 @@ def run_analyzer(file_path: str,
             "General auditor checks": {
                 "action": "Perform a general review of the note for clarity, consistency, and completeness. Ensure the 'story' of the patient's care is clear.",
                 "why": "A well-documented note justifies skilled care, supports medical necessity, and ensures accurate billing.",
-                "good_example": "A note that clearly links interventions to functional goals and documents the patient's progress over time.",
+                "good_example": "A note that provides a clear picture of the patient's journey from evaluation to discharge.",
                 "bad_example": "A note with jargon, undefined abbreviations, or that simply lists exercises without clinical reasoning."
             }
         }
@@ -2310,29 +2294,6 @@ def run_analyzer(file_path: str,
         return result_info
 
 
-def is_document_indexed(file_fingerprint: str) -> bool:
-    """Checks if a document with the given fingerprint has already been indexed."""
-    try:
-        with _get_db_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT 1 FROM indexed_documents WHERE file_fingerprint = ?", (file_fingerprint,))
-            return cur.fetchone() is not None
-    except Exception as e:
-        logger.warning(f"Failed to check if document is indexed: {e}")
-        return False
-
-def mark_document_as_indexed(file_fingerprint: str, file_path: str) -> None:
-    """Marks a document as indexed in the database."""
-    try:
-        with _get_db_connection() as conn:
-            cur = conn.cursor()
-            cur.execute(
-                "INSERT OR REPLACE INTO indexed_documents (file_fingerprint, file_path, indexed_at) VALUES (?, ?, ?)",
-                (file_fingerprint, file_path, _now_iso())
-            )
-            conn.commit()
-    except Exception as e:
-        logger.warning(f"Failed to mark document as indexed: {e}")
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
@@ -2352,6 +2313,7 @@ class MainWindow(QMainWindow):
         self.entity_consolidation_service: EntityConsolidationService = EntityConsolidationService()
         self.chat_history: list[tuple[str, str]] = []
         self.compliance_rules: list[ComplianceRule] = []
+        self._analytics_severity_filter = None
 
         tb = QToolBar("Main")
         try:
@@ -2414,22 +2376,7 @@ class MainWindow(QMainWindow):
 
         self.tabs.addTab(setup_tab, "Setup & File Queue")
         self.tabs.addTab(results_tab, "Analysis Results")
-        self.tabs.addTab(search_tab, "Global Search")
         self.tabs.addTab(logs_tab, "Application Logs")
-
-        # --- Global Search Tab Layout ---
-        search_layout = QVBoxLayout(search_tab)
-        search_input_layout = QHBoxLayout()
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Enter search query across all indexed documents...")
-        search_button = QPushButton("Search")
-        search_button.clicked.connect(self.action_global_search)
-        search_input_layout.addWidget(self.search_input)
-        search_input_layout.addWidget(search_button)
-        self.search_results_text = QTextEdit()
-        self.search_results_text.setReadOnly(True)
-        search_layout.addLayout(search_input_layout)
-        search_layout.addWidget(self.search_results_text)
 
 
         # --- Analytics Tab ---
@@ -2452,6 +2399,7 @@ class MainWindow(QMainWindow):
         self.analytics_figure = Figure(figsize=(5, 4.5)) # Increased height for two charts
         self.analytics_canvas = FigureCanvas(self.analytics_figure)
         self.analytics_canvas.mpl_connect('pick_event', self.on_chart_pick)
+        self.analytics_canvas.mpl_connect('button_press_event', self.on_chart_click)
         analytics_layout.addWidget(self.analytics_canvas)
 
         # Summary stats
@@ -2666,9 +2614,9 @@ class MainWindow(QMainWindow):
 
                     # --- Create and index the context for the AI ---
                     if self.local_rag and self.local_rag.is_ready():
-                        self.log("Creating AI context index...")
+                        self.log("Creating AI context index for in-document chat...")
                         context_chunks = self._create_context_chunks(data, res.get("formatted_entities", []))
-                        self.local_rag.add_to_index(context_chunks)
+                        self.local_rag.create_index(context_chunks)
                         self.log("AI context index created successfully.")
                     else:
                         self.log("AI not ready, skipping context indexing.")
@@ -2840,45 +2788,6 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.set_error(str(e))
 
-    def action_global_search(self):
-        """Performs a search across all indexed documents."""
-        query = self.search_input.text().strip()
-        if not query:
-            return
-        if not self.local_rag or not self.local_rag.is_ready() or not self.local_rag.index:
-            QMessageBox.warning(self, "Search Not Ready", "The search index is not available. Please analyze one or more documents first.")
-            return
-
-        try:
-            self.statusBar().showMessage("Searching...")
-            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-
-            results = self.local_rag.search_index(query, k=10)
-
-            if not results:
-                self.search_results_text.setPlainText("No results found.")
-                return
-
-            results_html = "<h2>Search Results</h2>"
-            for res in results:
-                file_path = res['metadata'].get('file_path', 'N/A')
-                source = res['metadata'].get('source', 'N/A')
-                text = html.escape(res['text'])
-                results_html += (
-                    f"<div style='margin-bottom: 15px; border-left: 2px solid #60a5fa; padding-left: 8px;'>"
-                    f"<b>File:</b> {os.path.basename(file_path)}<br>"
-                    f"<b>Source:</b> {source}<br>"
-                    f"<b>Match:</b> \"<i>...{text}...</i>\""
-                    f"</div>"
-                )
-            self.search_results_text.setHtml(results_html)
-
-        except Exception as e:
-            self.set_error(f"An error occurred during global search: {e}")
-            QMessageBox.critical(self, "Search Error", f"An error occurred during search:\n{e}")
-        finally:
-            self.statusBar().showMessage("Ready")
-            QApplication.restoreOverrideCursor()
 
 
     def action_export_view_to_pdf(self):
@@ -3126,38 +3035,24 @@ class MainWindow(QMainWindow):
         if not question:
             return
 
-        if not self.local_rag or not self.local_rag.is_ready() or not self.embedding_model:
+        if not self.local_rag or not self.local_rag.is_ready():
             QMessageBox.warning(self, "AI Not Ready", "The AI model is not yet available. Please wait for it to load.")
             return
 
-        if not self.current_report_data or not self.current_report_data.get('source_sentences'):
-            QMessageBox.warning(self, "AI Not Ready", "Please analyze a document first to activate the AI chat.")
+        if not self.current_report_data or not self.local_rag.index:
+            QMessageBox.warning(self, "AI Not Ready", "Please analyze a document first to create a searchable index for the chat.")
             return
 
         try:
             self.statusBar().showMessage("The AI is thinking...")
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
-            # --- Perform in-memory search for the current document's context ---
-            from sentence_transformers.util import cos_sim
-            source_sentences = self.current_report_data.get('source_sentences', [])
-            doc_texts = [s[0] for s in source_sentences]
+            # Search the document-specific index to get context
+            context_chunks = self.local_rag.search_index(question, k=3)
 
-            if not doc_texts:
-                 answer = "I could not find any text in the current document to answer your question."
+            if not context_chunks:
+                answer = "I could not find any relevant information in the current document to answer your question."
             else:
-                question_embedding = self.local_rag.embedding_model.encode(question, convert_to_tensor=True)
-                doc_embeddings = self.local_rag.embedding_model.encode(doc_texts, convert_to_tensor=True)
-
-                # Find the most similar sentences
-                similarities = cos_sim(question_embedding, doc_embeddings)
-                top_k = min(3, len(doc_texts))
-                top_results = torch.topk(similarities, k=top_k, largest=True)
-
-                # Gather the context
-                context_chunks = [doc_texts[i] for i in top_results.indices[0]]
-
-                # Call the LLM with the retrieved context
                 answer = self.local_rag.query(question, context_chunks=context_chunks, chat_history=self.chat_history)
 
             self.chat_history.append(("user", question))
@@ -3210,16 +3105,29 @@ class MainWindow(QMainWindow):
         self.lbl_avg_score.setText(f"{avg_score:.1f} / 100.0")
         self.lbl_avg_flags.setText(f"{avg_flags:.2f}")
 
-        if not issues_df.empty:
-            top_cat = issues_df['category'].mode()
-            if not top_cat.empty:
-                self.lbl_top_category.setText(top_cat.iloc[0])
+        # --- Filter data if a severity is selected ---
+        if self._analytics_severity_filter:
+            filtered_run_ids = issues_df[issues_df['severity'] == self._analytics_severity_filter]['run_id'].unique()
+            filtered_issues_df = issues_df[issues_df['run_id'].isin(filtered_run_ids)]
+            if not filtered_issues_df.empty:
+                top_cat = filtered_issues_df['category'].mode()
+                if not top_cat.empty:
+                    self.lbl_top_category.setText(f"{top_cat.iloc[0]} (filtered)")
+            else:
+                self.lbl_top_category.setText("N/A")
+        else:
+            if not issues_df.empty:
+                top_cat = issues_df['category'].mode()
+                if not top_cat.empty:
+                    self.lbl_top_category.setText(top_cat.iloc[0])
 
         # --- Update Charts ---
         self.analytics_figure.clear()
 
-        # Create a 2x1 grid for the charts
-        (ax1, ax2) = self.analytics_figure.subplots(2, 1, gridspec_kw={'height_ratios': [2, 1]})
+        gs = self.analytics_figure.add_gridspec(2, 2)
+        ax1 = self.analytics_figure.add_subplot(gs[0, :]) # Top row, span both columns
+        ax2 = self.analytics_figure.add_subplot(gs[1, 0]) # Bottom row, first column
+        ax3 = self.analytics_figure.add_subplot(gs[1, 1]) # Bottom row, second column
 
         # Ax1: Compliance Score Trend Chart
         scores_to_plot = runs_df['compliance_score'].tail(50).tolist()
@@ -3238,9 +3146,20 @@ class MainWindow(QMainWindow):
         ax2.set_title("Total Findings by Severity")
         ax2.set_ylabel("Count")
 
-        # Enable picking on the bars
         for bar in bars:
             bar.set_picker(True)
+
+        # Ax3: Top Categories Chart
+        categories_df = filtered_issues_df if self._analytics_severity_filter else issues_df
+        category_counts = categories_df['category'].value_counts().nlargest(10)
+
+        ax3.barh(category_counts.index, category_counts.values, color='#818cf8')
+        title = "Top 10 Finding Categories"
+        if self._analytics_severity_filter:
+            title += f" for '{self._analytics_severity_filter}'"
+        ax3.set_title(title)
+        ax3.invert_yaxis() # To show the highest count at the top
+        ax3.set_xlabel("Count")
 
         self.analytics_figure.tight_layout()
         self.analytics_canvas.draw()
@@ -3248,6 +3167,15 @@ class MainWindow(QMainWindow):
         self._update_bias_audit_section()
 
         self.log("Analytics refresh complete.")
+
+    def on_chart_click(self, event):
+        """Handles a click on the chart canvas to clear filters."""
+        # If the click was on an axis but not on a specific artist, clear the filter.
+        if event.inaxes and event.artist is None:
+            if self._analytics_severity_filter:
+                self.log("Clearing severity filter.")
+                self._analytics_severity_filter = None
+                self._update_analytics_tab()
 
     def _update_bias_audit_section(self):
         """Runs the bias audit and updates the corresponding UI elements."""
@@ -3261,15 +3189,15 @@ class MainWindow(QMainWindow):
             self.bias_canvas.draw()
             return
 
-        dpd = bias_results['demographic_parity_difference']
-        eod = bias_results['equalized_odds_difference']
-        rates = bias_results['selection_rates']
+        dpd = bias_results.get('demographic_parity_difference', 0)
+        dpr = bias_results.get('demographic_parity_ratio', 0)
+        rates = bias_results.get('selection_rates', {})
 
         summary_text = (
-            f"Demographic Parity Difference: {dpd:.4f}\n"
-            f"Equalized Odds Difference: {eod:.4f}\n\n"
-            f"This audit compares the rate of 'flag' findings across different disciplines. "
-            f"Values closer to 0 indicate greater fairness."
+            f"<b>Demographic Parity Difference:</b> {dpd:.4f}<br>"
+            f"<b>Demographic Parity Ratio:</b> {dpr:.4f}<br><br>"
+            f"<i>This audit compares the rate of 'flag' findings across disciplines. "
+            f"Difference metrics closer to 0 are fairer. Ratio metrics closer to 1 are fairer.</i>"
         )
         self.bias_audit_label.setText(summary_text)
 
@@ -3293,14 +3221,26 @@ class MainWindow(QMainWindow):
             return
 
         bar = event.artist
-        # The x-coordinate of the bar's left edge corresponds to its index
-        bar_index = int(round(bar.get_x()))
 
-        severities = ['flag', 'finding', 'suggestion', 'auditor_note']
-        if 0 <= bar_index < len(severities):
-            selected_severity = severities[bar_index]
-            self.log(f"User clicked on severity bar: {selected_severity}")
-            self.show_drilldown_dialog_for_severity(selected_severity)
+        # Determine which subplot the click came from
+        if event.mouseevent.inaxes == self.analytics_figure.axes[1]: # Severity chart is the second axis
+            bar_index = int(round(bar.get_x()))
+            severities = ['flag', 'finding', 'suggestion', 'auditor_note']
+            if 0 <= bar_index < len(severities):
+                selected_severity = severities[bar_index]
+
+                # On double-click, show drill-down. On single-click, filter.
+                if event.mouseevent.dblclick:
+                    self.log(f"User double-clicked on severity bar: {selected_severity}")
+                    self.show_drilldown_dialog_for_severity(selected_severity)
+                else:
+                    self.log(f"User filtering by severity: {selected_severity}")
+                    # Toggle filter
+                    if self._analytics_severity_filter == selected_severity:
+                        self._analytics_severity_filter = None
+                    else:
+                        self._analytics_severity_filter = selected_severity
+                    self._update_analytics_tab()
 
     def show_drilldown_dialog_for_severity(self, severity: str):
         """Queries data and shows a dialog with files for a given severity."""
@@ -3316,24 +3256,33 @@ class MainWindow(QMainWindow):
                     return
 
                 run_ids = tuple(issue_runs_df['run_id'].tolist())
-
-                # Get the file names for those run_ids
+                # Get the file names and disciplines for those run_ids
+                if not run_ids:
+                    return
                 files_df = pd.read_sql_query(
-                    f"SELECT file_name, run_time FROM analysis_runs WHERE id IN {run_ids}",
+                    f"SELECT file_name, run_time, file_path, disciplines FROM analysis_runs WHERE id IN {run_ids}",
                     conn
                 )
 
             # Create and show the dialog
             dialog = QDialog(self)
             dialog.setWindowTitle(f"Documents with '{severity}' Findings")
-            dialog.setMinimumWidth(400)
+            dialog.setMinimumWidth(500)
             layout = QVBoxLayout(dialog)
 
             list_widget = QListWidget()
+            import json
             for index, row in files_df.iterrows():
-                list_widget.addItem(f"{row['file_name']} (Analyzed: {row['run_time']})")
+                item = QListWidgetItem(f"{row['file_name']} (Analyzed: {row['run_time']})")
+                # Store a dictionary with path and disciplines
+                disciplines = json.loads(row['disciplines']) if row['disciplines'] and row['disciplines'].startswith('[') else []
+                item.setData(Qt.ItemDataRole.UserRole, {"path": row['file_path'], "disciplines": disciplines})
+                list_widget.addItem(item)
 
-            layout.addWidget(QLabel(f"Showing documents containing at least one '{severity}':"))
+            list_widget.itemDoubleClicked.connect(self.on_drilldown_item_activated)
+            list_widget.itemDoubleClicked.connect(dialog.accept)
+
+            layout.addWidget(QLabel(f"Double-click a file to re-analyze with its original settings:"))
             layout.addWidget(list_widget)
 
             dialog.exec()
@@ -3341,6 +3290,49 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.log(f"Error during drill-down: {e}")
             QMessageBox.warning(self, "Drill-Down Error", f"An error occurred while fetching details: {e}")
+
+    def on_drilldown_item_activated(self, item: QListWidgetItem):
+        """Handles when a user double-clicks a file in the drill-down dialog."""
+        data = item.data(Qt.ItemDataRole.UserRole)
+        if not isinstance(data, dict):
+            file_path = str(data)
+            disciplines = []
+        else:
+            file_path = data.get("path")
+            disciplines = data.get("disciplines", [])
+
+        if file_path and os.path.isfile(file_path):
+            reply = QMessageBox.question(self, 'Confirm Re-Analysis',
+                                         f"Do you want to re-analyze the file:\n\n{os.path.basename(file_path)}\n\n"
+                                         "This will replace the current analysis results.",
+                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                         QMessageBox.StandardButton.No)
+
+            if reply == QMessageBox.StandardButton.Yes:
+                self.log(f"Loading file from drill-down: {file_path} with disciplines: {disciplines}")
+                self._current_report_path = file_path
+                self.lbl_report_name.setText(os.path.basename(file_path))
+
+                # Block signals to prevent the 'All' checkbox from flickering
+                self.chk_all_disciplines.blockSignals(True)
+                self.chk_pt.blockSignals(True)
+                self.chk_ot.blockSignals(True)
+                self.chk_slp.blockSignals(True)
+
+                self.chk_pt.setChecked('pt' in disciplines)
+                self.chk_ot.setChecked('ot' in disciplines)
+                self.chk_slp.setChecked('slp' in disciplines)
+
+                self._update_all_checkbox_state()
+
+                self.chk_all_disciplines.blockSignals(False)
+                self.chk_pt.blockSignals(False)
+                self.chk_ot.blockSignals(False)
+                self.chk_slp.blockSignals(False)
+
+                self.action_analyze()
+        else:
+            QMessageBox.warning(self, "File Not Found", f"The file could not be found at the path:\n{file_path}")
 
     def _render_chat_history(self):
         """Renders the analysis report and the full chat history."""
