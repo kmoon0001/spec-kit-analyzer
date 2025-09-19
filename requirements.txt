@@ -1,25 +1,10 @@
-pandas==2.3.2
-PyQt6==6.9.1
-pdfplumber==0.11.7
-pytesseract==0.3.13
-python-docx==1.2.0
-sentence-transformers==5.1.0
-faiss-cpu==1.12.0
-llama-cpp-python==0.3.16
-rdflib
-requests
-
-# Added for XAI, plotting, and new data format features
-shap
-slicer
-fhir.resources
-transformers
-torch
-Pillow
-matplotlib
-openpyxl
-
-# Added for UI Testing
 pytest
-pytest-qt
-fairlearn
+llama-cpp-python
+sentence-transformers
+faiss-cpu
+huggingface-hub
+pdfplumber
+requests
+rdflib
+pandas
+matplotlib
