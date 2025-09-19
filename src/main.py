@@ -132,8 +132,6 @@ except ImportError:
 # Matplotlib for analytics chart
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from matplotlib.patches import Rectangle
-
 
 # PyQt (guarded)
 try:
@@ -142,10 +140,10 @@ try:
         QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton,
         QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
         QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout,
-        QListWidgetItem
+        QDateEdit
     )
     from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter
-    from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject
+    from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject, QDate
 except Exception:
     class QMainWindow: ...
     class QToolBar:
@@ -268,6 +266,17 @@ except Exception:
         def addTab(self, *_, **__): ...
     class QGridLayout: ...
     class QObject: pass
+    class QDate:
+        @staticmethod
+        def currentDate(): return QDate()
+        def addMonths(self, *_, **__): return QDate()
+        def addDays(self, *_, **__): return QDate()
+        def toString(self, *_, **__): return ""
+    class QDateEdit:
+        def __init__(self, *_, **__): ...
+        def setDate(self, *_, **__): ...
+        def setCalendarPopup(self, *_, **__): ...
+        def date(self): return QDate()
     class Signal:
         def __init__(self, *args, **kwargs): pass
         def connect(self, *args, **kwargs): pass
@@ -281,7 +290,6 @@ except Exception:
     class QPdfWriter: ...
     class Qt: ...
     class QThread: ...
-    class QListWidgetItem: ...
 
 # Local imports
 from .llm_analyzer import run_llm_analysis
@@ -291,7 +299,6 @@ try:
     from .guideline_service import GuidelineService
     from .text_chunking import RecursiveCharacterTextSplitter, SemanticTextSplitter
     from .nlg_service import NLGService
-    from .bias_audit_service import run_bias_audit
 except ImportError as e:
     logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
     # Define dummy classes if imports fail, to prevent crashing on startup
@@ -302,7 +309,6 @@ except ImportError as e:
     class RecursiveCharacterTextSplitter: pass
     class SemanticTextSplitter: pass
     class NLGService: pass
-    def run_bias_audit(): return {"error": "Bias audit service not loaded."}
 
 # --- LLM Loader Worker ---
 class LLMWorker(QObject):
@@ -883,8 +889,7 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                         compliance_score
                         REAL,
                         mode
-                        TEXT,
-                        file_path TEXT
+                        TEXT
                     )
                     """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_time ON analysis_runs(run_time)")
@@ -955,18 +960,19 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                     """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_snapshots_time ON analysis_snapshots(created_at)")
 
-        # --- Simple schema migration for compliance_score ---
+        # --- Simple schema migration for new columns ---
         cur.execute("PRAGMA table_info(analysis_runs)")
         columns = [row[1] for row in cur.fetchall()]
         if "compliance_score" not in columns:
             cur.execute("ALTER TABLE analysis_runs ADD COLUMN compliance_score REAL")
             logger.info("Upgraded analysis_runs table to include 'compliance_score' column.")
-        if "disciplines" not in columns:
-            cur.execute("ALTER TABLE analysis_runs ADD COLUMN disciplines TEXT")
-            logger.info("Upgraded analysis_runs table to include 'disciplines' column.")
         if "file_path" not in columns:
             cur.execute("ALTER TABLE analysis_runs ADD COLUMN file_path TEXT")
             logger.info("Upgraded analysis_runs table to include 'file_path' column.")
+        if "disciplines" not in columns:
+            cur.execute("ALTER TABLE analysis_runs ADD COLUMN disciplines TEXT")
+            logger.info("Upgraded analysis_runs table to include 'disciplines' column.")
+
 
         cur.execute("""
                     CREATE TABLE IF NOT EXISTS reviewed_findings
@@ -1014,19 +1020,18 @@ def persist_analysis_run(file_path: str, run_time: str, metrics: dict, issues_sc
                          compliance: dict, mode: str, disciplines: List[str]) -> Optional[int]:
     try:
         import json
-        disciplines_json = json.dumps(disciplines)
         with _get_db_connection() as conn:
             cur = conn.cursor()
             cur.execute("""
-                        INSERT INTO analysis_runs (file_name, run_time, pages_est, flags, findings, suggestions, notes,
-                                                   sentences_final, dedup_removed, compliance_score, mode, disciplines, file_path)
+                        INSERT INTO analysis_runs (file_name, file_path, run_time, pages_est, flags, findings, suggestions, notes,
+                                                   sentences_final, dedup_removed, compliance_score, mode, disciplines)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (
-                            os.path.basename(file_path), run_time,
+                            os.path.basename(file_path), file_path, run_time,
                             int(metrics.get("pages", 0)), int(metrics.get("flags", 0)), int(metrics.get("findings", 0)),
                             int(metrics.get("suggestions", 0)), int(metrics.get("notes", 0)),
                             int(metrics.get("sentences_final", 0)), int(metrics.get("dedup_removed", 0)),
-                            float(compliance.get("score", 0.0)), mode, disciplines_json, file_path
+                            float(compliance.get("score", 0.0)), mode, json.dumps(disciplines)
                         ))
             run_id = int(cur.lastrowid)
             if issues_scored:
@@ -1743,7 +1748,6 @@ def run_analyzer(file_path: str,
             collapsed = collapse_similar_sentences_simple(processed, threshold)
         collapsed = list(collapsed)
 
-
         ner_results = []
         if get_bool_setting("enable_biobert_ner", True):
             report(65, "Running BioBERT NER")
@@ -1866,7 +1870,7 @@ def run_analyzer(file_path: str,
             "General auditor checks": {
                 "action": "Perform a general review of the note for clarity, consistency, and completeness. Ensure the 'story' of the patient's care is clear.",
                 "why": "A well-documented note justifies skilled care, supports medical necessity, and ensures accurate billing.",
-                "good_example": "A note that provides a clear picture of the patient's journey from evaluation to discharge.",
+                "good_example": "A note that clearly links interventions to functional goals and documents the patient's progress over time.",
                 "bad_example": "A note with jargon, undefined abbreviations, or that simply lists exercises without clinical reasoning."
             }
         }
@@ -2294,7 +2298,6 @@ def run_analyzer(file_path: str,
         return result_info
 
 
-
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -2313,7 +2316,6 @@ class MainWindow(QMainWindow):
         self.entity_consolidation_service: EntityConsolidationService = EntityConsolidationService()
         self.chat_history: list[tuple[str, str]] = []
         self.compliance_rules: list[ComplianceRule] = []
-        self._analytics_severity_filter = None
 
         tb = QToolBar("Main")
         try:
@@ -2371,13 +2373,11 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         setup_tab = QWidget()
         results_tab = QWidget()
-        search_tab = QWidget()
         logs_tab = QWidget()
 
         self.tabs.addTab(setup_tab, "Setup & File Queue")
         self.tabs.addTab(results_tab, "Analysis Results")
         self.tabs.addTab(logs_tab, "Application Logs")
-
 
         # --- Analytics Tab ---
         analytics_tab = QWidget()
@@ -2385,7 +2385,20 @@ class MainWindow(QMainWindow):
         analytics_layout = QVBoxLayout(analytics_tab)
 
         analytics_controls = QHBoxLayout()
-        btn_refresh_analytics = QPushButton("Refresh Analytics")
+
+        analytics_controls.addWidget(QLabel("From:"))
+        self.analytics_start_date = QDateEdit()
+        self.analytics_start_date.setDate(QDate.currentDate().addMonths(-3))
+        self.analytics_start_date.setCalendarPopup(True)
+        analytics_controls.addWidget(self.analytics_start_date)
+
+        analytics_controls.addWidget(QLabel("To:"))
+        self.analytics_end_date = QDateEdit()
+        self.analytics_end_date.setDate(QDate.currentDate())
+        self.analytics_end_date.setCalendarPopup(True)
+        analytics_controls.addWidget(self.analytics_end_date)
+
+        btn_refresh_analytics = QPushButton("Filter & Refresh")
         self._style_action_button(btn_refresh_analytics, font_size=11, bold=True, height=32)
         try:
             btn_refresh_analytics.clicked.connect(self._update_analytics_tab)
@@ -2393,14 +2406,38 @@ class MainWindow(QMainWindow):
             pass
         analytics_controls.addWidget(btn_refresh_analytics)
         analytics_controls.addStretch(1)
+
+        self.btn_export_data = QPushButton("Export Data (CSV)")
+        self.btn_export_chart = QPushButton("Export Chart (PNG)")
+        try:
+            self.btn_export_data.clicked.connect(self.action_export_analytics_data)
+            self.btn_export_chart.clicked.connect(self.action_export_analytics_chart)
+        except Exception:
+            pass # Headless
+        analytics_controls.addWidget(self.btn_export_data)
+        analytics_controls.addWidget(self.btn_export_chart)
+
         analytics_layout.addLayout(analytics_controls)
 
         # Matplotlib chart
-        self.analytics_figure = Figure(figsize=(5, 4.5)) # Increased height for two charts
+        self.analytics_figure = Figure(figsize=(5, 3))
         self.analytics_canvas = FigureCanvas(self.analytics_figure)
-        self.analytics_canvas.mpl_connect('pick_event', self.on_chart_pick)
-        self.analytics_canvas.mpl_connect('button_press_event', self.on_chart_click)
+        try:
+            self.analytics_canvas.mpl_connect('pick_event', self.on_analytics_pick)
+        except Exception:
+            pass # For headless environments
         analytics_layout.addWidget(self.analytics_canvas)
+
+        # Drill-down results
+        drilldown_group = QGroupBox("Drill-Down: Files with Selected Finding Type")
+        drilldown_layout = QVBoxLayout(drilldown_group)
+        self.drilldown_list = QListWidget()
+        try:
+            self.drilldown_list.itemDoubleClicked.connect(self.action_open_drilldown_file)
+        except Exception:
+            pass
+        drilldown_layout.addWidget(self.drilldown_list)
+        analytics_layout.addWidget(drilldown_group)
 
         # Summary stats
         stats_group = QGroupBox("Summary Statistics")
@@ -2421,18 +2458,34 @@ class MainWindow(QMainWindow):
 
         analytics_layout.addWidget(stats_group)
 
-        # --- Bias Audit Section ---
-        bias_group = QGroupBox("Bias Audit (by Discipline)")
-        bias_layout = QVBoxLayout(bias_group)
-        self.bias_audit_label = QLabel("Click 'Refresh Analytics' to run the audit.")
-        self.bias_audit_label.setWordWrap(True)
-        bias_layout.addWidget(self.bias_audit_label)
+        # --- Bias Audit Tab ---
+        bias_audit_tab = QWidget()
+        self.tabs.addTab(bias_audit_tab, "Bias Audit")
+        bias_audit_layout = QVBoxLayout(bias_audit_tab)
 
-        self.bias_figure = Figure(figsize=(5, 2.5))
+        bias_controls_layout = QHBoxLayout()
+        self.bias_group_by_combo = QComboBox()
+        self.bias_group_by_combo.addItems(["Discipline"]) # For now, only discipline
+        self.btn_run_bias_audit = QPushButton("Run Bias Audit")
+        try:
+            self.btn_run_bias_audit.clicked.connect(self.action_run_bias_audit)
+        except Exception:
+            pass # For headless environments
+
+        bias_controls_layout.addWidget(QLabel("Audit Sensitive Feature:"))
+        bias_controls_layout.addWidget(self.bias_group_by_combo)
+        bias_controls_layout.addWidget(self.btn_run_bias_audit)
+        bias_controls_layout.addStretch(1)
+        bias_audit_layout.addLayout(bias_controls_layout)
+
+        self.bias_figure = Figure(figsize=(5, 4))
         self.bias_canvas = FigureCanvas(self.bias_figure)
-        bias_layout.addWidget(self.bias_canvas)
+        bias_audit_layout.addWidget(self.bias_canvas)
 
-        analytics_layout.addWidget(bias_group)
+        self.bias_results_text = QTextEdit()
+        self.bias_results_text.setReadOnly(True)
+        self.bias_results_text.setPlaceholderText("Bias audit results will be displayed here.")
+        bias_audit_layout.addWidget(self.bias_results_text)
 
         # --- Setup Tab Layout ---
         setup_layout = QVBoxLayout(setup_tab)
@@ -2614,7 +2667,7 @@ class MainWindow(QMainWindow):
 
                     # --- Create and index the context for the AI ---
                     if self.local_rag and self.local_rag.is_ready():
-                        self.log("Creating AI context index for in-document chat...")
+                        self.log("Creating AI context index...")
                         context_chunks = self._create_context_chunks(data, res.get("formatted_entities", []))
                         self.local_rag.create_index(context_chunks)
                         self.log("AI context index created successfully.")
@@ -2788,7 +2841,310 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.set_error(str(e))
 
+    def action_run_bias_audit(self):
+        """
+        Runs the bias audit on reviewed findings and displays the results.
+        """
+        try:
+            from fairlearn.metrics import MetricFrame, selection_rate, false_positive_rate
+            import json
+        except ImportError:
+            self.set_error("Fairlearn is not installed. Please run 'pip install fairlearn'.")
+            QMessageBox.warning(self, "Library Not Found", "The 'fairlearn' library is required for this feature.")
+            return
 
+        sensitive_feature_name = self.bias_group_by_combo.currentText()
+        if sensitive_feature_name != "Discipline":
+            QMessageBox.information(self, "Not Implemented", "Bias audit for features other than Discipline is not yet implemented.")
+            return
+
+        self.statusBar().showMessage("Running bias audit...")
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        self.bias_figure.clear()
+        self.bias_canvas.draw()
+        self.bias_results_text.clear()
+
+
+        try:
+            with _get_db_connection() as conn:
+                df = pd.read_sql_query("""
+                    SELECT
+                        r.user_feedback,
+                        i.severity,
+                        a.disciplines
+                    FROM reviewed_findings r
+                    JOIN analysis_issues i ON r.analysis_issue_id = i.id
+                    JOIN analysis_runs a ON i.run_id = a.id
+                """, conn)
+
+            if df.empty or len(df) < 5:
+                self.bias_results_text.setPlainText("Not enough reviewed findings available to run a meaningful bias audit. Please review more findings first.")
+                return
+
+            # --- Data Preparation ---
+            df['y_true'] = df['user_feedback'].apply(lambda x: 1 if x == 'correct' else 0)
+            df['y_pred'] = 1  # We are analyzing the set of findings that were *raised* by the model.
+
+            def get_first_discipline(d_str):
+                try:
+                    disciplines = json.loads(d_str)
+                    # For this audit, only include runs specific to a single discipline
+                    return disciplines[0] if disciplines and len(disciplines) == 1 else None
+                except (json.JSONDecodeError, TypeError):
+                    return None
+
+            df['sensitive_features'] = df['disciplines'].apply(get_first_discipline)
+            df.dropna(subset=['sensitive_features'], inplace=True)
+
+            if df.empty or df['sensitive_features'].nunique() < 2:
+                self.bias_results_text.setPlainText("Not enough data across different disciplines to perform a comparative bias audit. Ensure you have reviewed findings from at least two different, single-discipline analyses.")
+                return
+
+            y_true = df['y_true']
+            y_pred = df['y_pred']
+            sensitive_features = df['sensitive_features']
+
+            # --- Fairlearn MetricFrame ---
+            # We are interested in the rate of incorrect findings (False Positives) per discipline.
+            metrics = {
+                'count': 'count',
+                'false_positive_rate': false_positive_rate
+            }
+
+            grouped_on_feature = MetricFrame(metrics=metrics,
+                                               y_true=y_true,
+                                               y_pred=y_pred,
+                                               sensitive_features=sensitive_features)
+
+            results_df = grouped_on_feature.by_group
+            results_df.index.name = "Discipline"
+
+
+            # --- Display Results ---
+            results_text = "Bias Audit Results (by Discipline):\n\n"
+            results_text += "This audit analyzes findings that users have marked as 'correct' or 'incorrect'.\n\n"
+            results_text += " - Count: The number of reviewed findings for that discipline.\n"
+            results_text += " - False Positive Rate: The proportion of *incorrect* findings within the group. A high rate suggests the model is flagging non-issues for a specific discipline more often.\n\n"
+            results_text += results_df.to_string()
+
+            self.bias_results_text.setPlainText(results_text)
+
+            # --- Generate Chart ---
+            self.bias_figure.clear()
+            ax = self.bias_figure.add_subplot(111)
+            results_df[['false_positive_rate']].plot(kind='bar', ax=ax, legend=False, color=['#1f77b4', '#ff7f0e', '#2ca02c'])
+            ax.set_title('False Positive Rate by Discipline')
+            ax.set_ylabel('Rate (Proportion of Incorrect Findings)')
+            ax.set_xlabel('')
+            ax.tick_params(axis='x', rotation=0)
+            self.bias_figure.tight_layout()
+            self.bias_canvas.draw()
+
+        except Exception as e:
+            self.set_error(f"Failed to run bias audit: {e}")
+            logger.exception("Bias audit failed")
+            QMessageBox.critical(self, "Audit Error", f"An error occurred during the bias audit:\n{e}")
+        finally:
+            self.statusBar().showMessage("Ready")
+            QApplication.restoreOverrideCursor()
+
+    def _update_analytics_tab(self):
+        """
+        Fetches the latest analytics data and updates the dashboard tab.
+        """
+        self.statusBar().showMessage("Refreshing analytics...")
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        self.drilldown_list.clear()
+        try:
+            with _get_db_connection() as conn:
+                start_date = self.analytics_start_date.date().toString("yyyy-MM-dd")
+                # Add a day to the end date to make it inclusive in the query
+                end_date = self.analytics_end_date.date().addDays(1).toString("yyyy-MM-dd")
+
+                # Cache DFs on the instance to prevent re-querying in the pick event
+                self.runs_df = pd.read_sql_query(
+                    "SELECT * FROM analysis_runs WHERE run_time >= ? AND run_time < ?",
+                    conn,
+                    params=(start_date, end_date)
+                )
+
+                # Fetch all issues and then filter in memory, which is safer than a huge IN clause
+                all_issues_df = pd.read_sql_query("SELECT * FROM analysis_issues", conn)
+
+                if not self.runs_df.empty:
+                    self.issues_df = all_issues_df[all_issues_df['run_id'].isin(self.runs_df['id'])]
+                else:
+                    self.issues_df = pd.DataFrame() # Ensure issues_df is an empty DataFrame if no runs found
+
+            self.analytics_figure.clear()
+            if self.runs_df.empty:
+                self.statusBar().showMessage("No analytics data to display for the selected date range.", 4000)
+                self.analytics_canvas.draw()
+                return
+
+            # --- Update Summary Stats ---
+            self.lbl_total_runs.setText(str(len(self.runs_df)))
+            avg_score = self.runs_df['compliance_score'].mean()
+            self.lbl_avg_score.setText(f"{avg_score:.1f}" if pd.notna(avg_score) else "N/A")
+            avg_flags = self.runs_df['flags'].mean()
+            self.lbl_avg_flags.setText(f"{avg_flags:.2f}" if pd.notna(avg_flags) else "N/A")
+
+
+            if not self.issues_df.empty:
+                top_cat = self.issues_df['category'].mode()
+                self.lbl_top_category.setText(top_cat[0] if not top_cat.empty else "N/A")
+            else:
+                self.lbl_top_category.setText("N/A")
+
+            # --- Update Charts ---
+            (ax1, ax2) = self.analytics_figure.subplots(2, 1, gridspec_kw={'height_ratios': [2, 1.5]})
+            self.analytics_figure.subplots_adjust(hspace=0.4)
+
+
+            # --- Chart 1: Findings by Severity ---
+            if not self.issues_df.empty:
+                self.severity_counts = self.issues_df['severity'].value_counts().reindex(['flag', 'finding', 'suggestion', 'auditor_note']).fillna(0)
+                colors = {'flag': '#ef4444', 'finding': '#f59e0b', 'suggestion': '#10b981', 'auditor_note': '#9ca3af'}
+                bar_colors = [colors.get(sev, '#374151') for sev in self.severity_counts.index]
+                ax1.bar(self.severity_counts.index, self.severity_counts.values, color=bar_colors, picker=5)
+                ax1.set_title('Total Findings by Severity (Click a bar to drill down)')
+                ax1.set_ylabel('Total Count')
+            else:
+                ax1.text(0.5, 0.5, 'No findings data in selected range', ha='center', va='center')
+                ax1.set_title('Total Findings by Severity')
+
+            # --- Chart 2: Compliance Score Over Time ---
+            if len(self.runs_df) > 1:
+                # Convert run_time to datetime and sort
+                self.runs_df['run_time_dt'] = pd.to_datetime(self.runs_df['run_time'])
+                self.runs_df.sort_values('run_time_dt', inplace=True)
+
+                # Group by day and get mean score
+                daily_scores = self.runs_df.groupby(self.runs_df['run_time_dt'].dt.date)['compliance_score'].mean()
+
+                ax2.plot(daily_scores.index, daily_scores.values, marker='o', linestyle='-')
+                ax2.set_title('Compliance Score Trend')
+                ax2.set_ylabel('Avg. Score')
+                ax2.tick_params(axis='x', rotation=45)
+                ax2.set_ylim(0, 105)
+            else:
+                ax2.text(0.5, 0.5, 'Not enough data to show a trend', ha='center', va='center')
+                ax2.set_title('Compliance Score Trend')
+
+            self.analytics_figure.tight_layout()
+            self.analytics_canvas.draw()
+
+            self.statusBar().showMessage("Analytics refreshed.", 4000)
+
+        except Exception as e:
+            self.set_error(f"Failed to refresh analytics: {e}")
+            logger.exception("Analytics refresh failed")
+        finally:
+            QApplication.restoreOverrideCursor()
+
+    def on_analytics_pick(self, event):
+        """
+        Handles click events on the analytics chart for drill-down.
+        """
+        if not hasattr(self, 'severity_counts') or event.mouseevent.xdata is None:
+            return
+
+        # Ensure the click was on the top subplot (severity chart)
+        if len(self.analytics_figure.axes) < 2 or event.mouseevent.inaxes != self.analytics_figure.axes[0]:
+            return
+
+        try:
+            # Figure out which bar was clicked based on x-coordinate
+            x_index = int(round(event.mouseevent.xdata))
+            severity = self.severity_counts.index[x_index]
+
+            self.drilldown_list.clear()
+            self.drilldown_list.parent().setTitle(f"Drill-Down: Files with '{severity}' findings")
+
+
+            # Find all run_ids that have an issue with this severity
+            run_ids_with_severity = self.issues_df[self.issues_df['severity'] == severity]['run_id'].unique()
+
+            if len(run_ids_with_severity) > 0:
+                # Get the file names and paths for these runs
+                docs_df = self.runs_df[self.runs_df['id'].isin(run_ids_with_severity)]
+
+                for index, row in docs_df.iterrows():
+                    file_path = row.get('file_path')
+                    # Use basename for display, but store full path in UserRole data
+                    item = QListWidgetItem(os.path.basename(file_path) if file_path else "Unknown File")
+                    item.setData(Qt.ItemDataRole.UserRole, file_path)
+                    self.drilldown_list.addItem(item)
+            else:
+                self.drilldown_list.addItem("No documents found for this severity.")
+        except IndexError:
+            pass # Ignore clicks outside of bars
+        except Exception as e:
+            logger.error(f"Error during analytics pick event: {e}")
+
+    def action_open_drilldown_file(self, item):
+        """
+        Opens the file associated with a double-clicked item in the drill-down list.
+        """
+        file_path = item.data(Qt.ItemDataRole.UserRole)
+        if file_path and os.path.exists(file_path):
+            _open_path(file_path)
+        elif file_path:
+            QMessageBox.warning(self, "File Not Found", f"The file could not be found at the stored path:\n{file_path}")
+
+    def action_export_analytics_data(self):
+        """
+        Exports the currently displayed analytics data to a CSV file.
+        """
+        if not hasattr(self, 'runs_df') or self.runs_df.empty:
+            QMessageBox.information(self, "Export Error", "No data to export. Please refresh the analytics first.")
+            return
+
+        save_path, _ = QFileDialog.getSaveFileName(self, "Save Analytics Data", "filtered_analytics.csv", "CSV Files (*.csv)")
+
+        if not save_path:
+            return
+
+        try:
+            # We need to merge the runs and issues dfs to get a complete picture
+            if hasattr(self, 'issues_df') and not self.issues_df.empty:
+                agg = self.issues_df.groupby(["run_id", "severity"]).size().unstack(fill_value=0).reset_index()
+                df_to_export = self.runs_df.merge(agg, left_on="id", right_on="run_id", how="left").drop(columns=["run_id"])
+            else:
+                df_to_export = self.runs_df.copy()
+
+            # Remove any temporary columns before exporting
+            if 'run_time_dt' in df_to_export.columns:
+                df_to_export = df_to_export.drop(columns=['run_time_dt'])
+
+            df_to_export.to_csv(save_path, index=False, encoding="utf-8")
+            self.log(f"Successfully exported filtered data to {save_path}")
+            QMessageBox.information(self, "Export Successful", f"The filtered analytics data has been exported to:\n{save_path}")
+
+        except Exception as e:
+            self.set_error(f"Failed to export data: {e}")
+            QMessageBox.critical(self, "Export Error", f"An error occurred while exporting data:\n{e}")
+
+    def action_export_analytics_chart(self):
+        """
+        Exports the currently displayed analytics charts to a PNG image file.
+        """
+        if not self.analytics_figure.axes:
+            QMessageBox.information(self, "Export Error", "No chart to export. Please refresh the analytics first.")
+            return
+
+        save_path, _ = QFileDialog.getSaveFileName(self, "Save Chart Image", "analytics_chart.png", "PNG Files (*.png)")
+
+        if not save_path:
+            return
+
+        try:
+            self.analytics_figure.savefig(save_path, dpi=300, bbox_inches='tight')
+            self.log(f"Successfully exported chart to {save_path}")
+            QMessageBox.information(self, "Export Successful", f"The chart image has been exported to:\n{save_path}")
+        except Exception as e:
+            self.set_error(f"Failed to export chart: {e}")
+            QMessageBox.critical(self, "Export Error", f"An error occurred while exporting the chart:\n{e}")
 
     def action_export_view_to_pdf(self):
         """Exports the current content of the main chat/analysis view to a PDF."""
@@ -3025,41 +3381,21 @@ class MainWindow(QMainWindow):
             "2. **Corrected Version:** Rewrite the user's original text to be compliant. Change only what is necessary to fix the error.\n"
         )
 
-            self.render_analysis_to_results(data)
-
-        except Exception:
-            ...
-        try:
     def action_send(self):
         question = self.input_query_te.toPlainText().strip()
         if not question:
             return
-
-        if not self.local_rag or not self.local_rag.is_ready():
-            QMessageBox.warning(self, "AI Not Ready", "The AI model is not yet available. Please wait for it to load.")
+        if not self.local_rag or not self.local_rag.is_ready() or not self.local_rag.index:
+            QMessageBox.warning(self, "AI Not Ready", "Please analyze a document first to activate the AI chat.")
             return
-
-        if not self.current_report_data or not self.local_rag.index:
-            QMessageBox.warning(self, "AI Not Ready", "Please analyze a document first to create a searchable index for the chat.")
-            return
-
         try:
             self.statusBar().showMessage("The AI is thinking...")
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-
-            # Search the document-specific index to get context
-            context_chunks = self.local_rag.search_index(question, k=3)
-
-            if not context_chunks:
-                answer = "I could not find any relevant information in the current document to answer your question."
-            else:
-                answer = self.local_rag.query(question, context_chunks=context_chunks, chat_history=self.chat_history)
-
+            answer = self.local_rag.query(question, chat_history=self.chat_history)
             self.chat_history.append(("user", question))
             self.chat_history.append(("ai", answer))
             self._render_chat_history()
             self.input_query_te.setPlainText("")
-
         except Exception as e:
             self.set_error(f"An error occurred while querying the AI: {e}")
             QMessageBox.warning(self, "AI Error", f"An error occurred: {e}")
@@ -3080,259 +3416,6 @@ class MainWindow(QMainWindow):
             else:
                 self.txt_chat.clear()
             self.statusBar().showMessage("Chat Reset", 3000)
-
-    def _update_analytics_tab(self):
-        """Refreshes the data and charts on the Analytics Dashboard tab."""
-        self.log("Refreshing analytics...")
-        try:
-            with _get_db_connection() as conn:
-                runs_df = pd.read_sql_query("SELECT * FROM analysis_runs", conn)
-                issues_df = pd.read_sql_query("SELECT * FROM analysis_issues", conn)
-        except Exception as e:
-            self.log(f"Failed to query analytics data: {e}")
-            QMessageBox.warning(self, "Error", f"Could not load analytics data from the database: {e}")
-            return
-
-        if runs_df.empty:
-            self.log("No analytics data found.")
-            return
-
-        # --- Update Summary Statistics ---
-        total_runs = len(runs_df)
-        avg_score = runs_df['compliance_score'].mean()
-        avg_flags = runs_df['flags'].mean()
-        self.lbl_total_runs.setText(str(total_runs))
-        self.lbl_avg_score.setText(f"{avg_score:.1f} / 100.0")
-        self.lbl_avg_flags.setText(f"{avg_flags:.2f}")
-
-        # --- Filter data if a severity is selected ---
-        if self._analytics_severity_filter:
-            filtered_run_ids = issues_df[issues_df['severity'] == self._analytics_severity_filter]['run_id'].unique()
-            filtered_issues_df = issues_df[issues_df['run_id'].isin(filtered_run_ids)]
-            if not filtered_issues_df.empty:
-                top_cat = filtered_issues_df['category'].mode()
-                if not top_cat.empty:
-                    self.lbl_top_category.setText(f"{top_cat.iloc[0]} (filtered)")
-            else:
-                self.lbl_top_category.setText("N/A")
-        else:
-            if not issues_df.empty:
-                top_cat = issues_df['category'].mode()
-                if not top_cat.empty:
-                    self.lbl_top_category.setText(top_cat.iloc[0])
-
-        # --- Update Charts ---
-        self.analytics_figure.clear()
-
-        gs = self.analytics_figure.add_gridspec(2, 2)
-        ax1 = self.analytics_figure.add_subplot(gs[0, :]) # Top row, span both columns
-        ax2 = self.analytics_figure.add_subplot(gs[1, 0]) # Bottom row, first column
-        ax3 = self.analytics_figure.add_subplot(gs[1, 1]) # Bottom row, second column
-
-        # Ax1: Compliance Score Trend Chart
-        scores_to_plot = runs_df['compliance_score'].tail(50).tolist()
-        ax1.plot(scores_to_plot, marker='o', linestyle='-', color='#60a5fa')
-        ax1.set_title("Compliance Score Trend (Last 50 Runs)")
-        ax1.set_xlabel("Analysis Run")
-        ax1.set_ylabel("Compliance Score")
-        ax1.grid(True, linestyle='--', alpha=0.6)
-
-        # Ax2: Findings by Severity Chart
-        severity_counts = issues_df['severity'].value_counts()
-        severities = ['flag', 'finding', 'suggestion', 'auditor_note']
-        counts = [severity_counts.get(s, 0) for s in severities]
-
-        bars = ax2.bar(severities, counts, color=['#ef4444', '#f59e0b', '#10b981', '#9ca3af'])
-        ax2.set_title("Total Findings by Severity")
-        ax2.set_ylabel("Count")
-
-        for bar in bars:
-            bar.set_picker(True)
-
-        # Ax3: Top Categories Chart
-        categories_df = filtered_issues_df if self._analytics_severity_filter else issues_df
-        category_counts = categories_df['category'].value_counts().nlargest(10)
-
-        ax3.barh(category_counts.index, category_counts.values, color='#818cf8')
-        title = "Top 10 Finding Categories"
-        if self._analytics_severity_filter:
-            title += f" for '{self._analytics_severity_filter}'"
-        ax3.set_title(title)
-        ax3.invert_yaxis() # To show the highest count at the top
-        ax3.set_xlabel("Count")
-
-        self.analytics_figure.tight_layout()
-        self.analytics_canvas.draw()
-
-        self._update_bias_audit_section()
-
-        self.log("Analytics refresh complete.")
-
-    def on_chart_click(self, event):
-        """Handles a click on the chart canvas to clear filters."""
-        # If the click was on an axis but not on a specific artist, clear the filter.
-        if event.inaxes and event.artist is None:
-            if self._analytics_severity_filter:
-                self.log("Clearing severity filter.")
-                self._analytics_severity_filter = None
-                self._update_analytics_tab()
-
-    def _update_bias_audit_section(self):
-        """Runs the bias audit and updates the corresponding UI elements."""
-        self.log("Running bias audit...")
-        bias_results = run_bias_audit()
-        self.bias_figure.clear()
-
-        if bias_results.get("error"):
-            self.log(f"Bias audit error: {bias_results['error']}")
-            self.bias_audit_label.setText(f"Could not run bias audit: {bias_results['error']}")
-            self.bias_canvas.draw()
-            return
-
-        dpd = bias_results.get('demographic_parity_difference', 0)
-        dpr = bias_results.get('demographic_parity_ratio', 0)
-        rates = bias_results.get('selection_rates', {})
-
-        summary_text = (
-            f"<b>Demographic Parity Difference:</b> {dpd:.4f}<br>"
-            f"<b>Demographic Parity Ratio:</b> {dpr:.4f}<br><br>"
-            f"<i>This audit compares the rate of 'flag' findings across disciplines. "
-            f"Difference metrics closer to 0 are fairer. Ratio metrics closer to 1 are fairer.</i>"
-        )
-        self.bias_audit_label.setText(summary_text)
-
-        # Plotting the selection rates
-        if rates:
-            ax_bias = self.bias_figure.add_subplot(111)
-            disciplines = list(rates.keys())
-            selection_rates = list(rates.values())
-            ax_bias.bar(disciplines, selection_rates, color=['#1f77b4', '#ff7f0e', '#2ca02c'])
-            ax_bias.set_title("Flag Rate by Discipline")
-            ax_bias.set_ylabel("Proportion of Analyses with Flags")
-            ax_bias.set_ylim(0, max(1.0, max(selection_rates) * 1.2 if selection_rates else 1.0))
-            self.bias_figure.tight_layout()
-
-        self.bias_canvas.draw()
-        self.log("Bias audit complete.")
-
-    def on_chart_pick(self, event):
-        """Handles click events on the analytics charts for drill-down."""
-        if not isinstance(event.artist, Rectangle):
-            return
-
-        bar = event.artist
-
-        # Determine which subplot the click came from
-        if event.mouseevent.inaxes == self.analytics_figure.axes[1]: # Severity chart is the second axis
-            bar_index = int(round(bar.get_x()))
-            severities = ['flag', 'finding', 'suggestion', 'auditor_note']
-            if 0 <= bar_index < len(severities):
-                selected_severity = severities[bar_index]
-
-                # On double-click, show drill-down. On single-click, filter.
-                if event.mouseevent.dblclick:
-                    self.log(f"User double-clicked on severity bar: {selected_severity}")
-                    self.show_drilldown_dialog_for_severity(selected_severity)
-                else:
-                    self.log(f"User filtering by severity: {selected_severity}")
-                    # Toggle filter
-                    if self._analytics_severity_filter == selected_severity:
-                        self._analytics_severity_filter = None
-                    else:
-                        self._analytics_severity_filter = selected_severity
-                    self._update_analytics_tab()
-
-    def show_drilldown_dialog_for_severity(self, severity: str):
-        """Queries data and shows a dialog with files for a given severity."""
-        try:
-            with _get_db_connection() as conn:
-                # Find run_ids that have an issue of the selected severity
-                issue_runs_df = pd.read_sql_query(
-                    "SELECT DISTINCT run_id FROM analysis_issues WHERE severity = ?",
-                    conn, params=(severity,)
-                )
-                if issue_runs_df.empty:
-                    QMessageBox.information(self, "Drill-Down", f"No documents found with findings of severity '{severity}'.")
-                    return
-
-                run_ids = tuple(issue_runs_df['run_id'].tolist())
-                # Get the file names and disciplines for those run_ids
-                if not run_ids:
-                    return
-                files_df = pd.read_sql_query(
-                    f"SELECT file_name, run_time, file_path, disciplines FROM analysis_runs WHERE id IN {run_ids}",
-                    conn
-                )
-
-            # Create and show the dialog
-            dialog = QDialog(self)
-            dialog.setWindowTitle(f"Documents with '{severity}' Findings")
-            dialog.setMinimumWidth(500)
-            layout = QVBoxLayout(dialog)
-
-            list_widget = QListWidget()
-            import json
-            for index, row in files_df.iterrows():
-                item = QListWidgetItem(f"{row['file_name']} (Analyzed: {row['run_time']})")
-                # Store a dictionary with path and disciplines
-                disciplines = json.loads(row['disciplines']) if row['disciplines'] and row['disciplines'].startswith('[') else []
-                item.setData(Qt.ItemDataRole.UserRole, {"path": row['file_path'], "disciplines": disciplines})
-                list_widget.addItem(item)
-
-            list_widget.itemDoubleClicked.connect(self.on_drilldown_item_activated)
-            list_widget.itemDoubleClicked.connect(dialog.accept)
-
-            layout.addWidget(QLabel(f"Double-click a file to re-analyze with its original settings:"))
-            layout.addWidget(list_widget)
-
-            dialog.exec()
-
-        except Exception as e:
-            self.log(f"Error during drill-down: {e}")
-            QMessageBox.warning(self, "Drill-Down Error", f"An error occurred while fetching details: {e}")
-
-    def on_drilldown_item_activated(self, item: QListWidgetItem):
-        """Handles when a user double-clicks a file in the drill-down dialog."""
-        data = item.data(Qt.ItemDataRole.UserRole)
-        if not isinstance(data, dict):
-            file_path = str(data)
-            disciplines = []
-        else:
-            file_path = data.get("path")
-            disciplines = data.get("disciplines", [])
-
-        if file_path and os.path.isfile(file_path):
-            reply = QMessageBox.question(self, 'Confirm Re-Analysis',
-                                         f"Do you want to re-analyze the file:\n\n{os.path.basename(file_path)}\n\n"
-                                         "This will replace the current analysis results.",
-                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                                         QMessageBox.StandardButton.No)
-
-            if reply == QMessageBox.StandardButton.Yes:
-                self.log(f"Loading file from drill-down: {file_path} with disciplines: {disciplines}")
-                self._current_report_path = file_path
-                self.lbl_report_name.setText(os.path.basename(file_path))
-
-                # Block signals to prevent the 'All' checkbox from flickering
-                self.chk_all_disciplines.blockSignals(True)
-                self.chk_pt.blockSignals(True)
-                self.chk_ot.blockSignals(True)
-                self.chk_slp.blockSignals(True)
-
-                self.chk_pt.setChecked('pt' in disciplines)
-                self.chk_ot.setChecked('ot' in disciplines)
-                self.chk_slp.setChecked('slp' in disciplines)
-
-                self._update_all_checkbox_state()
-
-                self.chk_all_disciplines.blockSignals(False)
-                self.chk_pt.blockSignals(False)
-                self.chk_ot.blockSignals(False)
-                self.chk_slp.blockSignals(False)
-
-                self.action_analyze()
-        else:
-            QMessageBox.warning(self, "File Not Found", f"The file could not be found at the path:\n{file_path}")
 
     def _render_chat_history(self):
         """Renders the analysis report and the full chat history."""
