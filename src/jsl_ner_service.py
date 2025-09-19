@@ -42,6 +42,7 @@ class JSLNERService:
     def __init__(self, model_name: str = DEFAULT_JSL_NER_MODEL, license_key: Optional[str] = None, secret: Optional[str] = None):
         """
         Initializes the JSL NER service by starting a Spark NLP session and creating a pipeline.
+
         Args:
             model_name (str): The name of the JSL NER model to use.
             license_key (str, optional): The John Snow Labs license key. Defaults to env var AWS_ACCESS_KEY_ID.
@@ -123,8 +124,10 @@ class JSLNERService:
     def extract_entities(self, text: str) -> List[NEREntity]:
         """
         Extracts named entities from a given text using the JSL model.
+
         Args:
             text (str): The text to analyze.
+
         Returns:
             List[NEREntity]: A list of found entities, converted to the standard NEREntity format.
         """

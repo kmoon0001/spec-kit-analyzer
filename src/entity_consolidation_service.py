@@ -9,6 +9,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
 from .llm_analyzer import NEREntity
+from .llm_analyzer import NEREntity
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,7 @@ Args:
 
         for i in range(1, len(all_entities)):
             next_entity = all_entities[i]
-            
+
             # Check for overlap: an entity overlaps if it starts before the
             # current group ends. We find the group's current end by taking
             # the max 'end' of all entities within it.

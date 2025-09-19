@@ -344,12 +344,29 @@ try:
     from .local_llm import LocalRAG
     from .rubric_service import RubricService, ComplianceRule
     from .guideline_service import GuidelineService
+    from .text_chunking import RecursiveCharacterTextSplitter, SemanticTextSplitter
+    from .nlg_service import NLGService
+    from .bias_audit_service import run_bias_audit
+    from .jsl_ner_service import JSLNERService
+    from .entity_consolidation_service import EntityConsolidationService, NEREntity
     from .ner_service import NERService
     from .entity_consolidation_service import EntityConsolidationService
     from .text_chunking import RecursiveCharacterTextSplitter
 
 except ImportError as e:
     logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
+    # Define dummy classes if imports fail, to prevent crashing on startup
+    class LocalRAG: pass
+    class RubricService: pass
+    class ComplianceRule: pass
+    class GuidelineService: pass
+    class RecursiveCharacterTextSplitter: pass
+    class SemanticTextSplitter: pass
+    class NLGService: pass
+    def run_bias_audit(): return {"error": "Bias audit service not loaded."}
+    class JSLNERService: pass
+    class EntityConsolidationService: pass
+    class NEREntity: pass
 
 
     # Define dummy classes if imports fail
