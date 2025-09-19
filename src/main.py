@@ -287,6 +287,7 @@ try:
     from .guideline_service import GuidelineService
     from .text_chunking import RecursiveCharacterTextSplitter, SemanticTextSplitter
     from .nlg_service import NLGService
+    from .bias_audit_service import BiasAuditService
 except ImportError as e:
     logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
     # Define dummy classes if imports fail, to prevent crashing on startup
@@ -297,6 +298,7 @@ except ImportError as e:
     class RecursiveCharacterTextSplitter: pass
     class SemanticTextSplitter: pass
     class NLGService: pass
+    class BiasAuditService: pass
 
 # --- LLM Loader Worker ---
 class LLMWorker(QObject):
@@ -2343,6 +2345,10 @@ class MainWindow(QMainWindow):
         act_analyze_performance.triggered.connect(self.action_analyze_performance)
         tb.addAction(act_analyze_performance)
 
+        act_bias_audit = QAction("Bias Audit", self)
+        act_bias_audit.triggered.connect(self.action_run_bias_audit)
+        tb.addAction(act_bias_audit)
+
         central = QWidget()
         self.setCentralWidget(central)
         vmain = QVBoxLayout(central)
@@ -2378,7 +2384,21 @@ class MainWindow(QMainWindow):
         # Matplotlib chart
         self.analytics_figure = Figure(figsize=(5, 3))
         self.analytics_canvas = FigureCanvas(self.analytics_figure)
+        self.analytics_canvas.mpl_connect('pick_event', self._on_analytics_pick)
         analytics_layout.addWidget(self.analytics_canvas)
+
+        # Heatmap chart
+        self.heatmap_figure = Figure(figsize=(5, 4))
+        self.heatmap_canvas = FigureCanvas(self.heatmap_figure)
+        analytics_layout.addWidget(self.heatmap_canvas)
+
+        # --- Bias Audit Tab ---
+        bias_audit_tab = QWidget()
+        self.tabs.addTab(bias_audit_tab, "Bias Audit")
+        self.bias_audit_layout = QVBoxLayout(bias_audit_tab)
+        self.bias_audit_results_text = QTextEdit()
+        self.bias_audit_results_text.setReadOnly(True)
+        self.bias_audit_layout.addWidget(self.bias_audit_results_text)
 
         # Summary stats
         stats_group = QGroupBox("Summary Statistics")
@@ -3023,6 +3043,154 @@ class MainWindow(QMainWindow):
             else:
                 self.txt_chat.clear()
             self.statusBar().showMessage("Chat Reset", 3000)
+
+    def action_run_bias_audit(self):
+        try:
+            self.tabs.setCurrentIndex(3)  # Switch to Bias Audit tab
+            self.statusBar().showMessage("Running bias audit...")
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+
+            # The service needs a database connection
+            db_conn = _get_db_connection()
+            bias_service = BiasAuditService(db_conn)
+            report = bias_service.run_bias_audit()
+            db_conn.close()
+
+            self.bias_audit_results_text.setPlainText(report)
+            self.statusBar().showMessage("Bias audit complete.", 5000)
+
+        except Exception as e:
+            self.log(f"Failed to run bias audit: {e}")
+            QMessageBox.critical(self, "Bias Audit Error", f"An error occurred during the bias audit:\n{e}")
+            self.statusBar().showMessage("Bias audit failed.", 5000)
+        finally:
+            QApplication.restoreOverrideCursor()
+
+    def _on_analytics_pick(self, event):
+        # This function will be connected to the Matplotlib canvas
+        if not hasattr(event.artist, 'get_xdata'):
+            return
+
+        # Get the index of the clicked point
+        ind = event.ind[0]
+
+        # We need the data used to generate the plot. We can store it on the main window instance.
+        if not hasattr(self, 'analytics_data') or self.analytics_data is None:
+            return
+
+        df = self.analytics_data
+
+        # Get the year and month for the clicked point
+        month_period = df.index[ind]
+
+        try:
+            with _get_db_connection() as conn:
+                # Query for all runs in that month
+                query = """
+                SELECT file_name, run_time, compliance_score
+                FROM analysis_runs
+                WHERE STRFTIME('%Y-%m', run_time) = ?
+                ORDER BY run_time DESC
+                """
+                month_str = month_period.strftime('%Y-%m')
+                runs_in_month = pd.read_sql_query(query, conn, params=(month_str,))
+
+            if runs_in_month.empty:
+                msg = f"No detailed runs found for {month_str}."
+            else:
+                msg_lines = [f"Analysis runs for {month_str}:\n"]
+                for _, row in runs_in_month.iterrows():
+                    msg_lines.append(f"- {row['file_name']} (Score: {row['compliance_score']:.1f})")
+                msg = "\n".join(msg_lines)
+
+            QMessageBox.information(self, f"Drill-down for {month_str}", msg)
+
+        except Exception as e:
+            self.log(f"Failed to perform analytics drill-down: {e}")
+            QMessageBox.warning(self, "Drill-down Error", f"Could not retrieve details: {e}")
+
+    def _update_analytics_tab(self):
+        """Fetches data and redraws the analytics dashboard charts."""
+        try:
+            with _get_db_connection() as conn:
+                runs = pd.read_sql_query("SELECT run_time, compliance_score, flags FROM analysis_runs", conn)
+                issues = pd.read_sql_query("SELECT run_id, severity, category FROM analysis_issues", conn)
+
+            if runs.empty:
+                self.lbl_total_runs.setText("0")
+                self.lbl_avg_score.setText("N/A")
+                self.lbl_avg_flags.setText("N/A")
+                self.lbl_top_category.setText("N/A")
+                return
+
+            # --- Populate summary stats ---
+            self.lbl_total_runs.setText(str(len(runs)))
+            self.lbl_avg_score.setText(f"{runs['compliance_score'].mean():.1f}")
+            self.lbl_avg_flags.setText(f"{runs['flags'].mean():.2f}")
+
+            if not issues.empty:
+                top_cat = issues['category'].mode()
+                if not top_cat.empty:
+                    self.lbl_top_category.setText(top_cat[0])
+                else:
+                    self.lbl_top_category.setText("N/A")
+            else:
+                self.lbl_top_category.setText("N/A")
+
+            # --- Time Series Plot ---
+            runs['run_time'] = pd.to_datetime(runs['run_time'])
+            monthly_avg = runs.set_index('run_time').resample('M')['compliance_score'].mean().dropna()
+
+            # Store data for the pick event
+            self.analytics_data = monthly_avg
+
+            fig = self.analytics_figure
+            fig.clear()
+            ax = fig.add_subplot(111)
+
+            monthly_avg.plot(ax=ax, marker='o', linestyle='-', picker=5) # picker=5 allows clicking within 5 points
+
+            ax.set_title("Compliance Score Over Time (Monthly Avg)")
+            ax.set_ylabel("Average Score")
+            ax.set_xlabel("Month")
+            ax.grid(True, linestyle='--', alpha=0.6)
+            fig.tight_layout()
+
+            self.analytics_canvas.draw()
+
+            # --- Heatmap of Finding Co-occurrence ---
+            if not issues.empty:
+                # Get the top 10 most frequent categories
+                top_categories = issues['category'].value_counts().nlargest(10).index
+
+                # Filter for runs that have at least one of the top categories
+                issues_top = issues[issues['category'].isin(top_categories)]
+
+                # Create a binary matrix: 1 if a run_id has an issue in a category, 0 otherwise
+                co_occurrence_df = pd.crosstab(issues_top['run_id'], issues_top['category'])
+
+                # Compute the co-occurrence matrix
+                co_occurrence_matrix = co_occurrence_df.T.dot(co_occurrence_df)
+
+                # Plot the heatmap
+                heatmap_fig = self.heatmap_figure
+                heatmap_fig.clear()
+                heatmap_ax = heatmap_fig.add_subplot(111)
+
+                cax = heatmap_ax.matshow(co_occurrence_matrix, cmap='YlGnBu')
+                heatmap_fig.colorbar(cax)
+
+                heatmap_ax.set_xticks(range(len(top_categories)))
+                heatmap_ax.set_yticks(range(len(top_categories)))
+                heatmap_ax.set_xticklabels(top_categories, rotation=90)
+                heatmap_ax.set_yticklabels(top_categories)
+                heatmap_ax.set_title('Co-occurrence of Top 10 Finding Categories', pad=20)
+
+                self.heatmap_canvas.draw()
+
+        except Exception as e:
+            self.log(f"Failed to update analytics tab: {e}")
+            logger.exception("Analytics update failed")
 
     def _render_chat_history(self):
         """Renders the analysis report and the full chat history."""
