@@ -1778,7 +1778,8 @@ def run_analyzer(file_path: str,
             issues_scored = run_llm_analysis(
                 llm=main_window_instance.local_rag.llm,
                 chunks=[text for text, src in collapsed],
-                rules=rules_as_dicts
+                rules=rules_as_dicts,
+                file_path=file_path
             )
             logger.info(f"LLM analysis found {len(issues_scored)} issues.")
 
