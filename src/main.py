@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 # Standard library
+from datetime import datetime
 import hashlib
 import html
 import logging
@@ -135,10 +136,11 @@ from matplotlib.figure import Figure
 
 # Fairlearn for bias auditing
 try:
-    from fairlearn.metrics import MetricFrame, demographic_parity_difference
+    from fairlearn.metrics import MetricFrame, demographic_parity_difference, selection_rate
 except ImportError:
     MetricFrame = None
     demographic_parity_difference = None
+    selection_rate = None
     logger.warning("fairlearn library not found. Bias auditing will be disabled.")
 
 # PyQt (guarded)
@@ -2130,19 +2132,31 @@ def run_analyzer(file_path: str,
 
         # --- Bias Auditing with Fairlearn ---
         fairness_metrics = {}
-        if MetricFrame is not None and not issues_scored.empty:
+        if MetricFrame is not None and issues_scored:
             try:
                 audit_df = pd.DataFrame(issues_scored)
-                y_pred = (audit_df['severity'] == 'flag').astype(int)
+                # Ensure 'discipline' column exists and handle missing values
+                if 'discipline' not in audit_df.columns:
+                    audit_df['discipline'] = 'unknown'
+                audit_df['discipline'] = audit_df['discipline'].fillna('unknown')
 
-                gm = MetricFrame(metrics={'dpd': demographic_parity_difference,
-                                          'selection_rate': 'selection_rate'},
-                                 y_true=y_pred,
-                                 y_pred=y_pred,
-                                 sensitive_features=audit_df['discipline'])
+                y_true = (audit_df['severity'] == 'flag').astype(int) # Ground truth (same as prediction for this metric)
+                y_pred = (audit_df['severity'] == 'flag').astype(int) # Model's prediction
+                sensitive_features = audit_df['discipline']
 
-                fairness_metrics['demographic_parity_difference'] = gm.difference()
-                fairness_metrics['by_group'] = gm.by_group
+                if selection_rate and demographic_parity_difference:
+                    # We use a MetricFrame to compute metrics across sensitive features
+                    gm = MetricFrame(metrics=selection_rate,
+                                     y_true=y_true,
+                                     y_pred=y_pred,
+                                     sensitive_features=sensitive_features)
+
+                    fairness_metrics['demographic_parity_difference'] = demographic_parity_difference(
+                        y_true,
+                        y_pred,
+                        sensitive_features=sensitive_features
+                    )
+                    fairness_metrics['by_group'] = gm.by_group
 
             except Exception as e:
                 logger.warning(f"Fairlearn audit failed: {e}")
@@ -2334,42 +2348,41 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
 
         act_open = QAction("Open File...", self)
-        act_open.triggered.connect(self.action_open_report)  # type: ignore[attr-defined]
+        # act_open.triggered.connect(self.action_open_report)  # Placeholder
         tb.addAction(act_open)
 
         act_analyze = QAction("Analyze", self)
-        act_analyze.triggered.connect(self.action_analyze_combined)  # type: ignore[attr-defined]
+        act_analyze.triggered.connect(self.action_analyze_combined)
         tb.addAction(act_analyze)
 
         act_logs = QAction("Open Logs Folder", self)
-        act_logs.triggered.connect(self.action_open_logs)  # type: ignore[attr-defined]
+        act_logs.triggered.connect(self.action_open_logs)
         tb.addAction(act_logs)
 
         act_analytics = QAction("Export Analytics CSV", self)
-        act_analytics.triggered.connect(lambda: self._export_analytics_csv())  # type: ignore[attr-defined]
+        act_analytics.triggered.connect(lambda: self._export_analytics_csv())
         tb.addAction(act_analytics)
 
         act_settings = QAction("Settings", self)
-        act_settings.triggered.connect(
-            lambda: (_show_settings_dialog(self), self.reapply_theme()))  # type: ignore[attr-defined]
+        act_settings.triggered.connect(lambda: _show_settings_dialog(self))
         tb.addAction(act_settings)
 
         act_admin_settings = QAction("Admin Settings...", self)
-        act_admin_settings.triggered.connect(self._show_admin_settings_dialog)
+        # act_admin_settings.triggered.connect(self._show_admin_settings_dialog) # Placeholder
         tb.addAction(act_admin_settings)
 
         act_exit = QAction("Exit", self)
-        act_exit.triggered.connect(self.close)  # type: ignore[attr-defined]
+        act_exit.triggered.connect(self.close)
         tb.addAction(act_exit)
 
         tb.addSeparator()
 
         act_export_feedback = QAction("Export Feedback...", self)
-        act_export_feedback.triggered.connect(self.action_export_feedback)
+        # act_export_feedback.triggered.connect(self.action_export_feedback) # Placeholder
         tb.addAction(act_export_feedback)
 
         act_analyze_performance = QAction("Analyze Performance", self)
-        act_analyze_performance.triggered.connect(self.action_analyze_performance)
+        # act_analyze_performance.triggered.connect(self.action_analyze_performance) # Placeholder
         tb.addAction(act_analyze_performance)
 
         central = QWidget()
@@ -2388,6 +2401,14 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(results_tab, "Analysis Results")
         self.tabs.addTab(logs_tab, "Application Logs")
 
+        # --- Logs Tab Layout ---
+        logs_layout = QVBoxLayout(logs_tab)
+        self.txt_logs = QTextEdit()
+        self.txt_logs.setReadOnly(True)
+        self.txt_logs.setFontFamily("monospace")
+        self.txt_logs.setPlaceholderText("Application events will be logged here.")
+        logs_layout.addWidget(self.txt_logs)
+
         # --- Analytics Tab ---
         analytics_tab = QWidget()
         self.tabs.addTab(analytics_tab, "Analytics Dashboard")
@@ -2395,7 +2416,6 @@ class MainWindow(QMainWindow):
 
         analytics_controls = QHBoxLayout()
         btn_refresh_analytics = QPushButton("Refresh Analytics")
-        self._style_action_button(btn_refresh_analytics, font_size=11, bold=True, height=32)
         try:
             btn_refresh_analytics.clicked.connect(self._update_analytics_tab)
         except Exception:
@@ -2430,10 +2450,25 @@ class MainWindow(QMainWindow):
 
         # Bias auditing metrics
         bias_group = QGroupBox("Bias Auditing")
-        self.bias_layout = QGridLayout(bias_group)
+        bias_outer_layout = QVBoxLayout(bias_group)
+
+        # Layout for overall metrics
+        overall_bias_layout = QHBoxLayout()
+        overall_bias_layout.addWidget(QLabel("<b>Overall Demographic Parity Difference:</b>"))
         self.lbl_demographic_parity = QLabel("N/A")
-        self.bias_layout.addWidget(QLabel("Demographic Parity Difference:"), 0, 0)
-        self.bias_layout.addWidget(self.lbl_demographic_parity, 0, 1)
+        self.lbl_demographic_parity.setStyleSheet("font-weight: bold;")
+        overall_bias_layout.addWidget(self.lbl_demographic_parity)
+        overall_bias_layout.addStretch(1)
+        bias_outer_layout.addLayout(overall_bias_layout)
+
+        # Layout for the grid of by-group metrics
+        self.bias_layout = QGridLayout()
+        self.bias_layout.setContentsMargins(10, 10, 10, 10)
+        self.bias_layout.addWidget(QLabel("<b>Discipline</b>"), 0, 0)
+        self.bias_layout.addWidget(QLabel("<b>Selection Rate (Flagged)</b>"), 0, 1)
+        self.bias_layout.setColumnStretch(2, 1) # Spacer to align columns
+        bias_outer_layout.addLayout(self.bias_layout)
+
         analytics_layout.addWidget(bias_group)
 
         # --- Setup Tab Layout ---
@@ -2449,7 +2484,6 @@ class MainWindow(QMainWindow):
         self.btn_upload_rubric = QPushButton("Upload Rubric")
         self.btn_manage_rubrics = QPushButton("Manage Rubrics")
         for b in (self.btn_upload_rubric, self.btn_manage_rubrics):
-            self._style_action_button(b, font_size=11, bold=True, height=32, padding="6px 10px")
             row_rubric_btns.addWidget(b)
         row_rubric_btns.addStretch(1)
 
@@ -2515,26 +2549,15 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.set_error(str(e))
 
-    def action_open_report(self):
-        pass
-
-    def _show_admin_settings_dialog(self):
-        pass
-
-    def action_export_feedback(self):
-        pass
-
-    def action_analyze_performance(self):
-        pass
-
-    def _style_action_button(self, btn, font_size, bold, height, padding="6px 10px"):
-        pass
-
-    def reapply_theme(self):
-        pass
-
-    def log(self, message):
-        pass
+    def log(self, message: str):
+        """Appends a message to the log view and the central logger."""
+        try:
+            logger.info(message)
+            now = datetime.now().strftime("%H:%M:%S")
+            self.txt_logs.append(f"[{now}] {message}")
+        except Exception:
+            # Failsafe in case logging isn't fully set up
+            print(message)
 
     def action_open_logs(self):
         try:
@@ -2855,32 +2878,44 @@ class MainWindow(QMainWindow):
     def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None, fairness_metrics: Optional[dict] = None) -> None:
         try:
             # --- Update Fairness Metrics ---
-            if fairness_metrics:
+            if fairness_metrics and fairness_metrics.get('by_group') is not None:
                 dpd = fairness_metrics.get('demographic_parity_difference')
                 by_group = fairness_metrics.get('by_group')
 
+                # Update overall metric
                 if dpd is not None:
                     self.lbl_demographic_parity.setText(f"{dpd:.4f}")
                 else:
                     self.lbl_demographic_parity.setText("N/A")
 
-                if by_group is not None:
-                    # Clear previous items
-                    for i in reversed(range(self.bias_layout.count())):
-                        self.bias_layout.itemAt(i).widget().setParent(None)
+                # Clear previous by-group items (all rows > 0)
+                while self.bias_layout.rowCount() > 1:
+                    for col in range(self.bias_layout.columnCount()):
+                        item = self.bias_layout.itemAtPosition(1, col)
+                        if item:
+                            widget = item.widget()
+                            if widget:
+                                widget.setParent(None)
+                    self.bias_layout.removeRow(1)
 
-                    # Add new items
-                    row = 0
-                    for group, metrics in by_group.items():
-                        self.bias_layout.addWidget(QLabel(f"<b>{group}:</b>"), row, 0)
-                        self.bias_layout.addWidget(QLabel(f"Selection Rate: {metrics['selection_rate']:.4f}"), row, 1)
+                # Add new by-group items
+                row = 1
+                if isinstance(by_group, pd.Series):
+                    for group, rate in by_group.items():
+                        self.bias_layout.addWidget(QLabel(f"{str(group).upper()}"), row, 0)
+                        self.bias_layout.addWidget(QLabel(f"{rate:.4f}"), row, 1)
                         row += 1
-                else:
-                    # Clear previous items
-                    for i in reversed(range(self.bias_layout.count())):
-                        self.bias_layout.itemAt(i).widget().setParent(None)
             else:
+                # Clear UI if no metrics are available
                 self.lbl_demographic_parity.setText("N/A")
+                while self.bias_layout.rowCount() > 1:
+                    for col in range(self.bias_layout.columnCount()):
+                        item = self.bias_layout.itemAtPosition(1, col)
+                        if item:
+                            widget = item.widget()
+                            if widget:
+                                widget.setParent(None)
+                    self.bias_layout.removeRow(1)
 
             # --- Bug Fix: Ensure issue IDs are present for loaded reports ---
             issues = data.get("issues", [])

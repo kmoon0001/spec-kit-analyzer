@@ -11,6 +11,7 @@ from src.local_llm import LocalRAG
 from src.guideline_service import GuidelineService
 from src.rubric_service import RubricService
 from src.llm_analyzer import run_llm_analysis
+from src.entity_consolidation_service import EntityConsolidationService
 
 @pytest.mark.timeout(600)
 def test_analyzer_logic_e2e():
@@ -44,6 +45,7 @@ def test_analyzer_logic_e2e():
     results = run_analyzer(
         file_path=test_file,
         selected_disciplines=disciplines,
+        entity_consolidation_service=EntityConsolidationService(),
         main_window_instance=mock_window
     )
     print("Analysis complete.")
