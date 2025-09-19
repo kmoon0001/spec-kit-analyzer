@@ -290,6 +290,8 @@ try:
     from .text_chunking import RecursiveCharacterTextSplitter, SemanticTextSplitter
     from .nlg_service import NLGService
     from .bias_audit_service import run_bias_audit
+    from .jsl_ner_service import JSLNERService
+    from .entity_consolidation_service import EntityConsolidationService, NEREntity
 except ImportError as e:
     logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
     # Define dummy classes if imports fail, to prevent crashing on startup
@@ -301,6 +303,9 @@ except ImportError as e:
     class SemanticTextSplitter: pass
     class NLGService: pass
     def run_bias_audit(): return {"error": "Bias audit service not loaded."}
+    class JSLNERService: pass
+    class EntityConsolidationService: pass
+    class NEREntity: pass
 
 # --- LLM Loader Worker ---
 class LLMWorker(QObject):
@@ -1760,14 +1765,44 @@ def run_analyzer(file_path: str,
                     main_window_instance.log(f"Failed to index document: {e}")
                     logger.error(f"Failed to index document {file_path}: {e}")
 
-        ner_results = []
+        ner_results = {}
+        formatted_entities = []
         if get_bool_setting("enable_biobert_ner", True):
-            report(65, "Running BioBERT NER")
-            ner_sentences = [text for text, src in collapsed]
-            ner_results = run_biobert_ner(ner_sentences)
+            report(65, "Running NER analysis")
+            ner_source_text = "\n".join(t for t, _ in collapsed)
+
+            if get_bool_setting("use_jsl_ner", False):
+                logger.info("Using John Snow Labs for NER.")
+                report(66, "Running John Snow Labs NER...")
+                jsl_service = JSLNERService()
+                if jsl_service.is_ready():
+                    jsl_entities = jsl_service.extract_entities(ner_source_text)
+                    ner_results["jsl"] = jsl_entities
+                    jsl_service.stop()
+                else:
+                    logger.warning("JSL NER Service is enabled but was not ready.")
+            else:
+                logger.info("Using BioBERT for NER.")
+                report(66, "Running BioBERT NER...")
+                ner_sentences = [text for text, src in collapsed]
+                biobert_results = run_biobert_ner(ner_sentences)
+
+                # Convert raw dicts to NEREntity objects and wrap in a dictionary
+                biobert_entities = [
+                    NEREntity(
+                        text=res.get('word'),
+                        label=res.get('entity_group'),
+                        score=res.get('score'),
+                        start=res.get('start'),
+                        end=res.get('end'),
+                        models=['biobert']
+                    ) for res in biobert_results
+                ]
+                ner_results["biobert"] = biobert_entities
+
             if ner_results:
-                logger.info(f"BioBERT NER found {len(ner_results)} entities.")
-                consolidated_entities = entity_consolidation_service.consolidate_entities(ner_results, "\n".join(t for t, _ in collapsed))
+                logger.info(f"NER process found {sum(len(v) for v in ner_results.values())} raw entities.")
+                consolidated_entities = entity_consolidation_service.consolidate_entities(ner_results, ner_source_text)
                 formatted_entities = _format_entities_for_rag(consolidated_entities)
 
         check_cancel()

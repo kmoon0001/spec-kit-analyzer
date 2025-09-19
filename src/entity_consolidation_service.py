@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import List, Dict
 
-from .ner_service import NEREntity
+from .llm_analyzer import NEREntity
 
 logger = logging.getLogger(__name__)
 
