@@ -49,6 +49,10 @@
     rdfs:domain :KeywordSet ;
     rdfs:range rdfs:Literal .
 
+:hasDiscipline a owl:DatatypeProperty ;
+    rdfs:domain :ComplianceRule ;
+    rdfs:range rdfs:Literal .
+
 # --- Individuals (Rules) ---
 
 # Rule 1: Signature/Date check
@@ -59,6 +63,7 @@
     :hasIssueTitle "Provider signature/date possibly missing" ;
     :hasIssueDetail "No explicit evidence of dated/signature entries found." ;
     :hasIssueCategory "Signatures/Dates" ;
+    :hasDiscipline "pt" ;
     :hasNegativeKeywords :SignatureKeywords .
 
 :SignatureKeywords a :KeywordSet ;
@@ -72,6 +77,7 @@
     :hasIssueTitle "Goals may not be measurable/time-bound" ;
     :hasIssueDetail "Consider restating goals with measurable, time-bound targets and baselines." ;
     :hasIssueCategory "Goals" ;
+    :hasDiscipline "pt" ;
     :hasPositiveKeywords :GoalsKeywordsPresent ;
     :hasNegativeKeywords :GoalsKeywordsMissing .
 
@@ -86,6 +92,7 @@
     :hasIssueTitle "Medical necessity not explicitly supported" ;
     :hasIssueDetail "Ensure documentation ties interventions to functional limitations and outcomes aligned with Medicare Part B." ;
     :hasIssueCategory "Medical Necessity" ;
+    :hasDiscipline "pt" ;
     :hasNegativeKeywords :MedicalNecessityKeywords .
 
 :MedicalNecessityKeywords a :KeywordSet ;
@@ -99,6 +106,7 @@
     :hasIssueTitle "Assistant supervision context unclear" ;
     :hasIssueDetail "When assistants are involved, document supervision/oversight per Medicare/state requirements." ;
     :hasIssueCategory "Assistant Supervision" ;
+    :hasDiscipline "pt" ;
     :hasPositiveKeywords :AssistantKeywordsPresent ;
     :hasNegativeKeywords :AssistantKeywordsMissing .
 
@@ -113,6 +121,7 @@
     :hasIssueTitle "Plan/Certification not clearly referenced" ;
     :hasIssueDetail "Explicitly reference plan of care/certification dates and responsible signatures." ;
     :hasIssueCategory "Plan/Certification" ;
+    :hasDiscipline "pt" ;
     :hasNegativeKeywords :PlanOfCareKeywords .
 
 :PlanOfCareKeywords a :KeywordSet ;

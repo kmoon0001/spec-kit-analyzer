@@ -133,16 +133,22 @@ except ImportError:
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
+# Fairlearn for bias auditing
+try:
+    from fairlearn.metrics import MetricFrame, demographic_parity_difference
+except ImportError:
+    MetricFrame = None
+    demographic_parity_difference = None
+    logger.warning("fairlearn library not found. Bias auditing will be disabled.")
+
 # PyQt (guarded)
 try:
     from PyQt6.QtWidgets import (
         QMainWindow, QToolBar, QLabel, QFileDialog, QMessageBox, QApplication,
         QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton,
         QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
-        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout,
-        QDateEdit
+        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout
     )
-    from PyQt6.QtWebEngineWidgets import QWebEngineView
     from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter
     from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject
 except Exception:
@@ -1175,7 +1181,8 @@ def _audit_from_rubric(text: str, selected_disciplines: List[str], strict: bool 
                 "title": rule.issue_title,
                 "detail": rule.issue_detail,
                 "category": rule.issue_category,
-                "trigger_keywords": rule.positive_keywords
+                "trigger_keywords": rule.positive_keywords,
+                "discipline": rule.discipline
             })
 
     return issues
@@ -2121,7 +2128,25 @@ def run_analyzer(file_path: str,
             narrative_lines.append("")
         # --- End suggested questions ---
 
-        narrative_lines.append("--- Trends & Analytics (Last 10 Runs) ---")
+        # --- Bias Auditing with Fairlearn ---
+        fairness_metrics = {}
+        if MetricFrame is not None and not issues_scored.empty:
+            try:
+                audit_df = pd.DataFrame(issues_scored)
+                y_pred = (audit_df['severity'] == 'flag').astype(int)
+
+                gm = MetricFrame(metrics={'dpd': demographic_parity_difference,
+                                          'selection_rate': 'selection_rate'},
+                                 y_true=y_pred,
+                                 y_pred=y_pred,
+                                 sensitive_features=audit_df['discipline'])
+
+                fairness_metrics['demographic_parity_difference'] = gm.difference()
+                fairness_metrics['by_group'] = gm.by_group
+
+            except Exception as e:
+                logger.warning(f"Fairlearn audit failed: {e}")
+        # --- End Bias Auditing ---
         if trends.get("recent_scores"):
             sc = trends["recent_scores"]
             narrative_lines.append(f" • Recent scores (oldest→newest): {', '.join(str(round(s, 1)) for s in sc)}")
@@ -2271,6 +2296,7 @@ def run_analyzer(file_path: str,
         if result_info["pdf"]:
             logger.info(f" - PDF:  {result_info['pdf']}")
         logger.info(f"(Reports directory: {os.path.dirname(pdf_path)})")
+        result_info["fairness_metrics"] = fairness_metrics
         result_info["formatted_entities"] = formatted_entities
         return result_info
     except KeyboardInterrupt:
@@ -2362,26 +2388,6 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(results_tab, "Analysis Results")
         self.tabs.addTab(logs_tab, "Application Logs")
 
-        # --- Semantic Search Tab ---
-        search_tab = QWidget()
-        self.tabs.addTab(search_tab, "Semantic Search")
-        search_layout = QVBoxLayout(search_tab)
-
-        search_input_layout = QHBoxLayout()
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Ask a question about the guidelines...")
-        search_input_layout.addWidget(self.search_input)
-
-        self.search_button = QPushButton("Search")
-        search_input_layout.addWidget(self.search_button)
-        search_layout.addLayout(search_input_layout)
-
-        self.search_results = QTextEdit()
-        self.search_results.setReadOnly(True)
-        search_layout.addWidget(self.search_results)
-
-        self.search_button.clicked.connect(self.perform_guideline_search)
-
         # --- Analytics Tab ---
         analytics_tab = QWidget()
         self.tabs.addTab(analytics_tab, "Analytics Dashboard")
@@ -2398,24 +2404,10 @@ class MainWindow(QMainWindow):
         analytics_controls.addStretch(1)
         analytics_layout.addLayout(analytics_controls)
 
-        # Add date filters
-        from datetime import datetime
-        self.start_date_edit = QDateEdit()
-        self.start_date_edit.setCalendarPopup(True)
-        self.start_date_edit.setDate(datetime.now().date() - pd.Timedelta(days=30))
-        self.end_date_edit = QDateEdit()
-        self.end_date_edit.setCalendarPopup(True)
-        self.end_date_edit.setDate(datetime.now().date())
-
-        # Add date filters to layout
-        analytics_controls.addWidget(QLabel("Start Date:"))
-        analytics_controls.addWidget(self.start_date_edit)
-        analytics_controls.addWidget(QLabel("End Date:"))
-        analytics_controls.addWidget(self.end_date_edit)
-
-        # Plotly chart
-        self.plotly_view = QWebEngineView()
-        analytics_layout.addWidget(self.plotly_view)
+        # Matplotlib chart
+        self.analytics_figure = Figure(figsize=(5, 3))
+        self.analytics_canvas = FigureCanvas(self.analytics_figure)
+        analytics_layout.addWidget(self.analytics_canvas)
 
         # Summary stats
         stats_group = QGroupBox("Summary Statistics")
@@ -2435,6 +2427,14 @@ class MainWindow(QMainWindow):
         stats_layout.addWidget(self.lbl_top_category, 3, 1)
 
         analytics_layout.addWidget(stats_group)
+
+        # Bias auditing metrics
+        bias_group = QGroupBox("Bias Auditing")
+        self.bias_layout = QGridLayout(bias_group)
+        self.lbl_demographic_parity = QLabel("N/A")
+        self.bias_layout.addWidget(QLabel("Demographic Parity Difference:"), 0, 0)
+        self.bias_layout.addWidget(self.lbl_demographic_parity, 0, 1)
+        analytics_layout.addWidget(bias_group)
 
         # --- Setup Tab Layout ---
         setup_layout = QVBoxLayout(setup_tab)
@@ -2496,100 +2496,7 @@ class MainWindow(QMainWindow):
         self.txt_rubric = QTextEdit()
         self.txt_rubric.setVisible(False) # Not shown in main UI
 
-        self.start_date_edit.dateChanged.connect(self._update_analytics_tab)
-        self.end_date_edit.dateChanged.connect(self._update_analytics_tab)
 
-    def _update_analytics_tab(self):
-        """Updates the analytics tab with the latest data."""
-        try:
-            start_date = self.start_date_edit.date().toString("yyyy-MM-dd")
-            end_date = self.end_date_edit.date().toString("yyyy-MM-dd")
-
-            with _get_db_connection() as conn:
-                query = "SELECT * FROM analysis_runs WHERE run_time BETWEEN ? AND ?"
-                runs_df = pd.read_sql_query(query, conn, params=(start_date, end_date))
-
-                if not runs_df.empty:
-                    run_ids = tuple(runs_df['id'].tolist())
-                    placeholders = ','.join('?' for _ in run_ids)
-                    issues_query = f"SELECT * FROM analysis_issues WHERE run_id IN ({placeholders})"
-                    issues_df = pd.read_sql_query(issues_query, conn, params=run_ids)
-                else:
-                    issues_df = pd.DataFrame()
-
-            if runs_df.empty:
-                self.log("No analytics data found for the selected date range.")
-                self.lbl_total_runs.setText("0")
-                self.lbl_avg_score.setText("N/A")
-                self.lbl_avg_flags.setText("N/A")
-                self.lbl_top_category.setText("N/A")
-                self.plotly_view.setHtml("")
-                return
-
-            # Update summary statistics
-            self.lbl_total_runs.setText(str(len(runs_df)))
-            self.lbl_avg_score.setText(f"{runs_df['compliance_score'].mean():.2f}")
-            self.lbl_avg_flags.setText(f"{runs_df['flags'].mean():.2f}")
-
-            if not issues_df.empty:
-                top_category = issues_df['category'].mode()[0]
-                self.lbl_top_category.setText(top_category)
-            else:
-                self.lbl_top_category.setText("N/A")
-
-            # Update the chart with Plotly
-            import plotly.express as px
-
-            if not issues_df.empty:
-                severity_counts = issues_df['severity'].value_counts().reset_index()
-                severity_counts.columns = ['severity', 'count']
-                fig = px.bar(severity_counts, x='severity', y='count', title="Findings by Severity")
-            else:
-                fig = px.bar(title="No findings in selected date range")
-
-            self.plotly_view.setHtml(fig.to_html(include_plotlyjs='cdn'))
-
-            self.log("Analytics tab updated.")
-
-        except Exception as e:
-            self.log(f"Failed to update analytics tab: {e}")
-            logger.exception("Failed to update analytics tab")
-
-    def showEvent(self, event):
-        super().showEvent(event)
-        self._update_analytics_tab()
-
-    def perform_guideline_search(self):
-        """
-        Performs a semantic search on the guidelines based on user input.
-        """
-        query = self.search_input.text()
-        if not query:
-            QMessageBox.warning(self, "Empty Query", "Please enter a question to search.")
-            return
-
-        if not self.guideline_service or not self.guideline_service.is_index_ready:
-            QMessageBox.warning(self, "Index Not Ready", "The guideline search index is not ready. Please wait a moment.")
-            return
-
-        self.statusBar().showMessage("Searching guidelines...")
-        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-
-        try:
-            results = self.guideline_service.search(query, top_k=3)
-            self.search_results.clear()
-            if not results:
-                self.search_results.setText("No relevant guidelines found.")
-            else:
-                for result in results:
-                    self.search_results.append(f"<b>Source:</b> {result['source']}<br>")
-                    self.search_results.append(f"{result['text']}<br><br>")
-        except Exception as e:
-            logger.error(f"Guideline search failed: {e}")
-            QMessageBox.critical(self, "Search Error", f"An error occurred during the search: {e}")
-        finally:
-            self.statusBar().showMessage("Ready")
-            QApplication.restoreOverrideCursor()
         
     def action_clear_all(self):
         try:
@@ -2607,6 +2514,27 @@ class MainWindow(QMainWindow):
             self.log("Cleared all selections.")
         except Exception as e:
             self.set_error(str(e))
+
+    def action_open_report(self):
+        pass
+
+    def _show_admin_settings_dialog(self):
+        pass
+
+    def action_export_feedback(self):
+        pass
+
+    def action_analyze_performance(self):
+        pass
+
+    def _style_action_button(self, btn, font_size, bold, height, padding="6px 10px"):
+        pass
+
+    def reapply_theme(self):
+        pass
+
+    def log(self, message):
+        pass
 
     def action_open_logs(self):
         try:
@@ -2705,7 +2633,7 @@ class MainWindow(QMainWindow):
                     import json
                     with open(res["json"], "r", encoding="utf-8") as f:
                         data = json.load(f)
-                    self.render_analysis_to_results(data)
+                    self.render_analysis_to_results(data, fairness_metrics=res.get("fairness_metrics", {}))
 
                     # --- Create and index the context for the AI ---
                     if self.local_rag and self.local_rag.is_ready():
@@ -2924,8 +2852,36 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Ready")
             QApplication.restoreOverrideCursor()
 
-    def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None) -> None:
+    def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None, fairness_metrics: Optional[dict] = None) -> None:
         try:
+            # --- Update Fairness Metrics ---
+            if fairness_metrics:
+                dpd = fairness_metrics.get('demographic_parity_difference')
+                by_group = fairness_metrics.get('by_group')
+
+                if dpd is not None:
+                    self.lbl_demographic_parity.setText(f"{dpd:.4f}")
+                else:
+                    self.lbl_demographic_parity.setText("N/A")
+
+                if by_group is not None:
+                    # Clear previous items
+                    for i in reversed(range(self.bias_layout.count())):
+                        self.bias_layout.itemAt(i).widget().setParent(None)
+
+                    # Add new items
+                    row = 0
+                    for group, metrics in by_group.items():
+                        self.bias_layout.addWidget(QLabel(f"<b>{group}:</b>"), row, 0)
+                        self.bias_layout.addWidget(QLabel(f"Selection Rate: {metrics['selection_rate']:.4f}"), row, 1)
+                        row += 1
+                else:
+                    # Clear previous items
+                    for i in reversed(range(self.bias_layout.count())):
+                        self.bias_layout.itemAt(i).widget().setParent(None)
+            else:
+                self.lbl_demographic_parity.setText("N/A")
+
             # --- Bug Fix: Ensure issue IDs are present for loaded reports ---
             issues = data.get("issues", [])
             if issues and 'id' not in issues[0]:
