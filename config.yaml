@@ -1,0 +1,17 @@
+# Configuration for the RAG Pipeline
+
+paths:
+  index_dir: "sentence_index"
+  docs_dir: "data"
+
+models:
+  llm:
+    model_name: "gpt-3.5-turbo"
+  embed_model:
+    model_name: "sentence-transformers/all-MiniLM-L6-v2"
+  reranker:
+    model_name: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+retrieval:
+  similarity_top_k: 6
+  rerank_top_n: 2

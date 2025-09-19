@@ -7,3 +7,4 @@ sentence-transformers
 llama-index
 llama-index-embeddings-huggingface
 pytest
+PyYAML

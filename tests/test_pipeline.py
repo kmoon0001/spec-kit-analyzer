@@ -1,26 +1,28 @@
 import os
 import shutil
 import pytest
+import yaml
 from src.ingestion import build_sentence_window_index
 from src.retrieval import get_query_engine
 from llama_index.core.llms import MockLLM
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
+# Load config for testing
+with open("config.yaml", "r") as f:
+    CONFIG = yaml.safe_load(f)
+
 TEST_DOCS_DIR = "tests/test_data"
-TEST_INDEX_DIR = "tests/test_index"
+TEST_INDEX_DIR = "tests/test_index_config" # Use a different index for this test
 
 @pytest.fixture(scope="module")
 def setup_teardown():
     """Fixture to handle setup and teardown of test files."""
-    # Setup: ensure the test index directory is clean
     if os.path.exists(TEST_INDEX_DIR):
         shutil.rmtree(TEST_INDEX_DIR)
 
-    # Create a mock LLM that returns a predictable response
     llm = MockLLM(max_tokens=256)
-    embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    embed_model = HuggingFaceEmbedding(model_name=CONFIG["models"]["embed_model"]["model_name"])
 
-    # Run the ingestion pipeline
     build_sentence_window_index(
         documents_path=TEST_DOCS_DIR,
         llm=llm,
@@ -28,22 +30,25 @@ def setup_teardown():
         save_dir=TEST_INDEX_DIR,
     )
 
-    yield # This is where the testing happens
+    yield
 
-    # Teardown: clean up the created index directory
     if os.path.exists(TEST_INDEX_DIR):
         shutil.rmtree(TEST_INDEX_DIR)
 
-def test_full_pipeline(setup_teardown):
+def test_full_pipeline_with_config(setup_teardown):
     """
-    Tests the full ingestion and query pipeline end-to-end.
+    Tests the full ingestion and query pipeline using centralized config.
     """
-    # 1. Check if the index was created
     assert os.path.exists(TEST_INDEX_DIR)
 
-    # 2. Get the query engine, passing the mock LLM
     mock_llm = MockLLM(max_tokens=256)
-    query_engine = get_query_engine(index_dir=TEST_INDEX_DIR, llm=mock_llm)
+    query_engine = get_query_engine(
+        index_dir=TEST_INDEX_DIR,
+        llm=mock_llm,
+        embed_model_name=CONFIG["models"]["embed_model"]["model_name"],
+        reranker_config=CONFIG["models"]["reranker"],
+        retrieval_config=CONFIG["retrieval"],
+    )
 
     # 3. Query the engine
     question = "What is the capital of France?"

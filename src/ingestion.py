@@ -10,7 +10,7 @@ def build_sentence_window_index(
     documents_path: str,
     llm,
     embed_model,
-    save_dir: str = "sentence_index",
+    save_dir: str,
 ):
     """
     Builds a LlamaIndex VectorStoreIndex with a SentenceWindowNodeParser.
@@ -21,24 +21,22 @@ def build_sentence_window_index(
         embed_model: The embedding model to use.
         save_dir (str): Directory to save the index.
     """
-    # Use LlamaIndex's reader, which handles multiple file types
     documents = SimpleDirectoryReader(documents_path).load_data()
 
-    # Create the sentence window node parser
     node_parser = SentenceWindowNodeParser.from_defaults(
         window_size=3,
         window_metadata_key="window",
         original_text_metadata_key="original_text",
     )
 
-    # Set up the global settings
-    Settings.llm = llm
-    Settings.embed_model = embed_model
-    Settings.node_parser = node_parser
-
+    # Create the index from the documents
+    # The models are passed directly to the service context
     print("Creating sentence window index...")
     sentence_index = VectorStoreIndex.from_documents(
         documents,
+        llm=llm,
+        embed_model=embed_model,
+        transformations=[node_parser],
     )
 
     # Persist the index to disk
