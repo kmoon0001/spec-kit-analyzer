@@ -293,6 +293,7 @@ except Exception:
 
 # Local imports
 from .llm_analyzer import run_llm_analysis
+from .query_router_service import QueryRouterService
 try:
     from .local_llm import LocalRAG
     from .rubric_service import RubricService, ComplianceRule
@@ -2320,7 +2321,8 @@ class MainWindow(QMainWindow):
         self.guideline_service: Optional[GuidelineService] = None
         self.llm_compliance_service: Optional[LlmComplianceService] = None
         self.entity_consolidation_service: EntityConsolidationService = EntityConsolidationService()
-        self.chat_history: list[tuple[str, str]] = []
+        self.query_router_service = QueryRouterService()
+        self.chat_history: list[tuple[str, str, list[str]]] = []
         self.compliance_rules: list[ComplianceRule] = []
         self._analytics_severity_filter = None
 
@@ -3054,16 +3056,35 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("The AI is thinking...")
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
+            # Classify the user's query
+            intent = self.query_router_service.classify_query(question)
+
+            if intent == "greeting":
+                answer = "Hello! I am a specialized AI assistant for analyzing clinical documents. How can I help you with the document?"
+                self.chat_history.append(("user", question, []))
+                self.chat_history.append(("ai", answer, []))
+                self._render_chat_history()
+                self.input_query_te.setPlainText("")
+                return
+            elif intent == "ambiguous":
+                answer = "I'm not sure if you are asking a question about the document. Could you please clarify?"
+                self.chat_history.append(("user", question, []))
+                self.chat_history.append(("ai", answer, []))
+                self._render_chat_history()
+                self.input_query_te.setPlainText("")
+                return
+
             # Search the document-specific index to get context
             context_chunks_with_sources = self.local_rag.search_index(question, k=3)
 
             if not context_chunks_with_sources:
                 answer = "I could not find any relevant information in the current document to answer your question."
+                sources = []
             else:
-                answer = self.local_rag.query(question, context_chunks=context_chunks_with_sources, chat_history=self.chat_history)
+                answer, sources = self.local_rag.query(question, context_chunks=context_chunks_with_sources, chat_history=self.chat_history)
 
-            self.chat_history.append(("user", question))
-            self.chat_history.append(("ai", answer))
+            self.chat_history.append(("user", question, []))
+            self.chat_history.append(("ai", answer, sources))
             self._render_chat_history()
             self.input_query_te.setPlainText("")
 

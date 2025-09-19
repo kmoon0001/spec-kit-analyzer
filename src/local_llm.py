@@ -94,30 +94,29 @@ class LocalRAG:
 
         return [self.documents_with_sources[i] for i in I[0]]
 
-    def query(self, question: str, context_chunks: List[tuple[str, str]], chat_history: List[tuple[str, str]] | None = None) -> str:
+    def query(self, question: str, context_chunks: List[tuple[str, str]], chat_history: List[tuple[str, str, list[str]]] | None = None) -> tuple[str, list[tuple[str, str]]]:
         if not self.is_ready() or not self.llm:
-            return "The local AI chat is not available. Please check the logs for errors."
+            return "The local AI chat is not available. Please check the logs for errors.", []
 
         logger.info(f"Received query for generation: {question}")
 
         history_str = ""
         if chat_history:
-            for sender, message in chat_history[-6:]:
+            for sender, message, sources in chat_history[-6:]:
                 if sender == 'user':
                     history_str += f"Previous User Question: {message}\n"
                 elif sender == 'ai':
                     history_str += f"Your Previous Answer: {message}\n"
 
         context_str = ""
-        sources = []
         for i, (chunk, source) in enumerate(context_chunks):
-            context_str += f"BEGININPUT\nBEGINCONTEXT\nsource: {source}\nENDCONTEXT\n{chunk}\nENDINPUT\n"
-            if source not in sources:
-                sources.append(source)
+            # Use a numeric index for the source, which is easier for the LLM to use
+            context_str += f"BEGININPUT\nBEGINCONTEXT\nsource_index: {i+1}\nENDCONTEXT\n{chunk}\nENDINPUT\n"
 
         prompt = (
             "You are a helpful AI assistant. Answer the user's question based on the provided document context and the recent conversation history. "
-            "When you use information from the context, you must cite the source. For example: 'This is the answer (Source: Page 7)'.\n\n"
+            "When you use information from the context, you must cite the source by including the source_index in brackets, like this: [1]. "
+            "You can cite multiple sources like this: [1, 2].\n\n"
             "--- CONVERSATION HISTORY ---\n"
             f"{history_str}\n"
             "--- DOCUMENT CONTEXT ---\n"
@@ -134,12 +133,8 @@ class LocalRAG:
             output = self.llm(prompt, max_tokens=512, stop=["ENDINSTRUCTION"], echo=False)
             answer = output["choices"][0]["text"].strip()
 
-            # Append sources to the answer
-            if sources:
-                answer += f"\n\nSources: {', '.join(sources)}"
-
             logger.info(f"LLM generated answer: {answer}")
-            return answer
+            return answer, context_chunks
         except Exception as e:
             logger.exception(f"Error during LLM inference: {e}")
-            return "An error occurred while generating a response."
+            return "An error occurred while generating a response.", []
