@@ -54,9 +54,10 @@ def handle_query(args, config):
             reranker_config=config["models"]["reranker"],
             retrieval_config=config["retrieval"],
         )
-        response = query_engine.query(args.question)
+        streaming_response = query_engine.query(args.question)
         print("\n--- Response ---")
-        print(response)
+        for token in streaming_response.response_gen:
+            print(token, end="", flush=True)
         print("\n---")
     except FileNotFoundError as e:
         print(f"Error: {e}. Please run the 'ingest' command first.")

@@ -1,5 +1,5 @@
 import os
-from llama_index.core import load_index_from_storage, Settings, StorageContext
+from llama_index.core import load_index_from_storage, Settings, StorageContext, get_response_synthesizer
 from llama_index.core.postprocessor import SentenceTransformerRerank
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.retrievers import TransformRetriever
@@ -54,11 +54,14 @@ def get_query_engine(
         model=reranker_config["model_name"], top_n=retrieval_config["rerank_top_n"]
     )
 
-    # 4. Build the query engine with the transformed retriever and reranker
+    # 4. Get the response synthesizer with streaming enabled
+    response_synthesizer = get_response_synthesizer(streaming=True, llm=llm)
+
+    # 5. Build the query engine with the transformed retriever and reranker
     query_engine = RetrieverQueryEngine.from_args(
         retriever=hyde_retriever,
+        response_synthesizer=response_synthesizer,
         node_postprocessors=[reranker],
-        llm=llm,
     )
 
     return query_engine

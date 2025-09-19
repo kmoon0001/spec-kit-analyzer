@@ -50,31 +50,32 @@ def test_full_pipeline_with_config(setup_teardown):
         retrieval_config=CONFIG["retrieval"],
     )
 
-    # 3. Query the engine
+    # 3. Query the engine and handle the streaming response
     question = "What is the capital of France?"
-    response = query_engine.query(question)
+    streaming_response = query_engine.query(question)
 
-    # 4. Assert the response is valid
-    assert response is not None
-    assert hasattr(response, 'response')
+    # 4. Assert the response is valid and reconstruct the response string
+    assert streaming_response is not None
 
-    # The MockLLM will typically return a response based on the context.
-    # A simple assertion is to check that it's not empty.
-    # A more advanced test could check the source nodes.
-    assert len(response.response) > 0
+    # Consume the generator to get the full string
+    full_response_str = ""
+    for token in streaming_response.response_gen:
+        full_response_str += token
+
+    assert len(full_response_str) > 0
 
     print(f"\nQuestion: {question}")
-    print(f"Response: {response.response}")
+    print(f"Reconstructed Response: {full_response_str}")
 
     # Test another query and inspect the source nodes
     question_2 = "What is data science?"
-    response_2 = query_engine.query(question_2)
-    assert response_2 is not None
-    assert hasattr(response_2, 'source_nodes')
-    assert len(response_2.source_nodes) > 0
+    streaming_response_2 = query_engine.query(question_2)
+    assert streaming_response_2 is not None
+    assert hasattr(streaming_response_2, 'source_nodes')
+    assert len(streaming_response_2.source_nodes) > 0
 
     # The most relevant source node should contain the definition of data science.
-    top_source_content = response_2.source_nodes[0].get_content().lower()
+    top_source_content = streaming_response_2.source_nodes[0].get_content().lower()
     assert "interdisciplinary field" in top_source_content
 
     print(f"\nQuestion: {question_2}")
