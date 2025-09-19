@@ -10,6 +10,7 @@ import re
 import sqlite3
 import sys
 from typing import Callable, List, Literal, Tuple, Optional
+import sys
 from urllib.parse import quote, unquote
 
 # Third-party used throughout
@@ -293,12 +294,16 @@ except Exception:
 
 # Local imports
 from .llm_analyzer import run_llm_analysis
-from .query_router_service import QueryRouterService
+
+from .ner_service import NERService, NEREntity
+from .entity_consolidation_service import EntityConsolidationService
+
+        main
 try:
     from .local_llm import LocalRAG
     from .rubric_service import RubricService, ComplianceRule
     from .guideline_service import GuidelineService
-    from .text_chunking import RecursiveCharacterTextSplitter, SemanticTextSplitter
+    from .text_chunking import RecursiveCharacterTextSplitter
     from .nlg_service import NLGService
     from .bias_audit_service import run_bias_audit
 except ImportError as e:
@@ -309,7 +314,6 @@ except ImportError as e:
     class ComplianceRule: pass
     class GuidelineService: pass
     class RecursiveCharacterTextSplitter: pass
-    class SemanticTextSplitter: pass
     class NLGService: pass
     def run_bias_audit(): return {"error": "Bias audit service not loaded."}
 
@@ -1276,24 +1280,6 @@ def _score_issue_confidence(issues_in: list[dict], records: list[tuple[str, str]
         out.append({**it, "confidence": round(float(conf), 2)})
     return out
 
-def run_biobert_ner(sentences: List[str]) -> List[dict]:
-    """
-    Performs Named Entity Recognition on a list of sentences using a BioBERT model.
-    """
-    if not pipeline:
-        logger.warning("Transformers pipeline is not available. Skipping BioBERT NER.")
-        return []
-
-    try:
-        # Using a pipeline for NER
-        # The 'simple' aggregation strategy groups subword tokens into whole words.
-        ner_pipeline = pipeline("ner", model="longluu/Clinical-NER-MedMentions-GatorTronBase", aggregation_strategy="simple")
-        results = ner_pipeline(sentences)
-        return results
-    except Exception as e:
-        logger.error(f"BioBERT NER failed: {e}")
-        return []
-
 # --- Exports ---
 def export_report_json(obj: dict, json_path: str) -> bool:
     try:
@@ -1753,15 +1739,25 @@ def run_analyzer(file_path: str,
         collapsed = list(collapsed)
 
 
-        ner_results = []
-        if get_bool_setting("enable_biobert_ner", True):
-            report(65, "Running BioBERT NER")
+        ner_results = {}
+        formatted_entities = []
+        if get_bool_setting("enable_ner_service", default=True) and main_window_instance and main_window_instance.ner_service.is_ready():
+            report(65, "Running NER models...")
+            full_text_for_ner = "\n".join(t for t, _ in collapsed)
             ner_sentences = [text for text, src in collapsed]
-            ner_results = run_biobert_ner(ner_sentences)
+
+            ner_results = main_window_instance.ner_service.extract_entities(full_text_for_ner, ner_sentences)
+
             if ner_results:
-                logger.info(f"BioBERT NER found {len(ner_results)} entities.")
-                consolidated_entities = entity_consolidation_service.consolidate_entities(ner_results, "\n".join(t for t, _ in collapsed))
-                formatted_entities = _format_entities_for_rag(consolidated_entities)
+                logger.info(f"NER service extracted entities from models: {list(ner_results.keys())}")
+
+                consolidated_entities = entity_consolidation_service.consolidate_entities(
+                    ner_results, full_text_for_ner
+                )
+
+                if consolidated_entities:
+                    formatted_entities = _format_entities_for_rag(consolidated_entities)
+                    logger.info(f"Consolidated into {len(consolidated_entities)} unique entities.")
 
         check_cancel()
         report(60, "Computing summary")
@@ -2188,6 +2184,9 @@ def run_analyzer(file_path: str,
         json_path = pdf_path[:-4] + ".json"
 
         try:
+            from dataclasses import asdict
+            json_ner_results = {model: [asdict(e) for e in entities] for model, entities in ner_results.items()} if ner_results else {}
+
             export_report_json({
                 "json_schema_version": 6,
                 "report_template_version": REPORT_TEMPLATE_VERSION,
@@ -2215,8 +2214,8 @@ def run_analyzer(file_path: str,
                 "pdf_chart_position": get_str_setting("pdf_chart_position", "bottom"),
                 "pdf_chart_theme": get_str_setting("pdf_chart_theme", "dark"),
                 "report_severity_ordering": "flags_first",
-                "clinical_ner_enabled": get_bool_setting("enable_biobert_ner", True),
-                "ner_results": ner_results,
+                "clinical_ner_enabled": get_bool_setting("enable_ner_service", True),
+                "ner_results": json_ner_results,
                 "source_sentences": collapsed,
                 "sev_counts": sev_counts,
                 "cat_counts": cat_counts,
@@ -2321,8 +2320,16 @@ class MainWindow(QMainWindow):
         self.guideline_service: Optional[GuidelineService] = None
         self.llm_compliance_service: Optional[LlmComplianceService] = None
         self.entity_consolidation_service: EntityConsolidationService = EntityConsolidationService()
-        self.query_router_service = QueryRouterService()
-        self.chat_history: list[tuple[str, str, list[str]]] = []
+
+        # Initialize the NER service with multiple models
+        ner_model_configs = {
+            "biobert_gator_tron": "longluu/Clinical-NER-MedMentions-GatorTronBase",
+            "deberta_clinical": "blaze999/clinical-ner"
+        }
+        self.ner_service = NERService(ner_model_configs)
+
+        self.chat_history: list[tuple[str, str]] = []
+        main
         self.compliance_rules: list[ComplianceRule] = []
         self._analytics_severity_filter = None
 
@@ -2504,6 +2511,9 @@ class MainWindow(QMainWindow):
 
         self.txt_rubric = QTextEdit()
         self.txt_rubric.setVisible(False) # Not shown in main UI
+
+        # Automatically load analytics on startup
+        self._update_analytics_tab()
 
 
         
