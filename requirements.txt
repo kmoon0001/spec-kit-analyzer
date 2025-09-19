@@ -17,6 +17,8 @@ transformers
 Pillow
 matplotlib
 openpyxl
+fairlearn
+plotly
 
 # Added for UI Testing
 pytest

@@ -145,11 +145,12 @@ try:
     )
     from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter, QTextCharFormat, QColor
     from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject
+    from PyQt6.QtWebEngineWidgets import QWebEngineView
+    from PyQt6.QtWebEngineCore import QWebEngineSettings
 
     # Matplotlib for analytics chart
     from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.figure import Figure
-    from PyQt6.QtWebEngineWidgets import QWebEngineView
 
     from spellchecker import SpellChecker
     spell = SpellChecker()
@@ -296,6 +297,7 @@ except Exception:
     class Qt: ...
     class QThread: ...
     class QWebEngineView: ...
+    class QWebEngineSettings: ...
 
 # --- LLM Loader Worker ---
 class LLMWorker(QObject):
@@ -654,26 +656,24 @@ def split_sentences(text: str) -> list[str]:
 
 def _correct_spelling(text: str) -> str:
     """Corrects spelling errors in a given text, preserving punctuation."""
-    def replace(match):
-        word = match.group(0)
-        # The spellchecker library is case-sensitive. To improve accuracy,
-        # we can try to correct the lowercase version of the word and then
-        # restore the original case.
-        corrected_word = spell.correction(word.lower())
+    if not isinstance(text, str):
+        return text
 
-        if corrected_word and corrected_word != word.lower():
-            # If a correction was found, restore the original case
-            if word.istitle():
-                return corrected_word.title()
-            if word.isupper():
-                return corrected_word.upper()
-            return corrected_word
-        # If no correction was found, or the correction is the same, return the original word
-        return word
+    corrected_parts = []
+    # Tokenize into words and non-words (punctuation, whitespace)
+    # This regex finds sequences of word characters or single non-word characters.
+    tokens = re.findall(r"(\w+)|([^\w])", text)
 
-    # Use re.sub with a callback to replace only word characters
-    # This regex finds sequences of alphabetic characters, ignoring punctuation.
-    return re.sub(r'[a-zA-Z]+', replace, text)
+    for word, non_word in tokens:
+        if word:
+            # Correct the word part, or keep original if no correction found
+            corrected_word = spell.correction(word) or word
+            corrected_parts.append(corrected_word)
+        if non_word:
+            # Append the non-word part (punctuation, space, newline, etc.)
+            corrected_parts.append(non_word)
+
+    return "".join(corrected_parts)
 
 def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
     """
@@ -1663,7 +1663,7 @@ def _generate_compliance_checklist(strengths: list[str], weaknesses: list[str]) 
     lines.append("")
     return lines
 
-def run_analyzer(file_path: str,
+def run_analyzer(self, file_path: str,
                  selected_disciplines: List[str],
                  scrub_override: Optional[bool] = None,
                  review_mode_override: Optional[str] = None,
@@ -2374,70 +2374,46 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(results_tab, "Analysis Results")
         self.tabs.addTab(logs_tab, "Application Logs")
 
-        # --- Search Tab ---
-        search_tab = QWidget()
-        self.tabs.addTab(search_tab, "Semantic Search")
-        search_layout = QVBoxLayout(search_tab)
+        # --- Analytics Tab ---
+        analytics_tab = QWidget()
+        self.tabs.addTab(analytics_tab, "Analytics Dashboard")
+        analytics_layout = QVBoxLayout(analytics_tab)
 
-        search_bar_layout = QHBoxLayout()
-        self.search_bar = QLineEdit()
-        self.search_bar.setPlaceholderText("Enter your search query...")
-        search_bar_layout.addWidget(self.search_bar)
+        analytics_controls = QHBoxLayout()
+        btn_refresh_analytics = QPushButton("Refresh Analytics")
+        self._style_action_button(btn_refresh_analytics, font_size=11, bold=True, height=32)
+        btn_refresh_analytics.clicked.connect(self._update_analytics_tab)
+        analytics_controls.addWidget(btn_refresh_analytics)
 
-        btn_search = QPushButton("Search")
-        btn_search.clicked.connect(self.perform_semantic_search)
-        search_bar_layout.addWidget(btn_search)
-        search_layout.addLayout(search_bar_layout)
+        self.discipline_filter_combo = QComboBox()
+        self.discipline_filter_combo.addItems(["All", "pt", "ot", "slp"])
+        self.discipline_filter_combo.currentTextChanged.connect(self._update_analytics_tab)
+        analytics_controls.addWidget(QLabel("Filter by Discipline:"))
+        analytics_controls.addWidget(self.discipline_filter_combo)
 
-        self.search_results = QTextEdit()
-        self.search_results.setReadOnly(True)
-        search_layout.addWidget(self.search_results)
+        analytics_controls.addStretch(1)
+        analytics_layout.addLayout(analytics_controls)
+
+        # Plotly chart via QWebEngineView
+        self.analytics_view = QWebEngineView()
+        analytics_layout.addWidget(self.analytics_view)
 
         # --- Bias Audit Tab ---
         bias_audit_tab = QWidget()
         self.tabs.addTab(bias_audit_tab, "Bias Audit")
         bias_audit_layout = QVBoxLayout(bias_audit_tab)
 
+        bias_audit_controls = QHBoxLayout()
         btn_run_bias_audit = QPushButton("Run Bias Audit")
-        btn_run_bias_audit.clicked.connect(self.run_bias_audit)
-        bias_audit_layout.addWidget(btn_run_bias_audit)
+        self._style_action_button(btn_run_bias_audit, font_size=11, bold=True, height=32)
+        btn_run_bias_audit.clicked.connect(self._run_bias_audit)
+        bias_audit_controls.addWidget(btn_run_bias_audit)
+        bias_audit_controls.addStretch(1)
+        bias_audit_layout.addLayout(bias_audit_controls)
 
-        self.bias_audit_results = QTextEdit()
-        self.bias_audit_results.setReadOnly(True)
-        bias_audit_layout.addWidget(self.bias_audit_results)
-
-        # --- Analytics Tab ---
-        analytics_tab = QWidget()
-        self.tabs.addTab(analytics_tab, "Analytics Dashboard")
-        analytics_layout = QVBoxLayout(analytics_tab)
-
-        # --- Discipline Filter ---
-        discipline_filter_group = QGroupBox("Filter by Discipline")
-        discipline_filter_layout = QHBoxLayout(discipline_filter_group)
-        self.analytics_chk_pt = QCheckBox("PT")
-        self.analytics_chk_ot = QCheckBox("OT")
-        self.analytics_chk_slp = QCheckBox("SLP")
-        self.analytics_chk_all = QCheckBox("All")
-        self.analytics_chk_all.setChecked(True)
-
-        discipline_filter_layout.addWidget(self.analytics_chk_pt)
-        discipline_filter_layout.addWidget(self.analytics_chk_ot)
-        discipline_filter_layout.addWidget(self.analytics_chk_slp)
-        discipline_filter_layout.addStretch(1)
-        discipline_filter_layout.addWidget(self.analytics_chk_all)
-        analytics_layout.addWidget(discipline_filter_group)
-
-        analytics_controls = QHBoxLayout()
-        btn_refresh_analytics = QPushButton("Refresh Analytics")
-        self._style_action_button(btn_refresh_analytics, font_size=11, bold=True, height=32)
-        btn_refresh_analytics.clicked.connect(self._update_analytics_charts)
-        analytics_controls.addWidget(btn_refresh_analytics)
-        analytics_controls.addStretch(1)
-        analytics_layout.addLayout(analytics_controls)
-
-        # --- Plotly Chart View ---
-        self.analytics_view = QWebEngineView()
-        analytics_layout.addWidget(self.analytics_view)
+        self.bias_audit_figure = Figure(figsize=(5, 3))
+        self.bias_audit_canvas = FigureCanvas(self.bias_audit_figure)
+        bias_audit_layout.addWidget(self.bias_audit_canvas)
 
         # Summary stats
         stats_group = QGroupBox("Summary Statistics")
@@ -2612,7 +2588,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to analyze.")
                 return
 
-            res = run_analyzer(self, self._current_report_path, selected_disciplines=selected_disciplines, progress_cb=_cb, cancel_cb=_cancel)
+            res = run_analyzer(self._current_report_path, selected_disciplines=selected_disciplines, progress_cb=_cb, cancel_cb=_cancel)
 
             outs = []
             if res.get("pdf"):
@@ -2715,212 +2691,77 @@ class MainWindow(QMainWindow):
         self.log(f"Generated {len(chunks)} text chunks for AI context.")
         return chunks
 
-    def _update_analytics_charts(self):
+    def action_analyze_batch(self):
         try:
-            with _get_db_connection() as conn:
-                runs = pd.read_sql_query("SELECT * FROM analysis_runs ORDER BY run_time DESC", conn)
-                issues = pd.read_sql_query("SELECT * FROM analysis_issues", conn)
-
-            if runs.empty:
-                self.analytics_view.setHtml("<div>No analytics data available.</div>")
+            n = self.list_folder_files.count()
+            if n == 0:
+                QMessageBox.information(self, "Analyze Batch", "Please upload a folder with documents first.")
                 return
-
-            # Filter data based on discipline checkboxes
+            reply = QMessageBox.question(self, "Analyze Batch",
+                                         f"Process {n} file(s) sequentially?")  # type: ignore
+            if not str(reply).lower().endswith("yes"):
+                return
             selected_disciplines = []
-            if self.analytics_chk_pt.isChecked():
-                selected_disciplines.append('pt')
-            if self.analytics_chk_ot.isChecked():
-                selected_disciplines.append('ot')
-            if self.analytics_chk_slp.isChecked():
-                selected_disciplines.append('slp')
-
-            if not self.analytics_chk_all.isChecked() and selected_disciplines:
-                # A bit of a hack, as we don't store discipline per run.
-                # We will filter by file name, assuming some convention like 'pt_note.pdf'.
-                # This is not ideal, but it's a start.
-                runs = runs[runs['file_name'].str.lower().str.contains('|'.join(selected_disciplines))]
-
-            # --- Create Plotly charts ---
-            import plotly.graph_objects as go
-            from plotly.subplots import make_subplots
-
-            fig = make_subplots(rows=2, cols=1, subplot_titles=("Findings by Severity", "Findings by Category"))
-
-            # Chart 1: Findings by Severity
-            sev_counts = issues.groupby('severity').size()
-            fig.add_trace(go.Bar(x=sev_counts.index, y=sev_counts.values, name="Severity"), row=1, col=1)
-
-            # Chart 2: Findings by Category
-            cat_counts = issues.groupby('category').size().sort_values(ascending=False).head(10)
-            fig.add_trace(go.Bar(x=cat_counts.index, y=cat_counts.values, name="Category"), row=2, col=1)
-
-            fig.update_layout(height=600, showlegend=False)
-
-            self.analytics_view.setHtml(fig.to_html(include_plotlyjs='cdn'))
-
-            # Update summary stats
-            self.lbl_total_runs.setText(str(len(runs)))
-            self.lbl_avg_score.setText(f"{runs['compliance_score'].mean():.1f}")
-            self.lbl_avg_flags.setText(f"{runs['flags'].mean():.2f}")
-            if not issues.empty:
-                top_cat = issues['category'].mode()[0]
-                self.lbl_top_category.setText(top_cat)
-            else:
-                self.lbl_top_category.setText("N/A")
-
-        except Exception as e:
-            self.analytics_view.setHtml(f"<div>Error generating analytics: {e}</div>")
-
-    def perform_semantic_search(self):
-        query = self.search_bar.text()
-        if not query:
-            return
-
-        if not self.guideline_service or not self.guideline_service.is_index_ready:
-            self.search_results.setPlainText("Guideline index is not ready. Please analyze a document first.")
-            return
-
-        self.search_results.setPlainText("Searching...")
-        QApplication.processEvents()
-
-        try:
-            results = self.guideline_service.search(query, top_k=5)
-
-            if not results:
-                self.search_results.setPlainText("No results found.")
+            if self.chk_pt.isChecked(): selected_disciplines.append('pt')
+            if self.chk_ot.isChecked(): selected_disciplines.append('ot')
+            if self.chk_slp.isChecked(): selected_disciplines.append('slp')
+            if not selected_disciplines:
+                QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to run a batch analysis.")
                 return
-
-            html_results = "<h2>Search Results</h2>"
-            for result in results:
-                html_results += "<hr>"
-                html_results += f"<h4>Score: {result['score']:.2f}</h4>"
-                html_results += f"<p>{result['text']}</p>"
-
-            self.search_results.setHtml(html_results)
-
-        except Exception as e:
-            self.search_results.setPlainText(f"An error occurred during search: {e}")
-
-    def run_bias_audit(self):
-        self.bias_audit_results.setPlainText("Running bias audit...")
-        QApplication.processEvents()
-
-        try:
-            with _get_db_connection() as conn:
-                issues = pd.read_sql_query("SELECT * FROM analysis_issues", conn)
-                runs = pd.read_sql_query("SELECT * FROM analysis_runs", conn)
-
-            if issues.empty:
-                self.bias_audit_results.setPlainText("No data available for bias audit.")
-                return
-
-            # For now, we'll treat the discipline as a sensitive feature.
-            # We'll have to infer the discipline from the file name, which is not ideal.
-            issues_with_runs = pd.merge(issues, runs, left_on='run_id', right_on='id')
-
-            def get_discipline(file_name):
-                if 'pt' in file_name.lower():
-                    return 'pt'
-                if 'ot' in file_name.lower():
-                    return 'ot'
-                if 'slp' in file_name.lower():
-                    return 'slp'
-                return 'unknown'
-
-            issues_with_runs['discipline'] = issues_with_runs['file_name'].apply(get_discipline)
-
-            sensitive_features = issues_with_runs['discipline']
-            labels = issues_with_runs['severity'] # or 'category'
-
-            from fairlearn.metrics import MetricFrame, selection_rate
-
-            grouped_on_severity = issues_with_runs.groupby('discipline')
-
-            # This is a simplified example. A real bias audit would be more complex.
-            # We are calculating the selection rate of 'flag' severity for each discipline.
-            selection_rates = grouped_on_severity.apply(lambda x: (x['severity'] == 'flag').mean())
-
-            report = "Bias Audit Report\\n"
-            report += "=================\\n\\n"
-            report += "Selection rate of 'flag' severity by discipline:\\n"
-            report += selection_rates.to_string()
-
-            self.bias_audit_results.setPlainText(report)
-
-        except Exception as e:
-            self.bias_audit_results.setPlainText(f"Failed to run bias audit: {e}")
-
-def action_analyze_batch(self):
-    try:
-        n = self.list_folder_files.count()
-        if n == 0:
-            QMessageBox.information(self, "Analyze Batch", "Please upload a folder with documents first.")
-            return
-        reply = QMessageBox.question(self, "Analyze Batch",
-                                     f"Process {n} file(s) sequentially?")  # type: ignore
-        if not str(reply).lower().endswith("yes"):
-            return
-        selected_disciplines = []
-        if self.chk_pt.isChecked(): selected_disciplines.append('pt')
-        if self.chk_ot.isChecked(): selected_disciplines.append('ot')
-        if self.chk_slp.isChecked(): selected_disciplines.append('slp')
-        if not selected_disciplines:
-            QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to run a batch analysis.")
-            return
-        self._clear_previous_analysis_state()
-        self._batch_cancel = False
-        self.btn_cancel_batch.setDisabled(False)
-        self._progress_start("Batch analyzing...")
-        ok_count = 0
-        fail_count = 0
-        for i in range(n):
-            if self._progress_was_canceled() or self._batch_cancel:
-                break
-            try:
-                item = self.list_folder_files.item(i)
-                path = item.text()
-                if not os.path.isfile(path):
-                    continue
-                self.lbl_report_name.setText(os.path.basename(path))
-                self.statusBar().showMessage(f"Analyzing ({i + 1}/{n}): {os.path.basename(path)}")
-                def _cb(p, m):
-                    overall = int(((i + (p / 100.0)) / max(1, n)) * 100)
-                    self._progress_update(overall, f"File {i + 1}/{n}: {m}")
-                def _cancel():
-                    return self._progress_was_canceled() or self._batch_cancel
-                res = run_analyzer(self, path, selected_disciplines=selected_disciplines, progress_cb=_cb, cancel_cb=_cancel)
-                if res.get("pdf") or res.get("json") or res.get("csv"):
-                    ok_count += 1
-                else:
+            self._clear_previous_analysis_state()
+            self._batch_cancel = False
+            self.btn_cancel_batch.setDisabled(False)
+            self._progress_start("Batch analyzing...")
+            ok_count = 0
+            fail_count = 0
+            for i in range(n):
+                if self._progress_was_canceled() or self._batch_cancel:
+                    break
+                try:
+                    item = self.list_folder_files.item(i)
+                    path = item.text()
+                    if not os.path.isfile(path):
+                        continue
+                    self.lbl_report_name.setText(os.path.basename(path))
+                    self.statusBar().showMessage(f"Analyzing ({i + 1}/{n}): {os.path.basename(path)}")
+                    def _cb(p, m):
+                        overall = int(((i + (p / 100.0)) / max(1, n)) * 100)
+                        self._progress_update(overall, f"File {i + 1}/{n}: {m}")
+                    def _cancel():
+                        return self._progress_was_canceled() or self._batch_cancel
+                    res = run_analyzer(path, selected_disciplines=selected_disciplines, progress_cb=_cb, cancel_cb=_cancel)
+                    if res.get("pdf") or res.get("json") or res.get("csv"):
+                        ok_count += 1
+                    else:
+                        fail_count += 1
+                except Exception:
                     fail_count += 1
+
+            self.btn_cancel_batch.setDisabled(True)
+            self._progress_finish()
+            self.statusBar().showMessage("Ready")
+
+            try:
+                cancelled = self._batch_cancel or self._progress_was_canceled()
+                folder = ensure_reports_dir_configured()
+                if cancelled:
+                    title = "Batch Cancelled"
+                    body_top = f"Batch cancelled. Finished {ok_count} out of {n} file(s)."
+                else:
+                    title = "Batch Complete"
+                    body_top = f"All set! Your batch is complete.\n\nSummary:\n- Success: {ok_count}\n- Failed:  {fail_count}"
+                msg = [body_top, "", f"Location: {folder}", "", "Open that folder now?"]
+                reply2 = QMessageBox.question(self, title, "\n".join(msg))  # type: ignore
+                if str(reply2).lower().endswith("yes"):
+                    _open_path(folder)
             except Exception:
-                fail_count += 1
-
-        self.btn_cancel_batch.setDisabled(True)
-        self._progress_finish()
-        self.statusBar().showMessage("Ready")
-
-        try:
-            cancelled = self._batch_cancel or self._progress_was_canceled()
-            folder = ensure_reports_dir_configured()
-            if cancelled:
-                title = "Batch Cancelled"
-                body_top = f"Batch cancelled. Finished {ok_count} out of {n} file(s)."
-            else:
-                title = "Batch Complete"
-                body_top = f"All set! Your batch is complete.\n\nSummary:\n- Success: {ok_count}\n- Failed:  {fail_count}"
-            msg = [body_top, "", f"Location: {folder}", "", "Open that folder now?"]
-            reply2 = QMessageBox.question(self, title, "\n".join(msg))  # type: ignore
-            if str(reply2).lower().endswith("yes"):
-                _open_path(folder)
-        except Exception:
-            ...
-        self.log(f"Batch finished. Success={ok_count}, Failed={fail_count}, Cancelled={self._batch_cancel}")
-    except Exception as e:
-        logger.exception("Analyze batch failed")
-        self.btn_cancel_batch.setDisabled(True)
-        self._progress_finish()
-        self.set_error(str(e))
+                ...
+            self.log(f"Batch finished. Success={ok_count}, Failed={fail_count}, Cancelled={self._batch_cancel}")
+        except Exception as e:
+            logger.exception("Analyze batch failed")
+            self.btn_cancel_batch.setDisabled(True)
+            self._progress_finish()
+            self.set_error(str(e))
 
     def action_analyze_combined(self):
         try:
@@ -2984,156 +2825,157 @@ def action_analyze_batch(self):
         finally:
             self.statusBar().showMessage("Ready")
             QApplication.restoreOverrideCursor()
-def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None) -> None:
-    try:
-        # --- Bug Fix: Ensure issue IDs are present for loaded reports ---
-        issues = data.get("issues", [])
-        if issues and 'id' not in issues[0]:
-            try:
-                with _get_db_connection() as conn:
-                    # Find the run_id from the file name and generated timestamp
-                    run_df = pd.read_sql_query(
-                        "SELECT id FROM analysis_runs WHERE file_name = ? AND run_time = ? LIMIT 1",
-                        conn,
-                        params=(os.path.basename(data.get("file")), data.get("generated"))
-                    )
-                    if not run_df.empty:
-                        run_id = run_df.iloc[0]['id']
-                        # Get all issues with IDs for that run
-                        issues_from_db_df = pd.read_sql_query(
-                            "SELECT id, title, detail FROM analysis_issues WHERE run_id = ?",
+
+    def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None) -> None:
+        try:
+            # --- Bug Fix: Ensure issue IDs are present for loaded reports ---
+            issues = data.get("issues", [])
+            if issues and 'id' not in issues[0]:
+                try:
+                    with _get_db_connection() as conn:
+                        # Find the run_id from the file name and generated timestamp
+                        run_df = pd.read_sql_query(
+                            "SELECT id FROM analysis_runs WHERE file_name = ? AND run_time = ? LIMIT 1",
                             conn,
-                            params=(run_id,)
+                            params=(os.path.basename(data.get("file")), data.get("generated"))
                         )
-                        # Create a lookup map and inject the IDs
-                        issue_map = { (row['title'], row['detail']): row['id'] for _, row in issues_from_db_df.iterrows() }
-                        for issue in issues:
-                            issue['id'] = issue_map.get((issue.get('title'), issue.get('detail')))
-            except Exception as e:
-                self.log(f"Could not enrich loaded report with issue IDs: {e}")
-        # --- End Bug Fix ---
+                        if not run_df.empty:
+                            run_id = run_df.iloc[0]['id']
+                            # Get all issues with IDs for that run
+                            issues_from_db_df = pd.read_sql_query(
+                                "SELECT id, title, detail FROM analysis_issues WHERE run_id = ?",
+                                conn,
+                                params=(run_id,)
+                            )
+                            # Create a lookup map and inject the IDs
+                            issue_map = { (row['title'], row['detail']): row['id'] for _, row in issues_from_db_df.iterrows() }
+                            for issue in issues:
+                                issue['id'] = issue_map.get((issue.get('title'), issue.get('detail')))
+                except Exception as e:
+                    self.log(f"Could not enrich loaded report with issue IDs: {e}")
+            # --- End Bug Fix ---
 
-        self.current_report_data = data
-        self.tabs.setCurrentIndex(1) # Switch to results tab
+            self.current_report_data = data
+            self.tabs.setCurrentIndex(1) # Switch to results tab
 
-        # --- Fetch Annotations ---
-        issue_ids = [issue.get('id') for issue in issues if issue.get('id')]
-        annotations = {}
-        if issue_ids:
-            try:
-                with _get_db_connection() as conn:
-                    notes_df = pd.read_sql_query(
-                        f"SELECT analysis_issue_id, note, created_at FROM annotations WHERE analysis_issue_id IN ({','.join(['?']*len(issue_ids))}) ORDER BY created_at ASC",
-                        conn,
-                        params=issue_ids
-                    )
-                    for _, row in notes_df.iterrows():
-                        if row['analysis_issue_id'] not in annotations:
-                            annotations[row['analysis_issue_id']] = []
-                        annotations[row['analysis_issue_id']].append(f"<i>({row['created_at']})</i>: {html.escape(row['note'])}")
-            except Exception as e:
-                self.log(f"Could not fetch annotations: {e}")
-        # When a new report is loaded, clear the previous chat history
-        self.chat_history = []
+            # --- Fetch Annotations ---
+            issue_ids = [issue.get('id') for issue in issues if issue.get('id')]
+            annotations = {}
+            if issue_ids:
+                try:
+                    with _get_db_connection() as conn:
+                        notes_df = pd.read_sql_query(
+                            f"SELECT analysis_issue_id, note, created_at FROM annotations WHERE analysis_issue_id IN ({','.join(['?']*len(issue_ids))}) ORDER BY created_at ASC",
+                            conn,
+                            params=issue_ids
+                        )
+                        for _, row in notes_df.iterrows():
+                            if row['analysis_issue_id'] not in annotations:
+                                annotations[row['analysis_issue_id']] = []
+                            annotations[row['analysis_issue_id']].append(f"<i>({row['created_at']})</i>: {html.escape(row['note'])}")
+                except Exception as e:
+                    self.log(f"Could not fetch annotations: {e}")
+            # When a new report is loaded, clear the previous chat history
+            self.chat_history = []
 
-        file_name = os.path.basename(data.get("file", "Unknown File"))
+            file_name = os.path.basename(data.get("file", "Unknown File"))
 
-        # --- Build Left Pane (Report) ---
-        report_html_lines = [f"<h2>Analysis for: {file_name}</h2>"]
+            # --- Build Left Pane (Report) ---
+            report_html_lines = [f"<h2>Analysis for: {file_name}</h2>"]
 
-        report_html_lines.extend(_generate_risk_dashboard(data['compliance']['score'], data['sev_counts']))
-        report_html_lines.extend(_generate_compliance_checklist(data['strengths'], data['weaknesses']))
-        report_html_lines.append("<h3>Detailed Findings</h3>")
-        issues = data.get("issues", [])
-        if issues:
-            for issue in issues:
-                loc = issue.get('location')
-                link = f"<a href='highlight:{loc['start']}:{loc['end']}'>Show in text</a>" if loc else ""
-                sev_color = {"Flag": "#dc3545", "Finding": "#ffc107", "Suggestion": "#17a2b8"}.get(issue.get("severity", "").title(), "#6c757d")
-                confidence = issue.get('confidence', 1.0)
-                uncertainty_icon = "⚠️" if confidence < 0.5 else ""
-                report_html_lines.append(f"<div style='border-left: 3px solid {sev_color}; padding-left: 10px; margin-bottom: 15px;'>")
-                report_html_lines.append(f"<strong>{issue.get('title', 'Finding')} {uncertainty_icon}</strong><br>")
-                report_html_lines.append(f"<small>Severity: {issue.get('severity', '').title()} | Category: {issue.get('category', 'General')} | Confidence: {confidence:.0%} | {link}</small>")
-                # Add review links
-                issue_id = issue.get('id')
-                review_links = ""
-                if issue_id:
-                    encoded_title = quote(issue.get('title', ''))
-                    review_links = f"""
-                    <a href='review:{issue_id}:correct' style='text-decoration:none; color:green;'>✔️ Correct</a>
-                    <a href='review:{issue_id}:incorrect' style='text-decoration:none; color:red;'>❌ Incorrect</a>
-                    <a href='annotate:{issue_id}' style='text-decoration:none; color:#ffc107; margin-left: 10px;'>📝 Add Note</a>
-                    <a href='educate:{encoded_title}' style='text-decoration:none; color:#60a5fa; margin-left: 10px;'>🎓 Learn More</a>
-                    """
-                report_html_lines.append(review_links)
-                # --- SHAP Visualization ---
-                if 'shap_explanation' in issue and issue['shap_explanation'] is not None:
-                    try:
-                        # Generate the full HTML for the SHAP plot
-                        shap_html_full = shap.plots.text(issue['shap_explanation'], display=False)
-                        # Extract style and body content using regex
-                        style_match = re.search(r'<style>(.*?)</style>', shap_html_full, re.DOTALL)
-                        body_match = re.search(r'<body>(.*?)</body>', shap_html_full, re.DOTALL)
-                        if style_match and body_match:
-                            style_content = style_match.group(1)
-                            body_content = body_match.group(1)
-                            # Parse CSS rules and store them in a dict
-                            styles = {}
-                            rules = re.findall(r'\.([\w.-]+)\s*\{(.*?)\}', style_content)
-                            for class_name, rule_body in rules:
-                                inline_style = ' '.join(rule_body.strip().split())
-                                styles[class_name] = inline_style
-                            def replace_class(match):
-                                class_attr = match.group(1)
-                                classes = class_attr.split()
-                                style_rules = ';'.join(styles.get(c, '') for c in classes)
-                                return f'style="{style_rules}"'
-                            html_with_inline_styles = re.sub(r'class="([^"]*)"', replace_class, body_content)
-                            report_html_lines.append("  - <b>Explanation (SHAP)</b>:")
+            report_html_lines.extend(_generate_risk_dashboard(data['compliance']['score'], data['sev_counts']))
+            report_html_lines.extend(_generate_compliance_checklist(data['strengths'], data['weaknesses']))
+            report_html_lines.append("<h3>Detailed Findings</h3>")
+            issues = data.get("issues", [])
+            if issues:
+                for issue in issues:
+                    loc = issue.get('location')
+                    link = f"<a href='highlight:{loc['start']}:{loc['end']}'>Show in text</a>" if loc else ""
+                    sev_color = {"Flag": "#dc3545", "Finding": "#ffc107", "Suggestion": "#17a2b8"}.get(issue.get("severity", "").title(), "#6c757d")
+                    confidence = issue.get('confidence', 1.0)
+                    uncertainty_icon = "⚠️" if confidence < 0.5 else ""
+                    report_html_lines.append(f"<div style='border-left: 3px solid {sev_color}; padding-left: 10px; margin-bottom: 15px;'>")
+                    report_html_lines.append(f"<strong>{issue.get('title', 'Finding')} {uncertainty_icon}</strong><br>")
+                    report_html_lines.append(f"<small>Severity: {issue.get('severity', '').title()} | Category: {issue.get('category', 'General')} | Confidence: {confidence:.0%} | {link}</small>")
+                    # Add review links
+                    issue_id = issue.get('id')
+                    review_links = ""
+                    if issue_id:
+                        encoded_title = quote(issue.get('title', ''))
+                        review_links = f"""
+                        <a href='review:{issue_id}:correct' style='text-decoration:none; color:green;'>✔️ Correct</a>
+                        <a href='review:{issue_id}:incorrect' style='text-decoration:none; color:red;'>❌ Incorrect</a>
+                        <a href='annotate:{issue_id}' style='text-decoration:none; color:#ffc107; margin-left: 10px;'>📝 Add Note</a>
+                        <a href='educate:{encoded_title}' style='text-decoration:none; color:#60a5fa; margin-left: 10px;'>🎓 Learn More</a>
+                        """
+                    report_html_lines.append(review_links)
+                    # --- SHAP Visualization ---
+                    if 'shap_explanation' in issue and issue['shap_explanation'] is not None:
+                        try:
+                            # Generate the full HTML for the SHAP plot
+                            shap_html_full = shap.plots.text(issue['shap_explanation'], display=False)
+                            # Extract style and body content using regex
+                            style_match = re.search(r'<style>(.*?)</style>', shap_html_full, re.DOTALL)
+                            body_match = re.search(r'<body>(.*?)</body>', shap_html_full, re.DOTALL)
+                            if style_match and body_match:
+                                style_content = style_match.group(1)
+                                body_content = body_match.group(1)
+                                # Parse CSS rules and store them in a dict
+                                styles = {}
+                                rules = re.findall(r'\.([\w.-]+)\s*\{(.*?)\}', style_content)
+                                for class_name, rule_body in rules:
+                                    inline_style = ' '.join(rule_body.strip().split())
+                                    styles[class_name] = inline_style
+                                def replace_class(match):
+                                    class_attr = match.group(1)
+                                    classes = class_attr.split()
+                                    style_rules = ';'.join(styles.get(c, '') for c in classes)
+                                    return f'style="{style_rules}"'
+                                html_with_inline_styles = re.sub(r'class="([^"]*)"', replace_class, body_content)
+                                report_html_lines.append("  - <b>Explanation (SHAP)</b>:")
+                                report_html_lines.append(
+                                    f"<div style='border: 1px solid #ccc; padding: 5px; border-radius: 3px; background-color: #f9f9f9;'>{html_with_inline_styles}</div>")
+                            else:
+                                report_html_lines.append(
+                                    "  - <b>Explanation (SHAP)</b>: <i>Could not parse SHAP plot HTML.</i>")
+                        except Exception as e:
+                            self.log(f"SHAP plot generation failed for issue '{issue.get('title')}': {e}")
+                            logger.warning(f"SHAP plot generation failed for issue '{issue.get('title')}': {e}")
                             report_html_lines.append(
-                                f"<div style='border: 1px solid #ccc; padding: 5px; border-radius: 3px; background-color: #f9f9f9;'>{html_with_inline_styles}</div>")
-                        else:
-                            report_html_lines.append(
-                                "  - <b>Explanation (SHAP)</b>: <i>Could not parse SHAP plot HTML.</i>")
-                    except Exception as e:
-                        self.log(f"SHAP plot generation failed for issue '{issue.get('title')}': {e}")
-                        logger.warning(f"SHAP plot generation failed for issue '{issue.get('title')}': {e}")
-                        report_html_lines.append(
-                            f"  - <b>Explanation (SHAP)</b>: <i>Visualization failed to generate. See logs.</i>")
-                # --- End SHAP Visualization ---
+                                f"  - <b>Explanation (SHAP)</b>: <i>Visualization failed to generate. See logs.</i>")
+                    # --- End SHAP Visualization ---
 
-                # --- Display Annotations ---
-                if issue_id in annotations:
-                    report_html_lines.append("<div style='margin-top: 5px; padding-left: 15px;'>")
-                    report_html_lines.append("<strong>Notes:</strong><ul>")
-                    for note in annotations[issue_id]:
-                        report_html_lines.append(f"<li>{note}</li>")
-                    report_html_lines.append("</ul></div>")
+                    # --- Display Annotations ---
+                    if issue_id in annotations:
+                        report_html_lines.append("<div style='margin-top: 5px; padding-left: 15px;'>")
+                        report_html_lines.append("<strong>Notes:</strong><ul>")
+                        for note in annotations[issue_id]:
+                            report_html_lines.append(f"<li>{note}</li>")
+                        report_html_lines.append("</ul></div>")
 
-                report_html_lines.append("</div>")
-        else:
-            report_html_lines.append("<p>No specific audit findings were identified.</p>")
+                    report_html_lines.append("</div>")
+            else:
+                report_html_lines.append("<p>No specific audit findings were identified.</p>")
 
-        # --- Add Suggested Questions ---
-        suggested_questions = data.get('suggested_questions', [])
-        if suggested_questions:
-            report_html_lines.append("<hr><h2>Suggested Questions</h2>")
-            suggestions_html = "<ul>"
-            for q in suggested_questions:
-                encoded_q = quote(q)
-                suggestions_html += f"<li><a href='ask:{encoded_q}' class='suggestion-link'>{html.escape(q)}</a></li>"
-            suggestions_html += "</ul>"
-            report_html_lines.append(suggestions_html)
-        # --- End Suggested Questions ---
+            # --- Add Suggested Questions ---
+            suggested_questions = data.get('suggested_questions', [])
+            if suggested_questions:
+                report_html_lines.append("<hr><h2>Suggested Questions</h2>")
+                suggestions_html = "<ul>"
+                for q in suggested_questions:
+                    encoded_q = quote(q)
+                    suggestions_html += f"<li><a href='ask:{encoded_q}' class='suggestion-link'>{html.escape(q)}</a></li>"
+                suggestions_html += "</ul>"
+                report_html_lines.append(suggestions_html)
+            # --- End Suggested Questions ---
 
-        self.txt_chat.setHtml("".join(report_html_lines))
-        # Full Text
-        full_text = "\n".join(s[0] for s in data.get('source_sentences', []))
-        self.txt_full_note.setPlainText(full_text)
-    except Exception as e:
-        self.log(f"Failed to render analysis results: {e}")
-        logger.exception("Render analysis failed")
+            self.txt_chat.setHtml("".join(report_html_lines))
+            # Full Text
+            full_text = "\n".join(s[0] for s in data.get('source_sentences', []))
+            self.txt_full_note.setPlainText(full_text)
+        except Exception as e:
+            self.log(f"Failed to render analysis results: {e}")
+            logger.exception("Render analysis failed")
 
     def highlight_text_in_note(self, start: int, end: int):
         """Highlights text in the full note widget."""
@@ -3161,48 +3003,48 @@ def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple
         except Exception as e:
              self.log(f"Failed to highlight text: {e}")
 
-def handle_anchor_clicked(self, url):
-    url_str = url.toString()
-    if url_str.startswith("highlight:"):
-        parts = url_str.split(':')
-        if len(parts) == 3:
-            try:
-                start = int(parts[1])
-                end = int(parts[2])
-                self.highlight_text_in_note(start, end)
-                # Feature branch enhancement: optionally re-render the analysis with highlight_range
-                if hasattr(self, 'current_report_data') and self.current_report_data:
-                    self.render_analysis_to_results(self.current_report_data, highlight_range=(start, end))
-            except (ValueError, IndexError) as e:
-                self.log(f"Invalid highlight URL: {url_str} - {e}")
-    elif url_str.startswith("review:"):
-        parts = url_str.split(':')
-        if len(parts) == 3:
-            try:
-                issue_id = int(parts[1])
-                feedback = parts[2]
-                # Find the issue to get the citation text and model prediction
-                issue_to_review = None
-                if self.current_report_data and self.current_report_data.get('issues'):
-                    for issue in self.current_report_data['issues']:
-                        if issue.get('id') == issue_id:
-                            issue_to_review = issue
-                            break
-                if issue_to_review:
-                    # Use the raw text of the first citation
-                    citation_text = ""
-                    if issue_to_review.get('citations'):
-                        raw_citation_html = issue_to_review['citations'][0][0]
-                        # Strip HTML tags to get raw text
-                        citation_text = re.sub('<[^<]+?>', '', raw_citation_html)
-                    model_prediction = issue_to_review.get('severity', 'unknown')
-                    self.save_finding_feedback(issue_id, feedback, citation_text, model_prediction)
-                else:
-                    self.log(f"Could not find issue with ID {issue_id} to save feedback.")
-                    QMessageBox.warning(self, "Feedback", f"Could not find issue with ID {issue_id} in the current report.")
+    def handle_anchor_clicked(self, url):
+        url_str = url.toString()
+        if url_str.startswith("highlight:"):
+            parts = url_str.split(':')
+            if len(parts) == 3:
+                try:
+                    start = int(parts[1])
+                    end = int(parts[2])
+                    self.highlight_text_in_note(start, end)
+                    # Feature branch enhancement: optionally re-render the analysis with highlight_range
+                    if hasattr(self, 'current_report_data') and self.current_report_data:
+                        self.render_analysis_to_results(self.current_report_data, highlight_range=(start, end))
+                except (ValueError, IndexError) as e:
+                    self.log(f"Invalid highlight URL: {url_str} - {e}")
+        elif url_str.startswith("review:"):
+            parts = url_str.split(':')
+            if len(parts) == 3:
+                try:
+                    issue_id = int(parts[1])
+                    feedback = parts[2]
+                    # Find the issue to get the citation text and model prediction
+                    issue_to_review = None
+                    if self.current_report_data and self.current_report_data.get('issues'):
+                        for issue in self.current_report_data['issues']:
+                            if issue.get('id') == issue_id:
+                                issue_to_review = issue
+                                break
+                    if issue_to_review:
+                        # Use the raw text of the first citation
+                        citation_text = ""
+                        if issue_to_review.get('citations'):
+                            raw_citation_html = issue_to_review['citations'][0][0]
+                            # Strip HTML tags to get raw text
+                            citation_text = re.sub('<[^<]+?>', '', raw_citation_html)
+                        model_prediction = issue_to_review.get('severity', 'unknown')
+                        self.save_finding_feedback(issue_id, feedback, citation_text, model_prediction)
+                    else:
+                        self.log(f"Could not find issue with ID {issue_id} to save feedback.")
+                        QMessageBox.warning(self, "Feedback", f"Could not find issue with ID {issue_id} in the current report.")
 
-            except (ValueError, IndexError) as e:
-                self.log(f"Invalid review URL: {url_str} - {e}")
+                except (ValueError, IndexError) as e:
+                    self.log(f"Invalid review URL: {url_str} - {e}")
         elif url_str.startswith("ask:"):
             try:
                 # Decode the question from the URL
@@ -3319,6 +3161,50 @@ def handle_anchor_clicked(self, url):
                 self.txt_chat.clear()
             self.statusBar().showMessage("Chat Reset", 3000)
 
+    def _update_analytics_tab(self):
+        """
+        Updates the analytics dashboard with the latest data.
+        """
+        try:
+            with _get_db_connection() as conn:
+                discipline_filter = self.discipline_filter_combo.currentText()
+                query = "SELECT * FROM analysis_runs"
+                params = []
+                if discipline_filter != "All":
+                    query += " WHERE mode = ?"
+                    params.append(discipline_filter.lower())
+
+                runs_df = pd.read_sql_query(query, conn, params=params)
+
+            if runs_df.empty:
+                self.analytics_view.setHtml("<html><body><h2>No analytics data available for the selected filter.</h2></body></html>")
+                return
+
+            # Generate Plotly chart
+            import plotly.graph_objects as go
+            from plotly.subplots import make_subplots
+
+            fig = make_subplots(rows=1, cols=2, subplot_titles=("Compliance Score Over Time", "Finding Types Distribution"))
+
+            # Line chart for compliance score
+            fig.add_trace(go.Scatter(x=runs_df['run_time'], y=runs_df['compliance_score'], mode='lines+markers', name='Compliance Score'), row=1, col=1)
+
+            # Bar chart for finding types
+            finding_counts = runs_df[['flags', 'findings', 'suggestions', 'notes']].sum()
+            fig.add_trace(go.Bar(x=finding_counts.index, y=finding_counts.values, name='Finding Types'), row=1, col=2)
+
+            fig.update_layout(title_text="Analytics Dashboard", showlegend=False)
+
+            # Convert to HTML and display
+            html_content = fig.to_html(include_plotlyjs='cdn')
+            self.analytics_view.setHtml(html_content)
+            self.log("Analytics dashboard updated.")
+
+        except Exception as e:
+            self.log(f"Failed to update analytics tab: {e}")
+            logger.exception("Analytics tab update failed")
+            self.analytics_view.setHtml(f"<html><body><h2>Error updating analytics:</h2><p>{e}</p></body></html>")
+
     def _render_chat_history(self):
         """Renders the analysis report and the full chat history."""
         if not self.current_report_data:
@@ -3376,6 +3262,47 @@ def handle_anchor_clicked(self, url):
         """
         self.txt_chat.setHtml(full_html)
         self.txt_chat.verticalScrollBar().setValue(self.txt_chat.verticalScrollBar().maximum())
+
+    def _run_bias_audit(self):
+        """
+        Runs a bias audit by analyzing the distribution of findings across disciplines.
+        """
+        try:
+            with _get_db_connection() as conn:
+                query = """
+                SELECT
+                    ar.mode as discipline,
+                    COUNT(ai.id) as finding_count
+                FROM
+                    analysis_runs ar
+                JOIN
+                    analysis_issues ai ON ar.id = ai.run_id
+                GROUP BY
+                    ar.mode
+                """
+                df = pd.read_sql_query(query, conn)
+
+            if df.empty:
+                QMessageBox.information(self, "Bias Audit", "No data available to run a bias audit.")
+                return
+
+            self.bias_audit_figure.clear()
+            ax = self.bias_audit_figure.add_subplot(111)
+
+            disciplines = df['discipline'].tolist()
+            counts = df['finding_count'].tolist()
+
+            ax.bar(disciplines, counts, color=['#1f77b4', '#ff7f0e', '#2ca02c'])
+            ax.set_ylabel('Number of Findings')
+            ax.set_title('Distribution of Findings Across Disciplines')
+
+            self.bias_audit_canvas.draw()
+            self.log("Bias audit complete. Chart updated.")
+
+        except Exception as e:
+            self.log(f"Failed to run bias audit: {e}")
+            logger.exception("Bias audit failed")
+            QMessageBox.warning(self, "Bias Audit Error", f"An error occurred during the bias audit:\n{e}")
 
     # -- keep all other methods from both branches as is --
 
