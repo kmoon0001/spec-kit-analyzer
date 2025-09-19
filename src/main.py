@@ -149,10 +149,11 @@ try:
         QMainWindow, QToolBar, QLabel, QFileDialog, QMessageBox, QApplication,
         QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton,
         QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
-        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout
+    QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout,
+    QTableWidget, QTableWidgetItem
     )
     from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter
-    from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject
+    from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject, QDate
 except Exception:
     class QMainWindow: ...
     class QToolBar:
@@ -364,6 +365,49 @@ class GuidelineWorker(QObject):
         except Exception as e:
             logger.exception("GuidelineWorker failed.")
             self.error.emit(f"Failed to load guidelines: {e}")
+
+
+class DrillDownDialog(QDialog):
+    """
+    A dialog to display the detailed findings from a drill-down action.
+    """
+    run_selected = Signal(int)
+
+    def __init__(self, data: List[dict], category: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Drill-Down: {category.title()} Details")
+        self.setMinimumSize(800, 400)
+
+        self.data = data
+
+        layout = QVBoxLayout(self)
+        self.table = QTableWidget()
+        layout.addWidget(self.table)
+
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(["File Name", "Run Time", "Category", "Title", "Detail"])
+        self.table.setRowCount(len(data))
+
+        for i, row_data in enumerate(data):
+            self.table.setItem(i, 0, QTableWidgetItem(row_data.get("file_name", "")))
+            self.table.setItem(i, 1, QTableWidgetItem(row_data.get("run_time", "")))
+            self.table.setItem(i, 2, QTableWidgetItem(row_data.get("category", "")))
+            self.table.setItem(i, 3, QTableWidgetItem(row_data.get("title", "")))
+            self.table.setItem(i, 4, QTableWidgetItem(row_data.get("detail", "")))
+
+        self.table.setSortingEnabled(True)
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.resizeColumnsToContents()
+        self.table.itemDoubleClicked.connect(self.on_item_double_clicked)
+
+    def on_item_double_clicked(self, item: QTableWidgetItem):
+        """When a row is double-clicked, emit a signal with the run_id and close."""
+        row_index = item.row()
+        run_id = self.data[row_index].get('run_id')
+        if run_id is not None:
+            self.run_selected.emit(int(run_id))
+            self.accept()
 
 def _format_entities_for_rag(entities: list[NEREntity]) -> list[str]:
     """Converts a list of NEREntity objects into a list of descriptive strings."""
@@ -959,12 +1003,15 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                     """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_snapshots_time ON analysis_snapshots(created_at)")
 
-        # --- Simple schema migration for compliance_score ---
+        # --- Simple schema migration for compliance_score and json_report_path ---
         cur.execute("PRAGMA table_info(analysis_runs)")
         columns = [row[1] for row in cur.fetchall()]
         if "compliance_score" not in columns:
             cur.execute("ALTER TABLE analysis_runs ADD COLUMN compliance_score REAL")
             logger.info("Upgraded analysis_runs table to include 'compliance_score' column.")
+        if "json_report_path" not in columns:
+            cur.execute("ALTER TABLE analysis_runs ADD COLUMN json_report_path TEXT")
+            logger.info("Upgraded analysis_runs table to include 'json_report_path' column.")
 
         cur.execute("""
                     CREATE TABLE IF NOT EXISTS reviewed_findings
@@ -1009,20 +1056,20 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
         logger.warning(f"Ensure analytics schema failed: {e}")
 
 def persist_analysis_run(file_path: str, run_time: str, metrics: dict, issues_scored: list[dict],
-                         compliance: dict, mode: str) -> Optional[int]:
+                         compliance: dict, mode: str, json_path: Optional[str] = None) -> Optional[int]:
     try:
         with _get_db_connection() as conn:
             cur = conn.cursor()
             cur.execute("""
                         INSERT INTO analysis_runs (file_name, run_time, pages_est, flags, findings, suggestions, notes,
-                                                   sentences_final, dedup_removed, compliance_score, mode)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                                   sentences_final, dedup_removed, compliance_score, mode, json_report_path)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (
                             os.path.basename(file_path), run_time,
                             int(metrics.get("pages", 0)), int(metrics.get("flags", 0)), int(metrics.get("findings", 0)),
                             int(metrics.get("suggestions", 0)), int(metrics.get("notes", 0)),
                             int(metrics.get("sentences_final", 0)), int(metrics.get("dedup_removed", 0)),
-                            float(compliance.get("score", 0.0)), mode
+                            float(compliance.get("score", 0.0)), mode, json_path
                         ))
             run_id = int(cur.lastrowid)
             if issues_scored:
@@ -2185,7 +2232,7 @@ def run_analyzer(file_path: str,
         }
 
         try:
-            persist_analysis_run(file_path, _now_iso(), metrics, issues_scored, compliance, CURRENT_REVIEW_MODE)
+            persist_analysis_run(file_path, _now_iso(), metrics, issues_scored, compliance, CURRENT_REVIEW_MODE, json_path=json_path)
         except Exception:
             ...
         try:
@@ -2415,11 +2462,17 @@ class MainWindow(QMainWindow):
         analytics_layout = QVBoxLayout(analytics_tab)
 
         analytics_controls = QHBoxLayout()
+        analytics_controls.addWidget(QLabel("From:"))
+        self.date_edit_from = QDateEdit(calendarPopup=True)
+        self.date_edit_from.setDate(QDate.currentDate().addMonths(-1))
+        analytics_controls.addWidget(self.date_edit_from)
+        analytics_controls.addWidget(QLabel("To:"))
+        self.date_edit_to = QDateEdit(calendarPopup=True)
+        self.date_edit_to.setDate(QDate.currentDate())
+        analytics_controls.addWidget(self.date_edit_to)
+
         btn_refresh_analytics = QPushButton("Refresh Analytics")
-        try:
-            btn_refresh_analytics.clicked.connect(self._update_analytics_tab)
-        except Exception:
-            pass
+        btn_refresh_analytics.clicked.connect(self._update_analytics_tab)
         analytics_controls.addWidget(btn_refresh_analytics)
         analytics_controls.addStretch(1)
         analytics_layout.addLayout(analytics_controls)
@@ -2427,6 +2480,7 @@ class MainWindow(QMainWindow):
         # Matplotlib chart
         self.analytics_figure = Figure(figsize=(5, 3))
         self.analytics_canvas = FigureCanvas(self.analytics_figure)
+        self.analytics_canvas.mpl_connect('pick_event', self.on_chart_pick)
         analytics_layout.addWidget(self.analytics_canvas)
 
         # Summary stats
@@ -2530,8 +2584,7 @@ class MainWindow(QMainWindow):
         self.txt_rubric = QTextEdit()
         self.txt_rubric.setVisible(False) # Not shown in main UI
 
-
-        
+        self._update_analytics_tab()
     def action_clear_all(self):
         try:
             self._current_report_path = None
@@ -2548,6 +2601,135 @@ class MainWindow(QMainWindow):
             self.log("Cleared all selections.")
         except Exception as e:
             self.set_error(str(e))
+
+    def _update_analytics_tab(self):
+        """Queries the database for analytics data and updates the chart and summary stats."""
+        try:
+            start_date = self.date_edit_from.date().toString("yyyy-MM-dd")
+            end_date = self.date_edit_to.date().addDays(1).toString("yyyy-MM-dd")
+
+            with _get_db_connection() as conn:
+                query = """
+                    SELECT i.severity
+                    FROM analysis_issues i
+                    JOIN analysis_runs r ON i.run_id = r.id
+                    WHERE r.run_time >= ? AND r.run_time < ?
+                """
+                df = pd.read_sql_query(query, conn, params=(start_date, end_date))
+
+                query_runs = "SELECT COUNT(id), AVG(compliance_score), AVG(flags) FROM analysis_runs WHERE run_time >= ? AND run_time < ?"
+                summary_df = pd.read_sql_query(query_runs, conn, params=(start_date, end_date))
+
+                query_top_cat = """
+                    SELECT category, COUNT(id) as count
+                    FROM analysis_issues
+                    WHERE run_id IN (SELECT id FROM analysis_runs WHERE run_time >= ? AND run_time < ?)
+                    GROUP BY category ORDER BY count DESC LIMIT 1
+                """
+                top_cat_df = pd.read_sql_query(query_top_cat, conn, params=(start_date, end_date))
+
+            # --- Update Summary Stats ---
+            if not summary_df.empty:
+                self.lbl_total_runs.setText(str(summary_df.iloc[0, 0] or 0))
+                self.lbl_avg_score.setText(f"{summary_df.iloc[0, 1] or 0:.1f}")
+                self.lbl_avg_flags.setText(f"{summary_df.iloc[0, 2] or 0:.2f}")
+            if not top_cat_df.empty:
+                self.lbl_top_category.setText(top_cat_df.iloc[0, 0] or "N/A")
+
+            # --- Update Chart ---
+            self.analytics_figure.clear()
+            ax = self.analytics_figure.add_subplot(111)
+
+            severities = ["flags", "findings", "suggestions"]
+            counts = [
+                df[df["severity"] == "flag"].shape[0],
+                df[df["severity"] == "finding"].shape[0],
+                df[df["severity"] == "suggestion"].shape[0],
+            ]
+
+            bars = ax.bar(severities, counts, color=["#ef4444", "#f59e0b", "#10b981"], picker=5)
+            for i, bar in enumerate(bars):
+                bar.set_gid(severities[i])
+
+            ax.set_ylabel("Count")
+            ax.set_title("Findings by Severity")
+            self.analytics_figure.tight_layout()
+            self.analytics_canvas.draw()
+
+        except Exception as e:
+            self.log(f"Error updating analytics tab: {e}")
+            logger.exception("Failed to update analytics tab")
+
+    def on_chart_pick(self, event):
+        """Handles clicks on the analytics chart to trigger a drill-down."""
+        if not (hasattr(event, 'artist') and event.artist):
+            self.log("Chart clicked, but no specific bar was picked.")
+            return
+
+        category = event.artist.get_gid()
+        if not category:
+            return
+
+        self.log(f"Chart category clicked: {category}")
+
+        try:
+            # 1. Get date range and map the clicked category to the DB severity value.
+            start_date = self.date_edit_from.date().toString("yyyy-MM-dd")
+            end_date = self.date_edit_to.date().addDays(1).toString("yyyy-MM-dd")
+            severity = category.rstrip('s') # "flags" -> "flag", etc.
+
+            # 2. Query the database for detailed findings.
+            with _get_db_connection() as conn:
+                query = """
+                    SELECT r.file_name, r.run_time, i.category, i.title, i.detail, r.id as run_id
+                    FROM analysis_issues i
+                    JOIN analysis_runs r ON i.run_id = r.id
+                    WHERE r.run_time >= ? AND r.run_time < ? AND i.severity = ?
+                    ORDER BY r.run_time DESC
+                """
+                df = pd.read_sql_query(query, conn, params=(start_date, end_date, severity))
+
+            # 3. Show the dialog with the results.
+            if not df.empty:
+                data_list = df.to_dict('records')
+                dialog = DrillDownDialog(data_list, category, self)
+                dialog.run_selected.connect(self.load_report_from_run_id)
+                dialog.exec()
+            else:
+                QMessageBox.information(self, "Drill-Down", f"No '{category}' found in the selected date range.")
+
+        except Exception as e:
+            self.log(f"Error during drill-down: {e}")
+            logger.exception("Drill-down failed")
+            QMessageBox.warning(self, "Error", f"Could not perform drill-down.\n{e}")
+
+    def load_report_from_run_id(self, run_id: int):
+        """Loads a full analysis report from the database given a run_id."""
+        self.log(f"Request to load report for run_id: {run_id}")
+        try:
+            with _get_db_connection() as conn:
+                df = pd.read_sql_query("SELECT json_report_path FROM analysis_runs WHERE id = ?", conn, params=(run_id,))
+
+            if df.empty or pd.isna(df.iloc[0, 0]):
+                QMessageBox.warning(self, "Error", f"Could not find report for run ID {run_id}.")
+                return
+
+            json_path = df.iloc[0, 0]
+            if not os.path.exists(json_path):
+                QMessageBox.warning(self, "Error", f"Report file not found at:\n{json_path}")
+                return
+
+            import json
+            with open(json_path, "r", encoding="utf-8") as f:
+                report_data = json.load(f)
+
+            self.render_analysis_to_results(report_data)
+            self.log(f"Successfully loaded report from run {run_id}.")
+
+        except Exception as e:
+            self.log(f"Failed to load report from run ID {run_id}: {e}")
+            logger.exception("Failed to load report from run ID.")
+            QMessageBox.critical(self, "Load Report Error", f"An unexpected error occurred:\n{e}")
 
     def log(self, message: str):
         """Appends a message to the log view and the central logger."""
