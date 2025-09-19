@@ -132,6 +132,8 @@ except ImportError:
 # Matplotlib for analytics chart
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from matplotlib.patches import Rectangle
+
 
 # PyQt (guarded)
 try:
@@ -287,6 +289,7 @@ try:
     from .guideline_service import GuidelineService
     from .text_chunking import RecursiveCharacterTextSplitter, SemanticTextSplitter
     from .nlg_service import NLGService
+    from .bias_audit_service import run_bias_audit
 except ImportError as e:
     logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
     # Define dummy classes if imports fail, to prevent crashing on startup
@@ -297,6 +300,7 @@ except ImportError as e:
     class RecursiveCharacterTextSplitter: pass
     class SemanticTextSplitter: pass
     class NLGService: pass
+    def run_bias_audit(): return {"error": "Bias audit service not loaded."}
 
 # --- LLM Loader Worker ---
 class LLMWorker(QObject):
@@ -487,6 +491,13 @@ def _ensure_core_schema(conn: sqlite3.Connection) -> None:
                         settings_fingerprint
                     )
                         )
+                    """)
+        cur.execute("""
+                    CREATE TABLE IF NOT EXISTS indexed_documents (
+                        file_fingerprint TEXT PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        indexed_at TEXT NOT NULL
+                    )
                     """)
         conn.commit()
     except Exception as e:
@@ -954,6 +965,9 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
         if "compliance_score" not in columns:
             cur.execute("ALTER TABLE analysis_runs ADD COLUMN compliance_score REAL")
             logger.info("Upgraded analysis_runs table to include 'compliance_score' column.")
+        if "disciplines" not in columns:
+            cur.execute("ALTER TABLE analysis_runs ADD COLUMN disciplines TEXT")
+            logger.info("Upgraded analysis_runs table to include 'disciplines' column.")
 
         cur.execute("""
                     CREATE TABLE IF NOT EXISTS reviewed_findings
@@ -998,20 +1012,22 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
         logger.warning(f"Ensure analytics schema failed: {e}")
 
 def persist_analysis_run(file_path: str, run_time: str, metrics: dict, issues_scored: list[dict],
-                         compliance: dict, mode: str) -> Optional[int]:
+                         compliance: dict, mode: str, disciplines: List[str]) -> Optional[int]:
     try:
+        import json
+        disciplines_json = json.dumps(disciplines)
         with _get_db_connection() as conn:
             cur = conn.cursor()
             cur.execute("""
                         INSERT INTO analysis_runs (file_name, run_time, pages_est, flags, findings, suggestions, notes,
-                                                   sentences_final, dedup_removed, compliance_score, mode)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                                   sentences_final, dedup_removed, compliance_score, mode, disciplines)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (
                             os.path.basename(file_path), run_time,
                             int(metrics.get("pages", 0)), int(metrics.get("flags", 0)), int(metrics.get("findings", 0)),
                             int(metrics.get("suggestions", 0)), int(metrics.get("notes", 0)),
                             int(metrics.get("sentences_final", 0)), int(metrics.get("dedup_removed", 0)),
-                            float(compliance.get("score", 0.0)), mode
+                            float(compliance.get("score", 0.0)), mode, disciplines_json
                         ))
             run_id = int(cur.lastrowid)
             if issues_scored:
@@ -1728,6 +1744,22 @@ def run_analyzer(file_path: str,
             collapsed = collapse_similar_sentences_simple(processed, threshold)
         collapsed = list(collapsed)
 
+        # --- Index the document for global search ---
+        if main_window_instance and main_window_instance.local_rag and main_window_instance.local_rag.is_ready():
+            if not is_document_indexed(fp):
+                main_window_instance.log(f"Adding {os.path.basename(file_path)} to global search index...")
+                try:
+                    docs_to_index = [
+                        {"text": text, "metadata": {"file_path": file_path, "source": source}}
+                        for text, source in collapsed
+                    ]
+                    main_window_instance.local_rag.add_to_index(docs_to_index)
+                    mark_document_as_indexed(fp, file_path)
+                    main_window_instance.log("Document successfully indexed.")
+                except Exception as e:
+                    main_window_instance.log(f"Failed to index document: {e}")
+                    logger.error(f"Failed to index document {file_path}: {e}")
+
         ner_results = []
         if get_bool_setting("enable_biobert_ner", True):
             report(65, "Running BioBERT NER")
@@ -2143,7 +2175,7 @@ def run_analyzer(file_path: str,
         }
 
         try:
-            persist_analysis_run(file_path, _now_iso(), metrics, issues_scored, compliance, CURRENT_REVIEW_MODE)
+            persist_analysis_run(file_path, _now_iso(), metrics, issues_scored, compliance, CURRENT_REVIEW_MODE, selected_disciplines)
         except Exception:
             ...
         try:
@@ -2278,6 +2310,30 @@ def run_analyzer(file_path: str,
         return result_info
 
 
+def is_document_indexed(file_fingerprint: str) -> bool:
+    """Checks if a document with the given fingerprint has already been indexed."""
+    try:
+        with _get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT 1 FROM indexed_documents WHERE file_fingerprint = ?", (file_fingerprint,))
+            return cur.fetchone() is not None
+    except Exception as e:
+        logger.warning(f"Failed to check if document is indexed: {e}")
+        return False
+
+def mark_document_as_indexed(file_fingerprint: str, file_path: str) -> None:
+    """Marks a document as indexed in the database."""
+    try:
+        with _get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT OR REPLACE INTO indexed_documents (file_fingerprint, file_path, indexed_at) VALUES (?, ?, ?)",
+                (file_fingerprint, file_path, _now_iso())
+            )
+            conn.commit()
+    except Exception as e:
+        logger.warning(f"Failed to mark document as indexed: {e}")
+
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -2353,11 +2409,28 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         setup_tab = QWidget()
         results_tab = QWidget()
+        search_tab = QWidget()
         logs_tab = QWidget()
 
         self.tabs.addTab(setup_tab, "Setup & File Queue")
         self.tabs.addTab(results_tab, "Analysis Results")
+        self.tabs.addTab(search_tab, "Global Search")
         self.tabs.addTab(logs_tab, "Application Logs")
+
+        # --- Global Search Tab Layout ---
+        search_layout = QVBoxLayout(search_tab)
+        search_input_layout = QHBoxLayout()
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Enter search query across all indexed documents...")
+        search_button = QPushButton("Search")
+        search_button.clicked.connect(self.action_global_search)
+        search_input_layout.addWidget(self.search_input)
+        search_input_layout.addWidget(search_button)
+        self.search_results_text = QTextEdit()
+        self.search_results_text.setReadOnly(True)
+        search_layout.addLayout(search_input_layout)
+        search_layout.addWidget(self.search_results_text)
+
 
         # --- Analytics Tab ---
         analytics_tab = QWidget()
@@ -2376,8 +2449,9 @@ class MainWindow(QMainWindow):
         analytics_layout.addLayout(analytics_controls)
 
         # Matplotlib chart
-        self.analytics_figure = Figure(figsize=(5, 3))
+        self.analytics_figure = Figure(figsize=(5, 4.5)) # Increased height for two charts
         self.analytics_canvas = FigureCanvas(self.analytics_figure)
+        self.analytics_canvas.mpl_connect('pick_event', self.on_chart_pick)
         analytics_layout.addWidget(self.analytics_canvas)
 
         # Summary stats
@@ -2398,6 +2472,19 @@ class MainWindow(QMainWindow):
         stats_layout.addWidget(self.lbl_top_category, 3, 1)
 
         analytics_layout.addWidget(stats_group)
+
+        # --- Bias Audit Section ---
+        bias_group = QGroupBox("Bias Audit (by Discipline)")
+        bias_layout = QVBoxLayout(bias_group)
+        self.bias_audit_label = QLabel("Click 'Refresh Analytics' to run the audit.")
+        self.bias_audit_label.setWordWrap(True)
+        bias_layout.addWidget(self.bias_audit_label)
+
+        self.bias_figure = Figure(figsize=(5, 2.5))
+        self.bias_canvas = FigureCanvas(self.bias_figure)
+        bias_layout.addWidget(self.bias_canvas)
+
+        analytics_layout.addWidget(bias_group)
 
         # --- Setup Tab Layout ---
         setup_layout = QVBoxLayout(setup_tab)
@@ -2581,7 +2668,7 @@ class MainWindow(QMainWindow):
                     if self.local_rag and self.local_rag.is_ready():
                         self.log("Creating AI context index...")
                         context_chunks = self._create_context_chunks(data, res.get("formatted_entities", []))
-                        self.local_rag.create_index(context_chunks)
+                        self.local_rag.add_to_index(context_chunks)
                         self.log("AI context index created successfully.")
                     else:
                         self.log("AI not ready, skipping context indexing.")
@@ -2752,6 +2839,47 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(self, "Analytics", "No analytics available yet.")
         except Exception as e:
             self.set_error(str(e))
+
+    def action_global_search(self):
+        """Performs a search across all indexed documents."""
+        query = self.search_input.text().strip()
+        if not query:
+            return
+        if not self.local_rag or not self.local_rag.is_ready() or not self.local_rag.index:
+            QMessageBox.warning(self, "Search Not Ready", "The search index is not available. Please analyze one or more documents first.")
+            return
+
+        try:
+            self.statusBar().showMessage("Searching...")
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+
+            results = self.local_rag.search_index(query, k=10)
+
+            if not results:
+                self.search_results_text.setPlainText("No results found.")
+                return
+
+            results_html = "<h2>Search Results</h2>"
+            for res in results:
+                file_path = res['metadata'].get('file_path', 'N/A')
+                source = res['metadata'].get('source', 'N/A')
+                text = html.escape(res['text'])
+                results_html += (
+                    f"<div style='margin-bottom: 15px; border-left: 2px solid #60a5fa; padding-left: 8px;'>"
+                    f"<b>File:</b> {os.path.basename(file_path)}<br>"
+                    f"<b>Source:</b> {source}<br>"
+                    f"<b>Match:</b> \"<i>...{text}...</i>\""
+                    f"</div>"
+                )
+            self.search_results_text.setHtml(results_html)
+
+        except Exception as e:
+            self.set_error(f"An error occurred during global search: {e}")
+            QMessageBox.critical(self, "Search Error", f"An error occurred during search:\n{e}")
+        finally:
+            self.statusBar().showMessage("Ready")
+            QApplication.restoreOverrideCursor()
+
 
     def action_export_view_to_pdf(self):
         """Exports the current content of the main chat/analysis view to a PDF."""
@@ -2988,21 +3116,55 @@ class MainWindow(QMainWindow):
             "2. **Corrected Version:** Rewrite the user's original text to be compliant. Change only what is necessary to fix the error.\n"
         )
 
+            self.render_analysis_to_results(data)
+
+        except Exception:
+            ...
+        try:
     def action_send(self):
         question = self.input_query_te.toPlainText().strip()
         if not question:
             return
-        if not self.local_rag or not self.local_rag.is_ready() or not self.local_rag.index:
+
+        if not self.local_rag or not self.local_rag.is_ready() or not self.embedding_model:
+            QMessageBox.warning(self, "AI Not Ready", "The AI model is not yet available. Please wait for it to load.")
+            return
+
+        if not self.current_report_data or not self.current_report_data.get('source_sentences'):
             QMessageBox.warning(self, "AI Not Ready", "Please analyze a document first to activate the AI chat.")
             return
+
         try:
             self.statusBar().showMessage("The AI is thinking...")
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-            answer = self.local_rag.query(question, chat_history=self.chat_history)
+
+            # --- Perform in-memory search for the current document's context ---
+            from sentence_transformers.util import cos_sim
+            source_sentences = self.current_report_data.get('source_sentences', [])
+            doc_texts = [s[0] for s in source_sentences]
+
+            if not doc_texts:
+                 answer = "I could not find any text in the current document to answer your question."
+            else:
+                question_embedding = self.local_rag.embedding_model.encode(question, convert_to_tensor=True)
+                doc_embeddings = self.local_rag.embedding_model.encode(doc_texts, convert_to_tensor=True)
+
+                # Find the most similar sentences
+                similarities = cos_sim(question_embedding, doc_embeddings)
+                top_k = min(3, len(doc_texts))
+                top_results = torch.topk(similarities, k=top_k, largest=True)
+
+                # Gather the context
+                context_chunks = [doc_texts[i] for i in top_results.indices[0]]
+
+                # Call the LLM with the retrieved context
+                answer = self.local_rag.query(question, context_chunks=context_chunks, chat_history=self.chat_history)
+
             self.chat_history.append(("user", question))
             self.chat_history.append(("ai", answer))
             self._render_chat_history()
             self.input_query_te.setPlainText("")
+
         except Exception as e:
             self.set_error(f"An error occurred while querying the AI: {e}")
             QMessageBox.warning(self, "AI Error", f"An error occurred: {e}")
@@ -3023,6 +3185,162 @@ class MainWindow(QMainWindow):
             else:
                 self.txt_chat.clear()
             self.statusBar().showMessage("Chat Reset", 3000)
+
+    def _update_analytics_tab(self):
+        """Refreshes the data and charts on the Analytics Dashboard tab."""
+        self.log("Refreshing analytics...")
+        try:
+            with _get_db_connection() as conn:
+                runs_df = pd.read_sql_query("SELECT * FROM analysis_runs", conn)
+                issues_df = pd.read_sql_query("SELECT * FROM analysis_issues", conn)
+        except Exception as e:
+            self.log(f"Failed to query analytics data: {e}")
+            QMessageBox.warning(self, "Error", f"Could not load analytics data from the database: {e}")
+            return
+
+        if runs_df.empty:
+            self.log("No analytics data found.")
+            return
+
+        # --- Update Summary Statistics ---
+        total_runs = len(runs_df)
+        avg_score = runs_df['compliance_score'].mean()
+        avg_flags = runs_df['flags'].mean()
+        self.lbl_total_runs.setText(str(total_runs))
+        self.lbl_avg_score.setText(f"{avg_score:.1f} / 100.0")
+        self.lbl_avg_flags.setText(f"{avg_flags:.2f}")
+
+        if not issues_df.empty:
+            top_cat = issues_df['category'].mode()
+            if not top_cat.empty:
+                self.lbl_top_category.setText(top_cat.iloc[0])
+
+        # --- Update Charts ---
+        self.analytics_figure.clear()
+
+        # Create a 2x1 grid for the charts
+        (ax1, ax2) = self.analytics_figure.subplots(2, 1, gridspec_kw={'height_ratios': [2, 1]})
+
+        # Ax1: Compliance Score Trend Chart
+        scores_to_plot = runs_df['compliance_score'].tail(50).tolist()
+        ax1.plot(scores_to_plot, marker='o', linestyle='-', color='#60a5fa')
+        ax1.set_title("Compliance Score Trend (Last 50 Runs)")
+        ax1.set_xlabel("Analysis Run")
+        ax1.set_ylabel("Compliance Score")
+        ax1.grid(True, linestyle='--', alpha=0.6)
+
+        # Ax2: Findings by Severity Chart
+        severity_counts = issues_df['severity'].value_counts()
+        severities = ['flag', 'finding', 'suggestion', 'auditor_note']
+        counts = [severity_counts.get(s, 0) for s in severities]
+
+        bars = ax2.bar(severities, counts, color=['#ef4444', '#f59e0b', '#10b981', '#9ca3af'])
+        ax2.set_title("Total Findings by Severity")
+        ax2.set_ylabel("Count")
+
+        # Enable picking on the bars
+        for bar in bars:
+            bar.set_picker(True)
+
+        self.analytics_figure.tight_layout()
+        self.analytics_canvas.draw()
+
+        self._update_bias_audit_section()
+
+        self.log("Analytics refresh complete.")
+
+    def _update_bias_audit_section(self):
+        """Runs the bias audit and updates the corresponding UI elements."""
+        self.log("Running bias audit...")
+        bias_results = run_bias_audit()
+        self.bias_figure.clear()
+
+        if bias_results.get("error"):
+            self.log(f"Bias audit error: {bias_results['error']}")
+            self.bias_audit_label.setText(f"Could not run bias audit: {bias_results['error']}")
+            self.bias_canvas.draw()
+            return
+
+        dpd = bias_results['demographic_parity_difference']
+        eod = bias_results['equalized_odds_difference']
+        rates = bias_results['selection_rates']
+
+        summary_text = (
+            f"Demographic Parity Difference: {dpd:.4f}\n"
+            f"Equalized Odds Difference: {eod:.4f}\n\n"
+            f"This audit compares the rate of 'flag' findings across different disciplines. "
+            f"Values closer to 0 indicate greater fairness."
+        )
+        self.bias_audit_label.setText(summary_text)
+
+        # Plotting the selection rates
+        if rates:
+            ax_bias = self.bias_figure.add_subplot(111)
+            disciplines = list(rates.keys())
+            selection_rates = list(rates.values())
+            ax_bias.bar(disciplines, selection_rates, color=['#1f77b4', '#ff7f0e', '#2ca02c'])
+            ax_bias.set_title("Flag Rate by Discipline")
+            ax_bias.set_ylabel("Proportion of Analyses with Flags")
+            ax_bias.set_ylim(0, max(1.0, max(selection_rates) * 1.2 if selection_rates else 1.0))
+            self.bias_figure.tight_layout()
+
+        self.bias_canvas.draw()
+        self.log("Bias audit complete.")
+
+    def on_chart_pick(self, event):
+        """Handles click events on the analytics charts for drill-down."""
+        if not isinstance(event.artist, Rectangle):
+            return
+
+        bar = event.artist
+        # The x-coordinate of the bar's left edge corresponds to its index
+        bar_index = int(round(bar.get_x()))
+
+        severities = ['flag', 'finding', 'suggestion', 'auditor_note']
+        if 0 <= bar_index < len(severities):
+            selected_severity = severities[bar_index]
+            self.log(f"User clicked on severity bar: {selected_severity}")
+            self.show_drilldown_dialog_for_severity(selected_severity)
+
+    def show_drilldown_dialog_for_severity(self, severity: str):
+        """Queries data and shows a dialog with files for a given severity."""
+        try:
+            with _get_db_connection() as conn:
+                # Find run_ids that have an issue of the selected severity
+                issue_runs_df = pd.read_sql_query(
+                    "SELECT DISTINCT run_id FROM analysis_issues WHERE severity = ?",
+                    conn, params=(severity,)
+                )
+                if issue_runs_df.empty:
+                    QMessageBox.information(self, "Drill-Down", f"No documents found with findings of severity '{severity}'.")
+                    return
+
+                run_ids = tuple(issue_runs_df['run_id'].tolist())
+
+                # Get the file names for those run_ids
+                files_df = pd.read_sql_query(
+                    f"SELECT file_name, run_time FROM analysis_runs WHERE id IN {run_ids}",
+                    conn
+                )
+
+            # Create and show the dialog
+            dialog = QDialog(self)
+            dialog.setWindowTitle(f"Documents with '{severity}' Findings")
+            dialog.setMinimumWidth(400)
+            layout = QVBoxLayout(dialog)
+
+            list_widget = QListWidget()
+            for index, row in files_df.iterrows():
+                list_widget.addItem(f"{row['file_name']} (Analyzed: {row['run_time']})")
+
+            layout.addWidget(QLabel(f"Showing documents containing at least one '{severity}':"))
+            layout.addWidget(list_widget)
+
+            dialog.exec()
+
+        except Exception as e:
+            self.log(f"Error during drill-down: {e}")
+            QMessageBox.warning(self, "Drill-Down Error", f"An error occurred while fetching details: {e}")
 
     def _render_chat_history(self):
         """Renders the analysis report and the full chat history."""
