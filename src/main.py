@@ -2547,6 +2547,9 @@ class MainWindow(QMainWindow):
         self.txt_rubric = QTextEdit()
         self.txt_rubric.setVisible(False) # Not shown in main UI
 
+        # Automatically load analytics on startup
+        self._update_analytics_tab()
+
 
         
     def action_clear_all(self):
