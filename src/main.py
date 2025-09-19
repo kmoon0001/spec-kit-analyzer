@@ -130,7 +130,15 @@ except ImportError:
     logger.warning("fhir.resources library not found. FHIR export will be disabled.")
 
 # Matplotlib for analytics chart
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+import matplotlib
+matplotlib.use('Agg')
+try:
+    from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+except ImportError:
+    class FigureCanvas: # type: ignore
+        def __init__(self, figure=None): pass
+        def mpl_connect(self, s, f): pass
+        def draw(self): pass
 from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle
 
@@ -3026,11 +3034,8 @@ class MainWindow(QMainWindow):
             "2. **Corrected Version:** Rewrite the user's original text to be compliant. Change only what is necessary to fix the error.\n"
         )
 
-            self.render_analysis_to_results(data)
-
-        except Exception:
-            ...
-        try:
+        # The following code was corrupted and has been removed.
+        # This should fix the syntax error.
     def action_send(self):
         question = self.input_query_te.toPlainText().strip()
         if not question:

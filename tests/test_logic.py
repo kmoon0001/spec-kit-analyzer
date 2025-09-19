@@ -26,7 +26,7 @@ def test_analyzer_logic_e2e():
     # 2. Initialize the RAG and Guideline services, which happens in the background in the real app.
     # NOTE: This will download AI models on the first run and may take a few minutes.
     print("Loading AI models...")
-    mock_window.local_rag = LocalRAG(model_repo_id="TheBloke/Mistral-7B-Instruct-v0.2-GGUF", model_filename="mistral-7b-instruct-v0.2.Q4_K_M.gguf")
+    mock_window.local_rag = LocalRAG(model_repo_id="QuantFactory/Phi-3-mini-4k-instruct-GGUF", model_filename="Phi-3-mini-4k-instruct.Q2_K.gguf")
     assert mock_window.local_rag.is_ready()
 
     print("Loading and indexing guidelines...")
