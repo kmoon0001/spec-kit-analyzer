@@ -2656,15 +2656,15 @@ class MainWindow(QMainWindow):
             except Exception:
                 ...
 
-    def _create_context_chunks(self, data: dict, formatted_entities: list[str]) -> list[str]:
+    def _create_context_chunks(self, data: dict, formatted_entities: list[str]) -> list[tuple[str, str]]:
         """Creates a list of text chunks from the analysis data for the RAG index."""
         chunks = []
 
         # 1. Add summary information
         if 'compliance' in data and 'score' in data['compliance']:
-            chunks.append(f"[Summary] The overall compliance score is {data['compliance']['score']}/100.")
+            chunks.append((f"The overall compliance score is {data['compliance']['score']}/100.", "Summary"))
         if 'executive_status' in data:
-             chunks.append(f"[Summary] The executive status is '{data['executive_status']}'.")
+            chunks.append((f"The executive status is '{data['executive_status']}'.", "Summary"))
 
         # 2. Add each issue as a detailed chunk, enriched with rubric data
         for issue in data.get('issues', []):
@@ -2675,30 +2675,31 @@ class MainWindow(QMainWindow):
             if matching_rule:
                 # If we found the rule, create a detailed, structured chunk
                 issue_str = (
-                    f"[Finding] A finding with severity '{matching_rule.severity}' was identified.\n"
+                    f"A finding with severity '{matching_rule.severity}' was identified.\n"
                     f"Category: {matching_rule.issue_category}\n"
                     f"Title: {matching_rule.issue_title}\n"
                     f"Why it matters: {matching_rule.issue_detail}"
                 )
-                chunks.append(issue_str)
+                chunks.append((issue_str, "Finding"))
             else:
                 # Fallback to the basic information if no rule is found
                 sev = issue.get('severity', 'N/A').title()
                 cat = issue.get('category', 'N/A')
                 detail = issue.get('detail', 'N/A')
-                chunks.append(f"[Finding] Severity: {sev}. Category: {cat}. Title: {issue_title}. Detail: {detail}.")
+                chunks.append((f"Severity: {sev}. Category: {cat}. Title: {issue_title}. Detail: {detail}.", "Finding"))
 
             # Add citations as separate, clearly linked chunks
             for i, (citation_text, source) in enumerate(issue.get('citations', [])[:2]):
                 clean_citation = re.sub('<[^<]+?>', '', citation_text)
-                chunks.append(f"[Evidence] The finding '{issue_title}' is supported by evidence from '{source}': \"{clean_citation}\"")
+                chunks.append((f"The finding '{issue_title}' is supported by evidence: \"{clean_citation}\"", source))
 
         # 3. Add the original document sentences
         for text, source in data.get('source_sentences', []):
-             chunks.append(f"[Document Text] From {source}: \"{text}\"")
+            chunks.append((f"\"{text}\"", source))
 
         # 4. Add formatted entities
-        chunks.extend(formatted_entities)
+        for entity in formatted_entities:
+            chunks.append((entity, "Named Entity"))
 
         self.log(f"Generated {len(chunks)} text chunks for AI context.")
         return chunks
@@ -3054,12 +3055,12 @@ class MainWindow(QMainWindow):
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
             # Search the document-specific index to get context
-            context_chunks = self.local_rag.search_index(question, k=3)
+            context_chunks_with_sources = self.local_rag.search_index(question, k=3)
 
-            if not context_chunks:
+            if not context_chunks_with_sources:
                 answer = "I could not find any relevant information in the current document to answer your question."
             else:
-                answer = self.local_rag.query(question, context_chunks=context_chunks, chat_history=self.chat_history)
+                answer = self.local_rag.query(question, context_chunks=context_chunks_with_sources, chat_history=self.chat_history)
 
             self.chat_history.append(("user", question))
             self.chat_history.append(("ai", answer))
