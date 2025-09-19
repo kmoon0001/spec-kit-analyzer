@@ -2465,7 +2465,7 @@ class MainWindow(QMainWindow):
 
         bias_controls_layout = QHBoxLayout()
         self.bias_group_by_combo = QComboBox()
-        self.bias_group_by_combo.addItems(["Discipline"]) # For now, only discipline
+        self.bias_group_by_combo.addItems(["Discipline", "Finding Type"])
         self.btn_run_bias_audit = QPushButton("Run Bias Audit")
         try:
             self.btn_run_bias_audit.clicked.connect(self.action_run_bias_audit)
@@ -2853,10 +2853,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Library Not Found", "The 'fairlearn' library is required for this feature.")
             return
 
-        sensitive_feature_name = self.bias_group_by_combo.currentText()
-        if sensitive_feature_name != "Discipline":
-            QMessageBox.information(self, "Not Implemented", "Bias audit for features other than Discipline is not yet implemented.")
-            return
+        group_by = self.bias_group_by_combo.currentText()
 
         self.statusBar().showMessage("Running bias audit...")
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
@@ -2871,6 +2868,7 @@ class MainWindow(QMainWindow):
                     SELECT
                         r.user_feedback,
                         i.severity,
+                        i.title,
                         a.disciplines
                     FROM reviewed_findings r
                     JOIN analysis_issues i ON r.analysis_issue_id = i.id
@@ -2885,19 +2883,30 @@ class MainWindow(QMainWindow):
             df['y_true'] = df['user_feedback'].apply(lambda x: 1 if x == 'correct' else 0)
             df['y_pred'] = 1  # We are analyzing the set of findings that were *raised* by the model.
 
-            def get_first_discipline(d_str):
-                try:
-                    disciplines = json.loads(d_str)
-                    # For this audit, only include runs specific to a single discipline
-                    return disciplines[0] if disciplines and len(disciplines) == 1 else None
-                except (json.JSONDecodeError, TypeError):
-                    return None
+            if group_by == "Discipline":
+                # Handle single and multi-discipline runs by "exploding" the dataframe
+                def parse_disciplines(d_str):
+                    try:
+                        disciplines = json.loads(d_str)
+                        return disciplines if isinstance(disciplines, list) and disciplines else None
+                    except (json.JSONDecodeError, TypeError):
+                        return None
 
-            df['sensitive_features'] = df['disciplines'].apply(get_first_discipline)
+                df['disciplines_list'] = df['disciplines'].apply(parse_disciplines)
+                df.dropna(subset=['disciplines_list'], inplace=True)
+                df = df.explode('disciplines_list')
+                df.rename(columns={'disciplines_list': 'sensitive_features'}, inplace=True)
+
+            elif group_by == "Finding Type":
+                df.rename(columns={'title': 'sensitive_features'}, inplace=True)
+
+            else: # Should not happen with the current UI
+                return
+
             df.dropna(subset=['sensitive_features'], inplace=True)
 
             if df.empty or df['sensitive_features'].nunique() < 2:
-                self.bias_results_text.setPlainText("Not enough data across different disciplines to perform a comparative bias audit. Ensure you have reviewed findings from at least two different, single-discipline analyses.")
+                self.bias_results_text.setPlainText(f"Not enough data across different '{group_by}' groups to perform a comparative bias audit.")
                 return
 
             y_true = df['y_true']
@@ -2905,7 +2914,6 @@ class MainWindow(QMainWindow):
             sensitive_features = df['sensitive_features']
 
             # --- Fairlearn MetricFrame ---
-            # We are interested in the rate of incorrect findings (False Positives) per discipline.
             metrics = {
                 'count': 'count',
                 'false_positive_rate': false_positive_rate
@@ -2917,14 +2925,14 @@ class MainWindow(QMainWindow):
                                                sensitive_features=sensitive_features)
 
             results_df = grouped_on_feature.by_group
-            results_df.index.name = "Discipline"
+            results_df.index.name = group_by
 
 
             # --- Display Results ---
-            results_text = "Bias Audit Results (by Discipline):\n\n"
+            results_text = f"Bias Audit Results (by {group_by}):\n\n"
             results_text += "This audit analyzes findings that users have marked as 'correct' or 'incorrect'.\n\n"
-            results_text += " - Count: The number of reviewed findings for that discipline.\n"
-            results_text += " - False Positive Rate: The proportion of *incorrect* findings within the group. A high rate suggests the model is flagging non-issues for a specific discipline more often.\n\n"
+            results_text += f" - Count: The number of reviewed findings for that {group_by}.\n"
+            results_text += " - False Positive Rate: The proportion of *incorrect* findings within the group. A high rate suggests the model is flagging non-issues for a specific group more often.\n\n"
             results_text += results_df.to_string()
 
             self.bias_results_text.setPlainText(results_text)
@@ -2932,11 +2940,13 @@ class MainWindow(QMainWindow):
             # --- Generate Chart ---
             self.bias_figure.clear()
             ax = self.bias_figure.add_subplot(111)
-            results_df[['false_positive_rate']].plot(kind='bar', ax=ax, legend=False, color=['#1f77b4', '#ff7f0e', '#2ca02c'])
-            ax.set_title('False Positive Rate by Discipline')
+            # Take top 10 for finding types to keep chart readable
+            plot_df = results_df if group_by == "Discipline" else results_df.nlargest(10, 'count')
+            plot_df[['false_positive_rate']].plot(kind='bar', ax=ax, legend=False, color=['#1f77b4', '#ff7f0e', '#2ca02c'])
+            ax.set_title(f'False Positive Rate by {group_by}')
             ax.set_ylabel('Rate (Proportion of Incorrect Findings)')
             ax.set_xlabel('')
-            ax.tick_params(axis='x', rotation=0)
+            ax.tick_params(axis='x', rotation=45, ha='right')
             self.bias_figure.tight_layout()
             self.bias_canvas.draw()
 
