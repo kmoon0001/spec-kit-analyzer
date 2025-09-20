@@ -9,6 +9,8 @@ import numpy as np
 from huggingface_hub import hf_hub_download
 from llama_cpp import Llama
 from sentence_transformers import SentenceTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 # --- Configuration ---
 # Using a small, fast, and effective model for sentence embeddings.
@@ -46,6 +48,10 @@ class LocalRAG:
         self.embedding_model: Optional[SentenceTransformer] = model
         self.index: Optional[faiss.Index] = None
         self.text_chunks: List[str] = []
+
+        # Attributes for keyword search
+        self.tfidf_vectorizer: Optional[TfidfVectorizer] = None
+        self.tfidf_matrix = None
 
         try:
             if self.embedding_model is None:
@@ -100,49 +106,93 @@ logger.info(f"Creating FAISS index for {len(texts)} text chunks.")
         )
         embedding_dim = embeddings.shape[1]
 
+
+        # Create a FAISS index for semantic search
+
         self.index = faiss.IndexFlatL2(embedding_dim)
         self.index.add(np.array(embeddings, dtype=np.float32))
         logger.info("FAISS index created successfully.")
 
-    def search_index(self, query: str, k: int = 3) -> List[str]:
+def __init__(self, model_repo_id: str, model_filename: str):
+        self.tfidf_vectorizer = None
+        self.tfidf_matrix = None
+        # ... other initialization ...
+
+    def create_index(self, texts: List[str]):
+        # ... existing code for FAISS index creation ...
+        
+        # Create a TF-IDF matrix for keyword search
+        logger.info("Creating TF-IDF index for keyword search.")
+        self.tfidf_vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2))
+        self.tfidf_matrix = self.tfidf_vectorizer.fit_transform(texts)
+        logger.info("TF-IDF index created successfully.")
+
+    def search_index(self, query: str, k: int = 5) -> List[str]:
         """
-        Searches the FAISS index for the most relevant text chunks.
+        Performs a hybrid search using both semantic and keyword search,
+        then merges the results using Reciprocal Rank Fusion (RRF).
 
         Args:
             query (str): The query string.
-            k (int): The number of chunks to retrieve.
+            k (int): The number of final chunks to retrieve.
 
         Returns:
             List[str]: A list of the top k most relevant text chunks.
         """
-        if not self.is_ready() or not self.index or not self.embedding_model:
-            logger.warning(
-                "RAG system or index is not ready. Cannot perform search."
-            )
+        if not self.is_ready() or not self.embedding_model:
+            logger.warning("RAG system is not ready. Cannot perform search.")
             return []
 
-        query_embedding = self.embedding_model.encode([query])
-        _, indices = self.index.search(
-            np.array(query_embedding, dtype=np.float32), k
-        )
+        # --- 1. Semantic (Vector) Search ---
+        semantic_results_indices = []
+        if self.index:
+            query_embedding = self.embedding_model.encode([query])
+            _, top_k_indices = self.index.search(np.array(query_embedding, dtype=np.float32), k * 2)
+            semantic_results_indices = top_k_indices[0]
 
-        retrieved_chunks = [self.text_chunks[i] for i in indices[0]]
-        return retrieved_chunks
+        # --- 2. Keyword (TF-IDF) Search ---
+        keyword_results_indices = []
+        if self.tfidf_vectorizer and self.tfidf_matrix is not None:
+            query_vec = self.tfidf_vectorizer.transform([query])
+            similarities = cosine_similarity(query_vec, self.tfidf_matrix).flatten()
+            top_k_indices = similarities.argsort()[::-1][:k * 2]
+            keyword_results_indices = top_k_indices
 
-    def query(
-        self,
-        question: str,
-        k: int = 3,
-        chat_history: List[tuple[str, str]] | None = None
-    ) -> str:
+        # --- 3. Reciprocal Rank Fusion (RRF) ---
+        fused_scores = {}
+        rrf_k = 60  # RRF constant
+
+        for i, doc_index in enumerate(semantic_results_indices):
+            if doc_index not in fused_scores:
+                fused_scores[doc_index] = 0
+            fused_scores[doc_index] += 1 / (rrf_k + i + 1)
+
+        for i, doc_index in enumerate(keyword_results_indices):
+            if doc_index not in fused_scores:
+                fused_scores[doc_index] = 0
+            fused_scores[doc_index] += 1 / (rrf_k + i + 1)
+
+        # Sort by fused score
+        sorted_doc_indices = sorted(fused_scores.keys(), key=lambda idx: fused_scores[idx], reverse=True)
+
+        # Get the final documents
+        final_results = [self.text_chunks[i] for i in sorted_doc_indices[:k]]
+
+        return final_results
+
+    def query(self, question: str, k: int = 3, chat_history: List[tuple[str, str]] | None = None) -> str:
         """
         Queries the RAG system, now with conversational history.
 
         Args:
             question (str): The user's question.
             k (int): The number of relevant text chunks to retrieve.
-            chat_history (Optional[List[tuple[str, str]]]): The last N turns
-                                                            of the conversation.
+            chat_history (Optional[List[tuple[str, str]]]): The last N turns of the conversation.
+
+        Returns:
+            str: The LLM's generated answer.
+        """
+        # ... (the rest of the query function remains the same)
 
         Returns:
             str: The LLM's generated answer.
@@ -163,11 +213,26 @@ logger.info(f"Creating FAISS index for {len(texts)} text chunks.")
                 elif sender == 'ai':
                     history_str += f"Your Previous Answer: {message}\n"
 
+retrieved_chunks = self.search_index(question, k=k)
+
+        # 2. Construct the prompt
+
+        # Format the conversational history
+        history_str = ""
+        if chat_history:
+            for sender, message in chat_history[-6:]:
+                if sender == 'user':
+                    history_str += f"Previous User Question: {message}\n"
+                elif sender == 'ai':
+                    history_str += f"Your Previous Answer: {message}\n"
+
+        # Format the retrieved document context
         context_str = ""
         for i, chunk in enumerate(retrieved_chunks):
             context_str += f"BEGININPUT\nBEGINCONTEXT\nsource: " \
                            f"document_chunk_{i}\nENDCONTEXT\n{chunk}\nENDINPUT\n"
 
+        # Combine all parts into the final prompt
         prompt = (
             "You are a helpful AI assistant. Answer the user's question based "
             "on the provided document context and the recent conversation "
@@ -181,6 +246,7 @@ logger.info(f"Creating FAISS index for {len(texts)} text chunks.")
             "Based on the provided context and conversation history, answer "
             f"the following question: {question}\n"
             "ENDINSTRUCTION\n"
+        )
         )
 
         logger.info("Sending prompt to LLM...")
