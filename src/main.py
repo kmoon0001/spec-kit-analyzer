@@ -305,7 +305,10 @@ try:
     from .guideline_service import GuidelineService
     from .text_chunking import RecursiveCharacterTextSplitter
     from .nlg_service import NLGService
-    from .bias_audit_service import run_bias_audit
+service = BiasAuditService()
+report = service.run_bias_audit()
+
+        main
 except ImportError as e:
     logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
     # Define dummy classes if imports fail, to prevent crashing on startup
@@ -315,7 +318,9 @@ except ImportError as e:
     class GuidelineService: pass
     class RecursiveCharacterTextSplitter: pass
     class NLGService: pass
-    def run_bias_audit(): return {"error": "Bias audit service not loaded."}
+service = BiasAuditService()
+report = service.run_bias_audit()
+        main
 
 # --- LLM Loader Worker ---
 class LLMWorker(QObject):
@@ -2382,6 +2387,10 @@ class MainWindow(QMainWindow):
         act_analyze_performance.triggered.connect(self.action_analyze_performance)
         tb.addAction(act_analyze_performance)
 
+        act_bias_audit = QAction("Bias Audit", self)
+        act_bias_audit.triggered.connect(self.action_run_bias_audit)
+        tb.addAction(act_bias_audit)
+
         central = QWidget()
         self.setCentralWidget(central)
         vmain = QVBoxLayout(central)
@@ -2419,9 +2428,24 @@ class MainWindow(QMainWindow):
         # Matplotlib chart
         self.analytics_figure = Figure(figsize=(5, 4.5)) # Increased height for two charts
         self.analytics_canvas = FigureCanvas(self.analytics_figure)
-        self.analytics_canvas.mpl_connect('pick_event', self.on_chart_pick)
+        self.analytics_canvas.mpl_connect('pick_event', self._on_analytics_pick)
         self.analytics_canvas.mpl_connect('button_press_event', self.on_chart_click)
+
+        main
         analytics_layout.addWidget(self.analytics_canvas)
+
+        # Heatmap chart
+        self.heatmap_figure = Figure(figsize=(5, 4))
+        self.heatmap_canvas = FigureCanvas(self.heatmap_figure)
+        analytics_layout.addWidget(self.heatmap_canvas)
+
+        # --- Bias Audit Tab ---
+        bias_audit_tab = QWidget()
+        self.tabs.addTab(bias_audit_tab, "Bias Audit")
+        self.bias_audit_layout = QVBoxLayout(bias_audit_tab)
+        self.bias_audit_results_text = QTextEdit()
+        self.bias_audit_results_text.setReadOnly(True)
+        self.bias_audit_layout.addWidget(self.bias_audit_results_text)
 
         # Summary stats
         stats_group = QGroupBox("Summary Statistics")
@@ -3122,258 +3146,201 @@ class MainWindow(QMainWindow):
                 self.txt_chat.clear()
             self.statusBar().showMessage("Chat Reset", 3000)
 
-    def _update_analytics_tab(self):
-        """Refreshes the data and charts on the Analytics Dashboard tab."""
-        self.log("Refreshing analytics...")
-        try:
-            with _get_db_connection() as conn:
-                runs_df = pd.read_sql_query("SELECT * FROM analysis_runs", conn)
-                issues_df = pd.read_sql_query("SELECT * FROM analysis_issues", conn)
-        except Exception as e:
-            self.log(f"Failed to query analytics data: {e}")
-            QMessageBox.warning(self, "Error", f"Could not load analytics data from the database: {e}")
-            return
+def action_run_bias_audit(self):
+    try:
+        self.tabs.setCurrentIndex(3)  # Switch to Bias Audit tab
+        self.statusBar().showMessage("Running bias audit...")
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        # The service needs a database connection
+        db_conn = _get_db_connection()
+        bias_service = BiasAuditService(db_conn)
+        report = bias_service.run_bias_audit()
+        db_conn.close()
+        self.bias_audit_results_text.setPlainText(report)
+        self.statusBar().showMessage("Bias audit complete.", 5000)
+    except Exception as e:
+        self.log(f"Failed to run bias audit: {e}")
+        QMessageBox.critical(self, "Bias Audit Error", f"An error occurred during the bias audit:\n{e}")
+        self.statusBar().showMessage("Bias audit failed.", 5000)
+    finally:
+        QApplication.restoreOverrideCursor()
 
-        if runs_df.empty:
-            self.log("No analytics data found.")
-            return
-
-        # --- Update Summary Statistics ---
-        total_runs = len(runs_df)
-        avg_score = runs_df['compliance_score'].mean()
-        avg_flags = runs_df['flags'].mean()
-        self.lbl_total_runs.setText(str(total_runs))
-        self.lbl_avg_score.setText(f"{avg_score:.1f} / 100.0")
-        self.lbl_avg_flags.setText(f"{avg_flags:.2f}")
-
-        # --- Filter data if a severity is selected ---
-        if self._analytics_severity_filter:
-            filtered_run_ids = issues_df[issues_df['severity'] == self._analytics_severity_filter]['run_id'].unique()
-            filtered_issues_df = issues_df[issues_df['run_id'].isin(filtered_run_ids)]
-            if not filtered_issues_df.empty:
-                top_cat = filtered_issues_df['category'].mode()
-                if not top_cat.empty:
-                    self.lbl_top_category.setText(f"{top_cat.iloc[0]} (filtered)")
-            else:
-                self.lbl_top_category.setText("N/A")
+def _update_analytics_tab(self):
+    """Refreshes the data and charts on the Analytics Dashboard tab."""
+    self.log("Refreshing analytics...")
+    try:
+        with _get_db_connection() as conn:
+            runs_df = pd.read_sql_query("SELECT * FROM analysis_runs", conn)
+            issues_df = pd.read_sql_query("SELECT * FROM analysis_issues", conn)
+    except Exception as e:
+        self.log(f"Failed to query analytics data: {e}")
+        QMessageBox.warning(self, "Error", f"Could not load analytics data from the database: {e}")
+        return
+    if runs_df.empty:
+        self.log("No analytics data found.")
+        return
+    # --- Update Summary Statistics ---
+    total_runs = len(runs_df)
+    avg_score = runs_df['compliance_score'].mean()
+    avg_flags = runs_df['flags'].mean()
+    self.lbl_total_runs.setText(str(total_runs))
+    self.lbl_avg_score.setText(f"{avg_score:.1f} / 100.0")
+    self.lbl_avg_flags.setText(f"{avg_flags:.2f}")
+    # --- Filter data if a severity is selected ---
+    if self._analytics_severity_filter:
+        filtered_run_ids = issues_df[issues_df['severity'] == self._analytics_severity_filter]['run_id'].unique()
+        filtered_issues_df = issues_df[issues_df['run_id'].isin(filtered_run_ids)]
+        if not filtered_issues_df.empty:
+            top_cat = filtered_issues_df['category'].mode()
+            if not top_cat.empty:
+                self.lbl_top_category.setText(f"{top_cat.iloc[0]} (filtered)")
         else:
-            if not issues_df.empty:
-                top_cat = issues_df['category'].mode()
-                if not top_cat.empty:
-                    self.lbl_top_category.setText(top_cat.iloc[0])
+            self.lbl_top_category.setText("N/A")
+    else:
+        if not issues_df.empty:
+            top_cat = issues_df['category'].mode()
+            if not top_cat.empty:
+                self.lbl_top_category.setText(top_cat.iloc[0])
+    # --- Update Charts ---
+    self.analytics_figure.clear()
+    gs = self.analytics_figure.add_gridspec(2, 2)
+    ax1 = self.analytics_figure.add_subplot(gs[0, :]) # Top row, span both columns
+    ax2 = self.analytics_figure.add_subplot(gs[1, 0]) # Bottom row, first column
+    ax3 = self.analytics_figure.add_subplot(gs[1, 1]) # Bottom row, second column
+    # Ax1: Compliance Score Trend Chart
+    scores_to_plot = runs_df['compliance_score'].tail(50).tolist()
+    ax1.plot(scores_to_plot, marker='o', linestyle='-', color='#60a5fa')
+    ax1.set_title("Compliance Score Trend (Last 50 Runs)")
+    ax1.set_xlabel("Analysis Run")
+    ax1.set_ylabel("Compliance Score")
+    ax1.grid(True, linestyle='--', alpha=0.6)
+    # Ax2: Findings by Severity Chart
+    severity_counts = issues_df['severity'].value_counts()
+    severities = ['flag', 'finding', 'suggestion', 'auditor_note']
+    counts = [severity_counts.get(s, 0) for s in severities]
+    bars = ax2.bar(severities, counts, color=['#ef4444', '#f59e0b', '#10b981', '#9ca3af'])
+    ax2.set_title("Total Findings by Severity")
+    ax2.set_ylabel("Count")
+    for bar in bars:
+        bar.set_picker(True)
+    # Ax3: Top Categories Chart
+    categories_df = filtered_issues_df if self._analytics_severity_filter else issues_df
+    category_counts = categories_df['category'].value_counts().nlargest(10)
+    ax3.barh(category_counts.index, category_counts.values, color='#818cf8')
+    title = "Top 10 Finding Categories"
+    if self._analytics_severity_filter:
+        title += f" for '{self._analytics_severity_filter}'"
+    ax3.set_title(title)
+    ax3.invert_yaxis() # To show the highest count at the top
+    ax3.set_xlabel("Count")
+    self.analytics_figure.tight_layout()
+    self.analytics_canvas.draw()
+    self._update_bias_audit_section()
+    self.log("Analytics refresh complete.")
 
-        # --- Update Charts ---
-        self.analytics_figure.clear()
-
-        gs = self.analytics_figure.add_gridspec(2, 2)
-        ax1 = self.analytics_figure.add_subplot(gs[0, :]) # Top row, span both columns
-        ax2 = self.analytics_figure.add_subplot(gs[1, 0]) # Bottom row, first column
-        ax3 = self.analytics_figure.add_subplot(gs[1, 1]) # Bottom row, second column
-
-        # Ax1: Compliance Score Trend Chart
-        scores_to_plot = runs_df['compliance_score'].tail(50).tolist()
-        ax1.plot(scores_to_plot, marker='o', linestyle='-', color='#60a5fa')
-        ax1.set_title("Compliance Score Trend (Last 50 Runs)")
-        ax1.set_xlabel("Analysis Run")
-        ax1.set_ylabel("Compliance Score")
-        ax1.grid(True, linestyle='--', alpha=0.6)
-
-        # Ax2: Findings by Severity Chart
-        severity_counts = issues_df['severity'].value_counts()
-        severities = ['flag', 'finding', 'suggestion', 'auditor_note']
-        counts = [severity_counts.get(s, 0) for s in severities]
-
-        bars = ax2.bar(severities, counts, color=['#ef4444', '#f59e0b', '#10b981', '#9ca3af'])
-        ax2.set_title("Total Findings by Severity")
-        ax2.set_ylabel("Count")
-
-        for bar in bars:
-            bar.set_picker(True)
-
-        # Ax3: Top Categories Chart
-        categories_df = filtered_issues_df if self._analytics_severity_filter else issues_df
-        category_counts = categories_df['category'].value_counts().nlargest(10)
-
-        ax3.barh(category_counts.index, category_counts.values, color='#818cf8')
-        title = "Top 10 Finding Categories"
+def on_chart_click(self, event):
+    """Handles a click on the chart canvas to clear filters."""
+    if event.inaxes and getattr(event, 'artist', None) is None:
         if self._analytics_severity_filter:
-            title += f" for '{self._analytics_severity_filter}'"
-        ax3.set_title(title)
-        ax3.invert_yaxis() # To show the highest count at the top
-        ax3.set_xlabel("Count")
+            self.log("Clearing severity filter.")
+            self._analytics_severity_filter = None
+            self._update_analytics_tab()
 
-        self.analytics_figure.tight_layout()
-        self.analytics_canvas.draw()
-
-        self._update_bias_audit_section()
-
-        self.log("Analytics refresh complete.")
-
-    def on_chart_click(self, event):
-        """Handles a click on the chart canvas to clear filters."""
-        # If the click was on an axis but not on a specific artist, clear the filter.
-        if event.inaxes and event.artist is None:
-            if self._analytics_severity_filter:
-                self.log("Clearing severity filter.")
-                self._analytics_severity_filter = None
+def on_chart_pick(self, event):
+    """Handles click events on the analytics charts for drill-down."""
+    from matplotlib.patches import Rectangle
+    if not isinstance(event.artist, Rectangle):
+        return
+    bar = event.artist
+    # Determine which subplot the click came from
+    if event.mouseevent.inaxes == self.analytics_figure.axes[1]: # Severity chart is the second axis
+        bar_index = int(round(bar.get_x()))
+        severities = ['flag', 'finding', 'suggestion', 'auditor_note']
+        if 0 <= bar_index < len(severities):
+            selected_severity = severities[bar_index]
+            if event.mouseevent.dblclick:
+                self.log(f"User double-clicked on severity bar: {selected_severity}")
+                self.show_drilldown_dialog_for_severity(selected_severity)
+            else:
+                self.log(f"User filtering by severity: {selected_severity}")
+                if self._analytics_severity_filter == selected_severity:
+                    self._analytics_severity_filter = None
+                else:
+                    self._analytics_severity_filter = selected_severity
                 self._update_analytics_tab()
 
-    def _update_bias_audit_section(self):
-        """Runs the bias audit and updates the corresponding UI elements."""
-        self.log("Running bias audit...")
-        bias_results = run_bias_audit()
-        self.bias_figure.clear()
+def show_drilldown_dialog_for_severity(self, severity: str):
+    """Queries data and shows a dialog with files for a given severity."""
+    try:
+        with _get_db_connection() as conn:
+            issue_runs_df = pd.read_sql_query(
+                "SELECT DISTINCT run_id FROM analysis_issues WHERE severity = ?",
+                conn, params=(severity,)
+            )
+            if issue_runs_df.empty:
+                QMessageBox.information(self, "Drill-Down", f"No documents found with findings of severity '{severity}'.")
+                return
+            run_ids = tuple(issue_runs_df['run_id'].tolist())
+            if not run_ids:
+                return
+            files_df = pd.read_sql_query(
+                f"SELECT file_name, run_time, file_path, disciplines FROM analysis_runs WHERE id IN {run_ids}",
+                conn
+            )
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Documents with '{severity}' Findings")
+        dialog.setMinimumWidth(500)
+        layout = QVBoxLayout(dialog)
+        list_widget = QListWidget()
+        import json
+        for _, row in files_df.iterrows():
+            item = QListWidgetItem(f"{row['file_name']} (Analyzed: {row['run_time']})")
+            disciplines = json.loads(row['disciplines']) if row['disciplines'] and row['disciplines'].startswith('[') else []
+            item.setData(Qt.ItemDataRole.UserRole, {"path": row['file_path'], "disciplines": disciplines})
+            list_widget.addItem(item)
+        list_widget.itemDoubleClicked.connect(self.on_drilldown_item_activated)
+        list_widget.itemDoubleClicked.connect(dialog.accept)
+        layout.addWidget(QLabel(f"Double-click a file to re-analyze with its original settings:"))
+        layout.addWidget(list_widget)
+        dialog.exec()
+    except Exception as e:
+        self.log(f"Error during drill-down: {e}")
+        QMessageBox.warning(self, "Drill-Down Error", f"An error occurred while fetching details: {e}")
 
-        if bias_results.get("error"):
-            self.log(f"Bias audit error: {bias_results['error']}")
-            self.bias_audit_label.setText(f"Could not run bias audit: {bias_results['error']}")
-            self.bias_canvas.draw()
-            return
-
-        dpd = bias_results.get('demographic_parity_difference', 0)
-        dpr = bias_results.get('demographic_parity_ratio', 0)
-        rates = bias_results.get('selection_rates', {})
-
-        summary_text = (
-            f"<b>Demographic Parity Difference:</b> {dpd:.4f}<br>"
-            f"<b>Demographic Parity Ratio:</b> {dpr:.4f}<br><br>"
-            f"<i>This audit compares the rate of 'flag' findings across disciplines. "
-            f"Difference metrics closer to 0 are fairer. Ratio metrics closer to 1 are fairer.</i>"
-        )
-        self.bias_audit_label.setText(summary_text)
-
-        # Plotting the selection rates
-        if rates:
-            ax_bias = self.bias_figure.add_subplot(111)
-            disciplines = list(rates.keys())
-            selection_rates = list(rates.values())
-            ax_bias.bar(disciplines, selection_rates, color=['#1f77b4', '#ff7f0e', '#2ca02c'])
-            ax_bias.set_title("Flag Rate by Discipline")
-            ax_bias.set_ylabel("Proportion of Analyses with Flags")
-            ax_bias.set_ylim(0, max(1.0, max(selection_rates) * 1.2 if selection_rates else 1.0))
-            self.bias_figure.tight_layout()
-
-        self.bias_canvas.draw()
-        self.log("Bias audit complete.")
-
-    def on_chart_pick(self, event):
-        """Handles click events on the analytics charts for drill-down."""
-        if not isinstance(event.artist, Rectangle):
-            return
-
-        bar = event.artist
-
-        # Determine which subplot the click came from
-        if event.mouseevent.inaxes == self.analytics_figure.axes[1]: # Severity chart is the second axis
-            bar_index = int(round(bar.get_x()))
-            severities = ['flag', 'finding', 'suggestion', 'auditor_note']
-            if 0 <= bar_index < len(severities):
-                selected_severity = severities[bar_index]
-
-                # On double-click, show drill-down. On single-click, filter.
-                if event.mouseevent.dblclick:
-                    self.log(f"User double-clicked on severity bar: {selected_severity}")
-                    self.show_drilldown_dialog_for_severity(selected_severity)
-                else:
-                    self.log(f"User filtering by severity: {selected_severity}")
-                    # Toggle filter
-                    if self._analytics_severity_filter == selected_severity:
-                        self._analytics_severity_filter = None
-                    else:
-                        self._analytics_severity_filter = selected_severity
-                    self._update_analytics_tab()
-
-    def show_drilldown_dialog_for_severity(self, severity: str):
-        """Queries data and shows a dialog with files for a given severity."""
-        try:
-            with _get_db_connection() as conn:
-                # Find run_ids that have an issue of the selected severity
-                issue_runs_df = pd.read_sql_query(
-                    "SELECT DISTINCT run_id FROM analysis_issues WHERE severity = ?",
-                    conn, params=(severity,)
-                )
-                if issue_runs_df.empty:
-                    QMessageBox.information(self, "Drill-Down", f"No documents found with findings of severity '{severity}'.")
-                    return
-
-                run_ids = tuple(issue_runs_df['run_id'].tolist())
-                # Get the file names and disciplines for those run_ids
-                if not run_ids:
-                    return
-                files_df = pd.read_sql_query(
-                    f"SELECT file_name, run_time, file_path, disciplines FROM analysis_runs WHERE id IN {run_ids}",
-                    conn
-                )
-
-            # Create and show the dialog
-            dialog = QDialog(self)
-            dialog.setWindowTitle(f"Documents with '{severity}' Findings")
-            dialog.setMinimumWidth(500)
-            layout = QVBoxLayout(dialog)
-
-            list_widget = QListWidget()
-            import json
-            for index, row in files_df.iterrows():
-                item = QListWidgetItem(f"{row['file_name']} (Analyzed: {row['run_time']})")
-                # Store a dictionary with path and disciplines
-                disciplines = json.loads(row['disciplines']) if row['disciplines'] and row['disciplines'].startswith('[') else []
-                item.setData(Qt.ItemDataRole.UserRole, {"path": row['file_path'], "disciplines": disciplines})
-                list_widget.addItem(item)
-
-            list_widget.itemDoubleClicked.connect(self.on_drilldown_item_activated)
-            list_widget.itemDoubleClicked.connect(dialog.accept)
-
-            layout.addWidget(QLabel(f"Double-click a file to re-analyze with its original settings:"))
-            layout.addWidget(list_widget)
-
-            dialog.exec()
-
-        except Exception as e:
-            self.log(f"Error during drill-down: {e}")
-            QMessageBox.warning(self, "Drill-Down Error", f"An error occurred while fetching details: {e}")
-
-    def on_drilldown_item_activated(self, item: QListWidgetItem):
-        """Handles when a user double-clicks a file in the drill-down dialog."""
-        data = item.data(Qt.ItemDataRole.UserRole)
-        if not isinstance(data, dict):
-            file_path = str(data)
-            disciplines = []
-        else:
-            file_path = data.get("path")
-            disciplines = data.get("disciplines", [])
-
-        if file_path and os.path.isfile(file_path):
-            reply = QMessageBox.question(self, 'Confirm Re-Analysis',
-                                         f"Do you want to re-analyze the file:\n\n{os.path.basename(file_path)}\n\n"
-                                         "This will replace the current analysis results.",
-                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                                         QMessageBox.StandardButton.No)
-
-            if reply == QMessageBox.StandardButton.Yes:
-                self.log(f"Loading file from drill-down: {file_path} with disciplines: {disciplines}")
-                self._current_report_path = file_path
-                self.lbl_report_name.setText(os.path.basename(file_path))
-
-                # Block signals to prevent the 'All' checkbox from flickering
-                self.chk_all_disciplines.blockSignals(True)
-                self.chk_pt.blockSignals(True)
-                self.chk_ot.blockSignals(True)
-                self.chk_slp.blockSignals(True)
-
-                self.chk_pt.setChecked('pt' in disciplines)
-                self.chk_ot.setChecked('ot' in disciplines)
-                self.chk_slp.setChecked('slp' in disciplines)
-
-                self._update_all_checkbox_state()
-
-                self.chk_all_disciplines.blockSignals(False)
-                self.chk_pt.blockSignals(False)
-                self.chk_ot.blockSignals(False)
-                self.chk_slp.blockSignals(False)
-
-                self.action_analyze()
-        else:
-            QMessageBox.warning(self, "File Not Found", f"The file could not be found at the path:\n{file_path}")
+def on_drilldown_item_activated(self, item: QListWidgetItem):
+    """Handles when a user double-clicks a file in the drill-down dialog."""
+    data = item.data(Qt.ItemDataRole.UserRole)
+    if not isinstance(data, dict):
+        file_path = str(data)
+        disciplines = []
+    else:
+        file_path = data.get("path")
+        disciplines = data.get("disciplines", [])
+    if file_path and os.path.isfile(file_path):
+        reply = QMessageBox.question(self, 'Confirm Re-Analysis',
+                                     f"Do you want to re-analyze the file:\n\n{os.path.basename(file_path)}\n\n"
+                                     "This will replace the current analysis results.",
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                     QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
+            self.log(f"Loading file from drill-down: {file_path} with disciplines: {disciplines}")
+            self._current_report_path = file_path
+            self.lbl_report_name.setText(os.path.basename(file_path))
+            self.chk_all_disciplines.blockSignals(True)
+            self.chk_pt.blockSignals(True)
+            self.chk_ot.blockSignals(True)
+            self.chk_slp.blockSignals(True)
+            self.chk_pt.setChecked('pt' in disciplines)
+            self.chk_ot.setChecked('ot' in disciplines)
+            self.chk_slp.setChecked('slp' in disciplines)
+            self._update_all_checkbox_state()
+            self.chk_all_disciplines.blockSignals(False)
+            self.chk_pt.blockSignals(False)
+            self.chk_ot.blockSignals(False)
+            self.chk_slp.blockSignals(False)
+            self.action_analyze()
+    else:
+        QMessageBox.warning(self, "File Not Found", f"The file could not be found at the path:\n{file_path}")
 
     def _render_chat_history(self):
         """Renders the analysis report and the full chat history."""

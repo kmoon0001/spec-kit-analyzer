@@ -29,6 +29,9 @@ gunicorn
 # Utilities
 python-dotenv
 pytest
+pytest-qt
+fairlearn
+
 llama-cpp-python
 sentence-transformers
 faiss-cpu
@@ -43,4 +46,5 @@ PyQt6-sip
 pyqt6-tools
 torch
 transformers
+        main
         main
