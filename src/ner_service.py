@@ -20,6 +20,7 @@ class NEREntity:
     end: int
     context: Optional[str] = None
     models: List[str] = field(default_factory=list)
+    llm_validation: Optional[str] = None # e.g., "Confirmed", "Rejected", "Uncertain"
 
 class NERService:
     """

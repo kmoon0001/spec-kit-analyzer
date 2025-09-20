@@ -30,6 +30,7 @@ gunicorn
 python-dotenv
 pytest
 pytest-qt
+pytest-mock
 plotly
 fairlearn
 llama-cpp-python

@@ -160,12 +160,38 @@ try:
         QMainWindow, QToolBar, QLabel, QFileDialog, QMessageBox, QApplication,
         QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton,
         QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
-QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout,
-QTableWidget, QTableWidgetItem, QListWidgetItem
+from PyQt6.QtWidgets import (
+    QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout,
+    QTableWidget, QTableWidgetItem, QListWidgetItem, QRadioButton
+)
+from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter
+from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject, QDate
 
-    )
-    from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter
-    from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject, QDate
+import logging
+
+logger = logging.getLogger(__name__)
+
+def _generate_suggested_questions(issues: list) -> list[str]:
+    """Generates a list of suggested questions based on high-priority findings."""
+    suggestions = []
+    QUESTION_MAP = {
+        "Provider signature/date possibly missing": "Why are signatures and dates important for compliance?",
+        "Goals may not be measurable/time-bound": "What makes a therapy goal 'measurable' and 'time-bound'?",
+        "Medical necessity not explicitly supported": "Can you explain 'Medical Necessity' in the context of a therapy note?",
+        "Assistant supervision context unclear": "What are the supervision requirements for therapy assistants?",
+        "Plan/Certification not clearly referenced": "How should the Plan of Care be referenced in a note?",
+    }
+    # Prioritize flags, then findings
+    sorted_issues = sorted(issues, key=lambda x: ({"flag": 0, "finding": 1}.get(x.get('severity'), 2)))
+    for issue in sorted_issues:
+        if len(suggestions) >= 3:
+            break
+        title = issue.get('title')
+        if title in QUESTION_MAP and QUESTION_MAP[title] not in suggestions:
+            suggestions.append(QUESTION_MAP[title])
+    logger.info(f"Generated {len(suggestions)} suggested questions.")
+    return suggestions
+
 except Exception:
     class QMainWindow: ...
     class QToolBar:
@@ -999,6 +1025,13 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
         cur.execute("CREATE INDEX IF NOT EXISTS idx_issues_run ON analysis_issues(run_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_issues_sev ON analysis_issues(severity)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_issues_cat ON analysis_issues(category)")
+
+        # --- Simple schema migration for label column ---
+        cur.execute("PRAGMA table_info(analysis_issues)")
+        columns = [row[1] for row in cur.fetchall()]
+        if "label" not in columns:
+            cur.execute("ALTER TABLE analysis_issues ADD COLUMN label TEXT")
+            logger.info("Upgraded analysis_issues table to include 'label' column.")
         cur.execute("""
                     CREATE TABLE IF NOT EXISTS analysis_snapshots
                     (
@@ -1076,6 +1109,31 @@ QTableWidget, QTableWidgetItem, QListWidgetItem
                     """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_reviews_issue ON reviewed_findings(analysis_issue_id)")
 
+        cur.execute("""
+                    CREATE TABLE IF NOT EXISTS ner_model_performance (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        model_name TEXT NOT NULL,
+                        entity_label TEXT NOT NULL,
+                        confirmations INTEGER DEFAULT 0,
+                        rejections INTEGER DEFAULT 0,
+                        UNIQUE(model_name, entity_label)
+                    )
+                    """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_ner_perf_model_label ON ner_model_performance(model_name, entity_label)")
+
+        cur.execute("""
+                    CREATE TABLE IF NOT EXISTS adjudication_log (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        analysis_issue_id INTEGER NOT NULL,
+                        user_decision TEXT NOT NULL,
+                        corrected_label TEXT,
+                        notes TEXT,
+                        adjudicated_at TEXT NOT NULL,
+                        FOREIGN KEY(analysis_issue_id) REFERENCES analysis_issues(id) ON DELETE CASCADE
+                    )
+                    """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_adjudication_log_issue ON adjudication_log(analysis_issue_id)")
+
         conn.commit()
     except Exception as e:
         logger.warning(f"Ensure analytics schema failed: {e}")
@@ -1114,15 +1172,110 @@ float(compliance.get("score", 0.0)), mode, json_path, disciplines_json, file_pat
             run_id = int(cur.lastrowid)
             if issues_scored:
                 cur.executemany("""
-                                INSERT INTO analysis_issues (run_id, severity, category, title, detail, confidence)
-                                VALUES (?, ?, ?, ?, ?, ?)
+                                INSERT INTO analysis_issues (run_id, severity, category, title, detail, confidence, label)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
                                 """, [(run_id, it.get("severity", ""), it.get("category", ""), it.get("title", ""),
-                                       it.get("detail", ""), float(it.get("confidence", 0.0))) for it in issues_scored])
+                                       it.get("detail", ""), float(it.get("confidence", 0.0)), it.get("label")) for it in issues_scored])
             conn.commit()
             return run_id
     except Exception as e:
         logger.warning(f"persist_analysis_run failed: {e}")
         return None
+
+
+def update_ner_performance(model_name: str, entity_label: str, validation_status: str) -> None:
+    """
+    Updates the performance table for a given NER model and entity label.
+    """
+    if validation_status not in ("Confirmed", "Rejected"):
+        return
+
+    update_column = "confirmations" if validation_status == "Confirmed" else "rejections"
+
+    try:
+        with _get_db_connection() as conn:
+            cur = conn.cursor()
+            # Use INSERT OR IGNORE to ensure the row exists before updating.
+            cur.execute("""
+                INSERT OR IGNORE INTO ner_model_performance (model_name, entity_label, confirmations, rejections)
+                VALUES (?, ?, 0, 0)
+            """, (model_name, entity_label))
+
+            # Now, increment the appropriate counter.
+            cur.execute(f"""
+                UPDATE ner_model_performance
+                SET {update_column} = {update_column} + 1
+                WHERE model_name = ? AND entity_label = ?
+            """, (model_name, entity_label))
+            conn.commit()
+            logger.info(f"Updated NER performance for {model_name} on label {entity_label} with a {validation_status}.")
+    except Exception as e:
+        logger.warning(f"Failed to update NER performance for {model_name}: {e}")
+
+
+class AdjudicationService:
+    """
+    Handles fetching and saving of adjudication data.
+    """
+    def __init__(self, db_connection_provider: Callable[[], sqlite3.Connection]):
+        self.get_db_connection = db_connection_provider
+
+    def get_adjudication_items(self) -> list[dict]:
+        """
+        Fetches all findings marked as 'DISAGREEMENT' that haven't been adjudicated yet.
+        """
+        items = []
+        try:
+            with self.get_db_connection() as conn:
+                cur = conn.cursor()
+                # Select issues that are disagreements and are not already in the adjudication log
+                cur.execute("""
+                    SELECT
+                        i.id,
+                        i.title,
+                        i.detail,
+                        i.confidence,
+                        r.file_name,
+                        r.run_time,
+                        i.label
+                    FROM analysis_issues i
+                    JOIN analysis_runs r ON i.run_id = r.id
+                    LEFT JOIN adjudication_log a ON i.id = a.analysis_issue_id
+                    WHERE i.label = 'DISAGREEMENT' AND a.id IS NULL
+                    ORDER BY r.run_time DESC, i.id
+                """)
+                rows = cur.fetchall()
+                for row in rows:
+                    items.append({
+                        "issue_id": row[0],
+                        "title": row[1],
+                        "detail": row[2],
+                        "confidence": row[3],
+                        "file_name": row[4],
+                        "run_time": row[5],
+                        "label": row[6]
+                    })
+        except Exception as e:
+            logger.error(f"Failed to get adjudication items: {e}")
+        return items
+
+    def save_adjudication(self, issue_id: int, decision: str, corrected_label: Optional[str], notes: Optional[str]) -> bool:
+        """Saves an adjudication decision to the database."""
+        try:
+            with self.get_db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute("""
+                    INSERT OR REPLACE INTO adjudication_log (analysis_issue_id, user_decision, corrected_label, notes, adjudicated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (issue_id, decision, corrected_label, notes, _now_iso()))
+                conn.commit()
+                logger.info(f"Saved adjudication for issue {issue_id}: {decision}")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to save adjudication for issue {issue_id}: {e}")
+            return False
+
+
 
 def _compute_recent_trends(max_runs: int = 10) -> dict:
     out = {
@@ -1809,32 +1962,83 @@ def run_analyzer(file_path: str,
             collapsed = collapse_similar_sentences_simple(processed, threshold)
         collapsed = list(collapsed)
 
+ner_results = []
+formatted_entities = []
 
-        ner_results = {}
-        formatted_entities = []
-        if get_bool_setting("enable_ner_service", default=True) and main_window_instance and main_window_instance.ner_service.is_ready():
-            report(65, "Running NER models...")
-            full_text_for_ner = "\n".join(t for t, _ in collapsed)
-            ner_sentences = [text for text, src in collapsed]
+if get_bool_setting("enable_ner_ensemble", True) and self.ner_service and self.entity_consolidation_service:
+    if self.ner_service.is_ready():
+        report(65, "Running NER Ensemble")
+        ner_sentences = [text for text, src in collapsed]
+        raw_ner_results = self.ner_service.extract_entities(full_text, ner_sentences)
+        embedding_model = self.local_rag.embedding_model if self.local_rag else None
+        ner_results = self.entity_consolidation_service.consolidate_entities(
+            raw_ner_results, full_text, embedding_model=embedding_model
+        )
+        if ner_results:
+            logger.info(f"Consolidated NER results: {len(ner_results)} entities found.")
 
-            ner_results = main_window_instance.ner_service.extract_entities(full_text_for_ner, ner_sentences)
+            # LLM-based Fact-Checking
+            if self.local_rag and self.local_rag.is_ready():
+                report(68, "Fact-checking NER findings with AI")
+                for entity in ner_results:
+                    if entity.label == "DISAGREEMENT":
+                        continue
+                    prompt = (
+                        "You are a clinical documentation expert. Based on the document context, "
+                        "is the following finding plausible and correctly labeled?\n\n"
+                        f"Finding: \"{entity.text}\"\n"
+                        f"Label: \"{entity.label}\"\n\n"
+                        "Answer with only one word: 'Confirmed', 'Rejected', or 'Uncertain'."
+                    )
+                    try:
+                        response = self.local_rag.query(prompt, k=2)
+                        validation_status = "Uncertain"
+                        if "confirmed" in response.lower():
+                            validation_status = "Confirmed"
+                        elif "rejected" in response.lower():
+                            validation_status = "Rejected"
+                        entity.llm_validation = validation_status
+                        logger.info(f"LLM validation for '{entity.text}' ({entity.label}): {validation_status}")
 
-            if ner_results:
-                logger.info(f"NER service extracted entities from models: {list(ner_results.keys())}")
+                        # Update NER Performance DB
+                        if validation_status in ("Confirmed", "Rejected"):
+                            for model_name in entity.models:
+                                update_ner_performance(model_name, entity.label, validation_status)
+                    except Exception as e:
+                        logger.warning(f"LLM fact-checking failed for entity '{entity.text}': {e}")
 
-                consolidated_entities = entity_consolidation_service.consolidate_entities(
-                    ner_results, full_text_for_ner
-                )
+            # Formatting extracted entities as in main branch
+            formatted_entities = _format_entities_for_rag(ner_results)
+            logger.info(f"Formatted {len(formatted_entities)} entities for downstream use.")
+    else:
+        logger.warning("NER service was enabled but not ready. Skipping NER.")
 
-                if consolidated_entities:
-                    formatted_entities = _format_entities_for_rag(consolidated_entities)
-                    logger.info(f"Consolidated into {len(consolidated_entities)} unique entities.")
 
         check_cancel()
         report(60, "Computing summary")
         summary = build_rich_summary(processed, collapsed)
 
         report(70, "Analyzing compliance")
+
+        full_text = "\n".join(t for t, _ in collapsed)
+        strict_flag = (CURRENT_REVIEW_MODE == "Strict")
+        issues_base = _audit_from_rubric(full_text, selected_disciplines, strict=strict_flag)
+
+        # Convert NER disagreements into issues so they can be adjudicated
+        for entity in ner_results:
+            if entity.label == "DISAGREEMENT":
+                issues_base.append({
+                    "severity": "finding",
+                    "title": "NER Model Disagreement",
+                    "detail": f"Models disagreed on the label for text: '{entity.text}'. Context: {entity.context}",
+                    "category": "AI Finding",
+                    "confidence": entity.score,
+                    "citations": [], # This can be enhanced later if needed
+                    "label": "DISAGREEMENT"
+                })
+
+        issues_scored = _score_issue_confidence(_attach_issue_citations(issues_base, collapsed), collapsed)
+
 
         use_llm_analysis = get_bool_setting("use_llm_analysis", True)
         llm_is_ready = main_window_instance and main_window_instance.local_rag and main_window_instance.local_rag.is_ready()
@@ -2325,8 +2529,9 @@ persist_analysis_run(
                 "pdf_chart_position": get_str_setting("pdf_chart_position", "bottom"),
                 "pdf_chart_theme": get_str_setting("pdf_chart_theme", "dark"),
                 "report_severity_ordering": "flags_first",
-                "clinical_ner_enabled": get_bool_setting("enable_ner_service", True),
-                "ner_results": json_ner_results,
+"clinical_ner_enabled": get_bool_setting("enable_ner_ensemble", True),
+"ner_results": json_ner_results,
+
                 "source_sentences": collapsed,
                 "sev_counts": sev_counts,
                 "cat_counts": cat_counts,
@@ -2430,23 +2635,31 @@ class MainWindow(QMainWindow):
         self.current_report_data: Optional[dict] = None
         self.local_rag: Optional[LocalRAG] = None
         self.guideline_service: Optional[GuidelineService] = None
-        self.llm_compliance_service: Optional[LlmComplianceService] = None
-        self.entity_consolidation_service: EntityConsolidationService = EntityConsolidationService()
+self.llm_compliance_service: Optional[LlmComplianceService] = None
+self.entity_consolidation_service: EntityConsolidationService = EntityConsolidationService()
+self.adjudication_service: Optional[AdjudicationService] = None
 
-        # Initialize the NER service with multiple models
-        ner_model_configs = {
-            # TODO: Replace this placeholder with your actual JSL model identifier.
-            # If your JSL model requires a different loading mechanism, you will
-            # need to adapt the NERService in `src/ner_service.py`.
-            "jsl_clinical_ner": "JSL_MODEL_PLACEHOLDER",
-            "deberta_clinical": "blaze999/clinical-ner"
-        }
-        self.ner_service = NERService(ner_model_configs)
+ner_model_configs = {
+    "jsl_clinical_ner": "JSL_MODEL_PLACEHOLDER",
+    "deberta_clinical": "blaze999/clinical-ner"
+}
+self.ner_service = NERService(ner_model_configs)
 
         self.chat_history: list[tuple[str, str]] = []
         main
         self.compliance_rules: list[ComplianceRule] = []
         self._analytics_severity_filter = None
+
+        # --- Initialize Services ---
+        self.entity_consolidation_service = EntityConsolidationService(db_connection_provider=_get_db_connection)
+        self.adjudication_service = AdjudicationService(db_connection_provider=_get_db_connection)
+        ner_model_configs = {
+            "biobert": "longluu/Clinical-NER-MedMentions-GatorTronBase",
+            "biomed_ner": "d4data/biomedical-ner-all"
+        }
+        # TODO: Add context_service initialization if needed
+        self.ner_service = NERService(model_configs=ner_model_configs)
+
 
         tb = QToolBar("Main")
         try:
@@ -2585,6 +2798,95 @@ self.analytics_canvas.mpl_connect('button_press_event', self.on_chart_click)
 
         analytics_layout.addWidget(stats_group)
 
+
+        # --- Adjudication Tab ---
+        adjudication_tab = QWidget()
+        self.tabs.addTab(adjudication_tab, "Adjudication")
+        adjudication_layout = QVBoxLayout(adjudication_tab)
+
+        # Top controls
+        adjudication_controls = QHBoxLayout()
+        btn_refresh_adjudication = QPushButton("Refresh Queue")
+        self._style_action_button(btn_refresh_adjudication, font_size=11, bold=True, height=32)
+        try:
+            btn_refresh_adjudication.clicked.connect(self._update_adjudication_tab)
+        except Exception:
+            pass
+        adjudication_controls.addWidget(btn_refresh_adjudication)
+        adjudication_controls.addStretch(1)
+        adjudication_layout.addLayout(adjudication_controls)
+
+        # Main splitter for table and details
+        adjudication_splitter = QSplitter(Qt.Orientation.Vertical)
+
+        # Table for items
+        self.tbl_adjudication = QTableWidget()
+        self.tbl_adjudication.setColumnCount(5)
+        self.tbl_adjudication.setHorizontalHeaderLabels(["File", "Run Time", "Details", "Confidence", "Issue ID"])
+        self.tbl_adjudication.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tbl_adjudication.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.tbl_adjudication.setColumnHidden(4, True) # Hide issue ID
+        try:
+            self.tbl_adjudication.itemSelectionChanged.connect(self._on_adjudication_item_selected)
+        except Exception:
+            pass
+
+        adjudication_splitter.addWidget(self.tbl_adjudication)
+
+        # Adjudication controls panel
+        details_group = QGroupBox("Review Selected Disagreement")
+        self.review_details_group = details_group # Keep a reference
+        details_layout = QGridLayout(details_group)
+
+        details_layout.addWidget(QLabel("<b>Text:</b>"), 0, 0)
+        self.lbl_adjudication_text = QLabel("<i>Select an item from the queue above.</i>")
+        self.lbl_adjudication_text.setWordWrap(True)
+        details_layout.addWidget(self.lbl_adjudication_text, 0, 1, 1, 3)
+
+        details_layout.addWidget(QLabel("<b>Your Decision:</b>"), 1, 0, alignment=Qt.AlignmentFlag.AlignTop)
+
+        self.rad_confirm_a = QRadioButton()
+        self.rad_confirm_b = QRadioButton()
+        self.rad_reject_both = QRadioButton("Neither is Correct")
+
+        decision_box = QVBoxLayout()
+        decision_box.addWidget(self.rad_confirm_a)
+        decision_box.addWidget(self.rad_confirm_b)
+        decision_box.addWidget(self.rad_reject_both)
+        decision_box.addStretch(1)
+        details_layout.addLayout(decision_box, 1, 1)
+
+        details_layout.addWidget(QLabel("Corrected Label:"), 2, 0)
+        self.txt_corrected_label = QLineEdit()
+        self.txt_corrected_label.setPlaceholderText("Enter correct label if neither model was right")
+        self.txt_corrected_label.setEnabled(False)
+        details_layout.addWidget(self.txt_corrected_label, 2, 1, 1, 3)
+
+        try:
+            self.rad_reject_both.toggled.connect(self.txt_corrected_label.setEnabled)
+        except Exception:
+            pass
+
+        details_layout.addWidget(QLabel("Notes:"), 3, 0, alignment=Qt.AlignmentFlag.AlignTop)
+        self.txt_adjudication_notes = QTextEdit()
+        self.txt_adjudication_notes.setPlaceholderText("Optional notes about your decision.")
+        self.txt_adjudication_notes.setFixedHeight(80)
+        details_layout.addWidget(self.txt_adjudication_notes, 3, 1, 1, 3)
+
+        btn_save_adjudication = QPushButton("Save Adjudication")
+        self._style_action_button(btn_save_adjudication, font_size=11, bold=True, height=32)
+        try:
+            btn_save_adjudication.clicked.connect(self._save_current_adjudication)
+        except Exception:
+            pass
+        details_layout.addWidget(btn_save_adjudication, 4, 3)
+
+        details_group.setEnabled(False) # Disabled until an item is selected
+        adjudication_splitter.addWidget(details_group)
+        adjudication_splitter.setSizes([400, 300])
+
+        adjudication_layout.addWidget(adjudication_splitter)
+
 bias_group = QGroupBox("Bias Auditing (by Discipline)")
 bias_layout = QVBoxLayout(bias_group)
 
@@ -2611,6 +2913,7 @@ self.bias_canvas = FigureCanvas(self.bias_figure)
 bias_layout.addWidget(self.bias_canvas)
 
         analytics_layout.addWidget(bias_group)
+
 
         # --- Setup Tab Layout ---
         setup_layout = QVBoxLayout(setup_tab)
@@ -2671,9 +2974,174 @@ bias_layout.addWidget(self.bias_canvas)
         self.txt_rubric = QTextEdit()
         self.txt_rubric.setVisible(False) # Not shown in main UI
 
+
+        top_setup_layout.addWidget(rubric_panel)
+
+        # Right: Report panel
+        report_panel = QGroupBox("File Selection")
+        report_layout = QVBoxLayout(report_panel)
+
+        row_report_btns = QHBoxLayout()
+        self.btn_upload_report = QPushButton("Open File")
+        self.btn_upload_folder = QPushButton("Open Folder")
+        for b in (self.btn_upload_report, self.btn_upload_folder):
+            self._style_action_button(b, font_size=11, bold=True, height=32, padding="6px 10px")
+            row_report_btns.addWidget(b)
+        row_report_btns.addStretch(1)
+
+        try:
+            self.btn_upload_report.clicked.connect(self.action_open_report)
+            self.btn_upload_folder.clicked.connect(self.action_open_folder)
+        except Exception:
+            ...
+        report_layout.addLayout(row_report_btns)
+
+        self.lbl_report_name = QLabel("(No file selected for single analysis)")
+
+        self.lbl_report_name.setWordWrap(True)
+        report_layout.addWidget(self.lbl_report_name)
+
+        top_setup_layout.addWidget(report_panel)
+        setup_layout.addLayout(top_setup_layout)
+
+        # File Queue
+        queue_group = QGroupBox("File Queue (for batch analysis)")
+        queue_layout = QVBoxLayout(queue_group)
+
+        queue_actions_layout = QHBoxLayout()
+        self.btn_analyze_all = QPushButton("Analyze All in Queue")
+        self.btn_cancel_batch = QPushButton("Cancel Batch")
+        self.btn_remove_file = QPushButton("Remove Selected")
+        self.btn_clear_all = QPushButton("Clear Queue")
+        self._style_action_button(self.btn_analyze_all, font_size=11, bold=True, height=32)
+        self._style_action_button(self.btn_cancel_batch, font_size=11, bold=True, height=32)
+        self._style_action_button(self.btn_remove_file, font_size=11, bold=True, height=32)
+        self._style_action_button(self.btn_clear_all, font_size=11, bold=True, height=32)
+
+        queue_actions_layout.addWidget(self.btn_analyze_all)
+        queue_actions_layout.addWidget(self.btn_cancel_batch)
+        queue_actions_layout.addStretch(1)
+        queue_actions_layout.addWidget(self.btn_remove_file)
+        queue_actions_layout.addWidget(self.btn_clear_all)
+
+        self.list_folder_files = QListWidget()
+        queue_layout.addLayout(queue_actions_layout)
+        queue_layout.addWidget(self.list_folder_files)
+
+        setup_layout.addWidget(queue_group)
+
+        # --- Results Tab Layout ---
+        results_layout = QVBoxLayout(results_tab)
+        results_splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        # Left side: Analysis Report
+        self.txt_chat = QTextEdit()
+        self.txt_chat.setPlaceholderText("Analysis summary will appear here.")
+        self.txt_chat.setReadOnly(True)
+        self.txt_chat.anchorClicked.connect(self.handle_anchor_clicked)
+
+        # Right side: Full Note Text
+        self.txt_full_note = QTextEdit()
+        self.txt_full_note.setPlaceholderText("Full note text will appear here after analysis.")
+        self.txt_full_note.setReadOnly(True)
+
+        results_splitter.addWidget(self.txt_chat)
+        results_splitter.addWidget(self.txt_full_note)
+        results_splitter.setSizes([400, 600]) # Initial sizing
+
+        results_layout.addWidget(results_splitter)
+
+        # --- Logs Tab Layout ---
+        logs_layout = QVBoxLayout(logs_tab)
+        log_actions_layout = QHBoxLayout()
+        self.btn_clear_recent_files = QPushButton("Clear Recent Files History")
+        self._style_action_button(self.btn_clear_recent_files, font_size=11, bold=True, height=28, padding="4px 10px")
+        log_actions_layout.addStretch(1)
+        log_actions_layout.addWidget(self.btn_clear_recent_files)
+
+        self.txt_logs = QTextEdit()
+        self.txt_logs.setReadOnly(True)
+        flog = QFont(); flog.setPointSize(11); self.txt_logs.setFont(flog)
+
+        logs_layout.addLayout(log_actions_layout)
+        logs_layout.addWidget(self.txt_logs)
+
+        # --- Main Layout Assembly ---
+        vmain.addWidget(self.tabs)
+        try:
+            self.tabs.currentChanged.connect(self._on_tab_changed)
+        except Exception: pass
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setFormat("Ready")
+        self.progress_bar.setVisible(False)
+        vmain.addWidget(self.progress_bar)
+
+        # Bottom AI chat input row
+        input_row_bottom = QHBoxLayout()
+        input_row_bottom.setSpacing(8)
+        self.input_query_te = QTextEdit()
+        self.input_query_te.setPlaceholderText("Ask a question about the analysis...")
+        self.input_query_te.setFixedHeight(56)
+        self.input_query_te.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        finput = QFont();
+        finput.setPointSize(12)
+        self.input_query_te.setFont(finput)
+        btn_send = QPushButton("Send")
+        fsend = QFont();
+        fsend.setPointSize(13);
+        fsend.setBold(True)
+        btn_send.setFont(fsend)
+        btn_send.setMinimumHeight(40)
+        btn_send.setStyleSheet("text-align:center; padding:8px 12px;")
+        try:
+            btn_send.clicked.connect(self.action_send)  # type: ignore[attr-defined]
+        except Exception:
+            ...
+        input_row_bottom.addWidget(self.input_query_te, 1)
+        input_row_bottom.addWidget(btn_send, 0)
+
+        btn_reset = QPushButton("Reset Chat")
+        self._style_action_button(btn_reset, font_size=13, bold=False, height=40, padding="8px 12px")
+        try:
+            btn_reset.clicked.connect(self.action_reset_chat)
+        except Exception:
+            ...
+        input_row_bottom.addWidget(btn_reset, 0)
+
+        vmain.addLayout(input_row_bottom)
+
+        # Status bar
+        try:
+            sb: QStatusBar = self.statusBar()
+            sb.clearMessage()
+            self.lbl_brand = QLabel("Pacific Coast Therapy 🏝️")
+            brand_font = QFont("cursive")
+            brand_font.setPointSize(12)
+            self.lbl_brand.setFont(brand_font)
+            self.lbl_brand.setStyleSheet("color:#93c5fd; padding-left:8px; font-weight:700;")
+            self.lbl_brand.setToolTip("𝔎𝔢𝔳𝔦𝔫 𝔐𝔬𝔬𝔫")
+            self.lbl_err = QLabel(" Status: OK ")
+            self.lbl_err.setStyleSheet("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
+            self.lbl_rag_status = QLabel(" AI: Loading... ")
+            self.lbl_rag_status.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
+            self.lbl_ner_status = QLabel(" NER: Loading... ")
+            self.lbl_ner_status.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
+            sb.addPermanentWidget(self.lbl_brand)
+            sb.addPermanentWidget(self.lbl_rag_status)
+            sb.addPermanentWidget(self.lbl_ner_status)
+            sb.addPermanentWidget(self.lbl_err)
+        except Exception:
+            ...
+
+        # Init
+
 # Automatically load analytics on startup
 self._update_analytics_tab()
     def action_clear_all(self):
+
         try:
             self._current_report_path = None
             self.lbl_report_name.setText("(No report selected)")
@@ -2695,6 +3163,101 @@ self._update_analytics_tab()
         try:
             start_date = self.date_edit_from.date().toString("yyyy-MM-dd")
             end_date = self.date_edit_to.date().addDays(1).toString("yyyy-MM-dd")
+
+            # Use the first 500 characters of the document for a quick classification
+            doc_embedding = self.local_rag.embedding_model.encode([text_to_analyze[:500]])
+
+            # Calculate similarities
+            similarities = cosine_similarity(doc_embedding, proto_embeddings)[0]
+
+            best_match_index = np.argmax(similarities)
+            best_score = similarities[best_match_index]
+
+            # Reset all checkboxes first
+            self.chk_pt.setChecked(False)
+            self.chk_ot.setChecked(False)
+            self.chk_slp.setChecked(False)
+
+            if best_score > 0.2: # Confidence threshold
+                best_discipline = list(prototypes.keys())[best_match_index]
+                if best_discipline == "pt":
+                    self.chk_pt.setChecked(True)
+                    self.log("Auto-selected: Physical Therapy")
+                elif best_discipline == "ot":
+                    self.chk_ot.setChecked(True)
+                    self.log("Auto-selected: Occupational Therapy")
+                elif best_discipline == "slp":
+                    self.chk_slp.setChecked(True)
+                    self.log("Auto-selected: Speech-Language Pathology")
+
+        except Exception as e:
+            self.log(f"Auto-discipline detection failed: {e}")
+
+
+    def _init_llm_thread(self):
+        """Initializes and starts the LLM loading worker thread."""
+        self.llm_thread = QThread()
+        self.llm_worker = LLMWorker(
+            model_repo_id="TheBloke/TinyLlama-1.1B-1T-OpenOrca-GGUF",
+            model_filename="tinyllama-1.1b-1t-openorca.Q4_K_M.gguf"
+        )
+        self.llm_worker.moveToThread(self.llm_thread)
+        self.llm_thread.started.connect(self.llm_worker.run)
+        self.llm_worker.finished.connect(self._on_rag_load_finished)
+        self.llm_worker.error.connect(self._on_rag_load_error)
+        self.llm_thread.finished.connect(self.llm_thread.deleteLater)
+        self.llm_thread.start()
+
+    def _on_rag_load_finished(self, rag_instance: LocalRAG):
+        """Handles the successful loading of the RAG instance."""
+        self.local_rag = rag_instance
+        self.lbl_rag_status.setText(" AI: Ready ")
+        self.lbl_rag_status.setStyleSheet("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
+        self.log("Local RAG AI is ready.")
+        self.llm_thread.quit()
+
+        # Now that the RAG instance is ready, we can load the guidelines
+        self.log("Loading compliance guidelines...")
+        self.guideline_thread = QThread()
+        self.guideline_worker = GuidelineWorker(self.local_rag)
+        self.guideline_worker.moveToThread(self.guideline_thread)
+        self.guideline_thread.started.connect(self.guideline_worker.run)
+        self.guideline_worker.finished.connect(self._on_guideline_load_finished)
+        self.guideline_worker.error.connect(self._on_guideline_load_error)
+        self.guideline_thread.finished.connect(self.guideline_thread.deleteLater)
+        self.guideline_thread.start()
+
+
+    def _on_guideline_load_finished(self, guideline_service: GuidelineService):
+        """Handles the successful loading of the guidelines."""
+        self.guideline_service = guideline_service
+        self.log("Compliance guidelines loaded and indexed successfully.")
+        # You could add another status label for guidelines if desired
+        self.guideline_thread.quit()
+
+    def _on_guideline_load_error(self, error_message: str):
+        """Handles errors during guideline loading."""
+        self.guideline_service = None
+        self.log(f"Error loading guidelines: {error_message}")
+        # You could add another status label for guidelines if desired
+        self.guideline_thread.quit()
+
+    def _on_rag_load_error(self, error_message: str):
+        """Handles errors during RAG model loading."""
+        self.local_rag = None
+        self.lbl_rag_status.setText(" AI: Error ")
+        self.lbl_rag_status.setStyleSheet("background:#ef4444; color:#fff; padding:3px 8px; border-radius:12px;")
+        self.log(f"Error loading RAG AI: {error_message}")
+        self.llm_thread.quit()
+
+    def _on_tab_changed(self, index):
+        if self.tabs.tabText(index) == "Analytics Dashboard":
+            self._update_analytics_tab()
+        elif self.tabs.tabText(index) == "Adjudication":
+            self._update_adjudication_tab()
+
+    def _fetch_analytics_data(self):
+        try:
 
             with _get_db_connection() as conn:
                 query = """
@@ -2758,7 +3321,56 @@ self._update_analytics_tab()
         if not category:
             return
 
+
+        # --- Admin Dialog ---
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Admin Settings")
+        vbox = QVBoxLayout(dlg)
+
+        # NER Ensemble Setting
+        chk_ner_ensemble = QCheckBox("Enable NER Ensemble (requires restart)")
+        chk_ner_ensemble.setChecked(get_bool_setting("enable_ner_ensemble", True))
+        vbox.addWidget(chk_ner_ensemble)
+
+        # Trial period setting
+        row_trial = QHBoxLayout()
+        row_trial.addWidget(QLabel("Trial Duration (days, 0=unlimited):"))
+        sp_trial_days = QSpinBox()
+        sp_trial_days.setRange(0, 3650)
+        sp_trial_days.setValue(get_int_setting("trial_duration_days", 30))
+        row_trial.addWidget(sp_trial_days)
+        vbox.addLayout(row_trial)
+
+        btn_box = QHBoxLayout()
+        btn_ok = QPushButton("Save")
+        btn_cancel = QPushButton("Cancel")
+        btn_box.addStretch(1)
+        btn_box.addWidget(btn_ok)
+        btn_box.addWidget(btn_cancel)
+        vbox.addLayout(btn_box)
+
+        def on_save():
+            set_bool_setting("enable_ner_ensemble", chk_ner_ensemble.isChecked())
+            set_setting("trial_duration_days", str(sp_trial_days.value()))
+            self.refresh_llm_indicator() # Refresh the status bar
+            dlg.accept()
+
+        btn_ok.clicked.connect(on_save)
+        btn_cancel.clicked.connect(dlg.reject)
+
+        dlg.exec()
+
+    def reapply_theme(self):
+        try:
+            app = QApplication.instance()
+            if app:
+                apply_theme(app)
+                self.update()
+        except Exception:
+            ...
+
         self.log(f"Chart category clicked: {category}")
+
 
         try:
             # 1. Get date range and map the clicked category to the DB severity value.
@@ -3382,8 +3994,90 @@ self._update_analytics_tab()
             "2. **Corrected Version:** Rewrite the user's original text to be compliant. Change only what is necessary to fix the error.\n"
         )
 
+
+        # 3. Query the AI
+        try:
+            self.statusBar().showMessage("AI is generating educational content...")
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+
+            education_text = self.local_rag.query(prompt)
+
+            # Append to chat history and re-render
+            self.chat_history.append(('education', (issue_title, education_text)))
+            self._render_chat_history()
+
+        except Exception as e:
+            self.set_error(f"An error occurred while generating educational content: {e}")
+            QMessageBox.warning(self, "AI Error", f"An error occurred: {e}")
+        finally:
+            self.statusBar().showMessage("Ready")
+            QApplication.restoreOverrideCursor()
+
+    def save_finding_feedback(self, issue_id: int, feedback: str, citation_text: str, model_prediction: str):
+        try:
+            with _get_db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute("""
+                    INSERT INTO reviewed_findings (analysis_issue_id, user_feedback, reviewed_at, citation_text, model_prediction)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (issue_id, feedback, _now_iso(), citation_text, model_prediction))
+                conn.commit()
+            self.log(f"Saved feedback for finding {issue_id}: {feedback}")
+            self.statusBar().showMessage(f"Feedback '{feedback}' saved for finding {issue_id}.", 3000)
+        except Exception as e:
+            self.set_error(f"Failed to save feedback: {e}")
+
+    def refresh_llm_indicator(self):
+        """Updates the status bar indicators for AI services."""
+        try:
+            # NER Service Status
+            if get_bool_setting("enable_ner_ensemble", True):
+                if self.ner_service and self.ner_service.is_ready():
+                    self.lbl_ner_status.setText(" NER: Ready ")
+                    self.lbl_ner_status.setStyleSheet("background:#10b981; color:#111; padding:3px 8px; border-radius:12px;")
+                else:
+                    # This case can happen during startup
+                    self.lbl_ner_status.setText(" NER: Loading... ")
+                    self.lbl_ner_status.setStyleSheet("background:#6b7280; color:#fff; padding:3px 8px; border-radius:12px;")
+            else:
+                self.lbl_ner_status.setText(" NER: Disabled ")
+                self.lbl_ner_status.setStyleSheet("background:#ef4444; color:#fff; padding:3px 8px; border-radius:12px;")
+        except Exception as e:
+            self.log(f"Failed to refresh NER status: {e}")
+
+    def action_export_fhir(self):
+        last_json = get_setting("last_report_json")
+        if not last_json or not os.path.isfile(last_json):
+            QMessageBox.warning(self, "FHIR Export", "Please run an analysis first.")
+            return
+
+        base_name = os.path.basename(last_json).replace('.json', '')
+        default_fhir_path = os.path.join(os.path.dirname(last_json), f"{base_name}-fhir.json")
+
+        fhir_path, _ = QFileDialog.getSaveFileName(self, "Save FHIR Report", default_fhir_path, "JSON Files (*.json)")
+        if not fhir_path:
+            return
+
+        try:
+            import json
+            with open(last_json, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            # The export function is outside the class
+            if export_report_fhir_json(data, fhir_path):
+                self.log(f"FHIR report exported successfully to: {fhir_path}")
+                QMessageBox.information(self, "FHIR Export", f"Successfully exported to:\n{fhir_path}")
+            else:
+                raise ReportExportError("FHIR export function returned False.")
+        except Exception as e:
+            logger.error(f"FHIR export failed: {e}")
+            self.set_error(str(e))
+            QMessageBox.critical(self, "Error", f"Failed to export FHIR report:\n{e}")
+
+=======
         # The following code was corrupted and has been removed.
         # This should fix the syntax error.
+
     def action_send(self):
         question = self.input_query_te.toPlainText().strip()
         if not question:
@@ -3707,6 +4401,243 @@ def on_drilldown_item_activated(self, item: QListWidgetItem):
         """
         self.txt_chat.setHtml(full_html)
         self.txt_chat.verticalScrollBar().setValue(self.txt_chat.verticalScrollBar().maximum())
+
+
+    def action_export_feedback(self):
+        try:
+            default_path = os.path.join(ensure_reports_dir_configured(), "feedback_export.csv")
+            dest_csv, _ = QFileDialog.getSaveFileName(self, "Export Feedback Data", default_path, "CSV Files (*.csv)")
+            if not dest_csv:
+                return
+
+            if export_feedback_csv(dest_csv):
+                QMessageBox.information(self, "Export Successful", f"Feedback data successfully exported to:\\n{dest_csv}")
+                _open_path(os.path.dirname(dest_csv))
+            else:
+                QMessageBox.information(self, "Export Feedback", "No feedback data available to export.")
+        except Exception as e:
+            self.set_error(f"Failed to export feedback: {e}")
+            QMessageBox.warning(self, "Error", f"Failed to export feedback:\\n{e}")
+
+    def action_analyze_performance(self):
+        try:
+            self.log("Starting performance analysis with slicer...")
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+
+            # 1. Get feedback data
+            with _get_db_connection() as conn:
+                df = pd.read_sql_query("SELECT * FROM reviewed_findings", conn)
+
+            if df.empty or len(df) < 5:
+                QMessageBox.information(self, "Analyze Performance", "Not enough feedback data to analyze. Please review more findings first (at least 5 are recommended).")
+                return
+
+            # 2. Prepare data for slicer
+            # Ground truth: 1 if the user agrees with the model, 0 otherwise.
+            # A "correct" feedback means the user agrees the finding was indeed an issue.
+            df['y'] = (df['user_feedback'] == 'correct').astype(int)
+
+            # Model prediction: for now, we assume if it's in the table, the model predicted "1" (issue found)
+            df['preds'] = 1
+
+            # Features are the text
+            df['text'] = df['citation_text']
+
+            slicer_data = df.to_dict('list')
+
+            # 3. Define slicing features
+            @slicer.feature
+            def sentence_length(row):
+                return len(row['text'].split())
+
+            @slicer.feature
+            def has_goal_keyword(row):
+                return "goal" in row['text'].lower()
+
+            @slicer.feature
+            def has_date_keyword(row):
+                return "date" in row['text'].lower()
+
+            # 4. Run slicer
+            self.log("Launching slicer dashboard in web browser...")
+            slicer.run(
+                slicer_data,
+                features=[sentence_length, has_goal_keyword, has_date_keyword],
+                title="Model Performance Analysis"
+            )
+            self.log("Slicer run command issued.")
+
+        except Exception as e:
+            self.set_error(f"Failed to run performance analysis: {e}")
+            logger.exception("Slicer analysis failed")
+            QMessageBox.critical(self, "Error", f"Failed to run performance analysis:\\n{e}")
+        finally:
+            QApplication.restoreOverrideCursor()
+
+    def _reset_adjudication_panel(self):
+        """Resets the adjudication detail panel to its default state."""
+        self.review_details_group.setEnabled(False)
+        self.lbl_adjudication_text.setText("<i>Select an item from the queue above.</i>")
+
+        # Detach signals temporarily to prevent issues when clearing
+        self.rad_confirm_a.blockSignals(True)
+        self.rad_confirm_b.blockSignals(True)
+        self.rad_reject_both.blockSignals(True)
+
+        self.rad_confirm_a.setText("Confirm Model A")
+        self.rad_confirm_b.setText("Confirm Model B")
+
+        self.rad_confirm_a.setChecked(False)
+        self.rad_confirm_b.setChecked(False)
+        self.rad_reject_both.setChecked(False)
+
+        self.rad_confirm_a.blockSignals(False)
+        self.rad_confirm_b.blockSignals(False)
+        self.rad_reject_both.blockSignals(False)
+
+        self.txt_corrected_label.clear()
+        self.txt_corrected_label.setEnabled(False)
+        self.txt_adjudication_notes.clear()
+
+    def _update_adjudication_tab(self):
+        if not self.adjudication_service:
+            self.log("Adjudication service not available.")
+            return
+
+        self.log("Refreshing adjudication queue...")
+        try:
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            items = self.adjudication_service.get_adjudication_items()
+
+            self.tbl_adjudication.setRowCount(0) # Clear table
+
+            for item in items:
+                row_position = self.tbl_adjudication.rowCount()
+                self.tbl_adjudication.insertRow(row_position)
+
+                self.tbl_adjudication.setItem(row_position, 0, QTableWidgetItem(item.get("file_name", "")))
+                self.tbl_adjudication.setItem(row_position, 1, QTableWidgetItem(item.get("run_time", "")))
+                self.tbl_adjudication.setItem(row_position, 2, QTableWidgetItem(item.get("detail", "")))
+                self.tbl_adjudication.setItem(row_position, 3, QTableWidgetItem(f"{item.get('confidence', 0.0):.2f}"))
+
+                issue_id_item = QTableWidgetItem() # No text needed for hidden column
+                issue_id_item.setData(Qt.ItemDataRole.UserRole, item)
+                self.tbl_adjudication.setItem(row_position, 4, issue_id_item)
+
+            self.tbl_adjudication.resizeColumnsToContents()
+            self.log(f"Found {len(items)} items for adjudication.")
+            if not items:
+                self._reset_adjudication_panel()
+
+        except Exception as e:
+            self.log(f"Failed to update adjudication tab: {e}")
+            QMessageBox.warning(self, "Error", f"Could not load adjudication queue: {e}")
+        finally:
+            QApplication.restoreOverrideCursor()
+
+    def _on_adjudication_item_selected(self):
+        selected_items = self.tbl_adjudication.selectedItems()
+        if not selected_items:
+            self._reset_adjudication_panel()
+            return
+
+        self._reset_adjudication_panel() # Reset first to clear old state
+        self.review_details_group.setEnabled(True)
+
+        selected_row = selected_items[0].row()
+        item_widget = self.tbl_adjudication.item(selected_row, 4)
+        if not item_widget: return
+        item_data = item_widget.data(Qt.ItemDataRole.UserRole)
+
+        if not item_data:
+            self.log("Error: Could not retrieve item data from selected row.")
+            self._reset_adjudication_panel()
+            return
+
+        detail_str = item_data.get('detail', '')
+
+        text_match = re.search(r"for text: '(.*?)'", detail_str)
+        context_match = re.search(r"Context: (.*)", detail_str)
+
+        text = text_match.group(1) if text_match else "N/A"
+        context = context_match.group(1) if context_match else ""
+
+        model_a_pred_match = re.search(r"Model A \((.*?)\) predicted '(.*?)'", context)
+        model_b_pred_match = re.search(r"Model B \((.*?)\) predicted '(.*?)'", context)
+
+        model_a_name = model_a_pred_match.group(1) if model_a_pred_match else "Model A"
+        model_a_label = model_a_pred_match.group(2) if model_a_pred_match else "N/A"
+
+        model_b_name = model_b_pred_match.group(1) if model_b_pred_match else "Model B"
+        model_b_label = model_b_pred_match.group(2) if model_b_pred_match else "N/A"
+
+        self.lbl_adjudication_text.setText(f"<b>{text}</b>")
+
+        self.rad_confirm_a.setText(f"Confirm '{model_a_label}' ({model_a_name})")
+        self.rad_confirm_b.setText(f"Confirm '{model_b_label}' ({model_b_name})")
+
+    def _save_current_adjudication(self):
+        selected_items = self.tbl_adjudication.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "Save Error", "Please select an item to adjudicate.")
+            return
+
+        selected_row = selected_items[0].row()
+        item_widget = self.tbl_adjudication.item(selected_row, 4)
+        if not item_widget: return
+        item_data = item_widget.data(Qt.ItemDataRole.UserRole)
+        issue_id = item_data.get('issue_id')
+
+        if not issue_id:
+            QMessageBox.warning(self, "Save Error", "Could not determine the issue ID for the selected item.")
+            return
+
+        decision = ""
+        corrected_label = None
+
+        if self.rad_confirm_a.isChecked():
+            decision = "confirm_a"
+            label_match = re.search(r"Confirm '(.*?)'", self.rad_confirm_a.text())
+            if label_match: corrected_label = label_match.group(1)
+        elif self.rad_confirm_b.isChecked():
+            decision = "confirm_b"
+            label_match = re.search(r"Confirm '(.*?)'", self.rad_confirm_b.text())
+            if label_match: corrected_label = label_match.group(1)
+        elif self.rad_reject_both.isChecked():
+            decision = "reject_both"
+            corrected_label = self.txt_corrected_label.text().strip()
+            if not corrected_label:
+                QMessageBox.warning(self, "Input Error", "Please provide a corrected label when rejecting both models.")
+                return
+        else:
+            QMessageBox.warning(self, "Input Error", "Please select a decision.")
+            return
+
+        notes = self.txt_adjudication_notes.toPlainText().strip()
+
+        if not self.adjudication_service:
+            self.log("Adjudication service not available.")
+            return
+
+        try:
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            success = self.adjudication_service.save_adjudication(issue_id, decision, corrected_label, notes)
+
+            if success:
+                self.log(f"Successfully saved adjudication for issue {issue_id}.")
+                QMessageBox.information(self, "Success", "Adjudication saved successfully.")
+                self._update_adjudication_tab()
+            else:
+                self.log(f"Failed to save adjudication for issue {issue_id}.")
+                QMessageBox.critical(self, "Database Error", "Failed to save adjudication to the database.")
+
+        except Exception as e:
+            self.log(f"An error occurred during save: {e}")
+            QMessageBox.critical(self, "Error", f"An unexpected error occurred: {e}")
+        finally:
+            QApplication.restoreOverrideCursor()
+
+# --- Settings dialog ---
 
 # --- Settings dialog (main branch format, robust) ---
 def _show_settings_dialog(parent=None) -> None:
