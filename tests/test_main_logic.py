@@ -6,15 +6,25 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from src.main import parse_document_content, _audit_from_rubric
 
-def test_parse_document_content_txt():
+@patch('src.main.get_int_setting')
+def test_parse_document_content_txt(mock_get_int_setting):
     """
-    Tests parsing a simple .txt file.
+    Tests parsing a simple .txt file with the new chunking mechanism.
     """
+    # Configure the mock to return specific values for chunk_size and chunk_overlap
+    def get_setting_side_effect(key, default):
+        if key == 'chunk_size':
+            return 30
+        if key == 'chunk_overlap':
+            return 5
+        return default
+    mock_get_int_setting.side_effect = get_setting_side_effect
+
     # Create a dummy txt file
     dummy_filepath = "tests/dummy_document.txt"
+    text_content = "This is the first sentence.\nThis is the second sentence."
     with open(dummy_filepath, "w") as f:
-        f.write("This is the first sentence.\n")
-        f.write("This is the second sentence.")
+        f.write(text_content)
 
     # Call the function
     result = parse_document_content(dummy_filepath)
