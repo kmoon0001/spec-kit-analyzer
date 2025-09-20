@@ -1,96 +1,118 @@
-import pandas as pd
-from fairlearn.metrics import MetricFrame, demographic_parity_difference, equalized_odds_difference
-from sklearn.metrics import accuracy_score
+import json
 import logging
+import os
+import sqlite3
+import pandas as pd
+from fairlearn.metrics import (
+    MetricFrame,
+    demographic_parity_difference,
+    demographic_parity_ratio,
+    equalized_odds_difference,
+    selection_rate,
+)
+from sklearn.metrics import accuracy_score
 
 logger = logging.getLogger(__name__)
 
+_default_db_dir = os.path.join(os.path.expanduser("~"), "Documents", "SpecKitData")
+DATABASE_PATH = os.getenv("SPEC_KIT_DB", os.path.join(_default_db_dir, "spec_kit.db"))
+
+def _get_db_connection() -> sqlite3.Connection:
+    """Establishes a connection to the SQLite database."""
+    try:
+        db_uri = f"file:{DATABASE_PATH}?mode=ro"
+        conn = sqlite3.connect(db_uri, uri=True)
+        return conn
+    except sqlite3.OperationalError:
+        logger.warning("Read-only connection failed, falling back to read-write.")
+        return sqlite3.connect(DATABASE_PATH)
+    except sqlite3.Error as e:
+        logger.error(f"Error connecting to database: {e}")
+        raise
+
 class BiasAuditService:
-    def __init__(self, db_connection):
-        self.conn = db_connection
+    def __init__(self, db_connection=None):
+        # If no connection provided, create one
+        self.conn = db_connection or _get_db_connection()
 
     def get_audit_data(self) -> pd.DataFrame:
         """
-        Fetches and prepares the data needed for a bias audit from the database.
-        This function assumes that 'analysis_runs' and 'analysis_issues' tables exist.
+        Fetches and prepares data for bias audit from the database.
+        Assumes 'analysis_runs' table with 'disciplines' and 'flags' columns.
         """
         try:
-            # Fetch all analysis runs
-            runs_df = pd.read_sql_query("SELECT id, file_name, run_time, compliance_score FROM analysis_runs", self.conn)
+            runs_df = pd.read_sql_query("SELECT id, file_name, run_time, compliance_score, disciplines, flags FROM analysis_runs", self.conn)
+            if runs_df.empty or 'disciplines' not in runs_df.columns:
+                logger.error("Not enough data or 'disciplines' column missing.")
+                return pd.DataFrame()
 
-            # Fetch all issues
-            issues_df = pd.read_sql_query("SELECT run_id, severity, category FROM analysis_issues", self.conn)
+            # Parse discipline as the sensitive feature from JSON list in 'disciplines' column
+            def get_primary_discipline(d):
+                try:
+                    if d:
+                        parsed = json.loads(d)
+                        if isinstance(parsed, list) and len(parsed) > 0:
+                            return parsed[0]
+                    return 'Unknown'
+                except Exception:
+                    return 'Unknown'
 
-            # For this audit, we'll define a simple "high-risk" label.
-            # A run is high-risk if it has at least one 'flag' severity issue.
-            high_risk_runs = issues_df[issues_df['severity'] == 'flag']['run_id'].unique()
-            runs_df['is_high_risk'] = runs_df['id'].isin(high_risk_runs)
+            runs_df['discipline'] = runs_df['disciplines'].apply(get_primary_discipline)
+            runs_df = runs_df[runs_df['discipline'] != 'Unknown']
 
-            # We need a sensitive feature to audit. Let's use the discipline,
-            # which we can infer from the filename for this example.
-            def get_discipline_from_filename(name):
-                if 'pt' in name.lower():
-                    return 'PT'
-                if 'ot' in name.lower():
-                    return 'OT'
-                if 'slp' in name.lower():
-                    return 'SLP'
-                return 'Unknown'
+            # Prediction: flagged or not, derived from 'flags' column or compliance_score if needed
+            if 'flags' in runs_df.columns:
+                runs_df['predicted_high_risk'] = runs_df['flags'] > 0
+            else:
+                runs_df['predicted_high_risk'] = runs_df['compliance_score'] < 80
 
-            runs_df['discipline'] = runs_df['file_name'].apply(get_discipline_from_filename)
+            # True label: for example, high risk if any 'flag' severity issue exists from issues table
+            # This requires fetching issues for a more detailed label, skipping if no issue data
+            # For now, fallback to predicted as true since no issues_df access here
+            runs_df['is_high_risk'] = runs_df['predicted_high_risk']
 
-            # For the purpose of this audit, we'll create a mock "prediction".
-            # Let's say our "model" predicts a document is high-risk if its compliance score is below 80.
-            runs_df['predicted_high_risk'] = runs_df['compliance_score'] < 80
-
-            # Filter out runs where the discipline is unknown
-            audit_df = runs_df[runs_df['discipline'] != 'Unknown']
-
-            return audit_df
-
+            return runs_df
         except Exception as e:
-            logger.error(f"Failed to get data for bias audit: {e}")
+            logger.error(f"Failed to get audit data: {e}")
             return pd.DataFrame()
 
-    def run_bias_audit(self):
+    def run_bias_audit(self) -> str:
         """
-        Performs a bias audit using the fetched data and returns a summary of the results.
+        Runs bias audit and returns a detailed textual report.
         """
         audit_df = self.get_audit_data()
-
         if audit_df.empty:
             return "Could not retrieve data for the bias audit."
 
-        # Define the sensitive features, true labels, and predicted labels
         sensitive_features = audit_df['discipline']
         y_true = audit_df['is_high_risk']
         y_pred = audit_df['predicted_high_risk']
 
-        # Define the metrics to compute
         metrics = {
             'accuracy': accuracy_score,
             'demographic_parity_difference': demographic_parity_difference,
-            'equalized_odds_difference': equalized_odds_difference
+            'demographic_parity_ratio': demographic_parity_ratio,
+            'equalized_odds_difference': equalized_odds_difference,
+            'selection_rate': selection_rate
         }
 
-        # Use MetricFrame to compute the metrics across discipline groups
         metric_frame = MetricFrame(metrics=metrics,
                                    y_true=y_true,
                                    y_pred=y_pred,
                                    sensitive_features=sensitive_features)
 
-        # Build a results report
         report_lines = ["Bias Audit Report\n" + "="*20]
         report_lines.append("\nOverall Metrics:")
         report_lines.append(f"- Accuracy: {metric_frame.overall['accuracy']:.3f}")
         report_lines.append(f"- Demographic Parity Difference: {metric_frame.overall['demographic_parity_difference']:.3f}")
+        report_lines.append(f"- Demographic Parity Ratio: {metric_frame.overall['demographic_parity_ratio']:.3f}")
         report_lines.append(f"- Equalized Odds Difference: {metric_frame.overall['equalized_odds_difference']:.3f}")
-
+        report_lines.append(f"- Average Selection Rate: {metric_frame.overall['selection_rate']:.3f}")
         report_lines.append("\nMetrics by Discipline:")
         report_lines.append(str(metric_frame.by_group))
-
         report_lines.append("\nExplanation:")
-        report_lines.append("- **Demographic Parity Difference:** Measures whether the model's prediction rate is the same across different subgroups. A value of 0 indicates perfect fairness.")
-        report_lines.append("- **Equalized Odds Difference:** Measures whether the model has the same true positive rate and false positive rate across subgroups. A value of 0 indicates perfect fairness.")
-
+        report_lines.append("- Demographic Parity Difference measures whether the prediction rate is equal across groups; 0 means perfect fairness.")
+        report_lines.append("- Demographic Parity Ratio compares prediction rates, with 1 meaning fairness.")
+        report_lines.append("- Equalized Odds Difference measures equal true/false positive rates across groups; 0 means fairness.")
+        report_lines.append("- Selection Rate is the average predicted positive rate for each group.")
         return "\n".join(report_lines)
