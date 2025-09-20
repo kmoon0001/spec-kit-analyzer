@@ -1,0 +1,65 @@
+@prefix : <http://example.com/speckit/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# --- SLP Compliance Rubric ---
+
+# Rule 1: SLP Plan of Care Completeness
+# Checks if a POC contains goals, frequency, and duration.
+:SLP_POC_Rule a :ComplianceRule ;
+    :hasSeverity "finding" ;
+    :hasStrictSeverity "flag" ;
+    :hasIssueTitle "SLP Plan of Care may be incomplete" ;
+    :hasIssueDetail "The Plan of Care for SLP should explicitly state long-term goals, and the type, frequency, amount, and duration of therapy." ;
+    :hasIssueCategory "Plan of Care" ;
+    :hasDiscipline "slp" ;
+    :hasPositiveKeywords :SLP_POC_KeywordsPresent ;
+    :hasNegativeKeywords :SLP_POC_KeywordsMissing .
+
+:SLP_POC_KeywordsPresent a :KeywordSet ; :hasKeyword "plan of care", "poc" .
+:SLP_POC_KeywordsMissing a :KeywordSet ; :hasKeyword "goal", "frequency", "duration" .
+
+# Rule 2: Justification of Skilled SLP Services
+# Checks if therapy notes justify why the skills of an SLP are needed by looking for keywords. If none are found, it triggers.
+:SLP_SkilledServiceRule a :ComplianceRule ;
+    :hasSeverity "finding" ;
+    :hasStrictSeverity "flag" ;
+    :hasIssueTitle "Justification for Skilled SLP Service may be missing" ;
+    :hasIssueDetail "Documentation should clearly explain why the skills of a therapist are required (e.g., using specific cues, strategies, feedback, or modification)." ;
+    :hasIssueCategory "Skilled Service" ;
+    :hasDiscipline "slp" ;
+    :hasNegativeKeywords :SLP_SkilledServiceKeywords .
+
+:SLP_SkilledServiceKeywords a :KeywordSet ;
+    :hasKeyword "cue", "cues", "strategy", "strategies", "feedback", "model", "educate", "modify", "assess", "analyze", "skilled" .
+
+# Rule 3: Measurable SLP Goals
+# Checks if SLP-specific goals are measurable.
+:SLP_MeasurableGoalsRule a :ComplianceRule ;
+    :hasSeverity "finding" ;
+    :hasStrictSeverity "flag" ;
+    :hasIssueTitle "SLP goals may not be measurable" ;
+    :hasIssueDetail "Goals for conditions like aphasia, dysphagia, or cognitive deficits should include objective, measurable criteria (e.g., percentages, accuracy, level of assistance)." ;
+    :hasIssueCategory "Goals" ;
+    :hasDiscipline "slp" ;
+    :hasPositiveKeywords :SLP_GoalsKeywordsPresent ;
+    :hasNegativeKeywords :SLP_GoalsKeywordsMissing .
+
+:SLP_GoalsKeywordsPresent a :KeywordSet ; :hasKeyword "aphasia", "dysphagia", "articulation", "fluency", "voice", "cognitive", "swallow" .
+:SLP_GoalsKeywordsMissing a :KeywordSet ; :hasKeyword "%", "percent", "accuracy", "trials", "opportunities", "level of assist" .
+
+# Rule 4: Progress Report Content
+# Checks if progress reports contain objective data.
+:SLP_ProgressReportRule a :ComplianceRule ;
+    :hasSeverity "suggestion" ;
+    :hasStrictSeverity "finding" ;
+    :hasIssueTitle "Progress report may lack objective data" ;
+    :hasIssueDetail "Progress reports must be completed at least every 10 treatment days and should contain objective measures of progress toward each goal." ;
+    :hasIssueCategory "Progress Report" ;
+    :hasDiscipline "slp" ;
+    :hasPositiveKeywords :SLP_ProgressKeywordsPresent ;
+    :hasNegativeKeywords :SLP_ProgressKeywordsMissing .
+
+:SLP_ProgressKeywordsPresent a :KeywordSet ; :hasKeyword "progress report", "progress note" .
+:SLP_ProgressKeywordsMissing a :KeywordSet ; :hasKeyword "%", "percent", "accuracy", "trials", "objective", "data", "score" .

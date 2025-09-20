@@ -1,0 +1,74 @@
+@prefix : <http://example.com/speckit/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# --- OT Compliance Rubric ---
+
+# Rule 1: Signature/Date check (Shared)
+:OT_SignatureRule a :ComplianceRule ;
+    :hasSeverity "finding" ;
+    :hasStrictSeverity "flag" ;
+    :hasIssueTitle "Provider signature/date possibly missing" ;
+    :hasIssueDetail "No explicit evidence of dated/signature entries found." ;
+    :hasIssueCategory "Signatures/Dates" ;
+:hasDiscipline "ot" ;
+    :hasNegativeKeywords :SignatureKeywords .
+
+# Rule 2: OT Goals check
+# This rule triggers if an OT-related keyword is present, but measurable/time-bound keywords are NOT.
+:OT_GoalsRule a :ComplianceRule ;
+    :hasSeverity "finding" ;
+    :hasStrictSeverity "flag" ;
+    :hasIssueTitle "OT goals may not be measurable/time-bound" ;
+    :hasIssueDetail "Consider restating goals with measurable, time-bound targets, focusing on functional outcomes (e.g., ADLs, fine motor control)." ;
+    :hasIssueCategory "Goals" ;
+:hasDiscipline "ot" ;
+    :hasPositiveKeywords :OT_GoalsKeywordsPresent ;
+    :hasNegativeKeywords :GoalsKeywordsMissing .
+
+:OT_GoalsKeywordsPresent a :KeywordSet ; :hasKeyword "goal", "ADL", "fine motor", "sensory", "self-care", "functional independence" .
+# :GoalsKeywordsMissing is shared from the PT rubric's definition if loaded together, or should be redefined if used alone.
+# For standalone use, it would be: :GoalsKeywordsMissing a :KeywordSet ; :hasKeyword "measurable", "time", "timed" .
+
+
+# Rule 3: Medical Necessity check (Shared)
+:OT_MedicalNecessityRule a :ComplianceRule ;
+    :hasSeverity "finding" ;
+    :hasStrictSeverity "flag" ;
+    :hasIssueTitle "Medical necessity not explicitly supported" ;
+    :hasIssueDetail "Ensure documentation ties OT interventions to functional limitations and outcomes aligned with Medicare Part B." ;
+    :hasIssueCategory "Medical Necessity" ;
+:hasDiscipline "ot" ;
+    :hasNegativeKeywords :MedicalNecessityKeywords .
+
+# Rule 4: Assistant (COTA) Supervision check
+:OT_AssistantSupervisionRule a :ComplianceRule ;
+    :hasSeverity "suggestion" ;
+    :hasStrictSeverity "finding" ;
+    :hasIssueTitle "Assistant (COTA) supervision context unclear" ;
+    :hasIssueDetail "When assistants (COTA) are involved, document supervision/oversight per Medicare/state requirements." ;
+    :hasIssueCategory "Assistant Supervision" ;
+:hasDiscipline "ot" ;
+    :hasPositiveKeywords :OT_AssistantKeywordsPresent ;
+    :hasNegativeKeywords :AssistantKeywordsMissing .
+
+:OT_AssistantKeywordsPresent a :KeywordSet ; :hasKeyword "assistant", "cota" .
+# :AssistantKeywordsMissing is shared, see above.
+
+# Rule 5: Plan of Care check (Shared)
+:OT_PlanOfCareRule a :ComplianceRule ;
+    :hasSeverity "finding" ;
+    :hasStrictSeverity "flag" ;
+    :hasIssueTitle "Plan/Certification not clearly referenced" ;
+    :hasIssueDetail "Explicitly reference plan of care/certification dates and responsible signatures." ;
+    :hasIssueCategory "Plan/Certification" ;
+:hasDiscipline "ot" ;
+    :hasNegativeKeywords :PlanOfCareKeywords .
+
+# --- Shared Keyword Sets (rely on definitions in pt_compliance_rubric.ttl if loaded together) ---
+:SignatureKeywords a :KeywordSet ; :hasKeyword "signature", "signed", "dated" .
+:GoalsKeywordsMissing a :KeywordSet ; :hasKeyword "measurable", "time", "timed" .
+:MedicalNecessityKeywords a :KeywordSet ; :hasKeyword "medical necessity", "reasonable and necessary", "necessity" .
+:AssistantKeywordsMissing a :KeywordSet ; :hasKeyword "supervis" .
+:PlanOfCareKeywords a :KeywordSet ; :hasKeyword "plan of care", "poc", "certification", "recert" .

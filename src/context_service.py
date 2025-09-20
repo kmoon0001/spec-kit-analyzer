@@ -8,19 +8,34 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from __future__ import annotations
+
+import json
+import logging
+from typing import List, Dict, Optional
+
+import numpy as np
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+
 logger = logging.getLogger(__name__)
+
 
 class ContextService:
     """
     A service for classifying the context of sentences using sentence embeddings.
     """
+
     def __init__(self, categories_path: str, model: SentenceTransformer):
         """
-        Initializes the service by loading category definitions and pre-computing embeddings.
+        Initializes the service by loading category definitions and pre-computing
+        embeddings.
 
         Args:
-            categories_path (str): Path to the JSON file with category definitions.
-            model (SentenceTransformer): An already loaded SentenceTransformer model instance.
+            categories_path (str): Path to the JSON file with category
+                                 definitions.
+            model (SentenceTransformer): An already loaded SentenceTransformer
+                                         model instance.
         """
         self.model = model
         self.categories: Dict[str, str] = {}
@@ -40,9 +55,12 @@ class ContextService:
             logger.info("Context category embeddings computed successfully.")
 
         except FileNotFoundError:
-            logger.exception(f"Context categories file not found at {categories_path}. The service will be disabled.")
-        except Exception as e:
-            logger.exception(f"Failed to initialize ContextService: {e}")
+            logger.exception(
+                f"Context categories file not found at {categories_path}. "
+                f"The service will be disabled."
+            )
+        except Exception:
+            logger.exception("Failed to initialize ContextService")
 
     def is_ready(self) -> bool:
         """Check if the service is ready to classify sentences."""
@@ -56,7 +74,8 @@ class ContextService:
             sentence (str): The sentence to classify.
 
         Returns:
-            Optional[str]: The name of the best-matching category, or None if classification fails.
+            Optional[str]: The name of the best-matching category, or None if
+                         classification fails.
         """
         if not self.is_ready() or self.category_embeddings is None:
             return None
@@ -65,13 +84,15 @@ class ContextService:
             # 1. Compute the embedding for the input sentence
             sentence_embedding = self.model.encode([sentence])
 
-            # 2. Calculate cosine similarity between the sentence and all category descriptions
-            similarities = cosine_similarity(sentence_embedding, self.category_embeddings)
+            # 2. Calculate cosine similarity
+            similarities = cosine_similarity(
+                sentence_embedding, self.category_embeddings
+            )
 
-            # 3. Find the index of the category with the highest similarity score
+            # 3. Find the index of the category with the highest similarity
             best_match_index = np.argmax(similarities)
 
             return self.category_names[best_match_index]
-        except Exception as e:
+        except Exception:
             logger.exception(f"Failed to classify sentence: '{sentence[:50]}...'")
             return None
