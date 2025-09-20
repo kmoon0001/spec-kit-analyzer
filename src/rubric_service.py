@@ -18,6 +18,7 @@ class ComplianceRule:
     issue_title: str
     issue_detail: str
     issue_category: str
+financial_impact: int = 0
     discipline: str
     positive_keywords: List[str] = field(default_factory=list)
     negative_keywords: List[str] = field(default_factory=list)
@@ -57,32 +58,32 @@ class RubricService:
 
         # Prepare a SPARQL query to get all rules and their properties.
         # OPTIONAL blocks are used because not all rules have all properties (e.g., positive_keywords).
-        query = prepareQuery("""
-            SELECT ?rule ?severity ?strict_severity ?title ?detail ?category ?discipline
-                   (GROUP_CONCAT(DISTINCT ?pos_kw_coalesced; SEPARATOR="|") AS ?positive_keywords)
-                   (GROUP_CONCAT(DISTINCT ?neg_kw_coalesced; SEPARATOR="|") AS ?negative_keywords)
-            WHERE {
-                ?rule a :ComplianceRule .
-                ?rule :hasSeverity ?severity .
-                ?rule :hasStrictSeverity ?strict_severity .
-                ?rule :hasIssueTitle ?title .
-                ?rule :hasIssueDetail ?detail .
-                ?rule :hasIssueCategory ?category .
-                ?rule :hasDiscipline ?discipline .
-                OPTIONAL {
-                    ?rule :hasPositiveKeywords ?pos_kw_set .
-                    ?pos_kw_set :hasKeyword ?pos_kw .
-                }
-                OPTIONAL {
-                    ?rule :hasNegativeKeywords ?neg_kw_set .
-                    ?neg_kw_set :hasKeyword ?neg_kw .
-                }
-                BIND(COALESCE(?pos_kw, "") AS ?pos_kw_coalesced)
-                BIND(COALESCE(?neg_kw, "") AS ?neg_kw_coalesced)
-            }
-            GROUP BY ?rule ?severity ?strict_severity ?title ?detail ?category ?discipline
-        """, initNs={"rdf": NS.rdf, "rdfs": NS.rdfs, "": NS})
-
+     query = prepareQuery("""
+    SELECT ?rule ?severity ?strict_severity ?title ?detail ?category ?financial_impact ?discipline
+        (GROUP_CONCAT(DISTINCT ?pos_kw_coalesced; SEPARATOR="|") AS ?positive_keywords)
+        (GROUP_CONCAT(DISTINCT ?neg_kw_coalesced; SEPARATOR="|") AS ?negative_keywords)
+    WHERE {
+        ?rule a :ComplianceRule .
+        ?rule :hasSeverity ?severity .
+        ?rule :hasStrictSeverity ?strict_severity .
+        ?rule :hasIssueTitle ?title .
+        ?rule :hasIssueDetail ?detail .
+        ?rule :hasIssueCategory ?category .
+        ?rule :hasDiscipline ?discipline .
+        OPTIONAL { ?rule :hasFinancialImpact ?financial_impact . }
+        OPTIONAL {
+            ?rule :hasPositiveKeywords ?pos_kw_set .
+            ?pos_kw_set :hasKeyword ?pos_kw .
+        }
+        OPTIONAL {
+            ?rule :hasNegativeKeywords ?neg_kw_set .
+            ?neg_kw_set :hasKeyword ?neg_kw .
+        }
+        BIND(COALESCE(?pos_kw, "") AS ?pos_kw_coalesced)
+        BIND(COALESCE(?neg_kw, "") AS ?neg_kw_coalesced)
+    }
+    GROUP BY ?rule ?severity ?strict_severity ?title ?detail ?category ?financial_impact ?discipline
+""", initNs={"rdf": NS.rdf, "rdfs": NS.rdfs, "": NS})
         rules = []
         try:
             results = self.graph.query(query)
@@ -98,7 +99,8 @@ class RubricService:
                     issue_title=str(row.title),
                     issue_detail=str(row.detail),
                     issue_category=str(row.category),
-                    discipline=str(row.discipline),
+financial_impact=int(row.financial_impact) if row.financial_impact else 0,
+    discipline=str(row.discipline),
                     positive_keywords=[kw for kw in pos_kws if kw], # Filter out empty strings
                     negative_keywords=[kw for kw in neg_kws if kw]  # Filter out empty strings
                 )

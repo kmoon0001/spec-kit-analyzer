@@ -164,11 +164,23 @@ from PyQt6.QtWidgets import (
     QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout,
     QTableWidget, QTableWidgetItem, QListWidgetItem, QRadioButton
 )
-from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter
+from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter, QTextCharFormat, QColor
 from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject, QDate
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtWebEngineCore import QWebEngineSettings
+
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+from spellchecker import SpellChecker
+
+spell = SpellChecker()
+
+from .local_llm import LocalRAG
+from .rubric_service import RubricService, ComplianceRule
+from .guideline_service import GuidelineService
+from .text_chunking import RecursiveCharacterTextSplitter
 
 import logging
-
 logger = logging.getLogger(__name__)
 
 def _generate_suggested_questions(issues: list) -> list[str]:
@@ -181,7 +193,6 @@ def _generate_suggested_questions(issues: list) -> list[str]:
         "Assistant supervision context unclear": "What are the supervision requirements for therapy assistants?",
         "Plan/Certification not clearly referenced": "How should the Plan of Care be referenced in a note?",
     }
-    # Prioritize flags, then findings
     sorted_issues = sorted(issues, key=lambda x: ({"flag": 0, "finding": 1}.get(x.get('severity'), 2)))
     for issue in sorted_issues:
         if len(suggestions) >= 3:
@@ -325,17 +336,11 @@ except Exception:
     class RubricService: ...
     class ComplianceRule: ...
     class QPdfWriter: ...
+    class QTextCharFormat: ...
+    class QColor: ...
     class Qt: ...
     class QThread: ...
-    class QListWidgetItem: ...
-
-# Local imports
-from .llm_analyzer import run_llm_analysis
-
-from .ner_service import NERService, NEREntity
-from .entity_consolidation_service import EntityConsolidationService
-
-        main
+# Local imports with error handling to ensure graceful degradation
 try:
     from .entity_consolidation_service import EntityConsolidationService
     from .local_llm import LocalRAG
@@ -343,10 +348,6 @@ try:
     from .guideline_service import GuidelineService
     from .text_chunking import RecursiveCharacterTextSplitter
     from .nlg_service import NLGService
-service = BiasAuditService()
-report = service.run_bias_audit()
-
-        main
 except ImportError as e:
     logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
     # Define dummy classes if imports fail, to prevent crashing on startup
@@ -356,9 +357,15 @@ except ImportError as e:
     class GuidelineService: pass
     class RecursiveCharacterTextSplitter: pass
     class NLGService: pass
+
+# Optional: dummy classes for QWebEngineView or QWebEngineSettings if really needed
+class QWebEngineView: ...
+class QWebEngineSettings: ...
+
+# Service initialization
 service = BiasAuditService()
 report = service.run_bias_audit()
-        main
+
 
 # --- LLM Loader Worker ---
 class LLMWorker(QObject):
@@ -781,6 +788,27 @@ def split_sentences(text: str) -> list[str]:
         sents = text.splitlines()
     return [s for s in sents if s]
 
+def _correct_spelling(text: str) -> str:
+    """Corrects spelling errors in a given text, preserving punctuation."""
+    if not isinstance(text, str):
+        return text
+
+    corrected_parts = []
+    # Tokenize into words and non-words (punctuation, whitespace)
+    # This regex finds sequences of word characters or single non-word characters.
+    tokens = re.findall(r"(\w+)|([^\w])", text)
+
+    for word, non_word in tokens:
+        if word:
+            # Correct the word part, or keep original if no correction found
+            corrected_word = spell.correction(word) or word
+            corrected_parts.append(corrected_word)
+        if non_word:
+            # Append the non-word part (punctuation, space, newline, etc.)
+            corrected_parts.append(non_word)
+
+    return "".join(corrected_parts)
+
 def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
     """
     Parses the content of a document and splits it into chunks.
@@ -809,7 +837,8 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
                 # Process page by page to maintain source information
                 for i, page in enumerate(pdf.pages, start=1):
                     page_text = page.extract_text() or ""
-                    page_chunks = text_splitter.split_text(page_text)
+                    corrected_text = _correct_spelling(page_text)
+                    page_chunks = text_splitter.split_text(corrected_text)
                     for chunk in page_chunks:
                         if chunk:
                             chunks_with_source.append((chunk, f"Page {i}"))
@@ -823,7 +852,8 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
             for i, para in enumerate(docx_doc.paragraphs, start=1):
                 if not para.text.strip():
                     continue
-                para_chunks = text_splitter.split_text(para.text)
+                corrected_text = _correct_spelling(para.text)
+                para_chunks = text_splitter.split_text(corrected_text)
                 for chunk in para_chunks:
                     if chunk:
                         chunks_with_source.append((chunk, f"Paragraph {i}"))
@@ -836,7 +866,8 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
                 else:
                     df = pd.read_csv(file_path)
                 content = df.to_string(index=False)
-                data_chunks = text_splitter.split_text(content)
+                corrected_content = _correct_spelling(content)
+                data_chunks = text_splitter.split_text(corrected_content)
                 for chunk in data_chunks:
                     if chunk:
                         chunks_with_source.append((chunk, "Table"))
@@ -850,7 +881,8 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
                 if img.mode not in ("RGB", "L"):
                     img = img.convert("RGB")
                 txt = pytesseract.image_to_string(img, lang=get_str_setting("ocr_lang", "eng"))
-                ocr_chunks = text_splitter.split_text(txt or "")
+                corrected_txt = _correct_spelling(txt or "")
+                ocr_chunks = text_splitter.split_text(corrected_txt)
                 for chunk in ocr_chunks:
                     if chunk:
                         chunks_with_source.append((chunk, "Image (OCR)"))
@@ -859,7 +891,8 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
         elif ext == ".txt":
             with open(file_path, "r", encoding="utf-8") as f:
                 txt = f.read()
-            txt_chunks = text_splitter.split_text(txt)
+            corrected_txt = _correct_spelling(txt)
+            txt_chunks = text_splitter.split_text(corrected_txt)
             for chunk in txt_chunks:
                 if chunk:
                     chunks_with_source.append((chunk, "Text File"))
@@ -1110,29 +1143,42 @@ QTableWidget, QTableWidgetItem, QListWidgetItem
         cur.execute("CREATE INDEX IF NOT EXISTS idx_reviews_issue ON reviewed_findings(analysis_issue_id)")
 
         cur.execute("""
-                    CREATE TABLE IF NOT EXISTS ner_model_performance (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        model_name TEXT NOT NULL,
-                        entity_label TEXT NOT NULL,
-                        confirmations INTEGER DEFAULT 0,
-                        rejections INTEGER DEFAULT 0,
-                        UNIQUE(model_name, entity_label)
-                    )
-                    """)
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_ner_perf_model_label ON ner_model_performance(model_name, entity_label)")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS annotations
+    (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        analysis_issue_id INTEGER NOT NULL,
+        note TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (analysis_issue_id) REFERENCES analysis_issues (id) ON DELETE CASCADE
+    )
+""")
+cur.execute("CREATE INDEX IF NOT EXISTS idx_annotations_issue ON annotations(analysis_issue_id)")
 
-        cur.execute("""
-                    CREATE TABLE IF NOT EXISTS adjudication_log (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        analysis_issue_id INTEGER NOT NULL,
-                        user_decision TEXT NOT NULL,
-                        corrected_label TEXT,
-                        notes TEXT,
-                        adjudicated_at TEXT NOT NULL,
-                        FOREIGN KEY(analysis_issue_id) REFERENCES analysis_issues(id) ON DELETE CASCADE
-                    )
-                    """)
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_adjudication_log_issue ON adjudication_log(analysis_issue_id)")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS ner_model_performance (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        model_name TEXT NOT NULL,
+        entity_label TEXT NOT NULL,
+        confirmations INTEGER DEFAULT 0,
+        rejections INTEGER DEFAULT 0,
+        UNIQUE(model_name, entity_label)
+    )
+""")
+cur.execute("CREATE INDEX IF NOT EXISTS idx_ner_perf_model_label ON ner_model_performance(model_name, entity_label)")
+
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS adjudication_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        analysis_issue_id INTEGER NOT NULL,
+        user_decision TEXT NOT NULL,
+        corrected_label TEXT,
+        notes TEXT,
+        adjudicated_at TEXT NOT NULL,
+        FOREIGN KEY(analysis_issue_id) REFERENCES analysis_issues(id) ON DELETE CASCADE
+    )
+""")
+cur.execute("CREATE INDEX IF NOT EXISTS idx_adjudication_log_issue ON adjudication_log(analysis_issue_id)")
 
         conn.commit()
     except Exception as e:
@@ -1878,7 +1924,7 @@ def _generate_compliance_checklist(strengths: list[str], weaknesses: list[str]) 
     lines.append("")
     return lines
 
-def run_analyzer(file_path: str,
+def run_analyzer(self, file_path: str,
                  selected_disciplines: List[str],
                  entity_consolidation_service: EntityConsolidationService,
                  scrub_override: Optional[bool] = None,
@@ -2206,23 +2252,27 @@ if get_bool_setting("enable_ner_ensemble", True) and self.ner_service and self.e
 
         def compute_compliance_score(issues: list[dict], strengths_in: list[str], missing_in: list[str],
                                      mode: ReviewMode) -> dict:
+
+            total_financial_impact = sum(issue.get("financial_impact", 0) for issue in issues)
+
+            # Normalize the financial impact to a penalty score out of 100.
+            # The MAX_FINANCIAL_IMPACT can be adjusted based on expected impact values.
+            MAX_FINANCIAL_IMPACT = 500
+            financial_penalty = (total_financial_impact / MAX_FINANCIAL_IMPACT) * 100
+
+            base = 100.0 - financial_penalty
+
+            # The 'missing' and 'strengths' can act as adjustments on top of the financial impact score.
+            base -= len(missing_in) * (4.0 if mode == "Strict" else 2.5)
+            base += min(5.0, len(strengths_in) * 0.5)
+
+            score = max(0.0, min(100.0, base))
+
             flags = sum(1 for i in issues if i.get("severity") == "flag")
             findings = sum(1 for i in issues if i.get("severity") == "finding")
-            sug = sum(1 for i in issues if i.get("severity") == "suggestion")
-            base = 100.0
-            if mode == "Strict":
-                base -= flags * 6.0
-                base -= findings * 3.0
-                base -= sug * 1.5
-                base -= len(missing_in) * 4.0
-            else:
-                base -= flags * 4.0
-                base -= findings * 2.0
-                base -= sug * 1.0
-                base -= len(missing_in) * 2.5
-            base += min(5.0, len(strengths_in) * 0.5)
-            score = max(0.0, min(100.0, base))
-            breakdown = f"Flags={flags}, Findings={findings}, Suggestions={sug}, Missing={len(missing_in)}, Strengths={len(strengths_in)}; Mode={mode}"
+            suggestions = sum(1 for i in issues if i.get("severity") == "suggestion")
+
+            breakdown = f"Flags={flags}, Findings={findings}, Suggestions={suggestions}, Missing={len(missing_in)}, Strengths={len(strengths_in)}, Financial Impact={total_financial_impact}; Mode={mode}"
             return {"score": round(score, 1), "breakdown": breakdown}
 
         compliance = compute_compliance_score(issues_scored, strengths, missing, CURRENT_REVIEW_MODE)
@@ -2455,6 +2505,13 @@ if get_bool_setting("enable_ner_ensemble", True) and self.ner_service and self.e
                 f" • Average Flags: {trends['avg_flags']:.2f} | Average Findings: {trends['avg_findings']:.2f} | Average Suggestions: {trends['avg_suggestions']:.2f}")
         else:
             narrative_lines.append(" • Not enough history to compute trends yet.")
+        narrative_lines.append("")
+
+        narrative_lines.append("--- Model Information & Limitations ---")
+        narrative_lines.append(" • NLG Model: t5-small")
+        narrative_lines.append(" • Embedding Model: all-MiniLM-L6-v2")
+        narrative_lines.append(" • LLM Model: Mistral-7B-Instruct-v0.2-GGUF (Q4_K_M)")
+        narrative_lines.append(" • This report was generated by an AI-powered system. The findings are based on a combination of rule-based analysis and machine learning models. While this tool is designed to assist in identifying potential compliance issues, it is not a substitute for professional judgment. The models may not be perfect and can make mistakes. All findings should be reviewed by a qualified professional.")
         narrative_lines.append("")
 
         metrics = {
@@ -2753,18 +2810,44 @@ self.ner_service = NERService(ner_model_configs)
         analytics_controls.addWidget(self.date_edit_to)
 
         btn_refresh_analytics = QPushButton("Refresh Analytics")
+btn_refresh_analytics = QPushButton("Refresh Analytics")
+self._style_action_button(btn_refresh_analytics, font_size=11, bold=True, height=32)
+btn_refresh_analytics.clicked.connect(self._update_analytics_tab)
+
         btn_refresh_analytics.clicked.connect(self._update_analytics_tab)
         analytics_controls.addWidget(btn_refresh_analytics)
+
+        self.discipline_filter_combo = QComboBox()
+        self.discipline_filter_combo.addItems(["All", "pt", "ot", "slp"])
+        self.discipline_filter_combo.currentTextChanged.connect(self._update_analytics_tab)
+        analytics_controls.addWidget(QLabel("Filter by Discipline:"))
+        analytics_controls.addWidget(self.discipline_filter_combo)
+
         analytics_controls.addStretch(1)
         analytics_layout.addLayout(analytics_controls)
 
-        # Matplotlib chart
-        self.analytics_figure = Figure(figsize=(5, 4.5)) # Increased height for two charts
-        self.analytics_canvas = FigureCanvas(self.analytics_figure)
-self.analytics_canvas.mpl_connect('pick_event', self.on_chart_pick)  # or self._on_analytics_pick if preferred
-self.analytics_canvas.mpl_connect('button_press_event', self.on_chart_click)
+analytics_layout.addLayout(analytics_controls)
 
-        analytics_layout.addWidget(self.analytics_canvas)
+# Plotly chart via QWebEngineView
+self.analytics_view = QWebEngineView()
+analytics_layout.addWidget(self.analytics_view)
+
+# --- Bias Audit Tab ---
+bias_audit_tab = QWidget()
+self.tabs.addTab(bias_audit_tab, "Bias Audit")
+bias_audit_layout = QVBoxLayout(bias_audit_tab)
+
+bias_audit_controls = QHBoxLayout()
+btn_run_bias_audit = QPushButton("Run Bias Audit")
+self._style_action_button(btn_run_bias_audit, font_size=11, bold=True, height=32)
+btn_run_bias_audit.clicked.connect(self._run_bias_audit)
+bias_audit_controls.addWidget(btn_run_bias_audit)
+bias_audit_controls.addStretch(1)
+bias_audit_layout.addLayout(bias_audit_controls)
+
+self.bias_audit_figure = Figure(figsize=(5, 3))
+self.bias_audit_canvas = FigureCanvas(self.bias_audit_figure)
+bias_audit_layout.addWidget(self.bias_audit_canvas)
 
         # Heatmap chart
         self.heatmap_figure = Figure(figsize=(5, 4))
@@ -3516,8 +3599,7 @@ self._update_analytics_tab()
                 QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to analyze.")
                 return
 
-            res = run_analyzer(self, self._current_report_path, selected_disciplines=selected_disciplines, entity_consolidation_service=self.entity_consolidation_service, progress_cb=_cb, cancel_cb=_cancel, main_window_instance=self)
-
+res = run_analyzer(self, self._current_report_path, selected_disciplines=selected_disciplines, entity_consolidation_service=self.entity_consolidation_service, progress_cb=_cb, cancel_cb=_cancel, main_window_instance=self)
             outs = []
             if res.get("pdf"):
                 outs.append(f"PDF: {res['pdf']}")
@@ -3661,7 +3743,8 @@ self._update_analytics_tab()
                         self._progress_update(overall, f"File {i + 1}/{n}: {m}")
                     def _cancel():
                         return self._progress_was_canceled() or self._batch_cancel
-                    res = run_analyzer(self, path, selected_disciplines=selected_disciplines, entity_consolidation_service=self.entity_consolidation_service, progress_cb=_cb, cancel_cb=_cancel, main_window_instance=self)
+res = run_analyzer(self, path, selected_disciplines=selected_disciplines, entity_consolidation_service=self.entity_consolidation_service, progress_cb=_cb, cancel_cb=_cancel, main_window_instance=self)
+
                     if res.get("pdf") or res.get("json") or res.get("csv"):
                         ok_count += 1
                     else:
@@ -3760,48 +3843,47 @@ self._update_analytics_tab()
             self.statusBar().showMessage("Ready")
             QApplication.restoreOverrideCursor()
 
-    def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None, fairness_metrics: Optional[dict] = None) -> None:
-        try:
-            # --- Update Fairness Metrics ---
-            if fairness_metrics and fairness_metrics.get('by_group') is not None:
-                dpd = fairness_metrics.get('demographic_parity_difference')
-                by_group = fairness_metrics.get('by_group')
+def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None, fairness_metrics: Optional[dict] = None) -> None:
+    try:
+        # --- Update Fairness Metrics ---
+        if fairness_metrics and fairness_metrics.get('by_group') is not None:
+            dpd = fairness_metrics.get('demographic_parity_difference')
+            by_group = fairness_metrics.get('by_group')
 
-                # Update overall metric
-                if dpd is not None:
-                    self.lbl_demographic_parity.setText(f"{dpd:.4f}")
-                else:
-                    self.lbl_demographic_parity.setText("N/A")
-
-                # Clear previous by-group items (all rows > 0)
-                while self.bias_layout.rowCount() > 1:
-                    for col in range(self.bias_layout.columnCount()):
-                        item = self.bias_layout.itemAtPosition(1, col)
-                        if item:
-                            widget = item.widget()
-                            if widget:
-                                widget.setParent(None)
-                    self.bias_layout.removeRow(1)
-
-                # Add new by-group items
-                row = 1
-                if isinstance(by_group, pd.Series):
-                    for group, rate in by_group.items():
-                        self.bias_layout.addWidget(QLabel(f"{str(group).upper()}"), row, 0)
-                        self.bias_layout.addWidget(QLabel(f"{rate:.4f}"), row, 1)
-                        row += 1
+            # Update overall metric
+            if dpd is not None:
+                self.lbl_demographic_parity.setText(f"{dpd:.4f}")
             else:
-                # Clear UI if no metrics are available
                 self.lbl_demographic_parity.setText("N/A")
-                while self.bias_layout.rowCount() > 1:
-                    for col in range(self.bias_layout.columnCount()):
-                        item = self.bias_layout.itemAtPosition(1, col)
-                        if item:
-                            widget = item.widget()
-                            if widget:
-                                widget.setParent(None)
-                    self.bias_layout.removeRow(1)
 
+            # Clear previous by-group items (all rows > 0)
+            while self.bias_layout.rowCount() > 1:
+                for col in range(self.bias_layout.columnCount()):
+                    item = self.bias_layout.itemAtPosition(1, col)
+                    if item:
+                        widget = item.widget()
+                        if widget:
+                            widget.setParent(None)
+                self.bias_layout.removeRow(1)
+
+            # Add new by-group items
+            row = 1
+            if isinstance(by_group, pd.Series):
+                for group, rate in by_group.items():
+                    self.bias_layout.addWidget(QLabel(f"{str(group).upper()}"), row, 0)
+                    self.bias_layout.addWidget(QLabel(f"{rate:.4f}"), row, 1)
+                    row += 1
+        else:
+            # Clear UI if no metrics are available
+            self.lbl_demographic_parity.setText("N/A")
+            while self.bias_layout.rowCount() > 1:
+                for col in range(self.bias_layout.columnCount()):
+                    item = self.bias_layout.itemAtPosition(1, col)
+                    if item:
+                        widget = item.widget()
+                        if widget:
+                            widget.setParent(None)
+                self.bias_layout.removeRow(1)
             # --- Bug Fix: Ensure issue IDs are present for loaded reports ---
             issues = data.get("issues", [])
             if issues and 'id' not in issues[0]:
@@ -3831,7 +3913,69 @@ self._update_analytics_tab()
 
             self.current_report_data = data
             self.tabs.setCurrentIndex(1) # Switch to results tab
+def render_analysis_to_results(self, data: dict, highlight_range: Optional[Tuple[int, int]] = None, fairness_metrics: Optional[dict] = None) -> None:
+    try:
+        # --- Update Fairness Metrics ---
+        if fairness_metrics and fairness_metrics.get('by_group') is not None:
+            dpd = fairness_metrics.get('demographic_parity_difference')
+            by_group = fairness_metrics.get('by_group')
+
+            # Update overall metric
+            if dpd is not None:
+                self.lbl_demographic_parity.setText(f"{dpd:.4f}")
+            else:
+                self.lbl_demographic_parity.setText("N/A")
+
+            # Clear previous by-group items (all rows > 0)
+            while self.bias_layout.rowCount() > 1:
+                for col in range(self.bias_layout.columnCount()):
+                    item = self.bias_layout.itemAtPosition(1, col)
+                    if item:
+                        widget = item.widget()
+                        if widget:
+                            widget.setParent(None)
+                self.bias_layout.removeRow(1)
+
+            # Add new by-group items
+            row = 1
+            if isinstance(by_group, pd.Series):
+                for group, rate in by_group.items():
+                    self.bias_layout.addWidget(QLabel(f"{str(group).upper()}"), row, 0)
+                    self.bias_layout.addWidget(QLabel(f"{rate:.4f}"), row, 1)
+                    row += 1
+        else:
+            # Clear UI if no metrics are available
+            self.lbl_demographic_parity.setText("N/A")
+            while self.bias_layout.rowCount() > 1:
+                for col in range(self.bias_layout.columnCount()):
+                    item = self.bias_layout.itemAtPosition(1, col)
+                    if item:
+                        widget = item.widget()
+                        if widget:
+                            widget.setParent(None)
+                self.bias_layout.removeRow(1)
+
+            # --- Fetch Annotations ---
+            issue_ids = [issue.get('id') for issue in issues if issue.get('id')]
+            annotations = {}
+            if issue_ids:
+                try:
+                    with _get_db_connection() as conn:
+                        notes_df = pd.read_sql_query(
+                            f"SELECT analysis_issue_id, note, created_at FROM annotations WHERE analysis_issue_id IN ({','.join(['?']*len(issue_ids))}) ORDER BY created_at ASC",
+                            conn,
+                            params=issue_ids
+                        )
+                        for _, row in notes_df.iterrows():
+                            if row['analysis_issue_id'] not in annotations:
+                                annotations[row['analysis_issue_id']] = []
+                            annotations[row['analysis_issue_id']].append(f"<i>({row['created_at']})</i>: {html.escape(row['note'])}")
+                except Exception as e:
+                    self.log(f"Could not fetch annotations: {e}")
             # When a new report is loaded, clear the previous chat history
+            self.chat_history = []
+
+# When a new report is loaded, clear the previous chat history
             self.chat_history = []
 
             file_name = os.path.basename(data.get("file", "Unknown File"))
@@ -3888,24 +4032,6 @@ self._update_analytics_tab()
             # Full Text
             full_text = "\n".join(s[0] for s in data.get('source_sentences', []))
             self.txt_full_note.setPlainText(full_text)
-        except Exception as e:
-            self.log(f"Failed to render analysis results: {e}")
-            logger.exception("Render analysis failed")
-
-
-    def highlight_text_in_note(self, start: int, end: int):
-        try:
-            # Create a QTextCursor for the full_note QTextEdit
-            cursor = self.txt_full_note.textCursor()
-
-            # Clear any previous selection
-            cursor.clearSelection()
-
-            # Set the new selection
-            cursor.setPosition(start)
-            cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
-
-            # Apply the selection to the QTextEdit
             self.txt_full_note.setTextCursor(cursor)
 
             # Scroll to the highlighted text
@@ -3923,6 +4049,9 @@ self._update_analytics_tab()
                     start = int(parts[1])
                     end = int(parts[2])
                     self.highlight_text_in_note(start, end)
+
+                    # Feature branch enhancement: optionally re-render the analysis with highlight_range
+
                     if hasattr(self, 'current_report_data') and self.current_report_data:
                         self.render_analysis_to_results(self.current_report_data, highlight_range=(start, end))
                 except (ValueError, IndexError) as e:
@@ -3933,6 +4062,13 @@ self._update_analytics_tab()
                 try:
                     issue_id = int(parts[1])
                     feedback = parts[2]
+try:
+    issue_id = int(parts[1])
+    feedback = parts[2]
+
+    # Find the issue to get the citation text and model prediction
+    issue_to_review = None
+    if self.current_report_data and self.current_report_data.get('issues'):
                     issue_to_review = None
                     if self.current_report_data and self.current_report_data.get('issues'):
                         for issue in self.current_report_data['issues']:
@@ -3940,9 +4076,11 @@ self._update_analytics_tab()
                                 issue_to_review = issue
                                 break
                     if issue_to_review:
-                        citation_text = ""
-                        if issue_to_review.get('citations'):
-                            raw_citation_html = issue_to_review['citations'][0][0]
+# Use the raw text of the first citation
+citation_text = ""
+if issue_to_review.get('citations'):
+    raw_citation_html = issue_to_review['citations'][0][0]
+    # Strip HTML tags to get raw text
                             citation_text = re.sub('<[^<]+?>', '', raw_citation_html)
                         model_prediction = issue_to_review.get('severity', 'unknown')
                         self.save_finding_feedback(issue_id, feedback, citation_text, model_prediction)
@@ -3965,6 +4103,38 @@ self._update_analytics_tab()
                 self._display_educational_content(issue_title)
             except Exception as e:
                 self.log(f"Failed to handle educate link: {url_str} - {e}")
+        elif url_str.startswith("annotate:"):
+            try:
+                issue_id = int(url_str.split(':')[1])
+                self._prompt_for_annotation(issue_id)
+            except (ValueError, IndexError) as e:
+                self.log(f"Invalid annotate URL: {url_str} - {e}")
+
+    def _prompt_for_annotation(self, issue_id: int):
+        """Opens a dialog to add/edit a note for a given issue."""
+        # Here you could first fetch an existing note from the DB if you want to edit
+        dialog = AnnotationDialog(self)
+        if dialog.exec():
+            note = dialog.get_note()
+            if note:
+                self._save_annotation(issue_id, note)
+
+    def _save_annotation(self, issue_id: int, note: str):
+        """Saves an annotation to the database."""
+        try:
+            with _get_db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "INSERT INTO annotations (analysis_issue_id, note, created_at) VALUES (?, ?, ?)",
+                    (issue_id, note, _now_iso())
+                )
+                conn.commit()
+            self.log(f"Saved note for issue {issue_id}.")
+            QMessageBox.information(self, "Note Saved", "Your note has been saved successfully.")
+            # Optionally, you could refresh the view here to display the new note
+        except Exception as e:
+            logger.error(f"Failed to save annotation for issue {issue_id}: {e}")
+            self.set_error(f"Failed to save note: {e}")
 
     def _display_educational_content(self, issue_title: str):
         """Generates educational content and appends it to the main view."""
@@ -4402,6 +4572,46 @@ def on_drilldown_item_activated(self, item: QListWidgetItem):
         self.txt_chat.setHtml(full_html)
         self.txt_chat.verticalScrollBar().setValue(self.txt_chat.verticalScrollBar().maximum())
 
+def _run_bias_audit(self):
+        """
+        Runs a bias audit by analyzing the distribution of findings across disciplines.
+        """
+        try:
+            with _get_db_connection() as conn:
+                query = """
+                SELECT
+                    ar.mode as discipline,
+                    COUNT(ai.id) as finding_count
+                FROM
+                    analysis_runs ar
+                JOIN
+                    analysis_issues ai ON ar.id = ai.run_id
+                GROUP BY
+                    ar.mode
+                """
+                df = pd.read_sql_query(query, conn)
+
+            if df.empty:
+                QMessageBox.information(self, "Bias Audit", "No data available to run a bias audit.")
+                return
+
+            self.bias_audit_figure.clear()
+            ax = self.bias_audit_figure.add_subplot(111)
+
+            disciplines = df['discipline'].tolist()
+            counts = df['finding_count'].tolist()
+
+            ax.bar(disciplines, counts, color=['#1f77b4', '#ff7f0e', '#2ca02c'])
+            ax.set_ylabel('Number of Findings')
+            ax.set_title('Distribution of Findings Across Disciplines')
+
+            self.bias_audit_canvas.draw()
+            self.log("Bias audit complete. Chart updated.")
+
+        except Exception as e:
+            self.log(f"Failed to run bias audit: {e}")
+            logger.exception("Bias audit failed")
+            QMessageBox.warning(self, "Bias Audit Error", f"An error occurred during the bias audit:\n{e}")
 
     def action_export_feedback(self):
         try:

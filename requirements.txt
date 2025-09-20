@@ -3,10 +3,14 @@ langchain
 langchain-community
 langchain-core
 transformers
+Pillow
+matplotlib
+openpyxl
+fairlearn
+plotly
 torch
 accelerate
 bitsandbytes
-
 # Data Handling & NLP
 scikit-learn
 pandas
@@ -16,10 +20,11 @@ PyYAML
 presidio-analyzer
 presidio-anonymizer
 faiss-cpu
-
 # Asynchronous Processing
 celery
 redis
+
+
 
 # API & Server
 fastapi
@@ -30,6 +35,8 @@ gunicorn
 python-dotenv
 pytest
 pytest-qt
+# Added for spell checking
+pyspellchecker
 pytest-mock
 plotly
 fairlearn
@@ -44,6 +51,8 @@ pandas
 matplotlib
 PyQt6
 PyQt6-sip
+PyQt6-WebEngine
 pyqt6-tools
 torch
 transformers
+
