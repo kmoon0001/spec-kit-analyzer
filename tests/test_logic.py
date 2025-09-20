@@ -32,7 +32,7 @@ def test_analyzer_logic_e2e():
     assert mock_window.local_rag.is_ready()
 
     ner_model_configs = {
-        "biobert_gator_tron": "longluu/Clinical-NER-MedMentions-GatorTronBase",
+            "jsl_clinical_ner": "JSL_MODEL_PLACEHOLDER",
         "deberta_clinical": "blaze999/clinical-ner"
     }
     mock_window.ner_service = NERService(ner_model_configs)

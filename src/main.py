@@ -2323,7 +2323,10 @@ class MainWindow(QMainWindow):
 
         # Initialize the NER service with multiple models
         ner_model_configs = {
-            "biobert_gator_tron": "longluu/Clinical-NER-MedMentions-GatorTronBase",
+            # TODO: Replace this placeholder with your actual JSL model identifier.
+            # If your JSL model requires a different loading mechanism, you will
+            # need to adapt the NERService in `src/ner_service.py`.
+            "jsl_clinical_ner": "JSL_MODEL_PLACEHOLDER",
             "deberta_clinical": "blaze999/clinical-ner"
         }
         self.ner_service = NERService(ner_model_configs)
