@@ -1,35 +1,58 @@
-pandas==2.3.2
-PyQt6==6.9.1
-pdfplumber==0.11.7
-pytesseract==0.3.13
-python-docx==1.2.0
-sentence-transformers==5.1.0
-faiss-cpu==1.12.0
-llama-cpp-python==0.3.16
-rdflib
-requests
-
-# Added for XAI, plotting, and new data format features
-shap
-slicer
-fhir.resources
+# Core Frameworks
+langchain
+langchain-community
+langchain-core
 transformers
 Pillow
 matplotlib
 openpyxl
 fairlearn
 plotly
+torch
+accelerate
+bitsandbytes
+# Data Handling & NLP
+scikit-learn
+pandas
+spacy
+Faker
+PyYAML
+presidio-analyzer
+presidio-anonymizer
+faiss-cpu
+# Asynchronous Processing
+celery
+redis
 
-# Added for UI Testing
+
+
+# API & Server
+fastapi
+uvicorn
+gunicorn
+
+# Utilities
+python-dotenv
 pytest
 pytest-qt
-
 # Added for spell checking
 pyspellchecker
-
-# Added for interactive charts
+pytest-mock
 plotly
-PyQt6-WebEngine
-
-# Added for bias auditing
 fairlearn
+llama-cpp-python
+sentence-transformers
+faiss-cpu
+huggingface-hub
+pdfplumber
+requests
+rdflib
+pandas
+matplotlib
+PyQt6
+PyQt6-sip
+PyQt6-WebEngine
+pyqt6-tools
+torch
+transformers
+
