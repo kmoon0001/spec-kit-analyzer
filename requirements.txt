@@ -1,3 +1,33 @@
+# Core Frameworks
+langchain
+langchain-community
+langchain-core
+transformers
+torch
+accelerate
+bitsandbytes
+
+# Data Handling & NLP
+scikit-learn
+pandas
+spacy
+Faker
+PyYAML
+presidio-analyzer
+presidio-anonymizer
+faiss-cpu
+
+# Asynchronous Processing
+celery
+redis
+
+# API & Server
+fastapi
+uvicorn
+gunicorn
+
+# Utilities
+python-dotenv
 pytest
 llama-cpp-python
 sentence-transformers
@@ -13,3 +43,4 @@ PyQt6-sip
 pyqt6-tools
 torch
 transformers
+        main
