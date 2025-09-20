@@ -8,3 +8,8 @@ requests
 rdflib
 pandas
 matplotlib
+PyQt6
+PyQt6-sip
+pyqt6-tools
+torch
+transformers
