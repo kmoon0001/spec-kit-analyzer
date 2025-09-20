@@ -59,8 +59,9 @@ class GuidelineService:
         if self.guideline_chunks:
             logger.info(f"Creating search index from {len(self.guideline_chunks)} text chunks...")
             # The RAG instance is responsible for creating the index.
-            # We pass the full (text, source) tuples to the RAG.
-            self.rag.create_index(self.guideline_chunks)
+# We pass only the text content for embedding.
+            texts_to_index = [chunk[0] for chunk in self.guideline_chunks]
+            self.rag.create_index(texts_to_index)
             self.is_index_ready = True
             logger.info("Guideline index is ready.")
         else:

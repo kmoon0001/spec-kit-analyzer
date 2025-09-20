@@ -30,6 +30,19 @@ def test_parse_document_content_txt(mock_get_int_setting):
     result = parse_document_content(dummy_filepath)
 
     # Assertions
+    # Note: With a chunk size of 30, the splitter will likely split by the newline.
+    # If the chunking logic changes, these assertions may need to be updated.
+    assert len(result) == 2
+    assert result[0] == ("This is the first sentence.", "Text File")
+    assert result[1] == ("This is the second sentence.", "Text File")
+
+    # Clean up the dummy file
+    os.remove(dummy_filepath)
+
+    # Call the function
+    result = parse_document_content(dummy_filepath)
+
+    # Assertions
     assert len(result) == 2
     assert result[0] == ("This is the first sentence.", "Text File")
     assert result[1] == ("This is the second sentence.", "Text File")

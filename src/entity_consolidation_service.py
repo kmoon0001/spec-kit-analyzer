@@ -24,7 +24,7 @@ class EntityConsolidationService:
     """
     A service to consolidate and merge NER entities from multiple models.
     """
-    def __init__(self, db_connection_provider: Optional[Callable[[], sqlite3.Connection]] = None):
+def __init__(self, db_connection_provider: Optional[Callable[[], sqlite3.Connection]] = None):
         self.db_connection_provider = db_connection_provider
         self.performance_cache: Dict[tuple[str, str], float] = {}
 
@@ -67,17 +67,17 @@ class EntityConsolidationService:
         except Exception as e:
             logger.warning(f"Could not fetch model performance for {model_name}/{entity_label}: {e}")
             return 0.5 # Default weight on error
-
     def consolidate_entities(
         self, all_results: Dict[str, List[NEREntity]], original_text: str,
         embedding_model: Optional[SentenceTransformer] = None
     ) -> List[NEREntity]:
         """
         Merges overlapping entities from different models into a single list.
+Returns:
+            List[NEREntity]: A single, consolidated list of entities.
         """
         # Clear the performance cache for each new analysis run
         self.performance_cache = {}
-
         if not all_results:
             return []
 
@@ -100,6 +100,9 @@ class EntityConsolidationService:
         for i in range(1, len(all_entities)):
             next_entity = all_entities[i]
             # Check for overlap: an entity overlaps if it starts before the current group ends.
+
+            # We find the group's current end by taking the max 'end' of all entities within it.
+
             group_end = max(e.end for e in current_merge_group)
             if next_entity.start < group_end:
                 current_merge_group.append(next_entity)
@@ -136,13 +139,16 @@ class EntityConsolidationService:
 
                     next_entity = merged_entities[j]
 
+
+                    # Define "nearby": within 50 characters and same label
+
                     if (next_entity.start - current_entity.end) < 50 and next_entity.label == current_entity.label:
                         try:
                             emb1 = embedding_model.encode([current_entity.text])
                             emb2 = embedding_model.encode([next_entity.text])
                             sim = cosine_similarity(emb1, emb2)[0][0]
 
-                            if sim > 0.85:
+if sim > 0.85:  # High similarity threshold
                                 logger.info(f"Found high semantic similarity ({sim:.2f}) between '{current_entity.text}' and '{next_entity.text}'. Grouping for merge.")
                                 group_for_semantic_merge.append(next_entity)
                                 processed_indices.add(j)
@@ -166,10 +172,38 @@ class EntityConsolidationService:
 
     def _merge_entity_group(self, group: List[NEREntity], original_text: str) -> NEREntity:
         """
-        Merges a group of overlapping entities based on a weighted score,
-        and boosts the score if multiple models contributed.
+Merges a group of overlapping entities. It first checks for label disagreements
+        and then uses a weighted score to find the best entity, boosting the score
+        if multiple models contributed.
         """
-        # --- Weighted Scoring to find the best entity ---
+        # --- 1. Disagreement Analysis ---
+        unique_labels = {e.label for e in group}
+        if len(unique_labels) > 1 and len(group) > 1:
+            sorted_group = sorted(group, key=lambda e: e.score, reverse=True)
+            e1, e2 = sorted_group[0], sorted_group[1]
+            text1_set = set(e1.text.lower().split())
+            text2_set = set(e2.text.lower().split())
+            similarity = _jaccard_similarity(text1_set, text2_set)
+
+            if similarity > 0.75:  # High similarity threshold
+                logger.warning(
+                    f"Label disagreement found. Model 1 ('{e1.models[0]}') labeled '{e1.text}' as '{e1.label}', "
+                    f"while Model 2 ('{e2.models[0]}') labeled '{e2.text}' as '{e2.label}'."
+                )
+                min_start = min(e.start for e in group)
+                max_end = max(e.end for e in group)
+                conflicting_labels = f"'{e1.label}' vs '{e2.label}'"
+                return NEREntity(
+                    text=original_text[min_start:max_end],
+                    label="DISAGREEMENT",
+                    score=max(e1.score, e2.score),
+                    start=min_start,
+                    end=max_end,
+                    context=f"Conflicting labels found: {conflicting_labels}",
+                    models=sorted(list(set(e.models[0] for e in group))),
+                )
+
+        # --- 2. Weighted Scoring to find the best entity ---
         weighted_entities = []
         for entity in group:
             if not entity.models:
@@ -180,7 +214,7 @@ class EntityConsolidationService:
             weighted_entities.append((entity, weighted_score))
 
         if not weighted_entities:
-            # Fallback for safety, though it should not be reached with valid inputs
+            # Fallback for safety
             best_entity = max(group, key=lambda e: e.score)
         else:
             best_entity_tuple = max(weighted_entities, key=lambda item: item[1])

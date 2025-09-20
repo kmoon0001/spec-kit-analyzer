@@ -17,6 +17,10 @@ def test_consolidate_entities_simple_overlap(consolidation_service):
     while the boundaries should encompass both entities.
     """
     original_text = "The patient reports a history of hypertension and diabetes."
+
+    #                           01234567890123456789012345678901234567890123456789012345
+    #                                     ^ start: 30, end: 42 (hypertension)
+    #                                     ^ start: 30, end: 53 (hypertension and diabetes)
     entities1 = [
         NEREntity(
             text="hypertension",
@@ -41,17 +45,26 @@ def test_consolidate_entities_simple_overlap(consolidation_service):
     ]
 
     all_results = {"BioBERT": entities1, "CliniBERT": entities2}
-    consolidated_entities = consolidation_service.consolidate_entities(all_results, original_text)
+consolidated_entities = consolidation_service.consolidate_entities(all_results, original_text)
 
-    assert len(consolidated_entities) == 1
+    # Verification
+    assert len(consolidated_entities) == 1, "Should merge into a single entity."
     merged_entity = consolidated_entities[0]
-    assert merged_entity.text == "hypertension and diabetes"
-    assert merged_entity.label == "MedicalCondition"
-    assert merged_entity.score == 0.95
-    assert merged_entity.start == 30
-    assert merged_entity.end == 53
-    assert sorted(merged_entity.models) == ["BioBERT", "CliniBERT"]
-    assert merged_entity.context == "a history of hypertension"
+
+    # The text should be the union of the two entities
+    assert merged_entity.text == "hypertension and diabetes", "Merged text is incorrect."
+    # The label should be from the highest-scoring entity
+    assert merged_entity.label == "MedicalCondition", "Label is incorrect."
+    # The score should be the highest score from the group
+    assert merged_entity.score == 0.95, "Score should be from the highest-scoring entity."
+    # The start position should be the minimum start of the group
+    assert merged_entity.start == 30, "Start position is incorrect."
+    # The end position should be the maximum end of the group
+    assert merged_entity.end == 53, "End position is incorrect."
+    # The models list should contain both models
+    assert sorted(merged_entity.models) == ["BioBERT", "CliniBERT"], "Models list is incorrect."
+    # The context should be carried over from the best entity
+    assert merged_entity.context == "a history of hypertension", "Context is incorrect."
 
 
 def test_consolidate_entities_confidence_boost(consolidation_service):
@@ -73,6 +86,7 @@ def test_consolidate_entities_confidence_boost(consolidation_service):
     assert len(consolidated_entities) == 1
     merged_entity = consolidated_entities[0]
     assert merged_entity.label == "MedicalCondition"
+    # The new score should be boosted from the original max score
     assert merged_entity.score > initial_score
     assert merged_entity.score <= 1.0
     assert sorted(merged_entity.models) == ["BioBERT", "CliniBERT"]
@@ -80,8 +94,8 @@ def test_consolidate_entities_confidence_boost(consolidation_service):
 
 def test_consolidate_entities_disagreement(consolidation_service):
     """
-    Tests that when models disagree on a label, the one with the higher
-    raw score is chosen (when no historical performance data is available).
+    Tests that a 'DISAGREEMENT' entity is created when two models provide conflicting labels for similar text.
+    """
     """
     original_text = "The patient has a history of heart failure."
     entities1 = [
@@ -96,10 +110,8 @@ def test_consolidate_entities_disagreement(consolidation_service):
 
     assert len(consolidated_entities) == 1
     merged_entity = consolidated_entities[0]
-    # Without DB weights, both models get 0.5, so the higher score (0.9) wins.
-    assert merged_entity.label == "Condition"
-    # Score should be the winning score (0.9), boosted by the merge.
-    assert merged_entity.score > 0.9
+assert merged_entity.label == "DISAGREEMENT"
+    assert "Conflicting labels found" in merged_entity.context
 
 
 def test_merge_with_dynamic_weighting(mocker):
