@@ -12,6 +12,7 @@
     :hasIssueTitle "Provider signature/date possibly missing" ;
     :hasIssueDetail "No explicit evidence of dated/signature entries found." ;
     :hasIssueCategory "Signatures/Dates" ;
+    :hasDiscipline "ot" ;
     :hasNegativeKeywords :SignatureKeywords .
 
 # Rule 2: OT Goals check
@@ -22,6 +23,7 @@
     :hasIssueTitle "OT goals may not be measurable/time-bound" ;
     :hasIssueDetail "Consider restating goals with measurable, time-bound targets, focusing on functional outcomes (e.g., ADLs, fine motor control)." ;
     :hasIssueCategory "Goals" ;
+    :hasDiscipline "ot" ;
     :hasPositiveKeywords :OT_GoalsKeywordsPresent ;
     :hasNegativeKeywords :GoalsKeywordsMissing .
 
@@ -37,6 +39,7 @@
     :hasIssueTitle "Medical necessity not explicitly supported" ;
     :hasIssueDetail "Ensure documentation ties OT interventions to functional limitations and outcomes aligned with Medicare Part B." ;
     :hasIssueCategory "Medical Necessity" ;
+    :hasDiscipline "ot" ;
     :hasNegativeKeywords :MedicalNecessityKeywords .
 
 # Rule 4: Assistant (COTA) Supervision check
@@ -46,6 +49,7 @@
     :hasIssueTitle "Assistant (COTA) supervision context unclear" ;
     :hasIssueDetail "When assistants (COTA) are involved, document supervision/oversight per Medicare/state requirements." ;
     :hasIssueCategory "Assistant Supervision" ;
+    :hasDiscipline "ot" ;
     :hasPositiveKeywords :OT_AssistantKeywordsPresent ;
     :hasNegativeKeywords :AssistantKeywordsMissing .
 
@@ -59,6 +63,7 @@
     :hasIssueTitle "Plan/Certification not clearly referenced" ;
     :hasIssueDetail "Explicitly reference plan of care/certification dates and responsible signatures." ;
     :hasIssueCategory "Plan/Certification" ;
+    :hasDiscipline "ot" ;
     :hasNegativeKeywords :PlanOfCareKeywords .
 
 # --- Shared Keyword Sets (rely on definitions in pt_compliance_rubric.ttl if loaded together) ---

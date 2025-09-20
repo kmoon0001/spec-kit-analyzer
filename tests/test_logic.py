@@ -13,6 +13,7 @@ from src.entity_consolidation_service import EntityConsolidationService
 from src.ner_service import NERService
 from src.rubric_service import RubricService
 from src.llm_analyzer import run_llm_analysis
+from src.entity_consolidation_service import EntityConsolidationService
 
 @pytest.mark.timeout(600)
 def test_analyzer_logic_e2e():
@@ -54,7 +55,8 @@ def test_analyzer_logic_e2e():
     results = run_analyzer(
         file_path=test_file,
         selected_disciplines=disciplines,
-        entity_consolidation_service=entity_consolidation_service,
+entity_consolidation_service=entity_consolidation_service,
+
         main_window_instance=mock_window
     )
     print("Analysis complete.")
