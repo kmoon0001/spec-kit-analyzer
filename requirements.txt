@@ -51,6 +51,7 @@ gunicorn
 # Testing & Utilities
 pytest
 pytest-qt
+jsonschema
 pytest-mock
 pyspellchecker
 python-dotenv

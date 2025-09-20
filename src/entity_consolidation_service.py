@@ -73,7 +73,12 @@ def __init__(self, db_connection_provider: Optional[Callable[[], sqlite3.Connect
     ) -> List[NEREntity]:
         """
         Merges overlapping entities from different models into a single list.
-Returns:
+Args:
+            all_results (Dict[str, List[NEREntity]]): The raw output from the
+                                                     NERService.
+            original_text (str): The original text that was analyzed.
+
+        Returns:
             List[NEREntity]: A single, consolidated list of entities.
         """
         # Clear the performance cache for each new analysis run
@@ -82,7 +87,10 @@ Returns:
             return []
 
         # Step 1: Flatten all entities into a single list from all models
-        all_entities = [entity for model_results in all_results.values() for entity in model_results]
+        all_entities = [
+            entity for model_results in all_results.values()
+            for entity in model_results
+        ]
 
         # Step 2: Sort entities by their start position to process them in order
         all_entities.sort(key=lambda e: e.start)
@@ -99,26 +107,30 @@ Returns:
 
         for i in range(1, len(all_entities)):
             next_entity = all_entities[i]
-            # Check for overlap: an entity overlaps if it starts before the current group ends.
-
-            # We find the group's current end by taking the max 'end' of all entities within it.
-
+            
+            # Check for overlap: an entity overlaps if it starts before the
+            # current group ends. We find the group's current end by taking
+            # the max 'end' of all entities within it.
             group_end = max(e.end for e in current_merge_group)
             if next_entity.start < group_end:
                 current_merge_group.append(next_entity)
             else:
                 # No overlap, so the current group is complete. Merge it.
-                merged_entity = self._merge_entity_group(current_merge_group, original_text)
+                merged_entity = self._merge_entity_group(
+                    current_merge_group, original_text
+                )
                 merged_entities.append(merged_entity)
                 # Start a new group with the current entity.
                 current_merge_group = [next_entity]
 
         # Process the final group after the loop finishes.
         if current_merge_group:
-            merged_entity = self._merge_entity_group(current_merge_group, original_text)
+            merged_entity = self._merge_entity_group(
+                current_merge_group, original_text
+            )
             merged_entities.append(merged_entity)
 
-        # --- Semantic Merging of Nearby Entities ---
+# --- Semantic Merging of Nearby Entities ---
         if embedding_model and len(merged_entities) > 1:
             semantically_merged_entities: List[NEREntity] = []
             processed_indices: Set[int] = set()
@@ -139,16 +151,14 @@ Returns:
 
                     next_entity = merged_entities[j]
 
-
                     # Define "nearby": within 50 characters and same label
-
                     if (next_entity.start - current_entity.end) < 50 and next_entity.label == current_entity.label:
                         try:
                             emb1 = embedding_model.encode([current_entity.text])
                             emb2 = embedding_model.encode([next_entity.text])
                             sim = cosine_similarity(emb1, emb2)[0][0]
 
-if sim > 0.85:  # High similarity threshold
+                            if sim > 0.85:  # High similarity threshold
                                 logger.info(f"Found high semantic similarity ({sim:.2f}) between '{current_entity.text}' and '{next_entity.text}'. Grouping for merge.")
                                 group_for_semantic_merge.append(next_entity)
                                 processed_indices.add(j)
@@ -170,9 +180,11 @@ if sim > 0.85:  # High similarity threshold
         logger.info(f"Consolidated {len(all_entities)} raw entities into {len(merged_entities)} final entities.")
         return merged_entities
 
-    def _merge_entity_group(self, group: List[NEREntity], original_text: str) -> NEREntity:
+    def _merge_entity_group(
+        self, group: List[NEREntity], original_text: str
+    ) -> NEREntity:
         """
-Merges a group of overlapping entities. It first checks for label disagreements
+        Merges a group of overlapping entities. It first checks for label disagreements
         and then uses a weighted score to find the best entity, boosting the score
         if multiple models contributed.
         """
