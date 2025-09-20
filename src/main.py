@@ -11,6 +11,7 @@ import re
 import sqlite3
 import sys
 from typing import Callable, List, Literal, Tuple, Optional
+import sys
 from urllib.parse import quote, unquote
 
 # Third-party used throughout
@@ -131,8 +132,18 @@ except ImportError:
     logger.warning("fhir.resources library not found. FHIR export will be disabled.")
 
 # Matplotlib for analytics chart
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+import matplotlib
+matplotlib.use('Agg')
+try:
+    from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+except ImportError:
+    class FigureCanvas: # type: ignore
+        def __init__(self, figure=None): pass
+        def mpl_connect(self, s, f): pass
+        def draw(self): pass
 from matplotlib.figure import Figure
+from matplotlib.patches import Rectangle
+
 
 # Fairlearn for bias auditing
 try:
@@ -149,8 +160,9 @@ try:
         QMainWindow, QToolBar, QLabel, QFileDialog, QMessageBox, QApplication,
         QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton,
         QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
-    QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout,
-    QTableWidget, QTableWidgetItem
+QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout,
+QTableWidget, QTableWidgetItem, QListWidgetItem
+
     )
     from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter
     from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject, QDate
@@ -289,9 +301,15 @@ except Exception:
     class QPdfWriter: ...
     class Qt: ...
     class QThread: ...
+    class QListWidgetItem: ...
 
 # Local imports
 from .llm_analyzer import run_llm_analysis
+
+from .ner_service import NERService, NEREntity
+from .entity_consolidation_service import EntityConsolidationService
+
+        main
 try:
     from .entity_consolidation_service import EntityConsolidationService
     from .local_llm import LocalRAG
@@ -299,6 +317,10 @@ try:
     from .guideline_service import GuidelineService
     from .text_chunking import RecursiveCharacterTextSplitter
     from .nlg_service import NLGService
+service = BiasAuditService()
+report = service.run_bias_audit()
+
+        main
 except ImportError as e:
     logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
     # Define dummy classes if imports fail, to prevent crashing on startup
@@ -307,8 +329,10 @@ except ImportError as e:
     class ComplianceRule: pass
     class GuidelineService: pass
     class RecursiveCharacterTextSplitter: pass
-    class SemanticTextSplitter: pass
     class NLGService: pass
+service = BiasAuditService()
+report = service.run_bias_audit()
+        main
 
 # --- LLM Loader Worker ---
 class LLMWorker(QObject):
@@ -932,7 +956,8 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                         compliance_score
                         REAL,
                         mode
-                        TEXT
+                        TEXT,
+                        file_path TEXT
                     )
                     """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_time ON analysis_runs(run_time)")
@@ -1009,9 +1034,9 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
         if "compliance_score" not in columns:
             cur.execute("ALTER TABLE analysis_runs ADD COLUMN compliance_score REAL")
             logger.info("Upgraded analysis_runs table to include 'compliance_score' column.")
-        if "json_report_path" not in columns:
-            cur.execute("ALTER TABLE analysis_runs ADD COLUMN json_report_path TEXT")
-            logger.info("Upgraded analysis_runs table to include 'json_report_path' column.")
+QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout, \
+QTableWidget, QTableWidgetItem, QListWidgetItem
+
 
         cur.execute("""
                     CREATE TABLE IF NOT EXISTS reviewed_findings
@@ -1056,20 +1081,35 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
         logger.warning(f"Ensure analytics schema failed: {e}")
 
 def persist_analysis_run(file_path: str, run_time: str, metrics: dict, issues_scored: list[dict],
-                         compliance: dict, mode: str, json_path: Optional[str] = None) -> Optional[int]:
+if "json_report_path" not in columns:
+    cur.execute("ALTER TABLE analysis_runs ADD COLUMN json_report_path TEXT")
+    logger.info("Upgraded analysis_runs table to include 'json_report_path' column.")
+
+if "disciplines" not in columns:
+    cur.execute("ALTER TABLE analysis_runs ADD COLUMN disciplines TEXT")
+    logger.info("Upgraded analysis_runs table to include 'disciplines' column.")
+
+if "file_path" not in columns:
+    cur.execute("ALTER TABLE analysis_runs ADD COLUMN file_path TEXT")
+    logger.info("Upgraded analysis_runs table to include 'file_path' column.")
+
     try:
+        import json
+        disciplines_json = json.dumps(disciplines)
         with _get_db_connection() as conn:
             cur = conn.cursor()
             cur.execute("""
                         INSERT INTO analysis_runs (file_name, run_time, pages_est, flags, findings, suggestions, notes,
-                                                   sentences_final, dedup_removed, compliance_score, mode, json_report_path)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+..., mode, json_report_path, disciplines, file_path)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+
                         """, (
                             os.path.basename(file_path), run_time,
                             int(metrics.get("pages", 0)), int(metrics.get("flags", 0)), int(metrics.get("findings", 0)),
                             int(metrics.get("suggestions", 0)), int(metrics.get("notes", 0)),
                             int(metrics.get("sentences_final", 0)), int(metrics.get("dedup_removed", 0)),
-                            float(compliance.get("score", 0.0)), mode, json_path
+float(compliance.get("score", 0.0)), mode, json_path, disciplines_json, file_path
+
                         ))
             run_id = int(cur.lastrowid)
             if issues_scored:
@@ -1310,24 +1350,6 @@ def _score_issue_confidence(issues_in: list[dict], records: list[tuple[str, str]
             conf = min(1.0, conf + 0.15)
         out.append({**it, "confidence": round(float(conf), 2)})
     return out
-
-def run_biobert_ner(sentences: List[str]) -> List[dict]:
-    """
-    Performs Named Entity Recognition on a list of sentences using a BioBERT model.
-    """
-    if not pipeline:
-        logger.warning("Transformers pipeline is not available. Skipping BioBERT NER.")
-        return []
-
-    try:
-        # Using a pipeline for NER
-        # The 'simple' aggregation strategy groups subword tokens into whole words.
-        ner_pipeline = pipeline("ner", model="longluu/Clinical-NER-MedMentions-GatorTronBase", aggregation_strategy="simple")
-        results = ner_pipeline(sentences)
-        return results
-    except Exception as e:
-        logger.error(f"BioBERT NER failed: {e}")
-        return []
 
 # --- Exports ---
 def export_report_json(obj: dict, json_path: str) -> bool:
@@ -1583,7 +1605,7 @@ def export_report_fhir_json(data: dict, fhir_path: str) -> bool:
         # Check if the dummy classes are being used, which indicates fhir.resources is not installed.
         if 'Bundle' in globals() and not hasattr(globals()['Bundle'], 'construct'):
              logger.error("fhir.resources library not found. Please install it to use FHIR export.")
-             QMessageBox.warning(None, "FHIR Library Not Found", "The 'fhir.resources' library is required for FHIR export. Please install it (`pip install fhir.resources`).")
+             QMessageBox.warning(None, "FHIR Library Not Found", "The 'fhir.resources' library is required for FHIR export. Please install it by running 'pip install fhir.resources'.")
              return False
 
         bundle = Bundle(type="collection", entry=[])
@@ -1658,10 +1680,10 @@ def _generate_risk_dashboard(compliance_score: float, sev_counts: dict) -> list[
         summary = "Good compliance posture."
     elif score >= 70 and flags <= 1:
         risk = "Medium"
-        summary = "Some areas need review."
+        summary = "Some areas may need review."
     else:
         risk = "High"
-        summary = "Critical issues require attention."
+        summary = "Critical issues may require attention."
 
     lines.append(f"Overall Risk: {risk}")
     lines.append(f"Compliance Score: {score:.1f}/100")
@@ -1787,15 +1809,26 @@ def run_analyzer(file_path: str,
             collapsed = collapse_similar_sentences_simple(processed, threshold)
         collapsed = list(collapsed)
 
-        ner_results = []
-        if get_bool_setting("enable_biobert_ner", True):
-            report(65, "Running BioBERT NER")
+
+        ner_results = {}
+        formatted_entities = []
+        if get_bool_setting("enable_ner_service", default=True) and main_window_instance and main_window_instance.ner_service.is_ready():
+            report(65, "Running NER models...")
+            full_text_for_ner = "\n".join(t for t, _ in collapsed)
             ner_sentences = [text for text, src in collapsed]
-            ner_results = run_biobert_ner(ner_sentences)
+
+            ner_results = main_window_instance.ner_service.extract_entities(full_text_for_ner, ner_sentences)
+
             if ner_results:
-                logger.info(f"BioBERT NER found {len(ner_results)} entities.")
-                consolidated_entities = entity_consolidation_service.consolidate_entities(ner_results, "\n".join(t for t, _ in collapsed))
-                formatted_entities = _format_entities_for_rag(consolidated_entities)
+                logger.info(f"NER service extracted entities from models: {list(ner_results.keys())}")
+
+                consolidated_entities = entity_consolidation_service.consolidate_entities(
+                    ner_results, full_text_for_ner
+                )
+
+                if consolidated_entities:
+                    formatted_entities = _format_entities_for_rag(consolidated_entities)
+                    logger.info(f"Consolidated into {len(consolidated_entities)} unique entities.")
 
         check_cancel()
         report(60, "Computing summary")
@@ -1837,7 +1870,8 @@ def run_analyzer(file_path: str,
             issues_scored = run_llm_analysis(
                 llm=main_window_instance.local_rag.llm,
                 chunks=[text for text, src in collapsed],
-                rules=rules_as_dicts
+                rules=rules_as_dicts,
+                file_path=file_path
             )
             logger.info(f"LLM analysis found {len(issues_scored)} issues.")
 
@@ -1909,7 +1943,7 @@ def run_analyzer(file_path: str,
             "General auditor checks": {
                 "action": "Perform a general review of the note for clarity, consistency, and completeness. Ensure the 'story' of the patient's care is clear.",
                 "why": "A well-documented note justifies skilled care, supports medical necessity, and ensures accurate billing.",
-                "good_example": "A note that clearly links interventions to functional goals and documents the patient's progress over time.",
+                "good_example": "A note that provides a clear picture of the patient's journey from evaluation to discharge.",
                 "bad_example": "A note with jargon, undefined abbreviations, or that simply lists exercises without clinical reasoning."
             }
         }
@@ -1943,19 +1977,19 @@ def run_analyzer(file_path: str,
         if any(k in tl for k in ("medical necessity", "reasonable and necessary", "necessity")):
             strengths.append("Medical necessity is explicitly discussed.")
         else:
-            weaknesses.append("Medical necessity not explicitly supported throughout the documentation.")
+            weaknesses.append("Medical necessity is not explicitly supported throughout the documentation.")
             missing.append("Medical Necessity")
 
         if "assistant" in tl and "supervis" in tl:
             strengths.append("Assistant involvement includes supervision context.")
         elif "assistant" in tl:
-            weaknesses.append("Assistant activity present; supervision/oversight context is not clearly documented.")
+            weaknesses.append("Assistant activity is present; however, the supervision/oversight context is not clearly documented.")
             missing.append("Assistant Supervision Context")
 
         if any(k in tl for k in ("plan of care", "poc", "certification", "recert")):
             strengths.append("Plan/certification is referenced in the record.")
         else:
-            weaknesses.append("Plan/certification not clearly referenced with dates and signatures.")
+            weaknesses.append("Plan/certification is not clearly referenced with dates and signatures.")
             missing.append("Plan/Certification Reference")
 
         sev_counts = {
@@ -2002,7 +2036,7 @@ def run_analyzer(file_path: str,
 
         tips = []
         if sev_counts["flag"] > 0:
-            tips.append("Resolve flags first (signatures/dates, plan/certification), then clarify grey areas.")
+            tips.append("Resolve flags first (signatures/dates, plan/certification), then clarify gray areas.")
         if "Medical Necessity" in missing:
             tips.append("Tie each skilled intervention to functional limitations and expected outcomes.")
         if "Measurable/Time-bound Goals" in missing:
@@ -2129,7 +2163,7 @@ def run_analyzer(file_path: str,
                 "General auditor checks": {
                     "action": "Perform a general review of the note for clarity, consistency, and completeness. Ensure the 'story' of the patient's care is clear.",
                     "why": "A well-documented note justifies skilled care, supports medical necessity, and ensures accurate billing.",
-                    "good_example": "A note that a clear picture of the patient's journey from evaluation to discharge.",
+                    "good_example": "A note that provides a clear picture of the patient's journey from evaluation to discharge.",
                     "bad_example": "A note with jargon, undefined abbreviations, or that simply lists exercises without clinical reasoning."
                 }
             }
@@ -2155,7 +2189,7 @@ def run_analyzer(file_path: str,
                         q = (qt or "").strip().replace("\n", " ")
                         if len(q) > 100:
                             q = q[:97].rstrip() + "..."
-                        narrative_lines.append(f"    - [{src}] “{q}”")
+                        narrative_lines.append(f"    - [{src}] \"{q}\"")
                 narrative_lines.append("")
         else:
             narrative_lines.append("No specific audit findings were identified.")
@@ -2214,7 +2248,7 @@ def run_analyzer(file_path: str,
             narrative_lines.append(
                 f" • Score delta: {trends['score_delta']:+.1f} | Average score: {trends['avg_score']:.1f}")
             narrative_lines.append(
-                f" • Avg Flags: {trends['avg_flags']:.2f} | Avg Findings: {trends['avg_findings']:.2f} | Avg Suggestions: {trends['avg_suggestions']:.2f}")
+                f" • Average Flags: {trends['avg_flags']:.2f} | Average Findings: {trends['avg_findings']:.2f} | Average Suggestions: {trends['avg_suggestions']:.2f}")
         else:
             narrative_lines.append(" • Not enough history to compute trends yet.")
         narrative_lines.append("")
@@ -2232,7 +2266,17 @@ def run_analyzer(file_path: str,
         }
 
         try:
-            persist_analysis_run(file_path, _now_iso(), metrics, issues_scored, compliance, CURRENT_REVIEW_MODE, json_path=json_path)
+persist_analysis_run(
+    file_path,
+    _now_iso(),
+    metrics,
+    issues_scored,
+    compliance,
+    CURRENT_REVIEW_MODE,
+    json_path=json_path,
+    selected_disciplines=selected_disciplines
+)
+
         except Exception:
             ...
         try:
@@ -2251,6 +2295,9 @@ def run_analyzer(file_path: str,
         json_path = pdf_path[:-4] + ".json"
 
         try:
+            from dataclasses import asdict
+            json_ner_results = {model: [asdict(e) for e in entities] for model, entities in ner_results.items()} if ner_results else {}
+
             export_report_json({
                 "json_schema_version": 6,
                 "report_template_version": REPORT_TEMPLATE_VERSION,
@@ -2278,8 +2325,8 @@ def run_analyzer(file_path: str,
                 "pdf_chart_position": get_str_setting("pdf_chart_position", "bottom"),
                 "pdf_chart_theme": get_str_setting("pdf_chart_theme", "dark"),
                 "report_severity_ordering": "flags_first",
-                "clinical_ner_enabled": get_bool_setting("enable_biobert_ner", True),
-                "ner_results": ner_results,
+                "clinical_ner_enabled": get_bool_setting("enable_ner_service", True),
+                "ner_results": json_ner_results,
                 "source_sentences": collapsed,
                 "sev_counts": sev_counts,
                 "cat_counts": cat_counts,
@@ -2368,6 +2415,7 @@ def run_analyzer(file_path: str,
         return result_info
 
 
+
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -2384,8 +2432,21 @@ class MainWindow(QMainWindow):
         self.guideline_service: Optional[GuidelineService] = None
         self.llm_compliance_service: Optional[LlmComplianceService] = None
         self.entity_consolidation_service: EntityConsolidationService = EntityConsolidationService()
+
+        # Initialize the NER service with multiple models
+        ner_model_configs = {
+            # TODO: Replace this placeholder with your actual JSL model identifier.
+            # If your JSL model requires a different loading mechanism, you will
+            # need to adapt the NERService in `src/ner_service.py`.
+            "jsl_clinical_ner": "JSL_MODEL_PLACEHOLDER",
+            "deberta_clinical": "blaze999/clinical-ner"
+        }
+        self.ner_service = NERService(ner_model_configs)
+
         self.chat_history: list[tuple[str, str]] = []
+        main
         self.compliance_rules: list[ComplianceRule] = []
+        self._analytics_severity_filter = None
 
         tb = QToolBar("Main")
         try:
@@ -2432,6 +2493,10 @@ class MainWindow(QMainWindow):
         # act_analyze_performance.triggered.connect(self.action_analyze_performance) # Placeholder
         tb.addAction(act_analyze_performance)
 
+        act_bias_audit = QAction("Bias Audit", self)
+        act_bias_audit.triggered.connect(self.action_run_bias_audit)
+        tb.addAction(act_bias_audit)
+
         central = QWidget()
         self.setCentralWidget(central)
         vmain = QVBoxLayout(central)
@@ -2442,11 +2507,13 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         setup_tab = QWidget()
         results_tab = QWidget()
+        search_tab = QWidget()
         logs_tab = QWidget()
 
         self.tabs.addTab(setup_tab, "Setup & File Queue")
         self.tabs.addTab(results_tab, "Analysis Results")
         self.tabs.addTab(logs_tab, "Application Logs")
+
 
         # --- Logs Tab Layout ---
         logs_layout = QVBoxLayout(logs_tab)
@@ -2455,6 +2522,7 @@ class MainWindow(QMainWindow):
         self.txt_logs.setFontFamily("monospace")
         self.txt_logs.setPlaceholderText("Application events will be logged here.")
         logs_layout.addWidget(self.txt_logs)
+
 
         # --- Analytics Tab ---
         analytics_tab = QWidget()
@@ -2478,10 +2546,25 @@ class MainWindow(QMainWindow):
         analytics_layout.addLayout(analytics_controls)
 
         # Matplotlib chart
-        self.analytics_figure = Figure(figsize=(5, 3))
+        self.analytics_figure = Figure(figsize=(5, 4.5)) # Increased height for two charts
         self.analytics_canvas = FigureCanvas(self.analytics_figure)
-        self.analytics_canvas.mpl_connect('pick_event', self.on_chart_pick)
+self.analytics_canvas.mpl_connect('pick_event', self.on_chart_pick)  # or self._on_analytics_pick if preferred
+self.analytics_canvas.mpl_connect('button_press_event', self.on_chart_click)
+
         analytics_layout.addWidget(self.analytics_canvas)
+
+        # Heatmap chart
+        self.heatmap_figure = Figure(figsize=(5, 4))
+        self.heatmap_canvas = FigureCanvas(self.heatmap_figure)
+        analytics_layout.addWidget(self.heatmap_canvas)
+
+        # --- Bias Audit Tab ---
+        bias_audit_tab = QWidget()
+        self.tabs.addTab(bias_audit_tab, "Bias Audit")
+        self.bias_audit_layout = QVBoxLayout(bias_audit_tab)
+        self.bias_audit_results_text = QTextEdit()
+        self.bias_audit_results_text.setReadOnly(True)
+        self.bias_audit_layout.addWidget(self.bias_audit_results_text)
 
         # Summary stats
         stats_group = QGroupBox("Summary Statistics")
@@ -2502,26 +2585,30 @@ class MainWindow(QMainWindow):
 
         analytics_layout.addWidget(stats_group)
 
-        # Bias auditing metrics
-        bias_group = QGroupBox("Bias Auditing")
-        bias_outer_layout = QVBoxLayout(bias_group)
+bias_group = QGroupBox("Bias Auditing (by Discipline)")
+bias_layout = QVBoxLayout(bias_group)
 
-        # Layout for overall metrics
-        overall_bias_layout = QHBoxLayout()
-        overall_bias_layout.addWidget(QLabel("<b>Overall Demographic Parity Difference:</b>"))
-        self.lbl_demographic_parity = QLabel("N/A")
-        self.lbl_demographic_parity.setStyleSheet("font-weight: bold;")
-        overall_bias_layout.addWidget(self.lbl_demographic_parity)
-        overall_bias_layout.addStretch(1)
-        bias_outer_layout.addLayout(overall_bias_layout)
+# Overall demographic parity labels (from feature branch)
+overall_bias_layout = QHBoxLayout()
+overall_bias_layout.addWidget(QLabel("<b>Overall Demographic Parity Difference:</b>"))
+self.lbl_demographic_parity = QLabel("N/A")
+self.lbl_demographic_parity.setStyleSheet("font-weight: bold;")
+overall_bias_layout.addWidget(self.lbl_demographic_parity)
+overall_bias_layout.addStretch(1)
+bias_layout.addLayout(overall_bias_layout)
 
-        # Layout for the grid of by-group metrics
-        self.bias_layout = QGridLayout()
-        self.bias_layout.setContentsMargins(10, 10, 10, 10)
-        self.bias_layout.addWidget(QLabel("<b>Discipline</b>"), 0, 0)
-        self.bias_layout.addWidget(QLabel("<b>Selection Rate (Flagged)</b>"), 0, 1)
-        self.bias_layout.setColumnStretch(2, 1) # Spacer to align columns
-        bias_outer_layout.addLayout(self.bias_layout)
+# Grid layout for by-group metrics (from feature branch)
+self.bias_grid_layout = QGridLayout()
+self.bias_grid_layout.setContentsMargins(10, 10, 10, 10)
+self.bias_grid_layout.addWidget(QLabel("<b>Discipline</b>"), 0, 0)
+self.bias_grid_layout.addWidget(QLabel("<b>Selection Rate (Flagged)</b>"), 0, 1)
+self.bias_grid_layout.setColumnStretch(2, 1)
+bias_layout.addLayout(self.bias_grid_layout)
+
+# Matplotlib Canvas for visual bias audit (from main branch)
+self.bias_figure = Figure(figsize=(5, 2.5))
+self.bias_canvas = FigureCanvas(self.bias_figure)
+bias_layout.addWidget(self.bias_canvas)
 
         analytics_layout.addWidget(bias_group)
 
@@ -2584,7 +2671,8 @@ class MainWindow(QMainWindow):
         self.txt_rubric = QTextEdit()
         self.txt_rubric.setVisible(False) # Not shown in main UI
 
-        self._update_analytics_tab()
+# Automatically load analytics on startup
+self._update_analytics_tab()
     def action_clear_all(self):
         try:
             self._current_report_path = None
@@ -2789,7 +2877,7 @@ class MainWindow(QMainWindow):
 
     def action_analyze(self):
         if not self._current_report_path:
-            QMessageBox.information(self, "Analyze", "Please upload/select a report first.")
+            QMessageBox.information(self, "Analyze", "Please upload or select a report first.")
             return
 
         self._clear_previous_analysis_state()
@@ -2813,7 +2901,7 @@ class MainWindow(QMainWindow):
             if self.chk_slp.isChecked(): selected_disciplines.append('slp')
 
             if not selected_disciplines:
-                QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to analyze.")
+                QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to be analyzed.")
                 return
 
             res = run_analyzer(self, self._current_report_path, selected_disciplines=selected_disciplines, entity_consolidation_service=self.entity_consolidation_service, progress_cb=_cb, cancel_cb=_cancel, main_window_instance=self)
@@ -2842,7 +2930,7 @@ class MainWindow(QMainWindow):
 
                     # --- Create and index the context for the AI ---
                     if self.local_rag and self.local_rag.is_ready():
-                        self.log("Creating AI context index...")
+                        self.log("Creating AI context index for in-document chat...")
                         context_chunks = self._create_context_chunks(data, res.get("formatted_entities", []))
                         self.local_rag.create_index(context_chunks)
                         self.log("AI context index created successfully.")
@@ -2875,15 +2963,15 @@ class MainWindow(QMainWindow):
             except Exception:
                 ...
 
-    def _create_context_chunks(self, data: dict, formatted_entities: list[str]) -> list[str]:
+    def _create_context_chunks(self, data: dict, formatted_entities: list[str]) -> list[tuple[str, str]]:
         """Creates a list of text chunks from the analysis data for the RAG index."""
         chunks = []
 
         # 1. Add summary information
         if 'compliance' in data and 'score' in data['compliance']:
-            chunks.append(f"[Summary] The overall compliance score is {data['compliance']['score']}/100.")
+            chunks.append((f"The overall compliance score is {data['compliance']['score']}/100.", "Summary"))
         if 'executive_status' in data:
-             chunks.append(f"[Summary] The executive status is '{data['executive_status']}'.")
+            chunks.append((f"The executive status is '{data['executive_status']}'.", "Summary"))
 
         # 2. Add each issue as a detailed chunk, enriched with rubric data
         for issue in data.get('issues', []):
@@ -2894,30 +2982,31 @@ class MainWindow(QMainWindow):
             if matching_rule:
                 # If we found the rule, create a detailed, structured chunk
                 issue_str = (
-                    f"[Finding] A finding with severity '{matching_rule.severity}' was identified.\n"
+                    f"A finding with severity '{matching_rule.severity}' was identified.\n"
                     f"Category: {matching_rule.issue_category}\n"
                     f"Title: {matching_rule.issue_title}\n"
                     f"Why it matters: {matching_rule.issue_detail}"
                 )
-                chunks.append(issue_str)
+                chunks.append((issue_str, "Finding"))
             else:
                 # Fallback to the basic information if no rule is found
                 sev = issue.get('severity', 'N/A').title()
                 cat = issue.get('category', 'N/A')
                 detail = issue.get('detail', 'N/A')
-                chunks.append(f"[Finding] Severity: {sev}. Category: {cat}. Title: {issue_title}. Detail: {detail}.")
+                chunks.append((f"Severity: {sev}. Category: {cat}. Title: {issue_title}. Detail: {detail}.", "Finding"))
 
             # Add citations as separate, clearly linked chunks
             for i, (citation_text, source) in enumerate(issue.get('citations', [])[:2]):
                 clean_citation = re.sub('<[^<]+?>', '', citation_text)
-                chunks.append(f"[Evidence] The finding '{issue_title}' is supported by evidence from '{source}': \"{clean_citation}\"")
+                chunks.append((f"The finding '{issue_title}' is supported by evidence: \"{clean_citation}\"", source))
 
         # 3. Add the original document sentences
         for text, source in data.get('source_sentences', []):
-             chunks.append(f"[Document Text] From {source}: \"{text}\"")
+            chunks.append((f"\"{text}\"", source))
 
         # 4. Add formatted entities
-        chunks.extend(formatted_entities)
+        for entity in formatted_entities:
+            chunks.append((entity, "Named Entity"))
 
         self.log(f"Generated {len(chunks)} text chunks for AI context.")
         return chunks
@@ -2926,7 +3015,7 @@ class MainWindow(QMainWindow):
         try:
             n = self.list_folder_files.count()
             if n == 0:
-                QMessageBox.information(self, "Analyze Batch", "Please upload a folder with documents first.")
+                QMessageBox.information(self, "Analyze Batch", "Please upload a folder with the documents first.")
                 return
             reply = QMessageBox.question(self, "Analyze Batch",
                                          f"Process {n} file(s) sequentially?")  # type: ignore
@@ -3001,7 +3090,7 @@ class MainWindow(QMainWindow):
             elif self._current_report_path:
                 self.action_analyze()
             else:
-                QMessageBox.information(self, "Analyze", "Please upload/select a report or upload a folder first.")
+                QMessageBox.information(self, "Analyze", "Please upload or select a report or upload a folder first.")
         except Exception as e:
             self.set_error(str(e))
 
@@ -3015,6 +3104,8 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(self, "Analytics", "No analytics available yet.")
         except Exception as e:
             self.set_error(str(e))
+
+
 
     def action_export_view_to_pdf(self):
         """Exports the current content of the main chat/analysis view to a PDF."""
@@ -3266,7 +3357,7 @@ class MainWindow(QMainWindow):
     def _display_educational_content(self, issue_title: str):
         """Generates educational content and appends it to the main view."""
         if not self.local_rag or not self.local_rag.is_ready():
-            QMessageBox.warning(self, "AI Not Ready", "The AI model is not available. Please wait for it to load or check the logs.")
+            QMessageBox.warning(self, "AI Not Ready", "The AI model is not available. Please wait for it to load, or check the logs.")
             return
 
         rule = next((r for r in self.compliance_rules if r.issue_title == issue_title), None)
@@ -3291,21 +3382,57 @@ class MainWindow(QMainWindow):
             "2. **Corrected Version:** Rewrite the user's original text to be compliant. Change only what is necessary to fix the error.\n"
         )
 
+        # The following code was corrupted and has been removed.
+        # This should fix the syntax error.
     def action_send(self):
         question = self.input_query_te.toPlainText().strip()
         if not question:
             return
-        if not self.local_rag or not self.local_rag.is_ready() or not self.local_rag.index:
-            QMessageBox.warning(self, "AI Not Ready", "Please analyze a document first to activate the AI chat.")
+
+        if not self.local_rag or not self.local_rag.is_ready():
+            QMessageBox.warning(self, "AI Not Ready", "The AI model is not yet available. Please wait for it to load.")
             return
+
+        if not self.current_report_data or not self.local_rag.index:
+            QMessageBox.warning(self, "AI Not Ready", "Please analyze a document first to create a searchable index for the chat.")
+            return
+
         try:
-            self.statusBar().showMessage("AI is thinking...")
+            self.statusBar().showMessage("The AI is thinking...")
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-            answer = self.local_rag.query(question, chat_history=self.chat_history)
-            self.chat_history.append(("user", question))
-            self.chat_history.append(("ai", answer))
+
+            # Classify the user's query
+            intent = self.query_router_service.classify_query(question)
+
+            if intent == "greeting":
+                answer = "Hello! I am a specialized AI assistant for analyzing clinical documents. How can I help you with the document?"
+                self.chat_history.append(("user", question, []))
+                self.chat_history.append(("ai", answer, []))
+                self._render_chat_history()
+                self.input_query_te.setPlainText("")
+                return
+            elif intent == "ambiguous":
+                answer = "I'm not sure if you are asking a question about the document. Could you please clarify?"
+                self.chat_history.append(("user", question, []))
+                self.chat_history.append(("ai", answer, []))
+                self._render_chat_history()
+                self.input_query_te.setPlainText("")
+                return
+
+            # Search the document-specific index to get context
+            context_chunks_with_sources = self.local_rag.search_index(question, k=3)
+
+            if not context_chunks_with_sources:
+                answer = "I could not find any relevant information in the current document to answer your question."
+                sources = []
+            else:
+                answer, sources = self.local_rag.query(question, context_chunks=context_chunks_with_sources, chat_history=self.chat_history)
+
+            self.chat_history.append(("user", question, []))
+            self.chat_history.append(("ai", answer, sources))
             self._render_chat_history()
             self.input_query_te.setPlainText("")
+
         except Exception as e:
             self.set_error(f"An error occurred while querying the AI: {e}")
             QMessageBox.warning(self, "AI Error", f"An error occurred: {e}")
@@ -3327,10 +3454,206 @@ class MainWindow(QMainWindow):
                 self.txt_chat.clear()
             self.statusBar().showMessage("Chat Reset", 3000)
 
+def action_run_bias_audit(self):
+    try:
+        self.tabs.setCurrentIndex(3)  # Switch to Bias Audit tab
+        self.statusBar().showMessage("Running bias audit...")
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        # The service needs a database connection
+        db_conn = _get_db_connection()
+        bias_service = BiasAuditService(db_conn)
+        report = bias_service.run_bias_audit()
+        db_conn.close()
+        self.bias_audit_results_text.setPlainText(report)
+        self.statusBar().showMessage("Bias audit complete.", 5000)
+    except Exception as e:
+        self.log(f"Failed to run bias audit: {e}")
+        QMessageBox.critical(self, "Bias Audit Error", f"An error occurred during the bias audit:\n{e}")
+        self.statusBar().showMessage("Bias audit failed.", 5000)
+    finally:
+        QApplication.restoreOverrideCursor()
+
+def _update_analytics_tab(self):
+    """Refreshes the data and charts on the Analytics Dashboard tab."""
+    self.log("Refreshing analytics...")
+    try:
+        with _get_db_connection() as conn:
+            runs_df = pd.read_sql_query("SELECT * FROM analysis_runs", conn)
+            issues_df = pd.read_sql_query("SELECT * FROM analysis_issues", conn)
+    except Exception as e:
+        self.log(f"Failed to query analytics data: {e}")
+        QMessageBox.warning(self, "Error", f"Could not load analytics data from the database: {e}")
+        return
+    if runs_df.empty:
+        self.log("No analytics data found.")
+        return
+    # --- Update Summary Statistics ---
+    total_runs = len(runs_df)
+    avg_score = runs_df['compliance_score'].mean()
+    avg_flags = runs_df['flags'].mean()
+    self.lbl_total_runs.setText(str(total_runs))
+    self.lbl_avg_score.setText(f"{avg_score:.1f} / 100.0")
+    self.lbl_avg_flags.setText(f"{avg_flags:.2f}")
+    # --- Filter data if a severity is selected ---
+    if self._analytics_severity_filter:
+        filtered_run_ids = issues_df[issues_df['severity'] == self._analytics_severity_filter]['run_id'].unique()
+        filtered_issues_df = issues_df[issues_df['run_id'].isin(filtered_run_ids)]
+        if not filtered_issues_df.empty:
+            top_cat = filtered_issues_df['category'].mode()
+            if not top_cat.empty:
+                self.lbl_top_category.setText(f"{top_cat.iloc[0]} (filtered)")
+        else:
+            self.lbl_top_category.setText("N/A")
+    else:
+        if not issues_df.empty:
+            top_cat = issues_df['category'].mode()
+            if not top_cat.empty:
+                self.lbl_top_category.setText(top_cat.iloc[0])
+    # --- Update Charts ---
+    self.analytics_figure.clear()
+    gs = self.analytics_figure.add_gridspec(2, 2)
+    ax1 = self.analytics_figure.add_subplot(gs[0, :]) # Top row, span both columns
+    ax2 = self.analytics_figure.add_subplot(gs[1, 0]) # Bottom row, first column
+    ax3 = self.analytics_figure.add_subplot(gs[1, 1]) # Bottom row, second column
+    # Ax1: Compliance Score Trend Chart
+    scores_to_plot = runs_df['compliance_score'].tail(50).tolist()
+    ax1.plot(scores_to_plot, marker='o', linestyle='-', color='#60a5fa')
+    ax1.set_title("Compliance Score Trend (Last 50 Runs)")
+    ax1.set_xlabel("Analysis Run")
+    ax1.set_ylabel("Compliance Score")
+    ax1.grid(True, linestyle='--', alpha=0.6)
+    # Ax2: Findings by Severity Chart
+    severity_counts = issues_df['severity'].value_counts()
+    severities = ['flag', 'finding', 'suggestion', 'auditor_note']
+    counts = [severity_counts.get(s, 0) for s in severities]
+    bars = ax2.bar(severities, counts, color=['#ef4444', '#f59e0b', '#10b981', '#9ca3af'])
+    ax2.set_title("Total Findings by Severity")
+    ax2.set_ylabel("Count")
+    for bar in bars:
+        bar.set_picker(True)
+    # Ax3: Top Categories Chart
+    categories_df = filtered_issues_df if self._analytics_severity_filter else issues_df
+    category_counts = categories_df['category'].value_counts().nlargest(10)
+    ax3.barh(category_counts.index, category_counts.values, color='#818cf8')
+    title = "Top 10 Finding Categories"
+    if self._analytics_severity_filter:
+        title += f" for '{self._analytics_severity_filter}'"
+    ax3.set_title(title)
+    ax3.invert_yaxis() # To show the highest count at the top
+    ax3.set_xlabel("Count")
+    self.analytics_figure.tight_layout()
+    self.analytics_canvas.draw()
+    self._update_bias_audit_section()
+    self.log("Analytics refresh complete.")
+
+def on_chart_click(self, event):
+    """Handles a click on the chart canvas to clear filters."""
+    if event.inaxes and getattr(event, 'artist', None) is None:
+        if self._analytics_severity_filter:
+            self.log("Clearing severity filter.")
+            self._analytics_severity_filter = None
+            self._update_analytics_tab()
+
+def on_chart_pick(self, event):
+    """Handles click events on the analytics charts for drill-down."""
+    from matplotlib.patches import Rectangle
+    if not isinstance(event.artist, Rectangle):
+        return
+    bar = event.artist
+    # Determine which subplot the click came from
+    if event.mouseevent.inaxes == self.analytics_figure.axes[1]: # Severity chart is the second axis
+        bar_index = int(round(bar.get_x()))
+        severities = ['flag', 'finding', 'suggestion', 'auditor_note']
+        if 0 <= bar_index < len(severities):
+            selected_severity = severities[bar_index]
+            if event.mouseevent.dblclick:
+                self.log(f"User double-clicked on severity bar: {selected_severity}")
+                self.show_drilldown_dialog_for_severity(selected_severity)
+            else:
+                self.log(f"User filtering by severity: {selected_severity}")
+                if self._analytics_severity_filter == selected_severity:
+                    self._analytics_severity_filter = None
+                else:
+                    self._analytics_severity_filter = selected_severity
+                self._update_analytics_tab()
+
+def show_drilldown_dialog_for_severity(self, severity: str):
+    """Queries data and shows a dialog with files for a given severity."""
+    try:
+        with _get_db_connection() as conn:
+            issue_runs_df = pd.read_sql_query(
+                "SELECT DISTINCT run_id FROM analysis_issues WHERE severity = ?",
+                conn, params=(severity,)
+            )
+            if issue_runs_df.empty:
+                QMessageBox.information(self, "Drill-Down", f"No documents found with findings of severity '{severity}'.")
+                return
+            run_ids = tuple(issue_runs_df['run_id'].tolist())
+            if not run_ids:
+                return
+            files_df = pd.read_sql_query(
+                f"SELECT file_name, run_time, file_path, disciplines FROM analysis_runs WHERE id IN {run_ids}",
+                conn
+            )
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Documents with '{severity}' Findings")
+        dialog.setMinimumWidth(500)
+        layout = QVBoxLayout(dialog)
+        list_widget = QListWidget()
+        import json
+        for _, row in files_df.iterrows():
+            item = QListWidgetItem(f"{row['file_name']} (Analyzed: {row['run_time']})")
+            disciplines = json.loads(row['disciplines']) if row['disciplines'] and row['disciplines'].startswith('[') else []
+            item.setData(Qt.ItemDataRole.UserRole, {"path": row['file_path'], "disciplines": disciplines})
+            list_widget.addItem(item)
+        list_widget.itemDoubleClicked.connect(self.on_drilldown_item_activated)
+        list_widget.itemDoubleClicked.connect(dialog.accept)
+        layout.addWidget(QLabel(f"Double-click a file to re-analyze with its original settings:"))
+        layout.addWidget(list_widget)
+        dialog.exec()
+    except Exception as e:
+        self.log(f"Error during drill-down: {e}")
+        QMessageBox.warning(self, "Drill-Down Error", f"An error occurred while fetching details: {e}")
+
+def on_drilldown_item_activated(self, item: QListWidgetItem):
+    """Handles when a user double-clicks a file in the drill-down dialog."""
+    data = item.data(Qt.ItemDataRole.UserRole)
+    if not isinstance(data, dict):
+        file_path = str(data)
+        disciplines = []
+    else:
+        file_path = data.get("path")
+        disciplines = data.get("disciplines", [])
+    if file_path and os.path.isfile(file_path):
+        reply = QMessageBox.question(self, 'Confirm Re-Analysis',
+                                     f"Do you want to re-analyze the file:\n\n{os.path.basename(file_path)}\n\n"
+                                     "This will replace the current analysis results.",
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                     QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
+            self.log(f"Loading file from drill-down: {file_path} with disciplines: {disciplines}")
+            self._current_report_path = file_path
+            self.lbl_report_name.setText(os.path.basename(file_path))
+            self.chk_all_disciplines.blockSignals(True)
+            self.chk_pt.blockSignals(True)
+            self.chk_ot.blockSignals(True)
+            self.chk_slp.blockSignals(True)
+            self.chk_pt.setChecked('pt' in disciplines)
+            self.chk_ot.setChecked('ot' in disciplines)
+            self.chk_slp.setChecked('slp' in disciplines)
+            self._update_all_checkbox_state()
+            self.chk_all_disciplines.blockSignals(False)
+            self.chk_pt.blockSignals(False)
+            self.chk_ot.blockSignals(False)
+            self.chk_slp.blockSignals(False)
+            self.action_analyze()
+    else:
+        QMessageBox.warning(self, "File Not Found", f"The file could not be found at the path:\n{file_path}")
+
     def _render_chat_history(self):
         """Renders the analysis report and the full chat history."""
         if not self.current_report_data:
-            self.txt_chat.setHtml("<div>Please analyze a file to begin.</div>")
+            self.txt_chat.setHtml("<div>Please analyze a file to get started.</div>")
             return
         # Start with the base analysis report
         base_html = self.current_report_data.get("narrative_html", "")
@@ -3423,7 +3746,7 @@ def _run_gui() -> Optional[int]:
         if date.today() > expiration_date:
             QMessageBox.critical(None, "Trial Expired",
                                  f"Your trial period of {trial_duration_days} days has expired.\n"
-                                 "Please contact the administrator to continue using the application.")
+                                 "Please contact the administrator to continue using this application.")
             return 0 # Exit cleanly
 def _read_stylesheet(filename: str) -> str:
     """Reads a stylesheet from the src/ directory."""
