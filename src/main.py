@@ -1758,7 +1758,7 @@ def export_report_fhir_json(data: dict, fhir_path: str) -> bool:
         # Check if the dummy classes are being used, which indicates fhir.resources is not installed.
         if 'Bundle' in globals() and not hasattr(globals()['Bundle'], 'construct'):
              logger.error("fhir.resources library not found. Please install it to use FHIR export.")
-             QMessageBox.warning(None, "FHIR Library Not Found", "The 'fhir.resources' library is required for FHIR export. Please install it by running 'pip install fhir.resources'.")
+             QMessageBox.warning(None, "FHIR Library Not Found", "The 'fhir.resources' library is required for FHIR export. Please install it (`pip install fhir.resources`).")
              return False
 
         bundle = Bundle(type="collection", entry=[])
@@ -1833,10 +1833,10 @@ def _generate_risk_dashboard(compliance_score: float, sev_counts: dict) -> list[
         summary = "Good compliance posture."
     elif score >= 70 and flags <= 1:
         risk = "Medium"
-        summary = "Some areas may need review."
+        summary = "Key areas require review."
     else:
         risk = "High"
-        summary = "Critical issues may require attention."
+        summary = "Critical issues require attention."
 
     lines.append(f"Overall Risk: {risk}")
     lines.append(f"Compliance Score: {score:.1f}/100")
@@ -2167,33 +2167,33 @@ if get_bool_setting("enable_ner_ensemble", True) and self.ner_service and self.e
         strengths, weaknesses, missing = [], [], []
         tl = full_text.lower()
         if any(k in tl for k in ("signed", "signature", "dated")):
-            strengths.append("Provider authentication (signature/date) appears to be present.")
+            strengths.append("Provider authentication appears present.")
         else:
-            weaknesses.append("Provider authentication (signature/date) unclear or missing.")
+            weaknesses.append("Provider authentication is unclear or missing.")
             missing.append("Signatures/Dates")
 
         if "goal" in tl and any(k in tl for k in ("measurable", "time", "timed", "by ")):
-            strengths.append("Goals appear to be measurable and time-bound, with baseline/targets.")
+            strengths.append("Goals appear measurable and time-bound.")
         elif "goal" in tl:
-            weaknesses.append("Goals present but may not be measurable/time-bound.")
+            weaknesses.append("Goals may not be measurable or time-bound.")
             missing.append("Measurable/Time-bound Goals")
 
         if any(k in tl for k in ("medical necessity", "reasonable and necessary", "necessity")):
             strengths.append("Medical necessity is explicitly discussed.")
         else:
-            weaknesses.append("Medical necessity is not explicitly supported throughout the documentation.")
+            weaknesses.append("Medical necessity is not explicitly supported.")
             missing.append("Medical Necessity")
 
         if "assistant" in tl and "supervis" in tl:
             strengths.append("Assistant involvement includes supervision context.")
         elif "assistant" in tl:
-            weaknesses.append("Assistant activity is present; however, the supervision/oversight context is not clearly documented.")
+            weaknesses.append("Assistant supervision is not clearly documented.")
             missing.append("Assistant Supervision Context")
 
         if any(k in tl for k in ("plan of care", "poc", "certification", "recert")):
-            strengths.append("Plan/certification is referenced in the record.")
+            strengths.append("Plan/certification is referenced.")
         else:
-            weaknesses.append("Plan/certification is not clearly referenced with dates and signatures.")
+            weaknesses.append("Plan/certification is not clearly referenced.")
             missing.append("Plan/Certification Reference")
 
         sev_counts = {
@@ -2240,13 +2240,13 @@ if get_bool_setting("enable_ner_ensemble", True) and self.ner_service and self.e
 
         tips = []
         if sev_counts["flag"] > 0:
-            tips.append("Resolve flags first (signatures/dates, plan/certification), then clarify gray areas.")
+            tips.append("Resolve flags first, then clarify grey areas.")
         if "Medical Necessity" in missing:
-            tips.append("Tie each skilled intervention to functional limitations and expected outcomes.")
+            tips.append("Link skilled interventions to functional limitations and outcomes.")
         if "Measurable/Time-bound Goals" in missing:
-            tips.append("Rewrite goals to include baselines, specific targets, and timelines.")
+            tips.append("Rewrite goals with baselines, specific targets, and timelines.")
         if not strengths:
-            tips.append("Increase specificity with objective measures and clear clinical reasoning.")
+            tips.append("Improve specificity with objective measures and clear clinical reasoning.")
 
         try:
             with _get_db_connection() as conn:
@@ -2367,8 +2367,8 @@ if get_bool_setting("enable_ner_ensemble", True) and self.ner_service and self.e
                 "General auditor checks": {
                     "action": "Perform a general review of the note for clarity, consistency, and completeness. Ensure the 'story' of the patient's care is clear.",
                     "why": "A well-documented note justifies skilled care, supports medical necessity, and ensures accurate billing.",
-                    "good_example": "A note that provides a clear picture of the patient's journey from evaluation to discharge.",
-                    "bad_example": "A note with jargon, undefined abbreviations, or that simply lists exercises without clinical reasoning."
+                "good_example": "A note that paints a clear picture of the patient's journey from evaluation to discharge.",
+                "bad_example": "A note with jargon, undefined abbreviations, or one that simply lists exercises without clinical reasoning."
                 }
             }
             for it in issues_scored:
@@ -2393,17 +2393,17 @@ if get_bool_setting("enable_ner_ensemble", True) and self.ner_service and self.e
                         q = (qt or "").strip().replace("\n", " ")
                         if len(q) > 100:
                             q = q[:97].rstrip() + "..."
-                        narrative_lines.append(f"    - [{src}] \"{q}\"")
+                        narrative_lines.append(f"    - [{src}] “{q}”")
                 narrative_lines.append("")
         else:
             narrative_lines.append("No specific audit findings were identified.")
 
         narrative_lines.append("")
         narrative_lines.append("--- General Recommendations ---")
-        narrative_lines.append(" • Consistency is key. Ensure all notes follow a standard format.")
-        narrative_lines.append(" • Be specific and objective. Use numbers and standardized tests to measure progress.")
-        narrative_lines.append(" • Always link treatment to function. Explain how the therapy helps the patient achieve their functional goals.")
-        narrative_lines.append(" • Tell a story. The documentation should paint a clear picture of the patient's journey from evaluation to discharge.")
+        narrative_lines.append(" • Ensure all notes follow a standard format for consistency.")
+        narrative_lines.append(" • Be specific and objective, using numbers and standardized tests to measure progress.")
+        narrative_lines.append(" • Always link treatment to function by explaining how therapy helps the patient achieve their functional goals.")
+        narrative_lines.append(" • Tell a story. The documentation should paint a clear picture of the patient's journey, from evaluation to discharge.")
         narrative_lines.append("")
 
         # --- Generate and add suggested questions ---
@@ -2448,7 +2448,7 @@ if get_bool_setting("enable_ner_ensemble", True) and self.ner_service and self.e
         # --- End Bias Auditing ---
         if trends.get("recent_scores"):
             sc = trends["recent_scores"]
-            narrative_lines.append(f" • Recent scores (oldest→newest): {', '.join(str(round(s, 1)) for s in sc)}")
+            narrative_lines.append(f" • Recent scores (oldest to newest): {', '.join(str(round(s, 1)) for s in sc)}")
             narrative_lines.append(
                 f" • Score delta: {trends['score_delta']:+.1f} | Average score: {trends['avg_score']:.1f}")
             narrative_lines.append(
@@ -3489,7 +3489,7 @@ self._update_analytics_tab()
 
     def action_analyze(self):
         if not self._current_report_path:
-            QMessageBox.information(self, "Analyze", "Please upload or select a report first.")
+            QMessageBox.information(self, "Analyze", "Please upload/select a report first.")
             return
 
         self._clear_previous_analysis_state()
@@ -3513,7 +3513,7 @@ self._update_analytics_tab()
             if self.chk_slp.isChecked(): selected_disciplines.append('slp')
 
             if not selected_disciplines:
-                QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to be analyzed.")
+                QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to analyze.")
                 return
 
             res = run_analyzer(self, self._current_report_path, selected_disciplines=selected_disciplines, entity_consolidation_service=self.entity_consolidation_service, progress_cb=_cb, cancel_cb=_cancel, main_window_instance=self)
@@ -3627,7 +3627,7 @@ self._update_analytics_tab()
         try:
             n = self.list_folder_files.count()
             if n == 0:
-                QMessageBox.information(self, "Analyze Batch", "Please upload a folder with the documents first.")
+                QMessageBox.information(self, "Analyze Batch", "Please upload a folder with documents first.")
                 return
             reply = QMessageBox.question(self, "Analyze Batch",
                                          f"Process {n} file(s) sequentially?")  # type: ignore
@@ -3682,7 +3682,7 @@ self._update_analytics_tab()
                 else:
                     title = "Batch Complete"
                     body_top = f"All set! Your batch is complete.\n\nSummary:\n- Success: {ok_count}\n- Failed:  {fail_count}"
-                msg = [body_top, "", f"Location: {folder}", "", "Open that folder now?"]
+                msg = [body_top, "", f"Location: {folder}", "", "Open folder now?"]
                 reply2 = QMessageBox.question(self, title, "\n".join(msg))  # type: ignore
                 if str(reply2).lower().endswith("yes"):
                     _open_path(folder)
@@ -3702,7 +3702,7 @@ self._update_analytics_tab()
             elif self._current_report_path:
                 self.action_analyze()
             else:
-                QMessageBox.information(self, "Analyze", "Please upload or select a report or upload a folder first.")
+                QMessageBox.information(self, "Analyze", "Please upload a report or folder first.")
         except Exception as e:
             self.set_error(str(e))
 
@@ -3722,7 +3722,7 @@ self._update_analytics_tab()
     def action_export_view_to_pdf(self):
         """Exports the current content of the main chat/analysis view to a PDF."""
         if not self.current_report_data:
-            QMessageBox.warning(self, "Export Error", "Please analyze a document first.")
+            QMessageBox.warning(self, "Export Error", "Please analyze a document before exporting.")
             return
 
         default_filename = os.path.basename(self.current_report_data.get('file', 'report.pdf'))
@@ -3969,7 +3969,7 @@ self._update_analytics_tab()
     def _display_educational_content(self, issue_title: str):
         """Generates educational content and appends it to the main view."""
         if not self.local_rag or not self.local_rag.is_ready():
-            QMessageBox.warning(self, "AI Not Ready", "The AI model is not available. Please wait for it to load, or check the logs.")
+            QMessageBox.warning(self, "AI Not Ready", "The AI model is not available. Please wait for it to load or check the logs for errors.")
             return
 
         rule = next((r for r in self.compliance_rules if r.issue_title == issue_title), None)
@@ -4082,9 +4082,9 @@ self._update_analytics_tab()
         question = self.input_query_te.toPlainText().strip()
         if not question:
             return
+if not self.local_rag or not self.local_rag.is_ready() or not getattr(self.local_rag, "index", None):
+    QMessageBox.warning(self, "AI Not Ready", "The AI model is not ready. Please analyze a document before starting the chat.")
 
-        if not self.local_rag or not self.local_rag.is_ready():
-            QMessageBox.warning(self, "AI Not Ready", "The AI model is not yet available. Please wait for it to load.")
             return
 
         if not self.current_report_data or not self.local_rag.index:
@@ -4092,7 +4092,7 @@ self._update_analytics_tab()
             return
 
         try:
-            self.statusBar().showMessage("The AI is thinking...")
+            self.statusBar().showMessage("AI is thinking...")
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
             # Classify the user's query
@@ -4347,7 +4347,7 @@ def on_drilldown_item_activated(self, item: QListWidgetItem):
     def _render_chat_history(self):
         """Renders the analysis report and the full chat history."""
         if not self.current_report_data:
-            self.txt_chat.setHtml("<div>Please analyze a file to get started.</div>")
+            self.txt_chat.setHtml("<div>Please analyze a file to begin.</div>")
             return
         # Start with the base analysis report
         base_html = self.current_report_data.get("narrative_html", "")
@@ -4676,8 +4676,8 @@ def _run_gui() -> Optional[int]:
 
         if date.today() > expiration_date:
             QMessageBox.critical(None, "Trial Expired",
-                                 f"Your trial period of {trial_duration_days} days has expired.\n"
-                                 "Please contact the administrator to continue using this application.")
+                                 f"Your {trial_duration_days}-day trial has expired.\n"
+                                 "Please contact the administrator to continue using the application.")
             return 0 # Exit cleanly
 def _read_stylesheet(filename: str) -> str:
     """Reads a stylesheet from the src/ directory."""
