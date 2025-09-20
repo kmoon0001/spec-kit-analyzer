@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
+import os
+from typing import Dict, List, Optional
 
 import faiss
 import numpy as np
@@ -54,6 +55,8 @@ class LocalRAG:
             else:
                 logger.info("Using pre-loaded sentence transformer model.")
 
+# 2. Download and load the local LLM
+
             logger.info(f"Downloading LLM from {model_repo_id}...")
             model_path = hf_hub_download(
                 repo_id=model_repo_id, filename=model_filename
@@ -89,7 +92,7 @@ class LocalRAG:
             logger.warning("RAG system is not ready. Cannot create index.")
             return
 
-        logger.info(f"Creating FAISS index for {len(texts)} text chunks.")
+logger.info(f"Creating FAISS index for {len(texts)} text chunks.")
         self.text_chunks = texts
 
         embeddings = self.embedding_model.encode(
@@ -148,13 +151,10 @@ class LocalRAG:
             return "The local AI chat is not available. Please check the logs for errors."
 
         logger.info(f"Received query: {question}")
+# 1. Find relevant text chunks from the FAISS index
+        retrieved_chunks = self.search_index(question, k=k)
 
-        query_embedding = self.embedding_model.encode([question])
-        _, indices = self.index.search(
-            np.array(query_embedding, dtype=np.float32), k
-        )
-        retrieved_chunks = [self.text_chunks[i] for i in indices[0]]
-
+        # 2. Construct the prompt
         history_str = ""
         if chat_history:
             for sender, message in chat_history[-6:]:

@@ -6,7 +6,7 @@
     :issueTitle "Goals may not be measurable/time-bound" ;
     :issueDetail "Goals for the patient are not clearly measurable or time-bound." ;
     :issueCategory "Goals" ;
-    :severity "wobbler" ;
+    :severity "finding" ;
     :strictSeverity "flag" ;
     :positiveKeywords "goal" ;
     :negativeKeywords "measurable", "time-bound" .
