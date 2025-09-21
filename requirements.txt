@@ -35,21 +35,17 @@ llama-index
 llama-index-embeddings-huggingface
 
 # ================= UI & PLOTTING =================
-# PyQt6==6.9.1
-# PyQt6-sip
-# PyQt6-WebEngine
-# pyqt6-tools
-# matplotlib
-# plotly
+PyQt6
+PyQt6-sip
+PyQt6-WebEngine
+pyqt6-tools
+matplotlib
+plotly
 
 # ================= XAI & NEW FEATURES =================
 shap
 slicer
 fhir.resources
-transformers
-Pillow
-matplotlib
-fairlearn
 
 # ================= PII, SECURITY, COMPLIANCE =================
 presidio-analyzer
