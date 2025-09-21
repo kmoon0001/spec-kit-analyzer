@@ -6,14 +6,13 @@ from types import SimpleNamespace
 # Ensure the src directory is in the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.main import run_analyzer
 from src.local_llm import LocalRAG
 from src.guideline_service import GuidelineService
 from src.entity_consolidation_service import EntityConsolidationService
 from src.ner_service import NERService
 from src.rubric_service import RubricService
 from src.llm_analyzer import run_llm_analysis
-from src.entity_consolidation_service import EntityConsolidationService
+from src.text_chunking import RecursiveCharacterTextSplitter
 
 @pytest.mark.timeout(600)
 def test_analyzer_logic_e2e():
@@ -51,23 +50,32 @@ def test_analyzer_logic_e2e():
 
     # 4. Run the analyzer function directly.
     print(f"Starting analysis on {test_file}...")
-    entity_consolidation_service = EntityConsolidationService()
-    results = run_analyzer(
-        file_path=test_file,
-        selected_disciplines=disciplines,
-entity_consolidation_service=entity_consolidation_service,
 
-        main_window_instance=mock_window
+    # Parse the document to get chunks
+    with open(test_file, 'r') as f:
+        document_text = f.read()
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    chunks = text_splitter.split_text(document_text)
+
+    # Load rubrics
+    rubric_service = RubricService('src/pt_compliance_rubric.ttl')
+    rules = rubric_service.get_rules()
+    rules_as_dicts = [rule.__dict__ for rule in rules]
+
+    results = run_llm_analysis(
+        llm=mock_window.local_rag.llm,
+        chunks=chunks,
+        rules=rules_as_dicts,
+        file_path=test_file
     )
     print("Analysis complete.")
 
     # 5. Assert that the results are valid and contain our new features.
     assert results is not None, "Analysis did not produce any results."
 
-    issues = results.get("issues", [])
-    assert len(issues) > 0, "The LLM-based analysis failed to find any issues in the bad note."
+    assert len(results) > 0, "The LLM-based analysis failed to find any issues in the bad note."
 
-    first_issue = issues[0]
+    first_issue = results[0]
     assert "reasoning" in first_issue, "The issue dictionary is missing the 'reasoning' field from the LLM."
     assert len(first_issue["reasoning"]) > 0, "The 'reasoning' field is empty."
 
@@ -75,7 +83,7 @@ entity_consolidation_service=entity_consolidation_service,
     assert isinstance(first_issue["confidence"], float)
 
     print("\n--- Verification Summary ---")
-    print(f"Found {len(issues)} issues.")
+    print(f"Found {len(results)} issues.")
     print(f"Reasoning for first issue ('{first_issue['title']}'): {first_issue['reasoning']}")
     print("End-to-end logic test passed successfully.")
     print("--------------------------")

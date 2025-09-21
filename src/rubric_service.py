@@ -18,9 +18,8 @@ class ComplianceRule:
     issue_title: str
     issue_detail: str
     issue_category: str
-
-financial_impact: int = 0
     discipline: str
+    financial_impact: int = 0
     positive_keywords: List[str] = field(default_factory=list)
     negative_keywords: List[str] = field(default_factory=list)
 

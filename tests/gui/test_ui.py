@@ -1,5 +1,5 @@
 # import pytest
-# from src.main import MainWindow
+# from src.gui.main_window import MainApplicationWindow as MainWindow
 
 # def test_main_window_initialization(qtbot):
 #     """

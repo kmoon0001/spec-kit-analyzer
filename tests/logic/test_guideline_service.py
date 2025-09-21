@@ -11,7 +11,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 # Local
 from src.guideline_service import GuidelineService
-from src.local_llm import LocalRAG
 
 
 class TestGuidelineService(unittest.TestCase):
@@ -19,7 +18,7 @@ class TestGuidelineService(unittest.TestCase):
     def setUp(self):
         """Set up a mock RAG instance and a GuidelineService instance for testing."""
         # Create a mock for the LocalRAG instance
-        self.mock_rag = MagicMock(spec=LocalRAG)
+        self.mock_rag = MagicMock()
         self.mock_rag.is_ready.return_value = True
 
         # Instantiate the service with the mock

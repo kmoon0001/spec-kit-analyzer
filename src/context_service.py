@@ -8,16 +8,6 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from __future__ import annotations
-
-import json
-import logging
-from typing import List, Dict, Optional
-
-import numpy as np
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
-
 logger = logging.getLogger(__name__)
 
 
