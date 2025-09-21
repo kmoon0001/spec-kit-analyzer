@@ -1,0 +1,16 @@
+/plan
+- Language: Python
+- UI Framework: PyQt6 (responsive for desktop, tablet, mobile)
+- Document Parsing: pdfplumber, python-docx, pandas
+- OCR: Tesseract OCR
+- Clinical NLP: ClinicalBERT, BioBERT, AraG (offline deployment)
+- NLP/Tokenization: SpaCy (clinical pipelines), SciSpacy
+- Database: SQLite (AES-256 encryption)
+- Encryption: PyCA Cryptography, Fernet
+- PDF Reporting: ReportLab
+- Analytics: Pandas and Matplotlib (dashboard and export)
+- Update Mechanism: PyUpdater (or custom secure solution)
+- Rubric Management: upload, select, version PDFs/Word/Excel/custom templates
+- Security: PHI scrubber, audit logs, username/password authentication
+- Educational Modules: Embedded multimedia/tutorials
+- Chatbox: AraG/LLM offline, supports context/history/suggestions

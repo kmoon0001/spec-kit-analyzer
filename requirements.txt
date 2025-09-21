@@ -1,29 +1,74 @@
+# ================= CORE ANALYSIS & DATA HANDLING =================
 pandas==2.3.2
-PyQt6==6.9.1
 pdfplumber==0.11.7
 pytesseract==0.3.13
 python-docx==1.2.0
+rdflib
+requests
+scikit-learn
+spacy
+openpyxl
+PyYAML
+
+# ================= NER, NLP & EMBEDDINGS =================
 sentence-transformers==5.1.0
 faiss-cpu==1.12.0
-llama-cpp-python==0.3.16
+transformers
+torch
+accelerate
+bitsandbytes
+huggingface-hub
+
+# ================= SPARK & NLP FRAMEWORKS =================
 pyspark==3.4.1
 spark-nlp==5.4.0
 # The JSL library (spark-nlp-jsl) must be installed manually with a license.
-# See demo.py for instructions.
-rdflib
-requests
+# See demo.py for install instructions.
 
-# Added for XAI, plotting, and new data format features
+# ================= LLM PIPELINES & VECTOR STORES =================
+langchain
+langchain-community
+langchain-core
+llama-cpp-python==0.3.16
+llama-index
+llama-index-embeddings-huggingface
+
+# ================= UI & PLOTTING =================
+PyQt6==6.9.1
+PyQt6-sip
+PyQt6-WebEngine
+pyqt6-tools
+matplotlib
+plotly
+
+# ================= XAI & NEW FEATURES =================
 shap
 slicer
 fhir.resources
-transformers
-torch
-Pillow
-matplotlib
-openpyxl
+fairlearn
 
-# Added for UI Testing
+# ================= PII, SECURITY, COMPLIANCE =================
+presidio-analyzer
+presidio-anonymizer
+
+# ================= ASYNCHRONOUS PROCESSING =================
+celery
+redis
+
+# ================= API & SERVER =================
+fastapi
+uvicorn
+gunicorn
+
+# ================= TESTING & UTILITIES =================
 pytest
 pytest-qt
-fairlearn
+pytest-mock
+jsonschema
+pyspellchecker
+python-dotenv
+Faker
+Pillow
+pypdf
+
+# ================= END OF REQUIREMENTS =================

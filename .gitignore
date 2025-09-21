@@ -1,4 +1,6 @@
+
 feature/local-ai-chat
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc
@@ -67,9 +69,7 @@ venv.bak/
 # OS-specific
 .DS_Store
 Thumbs.db
-=======
-__pycache__/
-*.pyc
+# From the other side of the merge
 *.db
 *.db-journal
 *.log
