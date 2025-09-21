@@ -1,21 +1,78 @@
-# Python
-from __future__ import annotations
-
-# Standard library
-from datetime import datetime
-import hashlib
-import html
-import logging
+import argparse
 import os
-import re
-import sqlite3
-import sys
-from typing import Callable, List, Literal, Tuple, Optional
-import sys
-from urllib.parse import quote, unquote
+from src.ingestion import build_sentence_window_index
+from src.retrieval import get_query_engine
+from llama_index.llms.openai import OpenAI
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
-# Third-party used throughout
-import pandas as pd  # type: ignore
+# --- Configuration ---
+# In a real app, these would be in a config file or environment variables.
+# For the purpose of this task, we will use a placeholder OpenAI API Key.
+# The user would need to set their actual key as an environment variable.
+os.environ["OPENAI_API_KEY"] = "YOUR_API_KEY_HERE"
+LLM = OpenAI(model="gpt-3.5-turbo")
+EMBED_MODEL = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
+INDEX_DIR = "sentence_index"
+DOCS_DIR = "data"
+
+def handle_ingest(args):
+    """Handles the 'ingest' command."""
+    docs_path = args.dir or DOCS_DIR
+    if not os.path.exists(docs_path):
+        print(f"Error: Document directory not found at '{docs_path}'")
+        # Create a dummy data directory for the user
+        os.makedirs(docs_path)
+        print(f"Created a dummy directory at '{docs_path}'. Please add your documents there and run ingest again.")
+        return
+
+    print(f"Starting ingestion from directory: {docs_path}")
+    build_sentence_window_index(
+        documents_path=docs_path,
+        llm=LLM,
+        embed_model=EMBED_MODEL,
+        save_dir=INDEX_DIR,
+    )
+    print("Ingestion complete.")
+
+def handle_query(args):
+    """Handles the 'query' command."""
+    if not args.question:
+        print("Error: Please provide a question with the --question flag.")
+        return
+
+    print(f"Querying with: '{args.question}'")
+    try:
+        query_engine = get_query_engine(index_dir=INDEX_DIR)
+        response = query_engine.query(args.question)
+        print("\n--- Response ---")
+        print(response)
+        print("\n---")
+    except FileNotFoundError as e:
+        print(f"Error: {e}. Please run the 'ingest' command first.")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+
+def main():
+    """Main function to run the command-line interface."""
+    parser = argparse.ArgumentParser(description="A command-line interface for a RAG pipeline.")
+    subparsers = parser.add_subparsers(dest="command", required=True, help="Available commands")
+
+    # Subparser for the 'ingest' command
+    ingest_parser = subparsers.add_parser("ingest", help="Ingest documents from a directory into the vector store.")
+    ingest_parser.add_argument("--dir", type=str, default=DOCS_DIR, help=f"The directory containing documents to ingest. Defaults to '{DOCS_DIR}'.")
+    ingest_parser.set_defaults(func=handle_ingest)
+
+    # Subparser for the 'query' command
+    query_parser = subparsers.add_parser("query", help="Ask a question to the indexed documents.")
+    query_parser.add_argument("--question", type=str, required=True, help="The question you want to ask.")
+    query_parser.set_defaults(func=handle_query)
+
+    args = parser.parse_args()
+    args.func(args)
+
+if __name__ == "__main__":
+    main()
 
 # --- Configuration defaults and constants ---
 REPORT_TEMPLATE_VERSION = "v2.0"
@@ -92,22 +149,22 @@ if not logger.handlers:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     try:
 os.makedirs(LOGS_DIR, exist_ok=True)
-        log_path = os.path.join(LOGS_DIR, "app.log")
-        from logging.handlers import RotatingFileHandler
+log_path = os.path.join(LOGS_DIR, "app.log")
+from logging.handlers import RotatingFileHandler
 
-        fh = RotatingFileHandler(
-            log_path, maxBytes=2_000_000, backupCount=5, encoding="utf-8"
-        )
-        fh.setLevel(logging.INFO)
-        fh.setFormatter(
-            logging.Formatter(
-                "%(asctime)s %(levelname)s %(name)s: %(message)s"
-            )
-        )
-        logging.getLogger().addHandler(fh)
-        logger.info(f"File logging to: {log_path}")
-    except Exception as _e:
-        logger.warning(f"Failed to set up file logging: {_e}")
+fh = RotatingFileHandler(
+    log_path, maxBytes=2_000_000, backupCount=5, encoding="utf-8"
+)
+fh.setLevel(logging.INFO)
+fh.setFormatter(
+    logging.Formatter(
+        "%(asctime)s %(levelname)s %(name)s: %(message)s"
+    )
+)
+logging.getLogger().addHandler(fh)
+logger.info(f"File logging to: {log_path}")
+except Exception as _e:
+logger.warning(f"Failed to set up file logging: {_e}")
 
 # spaCy disabled placeholder
 nlp = None
@@ -137,8 +194,12 @@ try:
     from PIL import Image, UnidentifiedImageError
 except ImportError as e:
     Image = None  # type: ignore
+
+
     class UnidentifiedImageError(Exception):
         pass
+
+
     logger.warning(f"PIL unavailable: {e}")
 
 try:
@@ -184,25 +245,52 @@ try:
     from fhir.resources.reference import Reference
     from fhir.resources.meta import Meta
 except ImportError:
-    class Bundle: pass
-    class DocumentReference: pass
-    class DiagnosticReport: pass
-    class Observation: pass
-    class CodeableConcept: pass
-    class Coding: pass
-    class Reference: pass
-    class Meta: pass
+    class Bundle:
+        pass
+
+
+    class DocumentReference:
+        pass
+
+
+    class DiagnosticReport:
+        pass
+
+
+    class Observation:
+        pass
+
+
+    class CodeableConcept:
+        pass
+
+
+    class Coding:
+        pass
+
+
+    class Reference:
+        pass
+
+
+    class Meta:
+        pass
+
+
     logger.warning("fhir.resources library not found. FHIR export will be disabled.")
 
 # Matplotlib for analytics chart
 import matplotlib
+
 matplotlib.use('Agg')
 try:
     from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 except ImportError:
-    class FigureCanvas: # type: ignore
+    class FigureCanvas:  # type: ignore
         def __init__(self, figure=None): pass
+
         def mpl_connect(self, s, f): pass
+
         def draw(self): pass
 from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle
@@ -241,14 +329,36 @@ try:
     from .text_chunking import RecursiveCharacterTextSplitter
 except ImportError as e:
     logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
+
+
     # Define dummy classes if imports fail
-    class LocalRAG: pass
-    class RubricService: pass
-    class ComplianceRule: pass
-    class GuidelineService: pass
-    class NERService: pass
-    class EntityConsolidationService: pass
-    class RecursiveCharacterTextSplitter: pass
+    class LocalRAG:
+        pass
+
+
+    class RubricService:
+        pass
+
+
+    class ComplianceRule:
+        pass
+
+
+    class GuidelineService:
+        pass
+
+
+    class NERService:
+        pass
+
+
+    class EntityConsolidationService:
+        pass
+
+
+    class RecursiveCharacterTextSplitter:
+        pass
+
 
 # --- LLM Loader Worker ---
 class LLMWorker(QObject):
@@ -275,6 +385,7 @@ class LLMWorker(QObject):
         except Exception as e:
             logger.exception("LLMWorker failed to load model.")
             self.error.emit(f"Failed to load AI model: {e}")
+
 
 # --- Guideline Loader Worker ---
 class GuidelineWorker(QObject):
@@ -305,6 +416,7 @@ class GuidelineWorker(QObject):
             logger.exception("GuidelineWorker failed.")
             self.error.emit(f"Failed to load guidelines: {e}")
 
+
 def _generate_suggested_questions(issues: list) -> list[str]:
     """Generates a list of suggested questions based on high-priority findings."""
     suggestions = []
@@ -325,15 +437,19 @@ def _generate_suggested_questions(issues: list) -> list[str]:
     logger.info(f"Generated {len(suggestions)} suggested questions.")
     return suggestions
 
+
 # --- Helper Exceptions ---
 class ParseError(Exception):
     ...
 
+
 class OCRFailure(Exception):
     ...
 
+
 class ReportExportError(Exception):
     ...
+
 
 class DrillDownDialog(QDialog):
     """
@@ -377,6 +493,7 @@ class DrillDownDialog(QDialog):
             self.run_selected.emit(int(run_id))
             self.accept()
 
+
 def _format_entities_for_rag(entities: list[NEREntity]) -> list[str]:
     """Converts a list of NEREntity objects into a list of descriptive strings."""
     if not entities:
@@ -399,6 +516,7 @@ def _format_entities_for_rag(entities: list[NEREntity]) -> list[str]:
     logger.info(f"Formatted {len(formatted_strings)} consolidated entities for RAG context.")
     return formatted_strings
 
+
 def _validate_report_data(data: dict, schema: dict) -> bool:
     """Validates report data against the JSON schema."""
     if not jsonschema:
@@ -414,6 +532,7 @@ def _validate_report_data(data: dict, schema: dict) -> bool:
         logger.error(f"An unexpected error occurred during schema validation: {e}")
         return False
 
+
 def _hash_password(
         password: str, salt: Optional[bytes] = None) -> Tuple[str, bytes]:
     """Hashes a password with a salt. Generates a new salt if not provided."""
@@ -424,8 +543,9 @@ def _hash_password(
     )
     return hashed_password.hex(), salt
 
+
 def _verify_password(
-    stored_password_hex: str, salt_hex: str, provided_password: str
+        stored_password_hex: str, salt_hex: str, provided_password: str
 ) -> bool:
     """Verifies a provided password against a stored hash and salt."""
     try:
@@ -434,6 +554,7 @@ def _verify_password(
         return False
     hashed_password, _ = _hash_password(provided_password, salt)
     return hashed_password == stored_password_hex
+
 
 # --- Parsing (PDF/DOCX/CSV/XLSX/Images with optional OCR) ---
 def split_sentences(text: str) -> list[str]:
@@ -448,6 +569,7 @@ def split_sentences(text: str) -> list[str]:
     if not sents:
         sents = text.splitlines()
     return [s for s in sents if s]
+
 
 def _correct_spelling(text: str) -> str:
     """Corrects spelling errors in a given text, preserving punctuation."""
@@ -469,6 +591,7 @@ def _correct_spelling(text: str) -> str:
             corrected_parts.append(non_word)
 
     return "".join(corrected_parts)
+
 
 def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
     """
@@ -563,14 +686,16 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
         else:
             return [(f"Error: Unsupported file type: {ext}", "File Handler")]
 
-        return chunks_with_source if chunks_with_source else [("Info: No text could be extracted from the document.", "System")]
+        return chunks_with_source if chunks_with_source else [
+            ("Info: No text could be extracted from the document.", "System")]
 
     except FileNotFoundError:
         return [(f"Error: File not found at {file_path}", "File System")]
     except Exception as e:
         logger.exception("parse_document_content failed")
         return [(f"Error: An unexpected error occurred: {e}", "System")]
-        
+
+
 def run_biobert_ner(sentences: List[str]) -> List[dict]:
     """
     Performs Named Entity Recognition on a list of sentences using a
@@ -597,6 +722,7 @@ def run_biobert_ner(sentences: List[str]) -> List[dict]:
         logger.error(f"BioBERT NER failed: {e}")
         return []
 
+
 def export_report_json(obj: dict, json_path: str) -> bool:
     try:
         import json
@@ -608,6 +734,7 @@ def export_report_json(obj: dict, json_path: str) -> bool:
         logger.error(f"Failed to export JSON: {e}")
         return False
 
+
 try:
     import shap
     import slicer
@@ -616,10 +743,12 @@ except ImportError:
     slicer = None
     logger.warning("SHAP or Slicer unavailable. Advanced analytics will be disabled.")
 
+
 def count_categories(issues: list[dict]) -> dict:
     from collections import Counter
     c = Counter((i.get("category") or "General") for i in issues)
     return dict(c)
+
 
 def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
     try:
@@ -658,7 +787,8 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                         REAL,
                         mode
                         TEXT,
-                        file_path TEXT
+                        file_path
+                        TEXT
                     )
                     """)
         cur.execute(
@@ -737,497 +867,543 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                     )
                         )
                     """)
-                    (
-                        file_fingerprint
-                        TEXT
-                        NOT
-                        NULL,
-                        settings_fingerprint
-                        TEXT
-                        NOT
-                        NULL,
-                        outputs_json
-                        TEXT
-                        NOT
-                        NULL,
-                        created_at
-                        TEXT
-                        NOT
-                        NULL,
-                        PRIMARY
-                        KEY
-                    (
-                        file_fingerprint,
-                        settings_fingerprint
-                    )
-                        )
-                    """)
+        (
+            file_fingerprint
+            TEXT
+            NOT
+            NULL,
+            settings_fingerprint
+            TEXT
+            NOT
+            NULL,
+            outputs_json
+            TEXT
+            NOT
+            NULL,
+            created_at
+            TEXT
+            NOT
+            NULL,
+            PRIMARY
+            KEY
+            (
+            file_fingerprint,
+            settings_fingerprint
+        )
+        )
+        """)
 def scrub_phi(text: str) -> str:
-    if not isinstance(text, str):
-        return text  # type: ignore[return-value]
-    out = text
-    for pat, repl in _PHI_PATTERNS:
-        out = re.sub(pat, repl, out)
-    return out
+if not isinstance(text, str):
+return text  # type: ignore[return-value]
+out = text
+for pat, repl in _PHI_PATTERNS:
+out = re.sub(pat, repl, out)
+return out
 
 # --- Utilities ---
 def _now_iso() -> str:
-    from datetime import datetime
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+from datetime import datetime
+return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 def _open_path(p: str) -> None:
-    try:
-        if os.name == "nt":
-            os.startfile(p)  # type: ignore[attr-defined]
-        elif sys.platform == "darwin":
-            os.system(f"open \"{p}\"")
-        else:
-            os.system(f"xdg-open \"{p}\"")
-    except Exception as e:
-        logger.warning(f"Failed to open path {p}: {e}")
+try:
+if os.name == "nt":
+os.startfile(p)  # type: ignore[attr-defined]
+elif sys.platform == "darwin":
+os.system(f"open \"{p}\"")
+else:
+os.system(f"xdg-open \"{p}\"")
+except Exception as e:
+logger.warning(f"Failed to open path {p}: {e}")
 
 # --- Parsing (PDF/DOCX/CSV/XLSX/Images with optional OCR) ---
 def split_sentences(text: str) -> list[str]:
-    if not text:
-        return []
-    sents = [p.strip() for p in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"'])", text) if p.strip()]
-    if not sents:
-        sents = text.splitlines()
-    return [s for s in sents if s]
+if not text:
+return []
+sents = [p.strip() for p in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"'])", text) if p.strip()]
+if not sents:
+sents = text.splitlines()
+return [s for s in sents if s]
 
 def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
-    """
-    Parses the content of a document and splits it into chunks.
-    Uses a recursive character text splitter for more effective chunking.
-    """
-    if not os.path.exists(file_path):
-        return [(f"Error: File not found at {file_path}", "File System")]
-    ext = os.path.splitext(file_path)[1].lower()
+"""
 
-    # Initialize the text splitter with configurable settings
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=get_int_setting("chunk_size", 1000),
-        chunk_overlap=get_int_setting("chunk_overlap", 200),
-    )
 
-    try:
-        chunks_with_source: list[tuple[str, str]] = []
+Parses
+the
+content
+of
+a
+document and splits
+it
+into
+chunks.
+Uses
+a
+recursive
+character
+text
+splitter
+for more effective chunking.
+"""
+if not os.path.exists(file_path):
+    return [(f"Error: File not found at {file_path}", "File System")]
+ext = os.path.splitext(file_path)[1].lower()
 
-        # --- Step 1: Extract text from the document based on its type ---
-        if ext == ".pdf":
-            if not pdfplumber:
-                return [("Error: pdfplumber not available.", "PDF Parser")]
-            with pdfplumber.open(file_path) as pdf:
-                # Process page by page to maintain source information
-                for i, page in enumerate(pdf.pages, start=1):
-                    page_text = page.extract_text() or ""
-                    page_chunks = text_splitter.split_text(page_text)
-                    for chunk in page_chunks:
-                        if chunk:
-                            chunks_with_source.append((chunk, f"Page {i}"))
-        elif ext == ".docx":
-            try:
-                from docx import Document
-            except Exception:
-                return [("Error: python-docx not available.", "DOCX Parser")]
-            docx_doc = Document(file_path)
-            # Process paragraph by paragraph
-            for i, para in enumerate(docx_doc.paragraphs, start=1):
-                if not para.text.strip():
-                    continue
-                para_chunks = text_splitter.split_text(para.text)
-                for chunk in para_chunks:
+# Initialize the text splitter with configurable settings
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=get_int_setting("chunk_size", 1000),
+    chunk_overlap=get_int_setting("chunk_overlap", 200),
+)
+
+try:
+    chunks_with_source: list[tuple[str, str]] = []
+
+    # --- Step 1: Extract text from the document based on its type ---
+    if ext == ".pdf":
+        if not pdfplumber:
+            return [("Error: pdfplumber not available.", "PDF Parser")]
+        with pdfplumber.open(file_path) as pdf:
+            # Process page by page to maintain source information
+            for i, page in enumerate(pdf.pages, start=1):
+                page_text = page.extract_text() or ""
+                page_chunks = text_splitter.split_text(page_text)
+                for chunk in page_chunks:
                     if chunk:
-                        chunks_with_source.append((chunk, f"Paragraph {i}"))
-        elif ext in [".xlsx", ".xls", ".csv"]:
-            try:
-                if ext in [".xlsx", ".xls"]:
-                    df = pd.read_excel(file_path)
-                    if isinstance(df, dict):
-                        df = next(iter(df.values()))
-                else:
-                    df = pd.read_csv(file_path)
-                content = df.to_string(index=False)
-                corrected_content = _correct_spelling(content)
-                data_chunks = text_splitter.split_text(corrected_content)
-                for chunk in data_chunks:
-                    if chunk:
-                        chunks_with_source.append((chunk, "Table"))
-            except Exception as e:
-                return [(f"Error: Failed to read tabular file: {e}",
-                         "Data Parser")]
-        elif ext in [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff"]:
-            if not Image or not pytesseract:
-                return [("Error: OCR dependencies not available.",
-                         "OCR Parser")]
-            try:
-                img = Image.open(file_path)
-                if img.mode not in ("RGB", "L"):
-                    img = img.convert("RGB")
-                txt = pytesseract.image_to_string(
-                    img, lang=get_str_setting("ocr_lang", "eng")
-                )
-                corrected_txt = _correct_spelling(txt or "")
-                ocr_chunks = text_splitter.split_text(corrected_txt)
-                for chunk in ocr_chunks:
-                    if chunk:
-                        chunks_with_source.append((chunk, "Image (OCR)"))
-            except UnidentifiedImageError as e:
-                return [(f"Error: Unidentified image: {e}", "OCR Parser")]
-        elif ext == ".txt":
-            with open(file_path, "r", encoding="utf-8") as f:
-                txt = f.read()
-            corrected_txt = _correct_spelling(txt)
-            txt_chunks = text_splitter.split_text(corrected_txt)
-            for chunk in txt_chunks:
+                        chunks_with_source.append((chunk, f"Page {i}"))
+    elif ext == ".docx":
+        try:
+            from docx import Document
+        except Exception:
+            return [("Error: python-docx not available.", "DOCX Parser")]
+        docx_doc = Document(file_path)
+        # Process paragraph by paragraph
+        for i, para in enumerate(docx_doc.paragraphs, start=1):
+            if not para.text.strip():
+                continue
+            para_chunks = text_splitter.split_text(para.text)
+            for chunk in para_chunks:
                 if chunk:
-                    chunks_with_source.append((chunk, "Text File"))
-        else:
-            return [(f"Error: Unsupported file type: {ext}", "File Handler")]
+                    chunks_with_source.append((chunk, f"Paragraph {i}"))
+    elif ext in [".xlsx", ".xls", ".csv"]:
+        try:
+            if ext in [".xlsx", ".xls"]:
+                df = pd.read_excel(file_path)
+                if isinstance(df, dict):
+                    df = next(iter(df.values()))
+            else:
+                df = pd.read_csv(file_path)
+            content = df.to_string(index=False)
+            corrected_content = _correct_spelling(content)
+            data_chunks = text_splitter.split_text(corrected_content)
+            for chunk in data_chunks:
+                if chunk:
+                    chunks_with_source.append((chunk, "Table"))
+        except Exception as e:
+            return [(f"Error: Failed to read tabular file: {e}",
+                     "Data Parser")]
+    elif ext in [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff"]:
+        if not Image or not pytesseract:
+            return [("Error: OCR dependencies not available.",
+                     "OCR Parser")]
+        try:
+            img = Image.open(file_path)
+            if img.mode not in ("RGB", "L"):
+                img = img.convert("RGB")
+            txt = pytesseract.image_to_string(
+                img, lang=get_str_setting("ocr_lang", "eng")
+            )
+            corrected_txt = _correct_spelling(txt or "")
+            ocr_chunks = text_splitter.split_text(corrected_txt)
+            for chunk in ocr_chunks:
+                if chunk:
+                    chunks_with_source.append((chunk, "Image (OCR)"))
+        except UnidentifiedImageError as e:
+            return [(f"Error: Unidentified image: {e}", "OCR Parser")]
+    elif ext == ".txt":
+        with open(file_path, "r", encoding="utf-8") as f:
+            txt = f.read()
+        corrected_txt = _correct_spelling(txt)
+        txt_chunks = text_splitter.split_text(corrected_txt)
+        for chunk in txt_chunks:
+            if chunk:
+                chunks_with_source.append((chunk, "Text File"))
+    else:
+        return [(f"Error: Unsupported file type: {ext}", "File Handler")]
 
-        return chunks_with_source if chunks_with_source else [("Info: No text could be extracted from the document.", "System")]
+    return chunks_with_source if chunks_with_source else [("Info: No text could be extracted from the document.", "System")]
 
-    except FileNotFoundError:
-        return [(f"Error: File not found at {file_path}", "File System")]
-    except Exception as e:
-        logger.exception("parse_document_content failed")
-        return [(f"Error: An unexpected error occurred: {e}", "System")]
-            try:
-                if ext in [".xlsx", ".xls"]:
-                    df = pd.read_excel(file_path)
-                    if isinstance(df, dict):
-                        df = next(iter(df.values()))
-                else:
-                    df = pd.read_csv(file_path)
+except FileNotFoundError:
+    return [(f"Error: File not found at {file_path}", "File System")]
+except Exception as e:
+    logger.exception("parse_document_content failed")
+    return [(f"Error: An unexpected error occurred: {e}", "System")]
+        try:
+            if ext in [".xlsx", ".xls"]:
+                df = pd.read_excel(file_path)
+                if isinstance(df, dict):
+                    df = next(iter(df.values()))
+            else:
+                df = pd.read_csv(file_path)
 conn.commit()
-    except Exception as e:
-        logger.warning(f"Ensure core schema failed: {e}")
+except Exception as e:
+    logger.warning(f"Ensure core schema failed: {e}")
 
 def _get_db_connection() -> sqlite3.Connection:
-    _ensure_directories()
-    _prepare_database_file()
-    try:
-        conn = sqlite3.connect(DATABASE_PATH)
-    except sqlite3.DatabaseError as e:
-        logger.warning(f"sqlite connect failed: {e}; attempting recreate")
-        _backup_corrupt_db(DATABASE_PATH)
-        conn = sqlite3.connect(DATABASE_PATH)
-    try:
-        cur = conn.cursor()
-        cur.execute("PRAGMA foreign_keys = ON")
-        cur.execute("PRAGMA journal_mode = WAL")
-        cur.execute("PRAGMA synchronous = NORMAL")
-        conn.commit()
-        _ensure_core_schema(conn)
-        _ensure_analytics_schema(conn)
-    except Exception as e:
-        logger.warning(f"SQLite PRAGMA/schema setup partial: {e}")
-    return conn
+_ensure_directories()
+_prepare_database_file()
+try:
+    conn = sqlite3.connect(DATABASE_PATH)
+except sqlite3.DatabaseError as e:
+    logger.warning(f"sqlite connect failed: {e}; attempting recreate")
+    _backup_corrupt_db(DATABASE_PATH)
+    conn = sqlite3.connect(DATABASE_PATH)
+try:
+    cur = conn.cursor()
+    cur.execute("PRAGMA foreign_keys = ON")
+    cur.execute("PRAGMA journal_mode = WAL")
+    cur.execute("PRAGMA synchronous = NORMAL")
+    conn.commit()
+    _ensure_core_schema(conn)
+    _ensure_analytics_schema(conn)
+except Exception as e:
+    logger.warning(f"SQLite PRAGMA/schema setup partial: {e}")
+return conn
 
 def get_setting(key: str) -> Optional[str]:
-    try:
-        with _get_db_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT value FROM settings WHERE key = ?", (key,))
-            row = cur.fetchone()
-            return row[0] if row else None
-    except Exception:
-        return None
+try:
+    with _get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT value FROM settings WHERE key = ?", (key,))
+        row = cur.fetchone()
+        return row[0] if row else None
+except Exception:
+    return None
 
 def set_setting(key: str, value: str) -> None:
-    try:
-        with _get_db_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
-            conn.commit()
-    except Exception:
-        ...
+try:
+    with _get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
+        conn.commit()
+except Exception:
+    ...
 
 def get_bool_setting(key: str, default: bool) -> bool:
-    raw = get_setting(key)
-    if raw is None:
-        return default
-    return str(raw).lower() in ("1", "true", "yes", "on")
+raw = get_setting(key)
+if raw is None:
+    return default
+return str(raw).lower() in ("1", "true", "yes", "on")
 
 def set_bool_setting(key: str, value: bool) -> None:
-    set_setting(key, "1" if value else "0")
+set_setting(key, "1" if value else "0")
 
 def get_int_setting(key: str, default: int) -> int:
-    raw = get_setting(key)
-    if raw is None:
-        return default
-    try:
-        return int(str(raw).strip())
-    except Exception:
-        return default
+raw = get_setting(key)
+if raw is None:
+    return default
+try:
+    return int(str(raw).strip())
+except Exception:
+    return default
 
 def get_str_setting(key: str, default: str) -> str:
-    raw = get_setting(key)
-    return default if raw is None else str(raw)
+raw = get_setting(key)
+return default if raw is None else str(raw)
 
 def set_str_setting(key: str, value: str) -> None:
-    set_setting(key, value)
+set_setting(key, value)
 
 # --- Recent files helpers ---
 def _load_recent_files() -> list[str]:
-    try:
-        import json
-        raw = get_setting("recent_files")
-        if not raw:
-            return []
-        lst = json.loads(raw)
-        if not isinstance(lst, list):
-            return []
-        seen: set[str] = set()
-        out: list[str] = []
-        for x in lst:
-            if isinstance(x, str) and x not in seen:
-                seen.add(x)
-                out.append(x)
-        limit = get_int_setting("recent_max", 20)
-        return out[:max(1, limit)]
-    except Exception:
+try:
+    import json
+    raw = get_setting("recent_files")
+    if not raw:
         return []
+    lst = json.loads(raw)
+    if not isinstance(lst, list):
+        return []
+    seen: set[str] = set()
+    out: list[str] = []
+    for x in lst:
+        if isinstance(x, str) and x not in seen:
+            seen.add(x)
+            out.append(x)
+    limit = get_int_setting("recent_max", 20)
+    return out[:max(1, limit)]
+except Exception:
+    return []
 
 def _save_recent_files(files: list[str]) -> None:
-    try:
-        import json
-        limit = get_int_setting("recent_max", 20)
-        set_setting("recent_files", json.dumps(files[:max(1, limit)], ensure_ascii=False))
-    except Exception:
-        ...
+try:
+    import json
+    limit = get_int_setting("recent_max", 20)
+    set_setting("recent_files", json.dumps(files[:max(1, limit)], ensure_ascii=False))
+except Exception:
+    ...
 
 def add_recent_file(path: str) -> None:
-    if not path:
-        return
-    files = _load_recent_files()
-    files = [p for p in files if p != path]
-    files.insert(0, path)
-    _save_recent_files(files)
+if not path:
+    return
+files = _load_recent_files()
+files = [p for p in files if p != path]
+files.insert(0, path)
+_save_recent_files(files)
 
 # --- File/report helpers ---
 def ensure_reports_dir_configured() -> str:
-    stored = os.getenv("SPEC_KIT_REPORTS") or get_setting("reports_dir") or REPORTS_DIR
-    try:
-        os.makedirs(stored, exist_ok=True)
-        marker = os.path.join(stored, ".spec_kit_reports")
-        if not os.path.exists(marker):
-            with open(marker, "w", encoding="utf-8") as m:
-                m.write("Managed by SpecKit. Safe to purge generated reports.\n")
-    except Exception as e:
-        logger.warning(f"Ensure reports dir failed: {e}")
-    return stored
+stored = os.getenv("SPEC_KIT_REPORTS") or get_setting("reports_dir") or REPORTS_DIR
+try:
+    os.makedirs(stored, exist_ok=True)
+    marker = os.path.join(stored, ".spec_kit_reports")
+    if not os.path.exists(marker):
+        with open(marker, "w", encoding="utf-8") as m:
+            m.write("Managed by SpecKit. Safe to purge generated reports.\n")
+except Exception as e:
+    logger.warning(f"Ensure reports dir failed: {e}")
+return stored
 
 def _format_mmddyyyy(dt) -> str:
-    return dt.strftime("%m%d%Y")
+return dt.strftime("%m%d%Y")
 
 def _next_report_number() -> int:
-    from datetime import datetime
-    today = _format_mmddyyyy(datetime.now())
-    last_date = get_setting("last_report_date")
-    raw = get_setting("report_counter")
-    if last_date != today or raw is None:
+from datetime import datetime
+today = _format_mmddyyyy(datetime.now())
+last_date = get_setting("last_report_date")
+raw = get_setting("report_counter")
+if last_date != today or raw is None:
+    num = 1
+else:
+    try:
+        num = int(raw)
+    except Exception:
         num = 1
-    else:
-        try:
-            num = int(raw)
-        except Exception:
-            num = 1
-    set_setting("report_counter", str(num + 1))
-    set_setting("last_report_date", today)
-    return num
+set_setting("report_counter", str(num + 1))
+set_setting("last_report_date", today)
+return num
 
 def generate_report_paths() -> Tuple[str, str]:
-    from datetime import datetime
-    base = ensure_reports_dir_configured()
-    stem = f"{_format_mmddyyyy(datetime.now())}report{_next_report_number()}"
-    return os.path.join(base, f"{stem}.pdf"), os.path.join(base, f"{stem}.csv")
+from datetime import datetime
+base = ensure_reports_dir_configured()
+stem = f"{_format_mmddyyyy(datetime.now())}report{_next_report_number()}"
+return os.path.join(base, f"{stem}.pdf"), os.path.join(base, f"{stem}.csv")
 
 # --- PHI scrubber ---
 _PHI_PATTERNS: List[Tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), "[SSN]"),
-    (re.compile(r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"), "[PHONE]"),
-    (re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"), "[EMAIL]"),
-    (re.compile(r"\b(?:0?[1-9]|1[0-2])[-/](?:0?[1-9]|[12]\d|3[01])[-/](?:\d{2}|\d{4})\b"), "[DATE]"),
-    (re.compile(r"\b\d{6,10}\b"), "[MRN]"),
-    (re.compile(r"\b\d{1,5}\s+[A-Za-z0-9.\- ]+\s+(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Ln|Lane)\b", re.I),
-     "[ADDR]"),
+(re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), "[SSN]"),
+(re.compile(r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"), "[PHONE]"),
+(re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"), "[EMAIL]"),
+(re.compile(r"\b(?:0?[1-9]|1[0-2])[-/](?:0?[1-9]|[12]\d|3[01])[-/](?:\d{2}|\d{4})\b"), "[DATE]"),
+(re.compile(r"\b\d{6,10}\b"), "[MRN]"),
+(re.compile(r"\b\d{1,5}\s+[A-Za-z0-9.\- ]+\s+(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Ln|Lane)\b", re.I),
+ "[ADDR]"),
 ] main
-        cur.execute("""
-                    CREATE TABLE IF NOT EXISTS reviewed_findings
-                    (
-                        id
-                        INTEGER
-                        PRIMARY
-                        KEY
-                        AUTOINCREMENT,
-                        analysis_issue_id
-                        INTEGER
-                        NOT
-                        NULL,
-                        user_feedback
-                        TEXT
-                        NOT
-                        NULL,
-                        reviewed_at
-                        TEXT
-                        NOT
-                        NULL,
-                        notes
-                        TEXT,
-                        citation_text
-                        TEXT,
-                        model_prediction
-                        TEXT,
-                        FOREIGN
-                        KEY
-                    (
-                        analysis_issue_id
-                    ) REFERENCES analysis_issues
-                    (
-                        id
-                    ) ON DELETE CASCADE
-                        )
-                    """)
+    cur.execute("""
+CREATE
+TABLE
+IF
+NOT
+EXISTS
+reviewed_findings
+(
+    id
+    INTEGER
+    PRIMARY
+    KEY
+    AUTOINCREMENT,
+    analysis_issue_id
+    INTEGER
+    NOT
+    NULL,
+    user_feedback
+    TEXT
+    NOT
+    NULL,
+    reviewed_at
+    TEXT
+    NOT
+    NULL,
+    notes
+    TEXT,
+    citation_text
+    TEXT,
+    model_prediction
+    TEXT,
+    FOREIGN
+    KEY
+    (
+    analysis_issue_id
+)
+REFERENCES
+analysis_issues
+    (
+    id
+)
+ON
+DELETE
+CASCADE
+)
+""")
 def _load_cached_outputs(file_fp: str, settings_fp: str) -> Optional[dict]:
-    try:
-        with _get_db_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT outputs_json FROM analysis_cache WHERE file_fingerprint=? AND settings_fingerprint=?",
-                        (file_fp, settings_fp))
-            row = cur.fetchone()
-            if not row:
-                return None
-            import json
-            return json.loads(row[0])
-    except Exception:
-        return None
+try:
+with _get_db_connection() as conn:
+cur = conn.cursor()
+cur.execute("SELECT outputs_json FROM analysis_cache WHERE file_fingerprint=? AND settings_fingerprint=?",
+    (file_fp, settings_fp))
+row = cur.fetchone()
+if not row:
+return None
+import json
+return json.loads(row[0])
+except Exception:
+return None
 
 def _save_cached_outputs(file_fp: str, settings_fp: str, outputs: dict) -> None:
-    try:
-        with _get_db_connection() as conn:
-            cur = conn.cursor()
-            import json
-            from datetime import datetime
-            cur.execute(
-                "INSERT OR REPLACE INTO analysis_cache (file_fingerprint, settings_fingerprint, outputs_json, created_at) VALUES (?, ?, ?, ?)",
-                (file_fp, settings_fp, json.dumps(outputs, ensure_ascii=False),
-                 datetime.now().isoformat(timespec="seconds")),
-            )
-            conn.commit()
-    except Exception:
-        ...
+try:
+with _get_db_connection() as conn:
+cur = conn.cursor()
+import json
+from datetime import datetime
+cur.execute(
+"INSERT OR REPLACE INTO analysis_cache (file_fingerprint, settings_fingerprint, outputs_json, created_at) VALUES (?, ?, ?, ?)",
+(file_fp, settings_fp, json.dumps(outputs, ensure_ascii=False),
+datetime.now().isoformat(timespec="seconds")),
+)
+conn.commit()
+except Exception:
+...
 
 # --- Rule-based audit (interpretive only) ---
 def _audit_from_rubric(text: str, selected_disciplines: List[str], strict: bool | None = None) -> list[dict]:
-    """
-    Performs a dynamic audit based on the selected discipline rubrics.
-    """
-    if not selected_disciplines:
-        return []
-        
-    rubric_map = {
-        "pt": os.path.join(BASE_DIR, "pt_compliance_rubric.ttl"),
-        "ot": os.path.join(BASE_DIR, "ot_compliance_rubric.ttl"),
-        "slp": os.path.join(BASE_DIR, "slp_compliance_rubric.ttl"),
-    }
-    
-    all_rules = []
-    for discipline in selected_disciplines:
-        path = rubric_map.get(discipline)
-        if path and os.path.exists(path):
-            try:
-                service = RubricService(path)
-                all_rules.extend(service.get_rules())
-            except Exception as e:
-                logger.warning(f"Failed to load rubric for {discipline}: {e}")
+"""
+Performs
+a
+dynamic
+audit
+based
+on
+the
+selected
+discipline
+rubrics.
+"""
+if not selected_disciplines:
+    return []
 
-    issues = []
-    t_lower = text.lower()
-    
-    unique_rules = []
-    seen_titles = set()
-    for rule in all_rules:
-        if rule.issue_title not in seen_titles:
-            unique_rules.append(rule)
-            seen_titles.add(rule.issue_title)
-            
-    for rule in unique_rules:
-        positive_kws = [kw.lower() for kw in rule.positive_keywords]
-        negative_kws = [kw.lower() for kw in rule.negative_keywords]
+rubric_map = {
+    "pt": os.path.join(BASE_DIR, "pt_compliance_rubric.ttl"),
+    "ot": os.path.join(BASE_DIR, "ot_compliance_rubric.ttl"),
+    "slp": os.path.join(BASE_DIR, "slp_compliance_rubric.ttl"),
+}
 
-        triggered = False
-        # Case 1: Rule triggers if a positive keyword is found AND a negative keyword is NOT found.
-        if rule.positive_keywords and rule.negative_keywords:
-            if any(kw in t_lower for kw in positive_kws) and not any(kw in t_lower for kw in negative_kws):
-                triggered = True
-        # Case 2: Rule triggers if a positive keyword is found (and there are no negative keywords).
-        elif rule.positive_keywords and not rule.negative_keywords:
-            if any(kw in t_lower for kw in positive_kws):
-                triggered = True
-        # Case 3: Rule triggers if a negative keyword is NOT found (and there are no positive keywords).
-        elif not rule.positive_keywords and rule.negative_keywords:
-            if not any(kw in t_lower for kw in negative_kws):
-                triggered = True
-
-        if triggered:
-            severity = rule.strict_severity if strict else rule.severity
-            issues.append({
-                "severity": severity,
-                "title": rule.issue_title,
-                "detail": rule.issue_detail,
-                "category": rule.issue_category,
-                "trigger_keywords": rule.positive_keywords,
-                "discipline": rule.discipline
-            })
-
-    return issues
-def add_rubric_from_library(self):
-        lib_dialog = LibrarySelectionDialog(self)
-        if not lib_dialog.exec():
-            return
-        rubric_name = lib_dialog.selected_name
-        rubric_path = lib_dialog.selected_path
-        content = parse_document_content(rubric_path)
-        if content[0][0].startswith("Error:"):
-            QMessageBox.critical(self, "Error", f"Failed to parse library rubric:\n{content[0][0]}")
-            return
-        content_str = "\n".join([text for text, source in content])
+all_rules = []
+for discipline in selected_disciplines:
+    path = rubric_map.get(discipline)
+    if path and os.path.exists(path):
         try:
-            with sqlite3.connect(DATABASE_PATH) as conn:
-                cur = conn.cursor()
-                cur.execute("INSERT INTO rubrics (name, content) VALUES(?, ?)", (rubric_name, content_str))
-                conn.commit()
-                QMessageBox.information(self, "Success", f"Rubric '{rubric_name}' added from library.")
-                self.load_rubrics()
-        except sqlite3.IntegrityError:
-            QMessageBox.warning(self, "Already Exists", f"The library rubric '{rubric_name}' is already in your database.")
-        except sqlite3.Error as e:
-            QMessageBox.critical(self, "Database Error", f"Failed to save rubric to database:\n{e}")
+            service = RubricService(path)
+            all_rules.extend(service.get_rules())
+        except Exception as e:
+            logger.warning(f"Failed to load rubric for {discipline}: {e}")
 
-    def remove_rubric(self):
-        selected_items = self.rubric_list.selectedItems()
-        if not selected_items:
-            QMessageBox.warning(self, "Remove Rubric", "Please select a rubric to remove.")
-            return
-        item = selected_items[0]
-        rubric_id = item.data(Qt.ItemDataRole.UserRole)
-        rubric_name = item.text()
-        reply = QMessageBox.question(self, "Confirm Deletion", f"Are you sure you want to permanently delete the rubric '{rubric_name}'?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
-        if reply == QMessageBox.StandardButton.Yes:
-            try:
+issues = []
+t_lower = text.lower()
+
+unique_rules = []
+seen_titles = set()
+for rule in all_rules:
+    if rule.issue_title not in seen_titles:
+        unique_rules.append(rule)
+        seen_titles.add(rule.issue_title)
+
+for rule in unique_rules:
+    positive_kws = [kw.lower() for kw in rule.positive_keywords]
+    negative_kws = [kw.lower() for kw in rule.negative_keywords]
+
+    triggered = False
+    # Case 1: Rule triggers if a positive keyword is found AND a negative keyword is NOT found.
+    if rule.positive_keywords and rule.negative_keywords:
+        if any(kw in t_lower for kw in positive_kws) and not any(kw in t_lower for kw in negative_kws):
+            triggered = True
+    # Case 2: Rule triggers if a positive keyword is found (and there are no negative keywords).
+    elif rule.positive_keywords and not rule.negative_keywords:
+        if any(kw in t_lower for kw in positive_kws):
+            triggered = True
+    # Case 3: Rule triggers if a negative keyword is NOT found (and there are no positive keywords).
+    elif not rule.positive_keywords and rule.negative_keywords:
+        if not any(kw in t_lower for kw in negative_kws):
+            triggered = True
+
+    if triggered:
+        severity = rule.strict_severity if strict else rule.severity
+        issues.append({
+            "severity": severity,
+            "title": rule.issue_title,
+            "detail": rule.issue_detail,
+            "category": rule.issue_category,
+            "trigger_keywords": rule.positive_keywords,
+            "discipline": rule.discipline
+        })
+
+return issues
+def add_rubric_from_library(self):
+    lib_dialog = LibrarySelectionDialog(self)
+    if not lib_dialog.exec():
+        return
+    rubric_name = lib_dialog.selected_name
+    rubric_path = lib_dialog.selected_path
+    content = parse_document_content(rubric_path)
+    if content[0][0].startswith("Error:"):
+        QMessageBox.critical(self, "Error", f"Failed to parse library rubric:\n{content[0][0]}")
+        return
+    content_str = "\n".join([text for text, source in content])
+    try:
+        with sqlite3.connect(DATABASE_PATH) as conn:
+            cur = conn.cursor()
+            cur.execute("INSERT INTO rubrics (name, content) VALUES(?, ?)", (rubric_name, content_str))
+            conn.commit()
+            QMessageBox.information(self, "Success", f"Rubric '{rubric_name}' added from library.")
+            self.load_rubrics()
+    except sqlite3.IntegrityError:
+        QMessageBox.warning(self, "Already Exists", f"The library rubric '{rubric_name}' is already in your database.")
+    except sqlite3.Error as e:
+        QMessageBox.critical(self, "Database Error", f"Failed to save rubric to database:\n{e}")
+
+def remove_rubric(self):
+    selected_items = self.rubric_list.selectedItems()
+    if not selected_items:
+        QMessageBox.warning(self, "Remove Rubric", "Please select a rubric to remove.")
+        return
+    item = selected_items[0]
+    rubric_id = item.data(Qt.ItemDataRole.UserRole)
+    rubric_name = item.text()
+    reply = QMessageBox.question(self, "Confirm Deletion", f"Are you sure you want to permanently delete the rubric '{rubric_name}'?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+    if reply == QMessageBox.StandardButton.Yes:
+        try:
 def _audit_from_rubric(text: str, selected_disciplines: List[str],
-                       strict: bool | None = None) -> list[dict]:
-        """Performs a dynamic audit based on the selected discipline rubrics."""
+                   strict: bool | None = None) -> list[dict]:
+    """
+Performs
+a
+dynamic
+audit
+based
+on
+the
+selected
+discipline
+rubrics.
+"""
         if not selected_disciplines:
             return []
-        
+
         rubric_map = {
             "pt": os.path.join(BASE_DIR, "pt_compliance_rubric.ttl"),
             "ot": os.path.join(BASE_DIR, "ot_compliance_rubric.ttl"),
             "slp": os.path.join(BASE_DIR, "slp_compliance_rubric.ttl"),
         }
-        
+
         all_rules = []
         for discipline in selected_disciplines:
             path = rubric_map.get(discipline)
@@ -1237,7 +1413,7 @@ def _audit_from_rubric(text: str, selected_disciplines: List[str],
                     all_rules.extend(service.get_rules())
                 except Exception as e:
                     logger.warning(f"Failed to load rubric for {discipline}: {e}")
-        
+
         # Remove duplicate rules by title, as some may be shared across rubrics
         seen_titles = set()
         unique_rules = []
@@ -1245,15 +1421,15 @@ def _audit_from_rubric(text: str, selected_disciplines: List[str],
             if rule.issue_title not in seen_titles:
                 unique_rules.append(rule)
                 seen_titles.add(rule.issue_title)
-        
+
         t_lower = text.lower()
         issues = []
         s = bool(strict)
-        
+
         for rule in unique_rules:
             positive_kws = [kw.lower() for kw in rule.positive_keywords]
             negative_kws = [kw.lower() for kw in rule.negative_keywords]
-            
+
             triggered = False
             # Case 1: Positive keyword found AND negative keyword NOT found.
             if rule.positive_keywords and rule.negative_keywords:
@@ -1268,7 +1444,7 @@ def _audit_from_rubric(text: str, selected_disciplines: List[str],
             elif not rule.positive_keywords and rule.negative_keywords:
                 if not any(kw in t_lower for kw in negative_kws):
                     triggered = True
-            
+
             if triggered:
                 severity = rule.strict_severity if s else rule.severity
                 issues.append({
@@ -1300,16 +1476,27 @@ def _audit_from_rubric(text: str, selected_disciplines: List[str],
 
 def _audit_from_rubric(text: str, selected_disciplines: List[str],
                            strict: bool | None = None) -> list[dict]:
-        """Performs a dynamic audit based on the selected discipline rubrics."""
+        """
+Performs
+a
+dynamic
+audit
+based
+on
+the
+selected
+discipline
+rubrics.
+"""
         if not selected_disciplines:
             return []
-        
+
         rubric_map = {
             "pt": os.path.join(BASE_DIR, "pt_compliance_rubric.ttl"),
             "ot": os.path.join(BASE_DIR, "ot_compliance_rubric.ttl"),
             "slp": os.path.join(BASE_DIR, "slp_compliance_rubric.ttl"),
         }
-        
+
         all_rules = []
         for discipline in selected_disciplines:
             path = rubric_map.get(discipline)
@@ -1319,7 +1506,7 @@ def _audit_from_rubric(text: str, selected_disciplines: List[str],
                     all_rules.extend(service.get_rules())
                 except Exception as e:
                     logger.warning(f"Failed to load rubric for {discipline}: {e}")
-        
+
         # Remove duplicate rules by title, as some may be shared across rubrics
         seen_titles = set()
         unique_rules = []
@@ -1327,15 +1514,15 @@ def _audit_from_rubric(text: str, selected_disciplines: List[str],
             if rule.issue_title not in seen_titles:
                 unique_rules.append(rule)
                 seen_titles.add(rule.issue_title)
-        
+
         t_lower = text.lower()
         issues = []
         s = bool(strict)
-        
+
         for rule in unique_rules:
             positive_kws = [kw.lower() for kw in rule.positive_keywords]
             negative_kws = [kw.lower() for kw in rule.negative_keywords]
-            
+
             triggered = False
             # Case 1: Positive keyword found AND negative keyword NOT found.
             if rule.positive_keywords and rule.negative_keywords:
@@ -1350,7 +1537,7 @@ def _audit_from_rubric(text: str, selected_disciplines: List[str],
             elif not rule.positive_keywords and rule.negative_keywords:
                 if not any(kw in t_lower for kw in negative_kws):
                     triggered = True
-            
+
             if triggered:
                 severity = rule.strict_severity if s else rule.severity
                 issues.append({
@@ -1432,21 +1619,21 @@ def run_analyzer(self, file_path: str,
             global CURRENT_REVIEW_MODE
             if review_mode_override in ("Moderate", "Strict"):
                 CURRENT_REVIEW_MODE = review_mode_override
-            
+
             threshold = get_similarity_threshold()
             dedup_method = (dedup_method_override or get_str_setting("dedup_method", "tfidf")).lower()
             if dedup_method_override:
                 set_str_setting("dedup_method", dedup_method)
-            
+
             try:
                 add_recent_file(file_path)
             except Exception:
                 ...
-            
+
             allow_cache = get_bool_setting("allow_cache", True)
             fp = _file_fingerprint(file_path)
             sp = _settings_fingerprint(scrub_enabled, CURRENT_REVIEW_MODE, dedup_method)
-            
+
             if allow_cache and fp and sp:
                 cached = _load_cached_outputs(fp, sp)
                 if cached and cached.get("pdf"):
@@ -1454,18 +1641,18 @@ def run_analyzer(self, file_path: str,
                     set_bool_setting("last_analysis_from_cache", True)
                     logger.info("Served from cache.")
                     return cached
-            
+
             check_cancel()
             report(10, "Parsing document")
             original = parse_document_content(file_path)
             if len(original) == 1 and original[0][0].startswith(("Error:", "Info:")):
                 logger.warning(f"{original[0][1]}: {original[0][0]}")
                 return result_info
-            
+
             check_cancel()
             report(30, "Scrubbing PHI" if scrub_enabled else "Skipping PHI scrubbing")
             processed = [(scrub_phi(t) if scrub_enabled else t, s) for (t, s) in original]
-            
+
             check_cancel()
             report(50, f"Reducing near-duplicates ({dedup_method})")
             if dedup_method == "tfidf":
@@ -1473,7 +1660,7 @@ def run_analyzer(self, file_path: str,
             else:
                 collapsed = collapse_similar_sentences_simple(processed, threshold)
             collapsed = list(collapsed)
-            
+
             # This is the merged section
             ner_results = []
             formatted_entities = []
@@ -1519,13 +1706,13 @@ def run_analyzer(self, file_path: str,
                                             update_ner_performance(model_name, entity.label, validation_status)
                                 except Exception as e:
                                     logger.warning(f"LLM fact-checking failed for entity '{entity.text}': {e}")
-                        
+
                         # Formatting extracted entities as in main branch
                         formatted_entities = _format_entities_for_rag(ner_results)
                         logger.info(f"Formatted {len(formatted_entities)} entities for downstream use.")
                 else:
                     logger.warning("NER service was enabled but not ready. Skipping NER.")
-            
+
             # The rest of the `run_analyzer` function would follow here...
             self.btn_export_view = QPushButton("Export View to PDF")
             self._style_action_button(self.btn_export_view, font_size=11, bold=True, height=28, padding="4px 10px")
@@ -1756,7 +1943,20 @@ def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = No
             return False
 
 def action_export_view_to_pdf(self):
-        """Exports the current content of the main chat/analysis view to a PDF."""
+        """
+Exports
+the
+current
+content
+of
+the
+main
+chat / analysis
+view
+to
+a
+PDF.
+"""
         if not self.current_report_data:
             QMessageBox.warning(self, "Export Error", "Please analyze a document first.")
             return
@@ -1826,21 +2026,21 @@ def run_analyzer(self, file_path: str,
         global CURRENT_REVIEW_MODE
         if review_mode_override in ("Moderate", "Strict"):
             CURRENT_REVIEW_MODE = review_mode_override
-        
+
         threshold = get_similarity_threshold()
         dedup_method = (dedup_method_override or get_str_setting("dedup_method", "tfidf")).lower()
         if dedup_method_override:
             set_str_setting("dedup_method", dedup_method)
-        
+
         try:
             add_recent_file(file_path)
         except Exception:
             ...
-        
+
         allow_cache = get_bool_setting("allow_cache", True)
         fp = _file_fingerprint(file_path)
         sp = _settings_fingerprint(scrub_enabled, CURRENT_REVIEW_MODE, dedup_method)
-        
+
         if allow_cache and fp and sp:
             cached = _load_cached_outputs(fp, sp)
             if cached and cached.get("pdf"):
@@ -1848,18 +2048,18 @@ def run_analyzer(self, file_path: str,
                 set_bool_setting("last_analysis_from_cache", True)
                 logger.info("Served from cache.")
                 return cached
-        
+
         check_cancel()
         report(10, "Parsing document")
         original = parse_document_content(file_path)
         if len(original) == 1 and original[0][0].startswith(("Error:", "Info:")):
             logger.warning(f"{original[0][1]}: {original[0][0]}")
             return result_info
-        
+
         check_cancel()
         report(30, "Scrubbing PHI" if scrub_enabled else "Skipping PHI scrubbing")
         processed = [(scrub_phi(t) if scrub_enabled else t, s) for (t, s) in original]
-        
+
         check_cancel()
         report(50, f"Reducing near-duplicates ({dedup_method})")
         if dedup_method == "tfidf":
@@ -1867,7 +2067,7 @@ def run_analyzer(self, file_path: str,
         else:
             collapsed = collapse_similar_sentences_simple(processed, threshold)
         collapsed = list(collapsed)
-        
+
         # This is the merged section
         ner_results = []
         formatted_entities = []
@@ -1913,13 +2113,13 @@ def run_analyzer(self, file_path: str,
                                         update_ner_performance(model_name, entity.label, validation_status)
                             except Exception as e:
                                 logger.warning(f"LLM fact-checking failed for entity '{entity.text}': {e}")
-                    
+
                     # Formatting extracted entities as in main branch
                     formatted_entities = _format_entities_for_rag(ner_results)
                     logger.info(f"Formatted {len(formatted_entities)} entities for downstream use.")
             else:
                 logger.warning("NER service was enabled but not ready. Skipping NER.")
-        
+
         # The rest of the `run_analyzer` function would follow here...
 
             except Exception as e:
@@ -2038,7 +2238,12 @@ if __name__ == "__main__":
 
 
 def _read_stylesheet(filename: str) -> str:
-    """Reads a stylesheet from the src/ directory."""
+    """
+Reads
+a
+stylesheet
+from the src / directory.
+"""
     try:
         path = os.path.join(BASE_DIR, filename)
         with open(path, "r", encoding="utf-8") as f:
@@ -2060,37 +2265,63 @@ def apply_theme(app: QApplication):
         # Fallback to original hardcoded styles if files are missing
         if theme == "light":
             app.setStyleSheet("""
-                QMainWindow { background: #f3f4f6; color: #111827; }
-                QWidget { background: #f3f4f6; color: #111827; }
-                QTextEdit, QLineEdit { background: #ffffff; color: #111827; border: 1px solid #d1d5db; border-radius: 4px; }
-                QPushButton { background-color: #3b82f6; color: white; border: none; padding: 8px 12px; border-radius: 4px; }
-                QPushButton:hover { background-color: #2563eb; }
-                QToolBar { background: #e5e7eb; border-bottom: 1px solid #d1d5db; }
-                QStatusBar { background: #e5e7eb; color: #111827; }
-                QGroupBox { border: 1px solid #d1d5db; margin-top: 1em; }
-                QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 3px 0 3px; }
-            """)
-        else: # dark theme
-            app.setStyleSheet("""
-                QMainWindow { background: #1f2937; color: #e5e7eb; }
-                QWidget { background: #1f2937; color: #e5e7eb; }
-                QTextEdit, QLineEdit { background: #111827; color: #e5e7eb; border: 1px solid #4b5563; border-radius: 4px; }
-                QPushButton { background-color: #3b82f6; color: white; border: none; padding: 8px 12px; border-radius: 4px; }
-                QPushButton:hover { background-color: #2563eb; }
-                QToolBar { background: #111827; border-bottom: 1px solid #4b5563; }
-                QStatusBar { background: #111827; color: #e5e7eb; }
-                QGroupBox { border: 1px solid #4b5563; margin-top: 1em; }
-                QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 3px 0 3px; }
-            """)
-    f = QFont()
-    f.setPointSize(14)
-    app.setFont(f)
+QMainWindow
+{background:  # f3f4f6; color: #111827; }
+     QWidget {background:  # f3f4f6; color: #111827; }
+                  QTextEdit,
+              QLineEdit {background:  # ffffff; color: #111827; border: 1px solid #d1d5db; border-radius: 4px; }
+                             QPushButton{
+                             background - color:  # 3b82f6; color: white; border: none; padding: 8px 12px; border-radius: 4px; }
+                                 QPushButton: hover {background - color:  # 2563eb; }
+                                                         QToolBar
+                                                     {background:  # e5e7eb; border-bottom: 1px solid #d1d5db; }
+                                                          QStatusBar {background:  # e5e7eb; color: #111827; }
+                                                                          QGroupBox
+                                                                      {border: 1px solid  # d1d5db; margin-top: 1em; }
+                                                                       QGroupBox:: title {subcontrol - origin: margin;
+left: 10
+px;
+padding: 0
+3
+px
+0
+3
+px;}
+""")
+else: # dark theme
+app.setStyleSheet("""
+QMainWindow
+{background:  # 1f2937; color: #e5e7eb; }
+     QWidget {background:  # 1f2937; color: #e5e7eb; }
+                  QTextEdit,
+              QLineEdit {background:  # 111827; color: #e5e7eb; border: 1px solid #4b5563; border-radius: 4px; }
+                             QPushButton{
+                             background - color:  # 3b82f6; color: white; border: none; padding: 8px 12px; border-radius: 4px; }
+                                 QPushButton: hover {background - color:  # 2563eb; }
+                                                         QToolBar
+                                                     {background:  # 111827; border-bottom: 1px solid #4b5563; }
+                                                          QStatusBar {background:  # 111827; color: #e5e7eb; }
+                                                                          QGroupBox
+                                                                      {border: 1px solid  # 4b5563; margin-top: 1em; }
+                                                                       QGroupBox:: title {subcontrol - origin: margin;
+left: 10
+px;
+padding: 0
+3
+px
+0
+3
+px;}
+""")
+f = QFont()
+f.setPointSize(14)
+app.setFont(f)
 
 
 if __name__ == "__main__":
-    try:
-        code = _run_gui()
-        sys.exit(code if code is not None else 0)
-    except Exception:
-        logger.exception("GUI failed")
-        sys.exit(1)
+try:
+code = _run_gui()
+sys.exit(code if code is not None else 0)
+except Exception:
+logger.exception("GUI failed")
+sys.exit(1)
