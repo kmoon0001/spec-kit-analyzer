@@ -1,6 +1,9 @@
 import pytest
 from PyQt6.QtWidgets import QApplication
 import logging
+import matplotlib
+
+matplotlib.use("Agg")
 
 logger = logging.getLogger(__name__)
 

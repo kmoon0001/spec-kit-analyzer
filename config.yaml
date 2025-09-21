@@ -1,0 +1,35 @@
+# config.yaml
+APP_NAME: Therapy Compliance Analyzer
+ENVIRONMENT: production
+DB_PATH: ./data/compliance.db
+ENCRYPTION_KEY: "{{GENERATE_YOUR_OWN_KEY}}"  # Replace with generated key
+OCR_ENGINE: Tesseract
+NLP_MODELS:
+  - ClinicalBERT
+  - BioBERT
+  - AraG
+RUBRIC_PATH: ./data/rubrics/
+REPORT_PATH: ./data/reports/
+REPORT_RETENTION_HOURS: 24
+AUTO_UPDATE: true
+ANALYTICS_PATH: ./data/analytics/
+PHI_SCRUBBER: enabled
+UI_MODE: responsive
+
+# Configuration for the RAG Pipeline
+
+paths:
+  index_dir: "sentence_index"
+  docs_dir: "data"
+
+models:
+  llm:
+    model_name: "gpt-3.5-turbo"
+  embed_model:
+    model_name: "sentence-transformers/all-MiniLM-L6-v2"
+  reranker:
+    model_name: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+retrieval:
+  similarity_top_k: 6
+  rerank_top_n: 2

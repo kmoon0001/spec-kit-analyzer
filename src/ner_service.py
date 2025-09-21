@@ -20,6 +20,7 @@ class NEREntity:
     end: int
     context: Optional[str] = None
     models: List[str] = field(default_factory=list)
+    llm_validation: Optional[str] = None # e.g., "Confirmed", "Rejected", "Uncertain"
 
 class NERService:
     """
@@ -39,6 +40,9 @@ class NERService:
         self.context_service = context_service
 
         for name, model_id in self.model_configs.items():
+if model_id == "JSL_MODEL_PLACEHOLDER":
+                logger.info(f"Skipping placeholder model '{name}'. User will integrate their JSL model here.")
+                continue
             try:
                 logger.info(f"Loading NER model '{name}': {model_id}")
                 tokenizer = AutoTokenizer.from_pretrained(model_id)

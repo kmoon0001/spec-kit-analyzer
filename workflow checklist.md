@@ -1,0 +1,14 @@
+- [X] Authentication: Implement secure username/password login. (Storage encryption pending).
+- [X] Document Intake: Build drag-drop and file browser upload UI.
+- [X] OCR: Integrate Tesseract OCR for scanned image/PDF support.
+- [X] Document Parsing: Use pdfplumber, python-docx, pandas for extracting content.
+- [ ] Clinical NLP & Semantic Analysis: Implement rubric-driven analysis using advanced local models.
+- [ ] Rubric Management: Allow users to upload, select, and manage rubric templates.
+- [ ] Citation Engine: Automate quotation extraction and link to source metadata.
+- [X] Reporting: Generate and print PDF reports. (Auto-purging and advanced annotations pending).
+- [ ] AI Chatbox: Build the offline AI chat interface and backend.
+- [ ] Educational Module: Integrate training and guidance content.
+- [ ] Analytics Engine: Build the director/admin analytics dashboard.
+- [ ] Security & Audit Logging: Implement database encryption and user action logging.
+- [ ] Update Mechanism: Build a secure auto-updater.
+- [ ] Responsive UI: Adapt the UI for tablet/mobile form factors.

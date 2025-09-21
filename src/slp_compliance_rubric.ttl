@@ -13,6 +13,7 @@
     :hasIssueTitle "SLP Plan of Care may be incomplete" ;
     :hasIssueDetail "The Plan of Care for SLP should explicitly state long-term goals, and the type, frequency, amount, and duration of therapy." ;
     :hasIssueCategory "Plan of Care" ;
+    :hasDiscipline "slp" ;
     :hasPositiveKeywords :SLP_POC_KeywordsPresent ;
     :hasNegativeKeywords :SLP_POC_KeywordsMissing .
 
@@ -27,6 +28,7 @@
     :hasIssueTitle "Justification for Skilled SLP Service may be missing" ;
     :hasIssueDetail "Documentation should clearly explain why the skills of a therapist are required (e.g., using specific cues, strategies, feedback, or modification)." ;
     :hasIssueCategory "Skilled Service" ;
+    :hasDiscipline "slp" ;
     :hasNegativeKeywords :SLP_SkilledServiceKeywords .
 
 :SLP_SkilledServiceKeywords a :KeywordSet ;
@@ -40,6 +42,7 @@
     :hasIssueTitle "SLP goals may not be measurable" ;
     :hasIssueDetail "Goals for conditions like aphasia, dysphagia, or cognitive deficits should include objective, measurable criteria (e.g., percentages, accuracy, level of assistance)." ;
     :hasIssueCategory "Goals" ;
+    :hasDiscipline "slp" ;
     :hasPositiveKeywords :SLP_GoalsKeywordsPresent ;
     :hasNegativeKeywords :SLP_GoalsKeywordsMissing .
 
@@ -54,6 +57,7 @@
     :hasIssueTitle "Progress report may lack objective data" ;
     :hasIssueDetail "Progress reports must be completed at least every 10 treatment days and should contain objective measures of progress toward each goal." ;
     :hasIssueCategory "Progress Report" ;
+    :hasDiscipline "slp" ;
     :hasPositiveKeywords :SLP_ProgressKeywordsPresent ;
     :hasNegativeKeywords :SLP_ProgressKeywordsMissing .
 

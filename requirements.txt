@@ -6,19 +6,83 @@ python-docx==1.2.0
 sentence-transformers==5.1.0
 faiss-cpu==1.12.0
 llama-cpp-python==0.3.16
+pyspark==3.4.1
+spark-nlp==5.4.0
+# The JSL library (spark-nlp-jsl) must be installed manually with a license.
+# See demo.py for instructions.
+# Core Analysis & Data Handling
+pandas
+pdfplumber
+pytesseract
+python-docx
 rdflib
 fairlearn
 requests
+scikit-learn
+spacy
+PyYAML
+presidio-analyzer
+presidio-anonymizer
+openpyxl
 
-# Added for XAI, plotting, and new data format features
+# Core Frameworks & LLM
+langchain
+langchain-community
+langchain-core
+llama-cpp-python
+pyspark==3.4.1
+spark-nlp==5.4.0
+# The JSL library (spark-nlp-jsl) must be installed manually with a license.
+# See demo.py for instructions.
+sentence-transformers
+faiss-cpu
+transformers
+torch
+accelerate
+bitsandbytes
+huggingface-hub
+
+# UI & Plotting
+PyQt6
+PyQt6-sip
+PyQt6-WebEngine
+pyqt6-tools
+matplotlib
+plotly
+
+# XAI & New Features
 shap
 slicer
 fhir.resources
 transformers
 Pillow
 matplotlib
-openpyxl
+fairlearn
 
-# Added for UI Testing
+# Asynchronous Processing
+celery
+redis
+
+# API & Server
+fastapi
+uvicorn
+gunicorn
+
+# Testing & Utilities
+langchain
+pypdf
+python-docx
+openpyxl
+faiss-cpu
+sentence-transformers
+llama-index
+llama-index-embeddings-huggingface
 pytest
 pytest-qt
+jsonschema
+pytest-mock
+pyspellchecker
+python-dotenv
+Faker
+Pillow
+PyYAML
