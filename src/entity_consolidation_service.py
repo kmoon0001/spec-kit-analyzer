@@ -4,12 +4,10 @@ import logging
 import sqlite3
 from typing import List, Dict, Set, Optional, Callable
 
-from .llm_analyzer import NEREntity
+from .ner_service import NEREntity
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-
-from .llm_analyzer import NEREntity
 
 
 logger = logging.getLogger(__name__)
@@ -26,7 +24,7 @@ class EntityConsolidationService:
     """
     A service to consolidate and merge NER entities from multiple models.
     """
-def __init__(self, db_connection_provider: Optional[Callable[[], sqlite3.Connection]] = None):
+    def __init__(self, db_connection_provider: Optional[Callable[[], sqlite3.Connection]] = None):
         self.db_connection_provider = db_connection_provider
         self.performance_cache: Dict[tuple[str, str], float] = {}
 

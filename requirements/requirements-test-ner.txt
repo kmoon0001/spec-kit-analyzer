@@ -1,0 +1,5 @@
+pytest
+pytest-mock
+transformers
+sentence-transformers==5.1.0
+scikit-learn

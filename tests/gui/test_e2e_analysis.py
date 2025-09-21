@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 # Ensure the src directory is in the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.main import MainWindow
+from src.gui.main_window import MainApplicationWindow as MainWindow
 
 # Some AI models can be slow to download, so we'll use a generous timeout for this test.
 @pytest.mark.timeout(600)

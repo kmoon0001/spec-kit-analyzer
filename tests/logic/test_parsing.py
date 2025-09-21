@@ -1,6 +1,6 @@
 import os
 import pytest
-from src.main import parse_document_content, split_sentences
+from src.parsing import parse_document_content, split_sentences
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_DATA_DIR = os.path.join(os.path.dirname(TESTS_DIR), "test_data")

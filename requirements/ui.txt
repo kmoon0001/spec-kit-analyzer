@@ -1,0 +1,6 @@
+PyQt6==6.9.1
+PyQt6-sip
+PyQt6-WebEngine
+pyqt6-tools
+matplotlib
+plotly
