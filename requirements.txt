@@ -17,6 +17,10 @@ langchain
 langchain-community
 langchain-core
 llama-cpp-python
+pyspark==3.4.1
+spark-nlp==5.4.0
+# The JSL library (spark-nlp-jsl) must be installed manually with a license.
+# See demo.py for instructions.
 sentence-transformers
 faiss-cpu
 transformers

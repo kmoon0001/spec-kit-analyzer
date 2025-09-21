@@ -347,6 +347,7 @@ try:
     from .ner_service import NERService
     from .entity_consolidation_service import EntityConsolidationService
     from .text_chunking import RecursiveCharacterTextSplitter
+
 except ImportError as e:
     logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
 
