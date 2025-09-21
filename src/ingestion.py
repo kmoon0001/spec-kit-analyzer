@@ -1,11 +1,9 @@
 import os
 from langchain.schema import Document # This might be implicitly needed by LlamaIndex, keeping for now.
-
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings
 from llama_index.core.node_parser import SentenceWindowNodeParser
 from llama_index.llms.openai import OpenAI # Placeholder, can be swapped
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-
 def build_sentence_window_index(
     documents_path: str,
     llm,
@@ -14,7 +12,6 @@ def build_sentence_window_index(
 ):
     """
     Builds a LlamaIndex VectorStoreIndex with a SentenceWindowNodeParser.
-
     Args:
         documents_path (str): Path to the directory with documents.
         llm: The language model to use.
