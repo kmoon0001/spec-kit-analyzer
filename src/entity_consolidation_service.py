@@ -24,7 +24,7 @@ class EntityConsolidationService:
     """
     A service to consolidate and merge NER entities from multiple models.
     """
-def __init__(self, db_connection_provider: Optional[Callable[[], sqlite3.Connection]] = None):
+    def __init__(self, db_connection_provider: Optional[Callable[[], sqlite3.Connection]] = None):
         self.db_connection_provider = db_connection_provider
         self.performance_cache: Dict[tuple[str, str], float] = {}
 
@@ -67,16 +67,19 @@ def __init__(self, db_connection_provider: Optional[Callable[[], sqlite3.Connect
         except Exception as e:
             logger.warning(f"Could not fetch model performance for {model_name}/{entity_label}: {e}")
             return 0.5 # Default weight on error
+
     def consolidate_entities(
         self, all_results: Dict[str, List[NEREntity]], original_text: str,
         embedding_model: Optional[SentenceTransformer] = None
     ) -> List[NEREntity]:
         """
         Merges overlapping entities from different models into a single list.
-Args:
+
+        Args:
             all_results (Dict[str, List[NEREntity]]): The raw output from the
                                                      NERService.
             original_text (str): The original text that was analyzed.
+            embedding_model (Optional[SentenceTransformer]): An optional sentence transformer model for semantic merging.
 
         Returns:
             List[NEREntity]: A single, consolidated list of entities.
@@ -130,7 +133,7 @@ Args:
             )
             merged_entities.append(merged_entity)
 
-# --- Semantic Merging of Nearby Entities ---
+        # --- Semantic Merging of Nearby Entities ---
         if embedding_model and len(merged_entities) > 1:
             semantically_merged_entities: List[NEREntity] = []
             processed_indices: Set[int] = set()

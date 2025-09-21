@@ -61,7 +61,7 @@ class GuidelineService:
         self.guideline_chunks = all_chunks
 
         if self.guideline_chunks:
-logger.info(f"Creating search index from {len(self.guideline_chunks)} text chunks...")
+            logger.info(f"Creating search index from {len(self.guideline_chunks)} text chunks...")
             # The RAG instance is responsible for creating the index.
             # We pass only the text content for embedding.
             texts_to_index = [chunk[0] for chunk in self.guideline_chunks]

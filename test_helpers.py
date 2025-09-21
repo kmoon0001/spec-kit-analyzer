@@ -7,7 +7,7 @@ import shutil
 import unittest
 
 # Ensure we import main after environment is set if needed.
-import main
+from src import main
 
 
 class TestHelpers(unittest.TestCase):

@@ -2,12 +2,12 @@ import pytest
 import sqlite3
 from unittest.mock import MagicMock, patch
 
-# Since AdjudicationService is in main.py inside src, we need to adjust the path
+# Since AdjudicationService is in src/adjudication_service.py, we need to adjust the path
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.main import AdjudicationService
+from src.adjudication_service import AdjudicationService
 
 @pytest.fixture
 def mock_db_connection():

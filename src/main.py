@@ -1,1188 +1,548 @@
 # Python
-from __future__ import annotations
-
-# Standard library
-from datetime import datetime
-import hashlib
-import html
-import logging
+import sys
+import sqlite3
 import os
 import re
-import sqlite3
-import sys
-from typing import Callable, List, Literal, Tuple, Optional
-import sys
-from urllib.parse import quote, unquote
-
-# Third-party used throughout
-import pandas as pd  # type: ignore
-
-# --- Configuration defaults and constants ---
-REPORT_TEMPLATE_VERSION = "v2.0"
-
-# Paths and environment
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-_default_db_dir = os.path.join(
-    os.path.expanduser("~"), "Documents", "SpecKitData"
-)
-DATABASE_PATH = os.getenv(
-    "SPEC_KIT_DB", os.path.join(_default_db_dir, "spec_kit.db")
-)
-REPORTS_DIR = os.getenv(
-    "SPEC_KIT_REPORTS",
-    os.path.join(os.path.expanduser("~"), "Documents", "SpecKitReports"),
-)
-LOGS_DIR = os.path.join(
-    os.path.expanduser("~"), "Documents", "SpecKitData", "logs"
-)
-
-# PDF report defaults
-REPORT_FONT_FAMILY = "DejaVu Sans"
-REPORT_FONT_SIZE = 8.5
-
-REPORT_STYLESHEET = """
-    body {
-        font-family: DejaVu Sans, Arial, sans-serif;
-        font-size: 10pt;
-        line-height: 1.4;
-    }
-    h1 { font-size: 18pt; color: #1f4fd1; margin-bottom: 20px; }
-    h2 {
-        font-size: 14pt;
-        color: #111827;
-        border-bottom: 1px solid #ccc;
-        padding-bottom: 5px;
-        margin-top: 25px;
-    }
-    h3 { font-size: 12pt; color: #374151; margin-top: 20px; }
-    .user-message { margin-top: 15px; }
-    .ai-message {
-        margin-top: 5px;
-        padding: 8px;
-        background-color: #f3f4f6;
-        border-radius: 8px;
-    }
-    .education-block {
-        margin-top: 15px;
-        padding: 12px;
-        background-color: #eef6ff;
-        border-left: 5px solid #60a5fa;
-        border-radius: 8px;
-    }
-    .education-block h3 {
-        margin-top: 0;
-        color: #1f4fd1;
-    }
-    hr { border: none; border-top: 1px solid #ccc; margin: 20px 0; }
-    ul { padding-left: 20px; }
-    li { margin-bottom: 5px; }
-    .suggestion-link { text-decoration: none; color: #1f4fd1; }
-    .suggestion-link:hover { text-decoration: underline; }
-"""
-REPORT_PAGE_SIZE = (8.27, 11.69)  # A4 inches
-REPORT_MARGINS = (1.1, 1.0, 1.3, 1.0)  # top, right, bottom, left inches
-REPORT_HEADER_LINES = 2
-REPORT_FOOTER_LINES = 1
-
-# --- Logging setup ---
-logger = logging.getLogger(__name__)
-if not logger.handlers:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    try:
-os.makedirs(LOGS_DIR, exist_ok=True)
-        log_path = os.path.join(LOGS_DIR, "app.log")
-        from logging.handlers import RotatingFileHandler
-
-        fh = RotatingFileHandler(
-            log_path, maxBytes=2_000_000, backupCount=5, encoding="utf-8"
-        )
-        fh.setLevel(logging.INFO)
-        fh.setFormatter(
-            logging.Formatter(
-                "%(asctime)s %(levelname)s %(name)s: %(message)s"
-            )
-        )
-        logging.getLogger().addHandler(fh)
-        logger.info(f"File logging to: {log_path}")
-    except Exception as _e:
-        logger.warning(f"Failed to set up file logging: {_e}")
-
-# spaCy disabled placeholder
-nlp = None
-
-# --- Third-party imports (guarded) ---
-try:
-    import pdfplumber
-except Exception as e:
-    pdfplumber = None
-    logger.warning(f"pdfplumber unavailable: {e}")
-
-try:
-    import pytesseract
-except Exception as e:
-    pytesseract = None
-    logger.warning(f"pytesseract unavailable: {e}")
-
-try:
-    from transformers import pipeline
-except ImportError:
-    pipeline = None
-    logger.warning(
-        "transformers library not found. BioBERT NER will be disabled."
-    )
-
-try:
-    from PIL import Image, UnidentifiedImageError
-except ImportError as e:
-    Image = None  # type: ignore
-    class UnidentifiedImageError(Exception):
-        pass
-    logger.warning(f"PIL unavailable: {e}")
-
-try:
-    import numpy as np
-except ImportError:
-    np = None
-    logger.warning(
-        "Numpy unavailable. Some analytics features will be disabled."
-    )
-
-try:
-    import shap
-except ImportError:
-    shap = None
-    logger.warning(
-        "shap unavailable. Some analytics features will be disabled."
-    )
-
-try:
-    import slicer
-except ImportError:
-    slicer = None
-    logger.warning(
-        "slicer unavailable. Some analytics features will be disabled."
-    )
-
-try:
-    import jsonschema
-except ImportError:
-    jsonschema = None
-    logger.warning(
-        "jsonschema unavailable. Report validation will be disabled."
-    )
-
-# --- FHIR Imports (guarded) ---
-try:
-    from fhir.resources.bundle import Bundle
-    from fhir.resources.documentreference import DocumentReference
-    from fhir.resources.diagnosticreport import DiagnosticReport
-    from fhir.resources.observation import Observation
-    from fhir.resources.codeableconcept import CodeableConcept
-    from fhir.resources.coding import Coding
-    from fhir.resources.reference import Reference
-    from fhir.resources.meta import Meta
-except ImportError:
-    class Bundle: pass
-    class DocumentReference: pass
-    class DiagnosticReport: pass
-    class Observation: pass
-    class CodeableConcept: pass
-    class Coding: pass
-    class Reference: pass
-    class Meta: pass
-    logger.warning("fhir.resources library not found. FHIR export will be disabled.")
-
-# Matplotlib for analytics chart
-import matplotlib
-matplotlib.use('Agg')
-try:
-    from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-except ImportError:
-    class FigureCanvas: # type: ignore
-        def __init__(self, figure=None): pass
-        def mpl_connect(self, s, f): pass
-        def draw(self): pass
-from matplotlib.figure import Figure
-from matplotlib.patches import Rectangle
+from typing import List, Tuple
 from PyQt6.QtWidgets import (
-    QMainWindow, QToolBar, QLabel, QFileDialog, QMessageBox, QApplication,
-    QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton,
-    QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
-    QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout,
-    QTableWidget, QTableWidgetItem, QListWidgetItem, QRadioButton
+    QApplication,
+    QWidget,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QMessageBox,
+    QMainWindow,
+    QStatusBar,
+    QMenuBar,
+    QFileDialog,
+    QTextEdit,
+    QHBoxLayout,
+    QProgressBar,
+    QListWidget,
+    QDialog,
+    QDialogButtonBox,
+    QListWidgetItem,
+    QInputDialog,
+    QCheckBox,
 )
-from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter, QTextCharFormat, QColor
-from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject, QDate
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWebEngineCore import QWebEngineSettings
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent
+from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
+from cryptography.hazmat.primitives.hashes import SHA256
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-from spellchecker import SpellChecker
+import pdfplumber.utils
+import docx.opc.exceptions
 
-# Fairlearn for bias auditing
+# Document parsing libraries
+import pdfplumber
+from docx import Document  # python-docx
+import pytesseract
+from PIL import Image  # Pillow for image processing with Tesseract
+import pandas as pd  # Pandas for Excel and CSV
+
+# NLP libraries
+import spacy
+from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline
+
+# --- Configuration ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE_PATH = os.path.join(BASE_DIR, '..', 'data', 'compliance.db')
+HASH_ALGORITHM = SHA256()
+ITERATIONS = 100000
+OFFLINE_ONLY = True
+
+# --- Tesseract OCR Path (Optional, Windows offline) ---
+tess_env = os.environ.get("TESSERACT_EXE")
+if tess_env and os.path.isfile(tess_env):
+    pytesseract.pytesseract.tesseract_cmd = tess_env
+
+# --- SpaCy Model Loading ---
 try:
-    from fairlearn.metrics import MetricFrame, demographic_parity_difference, selection_rate
-except ImportError:
-    MetricFrame = None
-    demographic_parity_difference = None
-    selection_rate = None
-    logger.warning("fairlearn library not found. Bias auditing will be disabled.")
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    if OFFLINE_ONLY:
+        print("SpaCy model 'en_core_web_sm' not found and offline mode is enabled. Install it in this venv before use.")
+        nlp = None
+    else:
+        print("Downloading SpaCy model 'en_core_web_sm'...")
+        import spacy.cli
+        spacy.cli.download("en_core_web_sm")
+        nlp = spacy.load("en_core_web_sm")
 
-# Local imports
-try:
-    from .local_llm import LocalRAG
-    from .rubric_service import RubricService, ComplianceRule
-    from .guideline_service import GuidelineService
-    from .ner_service import NERService
-    from .entity_consolidation_service import EntityConsolidationService
-    from .text_chunking import RecursiveCharacterTextSplitter
-except ImportError as e:
-    logger.error(f"Failed to import local modules: {e}. Ensure you're running as a package.")
-    # Define dummy classes if imports fail
-    class LocalRAG: pass
-    class RubricService: pass
-    class ComplianceRule: pass
-    class GuidelineService: pass
-    class NERService: pass
-    class EntityConsolidationService: pass
-    class RecursiveCharacterTextSplitter: pass
-
-# --- LLM Loader Worker ---
-class LLMWorker(QObject):
-    """A worker class to load the LocalRAG model in a separate thread."""
-    finished = Signal(object)
-    error = Signal(str)
-
-    def __init__(self, model_repo_id: str, model_filename: str):
-        super().__init__()
-        self.model_repo_id = model_repo_id
-        self.model_filename = model_filename
-
-    def run(self):
-        """Loads the RAG model and emits a signal when done."""
-        try:
-            rag_instance = LocalRAG(
-                model_repo_id=self.model_repo_id,
-                model_filename=self.model_filename
-            )
-            if rag_instance.is_ready():
-                self.finished.emit(rag_instance)
-            else:
-                self.error.emit("RAG instance failed to initialize.")
-        except Exception as e:
-            logger.exception("LLMWorker failed to load model.")
-            self.error.emit(f"Failed to load AI model: {e}")
-
-# --- Guideline Loader Worker ---
-class GuidelineWorker(QObject):
-    """
-    A worker class to load and index guidelines in a separate thread.
-    """
-    finished = Signal(object)
-    error = Signal(str)
-
-    def __init__(self, rag_instance: LocalRAG):
-        super().__init__()
-        self.rag_instance = rag_instance
-
-    def run(self):
-        """Loads and indexes the guidelines and emits a signal when done."""
-        try:
-            guideline_service = GuidelineService(self.rag_instance)
-            sources = [
-                "https://www.cms.gov/files/document/r12532bp.pdf",
-                "test_data/static_guidelines.txt"
-            ]
-            guideline_service.load_and_index_guidelines(sources)
-            if guideline_service.is_index_ready:
-                self.finished.emit(guideline_service)
-            else:
-                self.error.emit("Guideline index failed to build.")
-        except Exception as e:
-            logger.exception("GuidelineWorker failed.")
-            self.error.emit(f"Failed to load guidelines: {e}")
-
-def _generate_suggested_questions(issues: list) -> list[str]:
-    """Generates a list of suggested questions based on high-priority findings."""
-    suggestions = []
-    QUESTION_MAP = {
-        "Provider signature/date possibly missing": "Why are signatures and dates important for compliance?",
-        "Goals may not be measurable/time-bound": "What makes a therapy goal 'measurable' and 'time-bound'?",
-        "Medical necessity not explicitly supported": "Can you explain 'Medical Necessity' in the context of a therapy note?",
-        "Assistant supervision context unclear": "What are the supervision requirements for therapy assistants?",
-        "Plan/Certification not clearly referenced": "How should the Plan of Care be referenced in a note?",
-    }
-    sorted_issues = sorted(issues, key=lambda x: ({"flag": 0, "finding": 1}.get(x.get('severity'), 2)))
-    for issue in sorted_issues:
-        if len(suggestions) >= 3:
-            break
-        title = issue.get('title')
-        if title in QUESTION_MAP and QUESTION_MAP[title] not in suggestions:
-            suggestions.append(QUESTION_MAP[title])
-    logger.info(f"Generated {len(suggestions)} suggested questions.")
-    return suggestions
-
-# --- Helper Exceptions ---
-class ParseError(Exception):
-    ...
-
-class OCRFailure(Exception):
-    ...
-
-class ReportExportError(Exception):
-    ...
-
-class DrillDownDialog(QDialog):
-    """
-    A dialog to display the detailed findings from a drill-down action.
-    """
-    run_selected = Signal(int)
-
-    def __init__(self, data: List[dict], category: str, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(f"Drill-Down: {category.title()} Details")
-        self.setMinimumSize(800, 400)
-
-        self.data = data
-
-        layout = QVBoxLayout(self)
-        self.table = QTableWidget()
-        layout.addWidget(self.table)
-
-        self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["File Name", "Run Time", "Category", "Title", "Detail"])
-        self.table.setRowCount(len(data))
-
-        for i, row_data in enumerate(data):
-            self.table.setItem(i, 0, QTableWidgetItem(row_data.get("file_name", "")))
-            self.table.setItem(i, 1, QTableWidgetItem(row_data.get("run_time", "")))
-            self.table.setItem(i, 2, QTableWidgetItem(row_data.get("category", "")))
-            self.table.setItem(i, 3, QTableWidgetItem(row_data.get("title", "")))
-            self.table.setItem(i, 4, QTableWidgetItem(row_data.get("detail", "")))
-
-        self.table.setSortingEnabled(True)
-        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.resizeColumnsToContents()
-        self.table.itemDoubleClicked.connect(self.on_item_double_clicked)
-
-    def on_item_double_clicked(self, item: QTableWidgetItem):
-        """When a row is double-clicked, emit a signal with the run_id and close."""
-        row_index = item.row()
-        run_id = self.data[row_index].get('run_id')
-        if run_id is not None:
-            self.run_selected.emit(int(run_id))
-            self.accept()
-
-def _format_entities_for_rag(entities: list[NEREntity]) -> list[str]:
-    """Converts a list of NEREntity objects into a list of descriptive strings."""
-    if not entities:
-        return []
-
-    formatted_strings = []
-    for entity in entities:
-        description = (
-            f"An entity of type '{entity.label}' with the text '{entity.text}' was found in the document."
-        )
-        if entity.context:
-            description += f" It was found in a sentence related to '{entity.context}'."
-
-        # Join models if there are multiple
-        models_str = ", ".join(entity.models)
-        description += f" (Detected by {models_str})"
-
-        formatted_strings.append(description)
-
-    logger.info(f"Formatted {len(formatted_strings)} consolidated entities for RAG context.")
-    return formatted_strings
-
-def _validate_report_data(data: dict, schema: dict) -> bool:
-    """Validates report data against the JSON schema."""
-    if not jsonschema:
-        return True  # Skip if library is unavailable
+# --- Clinical/Biomedical NER Model Loading (offline-first with fallbacks) ---
+CLINICAL_NER_MODEL_CANDIDATES = [
+    "microsoft/BiomedVLP-CXR-BERT-specialized",
+    "d4data/biomedical-ner-all",
+    "kamalkraj/BioBERT-NER",
+    "dslim/bert-base-NER",
+]
+clinical_ner_pipeline = None
+_loaded_model_name = None
+_last_model_error = None
+for model_name in CLINICAL_NER_MODEL_CANDIDATES:
     try:
-        jsonschema.validate(instance=data, schema=schema)
-        logger.info("Report data passed schema validation.")
-        return True
-    except jsonschema.exceptions.ValidationError as e:
-        logger.error(f"Report data failed schema validation: {e}")
-        return False
+        ner_tokenizer = AutoTokenizer.from_pretrained(model_name, local_files_only=OFFLINE_ONLY)
+        ner_model = AutoModelForTokenClassification.from_pretrained(model_name, local_files_only=OFFLINE_ONLY)
+        clinical_ner_pipeline = pipeline("ner", model=ner_model, tokenizer=ner_tokenizer, aggregation_strategy="simple")
+        _loaded_model_name = model_name
+        break
     except Exception as e:
-        logger.error(f"An unexpected error occurred during schema validation: {e}")
-        return False
+        _last_model_error = e
+        continue
+if clinical_ner_pipeline is None:
+    print("Failed to load a clinical/biomedical NER model in offline mode.")
+    if _last_model_error:
+        print(f"Last error: {_last_model_error}")
+    print("Seed models into the local cache in this virtualenv on an internet-enabled machine, then copy to deployment.")
 
-def _hash_password(
-        password: str, salt: Optional[bytes] = None) -> Tuple[str, bytes]:
-    """Hashes a password with a salt. Generates a new salt if not provided."""
-    if salt is None:
-        salt = os.urandom(16)
-    hashed_password = hashlib.pbkdf2_hmac(
-        'sha256', password.encode('utf-8'), salt, 100000
-    )
-    return hashed_password.hex(), salt
-
-def _verify_password(
-    stored_password_hex: str, salt_hex: str, provided_password: str
-) -> bool:
-    """Verifies a provided password against a stored hash and salt."""
-    try:
-        salt = bytes.fromhex(salt_hex)
-    except (ValueError, TypeError):
-        return False
-    hashed_password, _ = _hash_password(provided_password, salt)
-    return hashed_password == stored_password_hex
-
-# --- Parsing (PDF/DOCX/CSV/XLSX/Images with optional OCR) ---
-def split_sentences(text: str) -> list[str]:
-    """Split text into sentences."""
-    if not text:
-        return []
-    sents = [
-        p.strip()
-        for p in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"'])", text)
-        if p.strip()
-    ]
-    if not sents:
-        sents = text.splitlines()
-    return [s for s in sents if s]
-
-def _correct_spelling(text: str) -> str:
-    """Corrects spelling errors in a given text, preserving punctuation."""
-    if not isinstance(text, str):
-        return text
-
-    corrected_parts = []
-    # Tokenize into words and non-words (punctuation, whitespace)
-    # This regex finds sequences of word characters or single non-word characters.
-    tokens = re.findall(r"(\w+)|([^\w])", text)
-
-    for word, non_word in tokens:
-        if word:
-            # Correct the word part, or keep original if no correction found
-            corrected_word = spell.correction(word) or word
-            corrected_parts.append(corrected_word)
-        if non_word:
-            # Append the non-word part (punctuation, space, newline, etc.)
-            corrected_parts.append(non_word)
-
-    return "".join(corrected_parts)
-
-def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
-    """
-    Parses the content of a document and splits it into chunks.
-    Uses a recursive character text splitter for more effective chunking.
-    """
-    if not os.path.exists(file_path):
-        return [(f"Error: File not found at {file_path}", "File System")]
-    ext = os.path.splitext(file_path)[1].lower()
-
-    # Initialize the text splitter with configurable settings
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=get_int_setting("chunk_size", 1000),
-        chunk_overlap=get_int_setting("chunk_overlap", 200),
-    )
-
-    try:
-        chunks_with_source: list[tuple[str, str]] = []
-        full_text = ""
-
-        # --- Step 1: Extract text from the document based on its type ---
-        if ext == ".pdf":
-            if not pdfplumber:
-                return [("Error: pdfplumber not available.", "PDF Parser")]
-            with pdfplumber.open(file_path) as pdf:
-                # Process page by page to maintain source information
-                for i, page in enumerate(pdf.pages, start=1):
-                    page_text = page.extract_text() or ""
-                    corrected_text = _correct_spelling(page_text)
-                    page_chunks = text_splitter.split_text(corrected_text)
-                    for chunk in page_chunks:
-                        if chunk:
-                            chunks_with_source.append((chunk, f"Page {i}"))
-        elif ext == ".docx":
-            try:
-                from docx import Document
-            except Exception:
-                return [("Error: python-docx not available.", "DOCX Parser")]
-            docx_doc = Document(file_path)
-            # Process paragraph by paragraph
-            for i, para in enumerate(docx_doc.paragraphs, start=1):
-                if not para.text.strip():
-                    continue
-                corrected_text = _correct_spelling(para.text)
-                para_chunks = text_splitter.split_text(corrected_text)
-                for chunk in para_chunks:
-                    if chunk:
-                        chunks_with_source.append((chunk, f"Paragraph {i}"))
-        elif ext in [".xlsx", ".xls", ".csv"]:
-            try:
-                if ext in [".xlsx", ".xls"]:
-                    df = pd.read_excel(file_path)
-                    if isinstance(df, dict):
-                        df = next(iter(df.values()))
-                else:
-                    df = pd.read_csv(file_path)
-                content = df.to_string(index=False)
-                corrected_content = _correct_spelling(content)
-                data_chunks = text_splitter.split_text(corrected_content)
-                for chunk in data_chunks:
-                    if chunk:
-                        chunks_with_source.append((chunk, "Table"))
-            except Exception as e:
-                return [(f"Error: Failed to read tabular file: {e}",
-                         "Data Parser")]
-        elif ext in [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff"]:
-            if not Image or not pytesseract:
-                return [("Error: OCR dependencies not available.",
-                         "OCR Parser")]
-            try:
-                img = Image.open(file_path)
-                if img.mode not in ("RGB", "L"):
-                    img = img.convert("RGB")
-                txt = pytesseract.image_to_string(
-                    img, lang=get_str_setting("ocr_lang", "eng")
-                )
-                corrected_txt = _correct_spelling(txt or "")
-                ocr_chunks = text_splitter.split_text(corrected_txt)
-                for chunk in ocr_chunks:
-                    if chunk:
-                        chunks_with_source.append((chunk, "Image (OCR)"))
-            except UnidentifiedImageError as e:
-                return [(f"Error: Unidentified image: {e}", "OCR Parser")]
-        elif ext == ".txt":
-            with open(file_path, "r", encoding="utf-8") as f:
-                txt = f.read()
-            corrected_txt = _correct_spelling(txt)
-            txt_chunks = text_splitter.split_text(corrected_txt)
-            for chunk in txt_chunks:
-                if chunk:
-                    chunks_with_source.append((chunk, "Text File"))
-        else:
-            return [(f"Error: Unsupported file type: {ext}", "File Handler")]
-
-        return chunks_with_source if chunks_with_source else [("Info: No text could be extracted from the document.", "System")]
-
-    except FileNotFoundError:
-        return [(f"Error: File not found at {file_path}", "File System")]
-    except Exception as e:
-        logger.exception("parse_document_content failed")
-        return [(f"Error: An unexpected error occurred: {e}", "System")]
-        
-def run_biobert_ner(sentences: List[str]) -> List[dict]:
-    """
-    Performs Named Entity Recognition on a list of sentences using a
-    BioBERT model.
-    """
-    if not pipeline:
-        logger.warning(
-            "Transformers pipeline is not available. Skipping BioBERT NER."
-        )
-        return []
-
-    try:
-        # Using a pipeline for NER
-        # The 'simple' aggregation strategy groups subword tokens into whole
-        # words.
-        ner_pipeline = pipeline(
-            "ner",
-            model="longluu/Clinical-NER-MedMentions-GatorTronBase",
-            aggregation_strategy="simple"
-        )
-        results = ner_pipeline(sentences)
-        return results
-    except Exception as e:
-        logger.error(f"BioBERT NER failed: {e}")
-        return []
-
-def export_report_json(obj: dict, json_path: str) -> bool:
-    try:
-        import json
-        os.makedirs(os.path.dirname(json_path), exist_ok=True)
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(obj, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception as e:
-        logger.error(f"Failed to export JSON: {e}")
-        return False
-
-try:
-    import shap
-    import slicer
-except ImportError:
-    shap = None
-    slicer = None
-    logger.warning("SHAP or Slicer unavailable. Advanced analytics will be disabled.")
-
-def count_categories(issues: list[dict]) -> dict:
-    from collections import Counter
-    c = Counter((i.get("category") or "General") for i in issues)
-    return dict(c)
-
-def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
-    try:
-        cur = conn.cursor()
-        cur.execute("""
-                    CREATE TABLE IF NOT EXISTS analysis_runs
-                    (
-                        id
-                        INTEGER
-                        PRIMARY
-                        KEY
-                        AUTOINCREMENT,
-                        file_name
-                        TEXT
-                        NOT
-                        NULL,
-                        run_time
-                        TEXT
-                        NOT
-                        NULL,
-                        pages_est
-                        INTEGER,
-                        flags
-                        INTEGER,
-                        findings
-                        INTEGER,
-                        suggestions
-                        INTEGER,
-                        notes
-                        INTEGER,
-                        sentences_final
-                        INTEGER,
-                        dedup_removed
-                        INTEGER,
-                        compliance_score
-                        REAL,
-                        mode
-                        TEXT,
-                        file_path TEXT
-                    )
-                    """)
-        cur.execute(
-            "CREATE INDEX IF NOT EXISTS idx_runs_time ON analysis_runs(run_time)")
-        cur.execute(
-            "CREATE INDEX IF NOT EXISTS idx_runs_file ON analysis_runs(file_name)")
-        cur.execute("""
-                    CREATE TABLE IF NOT EXISTS analysis_issues
-                    (
-                        id
-                        INTEGER
-                        PRIMARY
-                        KEY
-                        AUTOINCREMENT,
-                        run_id
-                        INTEGER
-                        NOT
-                        NULL,
-                        severity
-                        TEXT
-                        NOT
-                        NULL,
-                        category
-                        TEXT,
-                        title
-                        TEXT,
-                        detail
-                        TEXT,
-                        confidence
-                        REAL,
-                        FOREIGN
-                        KEY
-                    (
-                        run_id
-                    ) REFERENCES analysis_runs
-                    (
-                        id
-                    ) ON DELETE CASCADE
-                        )
-                    """)
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_issues_run ON analysis_issues(run_id)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_issues_sev ON analysis_issues(severity)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_issues_cat ON analysis_issues(category)")
-
-        # --- Simple schema migration for label column ---
-        cur.execute("PRAGMA table_info(analysis_issues)")
-        columns = [row[1] for row in cur.fetchall()]
-        if "label" not in columns:
-            cur.execute("ALTER TABLE analysis_issues ADD COLUMN label TEXT")
-            logger.info("Upgraded analysis_issues table to include 'label' column.")
-
-        cur.execute("""
-                    CREATE TABLE IF NOT EXISTS analysis_snapshots
-                    (
-                        file_fingerprint
-                        TEXT
-                        NOT
-                        NULL,
-                        settings_fingerprint
-                        TEXT
-                        NOT
-                        NULL,
-                        summary_json
-                        TEXT
-                        NOT
-                        NULL,
-                        created_at
-                        TEXT
-                        NOT
-                        NULL,
-                        PRIMARY
-                        KEY
-                    (
-                        file_fingerprint,
-                        settings_fingerprint
-                    )
-                        )
-                    """)
-                    (
-                        file_fingerprint
-                        TEXT
-                        NOT
-                        NULL,
-                        settings_fingerprint
-                        TEXT
-                        NOT
-                        NULL,
-                        outputs_json
-                        TEXT
-                        NOT
-                        NULL,
-                        created_at
-                        TEXT
-                        NOT
-                        NULL,
-                        PRIMARY
-                        KEY
-                    (
-                        file_fingerprint,
-                        settings_fingerprint
-                    )
-                        )
-                    """)
+# --- PHI Scrubber (basic, extendable) ---
 def scrub_phi(text: str) -> str:
     if not isinstance(text, str):
-        return text  # type: ignore[return-value]
+        return text
+    patterns = [
+        (r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', '[EMAIL]'),
+        (r'(\+?\d{1,2}[\s\-.]?)?(\(?\d{3}\)?[ \-.]?\d{3}[\-.]?\d{4})', '[PHONE]'),
+        (r'\b\d{3}-\d{2}-\d{4}\b', '[SSN]'),
+        (r'\bMRN[:\s]*[A-Za-z0-9\-]{4,}\b', '[MRN]'),
+        (r'\b(19|20)\d{2}-/ (0?[1-9]|1[0-2])-/ (0?[1-g]|[12]\d|3[01])\b', '[DATE]'),
+        (r'\b(Name|Patient|DOB|Address)[:\s]+[^\n]+', r'\1: [REDACTED]'),
+    ]
     out = text
-    for pat, repl in _PHI_PATTERNS:
+    for pat, repl in patterns:
         out = re.sub(pat, repl, out)
     return out
 
-# --- Utilities ---
-def _now_iso() -> str:
-    from datetime import datetime
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+# --- Helpers: chunking for long texts ---
+def chunk_text(text: str, max_chars: int = 4000):
+    chunks = []
+    start = 0
+    n = len(text)
+    while start < n:
+        end = min(start + max_chars, n)
+        newline_pos = text.rfind("\n", start, end)
+        if newline_pos != -1 and newline_pos > start + 1000:
+            end = newline_pos
+        chunks.append(text[start:end])
+        start = end
+    return chunks
 
-def _open_path(p: str) -> None:
-    try:
-        if os.name == "nt":
-            os.startfile(p)  # type: ignore[attr-defined]
-        elif sys.platform == "darwin":
-            os.system(f"open \"{p}\"")
-        else:
-            os.system(f"xdg-open \"{p}\"")
-    except Exception as e:
-        logger.warning(f"Failed to open path {p}: {e}")
-
-# --- Parsing (PDF/DOCX/CSV/XLSX/Images with optional OCR) ---
-def split_sentences(text: str) -> list[str]:
-    if not text:
-        return []
-    sents = [p.strip() for p in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"'])", text) if p.strip()]
-    if not sents:
-        sents = text.splitlines()
-    return [s for s in sents if s]
-
+# --- Helpers: Standalone Document Parser for Rubrics ---
 def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
-    """
-    Parses the content of a document and splits it into chunks.
-    Uses a recursive character text splitter for more effective chunking.
-    """
-    if not os.path.exists(file_path):
-        return [(f"Error: File not found at {file_path}", "File System")]
-    ext = os.path.splitext(file_path)[1].lower()
-
-    # Initialize the text splitter with configurable settings
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=get_int_setting("chunk_size", 1000),
-        chunk_overlap=get_int_setting("chunk_overlap", 200),
-    )
-
+    if not nlp:
+        return [("Error: SpaCy model not loaded. Cannot sentence-split.", "System")]
     try:
-        chunks_with_source: list[tuple[str, str]] = []
-
-        # --- Step 1: Extract text from the document based on its type ---
-        if ext == ".pdf":
-            if not pdfplumber:
-                return [("Error: pdfplumber not available.", "PDF Parser")]
-            with pdfplumber.open(file_path) as pdf:
-                # Process page by page to maintain source information
-                for i, page in enumerate(pdf.pages, start=1):
-                    page_text = page.extract_text() or ""
-                    page_chunks = text_splitter.split_text(page_text)
-                    for chunk in page_chunks:
-                        if chunk:
-                            chunks_with_source.append((chunk, f"Page {i}"))
-        elif ext == ".docx":
+        file_extension = os.path.splitext(file_path)[1].lower()
+        sentences_with_source = []
+        if file_extension == '.pdf':
             try:
-                from docx import Document
-            except Exception:
-                return [("Error: python-docx not available.", "DOCX Parser")]
-            docx_doc = Document(file_path)
-            # Process paragraph by paragraph
-            for i, para in enumerate(docx_doc.paragraphs, start=1):
-                if not para.text.strip():
-                    continue
-                para_chunks = text_splitter.split_text(para.text)
-                for chunk in para_chunks:
-                    if chunk:
-                        chunks_with_source.append((chunk, f"Paragraph {i}"))
-        elif ext in [".xlsx", ".xls", ".csv"]:
+                with pdfplumber.open(file_path) as pdf:
+                    for i, page in enumerate(pdf.pages, start=1):
+                        page_text = page.extract_text() or ""
+                        doc = nlp(page_text)
+                        for sent in doc.sents:
+                            if sent.text.strip():
+                                sentences_with_source.append((sent.text.strip(), f"Page {i}"))
+            except pdfplumber.utils.PDFSyntaxError as e:
+                return [(f"Error: Invalid PDF file: {e}", "PDF Parser")]
+        elif file_extension == '.docx':
             try:
-                if ext in [".xlsx", ".xls"]:
+                doc = Document(file_path)
+                for i, para in enumerate(doc.paragraphs):
+                    if para.text.strip():
+                        para_doc = nlp(para.text)
+                        for sent in para_doc.sents:
+                            if sent.text.strip():
+                                sentences_with_source.append((sent.text.strip(), f"Paragraph {i+1}"))
+            except docx.opc.exceptions.PackageNotFoundError as e:
+                return [(f"Error: Invalid DOCX file: {e}", "DOCX Parser")]
+        elif file_extension in ['.xlsx', '.xls', '.csv']:
+            text_content = ""
+            source_name = "Excel Sheet" if file_extension.startswith('.xls') else "CSV File"
+            try:
+                if file_extension in ['.xlsx', '.xls']:
                     df = pd.read_excel(file_path)
-                    if isinstance(df, dict):
-                        df = next(iter(df.values()))
+                    text_content = df.to_string(index=False)
                 else:
                     df = pd.read_csv(file_path)
-                content = df.to_string(index=False)
-                corrected_content = _correct_spelling(content)
-                data_chunks = text_splitter.split_text(corrected_content)
-                for chunk in data_chunks:
-                    if chunk:
-                        chunks_with_source.append((chunk, "Table"))
+                    text_content = df.to_string(index=False)
+                doc = nlp(text_content)
+                for sent in doc.sents:
+                    if sent.text.strip():
+                        sentences_with_source.append((sent.text.strip(), source_name))
             except Exception as e:
-                return [(f"Error: Failed to read tabular file: {e}",
-                         "Data Parser")]
-        elif ext in [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff"]:
-            if not Image or not pytesseract:
-                return [("Error: OCR dependencies not available.",
-                         "OCR Parser")]
+                return [(f"Error: Failed to read tabular file: {e}", "Data Parser")]
+        elif file_extension in ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff']:
             try:
                 img = Image.open(file_path)
                 if img.mode not in ("RGB", "L"):
                     img = img.convert("RGB")
-                txt = pytesseract.image_to_string(
-                    img, lang=get_str_setting("ocr_lang", "eng")
-                )
-                corrected_txt = _correct_spelling(txt or "")
-                ocr_chunks = text_splitter.split_text(corrected_txt)
-                for chunk in ocr_chunks:
-                    if chunk:
-                        chunks_with_source.append((chunk, "Image (OCR)"))
-            except UnidentifiedImageError as e:
-                return [(f"Error: Unidentified image: {e}", "OCR Parser")]
-        elif ext == ".txt":
-            with open(file_path, "r", encoding="utf-8") as f:
-                txt = f.read()
-            corrected_txt = _correct_spelling(txt)
-            txt_chunks = text_splitter.split_text(corrected_txt)
-            for chunk in txt_chunks:
-                if chunk:
-                    chunks_with_source.append((chunk, "Text File"))
+                ocr_text = pytesseract.image_to_string(img)
+                doc = nlp(ocr_text)
+                for sent in doc.sents:
+                    if sent.text.strip():
+                        sentences_with_source.append((sent.text.strip(), "Source: Image (OCR)"))
+            except Image.UnidentifiedImageError as e:
+                return [(f"Error: Unidentified image file: {e}", "OCR Parser")]
+            except Exception as e:
+                return [(f"Error: Failed to process image with Tesseract: {e}", "OCR Parser")]
         else:
-            return [(f"Error: Unsupported file type: {ext}", "File Handler")]
-
-        return chunks_with_source if chunks_with_source else [("Info: No text could be extracted from the document.", "System")]
-
+            return [(f"Error: Unsupported file type: {file_extension}", "File Handler")]
+        if not sentences_with_source:
+            return [("Info: No text could be extracted from the document.", "System")]
+        return sentences_with_source
     except FileNotFoundError:
         return [(f"Error: File not found at {file_path}", "File System")]
     except Exception as e:
-        logger.exception("parse_document_content failed")
         return [(f"Error: An unexpected error occurred: {e}", "System")]
-            try:
-                if ext in [".xlsx", ".xls"]:
-                    df = pd.read_excel(file_path)
-                    if isinstance(df, dict):
-                        df = next(iter(df.values()))
-                else:
-                    df = pd.read_csv(file_path)
-conn.commit()
-    except Exception as e:
-        logger.warning(f"Ensure core schema failed: {e}")
 
-def _get_db_connection() -> sqlite3.Connection:
-    _ensure_directories()
-    _prepare_database_file()
+# --- Helpers: Database Initialization ---
+def initialize_database():
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
-    except sqlite3.DatabaseError as e:
-        logger.warning(f"sqlite connect failed: {e}; attempting recreate")
-        _backup_corrupt_db(DATABASE_PATH)
-        conn = sqlite3.connect(DATABASE_PATH)
-    try:
-        cur = conn.cursor()
-        cur.execute("PRAGMA foreign_keys = ON")
-        cur.execute("PRAGMA journal_mode = WAL")
-        cur.execute("PRAGMA synchronous = NORMAL")
-        conn.commit()
-        _ensure_core_schema(conn)
-        _ensure_analytics_schema(conn)
-    except Exception as e:
-        logger.warning(f"SQLite PRAGMA/schema setup partial: {e}")
-    return conn
-
-def get_setting(key: str) -> Optional[str]:
-    try:
-        with _get_db_connection() as conn:
+        os.makedirs(os.path.dirname(os.path.abspath(DATABASE_PATH)), exist_ok=True)
+        with sqlite3.connect(DATABASE_PATH) as conn:
             cur = conn.cursor()
-            cur.execute("SELECT value FROM settings WHERE key = ?", (key,))
-            row = cur.fetchone()
-            return row[0] if row else None
-    except Exception:
-        return None
-
-def set_setting(key: str, value: str) -> None:
-    try:
-        with _get_db_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
+            cur.execute("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password_hash BLOB NOT NULL, salt BLOB NOT NULL)")
+            cur.execute("CREATE TABLE IF NOT EXISTS rubrics (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, content TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+            cur.execute("SELECT COUNT(*) FROM rubrics")
+            if cur.fetchone()[0] == 0:
+                default_rubric_name = "Default Best Practices"
+                default_rubric_content = """# General Documentation Best Practices
+- All entries must be dated and signed.
+- Patient identification must be clear on every page.
+- Use of approved abbreviations only.
+- Document skilled intervention, not just patient performance.
+- Goals must be measurable and time-bound."""
+                cur.execute("INSERT INTO rubrics (name, content) VALUES(?, ?)", (default_rubric_name, default_rubric_content))
+            username = "test"
+            password = "test123"
+            salt = os.urandom(16)
+            kdf = PBKDF2HMAC(algorithm=HASH_ALGORITHM, length=32, salt=salt, iterations=ITERATIONS)
+            password_hash = kdf.derive(password.encode())
+            cur.execute("INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?) ON CONFLICT(username) DO UPDATE SET password_hash=excluded.password_hash, salt=excluded.salt", (username, password_hash, salt))
             conn.commit()
-    except Exception:
-        ...
+    except sqlite3.Error as e:
+        print(f"Failed to initialize database: {e}")
 
-def get_bool_setting(key: str, default: bool) -> bool:
-    raw = get_setting(key)
-    if raw is None:
-        return default
-    return str(raw).lower() in ("1", "true", "yes", "on")
+# --- Background Workers ---
+class DocumentWorker(QObject):
+    finished = pyqtSignal(list)
+    error = pyqtSignal(str)
+    progress = pyqtSignal(int)
 
-def set_bool_setting(key: str, value: bool) -> None:
-    set_setting(key, "1" if value else "0")
+    def __init__(self, file_path: str):
+        super().__init__()
+        self.file_path = file_path
+        self._cancel = False
 
-def get_int_setting(key: str, default: int) -> int:
-    raw = get_setting(key)
-    if raw is None:
-        return default
-    try:
-        return int(str(raw).strip())
-    except Exception:
-        return default
+    def cancel(self):
+        self._cancel = True
 
-def get_str_setting(key: str, default: str) -> str:
-    raw = get_setting(key)
-    return default if raw is None else str(raw)
-
-def set_str_setting(key: str, value: str) -> None:
-    set_setting(key, value)
-
-# --- Recent files helpers ---
-def _load_recent_files() -> list[str]:
-    try:
-        import json
-        raw = get_setting("recent_files")
-        if not raw:
-            return []
-        lst = json.loads(raw)
-        if not isinstance(lst, list):
-            return []
-        seen: set[str] = set()
-        out: list[str] = []
-        for x in lst:
-            if isinstance(x, str) and x not in seen:
-                seen.add(x)
-                out.append(x)
-        limit = get_int_setting("recent_max", 20)
-        return out[:max(1, limit)]
-    except Exception:
-        return []
-
-def _save_recent_files(files: list[str]) -> None:
-    try:
-        import json
-        limit = get_int_setting("recent_max", 20)
-        set_setting("recent_files", json.dumps(files[:max(1, limit)], ensure_ascii=False))
-    except Exception:
-        ...
-
-def add_recent_file(path: str) -> None:
-    if not path:
-        return
-    files = _load_recent_files()
-    files = [p for p in files if p != path]
-    files.insert(0, path)
-    _save_recent_files(files)
-
-# --- File/report helpers ---
-def ensure_reports_dir_configured() -> str:
-    stored = os.getenv("SPEC_KIT_REPORTS") or get_setting("reports_dir") or REPORTS_DIR
-    try:
-        os.makedirs(stored, exist_ok=True)
-        marker = os.path.join(stored, ".spec_kit_reports")
-        if not os.path.exists(marker):
-            with open(marker, "w", encoding="utf-8") as m:
-                m.write("Managed by SpecKit. Safe to purge generated reports.\n")
-    except Exception as e:
-        logger.warning(f"Ensure reports dir failed: {e}")
-    return stored
-
-def _format_mmddyyyy(dt) -> str:
-    return dt.strftime("%m%d%Y")
-
-def _next_report_number() -> int:
-    from datetime import datetime
-    today = _format_mmddyyyy(datetime.now())
-    last_date = get_setting("last_report_date")
-    raw = get_setting("report_counter")
-    if last_date != today or raw is None:
-        num = 1
-    else:
+    def run(self):
+        if not nlp:
+            self.error.emit("SpaCy model not loaded. Cannot process document.")
+            return
         try:
-            num = int(raw)
-        except Exception:
-            num = 1
-    set_setting("report_counter", str(num + 1))
-    set_setting("last_report_date", today)
-    return num
+            file_extension = os.path.splitext(self.file_path)[1].lower()
+            sentences_with_source = []
+            if file_extension == '.pdf':
+                with pdfplumber.open(self.file_path) as pdf:
+                    total = max(len(pdf.pages), 1)
+                    for i, page in enumerate(pdf.pages, start=1):
+                        if self._cancel:
+                            self.error.emit("Analysis canceled by user.")
+                            return
+                        page_text = page.extract_text() or ""
+                        doc = nlp(page_text)
+                        for sent in doc.sents:
+                            if sent.text.strip():
+                                sentences_with_source.append((sent.text.strip(), f"Page {i}"))
+                        self.progress.emit(int((i / total) * 100))
+            elif file_extension == '.docx':
+                doc = Document(self.file_path)
+                total = max(len(doc.paragraphs), 1)
+                for i, para in enumerate(doc.paragraphs, start=1):
+                    if self._cancel:
+                        self.error.emit("Analysis canceled by user.")
+                        return
+                    if para.text.strip():
+                        para_doc = nlp(para.text)
+                        for sent in para_doc.sents:
+                            if sent.text.strip():
+                                sentences_with_source.append((sent.text.strip(), f"Paragraph {i}"))
+                    self.progress.emit(int((i / total) * 100))
+            else:
+                sentences_with_source = parse_document_content(self.file_path)
+                if sentences_with_source and sentences_with_source[0][0].startswith("Error:"):
+                    self.error.emit(f"{sentences_with_source[0][0]} (Source: {sentences_with_source[0][1]})")
+                    return
+                self.progress.emit(100)
+            if not sentences_with_source:
+                self.error.emit('Info: No text could be extracted from the document.')
+                return
+            self.finished.emit(sentences_with_source)
+        except Exception as e:
+            import traceback
+            self.error.emit(f"Error processing file: {e}\n{traceback.format_exc()}")
 
-def generate_report_paths() -> Tuple[str, str]:
-    from datetime import datetime
-    base = ensure_reports_dir_configured()
-    stem = f"{_format_mmddyyyy(datetime.now())}report{_next_report_number()}"
-    return os.path.join(base, f"{stem}.pdf"), os.path.join(base, f"{stem}.csv")
+class NERWorker(QObject):
+    finished = pyqtSignal(str, str)
+    error = pyqtSignal(str)
+    progress = pyqtSignal(int)
 
-# --- PHI scrubber ---
-_PHI_PATTERNS: List[Tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), "[SSN]"),
-    (re.compile(r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"), "[PHONE]"),
-    (re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"), "[EMAIL]"),
-    (re.compile(r"\b(?:0?[1-9]|1[0-2])[-/](?:0?[1-9]|[12]\d|3[01])[-/](?:\d{2}|\d{4})\b"), "[DATE]"),
-    (re.compile(r"\b\d{6,10}\b"), "[MRN]"),
-    (re.compile(r"\b\d{1,5}\s+[A-Za-z0-9.\- ]+\s+(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Ln|Lane)\b", re.I),
-     "[ADDR]"),
-] main
-        cur.execute("""
-                    CREATE TABLE IF NOT EXISTS reviewed_findings
-                    (
-                        id
-                        INTEGER
-                        PRIMARY
-                        KEY
-                        AUTOINCREMENT,
-                        analysis_issue_id
-                        INTEGER
-                        NOT
-                        NULL,
-                        user_feedback
-                        TEXT
-                        NOT
-                        NULL,
-                        reviewed_at
-                        TEXT
-                        NOT
-                        NULL,
-                        notes
-                        TEXT,
-                        citation_text
-                        TEXT,
-                        model_prediction
-                        TEXT,
-                        FOREIGN
-                        KEY
-                    (
-                        analysis_issue_id
-                    ) REFERENCES analysis_issues
-                    (
-                        id
-                    ) ON DELETE CASCADE
-                        )
-                    """)
-def _load_cached_outputs(file_fp: str, settings_fp: str) -> Optional[dict]:
-    try:
-        with _get_db_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT outputs_json FROM analysis_cache WHERE file_fingerprint=? AND settings_fingerprint=?",
-                        (file_fp, settings_fp))
-            row = cur.fetchone()
-            if not row:
-                return None
-            import json
-            return json.loads(row[0])
-    except Exception:
-        return None
+    def __init__(self, text: str):
+        super().__init__()
+        self.text = text
+        self._cancel = False
 
-def _save_cached_outputs(file_fp: str, settings_fp: str, outputs: dict) -> None:
-    try:
-        with _get_db_connection() as conn:
-            cur = conn.cursor()
-            import json
-            from datetime import datetime
-            cur.execute(
-                "INSERT OR REPLACE INTO analysis_cache (file_fingerprint, settings_fingerprint, outputs_json, created_at) VALUES (?, ?, ?, ?)",
-                (file_fp, settings_fp, json.dumps(outputs, ensure_ascii=False),
-                 datetime.now().isoformat(timespec="seconds")),
-            )
-            conn.commit()
-    except Exception:
-        ...
+    def cancel(self):
+        self._cancel = True
 
-# --- Rule-based audit (interpretive only) ---
-def _audit_from_rubric(text: str, selected_disciplines: List[str], strict: bool | None = None) -> list[dict]:
-    """
-    Performs a dynamic audit based on the selected discipline rubrics.
-    """
-    if not selected_disciplines:
-        return []
-        
-    rubric_map = {
-        "pt": os.path.join(BASE_DIR, "pt_compliance_rubric.ttl"),
-        "ot": os.path.join(BASE_DIR, "ot_compliance_rubric.ttl"),
-        "slp": os.path.join(BASE_DIR, "slp_compliance_rubric.ttl"),
-    }
-    
-    all_rules = []
-    for discipline in selected_disciplines:
-        path = rubric_map.get(discipline)
-        if path and os.path.exists(path):
-            try:
-                service = RubricService(path)
-                all_rules.extend(service.get_rules())
-            except Exception as e:
-                logger.warning(f"Failed to load rubric for {discipline}: {e}")
+    def run(self):
+        if not clinical_ner_pipeline:
+            self.error.emit("Clinical/Biomedical NER model not loaded (offline). Seed models locally and restart.")
+            return
+        try:
+            chunks = chunk_text(self.text)
+            aggregated = []
+            total = len(chunks) if chunks else 1
+            for idx, chunk in enumerate(chunks, start=1):
+                if self._cancel:
+                    self.error.emit("Analysis canceled by user.")
+                    return
+                results = clinical_ner_pipeline(chunk)
+                for entity in results:
+                    aggregated.append(f"Entity: {entity.get('word', '')}| Type: {entity.get('entity_group', '')} | Score: {entity.get('score', 0.0): .2f}")
+                self.progress.emit(int((idx / total) * 100))
+            output = "\n".join(aggregated) if aggregated else "No entities detected."
+            model_name = _loaded_model_name or "Unknown NER model"
+            self.finished.emit(model_name, output)
+        except Exception as e:
+            self.error.emit(f"Error during Clinical/Biomedical NER: {e}")
 
-    issues = []
-    t_lower = text.lower()
-    
-    unique_rules = []
-    seen_titles = set()
-    for rule in all_rules:
-        if rule.issue_title not in seen_titles:
-            unique_rules.append(rule)
-            seen_titles.add(rule.issue_title)
-            
-    for rule in unique_rules:
-        positive_kws = [kw.lower() for kw in rule.positive_keywords]
-        negative_kws = [kw.lower() for kw in rule.negative_keywords]
+class AnalysisWorker(QObject):
+    finished = pyqtSignal(str)
+    error = pyqtSignal(str)
+    progress = pyqtSignal(int)
 
-        triggered = False
-        # Case 1: Rule triggers if a positive keyword is found AND a negative keyword is NOT found.
-        if rule.positive_keywords and rule.negative_keywords:
-            if any(kw in t_lower for kw in positive_kws) and not any(kw in t_lower for kw in negative_kws):
-                triggered = True
-        # Case 2: Rule triggers if a positive keyword is found (and there are no negative keywords).
-        elif rule.positive_keywords and not rule.negative_keywords:
-            if any(kw in t_lower for kw in positive_kws):
-                triggered = True
-        # Case 3: Rule triggers if a negative keyword is NOT found (and there are no positive keywords).
-        elif not rule.positive_keywords and rule.negative_keywords:
-            if not any(kw in t_lower for kw in negative_kws):
-                triggered = True
+    def __init__(self, doc_sentences_with_source: List[Tuple[str, str]], rubric_content: str, offline_only: bool):
+        super().__init__()
+        self.doc_sentences_with_source = doc_sentences_with_source
+        self.rubric_content = rubric_content
+        self.offline_only = offline_only
+        self._cancel = False
 
-        if triggered:
-            severity = rule.strict_severity if strict else rule.severity
-            issues.append({
-                "severity": severity,
-                "title": rule.issue_title,
-                "detail": rule.issue_detail,
-                "category": rule.issue_category,
-                "trigger_keywords": rule.positive_keywords,
-                "discipline": rule.discipline
-            })
+    def cancel(self):
+        self._cancel = True
 
-    return issues
-def add_rubric_from_library(self):
+    def run(self):
+        try:
+            if self._cancel:
+                self.error.emit("Analysis canceled by user.")
+                return
+            self.progress.emit(10)
+            analyzer = SemanticAnalyzer(offline_only=self.offline_only)
+            if not analyzer.model:
+                self.error.emit("Failed to load semantic analysis model. Check logs or try reinstalling sentence-transformers.")
+                return
+            if self._cancel:
+                return
+            self.progress.emit(30)
+            results = analyzer.analyze(self.doc_sentences_with_source, self.rubric_content)
+            if self._cancel:
+                return
+            self.progress.emit(90)
+            report_lines = ["--- Semantic Rubric Analysis Report ---", ""]
+            for res in results:
+                status = res['status']
+                rule = res['rule']
+                score = res['score']
+                match = res['match']
+                source = res['source']
+                report_lines.append(f"[{status}] - Rule: {rule}")
+                if status == "MET":
+                    report_lines.append(f"     Match (Score: {score:.2f}): {match} (Source: {source})")
+                report_lines.append("")
+            final_report = "\n".join(report_lines)
+            self.progress.emit(100)
+            self.finished.emit(final_report)
+        except Exception as e:
+            import traceback
+            self.error.emit(f"An error occurred during rubric analysis: {e}\n{traceback.format_exc()}")
+
+class SemanticAnalyzer:
+    def __init__(self, model_name: str = 'all-MiniLM-L6-v2', offline_only: bool = True):
+        try:
+            from sentence_transformers import SentenceTransformer
+            self.model = SentenceTransformer(model_name, local_files_only=offline_only)
+        except ImportError:
+            self.model = None
+        except Exception as e:
+            print(f"Failed to load SentenceTransformer model: {e}")
+            self.model = None
+
+    def analyze(self, doc_sentences_with_source: List[Tuple[str, str]], rubric_content: str, similarity_threshold: float = 0.5) -> list[dict]:
+        if not self.model:
+            return [{"rule": "Error", "status": "Semantic model not loaded.", "match": "", "score": 0, "source": ""}]
+        from sentence_transformers.util import semantic_search
+        rules = [rule.strip() for rule in rubric_content.split('\n') if rule.strip() and not rule.strip().startswith("#")]
+        if not doc_sentences_with_source:
+            return []
+        doc_sentences, doc_sources = zip(*doc_sentences_with_source)
+        doc_sentences = list(doc_sentences)
+        if not rules or not doc_sentences:
+            return []
+        rule_embeddings = self.model.encode(rules, convert_to_tensor=True, show_progress_bar=False)
+        sentence_embeddings = self.model.encode(doc_sentences, convert_to_tensor=True, show_progress_bar=False)
+        hits = semantic_search(rule_embeddings, sentence_embeddings, top_k=1)
+        analysis_report = []
+        for i, rule_hits in enumerate(hits):
+            rule = rules[i]
+            result = {"rule": rule, "status": "NOT MET", "match": "No similar sentence found.", "score": 0, "source": ""}
+            if rule_hits:
+                top_hit = rule_hits[0]
+                score = top_hit['score']
+                if score >= similarity_threshold:
+                    corpus_id = top_hit['corpus_id']
+                    result["status"] = "MET"
+                    result["match"] = doc_sentences[corpus_id]
+                    result["source"] = doc_sources[corpus_id]
+                    result["score"] = score
+            analysis_report.append(result)
+        return analysis_report
+
+class AddRubricSourceDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Select Rubric Source")
+        self.source = None
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel("Where would you like to add a rubric from?"))
+        self.library_button = QPushButton("From Pre-loaded Library")
+        self.library_button.clicked.connect(self.select_library)
+        layout.addWidget(self.library_button)
+        self.file_button = QPushButton("From Local File")
+        self.file_button.clicked.connect(self.select_file)
+        layout.addWidget(self.file_button)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+
+    def select_library(self):
+        self.source = 'library'
+        self.accept()
+
+    def select_file(self):
+        self.source = 'file'
+        self.accept()
+
+class LibrarySelectionDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Select from Library")
+        self.selected_path = None
+        self.selected_name = None
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel("Select a pre-loaded rubric to add:"))
+        self.library_list = QListWidget()
+        layout.addWidget(self.library_list)
+        self.populate_library_list()
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        button_box.accepted.connect(self.confirm_selection)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+
+    def populate_library_list(self):
+        rubrics_dir = os.path.join(BASE_DIR, '..', 'resources', 'rubrics')
+        if not os.path.isdir(rubrics_dir):
+            self.library_list.addItem("No library found.")
+            self.library_list.setEnabled(False)
+            return
+        for filename in os.listdir(rubrics_dir):
+            if filename.endswith(".txt"):
+                display_name = os.path.splitext(filename)[0].replace('_', ' ').title()
+                item = QListWidgetItem(display_name)
+                item.setData(Qt.ItemDataRole.UserRole, os.path.join(rubrics_dir, filename))
+                self.library_list.addItem(item)
+
+    def confirm_selection(self):
+        selected_items = self.library_list.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "Selection Required", "Please select a rubric from the list.")
+            return
+        item = selected_items[0]
+        self.selected_name = item.text()
+        self.selected_path = item.data(Qt.ItemDataRole.UserRole)
+        self.accept()
+
+class RubricManagerDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Rubric Manager")
+        self.setGeometry(150, 150, 400, 300)
+        layout = QVBoxLayout(self)
+        self.rubric_list = QListWidget()
+        layout.addWidget(self.rubric_list)
+        self.load_rubrics()
+        button_box = QDialogButtonBox()
+        self.add_button = button_box.addButton("Add...", QDialogButtonBox.ButtonRole.ActionRole)
+        self.remove_button = button_box.addButton("Remove", QDialogButtonBox.ButtonRole.ActionRole)
+        close_button = button_box.addButton(QDialogButtonBox.StandardButton.Close)
+        close_button.clicked.connect(self.accept)
+        self.add_button.clicked.connect(self.add_rubric)
+        self.remove_button.clicked.connect(self.remove_rubric)
+        layout.addWidget(button_box)
+
+    def load_rubrics(self):
+        self.rubric_list.clear()
+        try:
+            if not os.path.exists(DATABASE_PATH):
+                return
+            with sqlite3.connect(DATABASE_PATH) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT id, name FROM rubrics ORDER BY name ASC")
+                for rubric_id, name in cur.fetchall():
+                    item = QListWidgetItem(name)
+                    item.setData(Qt.ItemDataRole.UserRole, rubric_id)
+                    self.rubric_list.addItem(item)
+        except sqlite3.Error as e:
+            QMessageBox.critical(self, "Error", f"Failed to load rubrics from database:\n{e}")
+
+    def add_rubric(self):
+        source_dialog = AddRubricSourceDialog(self)
+        if not source_dialog.exec():
+            return
+        if source_dialog.source == 'file':
+            self.add_rubric_from_file()
+        elif source_dialog.source == 'library':
+            self.add_rubric_from_library()
+
+    def add_rubric_from_file(self):
+        rubric_name, ok = QInputDialog.getText(self, "Add Rubric From File", "Enter a unique name for the new rubric:")
+        if not (ok and rubric_name):
+            return
+        file_path, _ = QFileDialog.getOpenFileName(self, 'Select Rubric Document', '', 'Supported Files(*.pdf *.docx *.xlsx *.xls *.csv *.png *.jpg *.jpeg *.gif *.bmp *.tiff);;All Files(*.*)')
+        if not file_path:
+            return
+        content = parse_document_content(file_path)
+        if content[0][0].startswith("Error:"):
+            QMessageBox.critical(self, "Error", f"Failed to parse rubric document:\n{content[0][0]}")
+            return
+        content_str = "\n".join([text for text, source in content])
+        try:
+            with sqlite3.connect(DATABASE_PATH) as conn:
+                cur = conn.cursor()
+                cur.execute("INSERT INTO rubrics (name, content) VALUES(?, ?)", (rubric_name, content_str))
+                conn.commit()
+                QMessageBox.information(self, "Success", f"Rubric '{rubric_name}' added successfully.")
+                self.load_rubrics()
+        except sqlite3.IntegrityError:
+            QMessageBox.critical(self, "Error", f"A rubric with the name '{rubric_name}' already exists. Please choose a unique name.")
+        except sqlite3.Error as e:
+            QMessageBox.critical(self, "Database Error", f"Failed to save rubric to database:\n{e}")
+
+    def add_rubric_from_library(self):
         lib_dialog = LibrarySelectionDialog(self)
         if not lib_dialog.exec():
             return
@@ -1216,881 +576,440 @@ def add_rubric_from_library(self):
         reply = QMessageBox.question(self, "Confirm Deletion", f"Are you sure you want to permanently delete the rubric '{rubric_name}'?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
             try:
-def _audit_from_rubric(text: str, selected_disciplines: List[str],
-                       strict: bool | None = None) -> list[dict]:
-        """Performs a dynamic audit based on the selected discipline rubrics."""
-        if not selected_disciplines:
-            return []
-        
-        rubric_map = {
-            "pt": os.path.join(BASE_DIR, "pt_compliance_rubric.ttl"),
-            "ot": os.path.join(BASE_DIR, "ot_compliance_rubric.ttl"),
-            "slp": os.path.join(BASE_DIR, "slp_compliance_rubric.ttl"),
-        }
-        
-        all_rules = []
-        for discipline in selected_disciplines:
-            path = rubric_map.get(discipline)
-            if path and os.path.exists(path):
-                try:
-                    service = RubricService(path)
-                    all_rules.extend(service.get_rules())
-                except Exception as e:
-                    logger.warning(f"Failed to load rubric for {discipline}: {e}")
-        
-        # Remove duplicate rules by title, as some may be shared across rubrics
-        seen_titles = set()
-        unique_rules = []
-        for rule in all_rules:
-            if rule.issue_title not in seen_titles:
-                unique_rules.append(rule)
-                seen_titles.add(rule.issue_title)
-        
-        t_lower = text.lower()
-        issues = []
-        s = bool(strict)
-        
-        for rule in unique_rules:
-            positive_kws = [kw.lower() for kw in rule.positive_keywords]
-            negative_kws = [kw.lower() for kw in rule.negative_keywords]
-            
-            triggered = False
-            # Case 1: Positive keyword found AND negative keyword NOT found.
-            if rule.positive_keywords and rule.negative_keywords:
-                if (any(kw in t_lower for kw in positive_kws) and
-                        not any(kw in t_lower for kw in negative_kws)):
-                    triggered = True
-            # Case 2: Positive keyword found (no negative keywords).
-            elif rule.positive_keywords and not rule.negative_keywords:
-                if any(kw in t_lower for kw in positive_kws):
-                    triggered = True
-            # Case 3: Negative keyword NOT found (no positive keywords).
-            elif not rule.positive_keywords and rule.negative_keywords:
-                if not any(kw in t_lower for kw in negative_kws):
-                    triggered = True
-            
-            if triggered:
-                severity = rule.strict_severity if s else rule.severity
-                issues.append({
-                    "severity": severity,
-                    "title": rule.issue_title,
-                    "detail": rule.issue_detail,
-                    "category": rule.issue_category,
-                    "trigger_keywords": rule.positive_keywords,
-                    "discipline": rule.discipline, # Added discipline for context in UI/analytics
-                })
+                with sqlite3.connect(DATABASE_PATH) as conn:
+                    cur = conn.cursor()
+                    cur.execute("DELETE FROM rubrics WHERE id = ?", (rubric_id,))
+                    conn.commit()
+                QMessageBox.information(self, "Success", f"Rubric '{rubric_name}' has been deleted.")
+                self.load_rubrics()
+            except Exception as e:
+                QMessageBox.critical(self, "Database Error", f"Failed to delete rubric:\n{e}")
 
-        # General auditor note (can be kept outside the rubric for consistency)
-        issues.append({
-            "severity": "auditor_note",
-            "title": "General Auditor Checks",
-            "detail": "Review compliance with Medicare Part B (qualified personnel, plan establishment/recert, timings/units, documentation integrity).",
-            "category": "General",
-            "trigger_keywords": []
-        })
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
 
-        return issues
-        sev_counts = {
-            "flag": sum(1 for i in issues_scored if i.get("severity") == "flag"),
-            "wobbler": sum(1 for i in issues_scored if i.get("severity") == "wobbler"),
-            "suggestion": sum(1 for i in issues_scored if i.get("severity") == "suggestion"),
-            "auditor_note": sum(1 for i in issues_scored if i.get("severity") == "auditor_note"),
-        }
-        cat_counts = count_categories(issues_scored)
+    def initUI(self):
+        self.setWindowTitle('Therapy Compliance Analyzer')
+        self.setGeometry(100, 100, 1024, 768)
+        self.scrub_before_display = True
+        self._current_raw_text = ""
+        self._current_sentences_with_source: List[Tuple[str, str]] = []
+        self._current_entities_spacy = ""
+        self._current_entities_transformer = ""
+        self.setAcceptDrops(True)
+        self.menu_bar = QMenuBar(self)
+        self.setMenuBar(self.menu_bar)
+        self.file_menu = self.menu_bar.addMenu('File')
+        self.file_menu.addAction('Exit', self.close)
+        self.tools_menu = self.menu_bar.addMenu('Tools')
+        self.tools_menu.addAction('Initialize Database', initialize_database)
+        self.tools_menu.addAction('Quickstart', self.show_quickstart)
+        self.tools_menu.addAction('Verify Offline Readiness', self.verify_offline_readiness)
+        self.admin_menu = self.menu_bar.addMenu('Admin Options')
+        self.toggle_scrub_action = self.admin_menu.addAction('Scrub PHI before display (recommended)')
+        self.toggle_scrub_action.setCheckable(True)
+        self.toggle_scrub_action.setChecked(self.scrub_before_display)
+        self.toggle_scrub_action.toggled.connect(self._toggle_scrub_setting)
+        self.help_menu = self.menu_bar.addMenu('Help')
+        self.help_menu.addAction('Show Paths', self.show_paths)
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+        self.status_bar.showMessage('Ready')
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        main_layout = QVBoxLayout(self.central_widget)
+        button_layout = QHBoxLayout()
+        self.upload_button = QPushButton('Upload Document')
+        self.upload_button.clicked.connect(self.open_file_dialog)
+        button_layout.addWidget(self.upload_button)
+        self.clear_button = QPushButton('Clear Display')
+        self.clear_button.clicked.connect(self.clear_document_display)
+        button_layout.addWidget(self.clear_button)
+        self.generate_pdf_button = QPushButton('Generate Report (PDF)')
+        self.generate_pdf_button.clicked.connect(self.generate_report_pdf)
+        button_layout.addWidget(self.generate_pdf_button)
+        self.print_button = QPushButton('Print Report')
+        self.print_button.clicked.connect(self.print_report)
+        button_layout.addWidget(self.print_button)
+        main_layout.addLayout(button_layout)
+        rubric_layout = QHBoxLayout()
+        self.manage_rubrics_button = QPushButton("Manage Rubrics")
+        self.manage_rubrics_button.clicked.connect(self.manage_rubrics)
+        rubric_layout.addWidget(self.manage_rubrics_button)
+        self.run_analysis_button = QPushButton("Run Analysis")
+        self.run_analysis_button.clicked.connect(self.run_rubric_analysis)
+        rubric_layout.addWidget(self.run_analysis_button)
+        self.rubric_list_widget = QListWidget()
+        self.rubric_list_widget.setPlaceholderText("Available Rubrics")
+        self.rubric_list_widget.setMaximumHeight(100)
+        rubric_layout.addWidget(self.rubric_list_widget)
+        main_layout.addLayout(rubric_layout)
+        progress_layout = QHBoxLayout()
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 1)
+        progress_layout.addWidget(self.progress_bar)
+        self.cancel_button = QPushButton('Cancel Analysis')
+        self.cancel_button.setEnabled(False)
+        self.cancel_button.clicked.connect(self.cancel_analysis)
+        progress_layout.addWidget(self.cancel_button)
+        main_layout.addLayout(progress_layout)
+        self.document_display_area = QTextEdit()
+        self.document_display_area.setPlaceholderText("Drag and drop documents here, or use the 'Upload Document' button.")
+        self.document_display_area.setReadOnly(True)
+        self.document_display_area.setAcceptDrops(True)
+        main_layout.addWidget(self.document_display_area)
+        self.spacy_nlp_results_area = QTextEdit()
+        self.spacy_nlp_results_area.setPlaceholderText("SpaCy NLP results (Tokens & Sentences) will appear here.")
+        self.spacy_nlp_results_area.setReadOnly(True)
+        main_layout.addWidget(self.spacy_nlp_results_area)
+        self.clinical_ner_results_area = QTextEdit()
+        self.clinical_ner_results_area.setPlaceholderText("Clinical/Biomedical NER results will appear here.")
+        self.clinical_ner_results_area.setReadOnly(True)
+        main_layout.addWidget(self.clinical_ner_results_area)
+        self.spacy_ner_results_area = QTextEdit()
+        self.spacy_ner_results_area.setPlaceholderText("SpaCy NER results will appear here.")
+        self.spacy_ner_results_area.setReadOnly(True)
+        main_layout.addWidget(self.spacy_ner_results_area)
+        self.analysis_results_area = QTextEdit()
+        self.analysis_results_area.setPlaceholderText("Rubric analysis results will appear here.")
+        self.analysis_results_area.setReadOnly(True)
+        main_layout.addWidget(self.analysis_results_area)
+        self.central_widget.setLayout(main_layout)
+        self.load_rubrics_to_main_list()
 
-def _audit_from_rubric(text: str, selected_disciplines: List[str],
-                           strict: bool | None = None) -> list[dict]:
-        """Performs a dynamic audit based on the selected discipline rubrics."""
-        if not selected_disciplines:
-            return []
-        
-        rubric_map = {
-            "pt": os.path.join(BASE_DIR, "pt_compliance_rubric.ttl"),
-            "ot": os.path.join(BASE_DIR, "ot_compliance_rubric.ttl"),
-            "slp": os.path.join(BASE_DIR, "slp_compliance_rubric.ttl"),
-        }
-        
-        all_rules = []
-        for discipline in selected_disciplines:
-            path = rubric_map.get(discipline)
-            if path and os.path.exists(path):
-                try:
-                    service = RubricService(path)
-                    all_rules.extend(service.get_rules())
-                except Exception as e:
-                    logger.warning(f"Failed to load rubric for {discipline}: {e}")
-        
-        # Remove duplicate rules by title, as some may be shared across rubrics
-        seen_titles = set()
-        unique_rules = []
-        for rule in all_rules:
-            if rule.issue_title not in seen_titles:
-                unique_rules.append(rule)
-                seen_titles.add(rule.issue_title)
-        
-        t_lower = text.lower()
-        issues = []
-        s = bool(strict)
-        
-        for rule in unique_rules:
-            positive_kws = [kw.lower() for kw in rule.positive_keywords]
-            negative_kws = [kw.lower() for kw in rule.negative_keywords]
-            
-            triggered = False
-            # Case 1: Positive keyword found AND negative keyword NOT found.
-            if rule.positive_keywords and rule.negative_keywords:
-                if (any(kw in t_lower for kw in positive_kws) and
-                        not any(kw in t_lower for kw in negative_kws)):
-                    triggered = True
-            # Case 2: Positive keyword found (no negative keywords).
-            elif rule.positive_keywords and not rule.negative_keywords:
-                if any(kw in t_lower for kw in positive_kws):
-                    triggered = True
-            # Case 3: Negative keyword NOT found (no positive keywords).
-            elif not rule.positive_keywords and rule.negative_keywords:
-                if not any(kw in t_lower for kw in negative_kws):
-                    triggered = True
-            
-            if triggered:
-                severity = rule.strict_severity if s else rule.severity
-                issues.append({
-                    "severity": severity,
-                    "title": rule.issue_title,
-                    "detail": rule.issue_detail,
-                    "category": rule.issue_category,
-                    "trigger_keywords": rule.positive_keywords,
-                    "discipline": rule.discipline, # Added discipline for context in UI/analytics
-                })
+    def open_file_dialog(self):
+        file_name, _ = QFileDialog.getOpenFileName(self, 'Select Document', '', 'Supported Files (*.pdf *.docx *.xlsx *.xls *.csv *.png *.jpg *.jpeg *.gif *.bmp *.tiff);;All Files (*.*)')
+        if file_name:
+            self.process_document(file_name)
 
-        # General auditor note (can be kept outside the rubric for consistency)
-        issues.append({
-            "severity": "auditor_note",
-            "title": "General Auditor Checks",
-            "detail": "Review compliance with Medicare Part B (qualified personnel, plan establishment/recert, timings/units, documentation integrity).",
-            "category": "General",
-            "trigger_keywords": []
-        })
+    def _toggle_scrub_setting(self, checked: bool):
+        self.scrub_before_display = checked
+        if self._current_raw_text:
+            shown = scrub_phi(self._current_raw_text) if self.scrub_before_display else self._current_raw_text
+            self.document_display_area.setText(shown)
+            self.status_bar.showMessage(f"Scrub before display set to {'ON' if checked else 'OFF'}.")
 
-        return issues
-        if allow_cache and fp and sp:
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+
+    def dropEvent(self, event: QDropEvent):
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                file_path = url.toLocalFile()
+                self.process_document(file_path)
+            event.acceptProposedAction()
+        else:
+            super().dropEvent(event)
+
+    def _set_busy(self, busy: bool):
+        if busy:
+            self.progress_bar.setRange(0, 0)
+            self.cancel_button.setEnabled(True)
+        else:
+            self.progress_bar.setRange(0, 1)
+            self.cancel_button.setEnabled(False)
+
+    def process_document(self, file_path):
+        self.status_bar.showMessage(f"Processing: {os.path.basename(file_path)}")
+        self.document_display_area.setText("Processing document in background...")
+        self._current_raw_text = ""
+        self._current_sentences_with_source = []
+        self._current_entities_spacy = ""
+        self._current_entities_transformer = ""
+        self._set_busy(True)
+        self._doc_thread = QThread()
+        self._doc_worker = DocumentWorker(file_path)
+        self._doc_worker.moveToThread(self._doc_thread)
+        self._doc_thread.started.connect(self._doc_worker.run)
+        self._doc_worker.finished.connect(self._handle_doc_finished)
+        self._doc_worker.error.connect(self._handle_doc_error)
+        self._doc_worker.progress.connect(lambda p: self.status_bar.showMessage(f"Document processing... {p}%"))
+        self._doc_worker.finished.connect(self._doc_thread.quit)
+        self._doc_worker.finished.connect(self._doc_worker.deleteLater)
+        self._doc_thread.finished.connect(self._doc_thread.deleteLater)
+        self._doc_thread.start()
+
+    def cancel_analysis(self):
+        canceled = False
+        if hasattr(self, "_doc_worker") and self._doc_worker is not None:
             try:
-                _save_cached_outputs(fp, sp, {"csv": result_info["csv"], "html": result_info["html"],
-                                              "json": result_info["json"], "pdf": result_info["pdf"],
-                                              "summary": result_info["summary"]})
+                self._doc_worker.cancel()
+                canceled = True
             except Exception:
-                ...
-        try:
-            if result_info["pdf"]:
-                set_setting("last_report_pdf", result_info["pdf"])
-            if result_info["csv"]:
-                set_setting("last_report_csv", result_info["csv"])
-            if result_info["json"]:
-                set_setting("last_report_json", result_info["json"])
-            set_setting("last_analyzed_file", file_path)
-        except Exception:
-            ...
-
-def run_analyzer(self, file_path: str,
-                 selected_disciplines: List[str],
-                 entity_consolidation_service: EntityConsolidationService,
-                 scrub_override: Optional[bool] = None,
-                 review_mode_override: Optional[str] = None,
-                 dedup_method_override: Optional[str] = None,
-                 progress_cb: Optional[Callable[[int, str], None]] = None,
-                 cancel_cb: Optional[Callable[[], bool]] = None,
-                 main_window_instance=None) -> dict:
-        def report(pct: int, msg: str):
-            if progress_cb:
-                try:
-                    progress_cb(max(0, min(100, int(pct))), msg)
-                except Exception:
-                    ...
-
-        def check_cancel():
-            if cancel_cb:
-                try:
-                    if cancel_cb():
-                        raise KeyboardInterrupt("Operation cancelled")
-                except KeyboardInterrupt:
-                    raise
-                except Exception:
-                    ...
-
-        result_info = {"csv": None, "html": None, "json": None, "pdf": None, "summary": None}
-        try:
-            set_bool_setting("last_analysis_from_cache", False)
-            if not file_path or not os.path.isfile(file_path):
-                logger.error(f"File not found: {file_path}")
-                return result_info
-            logger.info(f"Analyzing: {file_path}")
-            report(5, "Initializing settings")
-
-            scrub_enabled = scrub_override if scrub_override is not None else get_bool_setting("scrub_phi", True)
-            if scrub_override is not None:
-                set_bool_setting("scrub_phi", scrub_override)
-
-            global CURRENT_REVIEW_MODE
-            if review_mode_override in ("Moderate", "Strict"):
-                CURRENT_REVIEW_MODE = review_mode_override
-            
-            threshold = get_similarity_threshold()
-            dedup_method = (dedup_method_override or get_str_setting("dedup_method", "tfidf")).lower()
-            if dedup_method_override:
-                set_str_setting("dedup_method", dedup_method)
-            
+                pass
+        if hasattr(self, "_ner_worker") and self._ner_worker is not None:
             try:
-                add_recent_file(file_path)
+                self._ner_worker.cancel()
+                canceled = True
             except Exception:
-                ...
-            
-            allow_cache = get_bool_setting("allow_cache", True)
-            fp = _file_fingerprint(file_path)
-            sp = _settings_fingerprint(scrub_enabled, CURRENT_REVIEW_MODE, dedup_method)
-            
-            if allow_cache and fp and sp:
-                cached = _load_cached_outputs(fp, sp)
-                if cached and cached.get("pdf"):
-                    report(100, "Done (cached)")
-                    set_bool_setting("last_analysis_from_cache", True)
-                    logger.info("Served from cache.")
-                    return cached
-            
-            check_cancel()
-            report(10, "Parsing document")
-            original = parse_document_content(file_path)
-            if len(original) == 1 and original[0][0].startswith(("Error:", "Info:")):
-                logger.warning(f"{original[0][1]}: {original[0][0]}")
-                return result_info
-            
-            check_cancel()
-            report(30, "Scrubbing PHI" if scrub_enabled else "Skipping PHI scrubbing")
-            processed = [(scrub_phi(t) if scrub_enabled else t, s) for (t, s) in original]
-            
-            check_cancel()
-            report(50, f"Reducing near-duplicates ({dedup_method})")
-            if dedup_method == "tfidf":
-                collapsed = collapse_similar_sentences_tfidf(processed, threshold)
-            else:
-                collapsed = collapse_similar_sentences_simple(processed, threshold)
-            collapsed = list(collapsed)
-            
-            # This is the merged section
-            ner_results = []
-            formatted_entities = []
+                pass
+        if hasattr(self, "_analysis_worker") and self._analysis_worker is not None:
+            try:
+                self._analysis_worker.cancel()
+                canceled = True
+            except Exception:
+                pass
+        if canceled:
+            self.status_bar.showMessage("Cancel requested...")
+        else:
+            self.status_bar.showMessage("Nothing to cancel.")
 
-            if get_bool_setting("enable_ner_ensemble", True) and self.ner_service and self.entity_consolidation_service:
-                if self.ner_service.is_ready():
-                    report(65, "Running NER Ensemble")
-                    ner_sentences = [text for text, src in collapsed]
-                    raw_ner_results = self.ner_service.extract_entities(full_text, ner_sentences)
-                    embedding_model = self.local_rag.embedding_model if self.local_rag else None
-                    ner_results = self.entity_consolidation_service.consolidate_entities(
-                        raw_ner_results, full_text, embedding_model=embedding_model
-                    )
-                    if ner_results:
-                        logger.info(f"Consolidated NER results: {len(ner_results)} entities found.")
-
-                        # LLM-based Fact-Checking
-                        if self.local_rag and self.local_rag.is_ready():
-                            report(68, "Fact-checking NER findings with AI")
-                            for entity in ner_results:
-                                if entity.label == "DISAGREEMENT":
-                                    continue
-                                prompt = (
-                                    "You are a clinical documentation expert. Based on the document context, "
-                                    "is the following finding plausible and correctly labeled?\n\n"
-                                    f"Finding: \"{entity.text}\"\n"
-                                    f"Label: \"{entity.label}\"\n\n"
-                                    "Answer with only one word: 'Confirmed', 'Rejected', or 'Uncertain'."
-                                )
-                                try:
-                                    response = self.local_rag.query(prompt, k=2)
-                                    validation_status = "Uncertain"
-                                    if "confirmed" in response.lower():
-                                        validation_status = "Confirmed"
-                                    elif "rejected" in response.lower():
-                                        validation_status = "Rejected"
-                                    entity.llm_validation = validation_status
-                                    logger.info(f"LLM validation for '{entity.text}' ({entity.label}): {validation_status}")
-
-                                    # Update NER Performance DB
-                                    if validation_status in ("Confirmed", "Rejected"):
-                                        for model_name in entity.models:
-                                            update_ner_performance(model_name, entity.label, validation_status)
-                                except Exception as e:
-                                    logger.warning(f"LLM fact-checking failed for entity '{entity.text}': {e}")
-                        
-                        # Formatting extracted entities as in main branch
-                        formatted_entities = _format_entities_for_rag(ner_results)
-                        logger.info(f"Formatted {len(formatted_entities)} entities for downstream use.")
-                else:
-                    logger.warning("NER service was enabled but not ready. Skipping NER.")
-            
-            # The rest of the `run_analyzer` function would follow here...
-            self.btn_export_view = QPushButton("Export View to PDF")
-            self._style_action_button(self.btn_export_view, font_size=11, bold=True, height=28, padding="4px 10px")
-            self.btn_export_view.clicked.connect(self.action_export_view_to_pdf)
-            row_results_actions.addWidget(self.btn_export_view)
-
-def export_report_pdf(lines: list[str], pdf_path: str, meta: Optional[dict] = None,
-                          chart_data: Optional[dict] = None,
-                          sev_counts: Optional[dict] = None,
-                          cat_counts: Optional[dict] = None) -> bool:
-        try:
-            if not QApplication.instance():
-                import matplotlib
-                matplotlib.use("Agg")
-            os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
-            import math, textwrap
-            import matplotlib.pyplot as plt
-            from matplotlib.backends.backend_pdf import PdfPages
-            from matplotlib.patches import FancyBboxPatch
-
-            theme = (get_str_setting("pdf_chart_theme", "dark") or "dark").lower()
-            if theme == "light":
-                chart_colors = ["#b91c1c", "#b45309", "#047857", "#374151"]
-                xtick = ytick = "#111827"
-                spine = "#6b7280"
-                fig_face = "#ffffff"
-                ax_face = "#ffffff"
-                ylabel_color = "#111827"
-            else:
-                chart_colors = ["#ef4444", "#f59e0b", "#10b981", "#9ca3af"]
-                xtick = ytick = "#e5e7eb"
-                spine = "#9aa1a8"
-                fig_face = "#2b2b2b"
-                ax_face = "#2b2b2b"
-                ylabel_color = "#e5e7eb"
-
-            font_family = REPORT_FONT_FAMILY
-            font_size = float(get_str_setting("pdf_font_size", REPORT_FONT_SIZE))
-
-            page_w, page_h = REPORT_PAGE_SIZE
-            margin_top = float(get_str_setting("pdf_margin_top", "1.1"))
-            margin_right = float(get_str_setting("pdf_margin_right", "1.0"))
-            margin_bottom = float(get_str_setting("pdf_margin_bottom", "1.3"))
-            margin_left = float(get_str_setting("pdf_margin_left", "1.0"))
-            usable_width_in = page_w - (margin_left + margin_right)
-            approx_char_width_in = max(0.12, (font_size * 0.56) / 72.0)
-            chars_per_line = max(56, int(usable_width_in / approx_char_width_in))
-
-            wrapped: list[str] = []
-            for ln in lines:
-                s = "" if ln is None else str(ln)
-                s = s.replace("<b>", "*").replace("</b>", "*")
-                if not s:
-                    wrapped.append("")
-                    continue
-                for block in textwrap.wrap(s, width=chars_per_line, replace_whitespace=False, drop_whitespace=False):
-                    wrapped.append(block)
-                if s.endswith(":") or s.istitle():
-                    wrapped.append("")
-
-            line_height_in = (font_size / 72.0) * 2.0
-            usable_height_in = page_h - (margin_top + margin_bottom)
-            header_lines = REPORT_HEADER_LINES
-            footer_lines = REPORT_FOOTER_LINES
-
-            chart_enabled = get_bool_setting("pdf_chart_enabled", True)
-            chart_position = (get_str_setting("pdf_chart_position", "bottom") or "bottom").lower()
-            if not chart_enabled or chart_position == "none":
-                chart_data = None
-                sev_counts = None
-                cat_counts = None
-
-            top_chart_h = 0.12
-            bottom_charts_h = 0.26
-            chart_on_top = (chart_data is not None) and (chart_position == "top")
-            chart_on_bottom = (chart_data is not None) and (chart_position == "bottom")
-
-            reserved_top = top_chart_h if chart_on_top else 0.0
-            reserved_bottom = bottom_charts_h if chart_on_bottom else 0.0
-
-            header_reserve_in = header_lines * line_height_in
-            footer_reserve_in = footer_lines * line_height_in
-            text_area_height_in = usable_height_in * (
-                    1.0 - reserved_top - reserved_bottom) - header_reserve_in - footer_reserve_in
-            if text_area_height_in < (12 * line_height_in):
-                chart_on_top = False
-                chart_on_bottom = False
-                reserved_top = reserved_bottom = 0.0
-                text_area_height_in = usable_height_in - header_reserve_in - footer_reserve_in
-
-            lines_per_page = max(10, int(text_area_height_in / line_height_in))
-
-            risk_label = (meta or {}).get("risk_label", "")
-            risk_color = (meta or {}).get("risk_color", "#6b7280")
-            header_left = meta.get("file_name", "") if meta else ""
-            header_right = f"{meta.get('run_time', _now_iso())} | Template {REPORT_TEMPLATE_VERSION}" if meta else _now_iso()
-
-            with PdfPages(pdf_path) as pdf:
-                total_lines = len(wrapped)
-                total_pages = max(1, math.ceil(total_lines / lines_per_page))
-                for page_idx in range(total_pages):
-                    start = page_idx * lines_per_page
-                    end = min(start + lines_per_page, total_lines)
-                    page_lines = wrapped[start:end]
-
-                    fig = plt.figure(figsize=(page_w, page_h))
-                    fig.patch.set_facecolor(fig_face)
-                    ax = fig.add_axes([
-                        margin_left / page_w,
-                        margin_bottom / page_h,
-                        (page_w - margin_left - margin_right) / page_w,
-                        (page_h - margin_top - margin_bottom) / page_h,
-                    ])
-                    ax.set_facecolor(ax_face)
-                    ax.axis("off")
-
-                    ax.text(0, 1, header_left, va="top", ha="left", family=font_family, fontsize=font_size + 1.0,
-                            color=xtick)
-                    ax.text(1, 1, header_right, va="top", ha="right", family=font_family, fontsize=font_size + 1.0,
-                            color=xtick)
-
-                    try:
-                        if risk_label:
-                            ax.add_patch(FancyBboxPatch(
-                                (0.82, 0.965), 0.16, 0.05, boxstyle="round,pad=0.008,rounding_size=0.01",
-                                linewidth=0.0, facecolor=risk_color, transform=ax.transAxes
-                            ))
-                            ax.text(0.90, 0.99, f"Risk: {risk_label}", va="top", ha="center",
-                                    family=font_family, fontsize=font_size + 0.6,
-                                    color="#111827" if risk_label != "High" else "#ffffff",
-                                    transform=ax.transAxes)
-                    except Exception:
-                        ...
-
-                    if page_idx == 0 and chart_on_top:
-                        try:
-                            cats = ["Flags", "Findings", "Suggestions", "Notes"]
-                            vals = [sev_counts.get("flag", 0), sev_counts.get("finding", 0),
-                                    sev_counts.get("suggestion", 0), sev_counts.get("auditor_note", 0)] if sev_counts else [
-                                0, 0, 0, 0]
-                            ax_chart = fig.add_axes([0.07, 0.81, 0.86, 0.12])
-                            ax_chart.bar(cats, vals, color=chart_colors)
-                            ax_chart.set_ylabel("Count", fontsize=font_size + 0.6, color=ylabel_color)
-                            ax_chart.set_facecolor(ax_face)
-                            for lab in ax_chart.get_xticklabels():
-                                lab.set_fontsize(font_size + 0.3)
-                                lab.set_color(xtick)
-                            for lab in ax_chart.get_yticklabels():
-                                lab.set_fontsize(font_size - 0.1)
-                                lab.set_color(ytick)
-                            for sp in ax_chart.spines.values():
-                                sp.set_color(spine)
-                        except Exception:
-                            ...
-
-                    ax.text(0.5, 0, f"Page {page_idx + 1} / {total_pages}", va="bottom", ha="center",
-                            family=font_family, fontsize=font_size, color=xtick)
-
-                    y_text_top = 1 - ((REPORT_HEADER_LINES * line_height_in) / (page_h - (margin_top + margin_bottom)))
-                    if page_idx == 0 and chart_on_top:
-                        y_text_top -= (top_chart_h + 0.02)
-
-                    cursor_y = y_text_top
-                    y_step = line_height_in / (page_h - (margin_top + margin_bottom))
-                    for ln in page_lines:
-                        is_section_header = bool(ln and ln.startswith("---") and ln.endswith("---"))
-                        if is_section_header:
-                            cursor_y -= y_step * 0.5
-                            ax.axhline(y=cursor_y + (y_step * 0.2), xmin=0, xmax=1, color=spine, linewidth=0.7)
-                            cursor_y -= y_step * 0.2
-                            ax.text(0.5, cursor_y, ln.strip("- "), va="top", ha="center", family=font_family,
-                                    fontsize=font_size + 1.5, color=xtick, weight="bold")
-                            cursor_y -= y_step * 1.2
-                            ax.axhline(y=cursor_y + (y_step * 0.5), xmin=0, xmax=1, color=spine, linewidth=0.7)
-                            cursor_y -= y_step * 0.5
-                        else:
-                            is_finding_header = bool(ln and ln.startswith("["))
-                            weight = "bold" if is_finding_header else "normal"
-                            size = font_size + (0.5 if is_finding_header else 0)
-                            ax.text(0, cursor_y, ln, va="top", ha="left", family=font_family,
-                                    fontsize=size, color=xtick, weight=weight)
-                        cursor_y -= y_step
-
-                    if (page_idx == total_pages - 1) and chart_on_bottom and (sev_counts or cat_counts):
-                        try:
-                            y0 = 0.08
-                            h = 0.16
-                            if sev_counts:
-                                cats = ["Flags", "Findings", "Suggestions", "Notes"]
-                                vals = [sev_counts.get("flag", 0), sev_counts.get("finding", 0),
-                                        sev_counts.get("suggestion", 0), sev_counts.get("auditor_note", 0)]
-                                ax_s = fig.add_axes([0.07, y0, 0.40, h])
-                                ax_s.bar(cats, vals, color=["#ef4444", "#f59e0b", "#10b981", "#9ca3af"])
-                                ax_s.set_title("Findings by Severity", fontsize=font_size + 0.8, color=xtick)
-                                ax_s.set_facecolor(ax_face)
-                                for lab in ax_s.get_xticklabels():
-                                    lab.set_fontsize(font_size)
-                                    lab.set_color(xtick)
-                                    lab.set_rotation(20)
-                                for lab in ax_s.get_yticklabels():
-                                    lab.set_fontsize(font_size - 0.2)
-                                    lab.set_color(ytick)
-                                for sp in ax_s.spines.values():
-                                    sp.set_color(spine)
-                            if cat_counts:
-                                cats = list(cat_counts.keys())[:8]
-                                vals = [cat_counts[c] for c in cats]
-                                ax_c = fig.add_axes([0.55, y0, 0.38, h])
-                                ax_c.bar(cats, vals, color="#60a5fa")
-                                ax_c.set_title("Top Categories", fontsize=font_size + 0.8, color=xtick)
-                                ax_c.set_facecolor(ax_face)
-                                for lab in ax_c.get_xticklabels():
-                                    lab.set_fontsize(font_size)
-                                    lab.set_color(xtick)
-                                    lab.set_rotation(20)
-                                for lab in ax_c.get_yticklabels():
-                                    lab.set_fontsize(font_size - 0.2)
-                                    lab.set_color(ytick)
-                                for sp in ax_c.spines.values():
-                                    sp.set_color(spine)
-                        except Exception:
-                            ...
-                    pdf.savefig(fig, bbox_inches="tight")
-                    plt.close(fig)
-            return True
-        except Exception as e:
-            logger.error(f"Failed to export PDF: {e}")
-            return False
-
-def action_export_view_to_pdf(self):
-        """Exports the current content of the main chat/analysis view to a PDF."""
-        if not self.current_report_data:
-            QMessageBox.warning(self, "Export Error", "Please analyze a document first.")
+    def _handle_doc_finished(self, sentences_with_source: List[Tuple[str, str]]):
+        self._set_busy(False)
+        self._current_sentences_with_source = sentences_with_source
+        self._current_raw_text = "\n".join([text for text, source in sentences_with_source])
+        display_text = self._current_raw_text
+        if isinstance(display_text, str) and len(display_text) > 100000:
+            display_text = display_text[:100000] + "\n...[truncated for display]"
+        if self.scrub_before_display:
+            display_text = scrub_phi(display_text)
+        self.document_display_area.setText(display_text)
+        self.status_bar.showMessage("Document processed.")
+        if not self._current_raw_text or self._current_raw_text.startswith("Unsupported file type") or self._current_raw_text.startswith("Error processing file"):
             return
+        self.process_spacy_basic_nlp(self._current_raw_text)
+        self.process_spacy_ner(self._current_raw_text)
+        self.process_biomedical_ner_async(self._current_raw_text)
 
-        default_filename = os.path.basename(self.current_report_data.get('file', 'report.pdf'))
-        default_filename = os.path.splitext(default_filename)[0] + "_annotated.pdf"
+    def _handle_doc_error(self, message: str):
+        self._set_busy(False)
+        self.document_display_area.setText(message)
+        self.status_bar.showMessage("Document processing failed.")
 
-        save_path, _ = QFileDialog.getSaveFileName(
-            self, "Save PDF", default_filename, "PDF Files (*.pdf)"
+    def process_spacy_basic_nlp(self, text):
+        if not nlp or not text.strip():
+            self.spacy_nlp_results_area.setText("SpaCy model not available (offline and not installed).")
+            return
+        doc = nlp(text)
+        tokens = [token.text for token in doc]
+        sentences = [sent.text for sent in doc.sents]
+        nlp_output = (
+            "--- Tokens ---\n" +
+            "\n".join(tokens) +
+            "\n\n--- Sentences ---\n" +
+            "\n".join(sentences)
         )
+        self.spacy_nlp_results_area.setText(nlp_output)
+        self.status_bar.showMessage("SpaCy basic NLP complete.")
 
+    def process_biomedical_ner_async(self, text: str):
+        self.clinical_ner_results_area.setText("Running Clinical/Biomedical NER...")
+        self.status_bar.showMessage("Running Clinical/Biomedical NER in background...")
+        self._set_busy(True)
+        self._ner_thread = QThread()
+        self._ner_worker = NERWorker(text)
+        self._ner_worker.moveToThread(self._ner_thread)
+        self._ner_thread.started.connect(self._ner_worker.run)
+        self._ner_worker.finished.connect(self._handle_ner_finished)
+        self._ner_worker.error.connect(self._handle_ner_error)
+        self._ner_worker.progress.connect(lambda p: self.status_bar.showMessage(f"NER... {p}%"))
+        self._ner_worker.finished.connect(self._ner_thread.quit)
+        self._ner_worker.finished.connect(self._ner_worker.deleteLater)
+        self._ner_thread.finished.connect(self._ner_thread.deleteLater)
+        self._ner_thread.start()
+
+    def _handle_ner_finished(self, model_name: str, formatted_output: str):
+        self._set_busy(False)
+        self._current_entities_transformer = formatted_output
+        self.clinical_ner_results_area.setText(f"[Model: {model_name}]\n{formatted_output}")
+        self.status_bar.showMessage("Clinical/Biomedical NER processing complete.")
+
+    def _handle_ner_error(self, message: str):
+        self._set_busy(False)
+        self.clinical_ner_results_area.setText(message)
+        self.status_bar.showMessage("Clinical/Biomedical NER processing failed.")
+
+    def process_spacy_ner(self, text):
+        if not nlp or not text.strip():
+            self.spacy_ner_results_area.setText("SpaCy model not available (offline and not installed).")
+            return
+        self.status_bar.showMessage("Running SpaCy NER...")
+        try:
+            doc = nlp(text)
+            formatted_results = [f"Entity: {ent.text} | Type: {ent.label_}" for ent in doc.ents]
+            self._current_entities_spacy = "\n".join(formatted_results) if formatted_results else "No entities detected by SpaCy."
+            self.spacy_ner_results_area.setText(self._current_entities_spacy)
+            self.status_bar.showMessage("SpaCy NER processing complete.")
+        except Exception as e:
+            self.spacy_ner_results_area.setText(f"Error during SpaCy NER: {e}")
+            self.status_bar.showMessage("SpaCy NER processing failed.")
+
+    def clear_document_display(self):
+        self.document_display_area.clear()
+        self.spacy_nlp_results_area.clear()
+        self.clinical_ner_results_area.clear()
+        self.spacy_ner_results_area.clear()
+        self.analysis_results_area.clear()
+        self._current_raw_text = ""
+        self._current_sentences_with_source = []
+        self._current_entities_spacy = ""
+        self._current_entities_transformer = ""
+        self.status_bar.showMessage('Display cleared.')
+
+    def manage_rubrics(self):
+        dialog = RubricManagerDialog(self)
+        dialog.exec()
+        self.load_rubrics_to_main_list()
+
+    def load_rubrics_to_main_list(self):
+        self.rubric_list_widget.clear()
+        try:
+            if not os.path.exists(DATABASE_PATH):
+                return
+            with sqlite3.connect(DATABASE_PATH) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT id, name FROM rubrics ORDER BY name ASC")
+                for rubric_id, name in cur.fetchall():
+                    item = QListWidgetItem(name)
+                    item.setData(Qt.ItemDataRole.UserRole, rubric_id)
+                    self.rubric_list_widget.addItem(item)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to load rubrics into main list:\n{e}")
+
+    def run_rubric_analysis(self):
+        if not self._current_sentences_with_source:
+            QMessageBox.warning(self, "Analysis Error", "Please upload a document to analyze first.")
+            return
+        selected_items = self.rubric_list_widget.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "Analysis Error", "Please select a rubric from the list to run the analysis.")
+            return
+        try:
+            rubric_id = selected_items[0].data(Qt.ItemDataRole.UserRole)
+            with sqlite3.connect(DATABASE_PATH) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT content FROM rubrics WHERE id = ?", (rubric_id,))
+                result = cur.fetchone()
+            if not result:
+                QMessageBox.critical(self, "Database Error", "Could not find the selected rubric in the database.")
+                return
+            rubric_content = result[0]
+        except Exception as e:
+            QMessageBox.critical(self, "Database Error", f"Failed to retrieve rubric content:\n{e}")
+            return
+        self.analysis_results_area.setText("Running rubric analysis...")
+        self.status_bar.showMessage("Starting rubric analysis in background...")
+        self._set_busy(True)
+        self.progress_bar.setRange(0, 100)
+        self._analysis_thread = QThread()
+        self._analysis_worker = AnalysisWorker(self._current_sentences_with_source, rubric_content, OFFLINE_ONLY)
+        self._analysis_worker.moveToThread(self._analysis_thread)
+        self._analysis_thread.started.connect(self._analysis_worker.run)
+        self._analysis_worker.finished.connect(self._handle_analysis_finished)
+        self._analysis_worker.error.connect(self._handle_analysis_error)
+        self._analysis_worker.progress.connect(lambda p: self.status_bar.showMessage(f"Rubric analysis... {p}%"))
+        self._analysis_worker.progress.connect(self.progress_bar.setValue)
+        self._analysis_worker.finished.connect(self._analysis_thread.quit)
+        self._analysis_worker.finished.connect(self._analysis_worker.deleteLater)
+        self._analysis_thread.finished.connect(self._analysis_thread.deleteLater)
+        self._analysis_thread.start()
+
+    def _handle_analysis_finished(self, report: str):
+        self._set_busy(False)
+        self.analysis_results_area.setText(report)
+        self.status_bar.showMessage("Rubric analysis complete.")
+        self.progress_bar.setRange(0, 1)
+
+    def _handle_analysis_error(self, message: str):
+        self._set_busy(False)
+        self.analysis_results_area.setText(f"Analysis Failed:\n{message}")
+        self.status_bar.showMessage("Rubric analysis failed.")
+        self.progress_bar.setRange(0, 1)
+
+    def _build_report_html(self) -> str:
+        text_for_report = scrub_phi(self._current_raw_text or "")
+        spacy_entities = scrub_phi(self._current_entities_spacy or "")
+        hf_entities = scrub_phi(self._current_entities_transformer or "")
+        html = f"""<html><head><meta charset=\"utf-8\"><style>body {{ font-family: Arial, sans-serif; }} h1 {{ font-size: 18pt; }} h2 {{ font-size: 14pt; margin-top: 12pt; }} pre {{ white-space: pre-wrap; font-family: Consolas, monospace; background: #f4f4f4; padding: 8px; }}</style></head><body><h1>Therapy Compliance Analysis Report</h1><p><b>Mode:</b> Offline | <b>PHI Scrubbing:</b> Enabled for export</p><h2>Extracted Text (scrubbed)</h2><pre>{text_for_report}</pre><h2>SpaCy Entities (scrubbed)</h2><h2>Clinical/Biomedical NER (scrubbed)</h2><pre>{hf_entities}</pre></body></html>"""
+        return html
+
+    def generate_report_pdf(self):
+        if not self._current_raw_text:
+            QMessageBox.information(self, "Generate Report", "No document data to export.")
+            return
+        save_path, _ = QFileDialog.getSaveFileName(self, 'Save Report as PDF', '', 'PDF Files (*.pdf)')
         if not save_path:
             return
-
         try:
-            self.statusBar().showMessage("Exporting to PDF...")
-            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-
-            html_content = self.txt_chat.toHtml()
-            # ... The rest of the PDF export logic would go here ...
-            self.statusBar().showMessage("PDF exported successfully.")
-            QMessageBox.information(self, "Export Successful", f"PDF saved to:\n{save_path}")
+            printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+            printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+            if not save_path.lower().endswith(".pdf"):
+                save_path += ".pdf"
+            printer.setOutputFileName(save_path)
+            from PyQt6.QtGui import QTextDocument
+            doc = QTextDocument()
+            doc.setHtml(self._build_report_html())
+            doc.print(printer)
+            QMessageBox.information(self, "Generate Report", f"PDF saved to:\n{save_path}")
         except Exception as e:
-            self.set_error(str(e))
-            QMessageBox.critical(self, "Export Error", f"Failed to export PDF:\n{e}")
-        finally:
-            QApplication.restoreOverrideCursor()
-def run_analyzer(self, file_path: str,
-                 selected_disciplines: List[str],
-                 entity_consolidation_service: EntityConsolidationService,
-                 scrub_override: Optional[bool] = None,
-                 review_mode_override: Optional[str] = None,
-                 dedup_method_override: Optional[str] = None,
-                 progress_cb: Optional[Callable[[int, str], None]] = None,
-                 cancel_cb: Optional[Callable[[], bool]] = None,
-                 main_window_instance=None) -> dict:
-    def report(pct: int, msg: str):
-        if progress_cb:
-            try:
-                progress_cb(max(0, min(100, int(pct))), msg)
-            except Exception:
-                ...
+            QMessageBox.critical(self, "Generate Report", f"Failed to create PDF:\n{e}")
 
-    def check_cancel():
-        if cancel_cb:
-            try:
-                if cancel_cb():
-                    raise KeyboardInterrupt("Operation cancelled")
-            except KeyboardInterrupt:
-                raise
-            except Exception:
-                ...
-
-    result_info = {"csv": None, "html": None, "json": None, "pdf": None, "summary": None}
-    try:
-        set_bool_setting("last_analysis_from_cache", False)
-        if not file_path or not os.path.isfile(file_path):
-            logger.error(f"File not found: {file_path}")
-            return result_info
-        logger.info(f"Analyzing: {file_path}")
-        report(5, "Initializing settings")
-
-        scrub_enabled = scrub_override if scrub_override is not None else get_bool_setting("scrub_phi", True)
-        if scrub_override is not None:
-            set_bool_setting("scrub_phi", scrub_override)
-
-        global CURRENT_REVIEW_MODE
-        if review_mode_override in ("Moderate", "Strict"):
-            CURRENT_REVIEW_MODE = review_mode_override
-        
-        threshold = get_similarity_threshold()
-        dedup_method = (dedup_method_override or get_str_setting("dedup_method", "tfidf")).lower()
-        if dedup_method_override:
-            set_str_setting("dedup_method", dedup_method)
-        
+    def print_report(self):
+        if not self._current_raw_text:
+            QMessageBox.information(self, "Print Report", "No document data to print.")
+            return
         try:
-            add_recent_file(file_path)
-        except Exception:
-            ...
-        
-        allow_cache = get_bool_setting("allow_cache", True)
-        fp = _file_fingerprint(file_path)
-        sp = _settings_fingerprint(scrub_enabled, CURRENT_REVIEW_MODE, dedup_method)
-        
-        if allow_cache and fp and sp:
-            cached = _load_cached_outputs(fp, sp)
-            if cached and cached.get("pdf"):
-                report(100, "Done (cached)")
-                set_bool_setting("last_analysis_from_cache", True)
-                logger.info("Served from cache.")
-                return cached
-        
-        check_cancel()
-        report(10, "Parsing document")
-        original = parse_document_content(file_path)
-        if len(original) == 1 and original[0][0].startswith(("Error:", "Info:")):
-            logger.warning(f"{original[0][1]}: {original[0][0]}")
-            return result_info
-        
-        check_cancel()
-        report(30, "Scrubbing PHI" if scrub_enabled else "Skipping PHI scrubbing")
-        processed = [(scrub_phi(t) if scrub_enabled else t, s) for (t, s) in original]
-        
-        check_cancel()
-        report(50, f"Reducing near-duplicates ({dedup_method})")
-        if dedup_method == "tfidf":
-            collapsed = collapse_similar_sentences_tfidf(processed, threshold)
+            printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+            dialog = QPrintDialog(printer, self)
+            if dialog.exec() == QPrintDialog.DialogCode.Accepted:
+                from PyQt6.QtGui import QTextDocument
+                doc = QTextDocument()
+                doc.setHtml(self._build_report_html())
+                doc.print(printer)
+                self.status_bar.showMessage("Report sent to printer.")
+        except Exception as e:
+            QMessageBox.critical(self, "Print Report", f"Failed to print:\n{e}")
+
+    def show_paths(self):
+        msg = f"App path:\n{os.path.abspath(__file__)}\n\nDatabase path:\n{os.path.abspath(DATABASE_PATH)}"
+        QMessageBox.information(self, "Paths", msg)
+
+    def show_quickstart(self):
+        tips = (
+            "Quickstart (Offline HIPAA Mode):\n"
+            "1) Ensure SpaCy and NER models are pre-cached locally in this virtualenv.\n"
+            "2) Windows OCR: Install Tesseract and set TESSERACT_EXE env var if needed.\n"
+            "3) Click 'Upload Document' or drag & drop a file.\n"
+            "4) Text shows (scrubbed), SpaCy results, then Clinical NER finishes.\n"
+            "5) Use 'Generate Report (PDF)' or 'Print Report' for outputs.\n"
+            "6) Use 'Cancel Analysis' to stop long runs.\n"
+            "7) Tools → Verify Offline Readiness checks that everything is in place."
+        )
+        QMessageBox.information(self, "Quickstart", tips)
+
+    def verify_offline_readiness(self):
+        spacy_ok = nlp is not None
+        spacy_msg = "OK" if spacy_ok else "Missing (install en_core_web_sm in this venv)."
+        ner_ok = clinical_ner_pipeline is not None
+        model_msg = _loaded_model_name if ner_ok else "Missing (pre-cache NER model in this venv)."
+        tesseract_cmd = getattr(pytesseract.pytesseract, "tesseract_cmd", "")
+        if tesseract_cmd and os.path.isfile(tesseract_cmd):
+            tess_msg = f"OK ({tesseract_cmd})"
         else:
-            collapsed = collapse_similar_sentences_simple(processed, threshold)
-        collapsed = list(collapsed)
-        
-        # This is the merged section
-        ner_results = []
-        formatted_entities = []
+            tess_msg = "Unknown path (set TESSERACT_EXE env var or ensure in PATH)."
+        try:
+            import torch
+            torch_msg = "OK"
+        except Exception as e:
+            torch_msg = f"Missing ({e})"
+        msg = (
+            f"Offline Readiness:\n\n"
+            f"- SpaCy model: {spacy_msg}\n"
+            f"- Transformers NER model: {model_msg}\n"
+            f"- Tesseract: {tess_msg}\n"
+            f"- PyTorch: {torch_msg}\n"
+            f"- Offline mode: {'ENABLED' if OFFLINE_ONLY else 'Disabled'}"
+        )
+        QMessageBox.information(self, "Verify Offline Readiness", msg)
 
-        if get_bool_setting("enable_ner_ensemble", True) and self.ner_service and self.entity_consolidation_service:
-            if self.ner_service.is_ready():
-                report(65, "Running NER Ensemble")
-                ner_sentences = [text for text, src in collapsed]
-                raw_ner_results = self.ner_service.extract_entities(full_text, ner_sentences)
-                embedding_model = self.local_rag.embedding_model if self.local_rag else None
-                ner_results = self.entity_consolidation_service.consolidate_entities(
-                    raw_ner_results, full_text, embedding_model=embedding_model
-                )
-                if ner_results:
-                    logger.info(f"Consolidated NER results: {len(ner_results)} entities found.")
-
-                    # LLM-based Fact-Checking
-                    if self.local_rag and self.local_rag.is_ready():
-                        report(68, "Fact-checking NER findings with AI")
-                        for entity in ner_results:
-                            if entity.label == "DISAGREEMENT":
-                                continue
-                            prompt = (
-                                "You are a clinical documentation expert. Based on the document context, "
-                                "is the following finding plausible and correctly labeled?\n\n"
-                                f"Finding: \"{entity.text}\"\n"
-                                f"Label: \"{entity.label}\"\n\n"
-                                "Answer with only one word: 'Confirmed', 'Rejected', or 'Uncertain'."
-                            )
-                            try:
-                                response = self.local_rag.query(prompt, k=2)
-                                validation_status = "Uncertain"
-                                if "confirmed" in response.lower():
-                                    validation_status = "Confirmed"
-                                elif "rejected" in response.lower():
-                                    validation_status = "Rejected"
-                                entity.llm_validation = validation_status
-                                logger.info(f"LLM validation for '{entity.text}' ({entity.label}): {validation_status}")
-
-                                # Update NER Performance DB
-                                if validation_status in ("Confirmed", "Rejected"):
-                                    for model_name in entity.models:
-                                        update_ner_performance(model_name, entity.label, validation_status)
-                            except Exception as e:
-                                logger.warning(f"LLM fact-checking failed for entity '{entity.text}': {e}")
-                    
-                    # Formatting extracted entities as in main branch
-                    formatted_entities = _format_entities_for_rag(ner_results)
-                    logger.info(f"Formatted {len(formatted_entities)} entities for downstream use.")
-            else:
-                logger.warning("NER service was enabled but not ready. Skipping NER.")
-        
-        # The rest of the `run_analyzer` function would follow here...
-
-            except Exception as e:
-                self.set_error(f"An error occurred while querying the AI: {e}")
-                QMessageBox.warning(self, "AI Error", f"An error occurred: {e}")
-            finally:
-                self.statusBar().showMessage("Ready")
-                QApplication.restoreOverrideCursor()
-
-def _run_gui() -> Optional[int]:
-    try:
-        _ = QApplication
-    except Exception as e:
-        logger.warning(f"PyQt6 not available for GUI: {e}")
-        print("PyQt6 is not installed. Please install PyQt6 to run the GUI.")
-        return 0
-
-    # --- Trial Period Check ---
-    from datetime import date, timedelta
-    app = QApplication.instance() or QApplication(sys.argv)
-    trial_duration_days = get_int_setting("trial_duration_days", 30)
-    if trial_duration_days > 0:
-        first_run_str = get_setting("first_run_date")
-        if not first_run_str:
-            first_run_date = date.today()
-            set_setting("first_run_date", first_run_date.isoformat())
-        else:
-            try:
-                first_run_date = date.fromisoformat(first_run_str)
-            except (ValueError, TypeError):
-                first_run_date = date.today()
-                set_setting("first_run_date", first_run_date.isoformat())
-        expiration_date = first_run_date + timedelta(days=trial_duration_days)
-        if date.today() > expiration_date:
-            QMessageBox.critical(None, "Trial Expired",
-                                 f"Your trial period of {trial_duration_days} days has expired.\n"
-                                 "Please contact the administrator to continue using the application.")
-            return 0
-
-    apply_theme(app)
-    win = MainWindow()
-    try:
-        win.resize(1100, 780)
-        act_folder = QAction("Open Folder", win)
-        act_folder.setShortcut("Ctrl+Shift+O")
-        act_folder.triggered.connect(win.action_open_folder)
-        win.addAction(act_folder)
-
-        act_open = QAction("Open File", win)
-        act_open.setShortcut("Ctrl+O")
-        act_open.triggered.connect(win.action_open_report)
-        win.addAction(act_open)
-
-        act_prev = QAction("Preview/Edit (Rubric)", win)
-        act_prev.setShortcut("Ctrl+Shift+V")
-        act_prev.triggered.connect(win.action_upload_rubric)
-        win.addAction(act_prev)
-
-        act_batch = QAction("Analyze Batch", win)
-        act_batch.setShortcut("Ctrl+B")
-        act_batch.triggered.connect(win.action_analyze_batch)
-        win.addAction(act_batch)
-
-        act_batchc = QAction("Cancel Batch", win)
-        act_batchc.setShortcut("Ctrl+Shift+B")
-        act_batchc.triggered.connect(win.action_cancel_batch)
-        win.addAction(act_batchc)
-    except Exception:
-        ...
-    win.show()
-    try:
-        return app.exec()
-    except Exception:
-        return 0
-
-
-if __name__ == "__main__":
-    try:
-        code = _run_gui()
-        sys.exit(code if code is not None else 0)
-    except Exception:
-        logger.exception("GUI failed")
-        sys.exit(1)
-    try:
-        _ = QApplication
-    except Exception as e:
-        logger.warning(f"PyQt6 not available for GUI: {e}")
-        print("PyQt6 is not installed. Please install PyQt6 to run the GUI.")
-        return 0
-    # --- Trial Period Check ---
-    from datetime import datetime, date, timedelta
-    app = QApplication.instance() or QApplication(sys.argv)
-    trial_duration_days = get_int_setting("trial_duration_days", 30)
-    if trial_duration_days > 0:
-        first_run_str = get_setting("first_run_date")
-        if not first_run_str:
-            today = date.today()
-            set_setting("first_run_date", today.isoformat())
-            first_run_date = today
-        else:
-            try:
-                first_run_date = date.fromisoformat(first_run_str)
-            except (ValueError, TypeError):
-                first_run_date = date.today()
-                set_setting("first_run_date", first_run_date.isoformat())
-        expiration_date = first_run_date + timedelta(days=trial_duration_days)
-        if date.today() > expiration_date:
-            QMessageBox.critical(None, "Trial Expired",
-                                 f"Your trial period of {trial_duration_days} days has expired.\n"
-                                 "Please contact the administrator to continue using the application.")
-            return 0 # Exit cleanly
-
-    win = MainWindow()
-    win.show()
-    return app.exec()
-
-
-def _read_stylesheet(filename: str) -> str:
-    """Reads a stylesheet from the src/ directory."""
-    try:
-        path = os.path.join(BASE_DIR, filename)
-        with open(path, "r", encoding="utf-8") as f:
-            return f.read()
-    except Exception as e:
-        logger.warning(f"Could not load stylesheet {filename}: {e}")
-        return ""
-
-def apply_theme(app: QApplication):
-    theme = (get_str_setting("ui_theme", "dark") or "dark").lower()
-    stylesheet = ""
-    if theme == "light":
-        stylesheet = _read_stylesheet("light_theme.qss")
-    else:
-        stylesheet = _read_stylesheet("dark_theme.qss")
-    if stylesheet:
-        app.setStyleSheet(stylesheet)
-    else:
-        # Fallback to original hardcoded styles if files are missing
-        if theme == "light":
-            app.setStyleSheet("""
-                QMainWindow { background: #f3f4f6; color: #111827; }
-                QWidget { background: #f3f4f6; color: #111827; }
-                QTextEdit, QLineEdit { background: #ffffff; color: #111827; border: 1px solid #d1d5db; border-radius: 4px; }
-                QPushButton { background-color: #3b82f6; color: white; border: none; padding: 8px 12px; border-radius: 4px; }
-                QPushButton:hover { background-color: #2563eb; }
-                QToolBar { background: #e5e7eb; border-bottom: 1px solid #d1d5db; }
-                QStatusBar { background: #e5e7eb; color: #111827; }
-                QGroupBox { border: 1px solid #d1d5db; margin-top: 1em; }
-                QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 3px 0 3px; }
-            """)
-        else: # dark theme
-            app.setStyleSheet("""
-                QMainWindow { background: #1f2937; color: #e5e7eb; }
-                QWidget { background: #1f2937; color: #e5e7eb; }
-                QTextEdit, QLineEdit { background: #111827; color: #e5e7eb; border: 1px solid #4b5563; border-radius: 4px; }
-                QPushButton { background-color: #3b82f6; color: white; border: none; padding: 8px 12px; border-radius: 4px; }
-                QPushButton:hover { background-color: #2563eb; }
-                QToolBar { background: #111827; border-bottom: 1px solid #4b5563; }
-                QStatusBar { background: #111827; color: #e5e7eb; }
-                QGroupBox { border: 1px solid #4b5563; margin-top: 1em; }
-                QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 3px 0 3px; }
-            """)
-    f = QFont()
-    f.setPointSize(14)
-    app.setFont(f)
-
-
-if __name__ == "__main__":
-    try:
-        code = _run_gui()
-        sys.exit(code if code is not None else 0)
-    except Exception:
-        logger.exception("GUI failed")
-        sys.exit(1)
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    initialize_database()
+    main_win = MainWindow()
+    main_win.show()
+    sys.exit(app.exec())

@@ -40,7 +40,7 @@ class NERService:
         self.context_service = context_service
 
         for name, model_id in self.model_configs.items():
-if model_id == "JSL_MODEL_PLACEHOLDER":
+            if model_id == "JSL_MODEL_PLACEHOLDER":
                 logger.info(f"Skipping placeholder model '{name}'. User will integrate their JSL model here.")
                 continue
             try:

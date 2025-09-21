@@ -61,8 +61,7 @@ class LocalRAG:
             else:
                 logger.info("Using pre-loaded sentence transformer model.")
 
-# 2. Download and load the local LLM
-
+            # 2. Download and load the local LLM
             logger.info(f"Downloading LLM from {model_repo_id}...")
             model_path = hf_hub_download(
                 repo_id=model_repo_id, filename=model_filename
@@ -88,7 +87,7 @@ class LocalRAG:
 
     def create_index(self, texts: List[str]):
         """
-        Creates a FAISS index from a list of text chunks.
+        Creates a FAISS index and a TF-IDF matrix from a list of text chunks.
 
         Args:
             texts (List[str]): A list of strings, where each string is a
@@ -98,7 +97,7 @@ class LocalRAG:
             logger.warning("RAG system is not ready. Cannot create index.")
             return
 
-logger.info(f"Creating FAISS index for {len(texts)} text chunks.")
+        logger.info(f"Creating FAISS index for {len(texts)} text chunks.")
         self.text_chunks = texts
 
         embeddings = self.embedding_model.encode(
@@ -106,21 +105,11 @@ logger.info(f"Creating FAISS index for {len(texts)} text chunks.")
         )
         embedding_dim = embeddings.shape[1]
 
-
         # Create a FAISS index for semantic search
-
         self.index = faiss.IndexFlatL2(embedding_dim)
         self.index.add(np.array(embeddings, dtype=np.float32))
         logger.info("FAISS index created successfully.")
 
-def __init__(self, model_repo_id: str, model_filename: str):
-        self.tfidf_vectorizer = None
-        self.tfidf_matrix = None
-        # ... other initialization ...
-
-    def create_index(self, texts: List[str]):
-        # ... existing code for FAISS index creation ...
-        
         # Create a TF-IDF matrix for keyword search
         logger.info("Creating TF-IDF index for keyword search.")
         self.tfidf_vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2))
@@ -192,32 +181,14 @@ def __init__(self, model_repo_id: str, model_filename: str):
         Returns:
             str: The LLM's generated answer.
         """
-        # ... (the rest of the query function remains the same)
-
-        Returns:
-            str: The LLM's generated answer.
-        """
         if not self.is_ready() or not self.index or not self.embedding_model or not self.llm:
             return "The local AI chat is not available. Please check the logs for errors."
 
         logger.info(f"Received query: {question}")
-# 1. Find relevant text chunks from the FAISS index
+        # 1. Find relevant text chunks from the FAISS index
         retrieved_chunks = self.search_index(question, k=k)
 
         # 2. Construct the prompt
-        history_str = ""
-        if chat_history:
-            for sender, message in chat_history[-6:]:
-                if sender == 'user':
-                    history_str += f"Previous User Question: {message}\n"
-                elif sender == 'ai':
-                    history_str += f"Your Previous Answer: {message}\n"
-
-retrieved_chunks = self.search_index(question, k=k)
-
-        # 2. Construct the prompt
-
-        # Format the conversational history
         history_str = ""
         if chat_history:
             for sender, message in chat_history[-6:]:
@@ -246,7 +217,6 @@ retrieved_chunks = self.search_index(question, k=k)
             "Based on the provided context and conversation history, answer "
             f"the following question: {question}\n"
             "ENDINSTRUCTION\n"
-        )
         )
 
         logger.info("Sending prompt to LLM...")

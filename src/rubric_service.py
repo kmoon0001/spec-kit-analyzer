@@ -18,9 +18,8 @@ class ComplianceRule:
     issue_title: str
     issue_detail: str
     issue_category: str
-
-financial_impact: int = 0
-    discipline: str
+    financial_impact: int = 0
+    discipline: str = ""
     positive_keywords: List[str] = field(default_factory=list)
     negative_keywords: List[str] = field(default_factory=list)
 
@@ -59,6 +58,24 @@ class RubricService:
 
         # Prepare a SPARQL query to get all rules and their properties.
         # OPTIONAL blocks are used because not all rules have all properties (e.g., positive_keywords).
+        query = prepareQuery("""
+            SELECT ?rule ?severity ?strict_severity ?title ?detail ?category ?financial_impact ?discipline
+                   (GROUP_CONCAT(?pos_kw; SEPARATOR="|") AS ?positive_keywords)
+                   (GROUP_CONCAT(?neg_kw; SEPARATOR="|") AS ?negative_keywords)
+            WHERE {
+                ?rule a ns:ComplianceRule .
+                ?rule ns:hasSeverity ?severity .
+                ?rule ns:hasStrictSeverity ?strict_severity .
+                ?rule ns:hasIssueTitle ?title .
+                ?rule ns:hasIssueDetail ?detail .
+                ?rule ns:hasIssueCategory ?category .
+                ?rule ns:hasDiscipline ?discipline .
+                OPTIONAL { ?rule ns:hasFinancialImpact ?financial_impact . }
+                OPTIONAL { ?rule ns:hasPositiveKeyword ?pos_kw . }
+                OPTIONAL { ?rule ns:hasNegativeKeyword ?neg_kw . }
+            }
+            GROUP BY ?rule ?severity ?strict_severity ?title ?detail ?category ?financial_impact ?discipline
+        """, initNs={"ns": NS})
 
         rules = []
         try:
@@ -71,13 +88,12 @@ class RubricService:
                 rule = ComplianceRule(
                     uri=str(row.rule),
                     severity=str(row.severity),
-                    strict_severity=str(row.strict_severity),
+                    strict_severity=str(row.strict__severity),
                     issue_title=str(row.title),
                     issue_detail=str(row.detail),
                     issue_category=str(row.category),
-
-financial_impact=int(row.financial_impact) if row.financial_impact else 0,
-    discipline=str(row.discipline),
+                    financial_impact=int(row.financial_impact) if row.financial_impact else 0,
+                    discipline=str(row.discipline),
                     positive_keywords=[kw for kw in pos_kws if kw], # Filter out empty strings
                     negative_keywords=[kw for kw in neg_kws if kw]  # Filter out empty strings
                 )

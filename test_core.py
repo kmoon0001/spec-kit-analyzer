@@ -7,7 +7,7 @@ import unittest
 import importlib
 
 # Import the module under test
-import main as app
+from src import main as app
 
 
 class CoreTests(unittest.TestCase):
