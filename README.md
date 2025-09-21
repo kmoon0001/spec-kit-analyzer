@@ -1,11 +1,10 @@
 # Advanced LLM Orchestration Framework for Clinical Healthcare (Containerized)
 
-This project provides a production-ready, containerized framework for orchestrating multiple Large Language Models (LLMs) for clinical healthcare applications. It is designed to be modular, scalable, and compliant with healthcare industry best practices, and is now fully containerized with Docker for easy deployment and scalability.
+This project provides a production-ready framework for orchestrating multiple Large Language Models (LLMs) for clinical healthcare applications. It is designed to be modular, scalable, and compliant with healthcare industry best practices.
 
 ## 🌟 Key Features
 
 - **Service-Oriented API**: The entire framework is exposed via a **FastAPI** interface, making it easy to integrate with other applications.
-- **Fully Containerized**: The entire application stack (API, Worker, Redis) is managed by **Docker Compose**, allowing for one-command setup and deployment.
 - **Dynamic Workflows**: Orchestration is driven by a `config.yaml` file, allowing you to customize workflows without changing the code.
 - **Advanced PII Detection**: Integrates **Microsoft's Presidio** for state-of-the-art, offline PII detection.
 - **Retrieval-Augmented Generation (RAG)**: Includes a RAG pipeline powered by **FAISS** for question-answering against a local knowledge base.
@@ -25,9 +24,6 @@ This project provides a production-ready, containerized framework for orchestrat
 ├── build_vector_store.py
 ├── evaluate_ner_model.py
 ├── run_demo.py
-├── Dockerfile             # Defines the application container
-├── docker-compose.yml     # Orchestrates all services
-├── entrypoint.sh          # Handles container startup logic
 ├── requirements.txt
 └── src/
     ├── api.py               # The FastAPI application
@@ -39,23 +35,18 @@ This project provides a production-ready, containerized framework for orchestrat
 
 ### Prerequisites
 
-- **Docker** and **Docker Compose**: Ensure they are installed on your system.
+- **Python 3.9+** and **pip**: Ensure they are installed on your system.
 
 ### Running the Application
 
-With Docker, running the entire application stack is as simple as a single command. From the root directory of the project, run:
-
-```bash
-docker-compose up --build
-```
-
-- `--build`: This flag tells Docker Compose to build the application image from the `Dockerfile` the first time you run it, or if any code changes have been made.
-
-This command will:
-1.  Pull the official Redis image.
-2.  Build your application's Docker image, installing all Python dependencies.
-3.  Start the **Redis**, **API**, and **Celery Worker** services and connect them.
-4.  The `entrypoint.sh` script will automatically run `build_vector_store.py` inside the container to create the FAISS index.
+1.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+2.  **Run the application:**
+    ```bash
+    gunicorn -w 4 -k uvicorn.workers.UvicornWorker src.api:app
+    ```
 
 Your API will now be running and accessible at `http://localhost:8000`. You can view the interactive API documentation (provided by Swagger UI) by navigating to `http://localhost:8000/docs` in your browser.
 
@@ -77,16 +68,9 @@ Use the `task_id` from the previous step to check the result:
 curl http://localhost:8000/tasks/{your_task_id}
 ```
 
-### Stopping the Application
-
-To stop all the running containers, press `Ctrl+C` in the terminal where `docker-compose` is running, and then run:
-```bash
-docker-compose down
-```
-
 ## 🧪 Evaluating the NER Model
 
-To run the evaluation script, you can execute it within the running `api` container:
+To run the evaluation script, you can execute it from your terminal:
 ```bash
-docker-compose exec api python evaluate_ner_model.py
+python evaluate_ner_model.py
 ```
