@@ -525,6 +525,9 @@ except ImportError as e:
     class JSLNERService: pass
     class EntityConsolidationService: pass
     class NEREntity: pass
+    class JSLNERService: pass
+    class EntityConsolidationService: pass
+    class NEREntity: pass
 
 
     # Define dummy classes if imports fail
@@ -2401,6 +2404,442 @@ def run_analyzer(self, file_path: str,
             collapsed = collapse_similar_sentences_simple(processed, threshold)
         collapsed = list(collapsed)
 
+        # --- Index the document for global search ---
+        if main_window_instance and main_window_instance.local_rag and main_window_instance.local_rag.is_ready():
+            if not is_document_indexed(fp):
+                main_window_instance.log(f"Adding {os.path.basename(file_path)} to global search index...")
+                try:
+                    docs_to_index = [
+                        {"text": text, "metadata": {"file_path": file_path, "source": source}}
+                        for text, source in collapsed
+                    ]
+                    main_window_instance.local_rag.add_to_index(docs_to_index)
+                    mark_document_as_indexed(fp, file_path)
+                    main_window_instance.log("Document successfully indexed.")
+                except Exception as e:
+                    main_window_instance.log(f"Failed to index document: {e}")
+                    logger.error(f"Failed to index document {file_path}: {e}")
+
+        ner_results = {}
+        formatted_entities = []
+        if get_bool_setting("enable_biobert_ner", True):
+            report(65, "Running NER analysis")
+            ner_source_text = "\n".join(t for t, _ in collapsed)
+
+            if get_bool_setting("use_jsl_ner", False):
+                logger.info("Using John Snow Labs for NER.")
+                report(66, "Running John Snow Labs NER...")
+                jsl_service = JSLNERService()
+                if jsl_service.is_ready():
+                    jsl_entities = jsl_service.extract_entities(ner_source_text)
+                    ner_results["jsl"] = jsl_entities
+                    jsl_service.stop()
+                else:
+                    logger.warning("JSL NER Service is enabled but was not ready.")
+            else:
+                logger.info("Using BioBERT for NER.")
+                report(66, "Running BioBERT NER...")
+                ner_sentences = [text for text, src in collapsed]
+                biobert_results = run_biobert_ner(ner_sentences)
+
+                # Convert raw dicts to NEREntity objects and wrap in a dictionary
+                biobert_entities = [
+                    NEREntity(
+                        text=res.get('word'),
+                        label=res.get('entity_group'),
+                        score=res.get('score'),
+                        start=res.get('start'),
+                        end=res.get('end'),
+                        models=['biobert']
+                    ) for res in biobert_results
+                ]
+                ner_results["biobert"] = biobert_entities
+
+            if ner_results:
+                logger.info(f"NER process found {sum(len(v) for v in ner_results.values())} raw entities.")
+                consolidated_entities = entity_consolidation_service.consolidate_entities(ner_results, ner_source_text)
+                formatted_entities = _format_entities_for_rag(consolidated_entities)
+
+        check_cancel()
+        report(60, "Computing summary")
+        summary = build_rich_summary(processed, collapsed)
+
+        report(70, "Analyzing compliance")
+
+        use_llm_analysis = get_bool_setting("use_llm_analysis", True)
+        llm_is_ready = main_window_instance and main_window_instance.local_rag and main_window_instance.local_rag.is_ready()
+
+        if use_llm_analysis and llm_is_ready:
+            logger.info("--- Using LLM-based compliance analysis ---")
+            report(71, "Analyzing compliance with LLM...")
+
+            rubric_map = {
+                "pt": os.path.join(BASE_DIR, "pt_compliance_rubric.ttl"),
+                "ot": os.path.join(BASE_DIR, "ot_compliance_rubric.ttl"),
+                "slp": os.path.join(BASE_DIR, "slp_compliance_rubric.ttl"),
+            }
+            all_rules = []
+            for discipline in selected_disciplines:
+                path = rubric_map.get(discipline)
+                if path and os.path.exists(path):
+                    try:
+                        service = RubricService(path)
+                        all_rules.extend(service.get_rules())
+                    except Exception as e:
+                        logger.warning(f"Failed to load rubric for {discipline}: {e}")
+
+            seen_titles = set()
+            unique_rules = []
+            for rule in all_rules:
+                if rule.issue_title not in seen_titles:
+                    unique_rules.append(rule)
+                    seen_titles.add(rule.issue_title)
+
+            rules_as_dicts = [r.__dict__ for r in unique_rules]
+
+            issues_scored = run_llm_analysis(
+                llm=main_window_instance.local_rag.llm,
+                chunks=[text for text, src in collapsed],
+                rules=rules_as_dicts,
+                file_path=file_path
+            )
+            logger.info(f"LLM analysis found {len(issues_scored)} issues.")
+
+        else:
+            if not llm_is_ready:
+                logger.warning("LLM not ready, falling back to keyword-based audit.")
+            logger.info("--- Using keyword-based compliance analysis ---")
+            report(71, "Analyzing compliance with keywords...")
+            full_text = "\n".join(t for t, _ in collapsed)
+            strict_flag = (CURRENT_REVIEW_MODE == "Strict")
+            issues_base = _audit_from_rubric(full_text, selected_disciplines, strict=strict_flag)
+            issues_scored = _score_issue_confidence(_attach_issue_citations(issues_base, collapsed), collapsed)
+
+        full_text_for_loc = "\n".join(t for t, _ in collapsed)
+        for issue in issues_scored:
+            if issue.get("citations"):
+                cite_text_html = issue["citations"][0][0]
+                cite_text = re.sub('<[^<]+?>', '', cite_text_html)
+                try:
+                    start_index = full_text_for_loc.index(cite_text)
+                    end_index = start_index + len(cite_text)
+                    issue['location'] = {'start': start_index, 'end': end_index}
+                except ValueError:
+                    logger.warning(f"Could not find citation text in document: '{cite_text[:50]}...'")
+                    issue['location'] = None
+
+        sev_order = {"flag": 0, "finding": 1, "suggestion": 2, "auditor_note": 3}
+        issues_scored.sort(key=lambda x: (sev_order.get(str(x.get("severity")), 9),
+                                          str(x.get("category", "")),
+                                          str(x.get("title", ""))))
+
+        nlg_service = NLGService()
+        for issue in issues_scored:
+            prompt = f"Generate a brief, actionable tip for a physical therapist to address this finding: {issue.get('title', '')} ({issue.get('severity', '')}) - {issue.get('detail', '')}"
+            tip = nlg_service.generate_tip(prompt)
+            issue['nlg_tip'] = tip
+
+        issue_details_map = {
+            "Provider signature/date possibly missing": {
+                "action": "Ensure all entries are signed and dated by the qualified provider.",
+                "why": "Signatures and dates are required by Medicare to authenticate that services were rendered as billed.",
+                "good_example": "'Patient seen for 30 minutes of therapeutic exercise. [Provider Name], PT, DPT. 09/14/2025'",
+                "bad_example": "An unsigned, undated note."
+            },
+            "Goals may not be measurable/time-bound": {
+                "action": "Rewrite goals to include a baseline, specific target, and a clear timeframe (e.g., 'improve from X to Y in 2 weeks').",
+                "why": "Measurable goals are essential to demonstrate progress and justify the need for skilled intervention.",
+                "good_example": "'Patient will improve shoulder flexion from 90 degrees to 120 degrees within 2 weeks to allow for independent overhead dressing.'",
+                "bad_example": "'Patient will improve shoulder strength.'"
+            },
+            "Medical necessity not explicitly supported": {
+                "action": "Clearly link each intervention to a specific functional deficit and explain why the skill of a therapist is required.",
+                "why": "Medicare only pays for services that are reasonable and necessary for the treatment of a patient's condition.",
+                "good_example": "'...skilled verbal and tactile cues were required to ensure proper form and prevent injury.'",
+                "bad_example": "'Patient tolerated treatment well.'"
+            },
+            "Assistant supervision context unclear": {
+                "action": "Document the level of supervision provided to the assistant, in line with state and Medicare guidelines.",
+                "why": "Proper supervision of therapy assistants is a condition of payment and ensures quality of care.",
+                "good_example": "'PTA provided services under the direct supervision of the physical therapist who was on-site.'",
+                "bad_example": "No mention of supervision when a PTA is involved."
+            },
+            "Plan/Certification not clearly referenced": {
+                "action": "Explicitly reference the signed Plan of Care and certification/recertification dates in progress notes.",
+                "why": "Services must be provided under a certified Plan of Care to be eligible for reimbursement.",
+                "good_example": "'Treatment provided as per Plan of Care certified on 09/01/2025.'",
+                "bad_example": "No reference to the POC or certification period."
+            },
+            "General auditor checks": {
+                "action": "Perform a general review of the note for clarity, consistency, and completeness. Ensure the 'story' of the patient's care is clear.",
+                "why": "A well-documented note justifies skilled care, supports medical necessity, and ensures accurate billing.",
+                "good_example": "A note that clearly links interventions to functional goals and documents the patient's progress over time.",
+                "bad_example": "A note with jargon, undefined abbreviations, or that simply lists exercises without clinical reasoning."
+            }
+        }
+        for issue in issues_scored:
+            issue['details'] = issue_details_map.get(issue.get('title', ''), {})
+
+        if main_window_instance and main_window_instance.guideline_service and main_window_instance.guideline_service.is_index_ready:
+            main_window_instance.log("Searching for relevant guidelines for each finding...")
+            for issue in issues_scored:
+                query = f"{issue.get('title', '')}: {issue.get('detail', '')}"
+                guideline_results = main_window_instance.guideline_service.search(query, top_k=2)
+                issue['guidelines'] = guideline_results
+
+        pages_est = len({s for _, s in collapsed if s.startswith("Page ")}) or 1
+
+        full_text = "\n".join(t for t, _ in collapsed)
+        strengths, weaknesses, missing = [], [], []
+        tl = full_text.lower()
+        if any(k in tl for k in ("signed", "signature", "dated")):
+            strengths.append("Provider authentication (signature/date) appears to be present.")
+        else:
+            weaknesses.append("Provider authentication (signature/date) unclear or missing.")
+            missing.append("Signatures/Dates")
+
+        if "goal" in tl and any(k in tl for k in ("measurable", "time", "timed", "by ")):
+            strengths.append("Goals appear to be measurable and time-bound, with baseline/targets.")
+        elif "goal" in tl:
+            weaknesses.append("Goals present but may not be measurable/time-bound.")
+            missing.append("Measurable/Time-bound Goals")
+
+        if any(k in tl for k in ("medical necessity", "reasonable and necessary", "necessity")):
+            strengths.append("Medical necessity is explicitly discussed.")
+        else:
+            weaknesses.append("Medical necessity is not explicitly supported throughout the documentation.")
+            missing.append("Medical Necessity")
+
+        if "assistant" in tl and "supervis" in tl:
+            strengths.append("Assistant involvement includes supervision context.")
+        elif "assistant" in tl:
+            weaknesses.append("Assistant activity is present; however, the supervision/oversight context is not clearly documented.")
+            missing.append("Assistant Supervision Context")
+
+        if any(k in tl for k in ("plan of care", "poc", "certification", "recert")):
+            strengths.append("Plan/certification is referenced in the record.")
+        else:
+            weaknesses.append("Plan/certification is not clearly referenced with dates and signatures.")
+            missing.append("Plan/Certification Reference")
+
+        sev_counts = {
+            "flag": sum(1 for i in issues_scored if i.get("severity") == "flag"),
+            "finding": sum(1 for i in issues_scored if i.get("severity") == "finding"),
+            "suggestion": sum(1 for i in issues_scored if i.get("severity") == "suggestion"),
+            "auditor_note": sum(1 for i in issues_scored if i.get("severity") == "auditor_note"),
+        }
+        cat_counts = count_categories(issues_scored)
+
+        def compute_compliance_score(issues: list[dict], strengths_in: list[str], missing_in: list[str],
+                                     mode: ReviewMode) -> dict:
+            flags = sum(1 for i in issues if i.get("severity") == "flag")
+            findings = sum(1 for i in issues if i.get("severity") == "finding")
+            sug = sum(1 for i in issues if i.get("severity") == "suggestion")
+            base = 100.0
+            if mode == "Strict":
+                base -= flags * 6.0
+                base -= findings * 3.0
+                base -= sug * 1.5
+                base -= len(missing_in) * 4.0
+            else:
+                base -= flags * 4.0
+                base -= findings * 2.0
+                base -= sug * 1.0
+                base -= len(missing_in) * 2.5
+            base += min(5.0, len(strengths_in) * 0.5)
+            score = max(0.0, min(100.0, base))
+            breakdown = f"Flags={flags}, Findings={findings}, Suggestions={sug}, Missing={len(missing_in)}, Strengths={len(strengths_in)}; Mode={mode}"
+            return {"score": round(score, 1), "breakdown": breakdown}
+
+        compliance = compute_compliance_score(issues_scored, strengths, missing, CURRENT_REVIEW_MODE)
+
+        trends = _compute_recent_trends(max_runs=get_int_setting("trends_window", 10))
+
+        def _risk_level(score: float, flags: int) -> tuple[str, str]:
+            if score >= 90 and flags == 0:
+                return ("Low", "#10b981")
+            if score >= 70 and flags <= 1:
+                return ("Medium", "#f59e0b")
+            return ("High", "#ef4444")
+
+        risk_label, risk_color = _risk_level(float(compliance["score"]), sev_counts["flag"])
+
+        tips = []
+        if sev_counts["flag"] > 0:
+            tips.append("Resolve flags first (signatures/dates, plan/certification), then clarify gray areas.")
+        if "Medical Necessity" in missing:
+            tips.append("Tie each skilled intervention to functional limitations and expected outcomes.")
+        if "Measurable/Time-bound Goals" in missing:
+            tips.append("Rewrite goals to include baselines, specific targets, and timelines.")
+        if not strengths:
+            tips.append("Increase specificity with objective measures and clear clinical reasoning.")
+
+        try:
+            with _get_db_connection() as conn:
+                pass
+        except Exception:
+            ...
+
+        def _load_last_snapshot(file_fp: str, settings_fp: str) -> Optional[dict]:
+            try:
+                with _get_db_connection() as conn:
+                    cur = conn.cursor()
+                    cur.execute("""
+                                SELECT summary_json
+                                FROM analysis_snapshots
+                                WHERE file_fingerprint = ?
+                                  AND settings_fingerprint = ?
+                                """, (file_fp, settings_fp))
+                    row = cur.fetchone()
+                    if not row:
+                        return None
+                    import json as _json
+                    return _json.loads(row[0])
+            except Exception:
+                return None
+
+        def _save_snapshot(file_fp: str, settings_fp: str, payload: dict) -> None:
+            try:
+                with _get_db_connection() as conn:
+                    cur = conn.cursor()
+                    import json as _json
+                    from datetime import datetime
+                    cur.execute("""
+                                CREATE TABLE IF NOT EXISTS analysis_snapshots
+                                (
+                                    file_fingerprint
+                                    TEXT
+                                    NOT
+                                    NULL,
+                                    settings_fingerprint
+                                    TEXT
+                                    NOT
+                                    NULL,
+                                    summary_json
+                                    TEXT
+                                    NOT
+                                    NULL,
+                                    created_at
+                                    TEXT
+                                    NOT
+                                    NULL,
+                                    PRIMARY
+                                    KEY
+                                (
+                                    file_fingerprint,
+                                    settings_fingerprint
+                                )
+                                    )
+                                """)
+                    cur.execute("""
+                        INSERT OR REPLACE INTO analysis_snapshots
+                        (file_fingerprint, settings_fingerprint, summary_json, created_at)
+                        VALUES (?,?,?,?)
+                    """, (file_fp, settings_fp, _json.dumps(payload, ensure_ascii=False),
+                          datetime.now().isoformat(timespec="seconds")))
+                    conn.commit()
+            except Exception:
+                ...
+
+        last_snap = _load_last_snapshot(fp, sp)
+        change_summary = {}
+        if last_snap and isinstance(last_snap, dict):
+            prev = last_snap.get("metrics") or {}
+            change_summary = {
+                "score_delta": round(
+                    float(compliance["score"]) - float(last_snap.get("compliance", {}).get("score", 0.0)), 1),
+                "flags_delta": sev_counts["flag"] - int(prev.get("flags", 0)),
+                "findings_delta": sev_counts["finding"] - int(prev.get("findings", 0)),
+                "suggestions_delta": sev_counts["suggestion"] - int(prev.get("suggestions", 0)),
+            }
+
+        narrative_lines = []
+        narrative_lines.extend(_generate_risk_dashboard(compliance['score'], sev_counts))
+        narrative_lines.extend(_generate_compliance_checklist(strengths, weaknesses))
+
+        narrative_lines.append("--- Detailed Findings ---")
+        if issues_scored:
+            issue_details = {
+                "Provider signature/date possibly missing": {
+                    "action": "Ensure all entries are signed and dated by the qualified provider.",
+                    "why": "Signatures and dates are required by Medicare to authenticate that services were rendered as billed.",
+                    "good_example": "'Patient seen for 30 minutes of therapeutic exercise. [Provider Name], PT, DPT. 09/14/2025'",
+                    "bad_example": "An unsigned, undated note."
+                },
+                "Goals may not be measurable/time-bound": {
+                    "action": "Rewrite goals to include a baseline, specific target, and a clear timeframe (e.g., 'improve from X to Y in 2 weeks').",
+                    "why": "Measurable goals are essential to demonstrate progress and justify the need for skilled intervention.",
+                    "good_example": "'Patient will improve shoulder flexion from 90 degrees to 120 degrees within 2 weeks to allow for independent overhead dressing.'",
+                    "bad_example": "'Patient will improve shoulder strength.'"
+                },
+                "Medical necessity not explicitly supported": {
+                    "action": "Clearly link each intervention to a specific functional deficit and explain why the skill of a therapist is required.",
+                    "why": "Medicare only pays for services that are reasonable and necessary for the treatment of a patient's condition.",
+                    "good_example": "'...skilled verbal and tactile cues were required to ensure proper form and prevent injury.'",
+                    "bad_example": "'Patient tolerated treatment well.'"
+                },
+                "Assistant supervision context unclear": {
+                    "action": "Document the level of supervision provided to the assistant, in line with state and Medicare guidelines.",
+                    "why": "Proper supervision of therapy assistants is a condition of payment and ensures quality of care.",
+                    "good_example": "'PTA provided services under the direct supervision of the physical therapist who was on-site.'",
+                    "bad_example": "No mention of supervision when a PTA is involved."
+                },
+                "Plan/Certification not clearly referenced": {
+                    "action": "Explicitly reference the signed Plan of Care and certification/recertification dates in progress notes.",
+                    "why": "Services must be provided under a certified Plan of Care to be eligible for reimbursement.",
+                    "good_example": "'Treatment provided as per Plan of Care certified on 09/01/2025.'",
+                    "bad_example": "No reference to the POC or certification period."
+                },
+                "General auditor checks": {
+                    "action": "Perform a general review of the note for clarity, consistency, and completeness. Ensure the 'story' of the patient's care is clear.",
+                    "why": "A well-documented note justifies skilled care, supports medical necessity, and ensures accurate billing.",
+                    "good_example": "A note that provides a clear picture of the patient's journey from evaluation to discharge.",
+                    "bad_example": "A note with jargon, undefined abbreviations, or that simply lists exercises without clinical reasoning."
+                }
+            }
+            for it in issues_scored:
+                sev = str(it.get("severity", "")).title()
+                cat = it.get("category", "") or "General"
+                title = it.get("title", "") or "Finding"
+                narrative_lines.append(f"[{sev}][{cat}] {title}")
+
+                details = issue_details.get(title, {})
+                if details:
+                    action_text = it.get("nlg_tip") or details.get("action")
+                    if action_text:
+                        narrative_lines.append(f"  - Recommended Action: {action_text}")
+                    narrative_lines.append(f"  - Why it matters: {details['why']}")
+                    narrative_lines.append(f"  - Good Example: {details['good_example']}")
+                    narrative_lines.append(f"  - Bad Example: {details['bad_example']}")
+
+                cites = it.get("citations") or []
+                if cites:
+                    narrative_lines.append("  - Evidence in Document:")
+                    for (qt, src) in cites[:2]:
+                        q = (qt or "").strip().replace("\n", " ")
+                        if len(q) > 100:
+                            q = q[:97].rstrip() + "..."
+                        narrative_lines.append(f"    - [{src}] \"{q}\"")
+                narrative_lines.append("")
+        else:
+            narrative_lines.append("No specific audit findings were identified.")
+
+        narrative_lines.append("")
+        narrative_lines.append("--- General Recommendations ---")
+        narrative_lines.append(" • Consistency is key. Ensure all notes follow a standard format.")
+        narrative_lines.append(" • Be specific and objective. Use numbers and standardized tests to measure progress.")
+        narrative_lines.append(" • Always link treatment to function. Explain how the therapy helps the patient achieve their functional goals.")
+        narrative_lines.append(" • Tell a story. The documentation should paint a clear picture of the patient's journey from evaluation to discharge.")
+        narrative_lines.append("")
+
+        # --- Generate and add suggested questions ---
+        suggested_questions = _generate_suggested_questions(issues_scored)
+        if suggested_questions:
+            narrative_lines.append("--- Suggested Questions for Follow-up ---")
+            for q in suggested_questions:
+                narrative_lines.append(f" • {q}")
+            narrative_lines.append("")
+        # --- End suggested questions ---
         # This is the merged section
         ner_results = []
         formatted_entities = []

@@ -4,12 +4,13 @@ import logging
 import sqlite3
 from typing import List, Dict, Set, Optional, Callable
 
+from .llm_analyzer import NEREntity
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
 from .llm_analyzer import NEREntity
-from .llm_analyzer import NEREntity
+
 
 logger = logging.getLogger(__name__)
 
