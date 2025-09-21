@@ -49,6 +49,14 @@ uvicorn
 gunicorn
 
 # Testing & Utilities
+langchain
+pypdf
+python-docx
+openpyxl
+faiss-cpu
+sentence-transformers
+llama-index
+llama-index-embeddings-huggingface
 pytest
 pytest-qt
 jsonschema
@@ -57,3 +65,4 @@ pyspellchecker
 python-dotenv
 Faker
 Pillow
+PyYAML
