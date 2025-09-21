@@ -313,6 +313,164 @@ except ImportError:
 
         def draw(self): pass
 from matplotlib.figure import Figure
+
+# PyQt (guarded)
+try:
+    from PyQt6.QtWidgets import (
+        QMainWindow, QToolBar, QLabel, QFileDialog, QMessageBox, QApplication,
+        QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton,
+        QSpinBox, QCheckBox, QTextEdit, QSplitter, QGroupBox, QListWidget, QWidget,
+        QProgressDialog, QSizePolicy, QStatusBar, QProgressBar, QMenu, QTabWidget, QGridLayout,
+        QDateEdit
+    )
+    from PyQt6.QtGui import QAction, QFont, QTextDocument, QPdfWriter
+    from PyQt6.QtCore import Qt, QThread, pyqtSignal as Signal, QObject, QDate
+except Exception:
+    class QMainWindow: ...
+    class QToolBar:
+        def addWidget(self, *_, **__): ...
+        def setMovable(self, *_: object) -> None: ...
+    class QLabel:
+        def __init__(self, *_, **__): ...
+        def setText(self, *_): ...
+        def setStyleSheet(self, *_): ...
+    class QFileDialog:
+        @staticmethod
+        def getOpenFileName(*_, **__) -> Tuple[str, str]: return ("", "")
+        @staticmethod
+        def getExistingDirectory(*_, **__) -> str: return ""
+    class QMessageBox:
+        @staticmethod
+        def information(*_, **__): ...
+        @staticmethod
+        def warning(*_, **__): ...
+        @staticmethod
+        def question(*_, **__): return "Yes"
+    class QApplication:
+        def __init__(self, *_): ...
+        @staticmethod
+        def instance(): return None
+        @staticmethod
+        def setOverrideCursor(*_): ...
+        @staticmethod
+        def restoreOverrideCursor(): ...
+        def setStyleSheet(self, *_): ...
+        def setFont(self, *_): ...
+    class QAction:
+        def __init__(self, *_, **__): ...
+        def triggered(self, *_): ...
+        def setShortcut(self, *_): ...
+    class QDialog:
+        def __init__(self, *_, **__): ...
+        def exec(self): ...
+        def setWindowTitle(self, *_): ...
+        def accept(self): ...
+        def reject(self): ...
+        def show(self): ...
+    class QVBoxLayout:
+        def __init__(self, *_, **__): ...
+        def addLayout(self, *_): ...
+        def addWidget(self, *_): ...
+        def setContentsMargins(self, *_): ...
+        def setSpacing(self, *_): ...
+    class QHBoxLayout:
+        def addWidget(self, *_): ...
+        def addStretch(self, *_): ...
+        def setSpacing(self, *_): ...
+    class QLineEdit:
+        def __init__(self, *_, **__): ...
+        def setText(self, *_): ...
+        def text(self): return ""
+    class QComboBox:
+        def __init__(self, *_, **__): ...
+        def addItems(self, *_): ...
+        def setCurrentText(self, *_): ...
+        def currentText(self): return ""
+    class QPushButton:
+        def __init__(self, *_, **__): ...
+        def clicked(self): ...
+        def setMinimumHeight(self, *_): ...
+        def setFont(self, *_): ...
+        def setText(self, *_): ...
+        def setStyleSheet(self, *_): ...
+        def setSizePolicy(self, *_): ...
+    class QSpinBox:
+        def __init__(self, *_, **__): ...
+        def setRange(self, *_): ...
+        def setValue(self, *_): ...
+        def value(self): return 0
+    class QCheckBox:
+        def __init__(self, *_, **__): ...
+        def setChecked(self, *_): ...
+        def isChecked(self): return False
+    class QTextEdit:
+        def __init__(self, *_, **__): ...
+        def setReadOnly(self, *_): ...
+        def setPlainText(self, *_): ...
+        def setPlaceholderText(self, *_): ...
+        def setMinimumHeight(self, *_): ...
+        def setMaximumHeight(self, *_): ...
+        def setFixedHeight(self, *_): ...
+        def setSizePolicy(self, *_): ...
+        def append(self, *_): ...
+        def toPlainText(self): return ""
+    class QSplitter:
+        def __init__(self, *_, **__): ...
+        def addWidget(self, *_): ...
+        def setChildrenCollapsible(self, *_): ...
+        def setFixedHeight(self, *_): ...
+    class QGroupBox:
+        def __init__(self, title=""): ...
+        def setLayout(self, *_): ...
+    class QWidget:
+        def __init__(self, *_, **__): ...
+        def setLayout(self, *_): ...
+    class QProgressDialog: ...
+    class QSizePolicy:
+        class Policy:
+            Expanding = 0
+            Preferred = 0
+    class QStatusBar:
+        def clearMessage(self): ...
+        def addPermanentWidget(self, *_): ...
+        def showMessage(self, *_): ...
+    class QProgressBar:
+        def __init__(self, *_, **__): ...
+        def setRange(self, *_): ...
+        def setValue(self, *_): ...
+        def setFormat(self, *_): ...
+        def setVisible(self, *_): ...
+        def setMinimumHeight(self, *_): ...
+        def setSizePolicy(self, *_): ...
+    class QTabWidget:
+        def __init__(self, *_, **__): ...
+        def addTab(self, *_, **__): ...
+    class QGridLayout: ...
+    class QObject: pass
+    class QDate:
+        @staticmethod
+        def currentDate(): return QDate()
+        def addMonths(self, *_, **__): return QDate()
+        def addDays(self, *_, **__): return QDate()
+        def toString(self, *_, **__): return ""
+    class QDateEdit:
+        def __init__(self, *_, **__): ...
+        def setDate(self, *_, **__): ...
+        def setCalendarPopup(self, *_, **__): ...
+        def date(self): return QDate()
+    class Signal:
+        def __init__(self, *args, **kwargs): pass
+        def connect(self, *args, **kwargs): pass
+        def emit(self, *args, **kwargs): pass
+    def pyqtSignal(*args, **kwargs): return Signal()
+    class FigureCanvas: ...
+    class Figure: ...
+    class LocalRAG: ...
+    class RubricService: ...
+    class ComplianceRule: ...
+    class QPdfWriter: ...
+    class Qt: ...
+    class QThread: ...
 from matplotlib.patches import Rectangle
 from PyQt6.QtWidgets import (
     QMainWindow, QToolBar, QLabel, QFileDialog, QMessageBox, QApplication,
@@ -824,8 +982,6 @@ def _ensure_analytics_schema(conn: sqlite3.Connection) -> None:
                         compliance_score
                         REAL,
                         mode
-                        TEXT,
-                        file_path
                         TEXT
                     )
                     """)
@@ -962,6 +1118,19 @@ sents = [p.strip() for p in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"'])", text) if p
 if not sents:
 sents = text.splitlines()
 return [s for s in sents if s]
+
+        # --- Simple schema migration for new columns ---
+        cur.execute("PRAGMA table_info(analysis_runs)")
+        columns = [row[1] for row in cur.fetchall()]
+        if "compliance_score" not in columns:
+            cur.execute("ALTER TABLE analysis_runs ADD COLUMN compliance_score REAL")
+            logger.info("Upgraded analysis_runs table to include 'compliance_score' column.")
+        if "file_path" not in columns:
+            cur.execute("ALTER TABLE analysis_runs ADD COLUMN file_path TEXT")
+            logger.info("Upgraded analysis_runs table to include 'file_path' column.")
+        if "disciplines" not in columns:
+            cur.execute("ALTER TABLE analysis_runs ADD COLUMN disciplines TEXT")
+            logger.info("Upgraded analysis_runs table to include 'disciplines' column.")
 
 def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
 """
@@ -1283,6 +1452,132 @@ DELETE
 CASCADE
 )
 """)
+        cur.execute("""
+                    CREATE TABLE IF NOT EXISTS reviewed_findings
+                    (
+                        id
+                        INTEGER
+                        PRIMARY
+                        KEY
+                        AUTOINCREMENT,
+                        analysis_issue_id
+                        INTEGER
+                        NOT
+                        NULL,
+                        user_feedback
+                        TEXT
+                        NOT
+                        NULL,
+                        reviewed_at
+                        TEXT
+                        NOT
+                        NULL,
+                        notes
+                        TEXT,
+                        citation_text
+                        TEXT,
+                        model_prediction
+                        TEXT,
+                        FOREIGN
+                        KEY
+                    (
+                        analysis_issue_id
+                    ) REFERENCES analysis_issues
+                    (
+                        id
+                    ) ON DELETE CASCADE
+                        )
+                    """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_reviews_issue ON reviewed_findings(analysis_issue_id)")
+
+        conn.commit()
+    except Exception as e:
+        logger.warning(f"Ensure analytics schema failed: {e}")
+
+def persist_analysis_run(file_path: str, run_time: str, metrics: dict, issues_scored: list[dict],
+                         compliance: dict, mode: str, disciplines: List[str]) -> Optional[int]:
+    try:
+        import json
+        with _get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                        INSERT INTO analysis_runs (file_name, file_path, run_time, pages_est, flags, findings, suggestions, notes,
+                                                   sentences_final, dedup_removed, compliance_score, mode, disciplines)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            os.path.basename(file_path), file_path, run_time,
+                            int(metrics.get("pages", 0)), int(metrics.get("flags", 0)), int(metrics.get("findings", 0)),
+                            int(metrics.get("suggestions", 0)), int(metrics.get("notes", 0)),
+                            int(metrics.get("sentences_final", 0)), int(metrics.get("dedup_removed", 0)),
+                            float(compliance.get("score", 0.0)), mode, json.dumps(disciplines)
+                        ))
+            run_id = int(cur.lastrowid)
+            if issues_scored:
+                cur.executemany("""
+                                INSERT INTO analysis_issues (run_id, severity, category, title, detail, confidence)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                                """, [(run_id, it.get("severity", ""), it.get("category", ""), it.get("title", ""),
+                                       it.get("detail", ""), float(it.get("confidence", 0.0))) for it in issues_scored])
+            conn.commit()
+            return run_id
+    except Exception as e:
+        logger.warning(f"persist_analysis_run failed: {e}")
+        return None
+
+def _compute_recent_trends(max_runs: int = 10) -> dict:
+    out = {
+        "recent_scores": [],
+        "score_delta": 0.0,
+        "avg_score": 0.0,
+        "avg_flags": 0.0,
+        "avg_findings": 0.0,
+        "avg_suggestions": 0.0,
+    }
+    try:
+        with _get_db_connection() as conn:
+            runs = pd.read_sql_query(
+                "SELECT compliance_score, flags, findings, suggestions FROM analysis_runs ORDER BY run_time ASC", conn
+            )
+        if runs.empty:
+            return out
+        sub = runs.tail(max_runs).copy()
+        scores = [float(x) for x in sub["compliance_score"].tolist()]
+        out["recent_scores"] = scores
+        out["avg_score"] = round(float(sum(scores) / len(scores)), 1) if scores else 0.0
+        out["score_delta"] = round((scores[-1] - scores[0]) if len(scores) >= 2 else 0.0, 1)
+        out["avg_flags"] = round(float(sub["flags"].mean()), 2)
+        out["avg_findings"] = round(float(sub["findings"].mean()), 2)
+        out["avg_suggestions"] = round(float(sub["suggestions"].mean()), 2)
+    except Exception:
+        ...
+    return out
+
+# --- Caching helpers ---
+def _file_fingerprint(path: str) -> str:
+    try:
+        h = hashlib.sha256()
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                h.update(chunk)
+        st = os.stat(path)
+        h.update(str(st.st_size).encode())
+        h.update(str(int(st.st_mtime)).encode())
+        return h.hexdigest()
+    except Exception:
+        return ""
+
+def _settings_fingerprint(scrub: bool, review_mode: str, dedup: str) -> str:
+    import json
+    key_parts = {
+        "scrub": "1" if scrub else "0",
+        "review_mode": review_mode,
+        "dedup": dedup,
+        "ocr_lang": get_str_setting("ocr_lang", "eng"),
+        "logic_v": "4",
+    }
+    s = json.dumps(key_parts, sort_keys=True)
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()
+
 def _load_cached_outputs(file_fp: str, settings_fp: str) -> Optional[dict]:
 try:
 with _get_db_connection() as conn:
@@ -2123,6 +2418,847 @@ def run_analyzer(self, file_path: str,
                     logger.info(f"Consolidated NER results: {len(ner_results)} entities found.")
 
                     # LLM-based Fact-Checking
+        sev_order = {"flag": 0, "finding": 1, "suggestion": 2, "auditor_note": 3}
+        issues_scored.sort(key=lambda x: (sev_order.get(str(x.get("severity")), 9),
+                                          str(x.get("category", "")),
+                                          str(x.get("title", ""))))
+
+        nlg_service = NLGService()
+        for issue in issues_scored:
+            prompt = f"Generate a brief, actionable tip for a physical therapist to address this finding: {issue.get('title', '')} ({issue.get('severity', '')}) - {issue.get('detail', '')}"
+            tip = nlg_service.generate_tip(prompt)
+            issue['nlg_tip'] = tip
+
+        issue_details_map = {
+            "Provider signature/date possibly missing": {
+                "action": "Ensure all entries are signed and dated by the qualified provider.",
+                "why": "Signatures and dates are required by Medicare to authenticate that services were rendered as billed.",
+                "good_example": "'Patient seen for 30 minutes of therapeutic exercise. [Provider Name], PT, DPT. 09/14/2025'",
+                "bad_example": "An unsigned, undated note."
+            },
+            "Goals may not be measurable/time-bound": {
+                "action": "Rewrite goals to include a baseline, specific target, and a clear timeframe (e.g., 'improve from X to Y in 2 weeks').",
+                "why": "Measurable goals are essential to demonstrate progress and justify the need for skilled intervention.",
+                "good_example": "'Patient will improve shoulder flexion from 90 degrees to 120 degrees within 2 weeks to allow for independent overhead dressing.'",
+                "bad_example": "'Patient will improve shoulder strength.'"
+            },
+            "Medical necessity not explicitly supported": {
+                "action": "Clearly link each intervention to a specific functional deficit and explain why the skill of a therapist is required.",
+                "why": "Medicare only pays for services that are reasonable and necessary for the treatment of a patient's condition.",
+                "good_example": "'...skilled verbal and tactile cues were required to ensure proper form and prevent injury.'",
+                "bad_example": "'Patient tolerated treatment well.'"
+            },
+            "Assistant supervision context unclear": {
+                "action": "Document the level of supervision provided to the assistant, in line with state and Medicare guidelines.",
+                "why": "Proper supervision of therapy assistants is a condition of payment and ensures quality of care.",
+                "good_example": "'PTA provided services under the direct supervision of the physical therapist who was on-site.'",
+                "bad_example": "No mention of supervision when a PTA is involved."
+            },
+            "Plan/Certification not clearly referenced": {
+                "action": "Explicitly reference the signed Plan of Care and certification/recertification dates in progress notes.",
+                "why": "Services must be provided under a certified Plan of Care to be eligible for reimbursement.",
+                "good_example": "'Treatment provided as per Plan of Care certified on 09/01/2025.'",
+                "bad_example": "No reference to the POC or certification period."
+            },
+            "General auditor checks": {
+                "action": "Perform a general review of the note for clarity, consistency, and completeness. Ensure the 'story' of the patient's care is clear.",
+                "why": "A well-documented note justifies skilled care, supports medical necessity, and ensures accurate billing.",
+                "good_example": "A note that clearly links interventions to functional goals and documents the patient's progress over time.",
+                "bad_example": "A note with jargon, undefined abbreviations, or that simply lists exercises without clinical reasoning."
+            }
+        }
+        for issue in issues_scored:
+            issue['details'] = issue_details_map.get(issue.get('title', ''), {})
+
+        if main_window_instance and main_window_instance.guideline_service and main_window_instance.guideline_service.is_index_ready:
+            main_window_instance.log("Searching for relevant guidelines for each finding...")
+            for issue in issues_scored:
+                query = f"{issue.get('title', '')}: {issue.get('detail', '')}"
+                guideline_results = main_window_instance.guideline_service.search(query, top_k=2)
+                issue['guidelines'] = guideline_results
+
+        pages_est = len({s for _, s in collapsed if s.startswith("Page ")}) or 1
+
+        full_text = "\n".join(t for t, _ in collapsed)
+        strengths, weaknesses, missing = [], [], []
+        tl = full_text.lower()
+        if any(k in tl for k in ("signed", "signature", "dated")):
+            strengths.append("Provider authentication (signature/date) appears to be present.")
+        else:
+            weaknesses.append("Provider authentication (signature/date) unclear or missing.")
+            missing.append("Signatures/Dates")
+
+        if "goal" in tl and any(k in tl for k in ("measurable", "time", "timed", "by ")):
+            strengths.append("Goals appear to be measurable and time-bound, with baseline/targets.")
+        elif "goal" in tl:
+            weaknesses.append("Goals present but may not be measurable/time-bound.")
+            missing.append("Measurable/Time-bound Goals")
+
+        if any(k in tl for k in ("medical necessity", "reasonable and necessary", "necessity")):
+            strengths.append("Medical necessity is explicitly discussed.")
+        else:
+            weaknesses.append("Medical necessity is not explicitly supported throughout the documentation.")
+            missing.append("Medical Necessity")
+
+        if "assistant" in tl and "supervis" in tl:
+            strengths.append("Assistant involvement includes supervision context.")
+        elif "assistant" in tl:
+            weaknesses.append("Assistant activity is present; however, the supervision/oversight context is not clearly documented.")
+            missing.append("Assistant Supervision Context")
+
+        if any(k in tl for k in ("plan of care", "poc", "certification", "recert")):
+            strengths.append("Plan/certification is referenced in the record.")
+        else:
+            weaknesses.append("Plan/certification is not clearly referenced with dates and signatures.")
+            missing.append("Plan/Certification Reference")
+
+        sev_counts = {
+            "flag": sum(1 for i in issues_scored if i.get("severity") == "flag"),
+            "finding": sum(1 for i in issues_scored if i.get("severity") == "finding"),
+            "suggestion": sum(1 for i in issues_scored if i.get("severity") == "suggestion"),
+            "auditor_note": sum(1 for i in issues_scored if i.get("severity") == "auditor_note"),
+        }
+        cat_counts = count_categories(issues_scored)
+
+        def compute_compliance_score(issues: list[dict], strengths_in: list[str], missing_in: list[str],
+                                     mode: ReviewMode) -> dict:
+            flags = sum(1 for i in issues if i.get("severity") == "flag")
+            findings = sum(1 for i in issues if i.get("severity") == "finding")
+            sug = sum(1 for i in issues if i.get("severity") == "suggestion")
+            base = 100.0
+            if mode == "Strict":
+                base -= flags * 6.0
+                base -= findings * 3.0
+                base -= sug * 1.5
+                base -= len(missing_in) * 4.0
+            else:
+                base -= flags * 4.0
+                base -= findings * 2.0
+                base -= sug * 1.0
+                base -= len(missing_in) * 2.5
+            base += min(5.0, len(strengths_in) * 0.5)
+            score = max(0.0, min(100.0, base))
+            breakdown = f"Flags={flags}, Findings={findings}, Suggestions={sug}, Missing={len(missing_in)}, Strengths={len(strengths_in)}; Mode={mode}"
+            return {"score": round(score, 1), "breakdown": breakdown}
+
+        compliance = compute_compliance_score(issues_scored, strengths, missing, CURRENT_REVIEW_MODE)
+
+        trends = _compute_recent_trends(max_runs=get_int_setting("trends_window", 10))
+
+        def _risk_level(score: float, flags: int) -> tuple[str, str]:
+            if score >= 90 and flags == 0:
+                return ("Low", "#10b981")
+            if score >= 70 and flags <= 1:
+                return ("Medium", "#f59e0b")
+            return ("High", "#ef4444")
+
+        risk_label, risk_color = _risk_level(float(compliance["score"]), sev_counts["flag"])
+
+        tips = []
+        if sev_counts["flag"] > 0:
+            tips.append("Resolve flags first (signatures/dates, plan/certification), then clarify gray areas.")
+        if "Medical Necessity" in missing:
+            tips.append("Tie each skilled intervention to functional limitations and expected outcomes.")
+        if "Measurable/Time-bound Goals" in missing:
+            tips.append("Rewrite goals to include baselines, specific targets, and timelines.")
+        if not strengths:
+            tips.append("Increase specificity with objective measures and clear clinical reasoning.")
+
+        try:
+            with _get_db_connection() as conn:
+                pass
+        except Exception:
+            ...
+
+        def _load_last_snapshot(file_fp: str, settings_fp: str) -> Optional[dict]:
+            try:
+                with _get_db_connection() as conn:
+                    cur = conn.cursor()
+                    cur.execute("""
+                                SELECT summary_json
+                                FROM analysis_snapshots
+                                WHERE file_fingerprint = ?
+                                  AND settings_fingerprint = ?
+                                """, (file_fp, settings_fp))
+                    row = cur.fetchone()
+                    if not row:
+                        return None
+                    import json as _json
+                    return _json.loads(row[0])
+            except Exception:
+                return None
+
+        def _save_snapshot(file_fp: str, settings_fp: str, payload: dict) -> None:
+            try:
+                with _get_db_connection() as conn:
+                    cur = conn.cursor()
+                    import json as _json
+                    from datetime import datetime
+                    cur.execute("""
+                                CREATE TABLE IF NOT EXISTS analysis_snapshots
+                                (
+                                    file_fingerprint
+                                    TEXT
+                                    NOT
+                                    NULL,
+                                    settings_fingerprint
+                                    TEXT
+                                    NOT
+                                    NULL,
+                                    summary_json
+                                    TEXT
+                                    NOT
+                                    NULL,
+                                    created_at
+                                    TEXT
+                                    NOT
+                                    NULL,
+                                    PRIMARY
+                                    KEY
+                                (
+                                    file_fingerprint,
+                                    settings_fingerprint
+                                )
+                                    )
+                                """)
+                    cur.execute("""
+                        INSERT OR REPLACE INTO analysis_snapshots
+                        (file_fingerprint, settings_fingerprint, summary_json, created_at)
+                        VALUES (?,?,?,?)
+                    """, (file_fp, settings_fp, _json.dumps(payload, ensure_ascii=False),
+                          datetime.now().isoformat(timespec="seconds")))
+                    conn.commit()
+            except Exception:
+                ...
+
+        last_snap = _load_last_snapshot(fp, sp)
+        change_summary = {}
+        if last_snap and isinstance(last_snap, dict):
+            prev = last_snap.get("metrics") or {}
+            change_summary = {
+                "score_delta": round(
+                    float(compliance["score"]) - float(last_snap.get("compliance", {}).get("score", 0.0)), 1),
+                "flags_delta": sev_counts["flag"] - int(prev.get("flags", 0)),
+                "findings_delta": sev_counts["finding"] - int(prev.get("findings", 0)),
+                "suggestions_delta": sev_counts["suggestion"] - int(prev.get("suggestions", 0)),
+            }
+
+        narrative_lines = []
+        narrative_lines.extend(_generate_risk_dashboard(compliance['score'], sev_counts))
+        narrative_lines.extend(_generate_compliance_checklist(strengths, weaknesses))
+
+        narrative_lines.append("--- Detailed Findings ---")
+        if issues_scored:
+            issue_details = {
+                "Provider signature/date possibly missing": {
+                    "action": "Ensure all entries are signed and dated by the qualified provider.",
+                    "why": "Signatures and dates are required by Medicare to authenticate that services were rendered as billed.",
+                    "good_example": "'Patient seen for 30 minutes of therapeutic exercise. [Provider Name], PT, DPT. 09/14/2025'",
+                    "bad_example": "An unsigned, undated note."
+                },
+                "Goals may not be measurable/time-bound": {
+                    "action": "Rewrite goals to include a baseline, specific target, and a clear timeframe (e.g., 'improve from X to Y in 2 weeks').",
+                    "why": "Measurable goals are essential to demonstrate progress and justify the need for skilled intervention.",
+                    "good_example": "'Patient will improve shoulder flexion from 90 degrees to 120 degrees within 2 weeks to allow for independent overhead dressing.'",
+                    "bad_example": "'Patient will improve shoulder strength.'"
+                },
+                "Medical necessity not explicitly supported": {
+                    "action": "Clearly link each intervention to a specific functional deficit and explain why the skill of a therapist is required.",
+                    "why": "Medicare only pays for services that are reasonable and necessary for the treatment of a patient's condition.",
+                    "good_example": "'...skilled verbal and tactile cues were required to ensure proper form and prevent injury.'",
+                    "bad_example": "'Patient tolerated treatment well.'"
+                },
+                "Assistant supervision context unclear": {
+                    "action": "Document the level of supervision provided to the assistant, in line with state and Medicare guidelines.",
+                    "why": "Proper supervision of therapy assistants is a condition of payment and ensures quality of care.",
+                    "good_example": "'PTA provided services under the direct supervision of the physical therapist who was on-site.'",
+                    "bad_example": "No mention of supervision when a PTA is involved."
+                },
+                "Plan/Certification not clearly referenced": {
+                    "action": "Explicitly reference the signed Plan of Care and certification/recertification dates in progress notes.",
+                    "why": "Services must be provided under a certified Plan of Care to be eligible for reimbursement.",
+                    "good_example": "'Treatment provided as per Plan of Care certified on 09/01/2025.'",
+                    "bad_example": "No reference to the POC or certification period."
+                },
+                "General auditor checks": {
+                    "action": "Perform a general review of the note for clarity, consistency, and completeness. Ensure the 'story' of the patient's care is clear.",
+                    "why": "A well-documented note justifies skilled care, supports medical necessity, and ensures accurate billing.",
+                    "good_example": "A note that provides a clear picture of the patient's journey from evaluation to discharge.",
+                    "bad_example": "A note with jargon, undefined abbreviations, or that simply lists exercises without clinical reasoning."
+                }
+            }
+            for it in issues_scored:
+                sev = str(it.get("severity", "")).title()
+                cat = it.get("category", "") or "General"
+                title = it.get("title", "") or "Finding"
+                narrative_lines.append(f"[{sev}][{cat}] {title}")
+
+                details = issue_details.get(title, {})
+                if details:
+                    action_text = it.get("nlg_tip") or details.get("action")
+                    if action_text:
+                        narrative_lines.append(f"  - Recommended Action: {action_text}")
+                    narrative_lines.append(f"  - Why it matters: {details['why']}")
+                    narrative_lines.append(f"  - Good Example: {details['good_example']}")
+                    narrative_lines.append(f"  - Bad Example: {details['bad_example']}")
+
+                cites = it.get("citations") or []
+                if cites:
+                    narrative_lines.append("  - Evidence in Document:")
+                    for (qt, src) in cites[:2]:
+                        q = (qt or "").strip().replace("\n", " ")
+                        if len(q) > 100:
+                            q = q[:97].rstrip() + "..."
+                        narrative_lines.append(f"    - [{src}] \"{q}\"")
+                narrative_lines.append("")
+        else:
+            narrative_lines.append("No specific audit findings were identified.")
+
+        narrative_lines.append("")
+        narrative_lines.append("--- General Recommendations ---")
+        narrative_lines.append(" • Consistency is key. Ensure all notes follow a standard format.")
+        narrative_lines.append(" • Be specific and objective. Use numbers and standardized tests to measure progress.")
+        narrative_lines.append(" • Always link treatment to function. Explain how the therapy helps the patient achieve their functional goals.")
+        narrative_lines.append(" • Tell a story. The documentation should paint a clear picture of the patient's journey from evaluation to discharge.")
+        narrative_lines.append("")
+
+        # --- Generate and add suggested questions ---
+        suggested_questions = _generate_suggested_questions(issues_scored)
+        if suggested_questions:
+            narrative_lines.append("--- Suggested Questions for Follow-up ---")
+            for q in suggested_questions:
+                narrative_lines.append(f" • {q}")
+            narrative_lines.append("")
+        # --- End suggested questions ---
+
+        narrative_lines.append("--- Trends & Analytics (Last 10 Runs) ---")
+        if trends.get("recent_scores"):
+            sc = trends["recent_scores"]
+            narrative_lines.append(f" • Recent scores (oldest→newest): {', '.join(str(round(s, 1)) for s in sc)}")
+            narrative_lines.append(
+                f" • Score delta: {trends['score_delta']:+.1f} | Average score: {trends['avg_score']:.1f}")
+            narrative_lines.append(
+                f" • Average Flags: {trends['avg_flags']:.2f} | Average Findings: {trends['avg_findings']:.2f} | Average Suggestions: {trends['avg_suggestions']:.2f}")
+        else:
+            narrative_lines.append(" • Not enough history to compute trends yet.")
+        narrative_lines.append("")
+
+        metrics = {
+            "pages": pages_est,
+            "findings_total": len(issues_scored),
+            "flags": sev_counts["flag"],
+            "findings": sev_counts["finding"],
+            "suggestions": sev_counts["suggestion"],
+            "notes": sev_counts["auditor_note"],
+            "sentences_raw": summary["total_sentences_raw"],
+            "sentences_final": summary["total_sentences_final"],
+            "dedup_removed": summary["dedup_removed"],
+        }
+
+        try:
+            persist_analysis_run(file_path, _now_iso(), metrics, issues_scored, compliance, CURRENT_REVIEW_MODE, selected_disciplines)
+        except Exception:
+            ...
+        try:
+            snap_payload = {
+                "metrics": metrics,
+                "compliance": compliance,
+                "sev_counts": sev_counts,
+                "cat_counts": cat_counts,
+            }
+            _save_snapshot(fp, sp, snap_payload)
+        except Exception:
+            ...
+
+        report(86, "Writing JSON/PDF")
+        pdf_path, csv_path = generate_report_paths()
+        json_path = pdf_path[:-4] + ".json"
+
+        try:
+            export_report_json({
+                "json_schema_version": 6,
+                "report_template_version": REPORT_TEMPLATE_VERSION,
+                "file": file_path,
+                "generated": _now_iso(),
+                "scrub_phi": scrub_enabled,
+                "review_mode": CURRENT_REVIEW_MODE,
+                "dup_threshold": threshold,
+                "dedup_method": dedup_method,
+                "metrics": metrics,
+                "summary": summary,
+                "issues": issues_scored,
+                "strengths": strengths,
+                "weaknesses": weaknesses,
+                "missing": missing,
+                "compliance": compliance,
+                "executive_status": ("Pass" if compliance["score"] >= 90 and sev_counts["flag"] == 0
+                                     else "At-Risk" if (compliance["score"] >= 70 and sev_counts["flag"] <= 1)
+                else "Fail"),
+                "change_summary": change_summary,
+                "narrative": "\n".join(narrative_lines),
+                "tips": tips,
+                "report_style": "condensed",
+                "report_include_citations": get_bool_setting("show_citations", True),
+                "pdf_chart_position": get_str_setting("pdf_chart_position", "bottom"),
+                "pdf_chart_theme": get_str_setting("pdf_chart_theme", "dark"),
+                "report_severity_ordering": "flags_first",
+                "clinical_ner_enabled": get_bool_setting("enable_biobert_ner", True),
+                "ner_results": ner_results,
+                "source_sentences": collapsed,
+                "sev_counts": sev_counts,
+                "cat_counts": cat_counts,
+                "trends": trends,
+                "suggested_questions": suggested_questions,
+            }, json_path)
+            result_info["json"] = json_path
+        except Exception as e:
+            logger.error(f"Failed to write JSON: {e}")
+
+        try:
+            meta = {"file_name": os.path.basename(file_path), "run_time": _now_iso(),
+                    "risk_label": risk_label, "risk_color": risk_color}
+            export_report_pdf(
+                lines=narrative_lines,
+                pdf_path=pdf_path,
+                meta=meta,
+                chart_data=sev_counts,
+                sev_counts=sev_counts,
+                cat_counts=cat_counts
+            )
+            result_info["pdf"] = pdf_path
+        except Exception as e:
+            logger.error(f"Failed to write PDF: {e}")
+
+        try:
+            flat = {
+                "file_name": os.path.basename(file_path),
+                "generated": _now_iso(),
+                "review_mode": CURRENT_REVIEW_MODE,
+                "dup_threshold": threshold,
+                "dedup_method": dedup_method,
+                "pages_est": pages_est,
+                "flags": sev_counts["flag"],
+                "findings": sev_counts["finding"],
+                "suggestions": sev_counts["suggestion"],
+                "notes": sev_counts["auditor_note"],
+                "sentences_raw": summary["total_sentences_raw"],
+                "sentences_final": summary["total_sentences_final"],
+                "dedup_removed": summary["dedup_removed"],
+                "compliance_score": compliance["score"],
+                "risk_label": risk_label,
+            }
+            df = pd.DataFrame([flat])
+            os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+            df.to_csv(csv_path, index=False, encoding="utf-8")
+            result_info["csv"] = csv_path
+        except Exception as e:
+            logger.error(f"Failed to write CSV: {e}")
+
+        if allow_cache and fp and sp:
+            try:
+                _save_cached_outputs(fp, sp, {"csv": result_info["csv"], "html": result_info["html"],
+                                              "json": result_info["json"], "pdf": result_info["pdf"],
+                                              "summary": result_info["summary"]})
+            except Exception:
+                ...
+        try:
+            if result_info["pdf"]:
+                set_setting("last_report_pdf", result_info["pdf"])
+            if result_info["csv"]:
+                set_setting("last_report_csv", result_info["csv"])
+            if result_info["json"]:
+                set_setting("last_report_json", result_info["json"])
+            set_setting("last_analyzed_file", file_path)
+        except Exception:
+            ...
+
+        report(100, "Done")
+        logger.info("Report saved:")
+        if result_info["csv"]:
+            logger.info(f" - CSV:  {result_info['csv']}")
+        if result_info["json"]:
+            logger.info(f" - JSON: {result_info['json']}")
+        if result_info["pdf"]:
+            logger.info(f" - PDF:  {result_info['pdf']}")
+        logger.info(f"(Reports directory: {os.path.dirname(pdf_path)})")
+        result_info["formatted_entities"] = formatted_entities
+        return result_info
+    except KeyboardInterrupt:
+        logger.info("Analysis cancelled by user.")
+        return result_info
+    except Exception:
+        logger.exception("Analyzer failed")
+        return result_info
+
+
+class MainWindow(QMainWindow):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Spec Kit Analyzer")
+        try:
+            self.setMinimumSize(1000, 700)
+        except Exception:
+            ...
+        self._current_report_path: Optional[str] = None
+        self._last_error: Optional[str] = None
+        self._batch_cancel = False
+        self.current_report_data: Optional[dict] = None
+        self.local_rag: Optional[LocalRAG] = None
+        self.guideline_service: Optional[GuidelineService] = None
+        self.llm_compliance_service: Optional[LlmComplianceService] = None
+        self.entity_consolidation_service: EntityConsolidationService = EntityConsolidationService()
+        self.chat_history: list[tuple[str, str]] = []
+        self.compliance_rules: list[ComplianceRule] = []
+
+        tb = QToolBar("Main")
+        try:
+            tb.setMovable(False)
+        except Exception:
+            ...
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, tb)
+
+        act_open = QAction("Open File...", self)
+        act_open.triggered.connect(self.action_open_report)  # type: ignore[attr-defined]
+        tb.addAction(act_open)
+
+        act_analyze = QAction("Analyze", self)
+        act_analyze.triggered.connect(self.action_analyze_combined)  # type: ignore[attr-defined]
+        tb.addAction(act_analyze)
+
+        act_logs = QAction("Open Logs Folder", self)
+        act_logs.triggered.connect(self.action_open_logs)  # type: ignore[attr-defined]
+        tb.addAction(act_logs)
+
+        act_analytics = QAction("Export Analytics CSV", self)
+        act_analytics.triggered.connect(lambda: self._export_analytics_csv())  # type: ignore[attr-defined]
+        tb.addAction(act_analytics)
+
+        act_settings = QAction("Settings", self)
+        act_settings.triggered.connect(
+            lambda: (_show_settings_dialog(self), self.reapply_theme()))  # type: ignore[attr-defined]
+        tb.addAction(act_settings)
+
+        act_admin_settings = QAction("Admin Settings...", self)
+        act_admin_settings.triggered.connect(self._show_admin_settings_dialog)
+        tb.addAction(act_admin_settings)
+
+        act_exit = QAction("Exit", self)
+        act_exit.triggered.connect(self.close)  # type: ignore[attr-defined]
+        tb.addAction(act_exit)
+
+        tb.addSeparator()
+
+        act_export_feedback = QAction("Export Feedback...", self)
+        act_export_feedback.triggered.connect(self.action_export_feedback)
+        tb.addAction(act_export_feedback)
+
+        act_analyze_performance = QAction("Analyze Performance", self)
+        act_analyze_performance.triggered.connect(self.action_analyze_performance)
+        tb.addAction(act_analyze_performance)
+
+        central = QWidget()
+        self.setCentralWidget(central)
+        vmain = QVBoxLayout(central)
+        vmain.setContentsMargins(12, 12, 12, 12)
+        vmain.setSpacing(14)
+
+        # --- Create Tab Widget and Tabs ---
+        self.tabs = QTabWidget()
+        setup_tab = QWidget()
+        results_tab = QWidget()
+        logs_tab = QWidget()
+
+        self.tabs.addTab(setup_tab, "Setup & File Queue")
+        self.tabs.addTab(results_tab, "Analysis Results")
+        self.tabs.addTab(logs_tab, "Application Logs")
+
+        # --- Analytics Tab ---
+        analytics_tab = QWidget()
+        self.tabs.addTab(analytics_tab, "Analytics Dashboard")
+        analytics_layout = QVBoxLayout(analytics_tab)
+
+        analytics_controls = QHBoxLayout()
+
+        analytics_controls.addWidget(QLabel("From:"))
+        self.analytics_start_date = QDateEdit()
+        self.analytics_start_date.setDate(QDate.currentDate().addMonths(-3))
+        self.analytics_start_date.setCalendarPopup(True)
+        analytics_controls.addWidget(self.analytics_start_date)
+
+        analytics_controls.addWidget(QLabel("To:"))
+        self.analytics_end_date = QDateEdit()
+        self.analytics_end_date.setDate(QDate.currentDate())
+        self.analytics_end_date.setCalendarPopup(True)
+        analytics_controls.addWidget(self.analytics_end_date)
+
+        btn_refresh_analytics = QPushButton("Filter & Refresh")
+        self._style_action_button(btn_refresh_analytics, font_size=11, bold=True, height=32)
+        try:
+            btn_refresh_analytics.clicked.connect(self._update_analytics_tab)
+        except Exception:
+            pass
+        analytics_controls.addWidget(btn_refresh_analytics)
+        analytics_controls.addStretch(1)
+
+        self.btn_export_data = QPushButton("Export Data (CSV)")
+        self.btn_export_chart = QPushButton("Export Chart (PNG)")
+        try:
+            self.btn_export_data.clicked.connect(self.action_export_analytics_data)
+            self.btn_export_chart.clicked.connect(self.action_export_analytics_chart)
+        except Exception:
+            pass # Headless
+        analytics_controls.addWidget(self.btn_export_data)
+        analytics_controls.addWidget(self.btn_export_chart)
+
+        analytics_layout.addLayout(analytics_controls)
+
+        # Matplotlib chart
+        self.analytics_figure = Figure(figsize=(5, 3))
+        self.analytics_canvas = FigureCanvas(self.analytics_figure)
+        try:
+            self.analytics_canvas.mpl_connect('pick_event', self.on_analytics_pick)
+        except Exception:
+            pass # For headless environments
+        analytics_layout.addWidget(self.analytics_canvas)
+
+        # Drill-down results
+        drilldown_group = QGroupBox("Drill-Down: Files with Selected Finding Type")
+        drilldown_layout = QVBoxLayout(drilldown_group)
+        self.drilldown_list = QListWidget()
+        try:
+            self.drilldown_list.itemDoubleClicked.connect(self.action_open_drilldown_file)
+        except Exception:
+            pass
+        drilldown_layout.addWidget(self.drilldown_list)
+        analytics_layout.addWidget(drilldown_group)
+
+        # Summary stats
+        stats_group = QGroupBox("Summary Statistics")
+        stats_layout = QGridLayout(stats_group)
+        self.lbl_total_runs = QLabel("N/A")
+        self.lbl_avg_score = QLabel("N/A")
+        self.lbl_avg_flags = QLabel("N/A")
+        self.lbl_top_category = QLabel("N/A")
+
+        stats_layout.addWidget(QLabel("Total Runs Analyzed:"), 0, 0)
+        stats_layout.addWidget(self.lbl_total_runs, 0, 1)
+        stats_layout.addWidget(QLabel("Average Compliance Score:"), 1, 0)
+        stats_layout.addWidget(self.lbl_avg_score, 1, 1)
+        stats_layout.addWidget(QLabel("Average Flags per Run:"), 2, 0)
+        stats_layout.addWidget(self.lbl_avg_flags, 2, 1)
+        stats_layout.addWidget(QLabel("Most Frequent Finding Category:"), 3, 0)
+        stats_layout.addWidget(self.lbl_top_category, 3, 1)
+
+        analytics_layout.addWidget(stats_group)
+
+        # --- Bias Audit Tab ---
+        bias_audit_tab = QWidget()
+        self.tabs.addTab(bias_audit_tab, "Bias Audit")
+        bias_audit_layout = QVBoxLayout(bias_audit_tab)
+
+        bias_controls_layout = QHBoxLayout()
+        self.bias_group_by_combo = QComboBox()
+        self.bias_group_by_combo.addItems(["Discipline", "Finding Type"])
+        self.btn_run_bias_audit = QPushButton("Run Bias Audit")
+        try:
+            self.btn_run_bias_audit.clicked.connect(self.action_run_bias_audit)
+        except Exception:
+            pass # For headless environments
+
+        bias_controls_layout.addWidget(QLabel("Audit Sensitive Feature:"))
+        bias_controls_layout.addWidget(self.bias_group_by_combo)
+        bias_controls_layout.addWidget(self.btn_run_bias_audit)
+        bias_controls_layout.addStretch(1)
+        bias_audit_layout.addLayout(bias_controls_layout)
+
+        self.bias_figure = Figure(figsize=(5, 4))
+        self.bias_canvas = FigureCanvas(self.bias_figure)
+        bias_audit_layout.addWidget(self.bias_canvas)
+
+        self.bias_results_text = QTextEdit()
+        self.bias_results_text.setReadOnly(True)
+        self.bias_results_text.setPlaceholderText("Bias audit results will be displayed here.")
+        bias_audit_layout.addWidget(self.bias_results_text)
+
+        # --- Setup Tab Layout ---
+        setup_layout = QVBoxLayout(setup_tab)
+
+        top_setup_layout = QHBoxLayout()
+
+        # Left: Rubric panel
+        rubric_panel = QGroupBox("Rubric")
+        rubric_layout = QVBoxLayout(rubric_panel)
+
+        row_rubric_btns = QHBoxLayout()
+        self.btn_upload_rubric = QPushButton("Upload Rubric")
+        self.btn_manage_rubrics = QPushButton("Manage Rubrics")
+        for b in (self.btn_upload_rubric, self.btn_manage_rubrics):
+            self._style_action_button(b, font_size=11, bold=True, height=32, padding="6px 10px")
+            row_rubric_btns.addWidget(b)
+        row_rubric_btns.addStretch(1)
+
+        try:
+            self.btn_upload_rubric.clicked.connect(self.action_upload_rubric)
+            self.btn_manage_rubrics.clicked.connect(self.action_manage_rubrics)
+        except Exception:
+            ...
+        rubric_layout.addLayout(row_rubric_btns)
+
+        # --- Discipline Selection Checkboxes ---
+        discipline_group = QGroupBox("Select Disciplines for Analysis")
+        discipline_layout = QHBoxLayout(discipline_group)
+        discipline_layout.setSpacing(15)
+
+        self.chk_pt = QCheckBox("Physical Therapy")
+        self.chk_ot = QCheckBox("Occupational Therapy")
+        self.chk_slp = QCheckBox("Speech-Language Pathology")
+        self.chk_all_disciplines = QCheckBox("All")
+        self.chk_all_disciplines.setTristate(True)
+
+        discipline_layout.addWidget(self.chk_pt)
+        discipline_layout.addWidget(self.chk_ot)
+        discipline_layout.addWidget(self.chk_slp)
+        discipline_layout.addStretch(1)
+        discipline_layout.addWidget(self.chk_all_disciplines)
+
+        try:
+            self.chk_all_disciplines.stateChanged.connect(self._toggle_all_disciplines)
+            self.chk_pt.stateChanged.connect(self._update_all_checkbox_state)
+            self.chk_ot.stateChanged.connect(self._update_all_checkbox_state)
+            self.chk_slp.stateChanged.connect(self._update_all_checkbox_state)
+        except Exception:
+            pass
+
+        rubric_layout.addWidget(discipline_group)
+        # --- End Discipline Selection ---
+
+        self.lbl_rubric_file = QLabel("(No rubric selected)")
+
+        self.lbl_rubric_file.setWordWrap(True)
+        rubric_layout.addWidget(self.lbl_rubric_file)
+
+        self.txt_rubric = QTextEdit()
+        self.txt_rubric.setVisible(False) # Not shown in main UI
+
+
+        
+    def action_clear_all(self):
+        try:
+            self._current_report_path = None
+            self.lbl_report_name.setText("(No report selected)")
+            self.lbl_report_name.setStyleSheet("")
+            try:
+                self.list_folder_files.clear()
+            except Exception:
+                ...
+            try:
+                self.txt_chat.clear()
+            except Exception:
+                ...
+            self.log("Cleared all selections.")
+        except Exception as e:
+            self.set_error(str(e))
+
+    def action_open_logs(self):
+        try:
+            _open_path(LOGS_DIR)
+        except Exception as e:
+            self.set_error(str(e))
+
+    def _progress_start(self, title: str = "Analyzing..."):
+        try:
+            self.progress_bar.setVisible(True)
+            self.progress_bar.setValue(0)
+            self.progress_bar.setFormat(title + " (%p%)")
+        except Exception:
+            ...
+
+    def _progress_update(self, pct: int, msg: str = ""):
+        try:
+            self.progress_bar.setVisible(True)
+            self.progress_bar.setValue(max(0, min(100, int(pct))))
+            if msg:
+                self.progress_bar.setFormat(f"{msg} (%p%)")
+            QApplication.processEvents()
+        except Exception:
+            ...
+
+    def _progress_finish(self):
+        try:
+            self.progress_bar.setValue(100)
+            self.progress_bar.setFormat("Done")
+            QApplication.processEvents()
+        except Exception:
+            ...
+
+    def _progress_was_canceled(self) -> bool:
+        try:
+            return bool(self._batch_cancel)
+        except Exception:
+            return False
+
+    def action_cancel_batch(self):
+        try:
+            self._batch_cancel = True
+            self.btn_cancel_batch.setDisabled(True)
+            self.statusBar().showMessage("Cancelling batch...")
+        except Exception:
+            ...
+
+    def action_analyze(self):
+        if not self._current_report_path:
+            QMessageBox.information(self, "Analyze", "Please upload or select a report first.")
+            return
+
+        self._clear_previous_analysis_state()
+
+        try:
+            self.btn_analyze_all.setDisabled(True)
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            self.statusBar().showMessage("Analyzing...")
+
+            self._progress_start("Analyzing...")
+
+            def _cb(p, m):
+                self._progress_update(p, m)
+
+            def _cancel():
+                return self._progress_was_canceled()
+
+            selected_disciplines = []
+            if self.chk_pt.isChecked(): selected_disciplines.append('pt')
+            if self.chk_ot.isChecked(): selected_disciplines.append('ot')
+            if self.chk_slp.isChecked(): selected_disciplines.append('slp')
+
+            if not selected_disciplines:
+                QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to be analyzed.")
+                return
+
+            res = run_analyzer(self, self._current_report_path, selected_disciplines=selected_disciplines, entity_consolidation_service=self.entity_consolidation_service, progress_cb=_cb, cancel_cb=_cancel, main_window_instance=self)
+
+            outs = []
+            if res.get("pdf"):
+                outs.append(f"PDF: {res['pdf']}")
+            if res.get("csv"):
+                outs.append(f"CSV: {res['csv']}")
+            if res.get("json"):
+                outs.append(f"JSON: {res['json']}")
+            if outs:
+                cache_hit = get_bool_setting("last_analysis_from_cache", False)
+                if cache_hit:
+                    self.log("Served from cache.")
+                    try:
+                        self.txt_chat.append("Note: Served from cache for faster results.\n")
+                    except Exception:
+                        ...
+                self.log("Analysis complete:\n" + "\n".join(" - " + x for x in outs))
+                try:
+                    import json
+                    with open(res["json"], "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    self.render_analysis_to_results(data)
+
+                    # --- Create and index the context for the AI ---
                     if self.local_rag and self.local_rag.is_ready():
                         report(68, "Fact-checking NER findings with AI")
                         for entity in ner_results:
@@ -2151,6 +3287,157 @@ def run_analyzer(self, file_path: str,
                                         update_ner_performance(model_name, entity.label, validation_status)
                             except Exception as e:
                                 logger.warning(f"LLM fact-checking failed for entity '{entity.text}': {e}")
+                        self.log("Creating AI context index...")
+                        context_chunks = self._create_context_chunks(data, res.get("formatted_entities", []))
+                        self.local_rag.create_index(context_chunks)
+                        self.log("AI context index created successfully.")
+                    else:
+                        self.log("AI not ready, skipping context indexing.")
+                    # --- End AI context indexing ---
+
+                except Exception:
+                    ...
+                try:
+                    _open_path(res["pdf"])
+                except Exception:
+                    ...
+            else:
+                self.log("Analysis finished, but no outputs were generated. See logs.")
+                QMessageBox.warning(self, "Analysis", "Finished, but no outputs were generated. See logs.")
+
+            self._progress_finish()
+            self.statusBar().showMessage("Ready")
+            self.set_error(None)
+        except Exception as e:
+            logger.exception("Analyze failed")
+            self._progress_finish()
+            self.set_error(str(e))
+            QMessageBox.warning(self, "Error", f"Failed to analyze file:\n{e}")
+        finally:
+            try:
+                QApplication.restoreOverrideCursor()
+                self.btn_analyze_all.setDisabled(False)
+            except Exception:
+                ...
+
+    def _create_context_chunks(self, data: dict, formatted_entities: list[str]) -> list[str]:
+        """Creates a list of text chunks from the analysis data for the RAG index."""
+        chunks = []
+
+        # 1. Add summary information
+        if 'compliance' in data and 'score' in data['compliance']:
+            chunks.append(f"[Summary] The overall compliance score is {data['compliance']['score']}/100.")
+        if 'executive_status' in data:
+             chunks.append(f"[Summary] The executive status is '{data['executive_status']}'.")
+
+        # 2. Add each issue as a detailed chunk, enriched with rubric data
+        for issue in data.get('issues', []):
+            issue_title = issue.get('title')
+            # Find the corresponding full rule from the rubric
+            matching_rule = next((r for r in self.compliance_rules if r.issue_title == issue_title), None)
+
+            if matching_rule:
+                # If we found the rule, create a detailed, structured chunk
+                issue_str = (
+                    f"[Finding] A finding with severity '{matching_rule.severity}' was identified.\n"
+                    f"Category: {matching_rule.issue_category}\n"
+                    f"Title: {matching_rule.issue_title}\n"
+                    f"Why it matters: {matching_rule.issue_detail}"
+                )
+                chunks.append(issue_str)
+            else:
+                # Fallback to the basic information if no rule is found
+                sev = issue.get('severity', 'N/A').title()
+                cat = issue.get('category', 'N/A')
+                detail = issue.get('detail', 'N/A')
+                chunks.append(f"[Finding] Severity: {sev}. Category: {cat}. Title: {issue_title}. Detail: {detail}.")
+
+            # Add citations as separate, clearly linked chunks
+            for i, (citation_text, source) in enumerate(issue.get('citations', [])[:2]):
+                clean_citation = re.sub('<[^<]+?>', '', citation_text)
+                chunks.append(f"[Evidence] The finding '{issue_title}' is supported by evidence from '{source}': \"{clean_citation}\"")
+
+        # 3. Add the original document sentences
+        for text, source in data.get('source_sentences', []):
+             chunks.append(f"[Document Text] From {source}: \"{text}\"")
+
+        # 4. Add formatted entities
+        chunks.extend(formatted_entities)
+
+        self.log(f"Generated {len(chunks)} text chunks for AI context.")
+        return chunks
+
+    def action_analyze_batch(self):
+        try:
+            n = self.list_folder_files.count()
+            if n == 0:
+                QMessageBox.information(self, "Analyze Batch", "Please upload a folder with the documents first.")
+                return
+            reply = QMessageBox.question(self, "Analyze Batch",
+                                         f"Process {n} file(s) sequentially?")  # type: ignore
+            if not str(reply).lower().endswith("yes"):
+                return
+            selected_disciplines = []
+            if self.chk_pt.isChecked(): selected_disciplines.append('pt')
+            if self.chk_ot.isChecked(): selected_disciplines.append('ot')
+            if self.chk_slp.isChecked(): selected_disciplines.append('slp')
+            if not selected_disciplines:
+                QMessageBox.warning(self, "No Discipline Selected", "Please select at least one discipline (e.g., PT, OT, SLP) to run a batch analysis.")
+                return
+            self._clear_previous_analysis_state()
+            self._batch_cancel = False
+            self.btn_cancel_batch.setDisabled(False)
+            self._progress_start("Batch analyzing...")
+            ok_count = 0
+            fail_count = 0
+            for i in range(n):
+                if self._progress_was_canceled() or self._batch_cancel:
+                    break
+                try:
+                    item = self.list_folder_files.item(i)
+                    path = item.text()
+                    if not os.path.isfile(path):
+                        continue
+                    self.lbl_report_name.setText(os.path.basename(path))
+                    self.statusBar().showMessage(f"Analyzing ({i + 1}/{n}): {os.path.basename(path)}")
+                    def _cb(p, m):
+                        overall = int(((i + (p / 100.0)) / max(1, n)) * 100)
+                        self._progress_update(overall, f"File {i + 1}/{n}: {m}")
+                    def _cancel():
+                        return self._progress_was_canceled() or self._batch_cancel
+                    res = run_analyzer(self, path, selected_disciplines=selected_disciplines, entity_consolidation_service=self.entity_consolidation_service, progress_cb=_cb, cancel_cb=_cancel, main_window_instance=self)
+                    if res.get("pdf") or res.get("json") or res.get("csv"):
+                        ok_count += 1
+                    else:
+                        fail_count += 1
+                except Exception:
+                    fail_count += 1
+
+            self.btn_cancel_batch.setDisabled(True)
+            self._progress_finish()
+            self.statusBar().showMessage("Ready")
+
+            try:
+                cancelled = self._batch_cancel or self._progress_was_canceled()
+                folder = ensure_reports_dir_configured()
+                if cancelled:
+                    title = "Batch Cancelled"
+                    body_top = f"Batch cancelled. Finished {ok_count} out of {n} file(s)."
+                else:
+                    title = "Batch Complete"
+                    body_top = f"All set! Your batch is complete.\n\nSummary:\n- Success: {ok_count}\n- Failed:  {fail_count}"
+                msg = [body_top, "", f"Location: {folder}", "", "Open that folder now?"]
+                reply2 = QMessageBox.question(self, title, "\n".join(msg))  # type: ignore
+                if str(reply2).lower().endswith("yes"):
+                    _open_path(folder)
+            except Exception:
+                ...
+            self.log(f"Batch finished. Success={ok_count}, Failed={fail_count}, Cancelled={self._batch_cancel}")
+        except Exception as e:
+            logger.exception("Analyze batch failed")
+            self.btn_cancel_batch.setDisabled(True)
+            self._progress_finish()
+            self.set_error(str(e))
 
                     # Formatting extracted entities as in main branch
                     formatted_entities = _format_entities_for_rag(ner_results)
@@ -2166,6 +3453,376 @@ def run_analyzer(self, file_path: str,
             finally:
                 self.statusBar().showMessage("Ready")
                 QApplication.restoreOverrideCursor()
+                QMessageBox.information(self, "Analyze", "Please upload or select a report or upload a folder first.")
+        except Exception as e:
+            self.set_error(str(e))
+
+    def _export_analytics_csv(self):
+        try:
+            dest = os.path.join(ensure_reports_dir_configured(), "SpecKit-Analytics.csv")
+            if export_analytics_csv(dest):
+                _open_path(dest)
+                self.log(f"Exported analytics CSV: {dest}")
+            else:
+                QMessageBox.information(self, "Analytics", "No analytics available yet.")
+        except Exception as e:
+            self.set_error(str(e))
+
+    def action_run_bias_audit(self):
+        """
+        Runs the bias audit on reviewed findings and displays the results.
+        """
+        try:
+            from fairlearn.metrics import MetricFrame, selection_rate, false_positive_rate
+            import json
+        except ImportError:
+            self.set_error("Fairlearn is not installed. Please run 'pip install fairlearn'.")
+            QMessageBox.warning(self, "Library Not Found", "The 'fairlearn' library is required for this feature.")
+            return
+
+        group_by = self.bias_group_by_combo.currentText()
+
+        self.statusBar().showMessage("Running bias audit...")
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        self.bias_figure.clear()
+        self.bias_canvas.draw()
+        self.bias_results_text.clear()
+
+
+        try:
+            with _get_db_connection() as conn:
+                df = pd.read_sql_query("""
+                    SELECT
+                        r.user_feedback,
+                        i.severity,
+                        i.title,
+                        a.disciplines
+                    FROM reviewed_findings r
+                    JOIN analysis_issues i ON r.analysis_issue_id = i.id
+                    JOIN analysis_runs a ON i.run_id = a.id
+                """, conn)
+
+            if df.empty or len(df) < 5:
+                self.bias_results_text.setPlainText("Not enough reviewed findings available to run a meaningful bias audit. Please review more findings first.")
+                return
+
+            # --- Data Preparation ---
+            df['y_true'] = df['user_feedback'].apply(lambda x: 1 if x == 'correct' else 0)
+            df['y_pred'] = 1  # We are analyzing the set of findings that were *raised* by the model.
+
+            if group_by == "Discipline":
+                # Handle single and multi-discipline runs by "exploding" the dataframe
+                def parse_disciplines(d_str):
+                    try:
+                        disciplines = json.loads(d_str)
+                        return disciplines if isinstance(disciplines, list) and disciplines else None
+                    except (json.JSONDecodeError, TypeError):
+                        return None
+
+                df['disciplines_list'] = df['disciplines'].apply(parse_disciplines)
+                df.dropna(subset=['disciplines_list'], inplace=True)
+                df = df.explode('disciplines_list')
+                df.rename(columns={'disciplines_list': 'sensitive_features'}, inplace=True)
+
+            elif group_by == "Finding Type":
+                df.rename(columns={'title': 'sensitive_features'}, inplace=True)
+
+            else: # Should not happen with the current UI
+                return
+
+            df.dropna(subset=['sensitive_features'], inplace=True)
+
+            if df.empty or df['sensitive_features'].nunique() < 2:
+                self.bias_results_text.setPlainText(f"Not enough data across different '{group_by}' groups to perform a comparative bias audit.")
+                return
+
+            y_true = df['y_true']
+            y_pred = df['y_pred']
+            sensitive_features = df['sensitive_features']
+
+            # --- Fairlearn MetricFrame ---
+            metrics = {
+                'count': 'count',
+                'false_positive_rate': false_positive_rate
+            }
+
+            grouped_on_feature = MetricFrame(metrics=metrics,
+                                               y_true=y_true,
+                                               y_pred=y_pred,
+                                               sensitive_features=sensitive_features)
+
+            results_df = grouped_on_feature.by_group
+            results_df.index.name = group_by
+
+
+            # --- Display Results ---
+            results_text = f"Bias Audit Results (by {group_by}):\n\n"
+            results_text += "This audit analyzes findings that users have marked as 'correct' or 'incorrect'.\n\n"
+            results_text += f" - Count: The number of reviewed findings for that {group_by}.\n"
+            results_text += " - False Positive Rate: The proportion of *incorrect* findings within the group. A high rate suggests the model is flagging non-issues for a specific group more often.\n\n"
+            results_text += results_df.to_string()
+
+            self.bias_results_text.setPlainText(results_text)
+
+            # --- Generate Chart ---
+            self.bias_figure.clear()
+            ax = self.bias_figure.add_subplot(111)
+            # Take top 10 for finding types to keep chart readable
+            plot_df = results_df if group_by == "Discipline" else results_df.nlargest(10, 'count')
+            plot_df[['false_positive_rate']].plot(kind='bar', ax=ax, legend=False, color=['#1f77b4', '#ff7f0e', '#2ca02c'])
+            ax.set_title(f'False Positive Rate by {group_by}')
+            ax.set_ylabel('Rate (Proportion of Incorrect Findings)')
+            ax.set_xlabel('')
+            ax.tick_params(axis='x', rotation=45, ha='right')
+            self.bias_figure.tight_layout()
+            self.bias_canvas.draw()
+
+        except Exception as e:
+            self.set_error(f"Failed to run bias audit: {e}")
+            logger.exception("Bias audit failed")
+            QMessageBox.critical(self, "Audit Error", f"An error occurred during the bias audit:\n{e}")
+        finally:
+            self.statusBar().showMessage("Ready")
+            QApplication.restoreOverrideCursor()
+
+    def _update_analytics_tab(self):
+        """
+        Fetches the latest analytics data and updates the dashboard tab.
+        """
+        self.statusBar().showMessage("Refreshing analytics...")
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        self.drilldown_list.clear()
+        try:
+            with _get_db_connection() as conn:
+                start_date = self.analytics_start_date.date().toString("yyyy-MM-dd")
+                # Add a day to the end date to make it inclusive in the query
+                end_date = self.analytics_end_date.date().addDays(1).toString("yyyy-MM-dd")
+
+                # Cache DFs on the instance to prevent re-querying in the pick event
+                self.runs_df = pd.read_sql_query(
+                    "SELECT * FROM analysis_runs WHERE run_time >= ? AND run_time < ?",
+                    conn,
+                    params=(start_date, end_date)
+                )
+
+                # Fetch all issues and then filter in memory, which is safer than a huge IN clause
+                all_issues_df = pd.read_sql_query("SELECT * FROM analysis_issues", conn)
+
+                if not self.runs_df.empty:
+                    self.issues_df = all_issues_df[all_issues_df['run_id'].isin(self.runs_df['id'])]
+                else:
+                    self.issues_df = pd.DataFrame() # Ensure issues_df is an empty DataFrame if no runs found
+
+            self.analytics_figure.clear()
+            if self.runs_df.empty:
+                self.statusBar().showMessage("No analytics data to display for the selected date range.", 4000)
+                self.analytics_canvas.draw()
+                return
+
+            # --- Update Summary Stats ---
+            self.lbl_total_runs.setText(str(len(self.runs_df)))
+            avg_score = self.runs_df['compliance_score'].mean()
+            self.lbl_avg_score.setText(f"{avg_score:.1f}" if pd.notna(avg_score) else "N/A")
+            avg_flags = self.runs_df['flags'].mean()
+            self.lbl_avg_flags.setText(f"{avg_flags:.2f}" if pd.notna(avg_flags) else "N/A")
+
+
+            if not self.issues_df.empty:
+                top_cat = self.issues_df['category'].mode()
+                self.lbl_top_category.setText(top_cat[0] if not top_cat.empty else "N/A")
+            else:
+                self.lbl_top_category.setText("N/A")
+
+            # --- Update Charts ---
+            (ax1, ax2) = self.analytics_figure.subplots(2, 1, gridspec_kw={'height_ratios': [2, 1.5]})
+            self.analytics_figure.subplots_adjust(hspace=0.4)
+
+
+            # --- Chart 1: Findings by Severity ---
+            if not self.issues_df.empty:
+                self.severity_counts = self.issues_df['severity'].value_counts().reindex(['flag', 'finding', 'suggestion', 'auditor_note']).fillna(0)
+                colors = {'flag': '#ef4444', 'finding': '#f59e0b', 'suggestion': '#10b981', 'auditor_note': '#9ca3af'}
+                bar_colors = [colors.get(sev, '#374151') for sev in self.severity_counts.index]
+                ax1.bar(self.severity_counts.index, self.severity_counts.values, color=bar_colors, picker=5)
+                ax1.set_title('Total Findings by Severity (Click a bar to drill down)')
+                ax1.set_ylabel('Total Count')
+            else:
+                ax1.text(0.5, 0.5, 'No findings data in selected range', ha='center', va='center')
+                ax1.set_title('Total Findings by Severity')
+
+            # --- Chart 2: Compliance Score Over Time ---
+            if len(self.runs_df) > 1:
+                # Convert run_time to datetime and sort
+                self.runs_df['run_time_dt'] = pd.to_datetime(self.runs_df['run_time'])
+                self.runs_df.sort_values('run_time_dt', inplace=True)
+
+                # Group by day and get mean score
+                daily_scores = self.runs_df.groupby(self.runs_df['run_time_dt'].dt.date)['compliance_score'].mean()
+
+                ax2.plot(daily_scores.index, daily_scores.values, marker='o', linestyle='-')
+                ax2.set_title('Compliance Score Trend')
+                ax2.set_ylabel('Avg. Score')
+                ax2.tick_params(axis='x', rotation=45)
+                ax2.set_ylim(0, 105)
+            else:
+                ax2.text(0.5, 0.5, 'Not enough data to show a trend', ha='center', va='center')
+                ax2.set_title('Compliance Score Trend')
+
+            self.analytics_figure.tight_layout()
+            self.analytics_canvas.draw()
+
+            self.statusBar().showMessage("Analytics refreshed.", 4000)
+
+        except Exception as e:
+            self.set_error(f"Failed to refresh analytics: {e}")
+            logger.exception("Analytics refresh failed")
+        finally:
+            QApplication.restoreOverrideCursor()
+
+    def on_analytics_pick(self, event):
+        """
+        Handles click events on the analytics chart for drill-down.
+        """
+        if not hasattr(self, 'severity_counts') or event.mouseevent.xdata is None:
+            return
+
+        # Ensure the click was on the top subplot (severity chart)
+        if len(self.analytics_figure.axes) < 2 or event.mouseevent.inaxes != self.analytics_figure.axes[0]:
+            return
+
+        try:
+            # Figure out which bar was clicked based on x-coordinate
+            x_index = int(round(event.mouseevent.xdata))
+            severity = self.severity_counts.index[x_index]
+
+            self.drilldown_list.clear()
+            self.drilldown_list.parent().setTitle(f"Drill-Down: Files with '{severity}' findings")
+
+
+            # Find all run_ids that have an issue with this severity
+            run_ids_with_severity = self.issues_df[self.issues_df['severity'] == severity]['run_id'].unique()
+
+            if len(run_ids_with_severity) > 0:
+                # Get the file names and paths for these runs
+                docs_df = self.runs_df[self.runs_df['id'].isin(run_ids_with_severity)]
+
+                for index, row in docs_df.iterrows():
+                    file_path = row.get('file_path')
+                    # Use basename for display, but store full path in UserRole data
+                    item = QListWidgetItem(os.path.basename(file_path) if file_path else "Unknown File")
+                    item.setData(Qt.ItemDataRole.UserRole, file_path)
+                    self.drilldown_list.addItem(item)
+            else:
+                self.drilldown_list.addItem("No documents found for this severity.")
+        except IndexError:
+            pass # Ignore clicks outside of bars
+        except Exception as e:
+            logger.error(f"Error during analytics pick event: {e}")
+
+    def action_open_drilldown_file(self, item):
+        """
+        Opens the file associated with a double-clicked item in the drill-down list.
+        """
+        file_path = item.data(Qt.ItemDataRole.UserRole)
+        if file_path and os.path.exists(file_path):
+            _open_path(file_path)
+        elif file_path:
+            QMessageBox.warning(self, "File Not Found", f"The file could not be found at the stored path:\n{file_path}")
+
+    def action_export_analytics_data(self):
+        """
+        Exports the currently displayed analytics data to a CSV file.
+        """
+        if not hasattr(self, 'runs_df') or self.runs_df.empty:
+            QMessageBox.information(self, "Export Error", "No data to export. Please refresh the analytics first.")
+            return
+
+        save_path, _ = QFileDialog.getSaveFileName(self, "Save Analytics Data", "filtered_analytics.csv", "CSV Files (*.csv)")
+
+        if not save_path:
+            return
+
+        try:
+            # We need to merge the runs and issues dfs to get a complete picture
+            if hasattr(self, 'issues_df') and not self.issues_df.empty:
+                agg = self.issues_df.groupby(["run_id", "severity"]).size().unstack(fill_value=0).reset_index()
+                df_to_export = self.runs_df.merge(agg, left_on="id", right_on="run_id", how="left").drop(columns=["run_id"])
+            else:
+                df_to_export = self.runs_df.copy()
+
+            # Remove any temporary columns before exporting
+            if 'run_time_dt' in df_to_export.columns:
+                df_to_export = df_to_export.drop(columns=['run_time_dt'])
+
+            df_to_export.to_csv(save_path, index=False, encoding="utf-8")
+            self.log(f"Successfully exported filtered data to {save_path}")
+            QMessageBox.information(self, "Export Successful", f"The filtered analytics data has been exported to:\n{save_path}")
+
+        except Exception as e:
+            self.set_error(f"Failed to export data: {e}")
+            QMessageBox.critical(self, "Export Error", f"An error occurred while exporting data:\n{e}")
+
+    def action_export_analytics_chart(self):
+        """
+        Exports the currently displayed analytics charts to a PNG image file.
+        """
+        if not self.analytics_figure.axes:
+            QMessageBox.information(self, "Export Error", "No chart to export. Please refresh the analytics first.")
+            return
+
+        save_path, _ = QFileDialog.getSaveFileName(self, "Save Chart Image", "analytics_chart.png", "PNG Files (*.png)")
+
+        if not save_path:
+            return
+
+        try:
+            self.analytics_figure.savefig(save_path, dpi=300, bbox_inches='tight')
+            self.log(f"Successfully exported chart to {save_path}")
+            QMessageBox.information(self, "Export Successful", f"The chart image has been exported to:\n{save_path}")
+        except Exception as e:
+            self.set_error(f"Failed to export chart: {e}")
+            QMessageBox.critical(self, "Export Error", f"An error occurred while exporting the chart:\n{e}")
+
+    def action_export_view_to_pdf(self):
+        """Exports the current content of the main chat/analysis view to a PDF."""
+        if not self.current_report_data:
+            QMessageBox.warning(self, "Export Error", "Please analyze a document first.")
+            return
+
+        default_filename = os.path.basename(self.current_report_data.get('file', 'report.pdf'))
+        default_filename = os.path.splitext(default_filename)[0] + "_annotated.pdf"
+
+        save_path, _ = QFileDialog.getSaveFileName(
+            self, "Save PDF", default_filename, "PDF Files (*.pdf)"
+        )
+
+        if not save_path:
+            return
+
+        try:
+            self.statusBar().showMessage("Exporting to PDF...")
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+
+            html_content = self.txt_chat.toHtml()
+
+            doc = QTextDocument()
+            doc.setHtml(html_content)
+
+            writer = QPdfWriter(save_path)
+            writer.setPageSize(QPdfWriter.PageSize.A4)
+            # Set margins if needed: writer.setPageMargins(...)
+
+            doc.print_(writer)
+
+            self.log(f"Successfully exported view to {save_path}")
+            QMessageBox.information(self, "Export Successful", f"The current view has been exported to:\n{save_path}")
+
+        except Exception as e:
+            self.set_error(f"Failed to export view to PDF: {e}")
+            QMessageBox.critical(self, "Export Error", f"An error occurred while exporting to PDF:\n{e}")
+        finally:
+            self.statusBar().showMessage("Ready")
+            QApplication.restoreOverrideCursor()
 
 def _run_gui() -> Optional[int]:
     try:
@@ -2197,6 +3854,146 @@ def _run_gui() -> Optional[int]:
                                  "Please contact the administrator to continue using the application.")
             return 0
 
+                except (ValueError, IndexError) as e:
+                    self.log(f"Invalid review URL: {url_str} - {e}")
+        elif url_str.startswith("ask:"):
+            try:
+                question_text = unquote(url_str[4:])
+                self.input_query_te.setPlainText(question_text)
+                self.action_send()
+            except Exception as e:
+                self.log(f"Failed to handle ask link: {url_str} - {e}")
+        elif url_str.startswith("educate:"):
+            try:
+                issue_title = unquote(url_str[8:])
+                self._display_educational_content(issue_title)
+            except Exception as e:
+                self.log(f"Failed to handle educate link: {url_str} - {e}")
+
+    def _display_educational_content(self, issue_title: str):
+        """Generates educational content and appends it to the main view."""
+        if not self.local_rag or not self.local_rag.is_ready():
+            QMessageBox.warning(self, "AI Not Ready", "The AI model is not available. Please wait for it to load, or check the logs.")
+            return
+
+        rule = next((r for r in self.compliance_rules if r.issue_title == issue_title), None)
+        issue = next((i for i in self.current_report_data.get('issues', []) if i.get('title') == issue_title), None)
+
+        if not rule or not issue:
+            QMessageBox.critical(self, "Error", "Could not find the details for this issue.")
+            return
+
+        user_text_html = issue.get('citations', [("No citation found.", "")])[0][0]
+        user_text = re.sub('<[^<]+?>', '', user_text_html)
+
+        prompt = (
+            "You are an expert on clinical documentation compliance. Your task is to create a personalized educational "
+            "example based on a compliance rule and a user's text that violated that rule.\n\n"
+            f"THE RULE:\nTitle: {rule.issue_title}\n"
+            f"Explanation: {rule.issue_detail}\n\n"
+            f"THE USER'S TEXT (which was flagged):\n\"{user_text}\"\n\n"
+            "YOUR TASK:\n"
+            "Create a clear, educational response with exactly two sections. Use the following format:\n"
+            "1. **A Good Example:** Provide a textbook-perfect example of a note that correctly follows this rule.\n"
+            "2. **Corrected Version:** Rewrite the user's original text to be compliant. Change only what is necessary to fix the error.\n"
+        )
+
+    def action_send(self):
+        question = self.input_query_te.toPlainText().strip()
+        if not question:
+            return
+        if not self.local_rag or not self.local_rag.is_ready() or not self.local_rag.index:
+            QMessageBox.warning(self, "AI Not Ready", "Please analyze a document first to activate the AI chat.")
+            return
+        try:
+            self.statusBar().showMessage("The AI is thinking...")
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            answer = self.local_rag.query(question, chat_history=self.chat_history)
+            self.chat_history.append(("user", question))
+            self.chat_history.append(("ai", answer))
+            self._render_chat_history()
+            self.input_query_te.setPlainText("")
+        except Exception as e:
+            self.set_error(f"An error occurred while querying the AI: {e}")
+            QMessageBox.warning(self, "AI Error", f"An error occurred: {e}")
+        finally:
+            self.statusBar().showMessage("Ready")
+            QApplication.restoreOverrideCursor()
+
+    def action_reset_chat(self):
+        """Clears the chat history and resets the chat view to the base report."""
+        if not self.chat_history:
+            return
+        reply = QMessageBox.question(self, "Reset Chat", "Are you sure you want to clear the current conversation?")
+        if str(reply).lower().endswith("yes"):
+            self.chat_history = []
+            self.log("Chat history has been manually reset.")
+            if self.current_report_data:
+                self._render_chat_history()
+            else:
+                self.txt_chat.clear()
+            self.statusBar().showMessage("Chat Reset", 3000)
+
+    def _render_chat_history(self):
+        """Renders the analysis report and the full chat history."""
+        if not self.current_report_data:
+            self.txt_chat.setHtml("<div>Please analyze a file to get started.</div>")
+            return
+        # Start with the base analysis report
+        base_html = self.current_report_data.get("narrative_html", "")
+        # Append chat history
+        chat_html = ""
+        for sender, message in self.chat_history:
+            if sender == "user":
+                chat_html += f"<div class='user-message'><b>You:</b> {html.escape(message)}</div>"
+            elif sender == "ai":
+                chat_html += f"<div class='ai-message'><b>AI:</b> {html.escape(message)}</div>"
+            elif sender == "education":
+                issue_title, education_text = message
+                formatted_edu_text = education_text.replace("\n", "<br>").replace(
+                    "1. **A Good Example:**", "<b>A Good Example:</b>"
+                ).replace(
+                    "2. **Corrected Version:**", "<b>Corrected Version:</b>"
+                )
+                chat_html += (
+                    f"<div class='education-block'>"
+                    f"<h3>🎓 Learning Opportunity: {html.escape(issue_title)}</h3>"
+                    f"<p>{formatted_edu_text}</p>"
+                    f"</div>"
+                )
+        title_page_html = ""
+        if self.current_report_data:
+            file_name = os.path.basename(self.current_report_data.get('file', 'N/A'))
+            run_time = self.current_report_data.get('generated', 'N/A')
+            score = self.current_report_data.get('compliance', {}).get('score', 'N/A')
+            title_page_html = f"""
+            <div style="text-align: center; page-break-after: always;">
+                <h1>Compliance Analysis Report</h1>
+                <hr>
+                <h2 style="font-size: 14pt;">File: {html.escape(file_name)}</h2>
+                <p><b>Analysis Date:</b> {html.escape(run_time)}</p>
+                <p><b>Compliance Score:</b> {score} / 100.0</p>
+            </div>
+            """
+        body_content = base_html
+        if chat_html:
+            body_content += f"<h2>Conversation</h2>{chat_html}"
+        body_with_title = title_page_html + body_content
+        full_html = f"""
+        <html>
+            <head>
+                <style>{REPORT_STYLESHEET}</style>
+            </head>
+            <body>
+                {body_with_title}
+            </body>
+        </html>
+        """
+        self.txt_chat.setHtml(full_html)
+        self.txt_chat.verticalScrollBar().setValue(self.txt_chat.verticalScrollBar().maximum())
+
+# --- Settings dialog (main branch format, robust) ---
+def _show_settings_dialog(parent=None) -> None:
     apply_theme(app)
     win = MainWindow()
     try:

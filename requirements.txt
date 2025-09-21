@@ -16,6 +16,7 @@ pdfplumber
 pytesseract
 python-docx
 rdflib
+fairlearn
 requests
 scikit-learn
 spacy
@@ -53,6 +54,9 @@ plotly
 shap
 slicer
 fhir.resources
+transformers
+Pillow
+matplotlib
 fairlearn
 
 # Asynchronous Processing
