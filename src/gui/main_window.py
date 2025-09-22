@@ -30,6 +30,12 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 from cryptography.hazmat.primitives.hashes import SHA256
+from src.gui.workers.document_worker import DocumentWorker
+from src.gui.workers.ner_worker import NERWorker
+from src.gui.workers.analysis_worker import AnalysisWorker
+from src.gui.dialogs.add_rubric_source_dialog import AddRubricSourceDialog
+from src.gui.dialogs.library_selection_dialog import LibrarySelectionDialog
+from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 import pdfplumber.utils
@@ -42,9 +48,9 @@ import pytesseract
 from PIL import Image  # Pillow for image processing with Tesseract
 import pandas as pd  # Pandas for Excel and CSV
 
-# NLP libraries
-import spacy
-from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline
+# NLP libraries removed for placeholder implementation
+# import spacy
+# from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline
 
 # --- Configuration ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -58,44 +64,12 @@ tess_env = os.environ.get("TESSERACT_EXE")
 if tess_env and os.path.isfile(tess_env):
     pytesseract.pytesseract.tesseract_cmd = tess_env
 
-# --- SpaCy Model Loading ---
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    if OFFLINE_ONLY:
-        print("SpaCy model 'en_core_web_sm' not found and offline mode is enabled. Install it in this venv before use.")
-        nlp = None
-    else:
-        print("Downloading SpaCy model 'en_core_web_sm'...")
-        import spacy.cli
-        spacy.cli.download("en_core_web_sm")
-        nlp = spacy.load("en_core_web_sm")
+# --- SpaCy Model Loading (REMOVED) ---
+nlp = None
 
-# --- Clinical/Biomedical NER Model Loading (offline-first with fallbacks) ---
-CLINICAL_NER_MODEL_CANDIDATES = [
-    "microsoft/BiomedVLP-CXR-BERT-specialized",
-    "d4data/biomedical-ner-all",
-    "kamalkraj/BioBERT-NER",
-    "dslim/bert-base-NER",
-]
+# --- Clinical/Biomedical NER Model Loading (REMOVED) ---
 clinical_ner_pipeline = None
-_loaded_model_name = None
-_last_model_error = None
-for model_name in CLINICAL_NER_MODEL_CANDIDATES:
-    try:
-        ner_tokenizer = AutoTokenizer.from_pretrained(model_name, local_files_only=OFFLINE_ONLY)
-        ner_model = AutoModelForTokenClassification.from_pretrained(model_name, local_files_only=OFFLINE_ONLY)
-        clinical_ner_pipeline = pipeline("ner", model=ner_model, tokenizer=ner_tokenizer, aggregation_strategy="simple")
-        _loaded_model_name = model_name
-        break
-    except Exception as e:
-        _last_model_error = e
-        continue
-if clinical_ner_pipeline is None:
-    print("Failed to load a clinical/biomedical NER model in offline mode.")
-    if _last_model_error:
-        print(f"Last error: {_last_model_error}")
-    print("Seed models into the local cache in this virtualenv on an internet-enabled machine, then copy to deployment.")
+_loaded_model_name = "N/A"
 
 # --- PHI Scrubber (basic, extendable) ---
 def scrub_phi(text: str) -> str:
@@ -158,365 +132,7 @@ def initialize_database():
     except sqlite3.Error as e:
         print(f"Failed to initialize database: {e}")
 
-# --- Background Workers ---
-class DocumentWorker(QObject):
-    finished = pyqtSignal(list)
-    error = pyqtSignal(str)
-    progress = pyqtSignal(int)
-
-    def __init__(self, file_path: str):
-        super().__init__()
-        self.file_path = file_path
-        self._cancel = False
-
-    def cancel(self):
-        self._cancel = True
-
-    def run(self):
-        if not nlp:
-            self.error.emit("SpaCy model not loaded. Cannot process document.")
-            return
-        try:
-            file_extension = os.path.splitext(self.file_path)[1].lower()
-            sentences_with_source = []
-            if file_extension == '.pdf':
-                with pdfplumber.open(self.file_path) as pdf:
-                    total = max(len(pdf.pages), 1)
-                    for i, page in enumerate(pdf.pages, start=1):
-                        if self._cancel:
-                            self.error.emit("Analysis canceled by user.")
-                            return
-                        page_text = page.extract_text() or ""
-                        doc = nlp(page_text)
-                        for sent in doc.sents:
-                            if sent.text.strip():
-                                sentences_with_source.append((sent.text.strip(), f"Page {i}"))
-                        self.progress.emit(int((i / total) * 100))
-            elif file_extension == '.docx':
-                doc = Document(self.file_path)
-                total = max(len(doc.paragraphs), 1)
-                for i, para in enumerate(doc.paragraphs, start=1):
-                    if self._cancel:
-                        self.error.emit("Analysis canceled by user.")
-                        return
-                    if para.text.strip():
-                        para_doc = nlp(para.text)
-                        for sent in para_doc.sents:
-                            if sent.text.strip():
-                                sentences_with_source.append((sent.text.strip(), f"Paragraph {i}"))
-                    self.progress.emit(int((i / total) * 100))
-            else:
-                sentences_with_source = parse_document_content(self.file_path)
-                if sentences_with_source and sentences_with_source[0][0].startswith("Error:"):
-                    self.error.emit(f"{sentences_with_source[0][0]} (Source: {sentences_with_source[0][1]})")
-                    return
-                self.progress.emit(100)
-            if not sentences_with_source:
-                self.error.emit('Info: No text could be extracted from the document.')
-                return
-            self.finished.emit(sentences_with_source)
-        except Exception as e:
-            import traceback
-            self.error.emit(f"Error processing file: {e}\n{traceback.format_exc()}")
-
-class NERWorker(QObject):
-    finished = pyqtSignal(str, str)
-    error = pyqtSignal(str)
-    progress = pyqtSignal(int)
-
-    def __init__(self, text: str):
-        super().__init__()
-        self.text = text
-        self._cancel = False
-
-    def cancel(self):
-        self._cancel = True
-
-    def run(self):
-        if not clinical_ner_pipeline:
-            self.error.emit("Clinical/Biomedical NER model not loaded (offline). Seed models locally and restart.")
-            return
-        try:
-            chunks = chunk_text(self.text)
-            aggregated = []
-            total = len(chunks) if chunks else 1
-            for idx, chunk in enumerate(chunks, start=1):
-                if self._cancel:
-                    self.error.emit("Analysis canceled by user.")
-                    return
-                results = clinical_ner_pipeline(chunk)
-                for entity in results:
-                    aggregated.append(f"Entity: {entity.get('word', '')}| Type: {entity.get('entity_group', '')} | Score: {entity.get('score', 0.0): .2f}")
-                self.progress.emit(int((idx / total) * 100))
-            output = "\n".join(aggregated) if aggregated else "No entities detected."
-            model_name = _loaded_model_name or "Unknown NER model"
-            self.finished.emit(model_name, output)
-        except Exception as e:
-            self.error.emit(f"Error during Clinical/Biomedical NER: {e}")
-
-class AnalysisWorker(QObject):
-    finished = pyqtSignal(str)
-    error = pyqtSignal(str)
-    progress = pyqtSignal(int)
-
-    def __init__(self, doc_sentences_with_source: List[Tuple[str, str]], rubric_content: str, offline_only: bool):
-        super().__init__()
-        self.doc_sentences_with_source = doc_sentences_with_source
-        self.rubric_content = rubric_content
-        self.offline_only = offline_only
-        self._cancel = False
-
-    def cancel(self):
-        self._cancel = True
-
-    def run(self):
-        try:
-            if self._cancel:
-                self.error.emit("Analysis canceled by user.")
-                return
-            self.progress.emit(10)
-            analyzer = SemanticAnalyzer(offline_only=self.offline_only)
-            if not analyzer.model:
-                self.error.emit("Failed to load semantic analysis model. Check logs or try reinstalling sentence-transformers.")
-                return
-            if self._cancel:
-                return
-            self.progress.emit(30)
-            results = analyzer.analyze(self.doc_sentences_with_source, self.rubric_content)
-            if self._cancel:
-                return
-            self.progress.emit(90)
-            report_lines = ["--- Semantic Rubric Analysis Report ---", ""]
-            for res in results:
-                status = res['status']
-                rule = res['rule']
-                score = res['score']
-                match = res['match']
-                source = res['source']
-                report_lines.append(f"[{status}] - Rule: {rule}")
-                if status == "MET":
-                    report_lines.append(f"     Match (Score: {score:.2f}): {match} (Source: {source})")
-                report_lines.append("")
-            final_report = "\n".join(report_lines)
-            self.progress.emit(100)
-            self.finished.emit(final_report)
-        except Exception as e:
-            import traceback
-            self.error.emit(f"An error occurred during rubric analysis: {e}\n{traceback.format_exc()}")
-
-class SemanticAnalyzer:
-    def __init__(self, model_name: str = 'all-MiniLM-L6-v2', offline_only: bool = True):
-        try:
-            from sentence_transformers import SentenceTransformer
-            self.model = SentenceTransformer(model_name, local_files_only=offline_only)
-        except ImportError:
-            self.model = None
-        except Exception as e:
-            print(f"Failed to load SentenceTransformer model: {e}")
-            self.model = None
-
-    def analyze(self, doc_sentences_with_source: List[Tuple[str, str]], rubric_content: str, similarity_threshold: float = 0.5) -> list[dict]:
-        if not self.model:
-            return [{"rule": "Error", "status": "Semantic model not loaded.", "match": "", "score": 0, "source": ""}]
-        from sentence_transformers.util import semantic_search
-        rules = [rule.strip() for rule in rubric_content.split('\n') if rule.strip() and not rule.strip().startswith("#")]
-        if not doc_sentences_with_source:
-            return []
-        doc_sentences, doc_sources = zip(*doc_sentences_with_source)
-        doc_sentences = list(doc_sentences)
-        if not rules or not doc_sentences:
-            return []
-        rule_embeddings = self.model.encode(rules, convert_to_tensor=True, show_progress_bar=False)
-        sentence_embeddings = self.model.encode(doc_sentences, convert_to_tensor=True, show_progress_bar=False)
-        hits = semantic_search(rule_embeddings, sentence_embeddings, top_k=1)
-        analysis_report = []
-        for i, rule_hits in enumerate(hits):
-            rule = rules[i]
-            result = {"rule": rule, "status": "NOT MET", "match": "No similar sentence found.", "score": 0, "source": ""}
-            if rule_hits:
-                top_hit = rule_hits[0]
-                score = top_hit['score']
-                if score >= similarity_threshold:
-                    corpus_id = top_hit['corpus_id']
-                    result["status"] = "MET"
-                    result["match"] = doc_sentences[corpus_id]
-                    result["source"] = doc_sources[corpus_id]
-                    result["score"] = score
-            analysis_report.append(result)
-        return analysis_report
-
-class AddRubricSourceDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Select Rubric Source")
-        self.source = None
-        layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("Where would you like to add a rubric from?"))
-        self.library_button = QPushButton("From Pre-loaded Library")
-        self.library_button.clicked.connect(self.select_library)
-        layout.addWidget(self.library_button)
-        self.file_button = QPushButton("From Local File")
-        self.file_button.clicked.connect(self.select_file)
-        layout.addWidget(self.file_button)
-        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
-        button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)
-
-    def select_library(self):
-        self.source = 'library'
-        self.accept()
-
-    def select_file(self):
-        self.source = 'file'
-        self.accept()
-
-class LibrarySelectionDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Select from Library")
-        self.selected_path = None
-        self.selected_name = None
-        layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("Select a pre-loaded rubric to add:"))
-        self.library_list = QListWidget()
-        layout.addWidget(self.library_list)
-        self.populate_library_list()
-        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        button_box.accepted.connect(self.confirm_selection)
-        button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)
-
-    def populate_library_list(self):
-        rubrics_dir = os.path.join(BASE_DIR, '..', 'resources', 'rubrics')
-        if not os.path.isdir(rubrics_dir):
-            self.library_list.addItem("No library found.")
-            self.library_list.setEnabled(False)
-            return
-        for filename in os.listdir(rubrics_dir):
-            if filename.endswith(".txt"):
-                display_name = os.path.splitext(filename)[0].replace('_', ' ').title()
-                item = QListWidgetItem(display_name)
-                item.setData(Qt.ItemDataRole.UserRole, os.path.join(rubrics_dir, filename))
-                self.library_list.addItem(item)
-
-    def confirm_selection(self):
-        selected_items = self.library_list.selectedItems()
-        if not selected_items:
-            QMessageBox.warning(self, "Selection Required", "Please select a rubric from the list.")
-            return
-        item = selected_items[0]
-        self.selected_name = item.text()
-        self.selected_path = item.data(Qt.ItemDataRole.UserRole)
-        self.accept()
-
-class RubricManagerDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Rubric Manager")
-        self.setGeometry(150, 150, 400, 300)
-        layout = QVBoxLayout(self)
-        self.rubric_list = QListWidget()
-        layout.addWidget(self.rubric_list)
-        self.load_rubrics()
-        button_box = QDialogButtonBox()
-        self.add_button = button_box.addButton("Add...", QDialogButtonBox.ButtonRole.ActionRole)
-        self.remove_button = button_box.addButton("Remove", QDialogButtonBox.ButtonRole.ActionRole)
-        close_button = button_box.addButton(QDialogButtonBox.StandardButton.Close)
-        close_button.clicked.connect(self.accept)
-        self.add_button.clicked.connect(self.add_rubric)
-        self.remove_button.clicked.connect(self.remove_rubric)
-        layout.addWidget(button_box)
-
-    def load_rubrics(self):
-        self.rubric_list.clear()
-        try:
-            if not os.path.exists(DATABASE_PATH):
-                return
-            with sqlite3.connect(DATABASE_PATH) as conn:
-                cur = conn.cursor()
-                cur.execute("SELECT id, name FROM rubrics ORDER BY name ASC")
-                for rubric_id, name in cur.fetchall():
-                    item = QListWidgetItem(name)
-                    item.setData(Qt.ItemDataRole.UserRole, rubric_id)
-                    self.rubric_list.addItem(item)
-        except sqlite3.Error as e:
-            QMessageBox.critical(self, "Error", f"Failed to load rubrics from database:\n{e}")
-
-    def add_rubric(self):
-        source_dialog = AddRubricSourceDialog(self)
-        if not source_dialog.exec():
-            return
-        if source_dialog.source == 'file':
-            self.add_rubric_from_file()
-        elif source_dialog.source == 'library':
-            self.add_rubric_from_library()
-
-    def add_rubric_from_file(self):
-        rubric_name, ok = QInputDialog.getText(self, "Add Rubric From File", "Enter a unique name for the new rubric:")
-        if not (ok and rubric_name):
-            return
-        file_path, _ = QFileDialog.getOpenFileName(self, 'Select Rubric Document', '', 'Supported Files(*.pdf *.docx *.xlsx *.xls *.csv *.png *.jpg *.jpeg *.gif *.bmp *.tiff);;All Files(*.*)')
-        if not file_path:
-            return
-        content = parse_document_content(file_path)
-        if content[0][0].startswith("Error:"):
-            QMessageBox.critical(self, "Error", f"Failed to parse rubric document:\n{content[0][0]}")
-            return
-        content_str = "\n".join([text for text, source in content])
-        try:
-            with sqlite3.connect(DATABASE_PATH) as conn:
-                cur = conn.cursor()
-                cur.execute("INSERT INTO rubrics (name, content) VALUES(?, ?)", (rubric_name, content_str))
-                conn.commit()
-                QMessageBox.information(self, "Success", f"Rubric '{rubric_name}' added successfully.")
-                self.load_rubrics()
-        except sqlite3.IntegrityError:
-            QMessageBox.critical(self, "Error", f"A rubric with the name '{rubric_name}' already exists. Please choose a unique name.")
-        except sqlite3.Error as e:
-            QMessageBox.critical(self, "Database Error", f"Failed to save rubric to database:\n{e}")
-
-    def add_rubric_from_library(self):
-        lib_dialog = LibrarySelectionDialog(self)
-        if not lib_dialog.exec():
-            return
-        rubric_name = lib_dialog.selected_name
-        rubric_path = lib_dialog.selected_path
-        content = parse_document_content(rubric_path)
-        if content[0][0].startswith("Error:"):
-            QMessageBox.critical(self, "Error", f"Failed to parse library rubric:\n{content[0][0]}")
-            return
-        content_str = "\n".join([text for text, source in content])
-        try:
-            with sqlite3.connect(DATABASE_PATH) as conn:
-                cur = conn.cursor()
-                cur.execute("INSERT INTO rubrics (name, content) VALUES(?, ?)", (rubric_name, content_str))
-                conn.commit()
-                QMessageBox.information(self, "Success", f"Rubric '{rubric_name}' added from library.")
-                self.load_rubrics()
-        except sqlite3.IntegrityError:
-            QMessageBox.warning(self, "Already Exists", f"The library rubric '{rubric_name}' is already in your database.")
-        except sqlite3.Error as e:
-            QMessageBox.critical(self, "Database Error", f"Failed to save rubric to database:\n{e}")
-
-    def remove_rubric(self):
-        selected_items = self.rubric_list.selectedItems()
-        if not selected_items:
-            QMessageBox.warning(self, "Remove Rubric", "Please select a rubric to remove.")
-            return
-        item = selected_items[0]
-        rubric_id = item.data(Qt.ItemDataRole.UserRole)
-        rubric_name = item.text()
-        reply = QMessageBox.question(self, "Confirm Deletion", f"Are you sure you want to permanently delete the rubric '{rubric_name}'?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
-        if reply == QMessageBox.StandardButton.Yes:
-            try:
-                with sqlite3.connect(DATABASE_PATH) as conn:
-                    cur = conn.cursor()
-                    cur.execute("DELETE FROM rubrics WHERE id = ?", (rubric_id,))
-                    conn.commit()
-                QMessageBox.information(self, "Success", f"Rubric '{rubric_name}' has been deleted.")
-                self.load_rubrics()
-            except Exception as e:
-                QMessageBox.critical(self, "Database Error", f"Failed to delete rubric:\n{e}")
+# --- Background Workers & Dialogs (Moved to separate modules) ---
 
 class MainApplicationWindow(QMainWindow):
     def __init__(self):
@@ -593,18 +209,10 @@ class MainApplicationWindow(QMainWindow):
         self.document_display_area.setReadOnly(True)
         self.document_display_area.setAcceptDrops(True)
         main_layout.addWidget(self.document_display_area)
-        self.spacy_nlp_results_area = QTextEdit()
-        self.spacy_nlp_results_area.setPlaceholderText("SpaCy NLP results (Tokens & Sentences) will appear here.")
-        self.spacy_nlp_results_area.setReadOnly(True)
-        main_layout.addWidget(self.spacy_nlp_results_area)
         self.clinical_ner_results_area = QTextEdit()
-        self.clinical_ner_results_area.setPlaceholderText("Clinical/Biomedical NER results will appear here.")
+        self.clinical_ner_results_area.setPlaceholderText("AI/ML model results will appear here. (Currently disabled)")
         self.clinical_ner_results_area.setReadOnly(True)
         main_layout.addWidget(self.clinical_ner_results_area)
-        self.spacy_ner_results_area = QTextEdit()
-        self.spacy_ner_results_area.setPlaceholderText("SpaCy NER results will appear here.")
-        self.spacy_ner_results_area.setReadOnly(True)
-        main_layout.addWidget(self.spacy_ner_results_area)
         self.analysis_results_area = QTextEdit()
         self.analysis_results_area.setPlaceholderText("Rubric analysis results will appear here.")
         self.analysis_results_area.setReadOnly(True)
@@ -703,74 +311,16 @@ class MainApplicationWindow(QMainWindow):
             display_text = scrub_phi(display_text)
         self.document_display_area.setText(display_text)
         self.status_bar.showMessage("Document processed.")
-        if not self._current_raw_text or self._current_raw_text.startswith("Unsupported file type") or self._current_raw_text.startswith("Error processing file"):
-            return
-        self.process_spacy_basic_nlp(self._current_raw_text)
-        self.process_spacy_ner(self._current_raw_text)
-        self.process_biomedical_ner_async(self._current_raw_text)
+        # AI/ML processing calls removed
+        self.clinical_ner_results_area.setText("AI/ML processing is disabled.")
+
 
     def _handle_doc_error(self, message: str):
         self._set_busy(False)
         self.document_display_area.setText(message)
         self.status_bar.showMessage("Document processing failed.")
 
-    def process_spacy_basic_nlp(self, text):
-        if not nlp or not text.strip():
-            self.spacy_nlp_results_area.setText("SpaCy model not available (offline and not installed).")
-            return
-        doc = nlp(text)
-        tokens = [token.text for token in doc]
-        sentences = [sent.text for sent in doc.sents]
-        nlp_output = (
-            "--- Tokens ---\n" +
-            "\n".join(tokens) +
-            "\n\n--- Sentences ---\n" +
-            "\n".join(sentences)
-        )
-        self.spacy_nlp_results_area.setText(nlp_output)
-        self.status_bar.showMessage("SpaCy basic NLP complete.")
-
-    def process_biomedical_ner_async(self, text: str):
-        self.clinical_ner_results_area.setText("Running Clinical/Biomedical NER...")
-        self.status_bar.showMessage("Running Clinical/Biomedical NER in background...")
-        self._set_busy(True)
-        self._ner_thread = QThread()
-        self._ner_worker = NERWorker(text)
-        self._ner_worker.moveToThread(self._ner_thread)
-        self._ner_thread.started.connect(self._ner_worker.run)
-        self._ner_worker.finished.connect(self._handle_ner_finished)
-        self._ner_worker.error.connect(self._handle_ner_error)
-        self._ner_worker.progress.connect(lambda p: self.status_bar.showMessage(f"NER... {p}%"))
-        self._ner_worker.finished.connect(self._ner_thread.quit)
-        self._ner_worker.finished.connect(self._ner_worker.deleteLater)
-        self._ner_thread.finished.connect(self._ner_thread.deleteLater)
-        self._ner_thread.start()
-
-    def _handle_ner_finished(self, model_name: str, formatted_output: str):
-        self._set_busy(False)
-        self._current_entities_transformer = formatted_output
-        self.clinical_ner_results_area.setText(f"[Model: {model_name}]\n{formatted_output}")
-        self.status_bar.showMessage("Clinical/Biomedical NER processing complete.")
-
-    def _handle_ner_error(self, message: str):
-        self._set_busy(False)
-        self.clinical_ner_results_area.setText(message)
-        self.status_bar.showMessage("Clinical/Biomedical NER processing failed.")
-
-    def process_spacy_ner(self, text):
-        if not nlp or not text.strip():
-            self.spacy_ner_results_area.setText("SpaCy model not available (offline and not installed).")
-            return
-        self.status_bar.showMessage("Running SpaCy NER...")
-        try:
-            doc = nlp(text)
-            formatted_results = [f"Entity: {ent.text} | Type: {ent.label_}" for ent in doc.ents]
-            self._current_entities_spacy = "\n".join(formatted_results) if formatted_results else "No entities detected by SpaCy."
-            self.spacy_ner_results_area.setText(self._current_entities_spacy)
-            self.status_bar.showMessage("SpaCy NER processing complete.")
-        except Exception as e:
-            self.spacy_ner_results_area.setText(f"Error during SpaCy NER: {e}")
-            self.status_bar.showMessage("SpaCy NER processing failed.")
+    # --- AI/ML Processing Methods (REMOVED) ---
 
     def clear_document_display(self):
         self.document_display_area.clear()
@@ -916,24 +466,22 @@ class MainApplicationWindow(QMainWindow):
         QMessageBox.information(self, "Quickstart", tips)
 
     def verify_offline_readiness(self):
-        spacy_ok = nlp is not None
-        spacy_msg = "OK" if spacy_ok else "Missing (install en_core_web_sm in this venv)."
-        ner_ok = clinical_ner_pipeline is not None
-        model_msg = _loaded_model_name if ner_ok else "Missing (pre-cache NER model in this venv)."
+        spacy_msg = "Disabled (placeholder in use)."
+        ner_msg = "Disabled (placeholder in use)."
         tesseract_cmd = getattr(pytesseract.pytesseract, "tesseract_cmd", "")
         if tesseract_cmd and os.path.isfile(tesseract_cmd):
             tess_msg = f"OK ({tesseract_cmd})"
         else:
             tess_msg = "Unknown path (set TESSERACT_EXE env var or ensure in PATH)."
-        try:
-            import torch
-            torch_msg = "OK"
-        except Exception as e:
-            torch_msg = f"Missing ({e})"
+
+        # PyTorch is no longer a direct dependency for the core app
+        torch_msg = "Not required by core application."
+
         msg = (
             f"Offline Readiness:\n\n"
             f"- SpaCy model: {spacy_msg}\n"
-            f"- Transformers NER model: {model_msg}\n"
+            f"- Transformers NER model: {ner_msg}\n"
+            f"- Semantic Analysis model: Disabled (placeholder in use).\n"
             f"- Tesseract: {tess_msg}\n"
             f"- PyTorch: {torch_msg}\n"
             f"- Offline mode: {'ENABLED' if OFFLINE_ONLY else 'Disabled'}"
