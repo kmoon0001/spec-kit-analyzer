@@ -30,16 +30,16 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 from cryptography.hazmat.primitives.hashes import SHA256
-from src.gui.workers.document_worker import DocumentWorker
-from src.gui.dialogs.add_rubric_source_dialog import AddRubricSourceDialog
-from src.gui.dialogs.library_selection_dialog import LibrarySelectionDialog
-from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
+# from .workers.document_worker import DocumentWorker # Will be replaced by an API call
+from .dialogs.add_rubric_source_dialog import AddRubricSourceDialog
+from .dialogs.library_selection_dialog import LibrarySelectionDialog
+from .dialogs.rubric_manager_dialog import RubricManagerDialog
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+# The following libraries are for direct document parsing, which will be moved to the backend.
+# They are kept here for now to prevent the DocumentWorker from breaking until it is replaced.
 import pdfplumber.utils
 import docx.opc.exceptions
-
-# Document parsing libraries
 import pdfplumber
 from docx import Document  # python-docx
 import pytesseract
@@ -93,7 +93,8 @@ def chunk_text(text: str, max_chars: int = 4000):
         start = end
     return chunks
 
-from src.parsing import parse_document_content
+# This function will be moved to the backend.
+# from src.parsing import parse_document_content
 
 # --- Helpers: Database Initialization ---
 def initialize_database():
@@ -240,54 +241,42 @@ class MainApplicationWindow(QMainWindow):
             self.cancel_button.setEnabled(False)
 
     def process_document(self, file_path):
-        self.status_bar.showMessage(f"Processing: {os.path.basename(file_path)}")
-        self.document_display_area.setText("Processing document in background...")
-        self._current_raw_text = ""
-        self._current_sentences_with_source = []
-        self._set_busy(True)
-        self._doc_thread = QThread()
-        self._doc_worker = DocumentWorker(file_path)
-        self._doc_worker.moveToThread(self._doc_thread)
-        self._doc_thread.started.connect(self._doc_worker.run)
-        self._doc_worker.finished.connect(self._handle_doc_finished)
-        self._doc_worker.error.connect(self._handle_doc_error)
-        self._doc_worker.progress.connect(lambda p: self.status_bar.showMessage(f"Document processing... {p}%"))
-        self._doc_worker.finished.connect(self._doc_thread.quit)
-        self._doc_worker.finished.connect(self._doc_worker.deleteLater)
-        self._doc_thread.finished.connect(self._doc_thread.deleteLater)
-        self._doc_thread.start()
+        """
+        This method will now be responsible for sending the document
+        to the backend for processing.
+        """
+        self.status_bar.showMessage(f"Sending {os.path.basename(file_path)} to backend...")
+        self.document_display_area.setText(f"Processing {os.path.basename(file_path)}...")
 
-    def cancel_analysis(self):
-        canceled = False
-        if hasattr(self, "_doc_worker") and self._doc_worker is not None:
-            try:
-                self._doc_worker.cancel()
-                canceled = True
-            except Exception:
-                pass
-        if canceled:
-            self.status_bar.showMessage("Cancel requested...")
-        else:
-            self.status_bar.showMessage("Nothing to cancel.")
+        # In a real implementation, we would use a background thread (QThread)
+        # to call the backend API to avoid freezing the GUI.
+        self._call_backend_for_processing(file_path)
 
-    def _handle_doc_finished(self, sentences_with_source: List[Tuple[str, str]]):
-        self._set_busy(False)
-        self._current_sentences_with_source = sentences_with_source
-        self._current_raw_text = "\n".join([text for text, source in sentences_with_source])
-        display_text = self._current_raw_text
-        if isinstance(display_text, str) and len(display_text) > 100000:
-            display_text = display_text[:100000] + "\n...[truncated for display]"
-        if self.scrub_before_display:
-            display_text = scrub_phi(display_text)
-        self.document_display_area.setText(display_text)
-        self.status_bar.showMessage("Document processed.")
-        # AI/ML processing calls removed.
+    def _call_backend_for_processing(self, file_path):
+        """
+        Placeholder for calling the backend API.
+        This will eventually use the 'requests' library.
+        """
+        # Example of what the call might look like:
+        # try:
+        #     with open(file_path, 'rb') as f:
+        #         response = requests.post("http://127.0.0.1:8000/process", files={'file': f})
+        #     if response.status_code == 200:
+        #         # The backend would return the extracted text
+        #         extracted_text = response.json().get("text")
+        #         self.document_display_area.setText(extracted_text)
+        #         self.status_bar.showMessage("Processing complete.")
+        #     else:
+        #         self.document_display_area.setText(f"Error from backend: {response.text}")
+        #         self.status_bar.showMessage("Backend processing failed.")
+        # except requests.exceptions.RequestException as e:
+        #     self.document_display_area.setText(f"Failed to connect to backend: {e}")
+        #     self.status_bar.showMessage("Connection to backend failed.")
 
-
-    def _handle_doc_error(self, message: str):
-        self._set_busy(False)
-        self.document_display_area.setText(message)
-        self.status_bar.showMessage("Document processing failed.")
+        # For now, just show a placeholder message.
+        mock_response = f"--- MOCK RESPONSE ---\n\nFile '{os.path.basename(file_path)}' would be processed by the backend here.\n\nThe extracted text would appear in this box."
+        self.document_display_area.setText(mock_response)
+        self.status_bar.showMessage("Processing complete (mock).")
 
     # --- AI/ML Processing Methods (REMOVED) ---
 
@@ -386,10 +375,3 @@ class MainApplicationWindow(QMainWindow):
     def show_paths(self):
         msg = f"App path:\n{os.path.abspath(__file__)}\n\nDatabase path:\n{os.path.abspath(DATABASE_PATH)}"
         QMessageBox.information(self, "Paths", msg)
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    initialize_database()
-    main_win = MainApplicationWindow()
-    main_win.show()
-    sys.exit(app.exec())
