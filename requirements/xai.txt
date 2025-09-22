@@ -1,7 +1,2 @@
-shap
-slicer
-fhir.resources
-transformers
 Pillow
 matplotlib
-fairlearn
