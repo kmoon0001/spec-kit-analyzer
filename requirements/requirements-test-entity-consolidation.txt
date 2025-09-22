@@ -1,5 +1,0 @@
-pytest
-pytest-mock
-numpy
-sentence-transformers
-scikit-learn

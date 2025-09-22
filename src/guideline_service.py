@@ -12,7 +12,7 @@ import pdfplumber
 import requests
 
 # Local
-from .local_llm import LocalRAG
+# from .local_llm import LocalRAG
 
 logger = logging.getLogger(__name__)
 
@@ -20,59 +20,24 @@ logger = logging.getLogger(__name__)
 class GuidelineService:
     """
     Manages loading, indexing, and searching of compliance guidelines.
+    This is a placeholder implementation.
     """
 
-    def __init__(self, rag_instance: LocalRAG):
+    def __init__(self, rag_instance = None):
         """
         Initializes the GuidelineService.
-
-        Args:
-            rag_instance: An instance of the LocalRAG service for semantic
-                          indexing.
         """
         self.rag = rag_instance
         self.guideline_chunks: List[Tuple[str, str]] = []
         self.is_index_ready = False
+        logger.info("GuidelineService initialized with placeholder implementation. No indexing will occur.")
 
     def load_and_index_guidelines(self, sources: List[str]) -> None:
         """
-        Loads guidelines from sources and builds the search index.
-
-        Args:
-            sources: A list of strings, where each string is a URL to a PDF
-                     or a local file path.
+        Placeholder for loading guidelines. Does not index.
         """
-        logger.info(f"Loading guidelines from {len(sources)} sources...")
-        all_chunks = []
-        for source in sources:
-            try:
-                if source.startswith(('http://', 'https://')):
-                    chunks = self._load_from_url(source)
-                else:
-                    chunks = self._load_from_local_path(source)
-
-                if chunks:
-                    all_chunks.extend(chunks)
-            except Exception as e:
-                logger.error(
-                    f"Failed to load or process guideline source '{source}': {e}"
-                )
-
-        self.guideline_chunks = all_chunks
-
-        if self.guideline_chunks:
-            logger.info(f"Creating search index from {len(self.guideline_chunks)} text chunks...")
-            # The RAG instance is responsible for creating the index.
-            # We pass only the text content for embedding.
-            texts_to_index = [chunk[0] for chunk in self.guideline_chunks]
-            self.rag.create_index(texts_to_index)
-            self.is_index_ready = True
-            logger.info("Guideline index is ready.")
-        else:
-            logger.warning(
-                "No guideline text was extracted. Index was not built."
-            )
-            self.is_index_ready = False
+        logger.info(f"GuidelineService.load_and_index_guidelines called, but service is a placeholder. Guidelines will not be indexed.")
+        self.is_index_ready = False
 
     def _extract_text_from_pdf(
         self, file_path: str, source_name: str
@@ -139,30 +104,7 @@ class GuidelineService:
 
     def search(self, query: str, top_k: int = 2) -> List[dict]:
         """
-        Searches the guideline index for text relevant to the query.
-
-        Args:
-            query: The text to search for (e.g., a compliance issue
-                   description).
-            top_k: The number of top results to return.
-
-        Returns:
-            A list of dictionaries, where each dictionary contains the 'text'
-            and 'source' of the guideline.
+        Placeholder for searching the guideline index. Returns an empty list.
         """
-        if not self.is_index_ready:
-            logger.warning("Search attempted before guideline index was ready.")
-            return []
-
-        retrieved_texts = self.rag.search_index(query, k=top_k)
-
-        text_to_source_map = {
-            text: source for text, source in self.guideline_chunks
-        }
-
-        results = []
-        for text in retrieved_texts:
-            source = text_to_source_map.get(text, "Unknown Source")
-            results.append({"text": text, "source": source})
-
-        return results
+        logger.warning("GuidelineService.search called, but service is a placeholder. Returning empty list.")
+        return []
