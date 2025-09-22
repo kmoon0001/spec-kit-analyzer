@@ -7,23 +7,8 @@ from docx import Document
 import pytesseract
 from PIL import Image
 import pandas as pd
-import spacy
 
 from src.text_chunking import RecursiveCharacterTextSplitter
-
-# --- SpaCy Model Loading ---
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    print("SpaCy model 'en_core_web_sm' not found. Please run 'python -m spacy download en_core_web_sm'")
-    nlp = None
-
-def split_sentences(text: str) -> list[str]:
-    """Split text into sentences."""
-    if not nlp:
-        return [text]
-    doc = nlp(text)
-    return [sent.text.strip() for sent in doc.sents if sent.text.strip()]
 
 def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
     """

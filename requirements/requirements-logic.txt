@@ -1,16 +1,7 @@
 pdfplumber==0.11.7
 requests
-faiss-cpu==1.12.0
 pytest
 pytest-mock
 matplotlib
-huggingface-hub
-llama-cpp-python==0.3.16
-sentence-transformers==5.1.0
-transformers
-scikit-learn
-llama_index
 pyyaml
 rdflib
-langchain
-llama-index-embeddings-huggingface

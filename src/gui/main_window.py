@@ -31,8 +31,6 @@ from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 from cryptography.hazmat.primitives.hashes import SHA256
 from src.gui.workers.document_worker import DocumentWorker
-from src.gui.workers.ner_worker import NERWorker
-from src.gui.workers.analysis_worker import AnalysisWorker
 from src.gui.dialogs.add_rubric_source_dialog import AddRubricSourceDialog
 from src.gui.dialogs.library_selection_dialog import LibrarySelectionDialog
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
@@ -48,9 +46,7 @@ import pytesseract
 from PIL import Image  # Pillow for image processing with Tesseract
 import pandas as pd  # Pandas for Excel and CSV
 
-# NLP libraries removed for placeholder implementation
-# import spacy
-# from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline
+# NLP libraries removed.
 
 # --- Configuration ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -64,12 +60,7 @@ tess_env = os.environ.get("TESSERACT_EXE")
 if tess_env and os.path.isfile(tess_env):
     pytesseract.pytesseract.tesseract_cmd = tess_env
 
-# --- SpaCy Model Loading (REMOVED) ---
-nlp = None
-
-# --- Clinical/Biomedical NER Model Loading (REMOVED) ---
-clinical_ner_pipeline = None
-_loaded_model_name = "N/A"
+# --- AI Model Loading Sections Removed ---
 
 # --- PHI Scrubber (basic, extendable) ---
 def scrub_phi(text: str) -> str:
@@ -145,8 +136,6 @@ class MainApplicationWindow(QMainWindow):
         self.scrub_before_display = True
         self._current_raw_text = ""
         self._current_sentences_with_source: List[Tuple[str, str]] = []
-        self._current_entities_spacy = ""
-        self._current_entities_transformer = ""
         self.setAcceptDrops(True)
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
@@ -155,7 +144,6 @@ class MainApplicationWindow(QMainWindow):
         self.tools_menu = self.menu_bar.addMenu('Tools')
         self.tools_menu.addAction('Initialize Database', initialize_database)
         self.tools_menu.addAction('Quickstart', self.show_quickstart)
-        self.tools_menu.addAction('Verify Offline Readiness', self.verify_offline_readiness)
         self.admin_menu = self.menu_bar.addMenu('Admin Options')
         self.toggle_scrub_action = self.admin_menu.addAction('Scrub PHI before display (recommended)')
         self.toggle_scrub_action.setCheckable(True)
@@ -209,10 +197,6 @@ class MainApplicationWindow(QMainWindow):
         self.document_display_area.setReadOnly(True)
         self.document_display_area.setAcceptDrops(True)
         main_layout.addWidget(self.document_display_area)
-        self.clinical_ner_results_area = QTextEdit()
-        self.clinical_ner_results_area.setPlaceholderText("AI/ML model results will appear here. (Currently disabled)")
-        self.clinical_ner_results_area.setReadOnly(True)
-        main_layout.addWidget(self.clinical_ner_results_area)
         self.analysis_results_area = QTextEdit()
         self.analysis_results_area.setPlaceholderText("Rubric analysis results will appear here.")
         self.analysis_results_area.setReadOnly(True)
@@ -260,8 +244,6 @@ class MainApplicationWindow(QMainWindow):
         self.document_display_area.setText("Processing document in background...")
         self._current_raw_text = ""
         self._current_sentences_with_source = []
-        self._current_entities_spacy = ""
-        self._current_entities_transformer = ""
         self._set_busy(True)
         self._doc_thread = QThread()
         self._doc_worker = DocumentWorker(file_path)
@@ -283,18 +265,6 @@ class MainApplicationWindow(QMainWindow):
                 canceled = True
             except Exception:
                 pass
-        if hasattr(self, "_ner_worker") and self._ner_worker is not None:
-            try:
-                self._ner_worker.cancel()
-                canceled = True
-            except Exception:
-                pass
-        if hasattr(self, "_analysis_worker") and self._analysis_worker is not None:
-            try:
-                self._analysis_worker.cancel()
-                canceled = True
-            except Exception:
-                pass
         if canceled:
             self.status_bar.showMessage("Cancel requested...")
         else:
@@ -311,8 +281,7 @@ class MainApplicationWindow(QMainWindow):
             display_text = scrub_phi(display_text)
         self.document_display_area.setText(display_text)
         self.status_bar.showMessage("Document processed.")
-        # AI/ML processing calls removed
-        self.clinical_ner_results_area.setText("AI/ML processing is disabled.")
+        # AI/ML processing calls removed.
 
 
     def _handle_doc_error(self, message: str):
@@ -324,14 +293,9 @@ class MainApplicationWindow(QMainWindow):
 
     def clear_document_display(self):
         self.document_display_area.clear()
-        self.spacy_nlp_results_area.clear()
-        self.clinical_ner_results_area.clear()
-        self.spacy_ner_results_area.clear()
         self.analysis_results_area.clear()
         self._current_raw_text = ""
         self._current_sentences_with_source = []
-        self._current_entities_spacy = ""
-        self._current_entities_transformer = ""
         self.status_bar.showMessage('Display cleared.')
 
     def manage_rubrics(self):
@@ -375,40 +339,11 @@ class MainApplicationWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Database Error", f"Failed to retrieve rubric content:\n{e}")
             return
-        self.analysis_results_area.setText("Running rubric analysis...")
-        self.status_bar.showMessage("Starting rubric analysis in background...")
-        self._set_busy(True)
-        self.progress_bar.setRange(0, 100)
-        self._analysis_thread = QThread()
-        self._analysis_worker = AnalysisWorker(self._current_sentences_with_source, rubric_content, OFFLINE_ONLY)
-        self._analysis_worker.moveToThread(self._analysis_thread)
-        self._analysis_thread.started.connect(self._analysis_worker.run)
-        self._analysis_worker.finished.connect(self._handle_analysis_finished)
-        self._analysis_worker.error.connect(self._handle_analysis_error)
-        self._analysis_worker.progress.connect(lambda p: self.status_bar.showMessage(f"Rubric analysis... {p}%"))
-        self._analysis_worker.progress.connect(self.progress_bar.setValue)
-        self._analysis_worker.finished.connect(self._analysis_thread.quit)
-        self._analysis_worker.finished.connect(self._analysis_worker.deleteLater)
-        self._analysis_thread.finished.connect(self._analysis_thread.deleteLater)
-        self._analysis_thread.start()
-
-    def _handle_analysis_finished(self, report: str):
-        self._set_busy(False)
-        self.analysis_results_area.setText(report)
-        self.status_bar.showMessage("Rubric analysis complete.")
-        self.progress_bar.setRange(0, 1)
-
-    def _handle_analysis_error(self, message: str):
-        self._set_busy(False)
-        self.analysis_results_area.setText(f"Analysis Failed:\n{message}")
-        self.status_bar.showMessage("Rubric analysis failed.")
-        self.progress_bar.setRange(0, 1)
+        QMessageBox.information(self, "Analysis", "This feature is currently disabled pending new model integration.")
 
     def _build_report_html(self) -> str:
         text_for_report = scrub_phi(self._current_raw_text or "")
-        spacy_entities = scrub_phi(self._current_entities_spacy or "")
-        hf_entities = scrub_phi(self._current_entities_transformer or "")
-        html = f"""<html><head><meta charset=\"utf-8\"><style>body {{ font-family: Arial, sans-serif; }} h1 {{ font-size: 18pt; }} h2 {{ font-size: 14pt; margin-top: 12pt; }} pre {{ white-space: pre-wrap; font-family: Consolas, monospace; background: #f4f4f4; padding: 8px; }}</style></head><body><h1>Therapy Compliance Analysis Report</h1><p><b>Mode:</b> Offline | <b>PHI Scrubbing:</b> Enabled for export</p><h2>Extracted Text (scrubbed)</h2><pre>{text_for_report}</pre><h2>SpaCy Entities (scrubbed)</h2><h2>Clinical/Biomedical NER (scrubbed)</h2><pre>{hf_entities}</pre></body></html>"""
+        html = f"""<html><head><meta charset=\"utf-8\"><style>body {{ font-family: Arial, sans-serif; }} h1 {{ font-size: 18pt; }} h2 {{ font-size: 14pt; margin-top: 12pt; }} pre {{ white-space: pre-wrap; font-family: Consolas, monospace; background: #f4f4f4; padding: 8px; }}</style></head><body><h1>Therapy Compliance Analysis Report</h1><p><b>Mode:</b> Offline | <b>PHI Scrubbing:</b> Enabled for export</p><h2>Extracted Text (scrubbed)</h2><pre>{text_for_report}</pre></body></html>"""
         return html
 
     def generate_report_pdf(self):
@@ -451,42 +386,6 @@ class MainApplicationWindow(QMainWindow):
     def show_paths(self):
         msg = f"App path:\n{os.path.abspath(__file__)}\n\nDatabase path:\n{os.path.abspath(DATABASE_PATH)}"
         QMessageBox.information(self, "Paths", msg)
-
-    def show_quickstart(self):
-        tips = (
-            "Quickstart (Offline HIPAA Mode):\n"
-            "1) Ensure SpaCy and NER models are pre-cached locally in this virtualenv.\n"
-            "2) Windows OCR: Install Tesseract and set TESSERACT_EXE env var if needed.\n"
-            "3) Click 'Upload Document' or drag & drop a file.\n"
-            "4) Text shows (scrubbed), SpaCy results, then Clinical NER finishes.\n"
-            "5) Use 'Generate Report (PDF)' or 'Print Report' for outputs.\n"
-            "6) Use 'Cancel Analysis' to stop long runs.\n"
-            "7) Tools → Verify Offline Readiness checks that everything is in place."
-        )
-        QMessageBox.information(self, "Quickstart", tips)
-
-    def verify_offline_readiness(self):
-        spacy_msg = "Disabled (placeholder in use)."
-        ner_msg = "Disabled (placeholder in use)."
-        tesseract_cmd = getattr(pytesseract.pytesseract, "tesseract_cmd", "")
-        if tesseract_cmd and os.path.isfile(tesseract_cmd):
-            tess_msg = f"OK ({tesseract_cmd})"
-        else:
-            tess_msg = "Unknown path (set TESSERACT_EXE env var or ensure in PATH)."
-
-        # PyTorch is no longer a direct dependency for the core app
-        torch_msg = "Not required by core application."
-
-        msg = (
-            f"Offline Readiness:\n\n"
-            f"- SpaCy model: {spacy_msg}\n"
-            f"- Transformers NER model: {ner_msg}\n"
-            f"- Semantic Analysis model: Disabled (placeholder in use).\n"
-            f"- Tesseract: {tess_msg}\n"
-            f"- PyTorch: {torch_msg}\n"
-            f"- Offline mode: {'ENABLED' if OFFLINE_ONLY else 'Disabled'}"
-        )
-        QMessageBox.information(self, "Verify Offline Readiness", msg)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
