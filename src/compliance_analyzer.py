@@ -4,7 +4,7 @@ from .hybrid_retriever import HybridRetriever
 from .document_classifier import DocumentClassifier, DocumentType
 from .parsing import parse_document_into_sections
 from typing import Dict, List
-import json 
+import json  
 
 class ComplianceAnalyzer:
     def __init__(self):
