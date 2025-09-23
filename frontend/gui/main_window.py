@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QStatusBar,
     QMenuBar,
-    QFileDialog,
+    QFileDialog, 
     QTextEdit,
     QHBoxLayout,
     QProgressBar,
