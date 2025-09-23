@@ -26,11 +26,15 @@ from PyQt6.QtWidgets import (
     QInputDialog,
     QCheckBox,
 )
+from collections import Counter
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 from cryptography.hazmat.primitives.hashes import SHA256
+
+from src.entity import NEREntity
 from src.gui.workers.document_worker import DocumentWorker
+from src.gui.workers.ner_worker import NERWorker
 from src.gui.dialogs.add_rubric_source_dialog import AddRubricSourceDialog
 from src.gui.dialogs.library_selection_dialog import LibrarySelectionDialog
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
@@ -46,8 +50,6 @@ import pytesseract
 from PIL import Image  # Pillow for image processing with Tesseract
 import pandas as pd  # Pandas for Excel and CSV
 
-# NLP libraries removed.
-
 # --- Configuration ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_PATH = os.path.join(BASE_DIR, '..', 'data', 'compliance.db')
@@ -59,8 +61,6 @@ OFFLINE_ONLY = True
 tess_env = os.environ.get("TESSERACT_EXE")
 if tess_env and os.path.isfile(tess_env):
     pytesseract.pytesseract.tesseract_cmd = tess_env
-
-# --- AI Model Loading Sections Removed ---
 
 # --- PHI Scrubber (basic, extendable) ---
 def scrub_phi(text: str) -> str:
@@ -136,6 +136,11 @@ class MainApplicationWindow(QMainWindow):
         self.scrub_before_display = True
         self._current_raw_text = ""
         self._current_sentences_with_source: List[Tuple[str, str]] = []
+        self._extracted_entities: List[NEREntity] = []
+        self._doc_thread = None
+        self._doc_worker = None
+        self._ner_thread = None
+        self._ner_worker = None
         self.setAcceptDrops(True)
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
@@ -259,19 +264,25 @@ class MainApplicationWindow(QMainWindow):
 
     def cancel_analysis(self):
         canceled = False
-        if hasattr(self, "_doc_worker") and self._doc_worker is not None:
+        if hasattr(self, "_doc_worker") and self._doc_worker:
             try:
                 self._doc_worker.cancel()
                 canceled = True
-            except Exception:
-                pass
+            except RuntimeError:
+                pass  # Worker might be gone already
+        if hasattr(self, "_ner_worker") and self._ner_worker:
+            try:
+                self._ner_worker.cancel()
+                canceled = True
+            except RuntimeError:
+                pass # Worker might be gone already
+
         if canceled:
             self.status_bar.showMessage("Cancel requested...")
         else:
             self.status_bar.showMessage("Nothing to cancel.")
 
     def _handle_doc_finished(self, sentences_with_source: List[Tuple[str, str]]):
-        self._set_busy(False)
         self._current_sentences_with_source = sentences_with_source
         self._current_raw_text = "\n".join([text for text, source in sentences_with_source])
         display_text = self._current_raw_text
@@ -280,22 +291,64 @@ class MainApplicationWindow(QMainWindow):
         if self.scrub_before_display:
             display_text = scrub_phi(display_text)
         self.document_display_area.setText(display_text)
-        self.status_bar.showMessage("Document processed.")
-        # AI/ML processing calls removed.
-
+        self.status_bar.showMessage("Document processed. Starting NER analysis...")
+        self.analysis_results_area.setText("Starting Named Entity Recognition...")
+        self.start_ner_analysis(self._current_raw_text)
 
     def _handle_doc_error(self, message: str):
         self._set_busy(False)
         self.document_display_area.setText(message)
         self.status_bar.showMessage("Document processing failed.")
 
-    # --- AI/ML Processing Methods (REMOVED) ---
+    # --- AI/ML Processing Methods ---
+    def start_ner_analysis(self, text: str):
+        self._set_busy(True)
+        self._ner_thread = QThread()
+        self._ner_worker = NERWorker(text)
+        self._ner_worker.moveToThread(self._ner_thread)
+
+        self._ner_thread.started.connect(self._ner_worker.run)
+        self._ner_worker.finished.connect(self._handle_ner_finished)
+        self._ner_worker.error.connect(self._handle_ner_error)
+        self._ner_worker.progress.connect(lambda p, msg: self.status_bar.showMessage(f"NER: {msg} ({p}%)"))
+
+        self._ner_worker.finished.connect(self._ner_thread.quit)
+        self._ner_worker.finished.connect(self._ner_worker.deleteLater)
+        self._ner_thread.finished.connect(self._ner_thread.deleteLater)
+
+        self._ner_thread.start()
+
+    def _handle_ner_finished(self, entities: List[NEREntity]):
+        self._set_busy(False)
+        self._extracted_entities = entities
+        self.status_bar.showMessage(f"NER analysis complete. Found {len(entities)} entities.")
+
+        if not entities:
+            self.analysis_results_area.setText("NER analysis complete. No entities were found.")
+            return
+
+        # Create a summary
+        entity_counts = Counter(e.label for e in entities)
+        summary_header = "--- NER Analysis Summary ---\n"
+        summary_body = "\n".join([f"- {label}: {count}" for label, count in entity_counts.most_common()])
+
+        # Create the detailed list
+        details_header = "\n\n--- Extracted Entities ---\n"
+        details_body = "\n".join([f"- {e.text} ({e.label}, score: {e.score:.2f})" for e in entities])
+
+        self.analysis_results_area.setText(summary_header + summary_body + details_header + details_body)
+
+    def _handle_ner_error(self, message: str):
+        self._set_busy(False)
+        self.status_bar.showMessage(f"NER Error: {message}")
+        QMessageBox.critical(self, "NER Error", message)
 
     def clear_document_display(self):
         self.document_display_area.clear()
         self.analysis_results_area.clear()
         self._current_raw_text = ""
         self._current_sentences_with_source = []
+        self._extracted_entities = []
         self.status_bar.showMessage('Display cleared.')
 
     def manage_rubrics(self):
@@ -343,7 +396,36 @@ class MainApplicationWindow(QMainWindow):
 
     def _build_report_html(self) -> str:
         text_for_report = scrub_phi(self._current_raw_text or "")
-        html = f"""<html><head><meta charset=\"utf-8\"><style>body {{ font-family: Arial, sans-serif; }} h1 {{ font-size: 18pt; }} h2 {{ font-size: 14pt; margin-top: 12pt; }} pre {{ white-space: pre-wrap; font-family: Consolas, monospace; background: #f4f4f4; padding: 8px; }}</style></head><body><h1>Therapy Compliance Analysis Report</h1><p><b>Mode:</b> Offline | <b>PHI Scrubbing:</b> Enabled for export</p><h2>Extracted Text (scrubbed)</h2><pre>{text_for_report}</pre></body></html>"""
+
+        ner_html = "<h2>Named Entity Recognition Results</h2>"
+        if self._extracted_entities:
+            entity_counts = Counter(e.label for e in self._extracted_entities)
+            ner_html += "<h3>Summary</h3><ul>"
+            for label, count in entity_counts.most_common():
+                ner_html += f"<li><b>{label}:</b> {count}</li>"
+            ner_html += "</ul><h3>Details</h3><ul>"
+            for entity in self._extracted_entities:
+                ner_html += f"<li>{entity.text} (<i>{entity.label}</i>, score: {entity.score:.2f})</li>"
+            ner_html += "</ul>"
+        else:
+            ner_html += "<p>No entities were extracted.</p>"
+
+        html = f"""<html><head><meta charset="utf-8"><style>
+            body {{ font-family: Arial, sans-serif; }}
+            h1 {{ font-size: 18pt; }}
+            h2 {{ font-size: 14pt; margin-top: 12pt; border-bottom: 1px solid #ccc; }}
+            h3 {{ font-size: 12pt; margin-top: 10pt; }}
+            pre {{ white-space: pre-wrap; font-family: Consolas, monospace; background: #f4f4f4; padding: 8px; border-radius: 4px; }}
+            ul {{ list-style-type: none; padding-left: 0; }}
+            li {{ margin-bottom: 4px; }}
+            i {{ color: #555; }}
+            </style></head><body>
+            <h1>Therapy Compliance Analysis Report</h1>
+            <p><b>Mode:</b> Offline | <b>PHI Scrubbing:</b> Enabled for export</p>
+            {ner_html}
+            <h2>Extracted Text (scrubbed)</h2>
+            <pre>{text_for_report}</pre>
+            </body></html>"""
         return html
 
     def generate_report_pdf(self):

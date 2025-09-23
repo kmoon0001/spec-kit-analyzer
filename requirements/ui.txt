@@ -1,6 +1,7 @@
 PyQt6==6.9.1
 PyQt6-sip
 PyQt6-WebEngine
-pyqt6-tools
+# pyqt6-tools has been removed due to dependency conflicts.
+# It appears to be a development dependency and not required for runtime.
 matplotlib
 plotly
