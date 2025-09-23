@@ -101,7 +101,7 @@ You are an expert Medicare compliance officer for a Skilled Nursing Facility (SN
 **Clinical Document:**
 ---
 {document}
----
+--- 
 
 **Extracted Clinical Entities:**
 ---
