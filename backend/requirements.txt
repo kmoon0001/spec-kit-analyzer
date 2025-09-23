@@ -11,3 +11,4 @@ pytesseract
 Pillow
 pandas
 openpyxl
+rank_bm25
