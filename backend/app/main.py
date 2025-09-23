@@ -5,7 +5,7 @@ import os
 
 from rubric_service import RubricService, ComplianceRule
 from parsing import parse_document_content
-from guideline_service import GuidelineService
+from guideline_service import GuidelineService 
 from document_classifier import classify_document
 from ai_analysis_service import AIAnalysisService
 
