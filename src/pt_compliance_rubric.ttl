@@ -49,58 +49,6 @@
     rdfs:domain :KeywordSet ;
     rdfs:range rdfs:Literal .
 
-
-@prefix : <http://example.com/speckit/ontology#> .
-@prefix owl : <http://www.w3.org/2002/07/owl#> .
-@prefix rdf : <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs : <http://www.w3.org/2000/01/rdf-schema#> .
-
-# Ontology Information
-: a owl:Ontology .
-
-# --- Classes ---
-:ComplianceRule a owl:Class ;
-    rdfs:comment "A rule for checking compliance in a document." .
-
-:KeywordSet a owl:Class ;
-    rdfs:comment "A set of keywords used by a compliance rule." .
-
-# --- Object Properties ---
-:hasPositiveKeywords a owl:ObjectProperty ;
-    rdfs:comment "A rule has a set of keywords that must be present to trigger the rule." ;
-    rdfs:domain :ComplianceRule ;
-    rdfs:range :KeywordSet .
-
-:hasNegativeKeywords a owl:ObjectProperty ;
-    rdfs:comment "A rule has a set of keywords that must be absent for the rule to trigger (in conjunction with positive keywords), or present for the rule to be violated (if no positive keywords)." ;
-    rdfs:domain :ComplianceRule ;
-    rdfs:range :KeywordSet .
-
-# --- Datatype Properties ---
-:hasSeverity a owl:DatatypeProperty ;
-    rdfs:domain :ComplianceRule ;
-    rdfs:range rdfs:Literal .
-
-:hasStrictSeverity a owl:DatatypeProperty ;
-    rdfs:domain :ComplianceRule ;
-    rdfs:range rdfs:Literal .
-
-:hasIssueTitle a owl:DatatypeProperty ;
-    rdfs:domain :ComplianceRule ;
-    rdfs:range rdfs:Literal .
-
-:hasIssueDetail a owl:DatatypeProperty ;
-    rdfs:domain :ComplianceRule ;
-    rdfs:range rdfs:Literal .
-
-:hasIssueCategory a owl:DatatypeProperty ;
-    rdfs:domain :ComplianceRule ;
-    rdfs:range rdfs:Literal .
-
-:hasKeyword a owl:DatatypeProperty ;
-    rdfs:domain :KeywordSet ;
-    rdfs:range rdfs:Literal .
-
 :hasFinancialImpact a owl:DatatypeProperty ;
     rdfs:comment "Estimated financial impact of this compliance finding, as an integer." ;
     rdfs:domain :ComplianceRule ;
@@ -110,104 +58,19 @@
     rdfs:domain :ComplianceRule ;
     rdfs:range rdfs:Literal .
 
+:hasDocumentType a owl:DatatypeProperty ;
+    rdfs:comment "The type of document this rule applies to (e.g., 'Evaluation', 'Progress Note'). If absent, the rule is considered universal." ;
+    rdfs:domain :ComplianceRule ;
+    rdfs:range rdfs:Literal .
 
-# --- Individuals (Rules) ---
-
-# Rule 1: Signature/Date check
-# This rule triggers if NONE of the keywords are found.
-:SignatureRule a :ComplianceRule ;
-    :hasSeverity "finding" ;
-    :hasStrictSeverity "flag" ;
-    :hasIssueTitle "Provider signature/date possibly missing" ;
-    :hasIssueDetail "No explicit evidence of dated/signature entries found." ;
-    :hasIssueCategory "Signatures/Dates" ;
-
-    :hasFinancialImpact "50" ;
-    :hasDiscipline "pt" ;
-    :hasNegativeKeywords :SignatureKeywords .
-
-:SignatureKeywords a :KeywordSet ;
-    :hasKeyword "signature" , "signed" , "dated" .
-
-# Rule 2: Goals check
-# This rule triggers if 'goal' is present, but measurable/time-bound keywords are NOT found.
+:hasSuggestion a owl:DatatypeProperty ;
+    rdfs:comment "A detailed suggestion for how to remediate the finding." ;
     rdfs:domain :ComplianceRule ;
     rdfs:range rdfs:Literal .
 
 # --- Individuals (Rules) ---
 
 # Rule 1: Signature/Date check
-# This rule triggers if NONE of the keywords are found.
-:SignatureRule a :ComplianceRule ;
-    :hasSeverity "finding" ;
-    :hasStrictSeverity "flag" ;
-    :hasIssueTitle "Provider signature/date possibly missing" ;
-    :hasIssueDetail "No explicit evidence of dated/signature entries found." ;
-    :hasIssueCategory "Signatures/Dates" ;
-@prefix : <http://example.com/speckit/ontology#> .
-@prefix owl : <http://www.w3.org/2002/07/owl#> .
-@prefix rdf : <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs : <http://www.w3.org/2000/01/rdf-schema#> .
-
-# Ontology Information
-: a owl:Ontology .
-
-# --- Classes ---
-:ComplianceRule a owl:Class ;
-    rdfs:comment "A rule for checking compliance in a document." .
-
-:KeywordSet a owl:Class ;
-    rdfs:comment "A set of keywords used by a compliance rule." .
-
-# --- Object Properties ---
-:hasPositiveKeywords a owl:ObjectProperty ;
-    rdfs:comment "A rule has a set of keywords that must be present to trigger the rule." ;
-    rdfs:domain :ComplianceRule ;
-    rdfs:range :KeywordSet .
-
-:hasNegativeKeywords a owl:ObjectProperty ;
-    rdfs:comment "A rule has a set of keywords that must be absent for the rule to trigger (in conjunction with positive keywords), or present for the rule to be violated (if no positive keywords)." ;
-    rdfs:domain :ComplianceRule ;
-    rdfs:range :KeywordSet .
-
-# --- Datatype Properties ---
-:hasSeverity a owl:DatatypeProperty ;
-    rdfs:domain :ComplianceRule ;
-    rdfs:range rdfs:Literal .
-
-:hasStrictSeverity a owl:DatatypeProperty ;
-    rdfs:domain :ComplianceRule ;
-    rdfs:range rdfs:Literal .
-
-:hasIssueTitle a owl:DatatypeProperty ;
-    rdfs:domain :ComplianceRule ;
-    rdfs:range rdfs:Literal .
-
-:hasIssueDetail a owl:DatatypeProperty ;
-    rdfs:domain :ComplianceRule ;
-    rdfs:range rdfs:Literal .
-
-:hasIssueCategory a owl:DatatypeProperty ;
-    rdfs:domain :ComplianceRule ;
-    rdfs:range rdfs:Literal .
-
-:hasKeyword a owl:DatatypeProperty ;
-    rdfs:domain :KeywordSet ;
-    rdfs:range rdfs:Literal .
-
-:hasFinancialImpact a owl:DatatypeProperty ;
-    rdfs:comment "Estimated financial impact of this compliance finding, as an integer." ;
-    rdfs:domain :ComplianceRule ;
-    rdfs:range rdfs:Literal .
-
-:hasDiscipline a owl:DatatypeProperty ;
-    rdfs:domain :ComplianceRule ;
-    rdfs:range rdfs:Literal .
-
-# --- Individuals (Rules) ---
-
-# Rule 1: Signature/Date check
-# This rule triggers if NONE of the keywords are found.
 :SignatureRule a :ComplianceRule ;
     :hasSeverity "finding" ;
     :hasStrictSeverity "flag" ;
@@ -223,24 +86,38 @@
 
 # Rule 2: Goals check
 # This rule triggers if 'goal' is present, but measurable/time-bound keywords are NOT found.
+# ... continue with your rule definitions ...
 
+    rdfs:domain :ComplianceRule ;
+    rdfs:range rdfs:Literal .
+
+# --- Individuals (Rules) ---
+
+# Rule 1: Signature/Date check
+:SignatureRule a :ComplianceRule ;
+    :hasSeverity "finding" ;
+    :hasStrictSeverity "flag" ;
+    :hasIssueTitle "Provider signature/date possibly missing" ;
+    :hasIssueDetail "No explicit evidence of dated/signature entries found." ;
+    :hasIssueCategory "Signatures/Dates" ;
+    :hasFinancialImpact 50 ;
+    :hasDiscipline "pt" ;
     :hasNegativeKeywords :SignatureKeywords .
 
 :SignatureKeywords a :KeywordSet ;
-    :hasKeyword "signature", "signed", "dated" .
+    :hasKeyword "signature" , "signed" , "dated" .
 
 # Rule 2: Goals check
-# This rule triggers if 'goal' is present, but measurable/time-bound keywords are NOT found.
 :GoalsRule a :ComplianceRule ;
     :hasSeverity "finding" ;
     :hasStrictSeverity "flag" ;
     :hasIssueTitle "Goals may not be measurable/time-bound" ;
     :hasIssueDetail "Consider restating goals with measurable, time-bound targets and baselines." ;
     :hasIssueCategory "Goals" ;
-
-:hasFinancialImpact "50" ;
-:hasDiscipline "pt" ;
-
+    :hasFinancialImpact "50" ;
+    :hasDiscipline "pt" ;
+    :hasDocumentType "Progress Note" ;
+    :hasSuggestion "To improve, ensure each goal is SMART (Specific, Measurable, Achievable, Relevant, Time-bound). For example, instead of 'improve strength', write 'Patient will increase right knee extension strength from 3/5 to 4/5 within 2 weeks to improve ambulation'." ;
     :hasPositiveKeywords :GoalsKeywordsPresent ;
     :hasNegativeKeywords :GoalsKeywordsMissing .
 
@@ -248,34 +125,28 @@
 :GoalsKeywordsMissing a :KeywordSet ; :hasKeyword "measurable", "time", "timed" .
 
 # Rule 3: Medical Necessity check
-# This rule triggers if NONE of the keywords are found.
 :MedicalNecessityRule a :ComplianceRule ;
     :hasSeverity "finding" ;
     :hasStrictSeverity "flag" ;
     :hasIssueTitle "Medical necessity not explicitly supported" ;
     :hasIssueDetail "Ensure documentation ties interventions to functional limitations and outcomes aligned with Medicare Part B." ;
     :hasIssueCategory "Medical Necessity" ;
-
-:hasFinancialImpact "50" ;
-:hasDiscipline "pt" ;
-
+    :hasFinancialImpact 50 ;
+    :hasDiscipline "pt" ;
     :hasNegativeKeywords :MedicalNecessityKeywords .
 
 :MedicalNecessityKeywords a :KeywordSet ;
     :hasKeyword "medical necessity", "reasonable and necessary", "necessity" .
 
 # Rule 4: Assistant Supervision check
-# This rule triggers if 'assistant' is present, but 'supervis' is NOT found.
 :AssistantSupervisionRule a :ComplianceRule ;
     :hasSeverity "suggestion" ;
     :hasStrictSeverity "finding" ;
     :hasIssueTitle "Assistant supervision context unclear" ;
     :hasIssueDetail "When assistants are involved, document supervision/oversight per Medicare/state requirements." ;
     :hasIssueCategory "Assistant Supervision" ;
-
-:hasFinancialImpact "25" ;
-:hasDiscipline "pt" ;
-
+    :hasFinancialImpact 25 ;
+    :hasDiscipline "pt" ;
     :hasPositiveKeywords :AssistantKeywordsPresent ;
     :hasNegativeKeywords :AssistantKeywordsMissing .
 
@@ -283,17 +154,14 @@
 :AssistantKeywordsMissing a :KeywordSet ; :hasKeyword "supervis" .
 
 # Rule 5: Plan of Care check
-# This rule triggers if NONE of the keywords are found.
 :PlanOfCareRule a :ComplianceRule ;
     :hasSeverity "finding" ;
     :hasStrictSeverity "flag" ;
     :hasIssueTitle "Plan/Certification not clearly referenced" ;
     :hasIssueDetail "Explicitly reference plan of care/certification dates and responsible signatures." ;
     :hasIssueCategory "Plan/Certification" ;
-
-:hasFinancialImpact "50" ;
-:hasDiscipline "pt" ;
-
+    :hasFinancialImpact 50 ;
+    :hasDiscipline "pt" ;
     :hasNegativeKeywords :PlanOfCareKeywords .
 
 :PlanOfCareKeywords a :KeywordSet ;

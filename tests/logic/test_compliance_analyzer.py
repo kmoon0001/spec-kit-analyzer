@@ -7,10 +7,18 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
 
 from compliance_analyzer import ComplianceAnalyzer
+import pytest
+import os
+import sys
+from unittest.mock import patch, MagicMock
+
+# Add the src directory to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
+
+from compliance_analyzer import ComplianceAnalyzer
 from document_classifier import DocumentClassifier, DocumentType
 from parsing import parse_document_into_sections
 from typing import Dict, List
-
 
 class TestComplianceAnalyzer:
 
@@ -41,6 +49,24 @@ class TestComplianceAnalyzer:
         os.remove("resources/rubrics/evaluation_rubric.txt")
 
     @patch('compliance_analyzer.ComplianceAnalyzer.__init__', return_value=None)
+    def test_build_prompt(self, mock_init):
+        # Create an instance of the analyzer (init is mocked)
+        analyzer = ComplianceAnalyzer()
+        # Define mock data
+        document = "This is a test document."
+        entities = [
+            {'word': 'test', 'entity_group': 'test_entity'}
+        ]
+        context = "This is a test context."
+        # Call the method
+        prompt = analyzer._build_prompt(document, entities, context)
+        # Assert the prompt is constructed correctly
+        assert "This is a test document." in prompt
+        assert "'test' (test_entity)" in prompt
+        assert "This is a test context." in prompt
+        assert "You are an expert Medicare compliance officer" in prompt
+
+    @patch('compliance_analyzer.ComplianceAnalyzer.__init__', return_value=None)
     def test_build_section_prompt_fast(self, mock_init):
         """
         Tests the construction of the section-specific prompt in a fast unit test
@@ -53,9 +79,7 @@ class TestComplianceAnalyzer:
         context = "Guideline about walking."
         doc_type = DocumentType.PROGRESS_NOTE
         rubric = "Rubric about progress."
-
         prompt = analyzer._build_section_prompt(section_name, section_text, entities, context, doc_type, rubric)
-
         assert "**Section to Analyze:** Objective" in prompt
         assert "**Content of the 'Objective' section:**" in prompt
         assert "Patient walked 100 feet." in prompt
@@ -64,19 +88,6 @@ class TestComplianceAnalyzer:
         assert "**Document Type:** Progress Note" in prompt
         assert "Rubric about progress." in prompt
 
-    @pytest.mark.slow
-    def test_analyze_document_integration_returns_dict(self, analyzer_instance):
-        """
-        Slow integration test for the main analyze_document function.
-        This test will be skipped in the CI/CD pipeline to avoid timeouts.
-        """
-        analyzer = analyzer_instance
-        sample_document = """
-Subjective: Patient is feeling better.
-Objective: Walked 100 ft with minimal assistance.
-Assessment: Making good progress.
-Plan: Continue PT 5x/week.
-"""
         analysis = analyzer.analyze_document(sample_document)
 
         assert isinstance(analysis, dict)

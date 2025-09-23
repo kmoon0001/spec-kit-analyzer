@@ -4,17 +4,26 @@ from __future__ import annotations
 # Standard library
 import logging
 import os
+import re
 import tempfile
 from typing import List, Tuple
 
 # Third-party
 import pdfplumber
 import requests
-
+from rank_bm25 import BM25Okapi
+ 
 # Local
 # from .local_llm import LocalRAG
 
 logger = logging.getLogger(__name__)
+
+
+def simple_tokenizer(text: str) -> List[str]:
+    """
+    A simple tokenizer that lowercases and removes punctuation.
+    """
+    return re.sub(r'[^\w\s]','',text).lower().split()
 
 
 class GuidelineService:
@@ -29,17 +38,24 @@ class GuidelineService:
         self.rag = rag_instance
         self.guideline_chunks: List[Tuple[str, str]] = []
         self.is_index_ready = False
+        self.bm25_index = None
         logger.info("GuidelineService initialized.")
 
     def load_and_index_guidelines(self, sources: List[str]) -> None:
         """
-        Loads guidelines from a list of local file paths.
+        Loads guidelines from a list of local file paths and builds a BM25 index.
         """
         self.guideline_chunks = []
         for source_path in sources:
             self.guideline_chunks.extend(self._load_from_local_path(source_path))
+
+        # Create BM25 index
+        if self.guideline_chunks:
+            tokenized_corpus = [simple_tokenizer(chunk[0]) for chunk in self.guideline_chunks]
+            self.bm25_index = BM25Okapi(tokenized_corpus)
+
         self.is_index_ready = True
-        logger.info(f"Loaded {len(self.guideline_chunks)} guideline chunks.")
+        logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks.")
 
     def _extract_text_from_pdf(
         self, file_path: str, source_name: str
@@ -106,18 +122,26 @@ class GuidelineService:
 
     def search(self, query: str, top_k: int = 2) -> List[dict]:
         """
-        Performs a simple keyword search through the loaded guidelines.
+        Performs a BM25 search through the loaded guidelines.
         """
-        if not self.is_index_ready:
-            logger.warning("Search called before guidelines were loaded.")
+        if not self.is_index_ready or not self.bm25_index:
+            logger.warning("Search called before guidelines were loaded and indexed.")
             return []
 
-        results = []
-        query_lower = query.lower()
-        for chunk, source in self.guideline_chunks:
-            if query_lower in chunk.lower():
-                results.append({"text": chunk, "source": source})
+        tokenized_query = simple_tokenizer(query)
 
-        # Sort results by some relevance metric (e.g., how many times the query appears)
-        # For now, we'll just take the first k results.
-        return results[:top_k]
+        # Get scores for all documents
+        doc_scores = self.bm25_index.get_scores(tokenized_query)
+
+        # Get the top_k indices
+        top_indices = sorted(range(len(doc_scores)), key=lambda i: doc_scores[i], reverse=True)[:top_k]
+
+        # Filter out results with a score of 0
+        top_chunks = []
+        for i in top_indices:
+            if doc_scores[i] > 0:
+                top_chunks.append(self.guideline_chunks[i])
+
+        results = [{"text": chunk[0], "source": chunk[1]} for chunk in top_chunks]
+
+        return results

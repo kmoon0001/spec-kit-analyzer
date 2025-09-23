@@ -10,9 +10,17 @@ from src.database import initialize_database, DATABASE_PATH
 from src.rubric_service import RubricService
 from src.parsing import parse_document_content
 from src.guideline_service import GuidelineService
-from src import rubric_router
+# Mode: "offline" or "backend"
+analysis_mode = "backend"  # or set to "offline" as needed
 
-initialize_database()
+if analysis_mode == "offline":
+    from src.document_classifier import DocumentClassifier, DocumentType
+    # Set up classifier usage (example)
+    classifier = DocumentClassifier()
+else:
+    from src import rubric_router
+    initialize_database()  # Make sure rubric/database is ready for API
+
 
 app = FastAPI()
 
@@ -49,10 +57,50 @@ def read_root():
     return {"message": "Backend for Therapy Compliance Analyzer"}
 
 @app.post("/analyze", response_class=HTMLResponse)
-async def analyze_document(file: UploadFile = File(...)):
+import tempfile
+import os
+import shutil
+
+@app.post("/analyze", response_class=HTMLResponse)
+async def analyze_document(
+    file: UploadFile = File(...),
+    discipline: str = Form("All"),
+    rubric_id: int = Form(None)
+):
     # Use a temporary directory for robust cleanup of the uploaded file.
     temp_dir = tempfile.mkdtemp()
     temp_file_path = os.path.join(temp_dir, file.filename)
+    try:
+        with open(temp_file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # 1. Parse the document content and scrub PHI
+        document_chunks = parse_document_content(temp_file_path)
+        if not document_chunks or not document_chunks[0][0]:
+            raise HTTPException(status_code=400, detail="Could not extract text from document.")
+        document_text = " ".join([chunk[0] for chunk in document_chunks if chunk[0]])
+        scrubbed_text = scrub_phi(document_text)
+        if not scrubbed_text.strip():
+            raise HTTPException(status_code=400, detail="Document is empty or contains no parsable text.")
+        
+        # 2. Load the selected rubric from the database and run analysis
+        if rubric_id is not None:
+            result = run_rubric_analysis(scrubbed_text, rubric_id)
+        else:
+            result = run_discipline_analysis(scrubbed_text, discipline)
+        return result
+    finally:
+        shutil.rmtree(temp_dir)
+
+# Actual implementations recommended:
+def run_rubric_analysis(document_text, rubric_id):
+    # TODO: implement rubric-based analysis logic here
+    return {"analysis": f"Rubric {rubric_id} applied"}
+
+def run_discipline_analysis(document_text, discipline):
+    # TODO: implement discipline-based analysis logic here
+    return {"analysis": f"Discipline '{discipline}' applied"}
+
     try:
         with open(temp_file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
@@ -98,13 +146,74 @@ async def analyze_document(file: UploadFile = File(...)):
         # We can provide a generic message here.
         report_html = report_html.replace("<!-- Placeholder for Medicare guidelines -->", "<p>Guideline analysis is now integrated into the section-by-section results.</p>")
 
-    except Exception as e:
-        # Log the exception for easier debugging and return a clean error to the client.
-        print(f"An error occurred during analysis: {e}")
-        raise HTTPException(status_code=500, detail=f"An internal error occurred: {str(e)}")
-    finally:
-        # Clean up the temporary directory and its contents.
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
+try:
+    # 2. Classify the document
+    classifier = DocumentClassifier()
+    doc_type = classifier.classify(document_text)
+    doc_type_str = doc_type.name.replace("_", " ").title()
 
+    # 3. Load the rubric and filter rules
+    rubric_service = RubricService()
+    rules = rubric_service.get_filtered_rules(doc_type_str, discipline)
+
+    # 3. Perform analysis
+    findings = []
+    for rule in rules:
+        for keyword in rule.positive_keywords:
+            if keyword.lower() in document_text.lower():
+                findings.append(rule)
+                break
+
+    # 4. Generate the HTML report
+    with open("report_template.html", "r") as f:
+        template_str = f.read()
+
+    # Populate findings
+    findings_html = ""
+    if findings:
+        for finding in findings:
+            findings_html += f"""
+            <div class="finding">
+                <h3>{finding.issue_title}</h3>
+                <p><strong>Severity:</strong> {finding.severity}</p>
+                <p><strong>Category:</strong> {finding.issue_category}</p>
+                <p>{finding.issue_detail}</p>
+            </div>
+            """
+    else:
+        findings_html = "<p>No specific findings based on the rubric.</p>"
+
+    report_html = template_str.replace("<!-- Placeholder for findings -->", findings_html)
+
+    # Populate Medicare guidelines
+    guidelines_html = ""
+    if findings:
+        for finding in findings:
+            guideline_results = guideline_service.search(query=finding.issue_title, top_k=1)
+            if guideline_results:
+                guidelines_html += "<div>"
+                guidelines_html += f"<h4>Related to: {finding.issue_title}</h4>"
+                for result in guideline_results:
+                    guidelines_html += f"<p><strong>Source:</strong> {result['source']}</p>"
+                    guidelines_html += f"<p>{result['text']}</p>"
+                guidelines_html += "</div>"
+
+    if not guidelines_html:
+        guidelines_html = "<p>No relevant Medicare guidelines found.</p>"
+
+    report_html = report_html.replace("<!-- Placeholder for Medicare guidelines -->", guidelines_html)
+
+    # Clean up the temporary file
+    os.remove(temp_file_path)
+
+    return HTMLResponse(content=report_html)
+
+except Exception as e:
+    # Log the exception for easier debugging and return a clean error to the client.
+    print(f"An error occurred during analysis: {e}")
+    raise HTTPException(status_code=500, detail=f"An internal error occurred: {str(e)}")
+finally:
+    # Clean up the temporary directory and its contents.
+    if os.path.exists(temp_dir):
+        shutil.rmtree(temp_dir)
     return HTMLResponse(content=report_html)

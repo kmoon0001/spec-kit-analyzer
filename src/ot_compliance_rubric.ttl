@@ -24,6 +24,7 @@
     :hasIssueDetail "Consider restating goals with measurable, time-bound targets, focusing on functional outcomes (e.g., ADLs, fine motor control)." ;
     :hasIssueCategory "Goals" ;
 :hasDiscipline "ot" ;
+    :hasDocumentType "Progress Note" ;
     :hasPositiveKeywords :OT_GoalsKeywordsPresent ;
     :hasNegativeKeywords :GoalsKeywordsMissing .
 
