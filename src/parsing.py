@@ -10,13 +10,19 @@ import pandas as pd
 
 from src.utils import chunk_text
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
     """
     Parses the content of a document and splits it into chunks.
     """
+    logger.info(f"Parsing document: {file_path}")
     if not os.path.exists(file_path):
         return [(f"Error: File not found at {file_path}", "File System")]
     ext = os.path.splitext(file_path)[1].lower()
+    logger.info(f"File extension: {ext}")
 
     try:
         chunks_with_source: list[tuple[str, str]] = []
@@ -33,10 +39,9 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
                         chunks_with_source.append((chunk, f"Page {i}"))
         elif ext == ".docx":
             try:
-                from docx import Document
+                docx_doc = Document(file_path)
             except Exception:
                 return [("Error: python-docx not available.", "DOCX Parser")]
-            docx_doc = Document(file_path)
             full_text = "\n".join([para.text for para in docx_doc.paragraphs])
             doc_chunks = chunk_text(full_text)
             for chunk in doc_chunks:
@@ -79,8 +84,6 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
 
         return chunks_with_source if chunks_with_source else [("Info: No text could be extracted from the document.", "System")]
 
-    except FileNotFoundError:
-        return [(f"Error: File not found at {file_path}", "File System")]
     except Exception as e:
         return [(f"Error: An unexpected error occurred: {e}", "System")]
 

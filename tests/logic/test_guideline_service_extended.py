@@ -1,5 +1,5 @@
 import pytest
-from backend.app.guideline_service import GuidelineService
+from src.core.guideline_service import GuidelineService
 import os
 
 @pytest.fixture

@@ -14,7 +14,6 @@ import requests
 from rank_bm25 import BM25Okapi
  
 # Local
-# from .local_llm import LocalRAG
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +30,10 @@ class GuidelineService:
     Manages loading, indexing, and searching of compliance guidelines.
     """
 
-    def __init__(self, rag_instance=None):
+    def __init__(self):
         """
         Initializes the GuidelineService.
         """
-        self.rag = rag_instance
         self.guideline_chunks: List[Tuple[str, str]] = []
         self.is_index_ready = False
         self.bm25_index = None
