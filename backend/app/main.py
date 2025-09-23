@@ -4,7 +4,7 @@ import shutil
 import os
 
 from rubric_service import RubricService, ComplianceRule
-from parsing import parse_document_content
+from parsing import parse_document_content 
 from guideline_service import GuidelineService
 from document_classifier import classify_document
 
