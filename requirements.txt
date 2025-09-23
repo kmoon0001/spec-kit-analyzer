@@ -5,7 +5,7 @@ pdfplumber
 pytesseract
 Pillow
 pandas
-openpyxl 
+openpyxl
 requests
 pytest
 pytest-mock
