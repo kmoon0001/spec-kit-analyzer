@@ -1,45 +1,11 @@
-# Core Analysis & Data Handling
-pandas
-pdfplumber
-pytesseract
-python-docx
-rdflib
-requests
-scikit-learn
-spacy
-pydantic
-numpy
-cryptography
- 
-# Core Frameworks & LLM
-llama-cpp-python
-sentence-transformers
-faiss-cpu
-transformers
-huggingface-hub
+# This file aggregates all the requirement files from the requirements/ directory.
+# To install all dependencies, run: pip install -r requirements.txt
 
-# UI & Plotting
-PyQt6
-PyQt6-sip
-PyQt6-WebEngine
-matplotlib
-
-# XAI & New Features
-shap
-slicer
-fhir.resources
-fairlearn
-
-# Asynchronous Processing
-celery
-
-# API & Server
-fastapi
-
-# Testing & Utilities
-pytest
-pytest-qt
-pytest-mock
-jsonschema
-pyspellchecker
-Pillow
+-r requirements/api.txt
+-r requirements/async.txt
+-r requirements/core.txt
+-r requirements/pii.txt
+-r requirements/requirements-logic.txt
+-r requirements/testing.txt
+-r requirements/ui.txt
+-r requirements/xai.txt
