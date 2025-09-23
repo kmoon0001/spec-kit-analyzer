@@ -3,17 +3,17 @@ from fastapi.responses import HTMLResponse
 import shutil
 import os
 
-from rubric_service import RubricService, ComplianceRule
-from parsing import parse_document_content
-from guideline_service import GuidelineService
+from src.rubric_service import RubricService, ComplianceRule
+from src.parsing import parse_document_content
+from src.guideline_service import GuidelineService
 
 app = FastAPI()
 
 # Instantiate and load guidelines at startup
 guideline_service = GuidelineService()
 guideline_sources = [
-    "../../_default_medicare_benefit_policy_manual.txt",
-    "../../_default_medicare_part.txt"
+    "_default_medicare_benefit_policy_manual.txt",
+    "_default_medicare_part.txt"
 ]
 guideline_service.load_and_index_guidelines(sources=guideline_sources)
 
@@ -47,7 +47,7 @@ async def analyze_document(file: UploadFile = File(...)):
                 break
 
     # 4. Generate the HTML report
-    with open("../../src/report_template.html", "r") as f:
+    with open("report_template.html", "r") as f:
         template_str = f.read()
 
     # Populate findings
