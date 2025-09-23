@@ -13,6 +13,9 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QListWidget,
     QListWidgetItem,
+    QInputDialog,
+    QCheckBox,
+    QComboBox,
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
@@ -23,6 +26,7 @@ API_URL = "http://127.0.0.1:8000"
 class MainApplicationWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self._current_file_path = None
         self.initUI()
         self._current_file_path = None
 
@@ -57,8 +61,17 @@ class MainApplicationWindow(QMainWindow):
         main_layout.addLayout(button_layout)
 
         rubric_layout = QHBoxLayout()
+        self.manage_rubrics_button = QPushButton("Manage Rubrics")
+        self.manage_rubrics_button.clicked.connect(self.manage_rubrics)
+        rubric_layout.addWidget(self.manage_rubrics_button)
+        self.discipline_combo = QComboBox()
+        self.discipline_combo.addItems(["All", "PT", "OT", "SLP"])
+        rubric_layout.addWidget(QLabel("Discipline:"))
+        rubric_layout.addWidget(self.discipline_combo)
+
+
         self.run_analysis_button = QPushButton("Run Analysis")
-        self.run_analysis_button.clicked.connect(self.run_rubric_analysis)
+        self.run_analysis_button.clicked.connect(self.run_backend_analysis)
         rubric_layout.addWidget(self.run_analysis_button)
 
         self.rubric_list_widget = QListWidget()
@@ -87,20 +100,133 @@ class MainApplicationWindow(QMainWindow):
     def process_document(self, file_path):
         self._current_file_path = file_path
         self.status_bar.showMessage(f"Loaded document: {os.path.basename(file_path)}")
+import os
+from PyQt6.QtWidgets import QMessageBox, QFileDialog, QListWidgetItem
+from PyQt6.QtPrintSupport import QPrinter
+
+class DocumentAnalyzerMainWindow(QMainWindow):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Configurable analysis mode: "offline" or "backend"
+        self.analysis_mode = "backend"  # or "offline"
+        # ... (initialize your widgets here) ...
+
+    def display_file(self, file_path):
         try:
-            # We just display the path, not the content, to keep the frontend simple.
-            # The file will be sent to the backend for processing.
-            self.document_display_area.setText(f"File ready for analysis:\n{file_path}")
+            if self.analysis_mode == "backend":
+                self.document_display_area.setText(f"File ready for analysis:\n{file_path}")
+            else:
+                self.document_display_area.setText(
+                    f"Loaded '{os.path.basename(file_path)}'.\n\nSelect a discipline and click 'Run Analysis'."
+                )
+            self.analysis_results_area.clear()  # Always clear results on new load
+            self._current_file_path = file_path
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to handle file:\n{e}")
             self._current_file_path = None
+            self.handle_error(f"Failed to handle file:\n{e}")
+
+    def run_analysis(self):
+        if not self._current_file_path:
+            self.handle_error("Please upload a document to analyze first.", warning=True)
+            return
+
+        if self.analysis_mode == "backend":
+            discipline = self.discipline_combo.currentText()
+            self.status_bar.showMessage(
+                f"Sending {os.path.basename(self._current_file_path)} to backend for analysis..."
+            )
+            self.analysis_results_area.setText(f"Analyzing with discipline: {discipline}...")
+            self._set_busy(True)
+            self._call_backend_for_analysis(self._current_file_path, discipline)
+            self._set_busy(False)
+        else:
+            # Offline: implement your offline logic here, e.g., run local model/rubric analysis
+            self.status_bar.showMessage(f"Analyzing {os.path.basename(self._current_file_path)} offline...")
+            try:
+                # Example of local analysis, replace with real function as needed
+                results_html = self._build_report_html()
+                self.analysis_results_area.setHtml(results_html)
+                self.status_bar.showMessage("Offline analysis complete.")
+            except Exception as e:
+                self.handle_error(f"Offline analysis failed:\n{e}")
+
+    def _call_backend_for_analysis(self, file_path, discipline):
+        try:
+            import requests
+            with open(file_path, 'rb') as f:
+                files = {'file': (os.path.basename(file_path), f)}
+                data = {'discipline': discipline}
+                response = requests.post("http://127.0.0.1:8000/analyze", files=files, data=data)
+
+            if response.status_code == 200:
+                self.analysis_results_area.setHtml(response.text)
+                self.status_bar.showMessage("Analysis complete.")
+            else:
+                self.handle_error(f"Error from backend: {response.status_code}\n\n{response.text}")
+                self.status_bar.showMessage("Backend analysis failed.")
+        except Exception as e:
+            self.handle_error(f"Failed to connect to backend or perform analysis:\n{e}")
+            self.status_bar.showMessage("Connection to backend failed.")
 
     def clear_document_display(self):
         self.document_display_area.clear()
-        self.analysis_results_area.setHtml("")
+        if hasattr(self.analysis_results_area, "setHtml"):
+            self.analysis_results_area.setHtml("")
+        else:
+            self.analysis_results_area.clear()
         self._current_file_path = None
-        self.status_bar.showMessage('Display cleared.')
+        if hasattr(self, "_current_raw_text"):
+            self._current_raw_text = ""
+        if hasattr(self, "_current_sentences_with_source"):
+            self._current_sentences_with_source = []
+        self.status_bar.showMessage("Display cleared.")
 
+    def handle_error(self, message, warning=False):
+        """Unified error handling for all modes."""
+        if warning:
+            QMessageBox.warning(self, "Analysis Error", message)
+        else:
+            QMessageBox.critical(self, "Error", message)
+        self.analysis_results_area.setText(message)
+        self.status_bar.showMessage(message)
+
+    def _build_report_html(self) -> str:
+        text_for_report = scrub_phi(getattr(self, "_current_raw_text", "") or "")
+        html = (
+            f"<html><head><meta charset='utf-8'>"
+            "<style>body { font-family: Arial, sans-serif; }"
+            "h1 { font-size: 18pt; } h2 { font-size: 14pt; margin-top: 12pt; }"
+            "pre { white-space: pre-wrap; font-family: Consolas, monospace; background: #f4f4f4; padding: 8px; }</style>"
+            "</head><body>"
+            "<h1>Therapy Compliance Analysis Report</h1>"
+            "<p><b>Mode:</b> Offline | <b>PHI Scrubbing:</b> Enabled for export</p>"
+            "<h2>Extracted Text (scrubbed)</h2>"
+            f"<pre>{text_for_report}</pre></body></html>"
+        )
+        return html
+
+    def generate_report_pdf(self):
+        if not getattr(self, "_current_raw_text", ""):
+            QMessageBox.information(self, "Generate Report", "No document data to export.")
+            return
+        save_path, _ = QFileDialog.getSaveFileName(self, "Save Report as PDF", "", "PDF Files (*.pdf)")
+        if not save_path:
+            return
+        try:
+            printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+            printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+            if not save_path.lower().endswith(".pdf"):
+                save_path += ".pdf"
+            printer.setOutputFileName(save_path)
+            from PySide6.QtGui import QTextDocument
+            doc = QTextDocument()
+            doc.setHtml(self._build_report_html())
+            doc.print(printer)
+            QMessageBox.information(self, "Generate Report", f"PDF saved to:\n{save_path}")
+        except Exception as e:
+            self.handle_error(f"Failed to create PDF:\n{e}")
+
+    # Main branch rubric functions (optionally included by mode)
     def manage_rubrics(self):
         dialog = RubricManagerDialog(self)
         dialog.exec()
@@ -109,6 +235,7 @@ class MainApplicationWindow(QMainWindow):
     def load_rubrics_to_main_list(self):
         self.rubric_list_widget.clear()
         try:
+            import requests
             response = requests.get(f"{API_URL}/rubrics/")
             response.raise_for_status()
             rubrics = response.json()
@@ -116,21 +243,28 @@ class MainApplicationWindow(QMainWindow):
                 item = QListWidgetItem(rubric['name'])
                 item.setData(Qt.ItemDataRole.UserRole, rubric['id'])
                 self.rubric_list_widget.addItem(item)
-        except requests.exceptions.RequestException as e:
-            QMessageBox.critical(self, "Error", f"Failed to load rubrics from backend:\n{e}")
+        except Exception as e:
+            self.handle_error(f"Failed to load rubrics from backend:\n{e}")
 
     def run_rubric_analysis(self):
         if not self._current_file_path:
-            QMessageBox.warning(self, "Analysis Error", "Please upload a document to analyze first.")
+            self.handle_error("Please upload a document to analyze first.", warning=True)
             return
-
         selected_items = self.rubric_list_widget.selectedItems()
         if not selected_items:
-            QMessageBox.warning(self, "Analysis Error", "Please select a rubric to run the analysis.")
+            self.handle_error("Please select a rubric to run the analysis.", warning=True)
             return
-
         rubric_id = selected_items[0].data(Qt.ItemDataRole.UserRole)
         self.status_bar.showMessage("Running analysis...")
+        # Add backend rubric analysis logic as needed
+
+# Helper function (example for PHI scrubbing)
+def scrub_phi(text):
+    # Dummy example; replace with your real PHI scrubbing function
+    return text.replace("John Doe", "[REDACTED]")
+
+# Constants
+API_URL = "http://127.0.0.1:8000"
 
         try:
             with open(self._current_file_path, 'rb') as f:
