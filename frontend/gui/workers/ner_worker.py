@@ -1,5 +1,5 @@
 import torch
-from PyQt6.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal as pyqtSignal
 from transformers import pipeline
 
 from src.CLINICAL_NER_MODEL_CANDIDATES import CLINICAL_NER_MODEL_CANDIDATES

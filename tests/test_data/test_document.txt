@@ -1,3 +1,0 @@
-The capital of France is Paris. It is known for the Eiffel Tower.
-The capital of Japan is Tokyo. It is a large, bustling city.
-Data science is an interdisciplinary field that uses scientific methods, processes, algorithms and systems to extract knowledge and insights from structured and unstructured data.

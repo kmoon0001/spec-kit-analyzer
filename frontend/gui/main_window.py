@@ -4,7 +4,7 @@ import sqlite3
 import os
 import re
 from typing import List, Tuple
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QApplication,
     QWidget,
     QLabel,
@@ -26,9 +26,9 @@ from PyQt6.QtWidgets import (
     QInputDialog,
     QCheckBox,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent
-from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
+from PySide6.QtCore import Qt, QThread, Signal as pyqtSignal, QObject
+from PySide6.QtGui import QDragEnterEvent, QDropEvent
+from PySide6.QtPrintSupport import QPrinter, QPrintDialog
 from cryptography.hazmat.primitives.hashes import SHA256
 # from .workers.document_worker import DocumentWorker # Will be replaced by an API call
 from .dialogs.add_rubric_source_dialog import AddRubricSourceDialog
@@ -78,20 +78,6 @@ def scrub_phi(text: str) -> str:
     for pat, repl in patterns:
         out = re.sub(pat, repl, out)
     return out
-
-# --- Helpers: chunking for long texts ---
-def chunk_text(text: str, max_chars: int = 4000):
-    chunks = []
-    start = 0
-    n = len(text)
-    while start < n:
-        end = min(start + max_chars, n)
-        newline_pos = text.rfind("\n", start, end)
-        if newline_pos != -1 and newline_pos > start + 1000:
-            end = newline_pos
-        chunks.append(text[start:end])
-        start = end
-    return chunks
 
 # This function will be moved to the backend.
 # from src.parsing import parse_document_content
@@ -180,7 +166,10 @@ class MainApplicationWindow(QMainWindow):
         self.run_analysis_button.clicked.connect(self.run_rubric_analysis)
         rubric_layout.addWidget(self.run_analysis_button)
         self.rubric_list_widget = QListWidget()
-        self.rubric_list_widget.setPlaceholderText("Available Rubrics")
+        # The setPlaceholderText method is not available in PySide6's QListWidget.
+        # A workaround would be to add a disabled item with the placeholder text.
+        # For now, we will leave this commented out.
+        # self.rubric_list_widget.setPlaceholderText("Available Rubrics")
         self.rubric_list_widget.setMaximumHeight(100)
         rubric_layout.addWidget(self.rubric_list_widget)
         main_layout.addLayout(rubric_layout)
@@ -348,7 +337,7 @@ class MainApplicationWindow(QMainWindow):
             if not save_path.lower().endswith(".pdf"):
                 save_path += ".pdf"
             printer.setOutputFileName(save_path)
-            from PyQt6.QtGui import QTextDocument
+            from PySide6.QtGui import QTextDocument
             doc = QTextDocument()
             doc.setHtml(self._build_report_html())
             doc.print(printer)
@@ -364,7 +353,7 @@ class MainApplicationWindow(QMainWindow):
             printer = QPrinter(QPrinter.PrinterMode.HighResolution)
             dialog = QPrintDialog(printer, self)
             if dialog.exec() == QPrintDialog.DialogCode.Accepted:
-                from PyQt6.QtGui import QTextDocument
+                from PySide6.QtGui import QTextDocument
                 doc = QTextDocument()
                 doc.setHtml(self._build_report_html())
                 doc.print(printer)
@@ -375,3 +364,11 @@ class MainApplicationWindow(QMainWindow):
     def show_paths(self):
         msg = f"App path:\n{os.path.abspath(__file__)}\n\nDatabase path:\n{os.path.abspath(DATABASE_PATH)}"
         QMessageBox.information(self, "Paths", msg)
+
+    def show_quickstart(self):
+        """Placeholder for showing a quickstart guide."""
+        QMessageBox.information(self, "Quickstart", "This feature is not yet implemented.")
+
+    def cancel_analysis(self):
+        """Placeholder for canceling an analysis."""
+        QMessageBox.information(self, "Cancel", "This feature is not yet implemented.")

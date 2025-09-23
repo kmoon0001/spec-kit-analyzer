@@ -3,9 +3,9 @@ from fastapi.responses import HTMLResponse
 import shutil
 import os
 
-from rubric_service import RubricService, ComplianceRule
-from parsing import parse_document_content
-from guideline_service import GuidelineService
+from .rubric_service import RubricService, ComplianceRule
+from .parsing import parse_document_content
+from .guideline_service import GuidelineService
 
 app = FastAPI()
 
