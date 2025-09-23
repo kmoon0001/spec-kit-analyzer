@@ -1,6 +1,7 @@
 import torch
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from hybrid_retriever import HybridRetriever
+from src.document_classifier import DocumentClassifier, DocumentType
 
 class ComplianceAnalyzer:
     def __init__(self):
@@ -28,14 +29,25 @@ class ComplianceAnalyzer:
         )
         print(f"Generator LLM '{generator_model_name}' loaded successfully.")
 
+        # 4. Initialize the Document Classifier
+        self.classifier = DocumentClassifier()
+
         print("\nCompliance Analyzer initialized successfully.")
 
     def analyze_document(self, document_text):
         print("\n--- Starting Compliance Analysis ---")
         print(f"Analyzing document: '{document_text[:100]}...'")
 
-        # Step 1: Extract entities using the NER model
-        print("\nStep 1: Extracting entities with NER...")
+        # Step 1: Classify the document
+        print("\nStep 1: Classifying document type...")
+        doc_type = self.classifier.classify(document_text)
+        if doc_type:
+            print(f"Document classified as: {doc_type.value}")
+        else:
+            print("Document type could not be determined.")
+
+        # Step 2: Extract entities using the NER model
+        print("\nStep 2: Extracting entities with NER...")
         entities = self.ner_pipeline(document_text)
         print(f"Found entities: {[entity['word'] for entity in entities]}")
 
@@ -49,12 +61,20 @@ class ComplianceAnalyzer:
         context = "\n\n".join(retrieved_docs)
         print("Retrieved context successfully.")
 
-        # Step 3: Construct the prompt for the LLM
-        print("\nStep 3: Constructing prompt for LLM...")
-        prompt = self._build_prompt(document_text, entities, context)
+        # Step 3: Load the appropriate rubric
+        print("\nStep 3: Loading rubric...")
+        rubric = self._load_rubric(doc_type)
+        if rubric:
+            print("Rubric loaded successfully.")
+        else:
+            print("No specific rubric found, using default guidelines.")
 
-        # Step 4: Generate compliance analysis using the LLM
-        print("\nStep 4: Generating compliance analysis with LLM...")
+        # Step 4: Construct the prompt for the LLM
+        print("\nStep 4: Constructing prompt for LLM...")
+        prompt = self._build_prompt(document_text, entities, context, doc_type, rubric)
+
+        # Step 5: Generate compliance analysis using the LLM
+        print("\nStep 5: Generating compliance analysis with LLM...")
 
         inputs = self.generator_tokenizer(prompt, return_tensors="pt").to(self.generator_model.device)
 
@@ -70,13 +90,29 @@ class ComplianceAnalyzer:
         print("Compliance analysis generated successfully.")
         return analysis_part
 
-    def _build_prompt(self, document, entities, context):
+    def _load_rubric(self, doc_type: DocumentType | None) -> str | None:
+        """Loads the rubric file based on the document type."""
+        if not doc_type:
+            return None
+
+        rubric_path = f"resources/rubrics/{doc_type.name.lower()}_rubric.txt"
+        try:
+            with open(rubric_path, "r") as f:
+                return f.read()
+        except FileNotFoundError:
+            return None
+
+    def _build_prompt(self, document, entities, context, doc_type, rubric):
         """Helper function to build the detailed prompt for the LLM."""
 
         entity_list = ", ".join([f"'{entity['word']}' ({entity['entity_group']})" for entity in entities])
 
+        doc_type_str = doc_type.value if doc_type else "Unknown"
+
         prompt = f"""
-You are an expert Medicare compliance officer for a Skilled Nursing Facility (SNF). Your task is to analyze a clinical therapy document for potential compliance risks based on the provided Medicare guidelines.
+You are an expert Medicare compliance officer for a Skilled Nursing Facility (SNF). Your task is to analyze a clinical therapy document for potential compliance risks.
+
+**Document Type:** {doc_type_str}
 
 **Clinical Document:**
 ---
@@ -87,14 +123,22 @@ You are an expert Medicare compliance officer for a Skilled Nursing Facility (SN
 ---
 {entity_list}
 ---
-
+"""
+        if rubric:
+            prompt += f"""
+**Compliance Rubric for {doc_type_str}:**
+---
+{rubric}
+---
+"""
+        prompt += f"""
 **Relevant Medicare Guidelines (from Chapter 8: Coverage of Extended Care (SNF) Services):**
 ---
 {context}
 ---
 
 **Your Task:**
-Based on all the information above, provide a detailed compliance analysis. Identify any potential risks, explain why they are risks according to the guidelines, and suggest specific actions to mitigate them. If no risks are found, state that the document appears to be compliant.
+Based on all the information above, provide a detailed compliance analysis. Identify any potential risks, explain why they are risks according to the guidelines and the provided rubric, and suggest specific actions to mitigate them. If no risks are found, state that the document appears to be compliant.
 
 **Compliance Analysis:**
 """

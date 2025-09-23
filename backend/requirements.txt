@@ -3,6 +3,8 @@
 # Server
 fastapi
 uvicorn
+requests
+python-multipart
 
 # Document Parsing
 python-docx
@@ -11,10 +13,4 @@ pytesseract
 Pillow
 pandas
 openpyxl
-rank_bm25
-
-# LLM / AI Models
-transformers
-torch
-bitsandbytes
-accelerate
+rdflib
