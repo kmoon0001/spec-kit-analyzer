@@ -20,5 +20,5 @@ def classify_document(document_text: str) -> str:
     for doc_type, keywords in classification_rules.items():
         if any(keyword in document_text_lower for keyword in keywords):
             return doc_type
-
+ 
     return "Unknown Document Type"
