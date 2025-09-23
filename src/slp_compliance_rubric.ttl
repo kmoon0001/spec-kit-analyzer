@@ -14,6 +14,7 @@
     :hasIssueDetail "The Plan of Care for SLP should explicitly state long-term goals, and the type, frequency, amount, and duration of therapy." ;
     :hasIssueCategory "Plan of Care" ;
     :hasDiscipline "slp" ;
+    :hasDocumentType "Evaluation" ;
     :hasPositiveKeywords :SLP_POC_KeywordsPresent ;
     :hasNegativeKeywords :SLP_POC_KeywordsMissing .
 
@@ -58,6 +59,7 @@
     :hasIssueDetail "Progress reports must be completed at least every 10 treatment days and should contain objective measures of progress toward each goal." ;
     :hasIssueCategory "Progress Report" ;
     :hasDiscipline "slp" ;
+    :hasDocumentType "Progress Note" ;
     :hasPositiveKeywords :SLP_ProgressKeywordsPresent ;
     :hasNegativeKeywords :SLP_ProgressKeywordsMissing .
 

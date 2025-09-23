@@ -6,6 +6,7 @@ import os
 from src.rubric_service import RubricService, ComplianceRule
 from src.parsing import parse_document_content
 from src.guideline_service import GuidelineService
+from src.document_classifier import DocumentClassifier, DocumentType
 
 app = FastAPI()
 
@@ -34,9 +35,15 @@ async def analyze_document(file: UploadFile = File(...)):
     document_chunks = parse_document_content(temp_file_path)
     document_text = " ".join([chunk[0] for chunk in document_chunks])
 
-    # 2. Load the rubric
+    # 2. Classify the document
+    classifier = DocumentClassifier()
+    doc_type = classifier.classify(document_text)
+    doc_type_str = doc_type.name.replace("_", " ").title()
+
+    # 3. Load the rubric and filter rules
+    # TODO: Make the rubric path selectable based on discipline (PT, OT, SLP)
     rubric_service = RubricService(ontology_path="pt_compliance_rubric.ttl")
-    rules = rubric_service.get_rules()
+    rules = rubric_service.get_rules_for_document_type(doc_type_str)
 
     # 3. Perform analysis
     findings = []
