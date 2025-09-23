@@ -6,3 +6,4 @@ rdflib
 requests
 openpyxl
 PyYAML
+cryptography==42.0.5

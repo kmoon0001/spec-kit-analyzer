@@ -34,6 +34,8 @@ from src.gui.workers.document_worker import DocumentWorker
 from src.gui.dialogs.add_rubric_source_dialog import AddRubricSourceDialog
 from src.gui.dialogs.library_selection_dialog import LibrarySelectionDialog
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
+from src.gui.dialogs.login_dialog import LoginDialog
+from src.auth import verify_user, initialize_app_database
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 import pdfplumber.utils
@@ -94,34 +96,6 @@ def chunk_text(text: str, max_chars: int = 4000):
     return chunks
 
 from src.parsing import parse_document_content
-
-# --- Helpers: Database Initialization ---
-def initialize_database():
-    try:
-        os.makedirs(os.path.dirname(os.path.abspath(DATABASE_PATH)), exist_ok=True)
-        with sqlite3.connect(DATABASE_PATH) as conn:
-            cur = conn.cursor()
-            cur.execute("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password_hash BLOB NOT NULL, salt BLOB NOT NULL)")
-            cur.execute("CREATE TABLE IF NOT EXISTS rubrics (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, content TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-            cur.execute("SELECT COUNT(*) FROM rubrics")
-            if cur.fetchone()[0] == 0:
-                default_rubric_name = "Default Best Practices"
-                default_rubric_content = """# General Documentation Best Practices
-- All entries must be dated and signed.
-- Patient identification must be clear on every page.
-- Use of approved abbreviations only.
-- Document skilled intervention, not just patient performance.
-- Goals must be measurable and time-bound."""
-                cur.execute("INSERT INTO rubrics (name, content) VALUES(?, ?)", (default_rubric_name, default_rubric_content))
-            username = "test"
-            password = "test123"
-            salt = os.urandom(16)
-            kdf = PBKDF2HMAC(algorithm=HASH_ALGORITHM, length=32, salt=salt, iterations=ITERATIONS)
-            password_hash = kdf.derive(password.encode())
-            cur.execute("INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?) ON CONFLICT(username) DO UPDATE SET password_hash=excluded.password_hash, salt=excluded.salt", (username, password_hash, salt))
-            conn.commit()
-    except sqlite3.Error as e:
-        print(f"Failed to initialize database: {e}")
 
 # --- Background Workers & Dialogs (Moved to separate modules) ---
 
@@ -389,7 +363,18 @@ class MainApplicationWindow(QMainWindow):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    initialize_database()
-    main_win = MainApplicationWindow()
-    main_win.show()
-    sys.exit(app.exec())
+    initialize_app_database()
+
+    while True:
+        login_dialog = LoginDialog()
+        if login_dialog.exec() == QDialog.DialogCode.Accepted:
+            username, password = login_dialog.get_credentials()
+            success, message = verify_user(username, password)
+            if success:
+                main_win = MainApplicationWindow()
+                main_win.show()
+                sys.exit(app.exec())
+            else:
+                QMessageBox.warning(None, "Login Failed", message)
+        else:
+            sys.exit(0)  # User cancelled the login

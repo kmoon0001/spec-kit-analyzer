@@ -1,65 +1,86 @@
 import sqlite3
 import os
-from cryptography.hazmat.primitives import hashes
+import argparse
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.hashes import SHA256
 
 # --- Configuration ---
-DATABASE_PATH = os.path.join('..', 'data', 'compliance.db')
-SALT_SIZE = 16
-HASH_ALGORITHM = hashes.SHA256()
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE_PATH = os.path.join(BASE_DIR, '..', 'data', 'compliance.db')
+HASH_ALGORITHM = SHA256()
 ITERATIONS = 100000
 
-# --- Create data directory if it doesn't exist ---
-os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
-
-# --- Connect to the database ---
-conn = sqlite3.connect(DATABASE_PATH)
-cursor = conn.cursor()
-
-# --- Create the users table ---
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password_hash BLOB NOT NULL,
-    salt BLOB NOT NULL
-)
-''')
-
-# --- Hash a sample password ---
-def hash_password(password, salt):
-    kdf = PBKDF2HMAC(
-        algorithm=HASH_ALGORITHM,
-        length=32,
-        salt=salt,
-        iterations=ITERATIONS,
-        backend=default_backend()
+def create_tables(conn):
+    """Creates all necessary tables if they don't exist."""
+    cur = conn.cursor()
+    # User table
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        username TEXT PRIMARY KEY,
+        password_hash BLOB NOT NULL,
+        salt BLOB NOT NULL
     )
-    return kdf.derive(password.encode())
+    """)
+    # Rubrics table
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS rubrics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    conn.commit()
 
-# --- Add a sample user ---
-def add_user(username, password):
-    # Check if user already exists
-    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
-    if cursor.fetchone():
-        print(f"User '{username}' already exists.")
+def add_default_rubric(conn):
+    """Adds the default rubric if no rubrics exist."""
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM rubrics")
+    if cur.fetchone()[0] == 0:
+        default_rubric_name = "Default Best Practices"
+        default_rubric_content = """# General Documentation Best Practices
+- All entries must be dated and signed.
+- Patient identification must be clear on every page.
+- Use of approved abbreviations only.
+- Document skilled intervention, not just patient performance.
+- Goals must be measurable and time-bound."""
+        cur.execute("INSERT INTO rubrics (name, content) VALUES(?, ?)", (default_rubric_name, default_rubric_content))
+        conn.commit()
+        print("Added default rubric.")
+
+def create_user(conn, username, password):
+    """Creates a new user with a salted and hashed password."""
+    cur = conn.cursor()
+    cur.execute("SELECT username FROM users WHERE username = ?", (username,))
+    if cur.fetchone() is not None:
+        print(f"Error: User '{username}' already exists.")
         return
 
-    salt = os.urandom(SALT_SIZE)
-    password_hash = hash_password(password, salt)
+    salt = os.urandom(16)
+    kdf = PBKDF2HMAC(algorithm=HASH_ALGORITHM, length=32, salt=salt, iterations=ITERATIONS)
+    password_hash = kdf.derive(password.encode())
 
-    cursor.execute(
-        "INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)",
-        (username, password_hash, salt)
-    )
+    cur.execute("INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)", (username, password_hash, salt))
     conn.commit()
-    print(f"User '{username}' added successfully.")
+    print(f"Successfully created user '{username}'.")
 
-# --- Add the admin user ---
-add_user("admin", "password")
 
-# --- Close the connection ---
-conn.close()
+def main():
+    parser = argparse.ArgumentParser(description="Database setup script for the Therapy Compliance Analyzer.")
+    parser.add_argument('--create-user', nargs=2, metavar=('USERNAME', 'PASSWORD'), help='Create a new user.')
 
-print("Database created and initialized successfully.")
+    args = parser.parse_args()
+
+    os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
+
+    with sqlite3.connect(DATABASE_PATH) as conn:
+        create_tables(conn)
+        add_default_rubric(conn)
+        print("Database tables created and default rubric checked.")
+
+        if args.create_user:
+            username, password = args.create_user
+            create_user(conn, username, password)
+
+if __name__ == '__main__':
+    main()
