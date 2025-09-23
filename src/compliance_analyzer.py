@@ -2,6 +2,8 @@ import torch
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from hybrid_retriever import HybridRetriever
 from src.document_classifier import DocumentClassifier, DocumentType
+from src.parsing import parse_document_into_sections
+from typing import Dict, List
 
 class ComplianceAnalyzer:
     def __init__(self):
@@ -34,60 +36,68 @@ class ComplianceAnalyzer:
 
         print("\nCompliance Analyzer initialized successfully.")
 
-    def analyze_document(self, document_text):
+    def analyze_document(self, document_text: str) -> Dict[str, str]:
+        """
+        Analyzes a document for compliance, performing a section-by-section analysis.
+
+        :param document_text: The full text of the document to analyze.
+        :return: A dictionary with section names as keys and their compliance analysis as values.
+        """
         print("\n--- Starting Compliance Analysis ---")
         print(f"Analyzing document: '{document_text[:100]}...'")
 
-        # Step 1: Classify the document
-        print("\nStep 1: Classifying document type...")
+        # Step 1: Perform overall analysis on the full document to gather context.
+        # This includes classification, entity extraction, and guideline retrieval.
+        print("\nStep 1: Classifying document type for overall context...")
         doc_type = self.classifier.classify(document_text)
         if doc_type:
             print(f"Document classified as: {doc_type.value}")
         else:
             print("Document type could not be determined.")
 
-        # Step 2: Extract entities using the NER model
-        print("\nStep 2: Extracting entities with NER...")
+        print("\nStep 2: Extracting entities from the entire document for context...")
         entities = self.ner_pipeline(document_text)
-        print(f"Found entities: {[entity['word'] for entity in entities]}")
+        print(f"Found {len(entities)} entities.")
 
-        # Create a query for the retriever based on the document text and entities
-        query = document_text
-
-        # Step 2: Retrieve relevant guidelines using the Hybrid Retriever
-        print("\nStep 2: Retrieving relevant guidelines with Hybrid Retriever...")
-        retrieved_docs = self.retriever.search(query, top_k=3) # Get top 3 most relevant sections
-
+        print("\nStep 3: Retrieving relevant guidelines using the full document text...")
+        retrieved_docs = self.retriever.search(document_text, top_k=3)
         context = "\n\n".join(retrieved_docs)
         print("Retrieved context successfully.")
 
-        # Step 3: Load the appropriate rubric
-        print("\nStep 3: Loading rubric...")
+        print("\nStep 4: Loading the appropriate rubric...")
         rubric = self._load_rubric(doc_type)
         if rubric:
             print("Rubric loaded successfully.")
         else:
             print("No specific rubric found, using default guidelines.")
 
-        # Step 4: Construct the prompt for the LLM
-        print("\nStep 4: Constructing prompt for LLM...")
-        prompt = self._build_prompt(document_text, entities, context, doc_type, rubric)
+        # Step 5: Parse the document into sections to be analyzed individually.
+        print("\nStep 5: Parsing document into sections...")
+        sections = parse_document_into_sections(document_text)
+        print(f"Document parsed into {len(sections)} sections: {list(sections.keys())}")
 
-        # Step 5: Generate compliance analysis using the LLM
-        print("\nStep 5: Generating compliance analysis with LLM...")
+        # Step 6: Analyze each section using the context from the full document.
+        print("\nStep 6: Analyzing each section...")
+        section_analyses = {}
+        for section_name, section_text in sections.items():
+            section_analysis = self._analyze_section(section_name, section_text, entities, context, doc_type, rubric)
+            section_analyses[section_name] = section_analysis
+
+        print("\n--- Compliance Analysis Complete ---")
+        return section_analyses
+
+    def _analyze_section(self, section_name: str, section_text: str, entities: List[Dict], context: str, doc_type: DocumentType, rubric: str) -> str:
+        """Analyzes a single section of the document."""
+        print(f"\n--- Analyzing Section: {section_name} ---")
+
+        prompt = self._build_section_prompt(section_name, section_text, entities, context, doc_type, rubric)
 
         inputs = self.generator_tokenizer(prompt, return_tensors="pt").to(self.generator_model.device)
-
-        # Generate the output
-        output = self.generator_model.generate(**inputs, max_new_tokens=512, num_return_sequences=1)
-
-        # Decode and return the result
+        output = self.generator_model.generate(**inputs, max_new_tokens=256, num_return_sequences=1)
         result = self.generator_tokenizer.decode(output[0], skip_special_tokens=True)
 
-        # Clean up the output to only return the analysis part
-        analysis_part = result.split("Compliance Analysis:")[-1].strip()
-
-        print("Compliance analysis generated successfully.")
+        analysis_part = result.split("Section Compliance Analysis:")[-1].strip()
+        print(f"Analysis generated for section: {section_name}")
         return analysis_part
 
     def _load_rubric(self, doc_type: DocumentType | None) -> str | None:
@@ -102,26 +112,25 @@ class ComplianceAnalyzer:
         except FileNotFoundError:
             return None
 
-    def _build_prompt(self, document, entities, context, doc_type, rubric):
-        """Helper function to build the detailed prompt for the LLM."""
-
+    def _build_section_prompt(self, section_name, section_text, entities, context, doc_type, rubric):
+        """Helper function to build the detailed prompt for analyzing a single section."""
         entity_list = ", ".join([f"'{entity['word']}' ({entity['entity_group']})" for entity in entities])
-
         doc_type_str = doc_type.value if doc_type else "Unknown"
 
         prompt = f"""
-You are an expert Medicare compliance officer for a Skilled Nursing Facility (SNF). Your task is to analyze a clinical therapy document for potential compliance risks.
+You are an expert Medicare compliance officer for a Skilled Nursing Facility (SNF). Your task is to analyze a specific section of a clinical therapy document for potential compliance risks.
 
 **Document Type:** {doc_type_str}
+**Section to Analyze:** {section_name}
 
-**Clinical Document:**
----
-{document}
----
-
-**Extracted Clinical Entities:**
+**Full list of Extracted Clinical Entities from Document:**
 ---
 {entity_list}
+---
+
+**Relevant Medicare Guidelines (from Chapter 8: Coverage of Extended Care (SNF) Services):**
+---
+{context}
 ---
 """
         if rubric:
@@ -132,26 +141,32 @@ You are an expert Medicare compliance officer for a Skilled Nursing Facility (SN
 ---
 """
         prompt += f"""
-**Relevant Medicare Guidelines (from Chapter 8: Coverage of Extended Care (SNF) Services):**
+**Content of the '{section_name}' section:**
 ---
-{context}
+{section_text}
 ---
 
 **Your Task:**
-Based on all the information above, provide a detailed compliance analysis. Identify any potential risks, explain why they are risks according to the guidelines and the provided rubric, and suggest specific actions to mitigate them. If no risks are found, state that the document appears to be compliant.
+Based on all the information above, provide a detailed compliance analysis FOR THE '{section_name}' SECTION ONLY. Identify any potential risks within this section, explain why they are risks according to the guidelines and the provided rubric, and suggest specific actions to mitigate them. If no risks are found for this section, state that the section appears to be compliant.
 
-**Compliance Analysis:**
+**Section Compliance Analysis:**
 """
         return prompt
 
 if __name__ == '__main__':
     analyzer = ComplianceAnalyzer()
 
-    # Sample clinical document with a potential compliance issue
-    # (The issue: therapy might not be seen as "daily" if it's only 3 times a week without justification)
-    sample_document = "Patient with post-stroke hemiparesis is receiving physical therapy 3 times per week to improve gait and balance. The goal is to increase independence with ambulation. The patient is motivated and shows slow but steady progress. The SNF stay is covered under Medicare Part A."
+    # Sample clinical document with sections
+    sample_document = '''
+Subjective: Patient reports feeling tired but motivated. States goal is to "walk my daughter down the aisle."
+Objective: Patient participated in 45 minutes of physical therapy. Gait training on level surfaces with rolling walker for 100 feet with moderate assistance. Moderate verbal cueing required for sequencing.
+Assessment: Patient shows slow progress towards goals. Limited endurance impacts participation. Skilled intervention is required to address safety and functional deficits.
+Plan: Continue physical therapy 3 times per week. Re-evaluate in 1 week.
+'''
 
-    analysis = analyzer.analyze_document(sample_document)
+    analysis_results = analyzer.analyze_document(sample_document)
 
     print("\n\n--- FINAL COMPLIANCE ANALYSIS ---")
-    print(analysis)
+    for section, analysis in analysis_results.items():
+        print(f"\n--- Analysis for Section: {section} ---")
+        print(analysis)

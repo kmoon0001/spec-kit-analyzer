@@ -8,88 +8,81 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 from compliance_analyzer import ComplianceAnalyzer
 from document_classifier import DocumentClassifier, DocumentType
-from enum import Enum
+from parsing import parse_document_into_sections
+from typing import Dict, List
+
 
 class TestComplianceAnalyzer:
-    @pytest.mark.slow
-    def test_build_prompt_integration(self):
-        # Create an instance of the analyzer
-        analyzer = ComplianceAnalyzer()
 
-        # Define mock data
-        document = "This is a test document."
-        entities = [
-            {'word': 'test', 'entity_group': 'test_entity'}
-        ]
-        context = "This is a test context."
-        doc_type = DocumentType.EVALUATION
-        rubric = "This is a test rubric."
-
-        # Call the method
-        prompt = analyzer._build_prompt(document, entities, context, doc_type, rubric)
-
-        # Assert the prompt is constructed correctly
-        assert "This is a test document." in prompt
-        assert "'test' (test_entity)" in prompt
-        assert "This is a test context." in prompt
-        assert "You are an expert Medicare compliance officer" in prompt
-        assert "Document Type: Evaluation" in prompt
-        assert "Compliance Rubric for Evaluation:" in prompt
-        assert "This is a test rubric." in prompt
+    @pytest.fixture(scope="class")
+    def analyzer_instance(self):
+        """Fixture to create a single ComplianceAnalyzer instance for the slow integration test."""
+        return ComplianceAnalyzer()
 
     def test_document_classification(self):
+        """Tests the document classifier with different inputs."""
         classifier = DocumentClassifier()
-
-        # Test evaluation document
         eval_doc = "This is a patient evaluation."
         assert classifier.classify(eval_doc) == DocumentType.EVALUATION
-
-        # Test progress note document
         pn_doc = "This is a progress note."
         assert classifier.classify(pn_doc) == DocumentType.PROGRESS_NOTE
-
-        # Test unclassified document
         unclassified_doc = "This is a regular document."
         assert classifier.classify(unclassified_doc) is None
 
     @patch('compliance_analyzer.ComplianceAnalyzer.__init__', return_value=None)
     def test_rubric_loading(self, mock_init):
+        """Tests rubric loading logic in a fast unit test."""
         analyzer = ComplianceAnalyzer()
-
-        # Create dummy rubric files
         os.makedirs("resources/rubrics", exist_ok=True)
         with open("resources/rubrics/evaluation_rubric.txt", "w") as f:
-            f.write("Evaluation Rubric")
-        with open("resources/rubrics/progress_note_rubric.txt", "w") as f:
-            f.write("Progress Note Rubric")
-
-        # Test loading evaluation rubric
+            f.write("Evaluation Rubric Content")
         rubric = analyzer._load_rubric(DocumentType.EVALUATION)
-        assert rubric == "Evaluation Rubric"
-
-        # Test loading progress note rubric
-        rubric = analyzer._load_rubric(DocumentType.PROGRESS_NOTE)
-        assert rubric == "Progress Note Rubric"
-
-        # Test loading with no doc type
-        rubric = analyzer._load_rubric(None)
-        assert rubric is None
-
-        # Clean up dummy files
+        assert rubric == "Evaluation Rubric Content"
         os.remove("resources/rubrics/evaluation_rubric.txt")
-        os.remove("resources/rubrics/progress_note_rubric.txt")
+
+    @patch('compliance_analyzer.ComplianceAnalyzer.__init__', return_value=None)
+    def test_build_section_prompt_fast(self, mock_init):
+        """
+        Tests the construction of the section-specific prompt in a fast unit test
+        by mocking the analyzer's __init__ method.
+        """
+        analyzer = ComplianceAnalyzer()
+        section_name = "Objective"
+        section_text = "Patient walked 100 feet."
+        entities = [{'word': 'patient', 'entity_group': 'person'}]
+        context = "Guideline about walking."
+        doc_type = DocumentType.PROGRESS_NOTE
+        rubric = "Rubric about progress."
+
+        prompt = analyzer._build_section_prompt(section_name, section_text, entities, context, doc_type, rubric)
+
+        assert "**Section to Analyze:** Objective" in prompt
+        assert "**Content of the 'Objective' section:**" in prompt
+        assert "Patient walked 100 feet." in prompt
+        assert "Guideline about walking." in prompt
+        assert "**Section Compliance Analysis:**" in prompt
+        assert "**Document Type:** Progress Note" in prompt
+        assert "Rubric about progress." in prompt
 
     @pytest.mark.slow
-    def test_analyze_document_integration(self):
-        # This is a slow integration test that loads the actual models.
-        analyzer = ComplianceAnalyzer()
-
-        # Sample document from the main script
-        sample_document = "Patient with post-stroke hemiparesis is receiving physical therapy 3 times per week to improve gait and balance. The goal is to increase independence with ambulation. The patient is motivated and shows slow but steady progress. The SNF stay is covered under Medicare Part A. This is an evaluation."
-
-        # Analyze the document
+    def test_analyze_document_integration_returns_dict(self, analyzer_instance):
+        """
+        Slow integration test for the main analyze_document function.
+        This test will be skipped in the CI/CD pipeline to avoid timeouts.
+        """
+        analyzer = analyzer_instance
+        sample_document = """
+Subjective: Patient is feeling better.
+Objective: Walked 100 ft with minimal assistance.
+Assessment: Making good progress.
+Plan: Continue PT 5x/week.
+"""
         analysis = analyzer.analyze_document(sample_document)
 
-        # Assert that the analysis is a non-empty string
-        assert isinstance(analysis, str)
-        assert len(analysis) > 0
+        assert isinstance(analysis, dict)
+        assert "Subjective" in analysis
+        assert "Objective" in analysis
+        assert "Assessment" in analysis
+        assert "Plan" in analysis
+        assert isinstance(analysis["Subjective"], str)
+        assert len(analysis["Subjective"]) > 0

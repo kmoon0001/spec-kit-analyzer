@@ -18,13 +18,15 @@ app = FastAPI()
 
 app.include_router(rubric_router.router)
 
-# Instantiate and load guidelines at startup
-guideline_service = GuidelineService()
-guideline_sources = [
-    "_default_medicare_benefit_policy_manual.txt",
-    "_default_medicare_part.txt"
-]
-guideline_service.load_and_index_guidelines(sources=guideline_sources)
+# Import the new analyzer
+from src.compliance_analyzer import ComplianceAnalyzer
+
+# Instantiate the new ComplianceAnalyzer at startup.
+# This is a heavyweight object that loads multiple ML models,
+# so we follow a singleton pattern by creating it once.
+print("Loading Compliance Analyzer at startup...")
+analyzer = ComplianceAnalyzer()
+print("Compliance Analyzer loaded successfully.")
 
 def scrub_phi(text: str) -> str:
     if not isinstance(text, str):
@@ -47,88 +49,62 @@ def read_root():
     return {"message": "Backend for Therapy Compliance Analyzer"}
 
 @app.post("/analyze", response_class=HTMLResponse)
-async def analyze_document(rubric_id: int = Form(...), file: UploadFile = File(...)):
-    # Save the uploaded file temporarily
-    temp_file_path = f"temp_{file.filename}"
-    with open(temp_file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    # 1. Parse the document content and scrub PHI
-    document_chunks = parse_document_content(temp_file_path)
-    document_text = " ".join([chunk[0] for chunk in document_chunks])
-    scrubbed_text = scrub_phi(document_text)
-
-    # 2. Load the selected rubric from the database
+async def analyze_document(file: UploadFile = File(...)):
+    # Use a temporary directory for robust cleanup of the uploaded file.
+    temp_dir = tempfile.mkdtemp()
+    temp_file_path = os.path.join(temp_dir, file.filename)
     try:
-        with sqlite3.connect(DATABASE_PATH) as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT content FROM rubrics WHERE id = ?", (rubric_id,))
-            result = cur.fetchone()
-        if not result:
-            raise HTTPException(status_code=404, detail="Selected rubric not found.")
-        rubric_content = result[0]
-    except sqlite3.Error as e:
-        raise HTTPException(status_code=500, detail=f"Database error when fetching rubric: {e}")
+        with open(temp_file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
 
-    # RubricService expects a file path, so write the content to a temporary file
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".ttl") as temp_rubric_file:
-        temp_rubric_file.write(rubric_content)
-        temp_rubric_path = temp_rubric_file.name
+        # 1. Parse the document content and scrub for PHI.
+        document_chunks = parse_document_content(temp_file_path)
+        if not document_chunks or not document_chunks[0][0]:
+             raise HTTPException(status_code=400, detail="Could not extract text from document.")
 
-    try:
-        rubric_service = RubricService(ontology_path=temp_rubric_path)
-        rules = rubric_service.get_rules()
+        document_text = " ".join([chunk[0] for chunk in document_chunks if chunk[0]])
+        scrubbed_text = scrub_phi(document_text)
 
-        # 3. Perform analysis
-        findings = []
-        for rule in rules:
-            for keyword in rule.positive_keywords:
-                if keyword.lower() in scrubbed_text.lower():
-                    findings.append(rule)
-                    break
+        if not scrubbed_text.strip():
+            raise HTTPException(status_code=400, detail="Document is empty or contains no parsable text.")
 
-        # 4. Generate the HTML report
-        with open("report_template.html", "r") as f:
+        # 2. Perform analysis using the new, refactored ComplianceAnalyzer.
+        # This replaces the old keyword-based analysis.
+        analysis_results = analyzer.analyze_document(scrubbed_text)
+
+        # 3. Generate the HTML report from the section-by-section results.
+        # Note: The path to the template is relative to the root, where the app is run.
+        with open("src/report_template.html", "r") as f:
             template_str = f.read()
 
-        # Populate findings
+        # Populate findings using the new dictionary structure and collapsible sections.
         findings_html = ""
-        if findings:
-            for finding in findings:
+        if analysis_results:
+            for section, analysis in analysis_results.items():
                 findings_html += f"""
-                <div class="finding">
-                    <h3>{finding.issue_title}</h3>
-                    <p><strong>Severity:</strong> {finding.severity}</p>
-                    <p><strong>Category:</strong> {finding.issue_category}</p>
-                    <p>{finding.issue_detail}</p>
-                </div>
+                <details>
+                    <summary>Section: {section}</summary>
+                    <div class="finding-content">
+                        <p>{analysis.replace("\n", "<br>")}</p>
+                    </div>
+                </details>
                 """
         else:
-            findings_html = "<p>No specific findings based on the rubric.</p>"
+            findings_html = "<p>No analysis results were generated.</p>"
 
         report_html = template_str.replace("<!-- Placeholder for findings -->", findings_html)
 
-        # Populate Medicare guidelines
-        guidelines_html = ""
-        if findings:
-            for finding in findings:
-                guideline_results = guideline_service.search(query=finding.issue_title, top_k=1)
-                if guideline_results:
-                    guidelines_html += "<div>"
-                    guidelines_html += f"<h4>Related to: {finding.issue_title}</h4>"
-                    for result in guideline_results:
-                        guidelines_html += f"<p><strong>Source:</strong> {result['source']}</p>"
-                        guidelines_html += f"<p>{result['text']}</p>"
-                    guidelines_html += "</div>"
+        # The new analyzer incorporates guideline retrieval, so the old guideline search is no longer needed.
+        # We can provide a generic message here.
+        report_html = report_html.replace("<!-- Placeholder for Medicare guidelines -->", "<p>Guideline analysis is now integrated into the section-by-section results.</p>")
 
-        if not guidelines_html:
-            guidelines_html = "<p>No relevant Medicare guidelines found.</p>"
-
-        report_html = report_html.replace("<!-- Placeholder for Medicare guidelines -->", guidelines_html)
+    except Exception as e:
+        # Log the exception for easier debugging and return a clean error to the client.
+        print(f"An error occurred during analysis: {e}")
+        raise HTTPException(status_code=500, detail=f"An internal error occurred: {str(e)}")
     finally:
-        # Clean up the temporary files
-        os.remove(temp_file_path)
-        os.remove(temp_rubric_path)
-
+        # Clean up the temporary directory and its contents.
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
 
     return HTMLResponse(content=report_html)
