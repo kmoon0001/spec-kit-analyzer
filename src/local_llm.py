@@ -80,7 +80,7 @@ class LocalRAG:
             logger.exception(f"Failed to initialize LocalRAG: {e}")
             self.llm = None
             self.embedding_model = None
-
+ 
     def is_ready(self) -> bool:
         """Check if the RAG system is fully initialized and ready to use."""
         return self.llm is not None and self.embedding_model is not None
