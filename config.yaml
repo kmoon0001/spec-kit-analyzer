@@ -16,6 +16,13 @@ ANALYTICS_PATH: ./data/analytics/
 PHI_SCRUBBER: enabled
 UI_MODE: responsive
 
+# Section headers for parsing clinical notes
+section_headers:
+  - Subjective
+  - Objective
+  - Assessment
+  - Plan
+
 # Configuration for the RAG Pipeline
 
 paths:
