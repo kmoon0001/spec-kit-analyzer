@@ -1,15 +1,11 @@
-fastapi
-uvicorn
-python-docx
-pdfplumber
-pytesseract
-Pillow
-pandas
-openpyxl
-requests
-pytest
-pytest-mock
-matplotlib
-pyyaml
-rdflib
-PySide6
+# This file aggregates all the requirement files from the requirements/ directory.
+# To install all dependencies, run: pip install -r requirements.txt
+
+-r requirements/api.txt
+-r requirements/async.txt
+-r requirements/core.txt
+-r requirements/pii.txt
+-r requirements/requirements-logic.txt
+-r requirements/testing.txt
+-r requirements/ui.txt
+-r requirements/xai.txt

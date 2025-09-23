@@ -1,0 +1,4 @@
+# Requirements for the Frontend GUI
+
+PySide6
+requests

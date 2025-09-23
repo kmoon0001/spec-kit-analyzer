@@ -1,0 +1,11 @@
+@prefix : <http://example.com/ns#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+:rule1 a :ComplianceRule ;
+    :issueTitle "Provider signature/date possibly missing" ;
+    :issueDetail "The provider's signature and date are not clearly identified." ;
+    :issueCategory "Authentication" ;
+    :severity "flag" ;
+    :strictSeverity "flag" ;
+    :negativeKeywords "signature", "signed" .

@@ -1,0 +1,35 @@
+import pytest
+import logging
+import matplotlib
+
+matplotlib.use("Agg")
+
+logger = logging.getLogger(__name__)
+
+try:
+    from PyQt6.QtWidgets import QApplication
+
+    @pytest.fixture(scope="session")
+    def qapp():
+        """
+        Session-scoped fixture to create a single QApplication instance for the entire test run.
+        This is a standard practice for pytest-qt tests to avoid creating a new application
+        for every test, which can be slow and resource-intensive.
+        """
+        logging.warning(">>> qapp fixture started")
+        app = QApplication.instance()
+        if app is None:
+            logging.warning(">>> QApplication instance is None, creating a new one.")
+            app = QApplication([])
+        else:
+            logging.warning(">>> QApplication instance already exists.")
+        logging.warning(">>> qapp fixture finished")
+        return app
+
+except ImportError:
+    logger.warning("PyQt6 not found, qapp fixture will not be available.")
+    # Define a dummy fixture to avoid errors if a test requests it.
+    @pytest.fixture(scope="session")
+    def qapp():
+        logger.warning(">>> Dummy qapp fixture called because PyQt6 is not installed.")
+        return None
