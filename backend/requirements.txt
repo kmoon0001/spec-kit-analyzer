@@ -3,6 +3,7 @@
 # Server
 fastapi
 uvicorn
+requests
 
 # Document Parsing
 python-docx

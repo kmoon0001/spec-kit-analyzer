@@ -1,0 +1,5 @@
+This is a sample guideline document.
+
+It contains some text that can be used for testing the search functionality.
+Let's add a keyword: Medicare.
+This will help us test the search function.
