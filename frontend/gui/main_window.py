@@ -305,7 +305,9 @@ class MainApplicationWindow(QMainWindow):
         analysis = result.get("analysis", {})
         findings = analysis.get("findings", [])
 
-        html = "<h1>Compliance Analysis Report</h1>"
+        document = result.get("document", {})
+        html = f"<h1>Compliance Analysis Report</h1>"
+        html += f"<h2>Document Type: {document.get('document_type', 'Unknown')}</h2>"
 
         # --- Metrics Summary ---
         html += "<h2>Summary</h2>"

@@ -6,6 +6,7 @@ import os
 from rubric_service import RubricService, ComplianceRule
 from parsing import parse_document_content
 from guideline_service import GuidelineService
+from document_classifier import classify_document
 
 app = FastAPI()
 
@@ -39,8 +40,17 @@ async def analyze_document(file: UploadFile = File(...)):
     document_chunks = parse_document_content(temp_file_path)
     document_text = " ".join([chunk[0] for chunk in document_chunks])
 
-    # 2. Load the rubric
-    rubric_service = RubricService(ontology_path="pt_compliance_rubric.ttl")
+    # 2. Classify Document and Load Appropriate Rubric
+    doc_type = classify_document(document_text)
+
+    rubric_mapping = {
+        "Evaluation / Recertification": "pt_evaluation_rubric.ttl",
+        # Add other mappings here for Progress Notes, etc.
+    }
+    # Default to the general rubric if no specific one is found
+    rubric_file = rubric_mapping.get(doc_type, "pt_compliance_rubric.ttl")
+
+    rubric_service = RubricService(ontology_path=rubric_file)
     rules = rubric_service.get_rules()
 
     # 3. Perform analysis
@@ -79,7 +89,8 @@ async def analyze_document(file: UploadFile = File(...)):
     response_data = {
         "document": {
             "text": document_text,
-            "filename": file.filename
+            "filename": file.filename,
+            "document_type": doc_type
         },
         "analysis": {
             "findings": findings_as_dicts,
