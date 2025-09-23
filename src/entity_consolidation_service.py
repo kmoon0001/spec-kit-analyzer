@@ -7,7 +7,7 @@ from typing import List, Dict, Set, Optional, Callable
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-
+ 
 from .ner_service import NEREntity
 
 logger = logging.getLogger(__name__)
