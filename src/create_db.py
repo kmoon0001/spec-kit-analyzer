@@ -1,65 +1,58 @@
 import sqlite3
 import os
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.backends import default_backend
 
-# --- Configuration ---
-DATABASE_PATH = os.path.join('..', 'data', 'compliance.db')
-SALT_SIZE = 16
-HASH_ALGORITHM = hashes.SHA256()
-ITERATIONS = 100000
+# This script is intended for one-time setup of the database schema.
+# It should not be used for seeding data, especially not users.
 
-# --- Create data directory if it doesn't exist ---
-os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
+def main():
+    """
+    Creates the database and the necessary tables.
+    """
+    # --- Configuration ---
+    # Construct a robust path to the database file
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    DATA_DIR = os.path.join(BASE_DIR, '..', '..', 'data')
+    DATABASE_PATH = os.path.join(DATA_DIR, 'compliance.db')
 
-# --- Connect to the database ---
-conn = sqlite3.connect(DATABASE_PATH)
-cursor = conn.cursor()
+    # --- Create data directory if it doesn't exist ---
+    os.makedirs(DATA_DIR, exist_ok=True)
 
-# --- Create the users table ---
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password_hash BLOB NOT NULL,
-    salt BLOB NOT NULL
-)
-''')
+    try:
+        # --- Connect to the database ---
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
 
-# --- Hash a sample password ---
-def hash_password(password, salt):
-    kdf = PBKDF2HMAC(
-        algorithm=HASH_ALGORITHM,
-        length=32,
-        salt=salt,
-        iterations=ITERATIONS,
-        backend=default_backend()
-    )
-    return kdf.derive(password.encode())
+        # --- Create the users table ---
+        # Note: User creation and management should be handled by a separate process or API endpoint.
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash BLOB NOT NULL,
+            salt BLOB NOT NULL
+        )
+        ''')
 
-# --- Add a sample user ---
-def add_user(username, password):
-    # Check if user already exists
-    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
-    if cursor.fetchone():
-        print(f"User '{username}' already exists.")
-        return
+        # You could add other table creation statements here, for example:
+        # cursor.execute('''
+        # CREATE TABLE IF NOT EXISTS rubrics (
+        #     id INTEGER PRIMARY KEY AUTOINCREMENT,
+        #     name TEXT NOT NULL UNIQUE,
+        #     content TEXT NOT NULL,
+        #     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        # )
+        # ''')
 
-    salt = os.urandom(SALT_SIZE)
-    password_hash = hash_password(password, salt)
+        conn.commit()
+        print("Database schema created successfully.")
 
-    cursor.execute(
-        "INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)",
-        (username, password_hash, salt)
-    )
-    conn.commit()
-    print(f"User '{username}' added successfully.")
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+    finally:
+        if conn:
+            conn.close()
+            print("Database connection closed.")
 
-# --- Add the admin user ---
-add_user("admin", "password")
-
-# --- Close the connection ---
-conn.close()
-
-print("Database created and initialized successfully.")
+if __name__ == '__main__':
+    main()
+    print("Database creation script finished.")
