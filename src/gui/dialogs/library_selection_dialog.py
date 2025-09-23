@@ -1,6 +1,6 @@
 import os
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QLabel,
@@ -9,8 +9,6 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QListWidgetItem,
 )
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class LibrarySelectionDialog(QDialog):
     def __init__(self, parent=None):
@@ -29,7 +27,7 @@ class LibrarySelectionDialog(QDialog):
         layout.addWidget(button_box)
 
     def populate_library_list(self):
-        rubrics_dir = os.path.join(BASE_DIR, '..', '..', 'resources', 'rubrics')
+        rubrics_dir = os.path.join("resources", "rubrics")
         if not os.path.isdir(rubrics_dir):
             self.library_list.addItem("No library found.")
             self.library_list.setEnabled(False)

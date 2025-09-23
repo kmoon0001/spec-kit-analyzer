@@ -1,13 +1,11 @@
 import os
 import pytest
-from src.rubric_service import RubricService, ComplianceRule
+from src.core.rubric_service import RubricService, ComplianceRule
 
 # Define the path to the test rubrics relative to this test file
 # This makes the tests runnable from any directory
-TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-SRC_DIR = os.path.join(os.path.dirname(TESTS_DIR), "src")
-VALID_RUBRIC_PATH = os.path.join(SRC_DIR, "pt_compliance_rubric.ttl")
-NON_EXISTENT_RUBRIC_PATH = os.path.join(SRC_DIR, "non_existent_rubric.ttl")
+VALID_RUBRIC_PATH = os.path.join("src", "resources", "pt_compliance_rubric.ttl")
+NON_EXISTENT_RUBRIC_PATH = os.path.join("src", "resources", "non_existent_rubric.ttl")
 
 def test_initialization_with_valid_rubric():
     """

@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QListWidget,
@@ -10,12 +10,10 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QListWidgetItem,
 )
-from src.parsing import parse_document_content
+from src.core.parsing import parse_document_content
 from .add_rubric_source_dialog import AddRubricSourceDialog
 from .library_selection_dialog import LibrarySelectionDialog
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE_PATH = os.path.join(BASE_DIR, '..', '..', 'data', 'compliance.db')
+from src.core.database import DATABASE_PATH
 
 class RubricManagerDialog(QDialog):
     def __init__(self, parent=None):

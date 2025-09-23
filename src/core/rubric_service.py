@@ -59,14 +59,24 @@ class RubricService:
         # Prepare a SPARQL query to get all rules and their properties.
         # OPTIONAL blocks are used because not all rules have all properties (e.g., positive_keywords).
 
+        query = prepareQuery("""
+            SELECT ?rule ?severity ?strict_severity ?title ?detail ?category ?financial_impact ?discipline
+            WHERE {
+                ?rule a NS:ComplianceRule .
+                ?rule NS:hasSeverity ?severity .
+                ?rule NS:hasStrictSeverity ?strict_severity .
+                ?rule NS:hasIssueTitle ?title .
+                ?rule NS:hasIssueDetail ?detail .
+                ?rule NS:hasIssueCategory ?category .
+                ?rule NS:hasDiscipline ?discipline .
+                OPTIONAL { ?rule NS:hasFinancialImpact ?financial_impact . }
+            }
+        """, initNs={"NS": NS})
+
         rules = []
         try:
             results = self.graph.query(query)
             for row in results:
-                # The GROUP_CONCAT returns a single string, so we split it by our separator
-                pos_kws = str(row.positive_keywords).split('|') if row.positive_keywords else []
-                neg_kws = str(row.negative_keywords).split('|') if row.negative_keywords else []
-
                 rule = ComplianceRule(
                     uri=str(row.rule),
                     severity=str(row.severity),
@@ -74,11 +84,10 @@ class RubricService:
                     issue_title=str(row.title),
                     issue_detail=str(row.detail),
                     issue_category=str(row.category),
-
-financial_impact=int(row.financial_impact) if row.financial_impact else 0,
-    discipline=str(row.discipline),
-                    positive_keywords=[kw for kw in pos_kws if kw], # Filter out empty strings
-                    negative_keywords=[kw for kw in neg_kws if kw]  # Filter out empty strings
+                    financial_impact=int(row.financial_impact) if row.financial_impact else 0,
+                    discipline=str(row.discipline),
+                    positive_keywords=self._get_keywords(row.rule, NS.hasPositiveKeywords),
+                    negative_keywords=self._get_keywords(row.rule, NS.hasNegativeKeywords)
                 )
                 rules.append(rule)
             logger.info(f"Successfully retrieved {len(rules)} rules from the ontology.")
@@ -86,3 +95,10 @@ financial_impact=int(row.financial_impact) if row.financial_impact else 0,
             logger.exception(f"Failed to query rules from ontology: {e}")
 
         return rules
+
+    def _get_keywords(self, rule_uri, keyword_property) -> List[str]:
+        keywords = []
+        for keyword_set in self.graph.objects(rule_uri, keyword_property):
+            for keyword in self.graph.objects(keyword_set, Namespace("http://example.com/speckit/ontology#").hasKeyword):
+                keywords.append(str(keyword))
+        return keywords
