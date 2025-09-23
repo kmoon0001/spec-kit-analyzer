@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QTextEdit,
     QHBoxLayout,
-    QListWidget,
+    QListWidget, 
     QListWidgetItem,
     QInputDialog,
     QCheckBox,
