@@ -12,7 +12,7 @@ class AIAnalysisService:
     def __init__(self): 
         """
         Initializes the service and loads the language model.
-        This uses a singleton pattern to ensure the model is loaded only once.
+        This uses a singleton pattern to ensure the model is loaded only once. 
         """
         if AIAnalysisService._model is None:
             print("Initializing AI Analysis Service and loading model...")
