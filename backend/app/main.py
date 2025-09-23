@@ -21,7 +21,7 @@ guideline_sources = [
 guideline_service.load_and_index_guidelines(sources=guideline_sources)
 
 
-@app.get("/")
+@app.get("/") 
 def read_root():
     return {"message": "Backend for Therapy Compliance Analyzer"}
 
