@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import HTMLResponse
 import shutil
 import os
@@ -25,7 +25,7 @@ def read_root():
 
 
 @app.post("/analyze", response_class=HTMLResponse)
-async def analyze_document(file: UploadFile = File(...)):
+async def analyze_document(file: UploadFile = File(...), discipline: str = Form("All")):
     # Save the uploaded file temporarily
     temp_file_path = f"temp_{file.filename}"
     with open(temp_file_path, "wb") as buffer:
@@ -41,9 +41,8 @@ async def analyze_document(file: UploadFile = File(...)):
     doc_type_str = doc_type.name.replace("_", " ").title()
 
     # 3. Load the rubric and filter rules
-    # TODO: Make the rubric path selectable based on discipline (PT, OT, SLP)
-    rubric_service = RubricService(ontology_path="pt_compliance_rubric.ttl")
-    rules = rubric_service.get_rules_for_document_type(doc_type_str)
+    rubric_service = RubricService()
+    rules = rubric_service.get_filtered_rules(doc_type_str, discipline)
 
     # 3. Perform analysis
     findings = []

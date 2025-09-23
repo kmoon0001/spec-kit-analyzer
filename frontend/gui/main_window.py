@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QInputDialog,
     QCheckBox,
+    QComboBox,
 )
 from PySide6.QtCore import Qt, QThread, QObject
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
@@ -129,6 +130,7 @@ def initialize_database():
 class MainApplicationWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self._current_file_path = None
         self.initUI()
 
     def initUI(self):
@@ -176,13 +178,14 @@ class MainApplicationWindow(QMainWindow):
         self.manage_rubrics_button = QPushButton("Manage Rubrics")
         self.manage_rubrics_button.clicked.connect(self.manage_rubrics)
         rubric_layout.addWidget(self.manage_rubrics_button)
+        self.discipline_combo = QComboBox()
+        self.discipline_combo.addItems(["All", "PT", "OT", "SLP"])
+        rubric_layout.addWidget(QLabel("Discipline:"))
+        rubric_layout.addWidget(self.discipline_combo)
+
         self.run_analysis_button = QPushButton("Run Analysis")
-        self.run_analysis_button.clicked.connect(self.run_rubric_analysis)
+        self.run_analysis_button.clicked.connect(self.run_backend_analysis)
         rubric_layout.addWidget(self.run_analysis_button)
-        self.rubric_list_widget = QListWidget()
-        self.rubric_list_widget.setPlaceholderText("Available Rubrics")
-        self.rubric_list_widget.setMaximumHeight(100)
-        rubric_layout.addWidget(self.rubric_list_widget)
         main_layout.addLayout(rubric_layout)
         progress_layout = QHBoxLayout()
         self.progress_bar = QProgressBar()
@@ -241,94 +244,57 @@ class MainApplicationWindow(QMainWindow):
             self.cancel_button.setEnabled(False)
 
     def process_document(self, file_path):
-        """
-        This method will now be responsible for sending the document
-        to the backend for processing.
-        """
-        self.status_bar.showMessage(f"Sending {os.path.basename(file_path)} to backend...")
-        self.document_display_area.setText(f"Processing {os.path.basename(file_path)}...")
+        self._current_file_path = file_path
+        self.status_bar.showMessage(f"Loaded document: {os.path.basename(file_path)}")
+        # For now, just display a confirmation. Analysis will be triggered by the button.
+        self.document_display_area.setText(f"Loaded '{os.path.basename(file_path)}'.\n\nSelect a discipline and click 'Run Analysis'.")
+        self.analysis_results_area.clear()
 
-        # In a real implementation, we would use a background thread (QThread)
-        # to call the backend API to avoid freezing the GUI.
-        self._call_backend_for_processing(file_path)
 
-    def _call_backend_for_processing(self, file_path):
+    def run_backend_analysis(self):
+        if not self._current_file_path:
+            QMessageBox.warning(self, "Analysis Error", "Please upload a document to analyze first.")
+            return
+
+        discipline = self.discipline_combo.currentText()
+
+        self.status_bar.showMessage(f"Sending {os.path.basename(self._current_file_path)} to backend for analysis...")
+        self.analysis_results_area.setText(f"Analyzing with discipline: {discipline}...")
+        self._set_busy(True)
+
+        # In a real implementation, this would be in a QThread to not freeze the GUI
+        self._call_backend_for_analysis(self._current_file_path, discipline)
+        self._set_busy(False)
+
+    def _call_backend_for_analysis(self, file_path, discipline):
         """
-        Placeholder for calling the backend API.
-        This will eventually use the 'requests' library.
+        Calls the backend API to perform the analysis.
         """
-        # Example of what the call might look like:
-        # try:
-        #     with open(file_path, 'rb') as f:
-        #         response = requests.post("http://127.0.0.1:8000/process", files={'file': f})
-        #     if response.status_code == 200:
-        #         # The backend would return the extracted text
-        #         extracted_text = response.json().get("text")
-        #         self.document_display_area.setText(extracted_text)
-        #         self.status_bar.showMessage("Processing complete.")
-        #     else:
-        #         self.document_display_area.setText(f"Error from backend: {response.text}")
-        #         self.status_bar.showMessage("Backend processing failed.")
-        # except requests.exceptions.RequestException as e:
-        #     self.document_display_area.setText(f"Failed to connect to backend: {e}")
-        #     self.status_bar.showMessage("Connection to backend failed.")
+        try:
+            import requests
+            with open(file_path, 'rb') as f:
+                files = {'file': (os.path.basename(file_path), f)}
+                data = {'discipline': discipline}
+                response = requests.post("http://127.0.0.1:8000/analyze", files=files, data=data)
 
-        # For now, just show a placeholder message.
-        mock_response = f"--- MOCK RESPONSE ---\n\nFile '{os.path.basename(file_path)}' would be processed by the backend here.\n\nThe extracted text would appear in this box."
-        self.document_display_area.setText(mock_response)
-        self.status_bar.showMessage("Processing complete (mock).")
-
-    # --- AI/ML Processing Methods (REMOVED) ---
+            if response.status_code == 200:
+                # The backend returns an HTML report
+                self.analysis_results_area.setHtml(response.text)
+                self.status_bar.showMessage("Analysis complete.")
+            else:
+                self.analysis_results_area.setText(f"Error from backend: {response.status_code}\n\n{response.text}")
+                self.status_bar.showMessage("Backend analysis failed.")
+        except Exception as e:
+            self.analysis_results_area.setText(f"Failed to connect to backend or perform analysis:\n{e}")
+            self.status_bar.showMessage("Connection to backend failed.")
 
     def clear_document_display(self):
         self.document_display_area.clear()
         self.analysis_results_area.clear()
+        self._current_file_path = None
         self._current_raw_text = ""
         self._current_sentences_with_source = []
         self.status_bar.showMessage('Display cleared.')
-
-    def manage_rubrics(self):
-        dialog = RubricManagerDialog(self)
-        dialog.exec()
-        self.load_rubrics_to_main_list()
-
-    def load_rubrics_to_main_list(self):
-        self.rubric_list_widget.clear()
-        try:
-            if not os.path.exists(DATABASE_PATH):
-                return
-            with sqlite3.connect(DATABASE_PATH) as conn:
-                cur = conn.cursor()
-                cur.execute("SELECT id, name FROM rubrics ORDER BY name ASC")
-                for rubric_id, name in cur.fetchall():
-                    item = QListWidgetItem(name)
-                    item.setData(Qt.ItemDataRole.UserRole, rubric_id)
-                    self.rubric_list_widget.addItem(item)
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to load rubrics into main list:\n{e}")
-
-    def run_rubric_analysis(self):
-        if not self._current_sentences_with_source:
-            QMessageBox.warning(self, "Analysis Error", "Please upload a document to analyze first.")
-            return
-        selected_items = self.rubric_list_widget.selectedItems()
-        if not selected_items:
-            QMessageBox.warning(self, "Analysis Error", "Please select a rubric from the list to run the analysis.")
-            return
-        try:
-            rubric_id = selected_items[0].data(Qt.ItemDataRole.UserRole)
-            with sqlite3.connect(DATABASE_PATH) as conn:
-                cur = conn.cursor()
-                cur.execute("SELECT content FROM rubrics WHERE id = ?", (rubric_id,))
-                result = cur.fetchone()
-            if not result:
-                QMessageBox.critical(self, "Database Error", "Could not find the selected rubric in the database.")
-                return
-            rubric_content = result[0]
-        except Exception as e:
-            QMessageBox.critical(self, "Database Error", f"Failed to retrieve rubric content:\n{e}")
-            return
-        QMessageBox.information(self, "Analysis", "This feature is currently disabled pending new model integration.")
 
     def _build_report_html(self) -> str:
         text_for_report = scrub_phi(self._current_raw_text or "")

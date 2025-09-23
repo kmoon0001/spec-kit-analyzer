@@ -119,24 +119,36 @@ class RubricService:
 
         return rules
 
-    def get_rules_for_document_type(self, doc_type: str) -> List[ComplianceRule]:
+    def get_filtered_rules(self, doc_type: str, discipline: str = "All") -> List[ComplianceRule]:
         """
-        Retrieves all compliance rules and filters them for a specific document type.
+        Retrieves all compliance rules and filters them for a specific document type and discipline.
 
         Args:
             doc_type (str): The type of the document (e.g., 'Evaluation', 'Progress Note').
+            discipline (str): The discipline to filter by (e.g., 'pt', 'ot', 'slp', or 'All').
 
         Returns:
-            List[ComplianceRule]: A list of rules that apply to the given document type.
+            List[ComplianceRule]: A list of rules that apply to the given criteria.
         """
         all_rules = self.get_rules()
+
+        # Filter by document type
         if not doc_type or doc_type == "Unknown":
-            return all_rules
+            doc_type_rules = all_rules
+        else:
+            doc_type_rules = [
+                rule for rule in all_rules
+                if rule.document_type is None or rule.document_type == doc_type
+            ]
 
-        filtered_rules = [
-            rule for rule in all_rules
-            if rule.document_type is None or rule.document_type == doc_type
-        ]
+        # Filter by discipline
+        if discipline == "All":
+            final_rules = doc_type_rules
+        else:
+            final_rules = [
+                rule for rule in doc_type_rules
+                if rule.discipline.lower() == discipline.lower()
+            ]
 
-        logger.info(f"Filtered {len(all_rules)} rules down to {len(filtered_rules)} for document type '{doc_type}'.")
-        return filtered_rules
+        logger.info(f"Filtered {len(all_rules)} rules down to {len(final_rules)} for doc type '{doc_type}' and discipline '{discipline}'.")
+        return final_rules
