@@ -35,6 +35,10 @@ from cryptography.hazmat.primitives.hashes import SHA256
 from src.entity import NEREntity
 from src.gui.workers.document_worker import DocumentWorker
 from src.gui.workers.ner_worker import NERWorker
+from src.gui.workers.generator_worker import GeneratorWorker
+from src.gui.workers.kb_worker import KBWorker
+from src.gui.workers.model_check_worker import ModelCheckWorker
+from src.knowledge_base_service import KnowledgeBaseService
 from src.gui.dialogs.add_rubric_source_dialog import AddRubricSourceDialog
 from src.gui.dialogs.library_selection_dialog import LibrarySelectionDialog
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
@@ -49,6 +53,8 @@ from docx import Document  # python-docx
 import pytesseract
 from PIL import Image  # Pillow for image processing with Tesseract
 import pandas as pd  # Pandas for Excel and CSV
+
+from src.parsing import parse_document_content
 
 # --- Configuration ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -79,22 +85,6 @@ def scrub_phi(text: str) -> str:
         out = re.sub(pat, repl, out)
     return out
 
-# --- Helpers: chunking for long texts ---
-def chunk_text(text: str, max_chars: int = 4000):
-    chunks = []
-    start = 0
-    n = len(text)
-    while start < n:
-        end = min(start + max_chars, n)
-        newline_pos = text.rfind("\n", start, end)
-        if newline_pos != -1 and newline_pos > start + 1000:
-            end = newline_pos
-        chunks.append(text[start:end])
-        start = end
-    return chunks
-
-from src.parsing import parse_document_content
-
 # --- Helpers: Database Initialization ---
 def initialize_database():
     try:
@@ -123,8 +113,6 @@ def initialize_database():
     except sqlite3.Error as e:
         print(f"Failed to initialize database: {e}")
 
-# --- Background Workers & Dialogs (Moved to separate modules) ---
-
 class MainApplicationWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -137,10 +125,18 @@ class MainApplicationWindow(QMainWindow):
         self._current_raw_text = ""
         self._current_sentences_with_source: List[Tuple[str, str]] = []
         self._extracted_entities: List[NEREntity] = []
+
+        # Service and Worker Management
+        self.knowledge_base_service = None
         self._doc_thread = None
         self._doc_worker = None
+        self._kb_thread = None
+        self._kb_worker = None
         self._ner_thread = None
         self._ner_worker = None
+        self._generator_thread = None
+        self._generator_worker = None
+
         self.setAcceptDrops(True)
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
@@ -148,7 +144,7 @@ class MainApplicationWindow(QMainWindow):
         self.file_menu.addAction('Exit', self.close)
         self.tools_menu = self.menu_bar.addMenu('Tools')
         self.tools_menu.addAction('Initialize Database', initialize_database)
-        self.tools_menu.addAction('Quickstart', self.show_quickstart)
+        self.tools_menu.addAction('Check Model Status', self.run_model_check)
         self.admin_menu = self.menu_bar.addMenu('Admin Options')
         self.toggle_scrub_action = self.admin_menu.addAction('Scrub PHI before display (recommended)')
         self.toggle_scrub_action.setCheckable(True)
@@ -156,12 +152,15 @@ class MainApplicationWindow(QMainWindow):
         self.toggle_scrub_action.toggled.connect(self._toggle_scrub_setting)
         self.help_menu = self.menu_bar.addMenu('Help')
         self.help_menu.addAction('Show Paths', self.show_paths)
+
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage('Ready')
+
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         main_layout = QVBoxLayout(self.central_widget)
+
         button_layout = QHBoxLayout()
         self.upload_button = QPushButton('Upload Document')
         self.upload_button.clicked.connect(self.open_file_dialog)
@@ -176,6 +175,7 @@ class MainApplicationWindow(QMainWindow):
         self.print_button.clicked.connect(self.print_report)
         button_layout.addWidget(self.print_button)
         main_layout.addLayout(button_layout)
+
         rubric_layout = QHBoxLayout()
         self.manage_rubrics_button = QPushButton("Manage Rubrics")
         self.manage_rubrics_button.clicked.connect(self.manage_rubrics)
@@ -188,6 +188,19 @@ class MainApplicationWindow(QMainWindow):
         self.rubric_list_widget.setMaximumHeight(100)
         rubric_layout.addWidget(self.rubric_list_widget)
         main_layout.addLayout(rubric_layout)
+
+        # --- Q&A Layout ---
+        qa_layout = QHBoxLayout()
+        qa_layout.addWidget(QLabel("Ask a question about the document:"))
+        self.question_input = QLineEdit()
+        self.question_input.setPlaceholderText("e.g., What are the requirements for skilled nursing care?")
+        qa_layout.addWidget(self.question_input)
+        self.ask_button = QPushButton("Ask")
+        self.ask_button.clicked.connect(self.run_qa_pipeline)
+        self.ask_button.setEnabled(False) # Disabled until KB is ready
+        qa_layout.addWidget(self.ask_button)
+        main_layout.addLayout(qa_layout)
+
         progress_layout = QHBoxLayout()
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 1)
@@ -197,15 +210,18 @@ class MainApplicationWindow(QMainWindow):
         self.cancel_button.clicked.connect(self.cancel_analysis)
         progress_layout.addWidget(self.cancel_button)
         main_layout.addLayout(progress_layout)
+
         self.document_display_area = QTextEdit()
         self.document_display_area.setPlaceholderText("Drag and drop documents here, or use the 'Upload Document' button.")
         self.document_display_area.setReadOnly(True)
         self.document_display_area.setAcceptDrops(True)
         main_layout.addWidget(self.document_display_area)
+
         self.analysis_results_area = QTextEdit()
-        self.analysis_results_area.setPlaceholderText("Rubric analysis results will appear here.")
+        self.analysis_results_area.setPlaceholderText("Analysis results will appear here.")
         self.analysis_results_area.setReadOnly(True)
         main_layout.addWidget(self.analysis_results_area)
+
         self.central_widget.setLayout(main_layout)
         self.load_rubrics_to_main_list()
 
@@ -245,11 +261,11 @@ class MainApplicationWindow(QMainWindow):
             self.cancel_button.setEnabled(False)
 
     def process_document(self, file_path):
+        self.clear_document_display()
         self.status_bar.showMessage(f"Processing: {os.path.basename(file_path)}")
         self.document_display_area.setText("Processing document in background...")
-        self._current_raw_text = ""
-        self._current_sentences_with_source = []
         self._set_busy(True)
+
         self._doc_thread = QThread()
         self._doc_worker = DocumentWorker(file_path)
         self._doc_worker.moveToThread(self._doc_thread)
@@ -263,20 +279,15 @@ class MainApplicationWindow(QMainWindow):
         self._doc_thread.start()
 
     def cancel_analysis(self):
+        workers = [self._doc_worker, self._kb_worker, self._ner_worker, self._generator_worker]
         canceled = False
-        if hasattr(self, "_doc_worker") and self._doc_worker:
-            try:
-                self._doc_worker.cancel()
-                canceled = True
-            except RuntimeError:
-                pass  # Worker might be gone already
-        if hasattr(self, "_ner_worker") and self._ner_worker:
-            try:
-                self._ner_worker.cancel()
-                canceled = True
-            except RuntimeError:
-                pass # Worker might be gone already
-
+        for worker in workers:
+            if worker:
+                try:
+                    worker.cancel()
+                    canceled = True
+                except RuntimeError:
+                    pass
         if canceled:
             self.status_bar.showMessage("Cancel requested...")
         else:
@@ -285,24 +296,47 @@ class MainApplicationWindow(QMainWindow):
     def _handle_doc_finished(self, sentences_with_source: List[Tuple[str, str]]):
         self._current_sentences_with_source = sentences_with_source
         self._current_raw_text = "\n".join([text for text, source in sentences_with_source])
+
         display_text = self._current_raw_text
-        if isinstance(display_text, str) and len(display_text) > 100000:
+        if len(display_text) > 100000:
             display_text = display_text[:100000] + "\n...[truncated for display]"
-        if self.scrub_before_display:
-            display_text = scrub_phi(display_text)
-        self.document_display_area.setText(display_text)
-        self.status_bar.showMessage("Document processed. Starting NER analysis...")
-        self.analysis_results_area.setText("Starting Named Entity Recognition...")
-        self.start_ner_analysis(self._current_raw_text)
+
+        self.document_display_area.setText(scrub_phi(display_text) if self.scrub_before_display else display_text)
+
+        self.start_kb_build(self._current_raw_text)
 
     def _handle_doc_error(self, message: str):
         self._set_busy(False)
         self.document_display_area.setText(message)
-        self.status_bar.showMessage("Document processing failed.")
+        self.status_bar.showMessage(f"Error: {message}")
 
-    # --- AI/ML Processing Methods ---
+    def start_kb_build(self, text: str):
+        self.status_bar.showMessage("Building knowledge base from document...")
+        self.analysis_results_area.setText("Building knowledge base...")
+        self.ask_button.setEnabled(False)
+
+        self.knowledge_base_service = KnowledgeBaseService()
+        self._kb_thread = QThread()
+        self._kb_worker = KBWorker(text, self.knowledge_base_service)
+        self._kb_worker.moveToThread(self._kb_thread)
+
+        self._kb_thread.started.connect(self._kb_worker.run)
+        self._kb_worker.finished.connect(self._handle_kb_finished)
+        self._kb_worker.error.connect(self._handle_doc_error)
+
+        self._kb_worker.finished.connect(self._kb_thread.quit)
+        self._kb_worker.finished.connect(self._kb_worker.deleteLater)
+        self._kb_thread.finished.connect(self._kb_thread.deleteLater)
+
+        self._kb_thread.start()
+
+    def _handle_kb_finished(self, kb_service: KnowledgeBaseService):
+        self.knowledge_base_service = kb_service
+        self.status_bar.showMessage("Knowledge base ready. Starting NER analysis...")
+        self.analysis_results_area.append("\nKnowledge base ready. Starting NER analysis...")
+        self.start_ner_analysis(self._current_raw_text)
+
     def start_ner_analysis(self, text: str):
-        self._set_busy(True)
         self._ner_thread = QThread()
         self._ner_worker = NERWorker(text)
         self._ner_worker.moveToThread(self._ner_thread)
@@ -320,28 +354,68 @@ class MainApplicationWindow(QMainWindow):
 
     def _handle_ner_finished(self, entities: List[NEREntity]):
         self._set_busy(False)
+        self.ask_button.setEnabled(True)
         self._extracted_entities = entities
         self.status_bar.showMessage(f"NER analysis complete. Found {len(entities)} entities.")
 
         if not entities:
-            self.analysis_results_area.setText("NER analysis complete. No entities were found.")
+            self.analysis_results_area.append("\n\n--- NER Analysis ---\nNo entities were found.")
             return
 
-        # Create a summary
         entity_counts = Counter(e.label for e in entities)
-        summary_header = "--- NER Analysis Summary ---\n"
+        summary_header = "\n\n--- NER Analysis Summary ---\n"
         summary_body = "\n".join([f"- {label}: {count}" for label, count in entity_counts.most_common()])
-
-        # Create the detailed list
-        details_header = "\n\n--- Extracted Entities ---\n"
-        details_body = "\n".join([f"- {e.text} ({e.label}, score: {e.score:.2f})" for e in entities])
-
-        self.analysis_results_area.setText(summary_header + summary_body + details_header + details_body)
+        self.analysis_results_area.append(summary_header + summary_body)
 
     def _handle_ner_error(self, message: str):
         self._set_busy(False)
         self.status_bar.showMessage(f"NER Error: {message}")
         QMessageBox.critical(self, "NER Error", message)
+
+    def run_qa_pipeline(self):
+        question = self.question_input.text()
+        if not question:
+            QMessageBox.warning(self, "Question Error", "Please enter a question.")
+            return
+
+        if not self.knowledge_base_service or not self.knowledge_base_service.is_ready():
+            QMessageBox.warning(self, "Knowledge Base Error", "The knowledge base for this document is not ready.")
+            return
+
+        self._set_busy(True)
+        self.status_bar.showMessage("Finding relevant documents...")
+        self.analysis_results_area.setText(f"Question: {question}\n\nFinding relevant information...")
+
+        context_chunks = self.knowledge_base_service.find_relevant_chunks(question)
+        context_texts = [chunk['text'] for chunk in context_chunks]
+
+        self.status_bar.showMessage("Found context. Starting generator...")
+        self.analysis_results_area.append("\nFound relevant context. Generating answer...")
+
+        self._generator_thread = QThread()
+        self._generator_worker = GeneratorWorker(question, context_texts)
+        self._generator_worker.moveToThread(self._generator_thread)
+
+        self._generator_thread.started.connect(self._generator_worker.run)
+        self._generator_worker.finished.connect(self._handle_generator_finished)
+        self._generator_worker.error.connect(self._handle_generator_error)
+        self._generator_worker.progress.connect(lambda p, msg: self.status_bar.showMessage(f"Generator: {msg} ({p}%)"))
+
+        self._generator_worker.finished.connect(self._generator_thread.quit)
+        self._generator_worker.finished.connect(self._generator_worker.deleteLater)
+        self._generator_thread.finished.connect(self._generator_thread.deleteLater)
+
+        self._generator_thread.start()
+
+    def _handle_generator_finished(self, answer: str):
+        self._set_busy(False)
+        self.status_bar.showMessage("Q&A complete.")
+        self.analysis_results_area.append(f"\n\n--- Answer ---\n{answer}")
+
+    def _handle_generator_error(self, message: str):
+        self._set_busy(False)
+        self.status_bar.showMessage(f"Generator Error: {message}")
+        QMessageBox.critical(self, "Generator Error", message)
 
     def clear_document_display(self):
         self.document_display_area.clear()
@@ -349,6 +423,8 @@ class MainApplicationWindow(QMainWindow):
         self._current_raw_text = ""
         self._current_sentences_with_source = []
         self._extracted_entities = []
+        self.ask_button.setEnabled(False)
+        self.knowledge_base_service = None
         self.status_bar.showMessage('Display cleared.')
 
     def manage_rubrics(self):
@@ -372,27 +448,21 @@ class MainApplicationWindow(QMainWindow):
             QMessageBox.critical(self, "Error", f"Failed to load rubrics into main list:\n{e}")
 
     def run_rubric_analysis(self):
-        if not self._current_sentences_with_source:
+        if not self._current_raw_text:
             QMessageBox.warning(self, "Analysis Error", "Please upload a document to analyze first.")
             return
+
+        if not self._extracted_entities:
+            QMessageBox.warning(self, "Analysis Error", "Please run NER analysis before rubric analysis.")
+            return
+
         selected_items = self.rubric_list_widget.selectedItems()
         if not selected_items:
-            QMessageBox.warning(self, "Analysis Error", "Please select a rubric from the list to run the analysis.")
+            QMessageBox.warning(self, "Analysis Error", "Please select a rubric from the list.")
             return
-        try:
-            rubric_id = selected_items[0].data(Qt.ItemDataRole.UserRole)
-            with sqlite3.connect(DATABASE_PATH) as conn:
-                cur = conn.cursor()
-                cur.execute("SELECT content FROM rubrics WHERE id = ?", (rubric_id,))
-                result = cur.fetchone()
-            if not result:
-                QMessageBox.critical(self, "Database Error", "Could not find the selected rubric in the database.")
-                return
-            rubric_content = result[0]
-        except Exception as e:
-            QMessageBox.critical(self, "Database Error", f"Failed to retrieve rubric content:\n{e}")
-            return
-        QMessageBox.information(self, "Analysis", "This feature is currently disabled pending new model integration.")
+
+        # This is where the rubric analysis logic would go.
+        QMessageBox.information(self, "Analysis", "This feature is currently disabled.")
 
     def _build_report_html(self) -> str:
         text_for_report = scrub_phi(self._current_raw_text or "")
@@ -410,7 +480,7 @@ class MainApplicationWindow(QMainWindow):
         else:
             ner_html += "<p>No entities were extracted.</p>"
 
-        html = f"""<html><head><meta charset="utf-8"><style>
+        html = f"""<html><head><meta charset=\"utf-8\"><style>
             body {{ font-family: Arial, sans-serif; }}
             h1 {{ font-size: 18pt; }}
             h2 {{ font-size: 14pt; margin-top: 12pt; border-bottom: 1px solid #ccc; }}
@@ -468,6 +538,37 @@ class MainApplicationWindow(QMainWindow):
     def show_paths(self):
         msg = f"App path:\n{os.path.abspath(__file__)}\n\nDatabase path:\n{os.path.abspath(DATABASE_PATH)}"
         QMessageBox.information(self, "Paths", msg)
+
+    def run_model_check(self):
+        """
+        Starts the ModelCheckWorker to verify AI model loading.
+        """
+        self._set_busy(True)
+        self.status_bar.showMessage("Checking status of all AI models...")
+        self._model_check_thread = QThread()
+        self._model_check_worker = ModelCheckWorker()
+        self._model_check_worker.moveToThread(self._model_check_thread)
+
+        self._model_check_thread.started.connect(self._model_check_worker.run)
+        self._model_check_worker.finished.connect(self._handle_model_check_finished)
+        self._model_check_worker.progress.connect(self.status_bar.showMessage)
+
+        self._model_check_worker.finished.connect(self._model_check_thread.quit)
+        self._model_check_worker.finished.connect(self._model_check_worker.deleteLater)
+        self._model_check_thread.finished.connect(self._model_check_thread.deleteLater)
+
+        self._model_check_thread.start()
+
+    def _handle_model_check_finished(self, message: str, success: bool):
+        """
+        Displays the result of the model check.
+        """
+        self._set_busy(False)
+        self.status_bar.showMessage("Model check complete.")
+        if success:
+            QMessageBox.information(self, "Model Status", message)
+        else:
+            QMessageBox.critical(self, "Model Status Error", message)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
