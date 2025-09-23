@@ -1,11 +1,26 @@
-# This file aggregates all the requirement files from the requirements/ directory.
-# To install all dependencies, run: pip install -r requirements.txt
+# == Backend Dependencies ==
+fastapi
+uvicorn
+pandas
+openpyxl
+python-docx # For .docx parsing
+rdflib      # For .ttl rubric parsing
 
--r requirements/api.txt
--r requirements/async.txt
--r requirements/core.txt
--r requirements/pii.txt
--r requirements/requirements-logic.txt
--r requirements/testing.txt
--r requirements/ui.txt
--r requirements/xai.txt
+# == Document Parsing & NLP ==
+langchain   # For text splitting and other NLP tasks
+pdfplumber  # For .pdf parsing
+pytesseract # For OCR (image) parsing
+Pillow      # Image library, dependency for pytesseract
+
+# == Frontend Dependencies ==
+PySide6     # GUI Framework
+
+# == General & Utility ==
+requests    # For API communication
+pyyaml      # For YAML parsing
+
+# == Testing Dependencies ==
+pytest
+pytest-mock
+pytest-qt   # For testing Qt applications
+matplotlib  # Often used for plotting/visualization in tests or analysis

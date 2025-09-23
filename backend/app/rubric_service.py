@@ -58,6 +58,33 @@ class RubricService:
 
         # Prepare a SPARQL query to get all rules and their properties.
         # OPTIONAL blocks are used because not all rules have all properties (e.g., positive_keywords).
+        query = """
+            PREFIX : <http://example.com/speckit/ontology#>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+            SELECT ?rule ?severity ?strict_severity ?title ?detail ?category ?financial_impact ?discipline
+                   (GROUP_CONCAT(DISTINCT ?pos_kw; SEPARATOR="|") AS ?positive_keywords)
+                   (GROUP_CONCAT(DISTINCT ?neg_kw; SEPARATOR="|") AS ?negative_keywords)
+            WHERE {
+                ?rule a :ComplianceRule .
+                ?rule :hasSeverity ?severity .
+                ?rule :hasStrictSeverity ?strict_severity .
+                ?rule :hasIssueTitle ?title .
+                ?rule :hasIssueDetail ?detail .
+                ?rule :hasCategory ?category .
+                ?rule :hasDiscipline ?discipline .
+                OPTIONAL { ?rule :hasFinancialImpact ?financial_impact . }
+                OPTIONAL {
+                    ?rule :hasPositiveKeywords ?pos_kw_set .
+                    ?pos_kw_set :hasKeyword ?pos_kw .
+                }
+                OPTIONAL {
+                    ?rule :hasNegativeKeywords ?neg_kw_set .
+                    ?neg_kw_set :hasKeyword ?neg_kw .
+                }
+            }
+            GROUP BY ?rule ?severity ?strict_severity ?title ?detail ?category ?financial_impact ?discipline
+        """
 
         rules = []
         try:

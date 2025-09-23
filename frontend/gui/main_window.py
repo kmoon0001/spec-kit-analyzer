@@ -4,7 +4,7 @@ import sqlite3
 import os
 import re
 from typing import List, Tuple
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QApplication,
     QWidget,
     QLabel,
@@ -26,27 +26,14 @@ from PyQt6.QtWidgets import (
     QInputDialog,
     QCheckBox,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent
-from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
+from PySide6.QtCore import Qt, QThread, Signal as pyqtSignal, QObject
+from PySide6.QtGui import QDragEnterEvent, QDropEvent
+from PySide6.QtPrintSupport import QPrinter, QPrintDialog
 from cryptography.hazmat.primitives.hashes import SHA256
-# from .workers.document_worker import DocumentWorker # Will be replaced by an API call
 from .dialogs.add_rubric_source_dialog import AddRubricSourceDialog
 from .dialogs.library_selection_dialog import LibrarySelectionDialog
 from .dialogs.rubric_manager_dialog import RubricManagerDialog
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-
-# The following libraries are for direct document parsing, which will be moved to the backend.
-# They are kept here for now to prevent the DocumentWorker from breaking until it is replaced.
-import pdfplumber.utils
-import docx.opc.exceptions
-import pdfplumber
-from docx import Document  # python-docx
-import pytesseract
-from PIL import Image  # Pillow for image processing with Tesseract
-import pandas as pd  # Pandas for Excel and CSV
-
-# NLP libraries removed.
 
 # --- Configuration ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -54,11 +41,6 @@ DATABASE_PATH = os.path.join(BASE_DIR, '..', 'data', 'compliance.db')
 HASH_ALGORITHM = SHA256()
 ITERATIONS = 100000
 OFFLINE_ONLY = True
-
-# --- Tesseract OCR Path (Optional, Windows offline) ---
-tess_env = os.environ.get("TESSERACT_EXE")
-if tess_env and os.path.isfile(tess_env):
-    pytesseract.pytesseract.tesseract_cmd = tess_env
 
 # --- AI Model Loading Sections Removed ---
 

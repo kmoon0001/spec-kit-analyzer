@@ -1,5 +1,5 @@
 import pytest
-from src.guideline_service import GuidelineService
+from backend.app.guideline_service import GuidelineService
 
 def test_service_instantiation():
     """

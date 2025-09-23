@@ -1,9 +1,10 @@
 import os
 import pytest
-from src.parsing import parse_document_content
+from backend.app.parsing import parse_document_content
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-TEST_DATA_DIR = os.path.join(os.path.dirname(TESTS_DIR), "test_data")
+# Go up from tests/logic -> tests -> root, then into test_data
+TEST_DATA_DIR = os.path.join(TESTS_DIR, "..", "..", "test_data")
 VALID_TXT_PATH = os.path.join(TEST_DATA_DIR, "good_note_1.txt")
 NON_EXISTENT_PATH = os.path.join(TEST_DATA_DIR, "non_existent_file.xyz")
 

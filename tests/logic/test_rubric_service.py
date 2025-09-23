@@ -1,13 +1,14 @@
 import os
 import pytest
-from src.rubric_service import RubricService, ComplianceRule
+from backend.app.rubric_service import RubricService, ComplianceRule
 
 # Define the path to the test rubrics relative to this test file
 # This makes the tests runnable from any directory
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-SRC_DIR = os.path.join(os.path.dirname(TESTS_DIR), "src")
-VALID_RUBRIC_PATH = os.path.join(SRC_DIR, "pt_compliance_rubric.ttl")
-NON_EXISTENT_RUBRIC_PATH = os.path.join(SRC_DIR, "non_existent_rubric.ttl")
+# Go up two directories from tests/logic to the project root, then into backend/app
+BACKEND_APP_DIR = os.path.join(TESTS_DIR, "..", "..", "backend", "app")
+VALID_RUBRIC_PATH = os.path.join(BACKEND_APP_DIR, "pt_compliance_rubric.ttl")
+NON_EXISTENT_RUBRIC_PATH = os.path.join(BACKEND_APP_DIR, "non_existent_rubric.ttl")
 
 def test_initialization_with_valid_rubric():
     """

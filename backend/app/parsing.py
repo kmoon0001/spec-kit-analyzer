@@ -8,7 +8,7 @@ import pytesseract
 from PIL import Image
 import pandas as pd
 
-from src.text_chunking import RecursiveCharacterTextSplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
     """
