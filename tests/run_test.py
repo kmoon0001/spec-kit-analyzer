@@ -5,7 +5,7 @@ from unittest.mock import patch
 # Add the src directory to the Python path to allow for absolute imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 from src.gui.main_window import MainApplicationWindow as MainWindow
 
 if __name__ == '__main__':
