@@ -1,7 +1,9 @@
 import torch
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from hybrid_retriever import HybridRetriever
-from src.parsing import parse_text_into_sections
+from src.document_classifier import DocumentClassifier, DocumentType
+from src.parsing import parse_text_into_sections, parse_document_into_sections
+from typing import Dict, List
 
 class ComplianceAnalyzer:
     def __init__(self):
@@ -31,102 +33,110 @@ class ComplianceAnalyzer:
 
         print("\nCompliance Analyzer initialized successfully.")
 
-    def analyze_document(self, document_text):
+    def analyze_document(self, document_text: str) -> Dict[str, str]:
+        """
+        Analyzes a document for compliance, performing a section-by-section analysis.
+
+        :param document_text: The full text of the document to analyze.
+        :return: A dictionary with section names as keys and their compliance analysis as values.
+        """
         print("\n--- Starting Compliance Analysis ---")
         print(f"Analyzing document: '{document_text[:100]}...'")
 
-        # Step 1: Parse the document into sections
-        print("\nStep 1: Parsing document into sections...")
-        sections = parse_text_into_sections(document_text)
-        print(f"Found sections: {list(sections.keys())}")
+def analyze_document(self, document_text: str) -> Dict[str, str]:
+    """
+    Analyzes a document for compliance, performing a section-by-section analysis.
+    Returns a dictionary with section names as keys and their compliance analysis as values.
+    """
+    print("\n--- Starting Compliance Analysis ---")
+    print(f"Analyzing document: '{document_text[:100]}...'")
 
-        # Step 2: Extract entities using the NER model
-        print("\nStep 2: Extracting entities with NER...")
-        entities = self.ner_pipeline(document_text)
-        print(f"Found entities: {[entity['word'] for entity in entities]}")
+    # Step 1: Parse the document into sections (hybrid logic)
+    print("\nStep 1: Parsing document into sections...")
+    sections = parse_text_into_sections(document_text)
+    print(f"Found sections: {list(sections.keys())}")
 
-        # Create a query for the retriever based on the document text and entities
-        query = document_text
+    # Step 2: Extract entities with NER
+    print("\nStep 2: Extracting entities with NER...")
+    entities = self.ner_pipeline(document_text)
+    print(f"Found entities: {[entity['word'] for entity in entities]}")
 
-        # Step 3: Retrieve relevant guidelines using the Hybrid Retriever
-        print("\nStep 3: Retrieving relevant guidelines with Hybrid Retriever...")
-        retrieved_docs = self.retriever.search(query, top_k=3)
+    # Step 3: Retrieve relevant guidelines
+    print("\nStep 3: Retrieving relevant guidelines with Hybrid Retriever...")
+    query = document_text
+    retrieved_docs = self.retriever.search(query, top_k=3)
+    context = "\n\n".join(retrieved_docs)
+    print("Retrieved context successfully.")
 
-        context = "\n\n".join(retrieved_docs)
-        print("Retrieved context successfully.")
+    # Step 4: Classify document type and load relevant rubric
+    classifier = DocumentClassifier()
+    doc_type = classifier.classify(document_text)
+    rubric = self._load_rubric(doc_type)
 
-        # Step 4: Construct the prompt for the LLM
-        print("\nStep 4: Constructing prompt for LLM...")
-        prompt = self._build_prompt(sections, entities, context)
+    # Step 5: Advanced section-by-section analysis
+    analysis_results = {}
+    for section_name, section_text in sections.items():
+        analysis = self._analyze_section(
+            section_name, section_text, entities, context, doc_type, rubric
+        )
+        analysis_results[section_name] = analysis
 
-        # Step 5: Generate compliance analysis using the LLM
-        print("\nStep 4: Generating compliance analysis with LLM...")
+    print("\nCompliance analysis generated successfully for all sections.")
+    return analysis_results
 
-        inputs = self.generator_tokenizer(prompt, return_tensors="pt").to(self.generator_model.device)
+def _analyze_section(self, section_name: str, section_text: str, entities: List[Dict], context: str, doc_type: DocumentType, rubric: str) -> str:
+    """Analyzes a single section of the document."""
+    print(f"\n--- Analyzing Section: {section_name} ---")
+    prompt = self._build_section_prompt(section_name, section_text, entities, context, doc_type, rubric)
+    inputs = self.generator_tokenizer(prompt, return_tensors="pt").to(self.generator_model.device)
+    output = self.generator_model.generate(**inputs, max_new_tokens=256, num_return_sequences=1)
+    result = self.generator_tokenizer.decode(output[0], skip_special_tokens=True)
+    analysis_part = result.split("Section Compliance Analysis:")[-1].strip()
+    print(f"Analysis generated for section: {section_name}")
+    return analysis_part
 
-        # Generate the output
-        output = self.generator_model.generate(**inputs, max_new_tokens=512, num_return_sequences=1)
+def _load_rubric(self, doc_type: DocumentType | None) -> str | None:
+    """Loads the rubric file based on the document type."""
+    if not doc_type:
+        return None
+    rubric_path = f"resources/rubrics/{doc_type.name.lower()}_rubric.txt"
+    try:
+        with open(rubric_path, "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return None
 
-        # Decode and return the result
-        result = self.generator_tokenizer.decode(output[0], skip_special_tokens=True)
-
-        # Clean up the output to only return the analysis part
-        analysis_part = result.split("Compliance Analysis:")[-1].strip()
-
-        print("Compliance analysis generated successfully.")
-        return {
-            "analysis": analysis_part,
-            "sources": retrieved_docs
-        }
-
-    def _build_prompt(self, sections, entities, context):
-        """Helper function to build the detailed prompt for the LLM."""
-
-        entity_list = ", ".join([f"'{entity['word']}' ({entity['entity_group']})" for entity in entities])
-
-        # Format the sections for the prompt
-        document_details = "\n".join([f"**{header}:**\n{content}" for header, content in sections.items()])
-
-        prompt = f"""
-You are an expert Medicare compliance officer for a Skilled Nursing Facility (SNF). Your task is to analyze a clinical therapy document for potential compliance risks based on the provided Medicare guidelines.
-
-**Clinical Document Sections:**
----
-{document_details}
----
-
-**Extracted Clinical Entities:**
+def _build_section_prompt(self, section_name, section_text, entities, context, doc_type, rubric):
+    """Helper function to build the detailed prompt for analyzing a single section."""
+    entity_list = ", ".join([f"'{entity['word']}' ({entity['entity_group']})" for entity in entities])
+    doc_type_str = doc_type.value if doc_type else "Unknown"
+    prompt = f"""
+You are an expert Medicare compliance officer for a Skilled Nursing Facility (SNF). Your task is to analyze a specific section of a clinical therapy document for potential compliance risks.
+**Document Type:** {doc_type_str}
+**Section to Analyze:** {section_name}
+**Full list of Extracted Clinical Entities from Document:**
 ---
 {entity_list}
 ---
-
 **Relevant Medicare Guidelines (from Chapter 8: Coverage of Extended Care (SNF) Services):**
 ---
 {context}
 ---
-
-**Your Task:**
-Based on all the information above, provide a detailed compliance analysis. Identify any potential risks, explain why they are risks according to the guidelines, and suggest specific actions to mitigate them. If no risks are found, state that the document appears to be compliant.
-
-**Compliance Analysis:**
 """
-        return prompt
-
-if __name__ == '__main__':
-    analyzer = ComplianceAnalyzer()
-
-    # Sample clinical document with sections and a potential compliance issue
-    sample_document = """
-    Subjective: Patient reports feeling tired but motivated.
-    Objective: Patient participated in 30 minutes of physical therapy, 3 times this week. Focused on gait and balance exercises. Vital signs stable.
-    Assessment: Slow but steady progress noted in ambulation. Still requires supervision.
-    Plan: Continue with current therapy regimen. Re-evaluate in 1 week. The SNF stay is covered under Medicare Part A.
-    """
-
-    result = analyzer.analyze_document(sample_document)
-
-    print("\n\n--- FINAL COMPLIANCE ANALYSIS ---")
-    print(result["analysis"])
-    print("\n--- SOURCES ---")
-    for source in result["sources"]:
-        print(f"- {source}")
+    if rubric:
+        prompt += f"""
+**Compliance Rubric for {doc_type_str}:**
+---
+{rubric}
+---
+"""
+    prompt += f"""
+**Content of the '{section_name}' section:**
+---
+{section_text}
+---
+**Your Task:**
+Based on all the information above, provide a detailed compliance analysis FOR THE '{section_name}' SECTION ONLY. Identify any potential risks within this section, explain why they are risks according to the guidelines and the provided rubric, and suggest specific actions to mitigate them. If no risks are found for this section, state that the section appears to be compliant.
+**Section Compliance Analysis:**
+"""
+    return prompt

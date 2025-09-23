@@ -1,5 +1,6 @@
 import os
-from typing import List, Tuple
+import re
+from typing import List, Tuple, Dict
 
 import pdfplumber
 from docx import Document
@@ -85,43 +86,61 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
 
 import yaml
 import re
+from typing import Dict
 
-def parse_text_into_sections(text: str) -> dict:
-    """
-    Parses a clinical note into sections based on headers defined in config.yaml.
-    """
+# Default headers if config is missing or invalid
+DEFAULT_SECTION_HEADERS = [
+    "Subjective", "Objective", "Assessment", "Plan",
+    "History of Present Illness", "Past Medical History",
+    "Medications", "Allergies", "Review of Systems",
+    "Physical Examination", "Diagnosis", "Treatment Plan"
+]
+
+def load_section_headers() -> list:
+    """Load section headers from config.yaml, fallback to defaults on error."""
     try:
         with open('config.yaml', 'r') as f:
             config = yaml.safe_load(f)
-        section_headers = config.get('section_headers', [])
+        headers = config.get('section_headers', [])
+        if headers:
+            return headers
     except (FileNotFoundError, yaml.YAMLError):
-        # Fallback to a default list if config is missing or invalid
-        section_headers = ['Subjective', 'Objective', 'Assessment', 'Plan']
+        pass
+    return DEFAULT_SECTION_HEADERS
 
+def parse_text_into_sections(text: str) -> Dict[str, str]:
+    """
+    Parses a clinical note into sections based on headers from config.yaml or defaults.
+    Uses regex to find headers followed by colons (case-insensitive).
+    """
+    section_headers = load_section_headers()
     if not section_headers:
         return {"full_text": text}
 
-    # Create a regex pattern from the headers
-    # This pattern looks for a header followed by a colon, optional whitespace, and then captures the text
-    pattern = r'(' + '|'.join(section_headers) + r'):'
+    # Assemble regex pattern for section headers
+    pattern = r"^\s*(" + "|".join(re.escape(header) for header in section_headers) + r")\s*:"
+    matches = list(re.finditer(pattern, text, re.MULTILINE | re.IGNORECASE))
 
-    # Split the text by the headers
-    parts = re.split(pattern, text, flags=re.IGNORECASE)
+    if not matches:
+        return {"unclassified": text}
 
     sections = {}
-    current_header = "Header" # Default for text before the first header
+    # Find text before first header for completeness
+    if matches[0].start() > 0:
+        pre_content = text[:matches[0].start()].strip()
+        if pre_content:
+            sections["Header"] = pre_content
 
-    # The first part is the text before any headers
-    if parts[0].strip():
-        sections[current_header] = parts[0].strip()
-
-    # Process the rest of the parts
-    for i in range(1, len(parts), 2):
-        header = parts[i].strip()
-        content = parts[i+1].strip() if (i+1) < len(parts) else ""
-
-        # Find the canonical header name (maintaining original case)
-        canonical_header = next((h for h in section_headers if h.lower() == header.lower()), header)
-        sections[canonical_header] = content
+    # Iterate through matches to extract content
+    for i, match in enumerate(matches):
+        section_header = match.group(1).strip()
+        start_index = match.end()
+        end_index = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        section_content = text[start_index:end_index].strip()
+        canonical_header = next((h for h in section_headers if h.lower() == section_header.lower()), section_header)
+        sections[canonical_header] = section_content
 
     return sections
+
+# For compatibility: expose both parse_text_into_sections and parse_document_into_sections
+parse_document_into_sections = parse_text_into_sections
