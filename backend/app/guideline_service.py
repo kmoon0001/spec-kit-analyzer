@@ -1,7 +1,7 @@
 # Python
 from __future__ import annotations
 
-# Standard library 
+# Standard library
 import logging
 import os
 import re

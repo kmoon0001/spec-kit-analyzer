@@ -4,14 +4,16 @@ import shutil
 import os
 
 from rubric_service import RubricService, ComplianceRule
-from parsing import parse_document_content 
+from parsing import parse_document_content
 from guideline_service import GuidelineService
 from document_classifier import classify_document
+from ai_analysis_service import AIAnalysisService
 
 app = FastAPI()
 
-# Instantiate and load guidelines at startup
+# Instantiate and load services at startup
 guideline_service = GuidelineService()
+ai_analysis_service = AIAnalysisService()
 guideline_sources = [
     "../../_default_medicare_benefit_policy_manual.txt",
     "../../_default_medicare_part.txt"
@@ -83,10 +85,13 @@ async def analyze_document(file: UploadFile = File(...)):
                     "guidelines": guideline_results
                 })
 
-    # 6. Construct JSON Response
+    # 6. Generate AI Summary
     findings_as_dicts = [finding.__dict__ for finding in findings]
+    ai_summary = ai_analysis_service.generate_enhanced_analysis(doc_type, findings_as_dicts, guideline_details)
 
+    # 7. Construct Final JSON Response
     response_data = {
+        "ai_summary": ai_summary,
         "document": {
             "text": document_text,
             "filename": file.filename,

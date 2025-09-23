@@ -2,13 +2,19 @@
 
 # Server
 fastapi
-uvicorn 
+uvicorn
 
 # Document Parsing
 python-docx
 pdfplumber
-pytesseract 
+pytesseract
 Pillow
 pandas
 openpyxl
 rank_bm25
+
+# LLM / AI Models
+transformers
+torch
+bitsandbytes
+accelerate

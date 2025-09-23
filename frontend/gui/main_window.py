@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QStatusBar,
     QMenuBar,
-    QFileDialog, 
+    QFileDialog,
     QTextEdit,
     QHBoxLayout,
     QProgressBar,
@@ -306,8 +306,14 @@ class MainApplicationWindow(QMainWindow):
         findings = analysis.get("findings", [])
 
         document = result.get("document", {})
+        ai_summary = result.get("ai_summary", "No AI summary was generated.")
+
         html = f"<h1>Compliance Analysis Report</h1>"
         html += f"<h2>Document Type: {document.get('document_type', 'Unknown')}</h2>"
+
+        # --- AI-Generated Summary ---
+        html += "<h2>AI-Powered Analysis Summary</h2>"
+        html += f"<div style='background-color: #f0f8ff; border: 1px solid #add8e6; padding: 10px; margin-bottom: 10px;'>{ai_summary}</div>"
 
         # --- Metrics Summary ---
         html += "<h2>Summary</h2>"
