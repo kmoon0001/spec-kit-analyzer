@@ -3,7 +3,7 @@ import requests
 from PySide6.QtWidgets import (
     QWidget, 
     QPushButton,
-    QVBoxLayout,
+    QVBoxLayout, 
     QMessageBox,
     QMainWindow,
     QStatusBar,
