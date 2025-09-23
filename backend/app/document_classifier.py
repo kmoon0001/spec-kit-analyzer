@@ -3,7 +3,7 @@ from typing import Dict, List, Tuple
 def classify_document(document_text: str) -> str:
     """
     Classifies the document type based on keywords.
-    The order of checks determines the priority.
+    The order of checks determines the priority. 
     """
     document_text_lower = document_text.lower()
 
