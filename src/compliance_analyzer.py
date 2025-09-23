@@ -9,7 +9,7 @@ import json
 class ComplianceAnalyzer:
     def __init__(self):
         print("Initializing Compliance Analyzer...")
-
+ 
         # 1. Initialize the Hybrid Retriever
         self.retriever = HybridRetriever()
 
