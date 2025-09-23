@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
-
+ 
 from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
 
 logger = logging.getLogger(__name__)
