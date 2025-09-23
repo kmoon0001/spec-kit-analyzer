@@ -82,3 +82,46 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
         return [(f"Error: File not found at {file_path}", "File System")]
     except Exception as e:
         return [(f"Error: An unexpected error occurred: {e}", "System")]
+
+import yaml
+import re
+
+def parse_text_into_sections(text: str) -> dict:
+    """
+    Parses a clinical note into sections based on headers defined in config.yaml.
+    """
+    try:
+        with open('config.yaml', 'r') as f:
+            config = yaml.safe_load(f)
+        section_headers = config.get('section_headers', [])
+    except (FileNotFoundError, yaml.YAMLError):
+        # Fallback to a default list if config is missing or invalid
+        section_headers = ['Subjective', 'Objective', 'Assessment', 'Plan']
+
+    if not section_headers:
+        return {"full_text": text}
+
+    # Create a regex pattern from the headers
+    # This pattern looks for a header followed by a colon, optional whitespace, and then captures the text
+    pattern = r'(' + '|'.join(section_headers) + r'):'
+
+    # Split the text by the headers
+    parts = re.split(pattern, text, flags=re.IGNORECASE)
+
+    sections = {}
+    current_header = "Header" # Default for text before the first header
+
+    # The first part is the text before any headers
+    if parts[0].strip():
+        sections[current_header] = parts[0].strip()
+
+    # Process the rest of the parts
+    for i in range(1, len(parts), 2):
+        header = parts[i].strip()
+        content = parts[i+1].strip() if (i+1) < len(parts) else ""
+
+        # Find the canonical header name (maintaining original case)
+        canonical_header = next((h for h in section_headers if h.lower() == header.lower()), header)
+        sections[canonical_header] = content
+
+    return sections
