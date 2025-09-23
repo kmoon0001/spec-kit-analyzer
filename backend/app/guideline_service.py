@@ -12,7 +12,7 @@ from typing import List, Tuple
 import pdfplumber
 import requests
 from rank_bm25 import BM25Okapi
-
+ 
 # Local
 # from .local_llm import LocalRAG
 
