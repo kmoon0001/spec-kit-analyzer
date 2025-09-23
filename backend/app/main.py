@@ -2,6 +2,9 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import HTMLResponse
 import shutil
 import os
+import matplotlib.pyplot as plt
+import base64
+import io
 
 from rubric_service import RubricService, ComplianceRule
 from parsing import parse_document_content
@@ -46,7 +49,27 @@ async def analyze_document(file: UploadFile = File(...)):
                 findings.append(rule)
                 break
 
-    # 4. Generate the HTML report
+    # 4. Calculate compliance score
+    total_rules = len(rules)
+    rules_failing = len(findings)
+    compliance_score = ((total_rules - rules_failing) / total_rules) * 100 if total_rules > 0 else 100
+
+    # 5. Generate compliance chart
+    fig, ax = plt.subplots()
+    ax.barh(['Compliance'], [compliance_score], color='green' if compliance_score > 80 else 'orange' if compliance_score > 60 else 'red')
+    ax.set_xlim(0, 100)
+    ax.set_xlabel('Compliance Score (%)')
+    ax.set_title('Compliance Score')
+
+    # Save chart to a bytes buffer
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    chart_base64 = base64.b64encode(buf.read()).decode('utf-8')
+    plt.close(fig)
+
+
+    # 6. Generate the HTML report
     with open("../../src/report_template.html", "r") as f:
         template_str = f.read()
 
@@ -85,8 +108,14 @@ async def analyze_document(file: UploadFile = File(...)):
 
     report_html = report_html.replace("<!-- Placeholder for Medicare guidelines -->", guidelines_html)
 
+    # Embed score and chart
+    score_html = f"<p>Overall Compliance Score: {compliance_score:.2f}%</p>"
+    chart_html = f'<img src="data:image/png;base64,{chart_base64}" alt="Compliance Chart">'
+    report_html = report_html.replace("<!-- Placeholder for compliance score -->", score_html)
+    report_html = report_html.replace("<!-- Placeholder for chart -->", chart_html)
+
+
     # Clean up the temporary file
     os.remove(temp_file_path)
 
     return HTMLResponse(content=report_html)
-
