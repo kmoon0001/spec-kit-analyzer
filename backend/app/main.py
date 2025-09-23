@@ -1,7 +1,8 @@
 from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import HTMLResponse
+from fastapi.responses import JSONResponse
 import shutil
 import os
+from collections import Counter
 
 from rubric_service import RubricService, ComplianceRule
 from parsing import parse_document_content
@@ -23,7 +24,7 @@ def read_root():
     return {"message": "Backend for Therapy Compliance Analyzer"}
 
 
-@app.post("/analyze", response_class=HTMLResponse)
+@app.post("/analyze")
 async def analyze_document(file: UploadFile = File(...)):
     # Save the uploaded file temporarily
     temp_file_path = f"temp_{file.filename}"
@@ -46,47 +47,53 @@ async def analyze_document(file: UploadFile = File(...)):
                 findings.append(rule)
                 break
 
-    # 4. Generate the HTML report
-    with open("../../src/report_template.html", "r") as f:
-        template_str = f.read()
+    # 4. Calculate Metrics
+    risk_count = len(findings)
+    findings_by_category = Counter(rule.issue_category for rule in findings)
+    findings_by_severity = Counter(rule.severity for rule in findings)
 
-    # Populate findings
-    findings_html = ""
-    if findings:
-        for finding in findings:
-            findings_html += f"""
-            <div class="finding">
-                <h3>{finding.issue_title}</h3>
-                <p><strong>Severity:</strong> {finding.severity}</p>
-                <p><strong>Category:</strong> {finding.issue_category}</p>
-                <p>{finding.issue_detail}</p>
-            </div>
-            """
-    else:
-        findings_html = "<p>No specific findings based on the rubric.</p>"
-
-    report_html = template_str.replace("<!-- Placeholder for findings -->", findings_html)
-
-    # Populate Medicare guidelines
-    guidelines_html = ""
+    # 5. Get Guideline Details
+    guideline_details = []
     if findings:
         for finding in findings:
             guideline_results = guideline_service.search(query=finding.issue_title, top_k=1)
             if guideline_results:
-                guidelines_html += "<div>"
-                guidelines_html += f"<h4>Related to: {finding.issue_title}</h4>"
-                for result in guideline_results:
-                    guidelines_html += f"<p><strong>Source:</strong> {result['source']}</p>"
-                    guidelines_html += f"<p>{result['text']}</p>"
-                guidelines_html += "</div>"
+                guideline_details.append({
+                    "related_to": finding.issue_title,
+                    "guidelines": guideline_results
+                })
 
-    if not guidelines_html:
-        guidelines_html = "<p>No relevant Medicare guidelines found.</p>"
+    # 6. Construct JSON Response
+    findings_as_dicts = [
+        {
+            "uri": finding.uri,
+            "severity": finding.severity,
+            "issue_title": finding.issue_title,
+            "issue_detail": finding.issue_detail,
+            "issue_category": finding.issue_category,
+            "discipline": finding.discipline,
+            "financial_impact": finding.financial_impact,
+        } for finding in findings
+    ]
 
-    report_html = report_html.replace("<!-- Placeholder for Medicare guidelines -->", guidelines_html)
+    response_data = {
+        "document": {
+            "text": document_text,
+            "filename": file.filename
+        },
+        "analysis": {
+            "findings": findings_as_dicts,
+            "guidelines": guideline_details
+        },
+        "metrics": {
+            "risk_count": risk_count,
+            "by_category": dict(findings_by_category),
+            "by_severity": dict(findings_by_severity)
+        }
+    }
 
     # Clean up the temporary file
     os.remove(temp_file_path)
 
-    return HTMLResponse(content=report_html)
+    return JSONResponse(content=response_data)
 
