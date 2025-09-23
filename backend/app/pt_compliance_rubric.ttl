@@ -110,6 +110,11 @@
     rdfs:domain :ComplianceRule ;
     rdfs:range rdfs:Literal .
 
+:hasSuggestion a owl:DatatypeProperty ;
+    rdfs:comment "A detailed suggestion for how to remediate the finding." ;
+    rdfs:domain :ComplianceRule ;
+    rdfs:range rdfs:Literal .
+
 
 # --- Individuals (Rules) ---
 
@@ -237,6 +242,7 @@
     :hasIssueTitle "Goals may not be measurable/time-bound" ;
     :hasIssueDetail "Consider restating goals with measurable, time-bound targets and baselines." ;
     :hasIssueCategory "Goals" ;
+    :hasSuggestion "To improve, ensure each goal is SMART (Specific, Measurable, Achievable, Relevant, Time-bound). For example, instead of 'improve strength', write 'Patient will increase right knee extension strength from 3/5 to 4/5 within 2 weeks to improve ambulation'." ;
 
 :hasFinancialImpact "50" ;
 :hasDiscipline "pt" ;

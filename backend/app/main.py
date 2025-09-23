@@ -1,8 +1,7 @@
 from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse
 import shutil
 import os
-from collections import Counter
 
 from rubric_service import RubricService, ComplianceRule
 from parsing import parse_document_content
@@ -26,6 +25,11 @@ def read_root():
 
 @app.post("/analyze")
 async def analyze_document(file: UploadFile = File(...)):
+    # This is a combination of the previous correct implementation and the new features.
+    # I am replacing the whole function to ensure correctness.
+    from collections import Counter
+    from fastapi.responses import JSONResponse
+
     # Save the uploaded file temporarily
     temp_file_path = f"temp_{file.filename}"
     with open(temp_file_path, "wb") as buffer:
@@ -42,15 +46,21 @@ async def analyze_document(file: UploadFile = File(...)):
     # 3. Perform analysis
     findings = []
     for rule in rules:
-        for keyword in rule.positive_keywords:
-            if keyword.lower() in document_text.lower():
-                findings.append(rule)
-                break
+        # This is a simplified logic. A real implementation would handle positive/negative keywords better.
+        if any(keyword.lower() in document_text.lower() for keyword in rule.positive_keywords):
+             findings.append(rule)
 
     # 4. Calculate Metrics
     risk_count = len(findings)
     findings_by_category = Counter(rule.issue_category for rule in findings)
     findings_by_severity = Counter(rule.severity for rule in findings)
+
+    # Calculate compliance score
+    compliance_score = 100
+    severity_map = {"High": 15, "Medium": 10, "Low": 5, "finding": 10, "suggestion": 2}
+    for finding in findings:
+        compliance_score -= severity_map.get(finding.severity, 0)
+    compliance_score = max(0, compliance_score)
 
     # 5. Get Guideline Details
     guideline_details = []
@@ -64,17 +74,7 @@ async def analyze_document(file: UploadFile = File(...)):
                 })
 
     # 6. Construct JSON Response
-    findings_as_dicts = [
-        {
-            "uri": finding.uri,
-            "severity": finding.severity,
-            "issue_title": finding.issue_title,
-            "issue_detail": finding.issue_detail,
-            "issue_category": finding.issue_category,
-            "discipline": finding.discipline,
-            "financial_impact": finding.financial_impact,
-        } for finding in findings
-    ]
+    findings_as_dicts = [finding.__dict__ for finding in findings]
 
     response_data = {
         "document": {
@@ -87,6 +87,7 @@ async def analyze_document(file: UploadFile = File(...)):
         },
         "metrics": {
             "risk_count": risk_count,
+            "compliance_score": compliance_score,
             "by_category": dict(findings_by_category),
             "by_severity": dict(findings_by_severity)
         }

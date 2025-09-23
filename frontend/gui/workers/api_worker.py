@@ -20,9 +20,9 @@ class ApiAnalysisWorker(QObject):
         try:
             with open(self.file_path, 'rb') as f:
                 files = {'file': (self.file_path, f)}
-                response = requests.post(self.api_url, files=files, timeout=120) # 2 minute timeout
+                response = requests.post(self.api_url, files=files, timeout=120)
 
-            response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
+            response.raise_for_status()
 
             result_data = response.json()
             self.finished.emit(result_data)

@@ -30,12 +30,10 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 from cryptography.hazmat.primitives.hashes import SHA256
-# from .workers.document_worker import DocumentWorker # Will be replaced by an API call
 from .workers.api_worker import ApiAnalysisWorker
 from .dialogs.add_rubric_source_dialog import AddRubricSourceDialog
 from .dialogs.library_selection_dialog import LibrarySelectionDialog
 from .dialogs.rubric_manager_dialog import RubricManagerDialog
-from .dialogs.charts_dialog import ChartsDialog
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 # The following libraries are for direct document parsing, which will be moved to the backend.
@@ -183,11 +181,6 @@ class MainApplicationWindow(QMainWindow):
         self.run_analysis_button = QPushButton("Run Analysis")
         self.run_analysis_button.clicked.connect(self.run_analysis)
         rubric_layout.addWidget(self.run_analysis_button)
-
-        self.view_charts_button = QPushButton("View Charts")
-        self.view_charts_button.clicked.connect(self.show_charts_dialog)
-        self.view_charts_button.setEnabled(False) # Disabled by default
-        rubric_layout.addWidget(self.view_charts_button)
         self.rubric_list_widget = QListWidget()
         self.rubric_list_widget.setPlaceholderText("Available Rubrics")
         self.rubric_list_widget.setMaximumHeight(100)
@@ -254,11 +247,10 @@ class MainApplicationWindow(QMainWindow):
         Stores the path of the selected document and updates the UI.
         """
         self._current_file_path = file_path
-        self._current_raw_text = f"File loaded: {os.path.basename(file_path)}" # Set dummy text to enable run button
+        self._current_raw_text = f"File loaded: {os.path.basename(file_path)}"
         self.document_display_area.setText(f"Loaded '{os.path.basename(file_path)}'.\n\nClick 'Run Analysis' to process.")
         self.analysis_results_area.clear()
         self.analysis_results = None
-        self.view_charts_button.setEnabled(False)
         self.status_bar.showMessage(f"Loaded document: {os.path.basename(file_path)}")
 
     def run_analysis(self):
@@ -273,7 +265,6 @@ class MainApplicationWindow(QMainWindow):
         self.status_bar.showMessage("Sending document to backend for analysis...")
         self.analysis_results_area.setText("Analysis in progress...")
 
-        # Create and run the API worker in a separate thread
         self.thread = QThread()
         self.worker = ApiAnalysisWorker(file_path=self._current_file_path)
         self.worker.moveToThread(self.thread)
@@ -282,7 +273,6 @@ class MainApplicationWindow(QMainWindow):
         self.worker.finished.connect(self.handle_analysis_finished)
         self.worker.error.connect(self.handle_analysis_error)
 
-        # Clean up thread and worker
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
@@ -292,35 +282,17 @@ class MainApplicationWindow(QMainWindow):
     def handle_analysis_finished(self, result: dict):
         """
         Handles the successful completion of the backend analysis.
-        Formats the results as HTML and displays them.
         """
         self._set_busy(False)
         self.status_bar.showMessage("Analysis complete.")
 
         self.analysis_results = result
         self._current_raw_text = result.get("document", {}).get("text", "")
-
         self.document_display_area.setText(self._current_raw_text)
 
+        # This will be implemented in the next step
         report_html = self._format_results_as_html(result)
         self.analysis_results_area.setHtml(report_html)
-        self.view_charts_button.setEnabled(True)
-
-    def show_charts_dialog(self):
-        """
-        Shows the dialog with metrics charts.
-        """
-        if not self.analysis_results:
-            QMessageBox.warning(self, "No Data", "Please run an analysis first to view charts.")
-            return
-
-        metrics = self.analysis_results.get("metrics")
-        if not metrics:
-            QMessageBox.warning(self, "No Metrics", "The analysis did not return any metrics to chart.")
-            return
-
-        dialog = ChartsDialog(metrics, self)
-        dialog.exec()
 
     def _format_results_as_html(self, result: dict) -> str:
         """
@@ -329,17 +301,16 @@ class MainApplicationWindow(QMainWindow):
         if not result:
             return "<p>No analysis results received.</p>"
 
-        # Extract data
         metrics = result.get("metrics", {})
         analysis = result.get("analysis", {})
         findings = analysis.get("findings", [])
-        guidelines = analysis.get("guidelines", [])
 
-        # Build HTML
         html = "<h1>Compliance Analysis Report</h1>"
 
         # --- Metrics Summary ---
         html += "<h2>Summary</h2>"
+        score = metrics.get('compliance_score', 'N/A')
+        html += f"<h3>Overall Compliance Score: {score}/100</h3>"
         html += f"<p><b>Total Risks Found:</b> {metrics.get('risk_count', 0)}</p>"
 
         html += "<b>Risks by Category:</b><ul>"
@@ -353,7 +324,7 @@ class MainApplicationWindow(QMainWindow):
         html += "</ul>"
 
         # --- Detailed Findings ---
-        html += "<h2>Detailed Findings</h2>"
+        html += "<h2>Detailed Findings & Suggestions</h2>"
         if not findings:
             html += "<p>No specific compliance risks were found based on the rubric.</p>"
         else:
@@ -362,27 +333,15 @@ class MainApplicationWindow(QMainWindow):
                 html += f"<h4>{finding.get('issue_title', 'N/A')}</h4>"
                 html += f"<p><b>Severity:</b> {finding.get('severity', 'N/A')} | <b>Category:</b> {finding.get('issue_category', 'N/A')}</p>"
                 html += f"<p><b>Details:</b> {finding.get('issue_detail', 'N/A')}</p>"
-                html += "</div>"
-
-        # --- Medicare Guidelines ---
-        html += "<h2>Related Medicare Guidelines</h2>"
-        if not guidelines:
-            html += "<p>No relevant Medicare guidelines were found for the identified issues.</p>"
-        else:
-            for guideline_group in guidelines:
-                html += f"<h4>Related to: {guideline_group.get('related_to', 'N/A')}</h4>"
-                for guideline in guideline_group.get('guidelines', []):
-                    html += "<div style='border-left: 3px solid #007bff; padding-left: 10px; margin-left: 5px;'>"
-                    html += f"<p><b>Source:</b> {guideline.get('source', 'N/A')}</p>"
-                    html += f"<p>{guideline.get('text', 'N/A')}</p>"
-                    html += "</div>"
+                html += "<div style='background-color: #e6f7ff; border-left: 3px solid #007bff; padding: 5px; margin-top: 5px;'>"
+                html += f"<p><b>Suggestion:</b> {finding.get('suggestion', 'No suggestion available.')}</p>"
+                html += "</div></div>"
 
         return html
 
     def handle_analysis_error(self, error_message: str):
         """
         Handles errors from the analysis worker.
-        This is called on the main GUI thread.
         """
         self._set_busy(False)
         self.status_bar.showMessage("Analysis failed.")
@@ -395,7 +354,6 @@ class MainApplicationWindow(QMainWindow):
         self._current_raw_text = ""
         self._current_file_path = ""
         self.analysis_results = None
-        self.view_charts_button.setEnabled(False)
         self.status_bar.showMessage('Display cleared.')
 
     def manage_rubrics(self):
@@ -417,6 +375,29 @@ class MainApplicationWindow(QMainWindow):
                     self.rubric_list_widget.addItem(item)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to load rubrics into main list:\n{e}")
+
+    def run_rubric_analysis(self):
+        if not self._current_sentences_with_source:
+            QMessageBox.warning(self, "Analysis Error", "Please upload a document to analyze first.")
+            return
+        selected_items = self.rubric_list_widget.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "Analysis Error", "Please select a rubric from the list to run the analysis.")
+            return
+        try:
+            rubric_id = selected_items[0].data(Qt.ItemDataRole.UserRole)
+            with sqlite3.connect(DATABASE_PATH) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT content FROM rubrics WHERE id = ?", (rubric_id,))
+                result = cur.fetchone()
+            if not result:
+                QMessageBox.critical(self, "Database Error", "Could not find the selected rubric in the database.")
+                return
+            rubric_content = result[0]
+        except Exception as e:
+            QMessageBox.critical(self, "Database Error", f"Failed to retrieve rubric content:\n{e}")
+            return
+        QMessageBox.information(self, "Analysis", "This feature is currently disabled pending new model integration.")
 
     def _build_report_html(self) -> str:
         text_for_report = scrub_phi(self._current_raw_text or "")
