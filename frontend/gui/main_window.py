@@ -4,7 +4,7 @@ import sqlite3
 import os
 import re
 from typing import List, Tuple
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QApplication,
     QWidget,
     QLabel,
@@ -26,9 +26,9 @@ from PyQt6.QtWidgets import (
     QInputDialog,
     QCheckBox,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent
-from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
+from PySide6.QtCore import Qt, QThread, QObject
+from PySide6.QtGui import QDragEnterEvent, QDropEvent
+from PySide6.QtPrintSupport import QPrinter, QPrintDialog
 from cryptography.hazmat.primitives.hashes import SHA256
 # from .workers.document_worker import DocumentWorker # Will be replaced by an API call
 from .dialogs.add_rubric_source_dialog import AddRubricSourceDialog
@@ -348,7 +348,7 @@ class MainApplicationWindow(QMainWindow):
             if not save_path.lower().endswith(".pdf"):
                 save_path += ".pdf"
             printer.setOutputFileName(save_path)
-            from PyQt6.QtGui import QTextDocument
+            from PySide6.QtGui import QTextDocument
             doc = QTextDocument()
             doc.setHtml(self._build_report_html())
             doc.print(printer)
@@ -364,7 +364,7 @@ class MainApplicationWindow(QMainWindow):
             printer = QPrinter(QPrinter.PrinterMode.HighResolution)
             dialog = QPrintDialog(printer, self)
             if dialog.exec() == QPrintDialog.DialogCode.Accepted:
-                from PyQt6.QtGui import QTextDocument
+                from PySide6.QtGui import QTextDocument
                 doc = QTextDocument()
                 doc.setHtml(self._build_report_html())
                 doc.print(printer)

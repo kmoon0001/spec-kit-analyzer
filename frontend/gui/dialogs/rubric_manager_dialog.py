@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QListWidget,
@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QListWidgetItem,
 )
-from src.parsing import parse_document_content
+from backend.app.parsing import parse_document_content
 from .add_rubric_source_dialog import AddRubricSourceDialog
 from .library_selection_dialog import LibrarySelectionDialog
 
