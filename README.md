@@ -2,7 +2,7 @@
 
 This project is a Python application for clinical healthcare, featuring a backend API and a frontend GUI.
 
-## Structure 
+## Structure
 
 - `backend/`: Contains the FastAPI backend application.
 - `frontend/`: Contains the PySide6 frontend GUI application.
