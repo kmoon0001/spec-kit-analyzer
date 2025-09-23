@@ -1,26 +1,20 @@
-# == Backend Dependencies ==
-fastapi
-uvicorn
-pandas
-openpyxl
-python-docx # For .docx parsing
-rdflib      # For .ttl rubric parsing
-
-# == Document Parsing & NLP ==
-langchain   # For text splitting and other NLP tasks
-pdfplumber  # For .pdf parsing
-pytesseract # For OCR (image) parsing
-Pillow      # Image library, dependency for pytesseract
-
-# == Frontend Dependencies ==
-PySide6     # GUI Framework
-
-# == General & Utility ==
-requests    # For API communication
-pyyaml      # For YAML parsing
-
-# == Testing Dependencies ==
+pdfplumber
+pypdfium2
+requests
 pytest
 pytest-mock
-pytest-qt   # For testing Qt applications
-matplotlib  # Often used for plotting/visualization in tests or analysis
+matplotlib
+pyyaml
+rdflib
+PySide6
+fastapi
+uvicorn
+python-multipart
+python-docx
+pytesseract
+Pillow
+pandas
+openpyxl
+torch
+transformers
+sentence-transformers

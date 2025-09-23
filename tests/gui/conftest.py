@@ -7,7 +7,7 @@ matplotlib.use("Agg")
 logger = logging.getLogger(__name__)
 
 try:
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
 
     @pytest.fixture(scope="session")
     def qapp():
@@ -27,9 +27,9 @@ try:
         return app
 
 except ImportError:
-    logger.warning("PyQt6 not found, qapp fixture will not be available.")
+    logger.warning("PySide6 not found, qapp fixture will not be available.")
     # Define a dummy fixture to avoid errors if a test requests it.
     @pytest.fixture(scope="session")
     def qapp():
-        logger.warning(">>> Dummy qapp fixture called because PyQt6 is not installed.")
+        logger.warning(">>> Dummy qapp fixture called because PySide6 is not installed.")
         return None

@@ -1,10 +1,10 @@
 import os
 import pytest
-from backend.app.parsing import parse_document_content
+from src.parsing import parse_document_content, parse_document_into_sections
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-# Go up from tests/logic -> tests -> root, then into test_data
-TEST_DATA_DIR = os.path.join(TESTS_DIR, "..", "..", "test_data")
+# The test_data directory is at the project root, so we need to go up two levels from tests/logic.
+TEST_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(TESTS_DIR)), "test_data")
 VALID_TXT_PATH = os.path.join(TEST_DATA_DIR, "good_note_1.txt")
 NON_EXISTENT_PATH = os.path.join(TEST_DATA_DIR, "non_existent_file.xyz")
 
@@ -53,3 +53,32 @@ def test_parse_non_existent_file():
     assert len(result) == 1
     assert result[0][0].startswith("Error: File not found")
     assert result[0][1] == "File System"
+
+
+def test_parse_document_into_sections_happy_path():
+    """
+    Tests that a well-formatted document is correctly parsed into sections.
+    """
+    document_text = """
+Subjective: Patient reports feeling well.
+Objective: Gait steady. Vital signs stable.
+Assessment: Making good progress.
+Plan: Continue with current treatment.
+"""
+    sections = parse_document_into_sections(document_text)
+    assert isinstance(sections, dict)
+    assert len(sections) == 4
+    assert "Subjective" in sections
+    assert "Plan" in sections
+    assert sections["Objective"] == "Gait steady. Vital signs stable."
+
+def test_parse_document_into_sections_no_headers():
+    """
+    Tests that a document with no section headers is handled correctly.
+    """
+    document_text = "This is a single block of text without any section headers."
+    sections = parse_document_into_sections(document_text)
+    assert isinstance(sections, dict)
+    assert len(sections) == 1
+    assert "unclassified" in sections
+    assert sections["unclassified"] == document_text

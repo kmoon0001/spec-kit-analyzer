@@ -1,0 +1,71 @@
+import os
+from src.core.rubric_service import RubricService
+from src.core.parsing import parse_document_content
+from src.core.guideline_service import GuidelineService
+
+class AnalysisService:
+    def __init__(self):
+        self.guideline_service = GuidelineService()
+        guideline_sources = [
+            "_default_medicare_benefit_policy_manual.txt",
+            "_default_medicare_part.txt"
+        ]
+        self.guideline_service.load_and_index_guidelines(sources=guideline_sources)
+
+    def analyze_document(self, file_path: str) -> str:
+        # 1. Parse the document content
+        document_chunks = parse_document_content(file_path)
+        document_text = " ".join([chunk[0] for chunk in document_chunks])
+
+        # 2. Load the rubric
+        rubric_service = RubricService(ontology_path=os.path.join("src", "resources", "pt_compliance_rubric.ttl"))
+        rules = rubric_service.get_rules()
+
+        # 3. Perform analysis
+        findings = []
+        for rule in rules:
+            for keyword in rule.positive_keywords:
+                if keyword.lower() in document_text.lower():
+                    findings.append(rule)
+                    break
+
+        # 4. Generate the HTML report
+        with open(os.path.join("src", "resources", "report_template.html"), "r") as f:
+            template_str = f.read()
+
+        # Populate findings
+        findings_html = ""
+        if findings:
+            for finding in findings:
+                findings_html += f"""
+                <div class="finding">
+                    <h3>{finding.issue_title}</h3>
+                    <p><strong>Severity:</strong> {finding.severity}</p>
+                    <p><strong>Category:</strong> {finding.issue_category}</p>
+                    <p>{finding.issue_detail}</p>
+                </div>
+                """
+        else:
+            findings_html = "<p>No specific findings based on the rubric.</p>"
+
+        report_html = template_str.replace("<!-- Placeholder for findings -->", findings_html)
+
+        # Populate Medicare guidelines
+        guidelines_html = ""
+        if findings:
+            for finding in findings:
+                guideline_results = self.guideline_service.search(query=finding.issue_title, top_k=1)
+                if guideline_results:
+                    guidelines_html += "<div>"
+                    guidelines_html += f"<h4>Related to: {finding.issue_title}</h4>"
+                    for result in guideline_results:
+                        guidelines_html += f"<p><strong>Source:</strong> {result['source']}</p>"
+                        guidelines_html += f"<p>{result['text']}</p>"
+                    guidelines_html += "</div>"
+
+        if not guidelines_html:
+            guidelines_html = "<p>No relevant Medicare guidelines found.</p>"
+
+        report_html = report_html.replace("<!-- Placeholder for Medicare guidelines -->", guidelines_html)
+
+        return report_html
