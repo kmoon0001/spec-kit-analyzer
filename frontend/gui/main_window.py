@@ -1,7 +1,7 @@
 import os
 import requests
 from PySide6.QtWidgets import (
-    QWidget,
+    QWidget, 
     QPushButton,
     QVBoxLayout,
     QMessageBox,
