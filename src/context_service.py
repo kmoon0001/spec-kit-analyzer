@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+ 
 import json
 import logging
 from typing import List, Dict, Optional
@@ -15,7 +15,7 @@ class ContextService:
     """
     A service for classifying the context of sentences using sentence embeddings.
     """
-
+ 
     def __init__(self, categories_path: str, model: SentenceTransformer):
         """
         Initializes the service by loading category definitions and pre-computing

@@ -10,7 +10,7 @@ spacy
 pydantic
 numpy
 cryptography
-
+ 
 # Core Frameworks & LLM
 llama-cpp-python
 sentence-transformers

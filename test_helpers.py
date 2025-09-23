@@ -9,7 +9,7 @@ import unittest
 # Ensure we import main after environment is set if needed.
 from src import main
 
-
+ 
 class TestHelpers(unittest.TestCase):
     def test_scrub_phi(self):
         text = "SSN 123-45-6789, Phone (555) 123-4567, Email a@b.com, Date 01/23/2024, MRN 1234567"

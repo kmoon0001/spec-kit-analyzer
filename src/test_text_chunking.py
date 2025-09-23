@@ -2,7 +2,7 @@ import unittest
 from src.text_chunking import RecursiveCharacterTextSplitter
 
 class TestRecursiveCharacterTextSplitter(unittest.TestCase):
-
+ 
     def setUp(self):
         """Set up common variables for tests."""
         self.long_text = "This is the first sentence.\n\nThis is the second sentence. It is a bit longer.\n\nThis is the third sentence, designed to test the chunking functionality of the RecursiveCharacterTextSplitter class. Let's add more words to make it wrap. And a bit more for good measure."

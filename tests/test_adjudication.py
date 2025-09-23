@@ -8,7 +8,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.adjudication_service import AdjudicationService
-
+ 
 @pytest.fixture
 def mock_db_connection():
     """Fixture to create a mock database connection."""

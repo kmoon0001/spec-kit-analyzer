@@ -30,7 +30,7 @@ def test_consolidate_entities_simple_overlap(consolidation_service):
             end=42,
             models=["BioBERT"],
             context="a history of hypertension",
-        )
+        ) 
     ]
     entities2 = [
         NEREntity(
