@@ -2,7 +2,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from typing import List, Dict
 
-class AIAnalysisService:
+class AIAnalysisService: 
     """
     A dedicated service for handling interactions with the Language Model.
     """
