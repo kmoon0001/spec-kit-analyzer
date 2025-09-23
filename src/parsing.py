@@ -1,5 +1,6 @@
 import os
-from typing import List, Tuple
+import re
+from typing import List, Tuple, Dict
 
 import pdfplumber
 from docx import Document
@@ -82,3 +83,58 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
         return [(f"Error: File not found at {file_path}", "File System")]
     except Exception as e:
         return [(f"Error: An unexpected error occurred: {e}", "System")]
+
+
+# A simple list of section headers that are commonly found in clinical notes.
+SECTION_HEADERS = [
+    "Subjective",
+    "Objective",
+    "Assessment",
+    "Plan",
+    "History of Present Illness",
+    "Past Medical History",
+    "Medications",
+    "Allergies",
+    "Review of Systems",
+    "Physical Examination",
+    "Diagnosis",
+    "Treatment Plan",
+]
+
+def parse_document_into_sections(document_text: str) -> Dict[str, str]:
+    """
+    Parses a document into sections based on a predefined list of headers.
+
+    This is a simple implementation that uses regular expressions to find section
+    headers. It assumes that a section starts with a header and ends at the
+    next header.
+
+    :param document_text: The text of the document to parse.
+    :return: A dictionary where keys are section headers and values are the
+             content of the sections.
+    """
+    sections = {}
+    # Create a regex pattern to find any of the section headers at the start of a line.
+    # The `re.IGNORECASE` flag makes the matching case-insensitive.
+    pattern = r"^\s*(" + "|".join(re.escape(header) for header in SECTION_HEADERS) + r")\s*:"
+
+    # Find all matches of the pattern in the document.
+    matches = list(re.finditer(pattern, document_text, re.MULTILINE | re.IGNORECASE))
+
+    if not matches:
+        # If no headers are found, return the entire document as an "unclassified" section.
+        return {"unclassified": document_text}
+
+    # Iterate through the matches to extract the content of each section.
+    for i, match in enumerate(matches):
+        section_header = match.group(1).strip()
+        start_index = match.end()
+
+        # The end index of the section is the start index of the next section,
+        # or the end of the document if it's the last section.
+        end_index = matches[i + 1].start() if i + 1 < len(matches) else len(document_text)
+
+        section_content = document_text[start_index:end_index].strip()
+        sections[section_header] = section_content
+
+    return sections
