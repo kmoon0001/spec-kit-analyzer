@@ -1,0 +1,16 @@
+# Requirements for the Backend Server and Logic
+
+# Server
+fastapi
+uvicorn
+requests
+python-multipart
+
+# Document Parsing
+python-docx
+pdfplumber
+pytesseract
+Pillow
+pandas
+openpyxl
+rdflib
