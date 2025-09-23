@@ -9,7 +9,7 @@ class AIAnalysisService:
     _model = None
     _tokenizer = None
 
-    def __init__(self):
+    def __init__(self): 
         """
         Initializes the service and loads the language model.
         This uses a singleton pattern to ensure the model is loaded only once.
