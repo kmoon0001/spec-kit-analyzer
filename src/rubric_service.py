@@ -19,6 +19,7 @@ class ComplianceRule:
     issue_detail: str
     issue_category: str
     discipline: str
+    suggestion: str = ""
     financial_impact: int = 0
     positive_keywords: List[str] = field(default_factory=list)
     negative_keywords: List[str] = field(default_factory=list)
@@ -57,11 +58,32 @@ class RubricService:
         NS = Namespace("http://example.com/speckit/ontology#")
 
         # Prepare a SPARQL query to get all rules and their properties.
-        # OPTIONAL blocks are used because not all rules have all properties (e.g., positive_keywords).
+        query_str = """
+            PREFIX ont: <http://example.com/speckit/ontology#>
+            SELECT ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?suggestion ?financial_impact
+                   (GROUP_CONCAT(DISTINCT ?pos_kw; SEPARATOR="|") AS ?positive_keywords)
+                   (GROUP_CONCAT(DISTINCT ?neg_kw; SEPARATOR="|") AS ?negative_keywords)
+            WHERE {
+                ?rule a ont:ComplianceRule ;
+                      ont:hasTitle ?title ;
+                      ont:hasDetail ?detail ;
+                      ont:hasSeverity ?sev .
+                ?sev ont:hasSeverityLevel ?severity .
+                ?sev ont:hasStrictSeverityLevel ?strict_severity .
+
+                OPTIONAL { ?rule ont:hasCategory ?category . }
+                OPTIONAL { ?rule ont:hasDiscipline ?discipline . }
+                OPTIONAL { ?rule ont:hasSuggestion ?suggestion . }
+                OPTIONAL { ?rule ont:hasFinancialImpact ?financial_impact . }
+                OPTIONAL { ?rule ont:hasPositiveKeyword ?pos_kw . }
+                OPTIONAL { ?rule ont:hasNegativeKeyword ?neg_kw . }
+            }
+            GROUP BY ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?suggestion ?financial_impact
+        """
 
         rules = []
         try:
-            results = self.graph.query(query)
+            results = self.graph.query(query_str)
             for row in results:
                 # The GROUP_CONCAT returns a single string, so we split it by our separator
                 pos_kws = str(row.positive_keywords).split('|') if row.positive_keywords else []
@@ -73,12 +95,12 @@ class RubricService:
                     strict_severity=str(row.strict_severity),
                     issue_title=str(row.title),
                     issue_detail=str(row.detail),
-                    issue_category=str(row.category),
-
-financial_impact=int(row.financial_impact) if row.financial_impact else 0,
-    discipline=str(row.discipline),
-                    positive_keywords=[kw for kw in pos_kws if kw], # Filter out empty strings
-                    negative_keywords=[kw for kw in neg_kws if kw]  # Filter out empty strings
+                    issue_category=str(row.category) if row.category else "General",
+                    discipline=str(row.discipline) if row.discipline else "All",
+                    suggestion=str(row.suggestion) if row.suggestion else "No suggestion available.",
+                    financial_impact=int(row.financial_impact) if row.financial_impact else 0,
+                    positive_keywords=[kw for kw in pos_kws if kw],
+                    negative_keywords=[kw for kw in neg_kws if kw]
                 )
                 rules.append(rule)
             logger.info(f"Successfully retrieved {len(rules)} rules from the ontology.")
