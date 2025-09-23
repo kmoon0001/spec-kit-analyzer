@@ -7,7 +7,7 @@ uvicorn
 # Document Parsing
 python-docx
 pdfplumber
-pytesseract
+pytesseract 
 Pillow
 pandas
 openpyxl
