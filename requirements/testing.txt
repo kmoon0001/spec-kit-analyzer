@@ -1,9 +1,0 @@
-pytest
-pytest-qt
-pytest-mock
-jsonschema
-pyspellchecker
-python-dotenv
-Faker
-Pillow
-pypdf
