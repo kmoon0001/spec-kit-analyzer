@@ -43,6 +43,13 @@ This project provides a production-ready framework for orchestrating multiple La
     ```bash
     pip install -r requirements.txt
     ```
+    This will install all necessary packages for the application, including core logic, UI, and testing dependencies. The dependencies are managed in a modular way in the `requirements/` directory. The root `requirements.txt` file simply aggregates them.
+
+2.  **Download Spacy Model:**
+    The application uses the `en_core_web_sm` model from `spacy`. You may need to download it separately:
+    ```bash
+    python -m spacy download en_core_web_sm
+    ```
 2.  **Run the application:**
     ```bash
     gunicorn -w 4 -k uvicorn.workers.UvicornWorker src.api:app

@@ -1,7 +1,8 @@
-pdfplumber==0.11.7
+pdfplumber
 requests
 pytest
 pytest-mock
 matplotlib
 pyyaml
 rdflib
+
