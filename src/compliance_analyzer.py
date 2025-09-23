@@ -1,10 +1,10 @@
 import torch
-from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
-from hybrid_retriever import HybridRetriever
-from src.document_classifier import DocumentClassifier, DocumentType
-from src.parsing import parse_document_into_sections
+from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from .hybrid_retriever import HybridRetriever
+from .document_classifier import DocumentClassifier, DocumentType
+from .parsing import parse_document_into_sections
 from typing import Dict, List
-
+import json
 
 class ComplianceAnalyzer:
     def __init__(self):
@@ -24,66 +24,86 @@ class ComplianceAnalyzer:
         generator_model_name = "nabilfaieaz/tinyllama-med-full"
 
         self.generator_tokenizer = AutoTokenizer.from_pretrained(generator_model_name)
+        quantization_config = BitsAndBytesConfig(load_in_4bit=True)
         self.generator_model = AutoModelForCausalLM.from_pretrained(
             generator_model_name,
-            load_in_4bit=True,
-            torch_dtype=torch.bfloat16, # Use bfloat16 for better performance on modern GPUs
+            quantization_config=quantization_config,
+            dtype=torch.bfloat16, # Use bfloat16 for better performance on modern GPUs
             device_map="auto"
         )
         print(f"Generator LLM '{generator_model_name}' loaded successfully.")
 
         print("\nCompliance Analyzer initialized successfully.")
 
-    def analyze_document(self, document_text: str) -> Dict[str, str]:
+    def analyze_document(self, document_text: str) -> Dict:
         """
-        Analyzes a document for compliance, performing a section-by-section analysis.
+        Analyzes a document for compliance.
 
         :param document_text: The full text of the document to analyze.
-        :return: A dictionary with section names as keys and their compliance analysis as values.
+        :return: A dictionary containing the compliance analysis.
         """
         print("\n--- Starting Compliance Analysis ---")
         print(f"Analyzing document: '{document_text[:100]}...'")
 
-def _analyze_section(self, section_name: str, section_text: str, entities: List[Dict], context: str, doc_type: DocumentType, rubric: str) -> str:
-    """Analyzes a single section of the document."""
-    print(f"\n--- Analyzing Section: {section_name} ---")
-    # Compose section-level prompt
-    prompt = self._build_section_prompt(section_name, section_text, entities, context, doc_type, rubric)
+        # 1. Extract entities
+        entities = self.ner_pipeline(document_text)
+        entity_list = ", ".join([f"'{entity['word']}' ({entity['entity_group']})" for entity in entities])
 
-    # Generate with LLM
-    inputs = self.generator_tokenizer(prompt, return_tensors="pt").to(self.generator_model.device)
-    output = self.generator_model.generate(**inputs, max_new_tokens=256, num_return_sequences=1)
-    result = self.generator_tokenizer.decode(output[0], skip_special_tokens=True)
+        # 2. Retrieve context
+        retrieved_docs = self.retriever.search(document_text)
+        context = "\n".join(retrieved_docs)
+        # Truncate context to avoid exceeding model's context window
+        max_context_length = 4000
+        if len(context) > max_context_length:
+            context = context[:max_context_length] + "\n..."
 
-    # Only return what follows the marker, if present
-    analysis_part = result.split("Section Compliance Analysis:")[-1].strip()
-    print(f"Analysis generated for section: {section_name}")
-    return analysis_part
 
-def _load_rubric(self, doc_type: DocumentType | None) -> str | None:
-    """Loads the rubric file based on the document type."""
-    if not doc_type:
-        return None
+        # 3. Build prompt
+        prompt = self._build_prompt(document_text, entity_list, context)
 
-    rubric_path = f"resources/rubrics/{doc_type.name.lower()}_rubric.txt"
-    try:
-        with open(rubric_path, "r") as f:
-            return f.read()
-    except FileNotFoundError:
-        return None
+        # 4. Generate with LLM
+        inputs = self.generator_tokenizer(prompt, return_tensors="pt").to(self.generator_model.device)
+        output = self.generator_model.generate(**inputs, max_new_tokens=512, num_return_sequences=1)
+        result = self.generator_tokenizer.decode(output[0], skip_special_tokens=True)
 
-def _build_section_prompt(self, section_name, section_text, entities, context, doc_type, rubric):
-    """Helper function to build the detailed prompt for analyzing a single section."""
-    entity_list = ", ".join([f"'{entity['word']}' ({entity['entity_group']})" for entity in entities])
-    doc_type_str = doc_type.value if doc_type else "Unknown"
+        # 5. Extract and parse JSON
+        try:
+            # The model sometimes includes the prompt in the output, so we find the start of the JSON.
+            json_start = result.find('```json')
+            if json_start != -1:
+                json_str = result[json_start + 7:].strip()
+                # And the end of the JSON
+                json_end = json_str.rfind('```')
+                if json_end != -1:
+                    json_str = json_str[:json_end].strip()
+            else:
+                # Fallback if the ```json``` markers are not present
+                json_start = result.find('{')
+                json_end = result.rfind('}') + 1
+                json_str = result[json_start:json_end]
 
-    prompt = f"""
-You are an expert Medicare compliance officer for a Skilled Nursing Facility (SNF). Your task is to analyze a specific section of a clinical therapy document for potential compliance risks.
+            analysis = json.loads(json_str)
+        except (json.JSONDecodeError, IndexError) as e:
+            print(f"Error parsing JSON output: {e}")
+            print(f"Raw model output:\n{result}")
+            analysis = {"error": "Failed to parse JSON output from model."}
 
-**Document Type:** {doc_type_str}
-**Section to Analyze:** {section_name}
+        print("Analysis generated.")
+        return analysis
 
-**Full list of Extracted Clinical Entities from Document:**
+    def _build_prompt(self, document: str, entity_list: str, context: str) -> str:
+        """
+        Builds the prompt for the LLM.
+        """
+        return f"""
+You are an expert Medicare compliance officer for a Skilled Nursing Facility (SNF). Your task is to analyze a clinical therapy document for potential compliance risks based on the provided Medicare guidelines.
+
+**Clinical Document:**
+---
+{document}
+---
+
+**Extracted Clinical Entities:**
 ---
 {entity_list}
 ---
@@ -92,35 +112,30 @@ You are an expert Medicare compliance officer for a Skilled Nursing Facility (SN
 ---
 {context}
 ---
-"""
-    if rubric:
-        prompt += f"""
-**Compliance Rubric for {doc_type_str}:**
----
-{rubric}
----
-"""
-    prompt += f"""
-**Content of the '{section_name}' section:**
----
-{section_text}
----
 
 **Your Task:**
-Based on all the information above, provide a detailed compliance analysis FOR THE '{section_name}' SECTION ONLY. Identify any potential risks within this section, explain why they are risks according to the guidelines and the provided rubric, and suggest specific actions to mitigate them. If no risks are found for this section, state that the section appears to be compliant.
+Based on all the information above, provide a detailed compliance analysis. Identify any potential risks, explain why they are risks according to the guidelines, and suggest specific actions to mitigate them. If no risks are found, state that the document appears to be compliant.
 
-**Section Compliance Analysis:**
-"""
-    return prompt
+**Output Format:**
+Return the analysis as a JSON object with the following structure:
+{{
+  "findings": [
+    {{
+      "text": "<text from the original document that contains the finding>",
+      "risk": "<description of the compliance risk>",
+      "suggestion": "<suggestion to mitigate the risk>"
+    }}
+  ]
+}}
 
-**Section Compliance Analysis:**
+**Compliance Analysis:**
+```json
 """
-        return prompt
 
 if __name__ == '__main__':
     analyzer = ComplianceAnalyzer()
 
-    # Sample clinical document with sections
+    # Sample clinical document
     sample_document = '''
 Subjective: Patient reports feeling tired but motivated. States goal is to "walk my daughter down the aisle."
 Objective: Patient participated in 45 minutes of physical therapy. Gait training on level surfaces with rolling walker for 100 feet with moderate assistance. Moderate verbal cueing required for sequencing.
@@ -131,6 +146,4 @@ Plan: Continue physical therapy 3 times per week. Re-evaluate in 1 week.
     analysis_results = analyzer.analyze_document(sample_document)
 
     print("\n\n--- FINAL COMPLIANCE ANALYSIS ---")
-    for section, analysis in analysis_results.items():
-        print(f"\n--- Analysis for Section: {section} ---")
-        print(analysis)
+    print(json.dumps(analysis_results, indent=2))
