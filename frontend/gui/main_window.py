@@ -2,7 +2,7 @@
 import sys
 import sqlite3
 import os
-import re
+import re 
 from typing import List, Tuple
 from PyQt6.QtWidgets import (
     QApplication,
