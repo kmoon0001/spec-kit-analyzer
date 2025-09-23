@@ -1,0 +1,8 @@
+pdfplumber
+requests
+pytest
+pytest-mock
+matplotlib
+pyyaml
+rdflib
+
