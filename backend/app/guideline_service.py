@@ -20,24 +20,26 @@ logger = logging.getLogger(__name__)
 class GuidelineService:
     """
     Manages loading, indexing, and searching of compliance guidelines.
-    This is a placeholder implementation.
     """
 
-    def __init__(self, rag_instance = None):
+    def __init__(self, rag_instance=None):
         """
         Initializes the GuidelineService.
         """
         self.rag = rag_instance
         self.guideline_chunks: List[Tuple[str, str]] = []
         self.is_index_ready = False
-        logger.info("GuidelineService initialized with placeholder implementation. No indexing will occur.")
+        logger.info("GuidelineService initialized.")
 
     def load_and_index_guidelines(self, sources: List[str]) -> None:
         """
-        Placeholder for loading guidelines. Does not index.
+        Loads guidelines from a list of local file paths.
         """
-        logger.info(f"GuidelineService.load_and_index_guidelines called, but service is a placeholder. Guidelines will not be indexed.")
-        self.is_index_ready = False
+        self.guideline_chunks = []
+        for source_path in sources:
+            self.guideline_chunks.extend(self._load_from_local_path(source_path))
+        self.is_index_ready = True
+        logger.info(f"Loaded {len(self.guideline_chunks)} guideline chunks.")
 
     def _extract_text_from_pdf(
         self, file_path: str, source_name: str
@@ -104,7 +106,18 @@ class GuidelineService:
 
     def search(self, query: str, top_k: int = 2) -> List[dict]:
         """
-        Placeholder for searching the guideline index. Returns an empty list.
+        Performs a simple keyword search through the loaded guidelines.
         """
-        logger.warning("GuidelineService.search called, but service is a placeholder. Returning empty list.")
-        return []
+        if not self.is_index_ready:
+            logger.warning("Search called before guidelines were loaded.")
+            return []
+
+        results = []
+        query_lower = query.lower()
+        for chunk, source in self.guideline_chunks:
+            if query_lower in chunk.lower():
+                results.append({"text": chunk, "source": source})
+
+        # Sort results by some relevance metric (e.g., how many times the query appears)
+        # For now, we'll just take the first k results.
+        return results[:top_k]
