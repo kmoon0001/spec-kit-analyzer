@@ -2,7 +2,7 @@
 
 # Server
 fastapi
-uvicorn
+uvicorn 
 
 # Document Parsing
 python-docx
