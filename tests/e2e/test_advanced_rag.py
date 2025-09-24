@@ -12,7 +12,7 @@ def compliance_analyzer_with_mocks(mocker):
     This fixture ensures that expensive models and external services are mocked
     *before* the ComplianceAnalyzer is instantiated.
     """
-    # 1. Define a controlled set of compliance rules for testing
+    # 1. Define a controlled set of compliance rules for testing 
     mock_rules = [
         ComplianceRule(
             uri="http://example.com/rule/keyword",
