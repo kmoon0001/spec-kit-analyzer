@@ -25,6 +25,7 @@ class ComplianceRule:
     positive_keywords: List[str] = field(default_factory=list)
     negative_keywords: List[str] = field(default_factory=list)
 
+
 class RubricService:
     """
     Service to load and query the compliance rubric ontology.
@@ -81,29 +82,26 @@ class RubricService:
                 BIND(IF(BOUND(?pos_kw), ?pos_kw, "") AS ?safe_pos_kw)
                 BIND(IF(BOUND(?neg_kw), ?neg_kw, "") AS ?safe_neg_kw)
             }}
-            GROUP BY ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?document_type ?suggestion ?financial_impact
         """
 
         rules = []
         try:
             results = self.graph.query(query)
             for row in results:
-                pos_kws = str(row.positive_keywords).split('|') if row.positive_keywords else []
-                neg_kws = str(row.negative_keywords).split('|') if row.negative_keywords else []
-
+                # Directly create ComplianceRule objects from the row data
                 rule = ComplianceRule(
                     uri=str(row.rule),
-                    severity=str(row.severity or ""),
-                    strict_severity=str(row.strict_severity or ""),
-                    issue_title=str(row.title or ""),
-                    issue_detail=str(row.detail or ""),
-                    issue_category=str(row.category or "General"),
-                    discipline=str(row.discipline or "All"),
+                    issue_title=str(row.title) if row.title else "",
+                    issue_detail=str(row.detail) if row.detail else "",
+                    severity=str(row.severity) if row.severity else "",
+                    strict_severity=str(row.strict_severity) if row.strict_severity else "",
+                    issue_category=str(row.category) if row.category else "General",
+                    discipline=str(row.discipline) if row.discipline else "All",
                     document_type=str(row.document_type) if row.document_type else None,
-                    suggestion=str(row.suggestion or "No suggestion available."),
-                    financial_impact=int(row.financial_impact or 0),
-                    positive_keywords=[kw for kw in pos_kws if kw],
-                    negative_keywords=[kw for kw in neg_kws if kw]
+                    suggestion=str(row.suggestion) if row.suggestion else "No suggestion available.",
+                    financial_impact=int(row.financial_impact) if row.financial_impact else 0,
+                    positive_keywords=str(row.positive_keywords).split('|') if row.positive_keywords else [],
+                    negative_keywords=str(row.negative_keywords).split('|') if row.negative_keywords else []
                 )
                 rules.append(rule)
 
