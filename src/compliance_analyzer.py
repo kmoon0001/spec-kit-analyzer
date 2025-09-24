@@ -5,6 +5,7 @@ from typing import Dict, Any, List
 from src.core.ner import NERPipeline
 from src.core.prompt_manager import PromptManager
 from src.core.explanation import ExplanationEngine
+from src.core.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,10 @@ class ComplianceAnalyzer:
         self.ner_pipeline = NERPipeline(model_name=self.config['models']['ner_model'])
         self.prompt_manager = PromptManager(template_path=self.config['models']['prompt_template'])
         self.explanation_engine = ExplanationEngine()
+        self.llm_service = LLMService(
+            model_repo_id=self.config['models']['llm_repo_id'],
+            model_filename=self.config['models']['llm_filename']
+        )
 
     def analyze_document(self, document: str, discipline: str, doc_type: str) -> Dict[str, Any]:
         """
@@ -40,7 +45,7 @@ class ComplianceAnalyzer:
 
         # 3. Build the prompt
         prompt = self.prompt_manager.build_prompt(
-            document=document,
+            document_text=document,
             entity_list=entity_list,
             context=self._format_rules_for_prompt(retrieved_rules)
         )
@@ -49,7 +54,7 @@ class ComplianceAnalyzer:
         raw_analysis = self._generate_analysis(prompt)
 
         # 5. Post-process for explanations
-        explained_analysis = self.explanation_engine.add_explanations(raw_analysis)
+        explained_analysis = self.explanation_engine.add_explanations(raw_analysis, retrieved_rules)
 
         return explained_analysis
 
@@ -63,7 +68,8 @@ class ComplianceAnalyzer:
         formatted_rules = []
         for rule in rules:
             formatted_rules.append(
-                f"- **Rule:** {rule.get('issue_title', '')}\n"
+                f"- **Rule ID:** {rule.get('id', '')}\n"
+                f"  **Title:** {rule.get('issue_title', '')}\n"
                 f"  **Detail:** {rule.get('issue_detail', '')}\n"
                 f"  **Suggestion:** {rule.get('suggestion', '')}"
             )
@@ -71,16 +77,24 @@ class ComplianceAnalyzer:
 
     def _generate_analysis(self, prompt: str) -> Dict[str, Any]:
         """
-        Placeholder for the actual LLM call.
+        Generates the analysis by calling the LLM service and parsing the output.
         """
-        logger.info("Generating analysis with prompt:\n%s", prompt)
-        # In a real implementation, this would call the LLM
-        return {
-            "findings": [
-                {
-                    "text": "Sample finding text",
-                    "risk": "Sample risk description",
-                    "suggestion": "Sample suggestion for mitigation"
-                }
-            ]
-        }
+        raw_output = self.llm_service.generate_analysis(prompt)
+
+        # Basic parsing of the raw output.
+        # This assumes the LLM returns a JSON string.
+        try:
+            # A more robust cleanup to handle cases where the model wraps the JSON in markdown
+            # or adds extra text. We'll find the first '{' and the last '}'
+            start = raw_output.find('{')
+            end = raw_output.rfind('}')
+            if start != -1 and end != -1:
+                json_str = raw_output[start:end+1]
+                analysis_result = json.loads(json_str)
+            else:
+                raise json.JSONDecodeError("No JSON object found in the output.", raw_output, 0)
+        except json.JSONDecodeError:
+            logger.error("Failed to decode LLM output into JSON.")
+            analysis_result = {"error": "Invalid JSON output from LLM", "raw_output": raw_output}
+
+        return analysis_result
