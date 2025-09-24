@@ -24,4 +24,4 @@ bitsandbytes
 rank_bm25
 accelerate
 nltk
-xhtml2pdf
+joblib
