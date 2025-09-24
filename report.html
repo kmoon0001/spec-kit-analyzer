@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compliance Analysis Report</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .report-container {
+            max-width: 900px;
+            margin: 2em auto;
+            padding: 30px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .report-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 20px;
+        }
+        .report-header h1 {
+            color: #4CAF50;
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .report-header p {
+            margin: 5px 0;
+            color: #777;
+        }
+        .section-title {
+            color: #4CAF50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-top: 30px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+        .findings-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .findings-table th, .findings-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .findings-table th {
+            background-color: #f9f9f9;
+            font-weight: bold;
+            color: #555;
+        }
+        .findings-table tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .finding-text {
+            font-style: italic;
+            color: #555;
+        }
+        .finding-risk {
+            font-weight: bold;
+            color: #d9534f;
+        }
+        .finding-suggestion {
+            color: #5cb85c;
+        }
+        .no-findings {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #777;
+        }
+        .report-footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 0.9em;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <div class="report-header">
+            <h1>Compliance Analysis Report</h1>
+            <p>Document: dummy_document.txt</p>
+            <p>Analysis Date: 2025-09-24 20:47:33</p>
+        </div>
+
+        <h2 class="section-title">Analysis Findings</h2>
+        <div id="findings_container">
+            <!-- Findings will be dynamically inserted here -->
+        </div>
+
+        <div class="report-footer">
+            <p>Generated on: 2025-09-24 20:47:33</p>
+            <p>This report is auto-generated and should be reviewed by a qualified professional.</p>
+        </div>
+    </div>
+
+    <script>
+        function renderFindings(analysisResult) {
+            const findingsContainer = document.getElementById('findings_container');
+            findingsContainer.innerHTML = ''; // Clear previous content
+
+            if (analysisResult && analysisResult.findings && analysisResult.findings.length > 0) {
+                const table = document.createElement('table');
+                table.className = 'findings-table';
+
+                const header = table.createTHead();
+                const headerRow = header.insertRow();
+                headerRow.innerHTML = '<th>Original Text</th><th>Compliance Risk</th><th>Mitigation Suggestion</th>';
+
+                const tbody = table.createTBody();
+                analysisResult.findings.forEach(finding => {
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td class="finding-text">${finding.text || 'N/A'}</td>
+                        <td class="finding-risk">${finding.risk || 'N/A'}</td>
+                        <td class="finding-suggestion">${finding.suggestion || 'N/A'}</td>
+                    `;
+                });
+                findingsContainer.appendChild(table);
+            } else {
+                findingsContainer.innerHTML = '<p class="no-findings">No compliance findings were identified.</p>';
+            }
+        }
+
+        const analysisData = {"findings": [{"text": "<original text>", "risk": "<compliance risk>", "suggestion": "<mitigation>", "explanation": "Risk was identified due to presence of: <compliance risk>"}]};
+        renderFindings(analysisData);
+    </script>
+</body>
+</html>
