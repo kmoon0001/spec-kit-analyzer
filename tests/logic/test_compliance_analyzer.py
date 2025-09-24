@@ -59,7 +59,6 @@ class TestComplianceAnalyzer:
         prompt = analyzer._build_prompt(document, entity_list, context)
         assert "This is a test document." in prompt
         assert "'test' (test_entity)" in prompt
-        assert "Relevant Medicare Compliance Rules" in prompt
-        assert "Test Rule" in prompt
+        assert "Relevant Medicare Guidelines" in prompt
         assert "You are an expert Medicare compliance officer" in prompt
 

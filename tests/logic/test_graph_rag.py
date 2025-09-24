@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
 
 from core.hybrid_retriever import HybridRetriever
-from rubric_service import ComplianceRule
+from src.rubric_service import ComplianceRule
 
 @pytest.fixture(scope="module")
 def retriever():
