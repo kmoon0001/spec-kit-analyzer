@@ -1,7 +1,6 @@
 import logging
 import torch
 import json
-import re
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from src.guideline_service import GuidelineService
 from src.rubric_service import ComplianceRule
@@ -25,12 +24,13 @@ class PromptManager:
             "**Your Task:**\nBased on all the information above, provide a detailed compliance analysis. "
             "Identify any potential risks, explain why they are risks according to the retrieved rules, and suggest specific actions to mitigate them. "
             "If no risks are found, state that the document appears to be compliant.\n\n"
-            "**Output Format:**\nReturn the analysis as a JSON object.\n\n"
+            "**Output Format:**\nReturn the analysis as a JSON object with the following structure:\n"
+            "{\"findings\": [{\"text\": \"<original text>\", \"risk\": \"<compliance risk>\", \"suggestion\": \"<mitigation>\"}]}\n\n"
             "**Compliance Analysis:**\n"
         )
 
     def build_prompt(self, document, entities, context):
-        return self.template.format(document=document, entities=entities, context=context)
+        return self.template.replace("{document}", document).replace("{entities}", entities).replace("{context}", context)
 
 # ========== NER Entity Extractor ==========
 class EntityExtractor:
@@ -76,7 +76,7 @@ class ComplianceAnalyzer:
 
         logger.info(f"Initializing ComplianceAnalyzer with model: {generator_model_name}")
 
-        self.guideline_service = guideline_service or GuidelineService()
+        self.guideline_service = guideline_service or GuidelineService(sources=["_default_medicare_benefit_policy_manual.txt"])
         self.retriever = retriever if retriever else None
 
         quantization = self.config.get('quantization', {})
@@ -117,9 +117,9 @@ class ComplianceAnalyzer:
         if self.use_query_transformation:
             query = self._transform_query(query)
         retrieved_rules = (
-            self.retriever.search(query=query, discipline=discipline, doc_type=doc_type_obj.name)
+            self.retriever.search(query=query)
             if self.retriever else
-            self.guideline_service.search(query=query, discipline=discipline, doc_type=doc_type_obj.name)
+            self.guideline_service.search(query=query)
         )
         context_str = self._format_rules_for_prompt(retrieved_rules)
         logger.info("Retrieved and formatted context.")
@@ -132,17 +132,6 @@ class ComplianceAnalyzer:
 
         analysis = self._parse_json_output(result)
         logger.info("Raw model analysis returned.")
-
-        while "search" in analysis:
-            search_query = analysis["search"]
-            logger.info(f"LLM requested a search: {search_query}")
-            retrieved_rules = self.guideline_service.search(query=search_query)
-            context_str = self._format_rules_for_prompt(retrieved_rules)
-            prompt = self.prompt_manager.build_prompt(document_text, entities_str, context_str)
-            inputs = self.generator_tokenizer(prompt, return_tensors="pt").to(self.generator_model.device)
-            output = self.generator_model.generate(**inputs, max_new_tokens=512, num_return_sequences=1)
-            result = self.generator_tokenizer.decode(output[0], skip_special_tokens=True)
-            analysis = self._parse_json_output(result)
 
         analysis = self.explanation_engine.generate_explanation(analysis)
         logger.info("Explanations generated.")
@@ -158,31 +147,24 @@ class ComplianceAnalyzer:
         formatted_rules = []
         for rule in rules:
             formatted_rules.append(
-                f"- **Rule:** {getattr(rule, 'issue_title', '')}\n"
-                f"  **Detail:** {getattr(rule, 'issue_detail', '')}\n"
-                f"  **Suggestion:** {getattr(rule, 'suggestion', '')}"
+                f"- **Rule:** {rule.get('text', '')}\n"
+                f"  **Source:** {rule.get('source', '')}\n"
             )
         return "\n".join(formatted_rules)
 
     def _parse_json_output(self, result: str) -> dict:
         try:
-            # Correctly handle JSON extraction from markdown code blocks
-            json_match = re.search(r"```json\n(.*?)\n```", result, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1).strip()
-                analysis = json.loads(json_str)
-            elif "[SEARCH]" in result:
-                search_query = result.split("[SEARCH]")[-1].strip()
-                analysis = {"search": search_query}
+            json_start = result.find('```json')
+            if json_start != -1:
+                json_str = result[json_start + 7:].strip()
+                json_end = json_str.rfind('```')
+                if json_end != -1:
+                    json_str = json_str[:json_end].strip()
             else:
-                # Fallback for plain JSON object
                 json_start = result.find('{')
                 json_end = result.rfind('}') + 1
-                if json_start != -1 and json_end != 0:
-                    json_str = result[json_start:json_end]
-                    analysis = json.loads(json_str)
-                else:
-                    raise ValueError("No JSON object found in the output.")
+                json_str = result[json_start:json_end]
+            analysis = json.loads(json_str)
         except (json.JSONDecodeError, IndexError, ValueError) as e:
             logger.error(f"Error parsing JSON output: {e}\nRaw model output:\n{result}")
             analysis = {"error": "Failed to parse JSON output from model."}

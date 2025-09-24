@@ -56,38 +56,39 @@ class RubricService:
             logger.warning("Ontology graph is empty. Cannot retrieve rules.")
             return []
 
-        NS_URI = "http://example.com/speckit/ontology#"
-        query = f"""
-        SELECT ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?document_type ?suggestion ?financial_impact
-               (GROUP_CONCAT(DISTINCT ?safe_pos_kw; SEPARATOR="|") AS ?positive_keywords)
-               (GROUP_CONCAT(DISTINCT ?safe_neg_kw; SEPARATOR="|") AS ?negative_keywords)
-        WHERE {{
-            ?rule a <{NS_URI}ComplianceRule> .
-            OPTIONAL {{ ?rule <{NS_URI}hasIssueTitle> ?title . }}
-            OPTIONAL {{ ?rule <{NS_URI}hasIssueDetail> ?detail . }}
-            OPTIONAL {{ ?rule <{NS_URI}hasSeverity> ?severity . }}
-            OPTIONAL {{ ?rule <{NS_URI}hasStrictSeverity> ?strict_severity . }}
-            OPTIONAL {{ ?rule <{NS_URI}hasIssueCategory> ?category . }}
-            OPTIONAL {{ ?rule <{NS_URI}hasDiscipline> ?discipline . }}
-            OPTIONAL {{ ?rule <{NS_URI}hasDocumentType> ?document_type . }}
-            OPTIONAL {{ ?rule <{NS_URI}hasSuggestion> ?suggestion . }}
-            OPTIONAL {{ ?rule <{NS_URI}hasFinancialImpact> ?financial_impact . }}
-            OPTIONAL {{
-                ?rule <{NS_URI}hasPositiveKeywords> ?pos_ks .
-                ?pos_ks <{NS_URI}hasKeyword> ?pos_kw .
-            }}
-            OPTIONAL {{
-                ?rule <{NS_URI}hasNegativeKeywords> ?neg_ks .
-                ?neg_ks <{NS_URI}hasKeyword> ?neg_kw .
-            }}
-            BIND(IF(BOUND(?pos_kw), ?pos_kw, "") AS ?safe_pos_kw)
-            BIND(IF(BOUND(?neg_kw), ?neg_kw, "") AS ?safe_neg_kw)
-        }}
-        GROUP BY ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?document_type ?suggestion ?financial_impact
-        """
-
         try:
+            NS_URI = "http://example.com/speckit/ontology#"
+            query = f"""
+            SELECT ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?document_type ?suggestion ?financial_impact
+                   (GROUP_CONCAT(DISTINCT ?safe_pos_kw; SEPARATOR="|") AS ?positive_keywords)
+                   (GROUP_CONCAT(DISTINCT ?safe_neg_kw; SEPARATOR="|") AS ?negative_keywords)
+            WHERE {{
+                ?rule a <{NS_URI}ComplianceRule> .
+                OPTIONAL {{ ?rule <{NS_URI}hasIssueTitle> ?title . }}
+                OPTIONAL {{ ?rule <{NS_URI}hasIssueDetail> ?detail . }}
+                OPTIONAL {{ ?rule <{NS_URI}hasSeverity> ?severity . }}
+                OPTIONAL {{ ?rule <{NS_URI}hasStrictSeverity> ?strict_severity . }}
+                OPTIONAL {{ ?rule <{NS_URI}hasIssueCategory> ?category . }}
+                OPTIONAL {{ ?rule <{NS_URI}hasDiscipline> ?discipline . }}
+                OPTIONAL {{ ?rule <{NS_URI}hasDocumentType> ?document_type . }}
+                OPTIONAL {{ ?rule <{NS_URI}hasSuggestion> ?suggestion . }}
+                OPTIONAL {{ ?rule <{NS_URI}hasFinancialImpact> ?financial_impact . }}
+                OPTIONAL {{
+                    ?rule <{NS_URI}hasPositiveKeywords> ?pos_ks .
+                    ?pos_ks <{NS_URI}hasKeyword> ?pos_kw .
+                }}
+                OPTIONAL {{
+                    ?rule <{NS_URI}hasNegativeKeywords> ?neg_ks .
+                    ?neg_ks <{NS_URI}hasKeyword> ?neg_kw .
+                }}
+                BIND(IF(BOUND(?pos_kw), ?pos_kw, "") AS ?safe_pos_kw)
+                BIND(IF(BOUND(?neg_kw), ?neg_kw, "") AS ?safe_neg_kw)
+            }}
+            GROUP BY ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?document_type ?suggestion ?financial_impact
+            """
+
             results = self.graph.query(query)
+
             rules = []
             for row in results:
                 rule = ComplianceRule(
@@ -106,10 +107,11 @@ class RubricService:
                 )
                 rules.append(rule)
             logger.info(f"Successfully retrieved and processed {len(rules)} rules from the ontology.")
-            return rules
         except Exception as e:
-            logger.exception(f"Failed to query rules from ontology: {e}")
-            return []
+            logger.exception(f"Failed to query and process rules from ontology: {e}")
+            return [] # Return empty list on failure
+
+        return rules
 
     def get_filtered_rules(self, doc_type: str, discipline: str = "All") -> List[ComplianceRule]:
         """
