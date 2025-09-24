@@ -1,3 +1,9 @@
+import os
+import yaml
+
+# Get the absolute path to the project's root directory
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 def chunk_text(text: str, max_chars: int = 4000):
     chunks = []
     start = 0
@@ -11,9 +17,8 @@ def chunk_text(text: str, max_chars: int = 4000):
         start = end
     return chunks
 
-import yaml
-
 def load_config():
     """Loads the application configuration from config.yaml."""
-    with open('config.yaml', 'r') as f:
+    config_path = os.path.join(os.path.dirname(ROOT_DIR), "config.yaml")
+    with open(config_path, 'r') as f:
         return yaml.safe_load(f)
