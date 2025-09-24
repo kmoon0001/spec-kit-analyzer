@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from rdflib import Graph, Namespace
-from rdflib.plugins.sparql import prepareQuery
+from rdflib.plugins.sparql import prepareQuery 
 
 logger = logging.getLogger(__name__)
 
