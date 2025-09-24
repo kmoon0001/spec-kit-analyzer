@@ -1,94 +1,78 @@
 import os
-import yaml
-import logging
-import pickle
+from datetime import datetime
+import sqlite3
+import json
+import tempfile
+from src.rubric_service import RubricService
 from src.parsing import parse_document_content
-
-# Import all the necessary services
+from src.guideline_service import GuidelineService
+from src.database import DATABASE_PATH
 from .compliance_analyzer import ComplianceAnalyzer
-from .hybrid_retriever import HybridRetriever
-from .report_generator import ReportGenerator
-from .document_classifier import DocumentClassifier
-from .llm_service import LLMService
-from .ner import NERPipeline
-from .explanation import ExplanationEngine
-from .prompt_manager import PromptManager
-from .fact_checker_service import FactCheckerService # New Import
-
-logger = logging.getLogger(__name__)
-
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 class AnalysisService:
-    """
-    The central orchestrator for the entire analysis pipeline.
-    Initializes and holds all AI-related services.
-    """
     def __init__(self):
-        logger.info("Initializing AnalysisService and all sub-components...")
-        try:
-            config_path = os.path.join(ROOT_DIR, "config.yaml")
-            with open(config_path, "r") as f:
-                config = yaml.safe_load(f)
+        self.analyzer = ComplianceAnalyzer()
 
-            # 1. Initialize the core AI models and services
-            llm_service = LLMService(
-                model_repo_id=config['models']['generator'],
-                model_filename=config['models'].get('generator_filename'),
-                llm_settings=config.get('llm_settings', {})
-            )
-            fact_checker_service = FactCheckerService(model_name=config['models']['fact_checker'])
-            ner_pipeline = NERPipeline(model_names=config['models']['ner_ensemble'])
-            self.retriever = HybridRetriever()
-            self.report_generator = ReportGenerator()
-            explanation_engine = ExplanationEngine()
-
-            self.document_classifier = DocumentClassifier(
-                llm_service=llm_service,
-                prompt_template_path=os.path.join(ROOT_DIR, config['models']['doc_classifier_prompt'])
-            )
-
-            analysis_prompt_manager = PromptManager(
-                template_path=os.path.join(ROOT_DIR, config['models']['analysis_prompt_template'])
-            )
-
-            # 2. Initialize the main analyzer, passing it all the pre-loaded components
-            self.analyzer = ComplianceAnalyzer(
-                retriever=self.retriever,
-                ner_pipeline=ner_pipeline,
-                llm_service=llm_service,
-                explanation_engine=explanation_engine,
-                prompt_manager=analysis_prompt_manager,
-                fact_checker_service=fact_checker_service # Pass the new service
-            )
-            logger.info("AnalysisService initialized successfully.")
-
-        except Exception as e:
-            logger.error(f"FATAL: Failed to initialize AnalysisService: {e}", exc_info=True)
-            raise e
-
-    def get_document_embedding(self, text: str) -> bytes:
-        if not self.retriever or not self.retriever.dense_retriever:
-            raise RuntimeError("Dense retriever is not initialized.")
-        embedding = self.retriever.dense_retriever.encode(text)
-        return pickle.dumps(embedding)
-
-    def analyze_document(self, file_path: str, discipline: str) -> dict:
+    def analyze_document(self, file_path: str, rubric_id: int | None = None, discipline: str | None = None, analysis_mode: str = "rubric") -> str:
+        # 1. Parse the document content
+        document_chunks = parse_document_content(file_path)
+        document_text = " ".join([chunk['sentence'] for chunk in document_chunks])
         doc_name = os.path.basename(file_path)
-        logger.info(f"Starting analysis for document: {doc_name}")
 
-        document_text = " ".join([chunk['sentence'] for chunk in parse_document_content(file_path)])
-
-        # Preprocessing step removed as the service is obsolete
-        corrected_text = document_text
-
-        doc_type = self.document_classifier.classify_document(corrected_text)
-        logger.info(f"Document classified as: {doc_type}")
-
+        # 2. Perform analysis using the ComplianceAnalyzer
         analysis_result = self.analyzer.analyze_document(
-            document_text=corrected_text,
+            document_text,
             discipline=discipline,
-            doc_type=doc_type
+            analysis_mode=analysis_mode,
         )
 
-        return analysis_result
+        # 3. Generate the HTML report based on the analysis mode
+        if analysis_mode in ["llm_only", "hybrid"]:
+            with open(os.path.join("backend", "app", "templates", "llm_report_template.html"), "r") as f:
+                template_str = f.read()
+
+            report_html = template_str.replace("<!-- Placeholder for document name -->", doc_name)
+            report_html = report_html.replace("<!-- Placeholder for analysis date -->", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            report_html = report_html.replace("<!-- Placeholder for generation date -->", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+            # Inject the JSON directly into the script tag
+            analysis_json_str = json.dumps(analysis_result)
+            report_html = report_html.replace("<!-- {{ analysis_result_json | safe }} -->", analysis_json_str)
+
+        else: # Existing rubric-based report
+            with open(os.path.join("src", "resources", "report_template.html"), "r") as f:
+                template_str = f.read()
+
+            # Populate summary
+            report_html = template_str.replace("<!-- Placeholder for document name -->", doc_name)
+            report_html = report_html.replace("<!-- Placeholder for analysis date -->", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+            findings = analysis_result.get("findings", [])
+            compliance_score = max(0, 100 - (len(findings) * 10)) # Simple scoring
+            report_html = report_html.replace("<!-- Placeholder for compliance score -->", str(compliance_score))
+            report_html = report_html.replace("<!-- Placeholder for total findings -->", str(len(findings)))
+
+            # Populate findings table
+            findings_rows_html = ""
+            if findings:
+                for finding in findings:
+                    findings_rows_html += f"""
+                    <tr>
+                        <td>{finding.get('rule_id', 'N/A')}</td>
+                        <td>{finding.get('risk', 'N/A')}</td>
+                        <td>{finding.get('suggestion', 'N/A')}</td>
+                        <td>{finding.get('text', 'N/A')}</td>
+                    </tr>
+                    """
+            else:
+                findings_rows_html = "<tr><td colspan='4'>No findings.</td></tr>"
+            report_html = report_html.replace("<!-- Placeholder for findings rows -->", findings_rows_html)
+
+            # Populate Medicare guidelines
+            guidelines_html = "<p>No relevant Medicare guidelines found.</p>" # Placeholder
+            report_html = report_html.replace("<!-- Placeholder for Medicare guidelines -->", guidelines_html)
+
+            # Populate footer
+            report_html = report_html.replace("<!-- Placeholder for generation date -->", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+        return report_html
