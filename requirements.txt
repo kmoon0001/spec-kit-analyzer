@@ -13,7 +13,7 @@ python-multipart
 python-docx
 pytesseract
 Pillow
-pandas
+pandas 
 openpyxl
 torch
 transformers
