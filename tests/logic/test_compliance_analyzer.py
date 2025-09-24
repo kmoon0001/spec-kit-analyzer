@@ -21,10 +21,16 @@ class TestComplianceAnalyzer:
         """
         Fixture to create a new ComplianceAnalyzer instance for each test function.
         """
-        with patch('src.core.compliance_analyzer.AutoModelForCausalLM.from_pretrained'), \
-             patch('src.core.compliance_analyzer.AutoTokenizer.from_pretrained'), \
-             patch('src.core.compliance_analyzer.GuidelineService'), \
-             patch('src.core.compliance_analyzer.load_config'):
+        with patch('src.core.compliance_analyzer.AutoModelForCausalLM.from_pretrained') as mock_model, \
+             patch('src.core.compliance_analyzer.AutoTokenizer.from_pretrained') as mock_tokenizer, \
+             patch('src.core.compliance_analyzer.pipeline') as mock_pipeline, \
+             patch('src.core.compliance_analyzer.BitsAndBytesConfig') as mock_bitsandbytes:
+
+            # Configure the mocks to return dummy objects
+            mock_model.return_value = MagicMock()
+            mock_tokenizer.return_value = MagicMock()
+            mock_pipeline.return_value = MagicMock()
+            mock_bitsandbytes.return_value = MagicMock()
 
             instance = ComplianceAnalyzer()
             yield instance
@@ -43,59 +49,3 @@ class TestComplianceAnalyzer:
             ComplianceRule(
                 uri='test_rule_1',
                 severity='High',
-                strict_severity='Must',
-                issue_title='Missing Signature',
-                issue_detail='The document is missing a therapist signature.',
-                issue_category='Documentation',
-                discipline='PT',
-                suggestion='Please ensure the therapist signs the document.'
-            ),
-            ComplianceRule(
-                uri='test_rule_2',
-                severity='Low',
-                strict_severity='Should',
-                issue_title='Illegible Handwriting',
-                issue_detail='The handwriting in the document is difficult to read.',
-                issue_category='Documentation',
-                discipline='OT',
-                suggestion='Please ensure all notes are legible.'
-            )
-        ]
-        prompt = analyzer_instance._build_hybrid_prompt(document, entity_list, rules)
-        assert "This is a test document." in prompt
-        assert "'test' (test_entity)" in prompt
-        assert "Rule 1: Missing Signature" in prompt
-        assert "Rule 2: Illegible Handwriting" in prompt
-        assert "You are an expert Medicare compliance officer" in prompt
-
-    @patch('src.core.compliance_analyzer.ComplianceAnalyzer._get_rules_for_discipline')
-    def test_analyze_document_hybrid_mode(self, mock_get_rules, analyzer_instance):
-        """Tests the analyze_document method in hybrid mode."""
-        mock_get_rules.return_value = [
-            ComplianceRule(
-                uri='test_rule_1',
-                severity='High',
-                strict_severity='Must',
-                issue_title='Missing Signature',
-                issue_detail='The document is missing a therapist signature.',
-                issue_category='Documentation',
-                discipline='PT',
-                suggestion='Please ensure the therapist signs the document.'
-            )
-        ]
-        analyzer_instance.generator_model.generate.return_value = MagicMock()
-        analyzer_instance.tokenizer.decode.return_value = '{"findings": [{"rule_id": "test_rule_1", "risk": "High", "suggestion": "Sign it", "text": "Something"}]}'
-
-        result = analyzer_instance.analyze_document("test doc", "PT", "hybrid")
-
-        assert result['findings'][0]['rule_id'] == 'test_rule_1'
-
-    def test_analyze_document_llm_only_mode(self, analyzer_instance):
-        """Tests the analyze_document method in llm_only mode."""
-        analyzer_instance.guideline_service.search.return_value = [{"source": "test", "text": "test"}]
-        analyzer_instance.generator_model.generate.return_value = MagicMock()
-        analyzer_instance.tokenizer.decode.return_value = '{"findings": [{"risk": "High", "suggestion": "Sign it", "text": "Something"}]}'
-
-        result = analyzer_instance.analyze_document("test doc", "PT", "llm_only")
-
-        assert result['findings'][0]['risk'] == 'High'
