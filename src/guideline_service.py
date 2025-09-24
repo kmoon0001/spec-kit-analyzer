@@ -5,13 +5,16 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
+import tempfile
 import pickle
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 # Third-party
 import pdfplumber
+import requests
 import numpy as np
-import faiss  # type: ignore
+import faiss
 from sentence_transformers import SentenceTransformer
 from src.utils import load_config
 
@@ -45,8 +48,7 @@ class GuidelineService:
         self._load_or_build_index()
         logger.info("GuidelineService initialized.")
 
-    @staticmethod
-    def classify_document(document_text: str) -> str:
+    def classify_document(self, document_text: str) -> str:
         """
         Classifies the document based on its content.
         Placeholder implementation.
@@ -71,8 +73,8 @@ class GuidelineService:
         # Check if the sources have changed
         with open(self.chunks_path, 'rb') as f:
             cached_chunks = pickle.load(f)
-        cached_sources = {chunk[1] for chunk in cached_chunks}
-        current_sources = {os.path.basename(path) for path in self.source_paths}
+        cached_sources = set(chunk[1] for chunk in cached_chunks)
+        current_sources = set(os.path.basename(path) for path in self.source_paths)
         if cached_sources != current_sources:
             return False
 
@@ -125,14 +127,12 @@ class GuidelineService:
 
             embedding_dim = embeddings_np.shape[1]
             self.faiss_index = faiss.IndexFlatL2(embedding_dim)
-            assert self.faiss_index is not None
             self.faiss_index.add(embeddings_np)
 
         self.is_index_ready = True
         logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks using FAISS.")
 
-    @staticmethod
-    def _extract_text_from_pdf(file_path: str, source_name: str) -> List[Tuple[str, str]]:
+    def _extract_text_from_pdf(self, file_path: str, source_name: str) -> List[Tuple[str, str]]:
         # ... (rest of the file is unchanged)
         """Extracts text from a file, chunking it by paragraph."""
         chunks = []
@@ -176,8 +176,7 @@ class GuidelineService:
         else:
             return self._extract_text_from_pdf(file_path, source_name)
 
-    @staticmethod
-    def _extract_text_from_json(file_path: str, source_name: str) -> List[Tuple[str, str]]:
+    def _extract_text_from_json(self, file_path: str, source_name: str) -> List[Tuple[str, str]]:
         """Extracts text from a JSON file, assuming a list of objects with specific keys."""
         chunks = []
         try:
@@ -192,7 +191,7 @@ class GuidelineService:
             raise
         return chunks
 
-    def search(self, query: str, top_k: Optional[int] = None) -> List[dict]:
+    def search(self, query: str, top_k: int = None) -> List[dict]:
         """
         Performs a FAISS similarity search through the loaded guidelines.
         """
@@ -220,9 +219,3 @@ class GuidelineService:
                 results.append({"text": chunk[0], "source": chunk[1], "score": dist})
 
         return results
-
-def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
-    """
-    Mock function to parse a guideline file. Returns an empty list.
-    """
-    return []
