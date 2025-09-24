@@ -26,6 +26,12 @@ section_headers:
   - Assessment
   - Plan
 
+# OCR settings
+ocr:
+  preprocessing: true
+  deskew: true
+  resolution: 300
+
 # Configuration for the RAG Pipeline
 models:
   ner_model: "d4data/biomedical-ner-all"
