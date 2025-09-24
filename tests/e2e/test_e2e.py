@@ -1,12 +1,12 @@
 from unittest.mock import patch
 import pytest
-from src.core.compliance_analyzer import ComplianceAnalyzer
+from src.compliance_analyzer import ComplianceAnalyzer
 
 
 @pytest.fixture
 def mock_analyzer_compliant():
     """Fixture for a compliant document scenario."""
-    with patch('src.core.compliance_analyzer.ComplianceAnalyzer', spec=ComplianceAnalyzer) as mock_analyzer_class:
+    with patch('src.compliance_analyzer.ComplianceAnalyzer', spec=ComplianceAnalyzer) as mock_analyzer_class:
         instance = mock_analyzer_class.return_value
         instance.analyze_document.return_value = {"findings": []}
         yield instance
@@ -14,7 +14,7 @@ def mock_analyzer_compliant():
 @pytest.fixture
 def mock_analyzer_non_compliant():
     """Fixture for a non-compliant document scenario."""
-    with patch('src.core.compliance_analyzer.ComplianceAnalyzer', spec=ComplianceAnalyzer) as mock_analyzer_class:
+    with patch('src.compliance_analyzer.ComplianceAnalyzer', spec=ComplianceAnalyzer) as mock_analyzer_class:
         instance = mock_analyzer_class.return_value
         instance.analyze_document.return_value = {
             "findings": [

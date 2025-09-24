@@ -1,49 +1,42 @@
-# config.yaml
+ANALYTICS_PATH: ./data/analytics/
 APP_NAME: Therapy Compliance Analyzer
-ENVIRONMENT: production
+AUTO_UPDATE: true
 DB_PATH: ./data/compliance.db
-ENCRYPTION_KEY: "{{GENERATE_YOUR_OWN_KEY}}"  # Replace with generated key
-OCR_ENGINE: Tesseract
+ENCRYPTION_KEY: '{{GENERATE_YOUR_OWN_KEY}}'
+ENVIRONMENT: production
 NLP_MODELS:
-  - ClinicalBERT
-  - BioBERT
-  - AraG
-RUBRIC_PATH: ./data/rubrics/
+- ClinicalBERT
+- BioBERT
+- AraG
+OCR_ENGINE: Tesseract
+PHI_SCRUBBER: enabled
 REPORT_PATH: ./data/reports/
 REPORT_RETENTION_HOURS: 24
-AUTO_UPDATE: true 
-ANALYTICS_PATH: ./data/analytics/
-PHI_SCRUBBER: enabled
+RUBRIC_PATH: ./data/rubrics/
 UI_MODE: responsive
-
-# Section headers for parsing clinical notes
-section_headers:
-  - Subjective
-  - Objective
-  - Assessment
-  - Plan
-
-# OCR settings
-ocr:
-  preprocessing: true
-  deskew: true
-  resolution: 300
-
-# Configuration for the RAG Pipeline
-models:
-  ner_model: "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
-  retriever: "pritamdeka/S-PubMedBert-MS-MARCO"
-  generator: "nabilfaieaz/tinyllama-med-full"
-  summarizer: "sshleifer/distilbart-cnn-12-6"
-  prompt_template: "default_prompt.txt"
-  quantization: "none"
-
-retrieval_settings:
-  similarity_top_k: 3
-
 iterative_retrieval:
   max_iterations: 3
-
+models:
+  generator: nabilfaieaz/tinyllama-med-full
+  ner_model: OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M
+  prompt_template: default_prompt.txt
+  quantization: none
+  retriever: pritamdeka/S-PubMedBert-MS-MARCO
+  summarizer: sshleifer/distilbart-cnn-12-6
+ocr:
+  deskew: true
+  preprocessing: true
+  resolution: 300
 paths:
-  index_dir: "sentence_index"
-  docs_dir: "data"
+  docs_dir: data
+  index_dir: sentence_index
+performance_profile: low
+quantization: 8bit
+retrieval_settings:
+  similarity_top_k: 3
+reviewer_difficulty: strict
+section_headers:
+- Subjective
+- Objective
+- Assessment
+- Plan

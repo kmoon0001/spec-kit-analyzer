@@ -26,8 +26,9 @@ from .widgets.control_panel import ControlPanel
 from .widgets.document_view import DocumentView
 from .widgets.analysis_view import AnalysisView
 from .workers.analysis_worker import AnalysisWorker
+from .workers.folder_analysis_worker import FolderAnalysisWorker
 from .workers.ai_loader_worker import AILoaderWorker
-from src.core.compliance_analyzer import ComplianceAnalyzer
+from src.compliance_analyzer import ComplianceAnalyzer
 
 API_URL = "http://127.0.0.1:8000"
 
@@ -79,6 +80,10 @@ class MainApplicationWindow(QMainWindow):
         self.upload_button = QPushButton('Upload Document')
         self.upload_button.clicked.connect(self.open_file_dialog)
         controls_layout.addWidget(self.upload_button)
+
+        self.upload_folder_button = QPushButton('Upload Folder')
+        self.upload_folder_button.clicked.connect(self.open_folder_dialog)
+        controls_layout.addWidget(self.upload_folder_button)
 
         self.clear_button = QPushButton('Clear Display')
         self.clear_button.clicked.connect(self.clear_display)
@@ -262,6 +267,13 @@ class MainApplicationWindow(QMainWindow):
             except Exception:
                  self.document_view.setText(f"Could not display preview for: {file_name}")
 
+    def open_folder_dialog(self):
+        folder_name = QFileDialog.getExistingDirectory(self, 'Select Folder')
+        if folder_name:
+            self._current_folder_path = folder_name
+            self.status_bar.showMessage(f"Loaded folder: {os.path.basename(folder_name)}")
+            self.run_folder_analysis()
+
 
     def run_analysis(self):
         if not self._current_file_path:
@@ -290,20 +302,78 @@ class MainApplicationWindow(QMainWindow):
         else:
             data['analysis_mode'] = 'llm_only'
 
-        self.run_analysis_threaded(data)
+        try:
+            with open(self._current_file_path, 'rb') as f:
+                files = {'file': (os.path.basename(self._current_file_path), f)}
+                response = requests.post(f"{API_URL}/analyze", files=files, data=data)
+            response.raise_for_status()
+            result = response.json()
+            task_id = result['task_id']
+            self.run_analysis_threaded(data, task_id)
+        except Exception as e:
+            self.on_analysis_error(f"Failed to start analysis: {e}")
 
-    def run_analysis_threaded(self, data):
+    def run_folder_analysis(self):
+        if not self._current_folder_path:
+            QMessageBox.warning(self, "Analysis Error", "Please upload a folder to analyze first.")
+            return
+
+        data = {}
+        discipline = self.control_panel.discipline_combo.currentText()
+        data['discipline'] = discipline
+        self.status_bar.showMessage(f"Running analysis with discipline: {discipline}...")
+
+        # Start progress bar and disable run_analysis button
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.show()
+        self.control_panel.run_analysis_button.setEnabled(False)
+        self.status_bar.showMessage("Running analysis...")
+
+        try:
+            files = []
+            for filename in os.listdir(self._current_folder_path):
+                file_path = os.path.join(self._current_folder_path, filename)
+                if os.path.isfile(file_path):
+                    files.append(('files', (filename, open(file_path, 'rb'))))
+
+            response = requests.post(f"{API_URL}/analyze_folder", files=files, data=data)
+            response.raise_for_status()
+            result = response.json()
+            task_id = result['task_id']
+            self.run_folder_analysis_threaded(data, task_id)
+        except Exception as e:
+            self.on_analysis_error(f"Failed to start analysis: {e}")
+
+    def run_analysis_threaded(self, data, task_id):
         # Threaded/worker-based analysis approach
         self.thread = QThread()
-        self.worker = AnalysisWorker(self._current_file_path, data)
+        self.worker = AnalysisWorker(self._current_file_path, data, task_id)
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
         self.worker.success.connect(self.on_analysis_success)
         self.worker.error.connect(self.on_analysis_error)
+        self.worker.progress.connect(self.on_analysis_progress)
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
         self.thread.start()
+
+    def run_folder_analysis_threaded(self, data, task_id):
+        # Threaded/worker-based analysis approach
+        self.thread = QThread()
+        self.worker = FolderAnalysisWorker(data, task_id)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.success.connect(self.on_analysis_success)
+        self.worker.error.connect(self.on_analysis_error)
+        self.worker.progress.connect(self.on_analysis_progress)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.start()
+
+    def on_analysis_progress(self, progress):
+        self.progress_bar.setValue(progress)
 
     def on_analysis_success(self, result):
         self.progress_bar.hide()

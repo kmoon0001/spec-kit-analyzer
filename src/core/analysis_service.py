@@ -7,7 +7,7 @@ from src.rubric_service import RubricService
 from src.parsing import parse_document_content
 from src.guideline_service import GuidelineService
 from src.database import DATABASE_PATH
-from .compliance_analyzer import ComplianceAnalyzer
+from src.compliance_analyzer import ComplianceAnalyzer
 
 class AnalysisService:
     def __init__(self):
