@@ -44,30 +44,41 @@ from src.guideline_service import GuidelineService
 
 @pytest.fixture
 def guideline_service(mock_sentence_transformer, mock_faiss):
-    # We need to prevent __init__ from running its own logic now that we mock things
     with patch.object(GuidelineService, '_load_or_build_index', return_value=None):
         service = GuidelineService(sources=["dummy_source.txt"])
-        # Manually set the necessary attributes for testing the search method
         service.is_index_ready = True
-        service.faiss_index = mock_faiss.IndexFlatL2()
-        service.guideline_chunks = [("chunk1 text", "source1"), ("chunk2 text", "source2")]
+
+        # Mock hierarchical data
+        summary_index_mock = MagicMock()
+        summary_index_mock.search.return_value = (np.array([[0.1]]), np.array([[0]]))
+        service.summary_index = summary_index_mock
+
+        service.sections_data = [{
+            'id': 0,
+            'summary': 'summary1',
+            'sentences': ['sentence1 in section1', 'sentence2 in section1'],
+            'source': 'Section 0'
+        }]
+
+        final_index_mock = MagicMock()
+        final_index_mock.search.return_value = (np.array([[0.1]]), np.array([[0]]))
+        mock_faiss.IndexFlatL2.return_value = final_index_mock
+
         return service
 
 def test_search_successful(guideline_service: GuidelineService):
     """
-    Tests a successful search call.
+    Tests a successful hierarchical search call.
     """
     query = "test query"
     results = guideline_service.search(query)
 
-    # Assertions
-    assert len(results) == 2
-    assert results[0]['text'] == "chunk1 text"
-    assert results[1]['source'] == "source2"
+    assert len(results) == 1
+    assert results[0]['text'] == 'sentence1 in section1'
+    assert results[0]['source'] == 'Section 0'
 
-    # Check that the underlying model and index were called correctly
-    guideline_service.model.encode.assert_called_once_with([query], convert_to_tensor=True)
-    guideline_service.faiss_index.search.assert_called_once()
+    guideline_service.model.encode.assert_called_with(['sentence1 in section1', 'sentence2 in section1'])
+    guideline_service.summary_index.search.assert_called_once()
 
 
 def test_search_with_no_index(guideline_service: GuidelineService):

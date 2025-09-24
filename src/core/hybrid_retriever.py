@@ -5,7 +5,7 @@ from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import cos_sim
 from typing import List
 
-from rubric_service import RubricService, ComplianceRule
+from src.rubric_service import RubricService, ComplianceRule
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
