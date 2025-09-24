@@ -6,15 +6,36 @@ import pytest
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from src.core.compliance_analyzer import ComplianceAnalyzer 
+from src.core.compliance_analyzer import ComplianceAnalyzer
 from src.document_classifier import DocumentClassifier, DocumentType
 from src.parsing import parse_document_into_sections
 from typing import Dict, List
 
 class TestComplianceAnalyzer:
+    @pytest.fixture(scope="function")
+    def analyzer_instance(self):
+        """
+        Fixture to create a new ComplianceAnalyzer instance for each test function.
+        It patches heavy model and retriever components to keep tests fast and isolated.
+        """
+        with patch('src.core.compliance_analyzer.HybridRetriever') as mock_hybrid_retriever:
+            mock_retriever_instance = MagicMock()
+            mock_rule = MagicMock()
+            mock_rule.issue_title = "Test Rule"
+            mock_retriever_instance.search.return_value = [mock_rule]
+            mock_hybrid_retriever.return_value = mock_retriever_instance
+
+            with patch('src.core.compliance_analyzer.AutoModelForCausalLM.from_pretrained'), \
+                 patch('src.core.compliance_analyzer.AutoTokenizer.from_pretrained'), \
+                 patch('src.core.compliance_analyzer.pipeline'):
+                instance = ComplianceAnalyzer()
+                yield instance
+
     @pytest.fixture
     def mock_analyzer(self):
-        """Fixture to create a mocked ComplianceAnalyzer instance."""
+        """
+        Fixture to create a mocked ComplianceAnalyzer instance completely stubbed for fast integration tests.
+        """
         with patch('src.core.compliance_analyzer.ComplianceAnalyzer') as mock_analyzer_class:
             instance = mock_analyzer_class.return_value
             instance.analyze_document.return_value = {"findings": []}
@@ -59,7 +80,6 @@ class TestComplianceAnalyzer:
         prompt = analyzer._build_prompt(document, entity_list, context)
         assert "This is a test document." in prompt
         assert "'test' (test_entity)" in prompt
-        assert "Relevant Medicare Compliance Rules" in prompt
+        assert "Relevant Medicare Guidelines" in prompt
         assert "Test Rule" in prompt
         assert "You are an expert Medicare compliance officer" in prompt
-

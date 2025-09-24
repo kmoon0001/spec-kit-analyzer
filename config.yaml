@@ -28,9 +28,13 @@ models:
   ner: "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
   retriever: "pritamdeka/S-PubMedBert-MS-MARCO"
   generator: "nabilfaieaz/tinyllama-med-full"
+  summarizer: "sshleifer/distilbart-cnn-12-6"
 
 retrieval_settings:
   similarity_top_k: 3
+
+iterative_retrieval:
+  max_iterations: 3
 
 paths:
   index_dir: "sentence_index"

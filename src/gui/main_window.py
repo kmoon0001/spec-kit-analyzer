@@ -21,9 +21,6 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QThread
 from .dialogs.rubric_manager_dialog import RubricManagerDialog
-from .widgets.control_panel import ControlPanel
-from .widgets.document_view import DocumentView
-from .widgets.analysis_view import AnalysisView
 from .workers.analysis_worker import AnalysisWorker
 
 API_URL = "http://127.0.0.1:8000"
@@ -102,7 +99,6 @@ class MainApplicationWindow(QMainWindow):
         splitter = QSplitter(Qt.Horizontal)
         main_layout.addWidget(splitter)
 
-        # Document group
         document_group = QGroupBox("Document")
         document_layout = QVBoxLayout()
         document_group.setLayout(document_layout)
@@ -114,7 +110,6 @@ class MainApplicationWindow(QMainWindow):
         document_layout.addWidget(self.document_display_area)
         splitter.addWidget(document_group)
 
-        # Results group
         results_group = QGroupBox("Analysis Results")
         results_layout = QVBoxLayout()
         results_group.setLayout(results_layout)
@@ -126,10 +121,8 @@ class MainApplicationWindow(QMainWindow):
         results_layout.addWidget(self.analysis_results_area)
         splitter.addWidget(results_group)
 
-        # (Optional) If you have a load_theme_setting method:
         theme = self.load_theme_setting()
         self.apply_stylesheet(theme)
-
         self.load_rubrics_to_list()
 
     def get_light_theme_stylesheet(self):
@@ -145,7 +138,7 @@ class MainApplicationWindow(QMainWindow):
                 border-radius: 5px;
                 margin-top: 10px;
                 font-weight: bold;
-             }
+            }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
@@ -169,7 +162,7 @@ class MainApplicationWindow(QMainWindow):
                 background-color: #c0c0c0;
             }
             QTextEdit, QListWidget, QComboBox {
-              background-color: #ffffff;
+                background-color: #ffffff;
                 color: #000000;
                 border: 1px solid #d0d0d0;
                 border-radius: 5px;
@@ -285,7 +278,6 @@ class MainApplicationWindow(QMainWindow):
                 f"Running analysis with discipline: {discipline}..."
             )
 
-        # Start progress bar and disable run_analysis button
         self.progress_bar.setRange(0, 0)
         self.progress_bar.show()
         self.run_analysis_button.setEnabled(False)
@@ -293,7 +285,6 @@ class MainApplicationWindow(QMainWindow):
         self.run_analysis_threaded(data)
 
     def run_analysis_threaded(self, data):
-        # Threaded/worker-based analysis approach
         self.thread = QThread()
         self.worker = AnalysisWorker(self._current_file_path, data)
         self.worker.moveToThread(self.thread)
