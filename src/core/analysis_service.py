@@ -5,14 +5,14 @@ from src.core.llm_analyzer import LLMComplianceAnalyzer
 
 class AnalysisService:
     def __init__(self):
-        # GuidelineService is initialized first, as it's a dependency for the analyzer
-        self.guideline_service = GuidelineService()
+        # Define the sources for the guidelines
         guideline_sources = [
             "_default_medicare_benefit_policy_manual.txt",
             "_default_medicare_part.txt"
         ]
-        # Load and index guidelines upon initialization
-        self.guideline_service.load_and_index_guidelines(sources=guideline_sources)
+
+        # GuidelineService is initialized with the sources, which triggers loading or building the index
+        self.guideline_service = GuidelineService(sources=guideline_sources)
 
         # Now initialize the analyzer, passing the ready guideline service
         self.llm_analyzer = LLMComplianceAnalyzer(guideline_service=self.guideline_service)
