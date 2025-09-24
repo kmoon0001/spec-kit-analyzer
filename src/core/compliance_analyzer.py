@@ -30,7 +30,7 @@ class PromptManager:
         )
 
     def build_prompt(self, document, entities, context):
-        return self.template.format(document=document, entities=entities, context=context)
+        return self.template.replace("{document}", document).replace("{entities}", entities).replace("{context}", context)
 
 # ========== NER Entity Extractor ==========
 class EntityExtractor:
@@ -76,7 +76,7 @@ class ComplianceAnalyzer:
 
         logger.info(f"Initializing ComplianceAnalyzer with model: {generator_model_name}")
 
-        self.guideline_service = guideline_service or GuidelineService()
+        self.guideline_service = guideline_service or GuidelineService(sources=["_default_medicare_benefit_policy_manual.txt"])
         self.retriever = retriever if retriever else None
 
         quantization = self.config.get('quantization', {})
@@ -117,9 +117,9 @@ class ComplianceAnalyzer:
         if self.use_query_transformation:
             query = self._transform_query(query)
         retrieved_rules = (
-            self.retriever.search(query=query, discipline=discipline, doc_type=doc_type_obj.name)
+            self.retriever.search(query=query)
             if self.retriever else
-            self.guideline_service.search(query=query, discipline=discipline, doc_type=doc_type_obj.name)
+            self.guideline_service.search(query=query)
         )
         context_str = self._format_rules_for_prompt(retrieved_rules)
         logger.info("Retrieved and formatted context.")
@@ -147,15 +147,14 @@ class ComplianceAnalyzer:
         formatted_rules = []
         for rule in rules:
             formatted_rules.append(
-                f"- **Rule:** {getattr(rule, 'issue_title', '')}\n"
-                f"  **Detail:** {getattr(rule, 'issue_detail', '')}\n"
-                f"  **Suggestion:** {getattr(rule, 'suggestion', '')}"
+                f"- **Rule:** {rule.get('text', '')}\n"
+                f"  **Source:** {rule.get('source', '')}\n"
             )
         return "\n".join(formatted_rules)
 
     def _parse_json_output(self, result: str) -> dict:
         try:
-            json_start = result.find('```
+            json_start = result.find('```json')
             if json_start != -1:
                 json_str = result[json_start + 7:].strip()
                 json_end = json_str.rfind('```')

@@ -47,6 +47,13 @@ class GuidelineService:
         self._load_or_build_index()
         logger.info("GuidelineService initialized.")
 
+    def classify_document(self, document_text: str) -> str:
+        """
+        Classifies the document based on its content.
+        Placeholder implementation.
+        """
+        return "Unknown"
+
     def _load_or_build_index(self):
         """Loads the index from cache if valid, otherwise builds it from source."""
         if self._is_cache_valid():
