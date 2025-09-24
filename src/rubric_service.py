@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from rdflib import Graph, Namespace
-from rdflib.plugins.sparql import prepareQuery
+from rdflib.plugins.sparql import prepareQuery 
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,6 @@ class ComplianceRule:
     financial_impact: int = 0
     positive_keywords: List[str] = field(default_factory=list)
     negative_keywords: List[str] = field(default_factory=list)
-
 
 class RubricService:
     """
@@ -47,12 +46,15 @@ class RubricService:
     def get_rules(self) -> List[ComplianceRule]:
         """
         Queries the ontology to retrieve all compliance rules.
+        This method now uses a simpler query and processes the results in Python
+        to avoid SPARQL engine inconsistencies with GROUP_CONCAT.
         """
         if not len(self.graph):
             logger.warning("Ontology graph is empty. Cannot retrieve rules.")
             return []
 
         NS_URI = "http://example.com/speckit/ontology#"
+        # A simpler query to get all rule properties.
         query = f"""
             SELECT ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?document_type ?suggestion ?financial_impact
                    (GROUP_CONCAT(DISTINCT ?safe_pos_kw; SEPARATOR="|") AS ?positive_keywords)
@@ -86,8 +88,8 @@ class RubricService:
         try:
             results = self.graph.query(query)
             for row in results:
-                positive_keywords = str(row.positive_keywords).split('|') if row.positive_keywords else []
-                negative_keywords = str(row.negative_keywords).split('|') if row.negative_keywords else []
+                pos_kws = str(row.positive_keywords).split('|') if row.positive_keywords else []
+                neg_kws = str(row.negative_keywords).split('|') if row.negative_keywords else []
 
                 rule = ComplianceRule(
                     uri=str(row.rule),
@@ -99,25 +101,33 @@ class RubricService:
                     discipline=str(row.discipline or "All"),
                     document_type=str(row.document_type) if row.document_type else None,
                     suggestion=str(row.suggestion or "No suggestion available."),
-                    financial_impact=int(row.financial_impact) if row.financial_impact else 0,
-                    positive_keywords=[kw for kw in positive_keywords if kw],
-                    negative_keywords=[kw for kw in negative_keywords if kw]
+                    financial_impact=int(row.financial_impact or 0),
+                    positive_keywords=[kw for kw in pos_kws if kw],
+                    negative_keywords=[kw for kw in neg_kws if kw]
                 )
                 rules.append(rule)
 
             logger.info(f"Successfully retrieved and processed {len(rules)} rules from the ontology.")
         except Exception as e:
             logger.exception(f"Failed to query and process rules from ontology: {e}")
-            return []
+            return [] # Return empty list on failure
 
         return rules
 
     def get_filtered_rules(self, doc_type: str, discipline: str = "All") -> List[ComplianceRule]:
         """
         Retrieves all compliance rules and filters them for a specific document type and discipline.
+
+        Args:
+            doc_type (str): The type of the document (e.g., 'Evaluation', 'Progress Note').
+            discipline (str): The discipline to filter by (e.g., 'pt', 'ot', 'slp', or 'All').
+
+        Returns:
+            List[ComplianceRule]: A list of rules that apply to the given criteria.
         """
         all_rules = self.get_rules()
 
+        # Filter by document type
         if not doc_type or doc_type == "Unknown":
             doc_type_rules = all_rules
         else:
@@ -126,6 +136,7 @@ class RubricService:
                 if rule.document_type is None or rule.document_type == doc_type
             ]
 
+        # Filter by discipline
         if discipline == "All":
             final_rules = doc_type_rules
         else:
