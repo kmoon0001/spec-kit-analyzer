@@ -8,8 +8,7 @@ import json
 from rubric_service import ComplianceRule
 
 class ComplianceAnalyzer:
-    def __init__(self, retriever: HybridRetriever = None, use_query_transformation: bool = False):
-        self.use_query_transformation = use_query_transformation
+    def __init__(self, retriever=None):
         generator_model_name = "nabilfaieaz/tinyllama-med-full"
 
         # Initialize the document classifier
@@ -51,6 +50,13 @@ class ComplianceAnalyzer:
         entity_list = ", ".join([f"'{entity['word']}' ({entity['entity_group']})" for entity in entities])
         print(f"Extracted entities: {entity_list}")
 
+        # 2. Classify document type
+        doc_type = self.classifier.classify(document_text)
+        doc_type_str = doc_type.value
+        print(f"Classified document as: {doc_type_str}")
+
+        # 3. Retrieve context from GraphRAG
+        retrieved_rules = self.retriever.search(document_text, discipline=discipline, doc_type=doc_type_str)
         # 3. Retrieve context from GraphRAG
         doc_type = self.classifier.predict(document_text)
         query = document_text
@@ -99,13 +105,6 @@ class ComplianceAnalyzer:
 
         print("Analysis generated.")
         return analysis
-
-    def _transform_query(self, query: str) -> str:
-        """
-        Transforms the query to improve retrieval results.
-        (Placeholder for more advanced logic)
-        """
-        return query
 
     def _format_rules_for_prompt(self, rules: List[ComplianceRule]) -> str:
         """
