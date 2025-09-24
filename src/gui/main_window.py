@@ -16,7 +16,9 @@ from PySide6.QtWidgets import (
     QComboBox,           # from main branch
     QLabel,              # from main branch
     QGroupBox,           # from main branch
-    QProgressBar         # from main branch
+    QProgressBar,         # from main branch
+    QCheckBox,
+    QPushButton
 )
 from PySide6.QtCore import Qt, QThread  # keep QThread only if it's used elsewhere!
 from .dialogs.rubric_manager_dialog import RubricManagerDialog
@@ -24,6 +26,8 @@ from .widgets.control_panel import ControlPanel
 from .widgets.document_view import DocumentView
 from .widgets.analysis_view import AnalysisView
 from .workers.analysis_worker import AnalysisWorker
+from .workers.ai_loader_worker import AILoaderWorker
+from src.core.compliance_analyzer import ComplianceAnalyzer
 
 API_URL = "http://127.0.0.1:8000"
 
@@ -31,7 +35,9 @@ class MainApplicationWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self._current_file_path = None
+        self.analyzer = None
         self.initUI()
+        self.load_ai_models()
 
     def initUI(self):
         self.setWindowTitle('Therapy Compliance Analyzer')
@@ -50,6 +56,9 @@ class MainApplicationWindow(QMainWindow):
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage('Ready')
+
+        self.ai_status_label = QLabel("Loading AI models...")
+        self.status_bar.addPermanentWidget(self.ai_status_label)
 
         self.progress_bar = QProgressBar(self.status_bar)
         self.status_bar.addPermanentWidget(self.progress_bar)
@@ -89,6 +98,9 @@ class MainApplicationWindow(QMainWindow):
         self.rubric_list_widget.item(0).setFlags(self.rubric_list_widget.item(0).flags() & ~Qt.ItemIsEnabled)
         self.rubric_list_widget.setEnabled(False)
         controls_layout.addWidget(self.rubric_list_widget)
+
+        self.hybrid_analysis_checkbox = QCheckBox("Hybrid Analysis")
+        controls_layout.addWidget(self.hybrid_analysis_checkbox)
 
         self.run_analysis_button = QPushButton("Run Analysis")
         self.run_analysis_button.clicked.connect(self.run_analysis)
@@ -272,6 +284,12 @@ class MainApplicationWindow(QMainWindow):
         self.progress_bar.show()
         self.control_panel.run_analysis_button.setEnabled(False)
         self.status_bar.showMessage("Running analysis...")
+        if self.hybrid_analysis_checkbox.isChecked():
+            data['analysis_mode'] = 'hybrid'
+            self.status_bar.showMessage("Running hybrid analysis...")
+        else:
+            data['analysis_mode'] = 'llm_only'
+
         self.run_analysis_threaded(data)
 
     def run_analysis_threaded(self, data):
@@ -357,3 +375,21 @@ class MainApplicationWindow(QMainWindow):
     def set_dark_theme(self):
         self.apply_stylesheet("dark")
         self.save_theme_setting("dark")
+
+    def load_ai_models(self):
+        self.thread = QThread()
+        self.worker = AILoaderWorker()
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.on_ai_loaded)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.start()
+
+    def on_ai_loaded(self, analyzer, is_healthy, status_message):
+        self.analyzer = analyzer
+        self.ai_status_label.setText(status_message)
+        self.ai_status_label.setStyleSheet(
+            "color: green;" if is_healthy else "color: red;"
+        )
