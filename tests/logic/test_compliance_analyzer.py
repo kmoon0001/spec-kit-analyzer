@@ -20,9 +20,16 @@ class TestComplianceAnalyzer:
         """
         Fixture to create a new ComplianceAnalyzer instance for each test function.
         """
-        with patch('src.core.compliance_analyzer.AutoModelForCausalLM.from_pretrained'), \
-             patch('src.core.compliance_analyzer.AutoTokenizer.from_pretrained'), \
-             patch('src.core.compliance_analyzer.pipeline'):
+        with patch('src.core.compliance_analyzer.AutoModelForCausalLM.from_pretrained') as mock_model, \
+             patch('src.core.compliance_analyzer.AutoTokenizer.from_pretrained') as mock_tokenizer, \
+             patch('src.core.compliance_analyzer.pipeline') as mock_pipeline, \
+             patch('src.core.compliance_analyzer.BitsAndBytesConfig') as mock_bitsandbytes:
+
+            # Configure the mocks to return dummy objects
+            mock_model.return_value = MagicMock()
+            mock_tokenizer.return_value = MagicMock()
+            mock_pipeline.return_value = MagicMock()
+            mock_bitsandbytes.return_value = MagicMock()
 
             from src.rubric_service import ComplianceRule
             mock_retriever = MagicMock()

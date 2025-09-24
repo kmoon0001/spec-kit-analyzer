@@ -75,7 +75,7 @@ class ComplianceAnalyzer:
 
         # 6. Extract and parse JSON (robust error handling)
         try:
-            json_start = result.find('```
+            json_start = result.find('```json')
             if json_start != -1:
                 json_str = result[json_start + 7:].strip()
                 json_end = json_str.rfind('```')
@@ -154,3 +154,4 @@ Return the analysis as a JSON object with the following structure:
 }}
 
 **Compliance Analysis:**
+"""
