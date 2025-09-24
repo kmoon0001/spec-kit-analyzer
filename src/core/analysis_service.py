@@ -6,6 +6,7 @@ from src.rubric_service import RubricService
 from src.parsing import parse_document_content
 from src.guideline_service import GuidelineService
 from src.database import DATABASE_PATH
+from src.core.llm_analyzer import LLMComplianceAnalyzer
 
 class AnalysisService:
     def __init__(self):  
@@ -69,6 +70,9 @@ class AnalysisService:
         with open(os.path.join("src", "resources", "report_template.html"), "r") as f:
             template_str = f.read()
 
+        # 6. Perform LLM analysis
+        llm_analysis_text = self.llm_analyzer.analyze_document(document_text)
+
         # Populate summary
         report_html = template_str.replace("<!-- Placeholder for document name -->", doc_name)
         report_html = report_html.replace("<!-- Placeholder for analysis date -->", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -108,6 +112,9 @@ class AnalysisService:
         if not guidelines_html:
             guidelines_html = "<p>No relevant Medicare guidelines found.</p>"
         report_html = report_html.replace("<!-- Placeholder for Medicare guidelines -->", guidelines_html)
+
+        # Populate LLM analysis
+        report_html = report_html.replace("<!-- Placeholder for LLM analysis -->", llm_analysis_text)
 
         # Populate footer
         report_html = report_html.replace("<!-- Placeholder for generation date -->", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))

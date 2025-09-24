@@ -86,6 +86,8 @@ class GuidelineService:
             logger.warning("Attempted to save cache, but index or chunks are missing.")
             return
 
+        os.makedirs(self.cache_dir, exist_ok=True)
+
         try:
             faiss.write_index(self.faiss_index, self.index_path)
             with open(self.chunks_path, 'wb') as f:
@@ -109,15 +111,17 @@ class GuidelineService:
             if embeddings_np.dtype != np.float32:
                 embeddings_np = embeddings_np.astype(np.float32)
 
+            # Normalize embeddings for cosine similarity
+            faiss.normalize_L2(embeddings_np)
+
             embedding_dim = embeddings_np.shape[1]
-            self.faiss_index = faiss.IndexFlatL2(embedding_dim)
+            self.faiss_index = faiss.IndexFlatIP(embedding_dim)
             self.faiss_index.add(embeddings_np)
 
         self.is_index_ready = True
         logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks using FAISS.")
 
     def _extract_text_from_pdf(self, file_path: str, source_name: str) -> List[Tuple[str, str]]:
-        # ... (rest of the file is unchanged)
         """Extracts text from a file, chunking it by paragraph."""
         chunks = []
         try:
@@ -157,7 +161,7 @@ class GuidelineService:
         source_name = os.path.basename(file_path)
         return self._extract_text_from_pdf(file_path, source_name)
 
-    def search(self, query: str, top_k: int = None) -> List[dict]:
+    def search(self, query: str, top_k: int = None, threshold: float = 0.7) -> List[dict]:
         """
         Performs a FAISS similarity search through the loaded guidelines.
         """
@@ -169,18 +173,19 @@ class GuidelineService:
             return []
 
         query_embedding = self.model.encode([query], convert_to_tensor=True)
-        # Ensure it's a numpy array before continuing
         if not isinstance(query_embedding, np.ndarray):
             query_embedding = query_embedding.cpu().numpy()
 
         if query_embedding.dtype != np.float32:
             query_embedding = query_embedding.astype(np.float32)
 
+        faiss.normalize_L2(query_embedding)
+
         distances, indices = self.faiss_index.search(query_embedding, top_k)
 
         results = []
-        for i in indices[0]:
-            if i != -1: # FAISS returns -1 for no result
+        for i, dist in zip(indices[0], distances[0]):
+            if i != -1 and dist >= threshold:
                 chunk = self.guideline_chunks[i]
                 results.append({"text": chunk[0], "source": chunk[1]})
 

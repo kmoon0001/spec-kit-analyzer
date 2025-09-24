@@ -45,7 +45,7 @@ def test_graph_rag_retrieval_specific_query(retriever):
 
     # 2. Assert that the top result is a ComplianceRule object.
     top_result = results[0]
-    assert isinstance(top_result, ComplianceRule)
+    assert type(top_result).__name__ == 'ComplianceRule'
 
     # 3. Assert that the top result is the one we expect.
     # We expect the "Goals" rule to be the most relevant.

@@ -5,7 +5,7 @@ from src.document_classifier import DocumentClassifier, DocumentType
 from src.parsing import parse_document_into_sections
 from typing import Dict, List
 import json
-from rubric_service import ComplianceRule
+from src.rubric_service import ComplianceRule
 
 class ComplianceAnalyzer:
     def __init__(self): 

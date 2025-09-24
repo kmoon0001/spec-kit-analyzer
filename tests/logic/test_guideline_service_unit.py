@@ -34,9 +34,9 @@ def mock_sentence_transformer():
 def mock_faiss():
     with patch('src.guideline_service.faiss') as mock:
         mock_index = MagicMock()
-        # Simulate a search result: (distances, indices)
-        mock_index.search.return_value = (np.array([[0.1, 0.2]]), np.array([[0, 1]]))
-        mock.IndexFlatL2.return_value = mock_index
+        # Simulate a search result: (distances, indices) with distances above the threshold
+        mock_index.search.return_value = (np.array([[0.9, 0.8]]), np.array([[0, 1]]))
+        mock.IndexFlatIP.return_value = mock_index
         yield mock
 
 # Now import the service after mocks are set up
@@ -49,7 +49,7 @@ def guideline_service(mock_sentence_transformer, mock_faiss):
         service = GuidelineService(sources=["dummy_source.txt"])
         # Manually set the necessary attributes for testing the search method
         service.is_index_ready = True
-        service.faiss_index = mock_faiss.IndexFlatL2()
+        service.faiss_index = mock_faiss.IndexFlatIP()
         service.guideline_chunks = [("chunk1 text", "source1"), ("chunk2 text", "source2")]
         return service
 

@@ -5,7 +5,7 @@ from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import cos_sim
 from typing import List
 
-from rubric_service import RubricService, ComplianceRule
+from src.rubric_service import RubricService, ComplianceRule
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -52,7 +52,7 @@ class HybridRetriever:
 
     def search(self, query: str, top_k: int = 5, discipline: str = "All", doc_type: str = "Unknown") -> List[ComplianceRule]:
         """
-        Performs a hybrid search and returns the top_k relevant ComplianceRule objects,
+        Performs a hybrid search and.
         filtered by discipline and document type.
 
         Args:
