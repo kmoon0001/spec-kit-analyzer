@@ -8,7 +8,7 @@ from src.guideline_service import GuidelineService
 from src.database import DATABASE_PATH
 
 class AnalysisService:
-    def __init__(self): 
+    def __init__(self):  
         self.guideline_service = GuidelineService()
         guideline_sources = [
             "_default_medicare_benefit_policy_manual.txt",
