@@ -1,6 +1,12 @@
+import os
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from sentence_transformers import SentenceTransformer
 import torch
+
+# Check for the environment variable to skip downloads
+if os.environ.get("SKIP_MODEL_DOWNLOAD", "false").lower() == "true":
+    print("SKIP_MODEL_DOWNLOAD is set to true, skipping model downloads.")
+    exit()
 
 # --- 1. Load the NER Model ---
 # This model is great for identifying medical entities.

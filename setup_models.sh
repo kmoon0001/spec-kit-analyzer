@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Check for the environment variable to skip downloads
+if [ "$SKIP_MODEL_DOWNLOAD" = "true" ]; then
+    echo "SKIP_MODEL_DOWNLOAD is set to true, skipping model downloads."
+    exit 0
+fi
+
 MODEL_DIR="./models"
 
 mkdir -p $MODEL_DIR
