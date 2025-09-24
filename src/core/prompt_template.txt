@@ -1,4 +1,11 @@
-**Instruction:** You are a medical compliance expert. Your task is to analyze the following clinical note to identify potential compliance issues based on the provided Medicare guidelines. Focus on identifying discrepancies, omissions, or statements that may not align with the best practices outlined in the guidelines. Provide a detailed analysis and quote the parts of the note that are relevant to your findings.
+**Instruction:** You are a medical compliance expert. Your task is to analyze the following clinical note to identify potential compliance issues based on the provided Medicare guidelines. Focus on identifying discrepancies, omissions, or statements that may not align with the best practices outlined in the guidelines.
+
+Please format your response as a JSON object with a single key, "findings", which is a list of issues. Each issue should be a JSON object with the following keys:
+- "issue_title": A short, descriptive title for the compliance issue.
+- "reasoning": A detailed explanation of why this is a compliance issue, quoting the relevant parts of the clinical note.
+- "suggestion": A concrete suggestion for how to remediate the issue.
+- "confidence": A float from 0.0 to 1.0 indicating your confidence in this finding.
+- "rule_id": The ID of the guideline rule that was violated (if applicable).
 
 **Provided Medicare Guidelines:**
 {context}
@@ -7,3 +14,4 @@
 {document_text}
 
 **Analysis:**
+```json
