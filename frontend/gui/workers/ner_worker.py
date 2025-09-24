@@ -2,7 +2,7 @@ import torch
 from PySide6.QtCore import QObject, Signal as pyqtSignal
 from transformers import pipeline
 
-from src.CLINICAL_NER_MODEL_CANDIDATES import CLINICAL_NER_MODEL_CANDIDATES
+from src.utils import load_config
 from src.entity import NEREntity
 
 class NERWorker(QObject):
@@ -24,25 +24,28 @@ class NERWorker(QObject):
         self._cancel = True
 
     def _load_model(self):
-        """Loads the NER model and tokenizer."""
+        """Loads the NER model and tokenizer from the config."""
         self.progress.emit(10, "Loading NER model...")
-        for model_name in CLINICAL_NER_MODEL_CANDIDATES:
-            if self._cancel:
-                return False
-            try:
-                # Using a specific torch_dtype and device_map for efficiency
-                self.ner_pipeline = pipeline(
-                    "token-classification",
-                    model=model_name,
-                    aggregation_strategy="simple",
-                    torch_dtype=torch.bfloat16,
-                    device_map="auto" # Automatically use GPU if available
-                )
-                self.progress.emit(25, f"Successfully loaded NER model '{model_name}'.")
-                return True
-            except Exception as e:
-                self.progress.emit(25, f"Failed to load '{model_name}': {e}")
-        return False
+
+        try:
+            config = load_config()
+            model_name = config['models']['ner']
+
+            self.progress.emit(15, f"Loading model '{model_name}' from config...")
+
+            # Using a specific torch_dtype and device_map for efficiency
+            self.ner_pipeline = pipeline(
+                "token-classification",
+                model=model_name,
+                aggregation_strategy="simple",
+                torch_dtype=torch.bfloat16,
+                device_map="auto" # Automatically use GPU if available
+            )
+            self.progress.emit(25, f"Successfully loaded NER model '{model_name}'.")
+            return True
+        except Exception as e:
+            self.progress.emit(25, f"Failed to load NER model: {e}")
+            return False
 
     def run(self):
         """

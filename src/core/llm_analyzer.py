@@ -2,6 +2,7 @@ import logging
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from src.guideline_service import GuidelineService
+from src.utils import load_config
 
 logger = logging.getLogger(__name__)
 
@@ -10,14 +11,16 @@ class LLMComplianceAnalyzer:
     Analyzes documents for compliance using a RAG pipeline with a quantized LLM.
     """
 
-    def __init__(self, generator_model_name: str = 'nabilfaieaz/tinyllama-med-full', guideline_service: GuidelineService = None):
+    def __init__(self, guideline_service: GuidelineService = None):
         """
         Initializes the LLMComplianceAnalyzer.
 
         Args:
-            generator_model_name (str): The name of the generator model to use from Hugging Face.
             guideline_service (GuidelineService): An instance of the GuidelineService for retrieving relevant guidelines.
         """
+        self.config = load_config()
+        generator_model_name = self.config['models']['generator']
+
         logger.info(f"Initializing LLMComplianceAnalyzer with model: {generator_model_name}")
 
         self.guideline_service = guideline_service or GuidelineService()
@@ -54,26 +57,21 @@ class LLMComplianceAnalyzer:
         logger.info("Retrieving relevant guidelines...")
         # Use a query derived from the document's content. Using the first 512 chars as a proxy for the main topic.
         query = document_text[:512]
-        retrieved_guidelines = self.guideline_service.search(query=query, top_k=3)
+        top_k = self.config['retrieval_settings']['similarity_top_k']
+        retrieved_guidelines = self.guideline_service.search(query=query, top_k=top_k)
 
         context = "\n".join([f"- {g['source']}: {g['text']}" for g in retrieved_guidelines])
 
-        # 2. Construct the prompt
-        prompt = f"""
-        **Instruction:** You are a medical compliance expert. Your task is to analyze the following clinical note to identify potential compliance issues based on the provided Medicare guidelines. Focus on identifying discrepancies, omissions, or statements that may not align with the best practices outlined in the guidelines. Provide a detailed analysis and quote the parts of the note that are relevant to your findings.
+        # 2. Load and construct the prompt from the template file
+        with open("src/core/prompt_template.txt", "r") as f:
+            prompt_template = f.read()
 
-        **Provided Medicare Guidelines:**
-        {context}
-
-        **Clinical Note to Analyze:**
-        {document_text}
-
-        **Analysis:**
-        """
+        prompt = prompt_template.format(context=context, document_text=document_text)
 
         # 3. Generate the analysis
         logger.info("Generating analysis with the LLM...")
-        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.generator_model.device)
+        tokenized_inputs = self.tokenizer(prompt, return_tensors="pt")
+        inputs = {k: v.to(self.generator_model.device) for k, v in tokenized_inputs.items()}
 
         # Generate text with a reasonable max length
         output = self.generator_model.generate(

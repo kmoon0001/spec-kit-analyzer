@@ -22,4 +22,3 @@ faiss-cpu
 bitsandbytes
 accelerate
 optimum
-
