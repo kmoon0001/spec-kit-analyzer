@@ -5,7 +5,7 @@ import sys
 # Add the src directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
 
-from core.hybrid_retriever import HybridRetriever
+from src.core.hybrid_retriever import HybridRetriever
 from src.rubric_service import ComplianceRule
 
 @pytest.fixture(scope="module")
@@ -34,7 +34,7 @@ def test_graph_rag_retrieval_specific_query(retriever):
     Tests the GraphRAG retriever with a specific query that should match a known rule.
     """
     # This query is designed to be a close match to the "Goals" rule in the rubric.
-    query = "patient goals must be measurable"
+    query = "patient goals must be measurable and time-bound"
 
     # Perform the search with filters that should include the "Goals" rule.
     results = retriever.search(query, discipline="pt", doc_type="Progress Note")
@@ -45,6 +45,8 @@ def test_graph_rag_retrieval_specific_query(retriever):
 
     # 2. Assert that the top result is a ComplianceRule object.
     top_result = results[0]
+    print(f"Type of top_result: {type(top_result)}")
+    print(f"Type of ComplianceRule: {type(ComplianceRule)}")
     assert isinstance(top_result, ComplianceRule)
 
     # 3. Assert that the top result is the one we expect.

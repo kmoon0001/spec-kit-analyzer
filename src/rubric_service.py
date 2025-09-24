@@ -82,6 +82,7 @@ class RubricService:
                 BIND(IF(BOUND(?pos_kw), ?pos_kw, "") AS ?safe_pos_kw)
                 BIND(IF(BOUND(?neg_kw), ?neg_kw, "") AS ?safe_neg_kw)
             }}
+            GROUP BY ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?document_type ?suggestion ?financial_impact
         """
 
         rules = []
@@ -93,19 +94,20 @@ class RubricService:
 
                 rule = ComplianceRule(
                     uri=str(row.rule),
-                    severity=str(row.severity) if row.severity else "",
-                    strict_severity=str(row.strict_severity) if row.strict_severity else "",
-                    issue_title=str(row.title) if row.title else "",
-                    issue_detail=str(row.detail) if row.detail else "",
-                    issue_category=str(row.category) if row.category else "General",
-                    discipline=str(row.discipline) if row.discipline else "All",
+                    severity=str(row.severity or ""),
+                    strict_severity=str(row.strict_severity or ""),
+                    issue_title=str(row.title or ""),
+                    issue_detail=str(row.detail or ""),
+                    issue_category=str(row.category or "General"),
+                    discipline=str(row.discipline or "All"),
                     document_type=str(row.document_type) if row.document_type else None,
-                    suggestion=str(row.suggestion) if row.suggestion else "No suggestion available.",
-                    financial_impact=int(row.financial_impact) if row.financial_impact else 0,
+                    suggestion=str(row.suggestion or "No suggestion available."),
+                    financial_impact=int(row.financial_impact or 0),
                     positive_keywords=[kw for kw in pos_kws if kw],
                     negative_keywords=[kw for kw in neg_kws if kw]
                 )
                 rules.append(rule)
+
             logger.info(f"Successfully retrieved and processed {len(rules)} rules from the ontology.")
         except Exception as e:
             logger.exception(f"Failed to query and process rules from ontology: {e}")
