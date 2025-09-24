@@ -62,6 +62,14 @@ class GuidelineService:
         if not os.path.exists(self.index_path) or not os.path.exists(self.chunks_path):
             return False
 
+        # Check if the sources have changed
+        with open(self.chunks_path, 'rb') as f:
+            cached_chunks = pickle.load(f)
+        cached_sources = set(chunk[1] for chunk in cached_chunks)
+        current_sources = set(os.path.basename(path) for path in self.source_paths)
+        if cached_sources != current_sources:
+            return False
+
         cache_mod_time = os.path.getmtime(self.index_path)
         for src_path in self.source_paths:
             if not os.path.exists(src_path) or os.path.getmtime(src_path) > cache_mod_time:
