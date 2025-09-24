@@ -17,13 +17,14 @@ from PySide6.QtWidgets import (
     QLabel,
     QGroupBox,
     QProgressBar,
-    QPushButton
+    QPushButton,
 )
 from PySide6.QtCore import Qt, QThread
 from .dialogs.rubric_manager_dialog import RubricManagerDialog
 from .workers.analysis_worker import AnalysisWorker
 
 API_URL = "http://127.0.0.1:8000"
+
 
 class MainApplicationWindow(QMainWindow):
     def __init__(self):
@@ -32,22 +33,22 @@ class MainApplicationWindow(QMainWindow):
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle('Therapy Compliance Analyzer')
+        self.setWindowTitle("Therapy Compliance Analyzer")
         self.setGeometry(100, 100, 1200, 800)
 
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
-        self.file_menu = self.menu_bar.addMenu('File')
-        self.file_menu.addAction('Exit', self.close)
-        self.tools_menu = self.menu_bar.addMenu('Tools')
-        self.tools_menu.addAction('Manage Rubrics', self.manage_rubrics)
-        self.theme_menu = self.menu_bar.addMenu('Theme')
-        self.theme_menu.addAction('Light', self.set_light_theme)
-        self.theme_menu.addAction('Dark', self.set_dark_theme)
+        self.file_menu = self.menu_bar.addMenu("File")
+        self.file_menu.addAction("Exit", self.close)
+        self.tools_menu = self.menu_bar.addMenu("Tools")
+        self.tools_menu.addAction("Manage Rubrics", self.manage_rubrics)
+        self.theme_menu = self.menu_bar.addMenu("Theme")
+        self.theme_menu.addAction("Light", self.set_light_theme)
+        self.theme_menu.addAction("Dark", self.set_dark_theme)
 
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage('Ready')
+        self.status_bar.showMessage("Ready")
 
         self.progress_bar = QProgressBar(self.status_bar)
         self.status_bar.addPermanentWidget(self.progress_bar)
@@ -65,11 +66,11 @@ class MainApplicationWindow(QMainWindow):
         controls_group.setLayout(controls_layout)
         main_layout.addWidget(controls_group)
 
-        self.upload_button = QPushButton('Upload Document')
+        self.upload_button = QPushButton("Upload Document")
         self.upload_button.clicked.connect(self.open_file_dialog)
         controls_layout.addWidget(self.upload_button)
 
-        self.clear_button = QPushButton('Clear Display')
+        self.clear_button = QPushButton("Clear Display")
         self.clear_button.clicked.connect(self.clear_display)
         controls_layout.addWidget(self.clear_button)
 
@@ -84,7 +85,9 @@ class MainApplicationWindow(QMainWindow):
         self.rubric_list_widget = QListWidget()
         self.rubric_list_widget.setMaximumHeight(100)
         self.rubric_list_widget.addItem("No rubric selected")
-        self.rubric_list_widget.item(0).setFlags(self.rubric_list_widget.item(0).flags() & ~Qt.ItemIsEnabled)
+        self.rubric_list_widget.item(0).setFlags(
+            self.rubric_list_widget.item(0).flags() & ~Qt.ItemIsEnabled
+        )
         self.rubric_list_widget.setEnabled(False)
         controls_layout.addWidget(self.rubric_list_widget)
 
@@ -96,22 +99,24 @@ class MainApplicationWindow(QMainWindow):
         splitter = QSplitter(Qt.Horizontal)
         main_layout.addWidget(splitter)
 
-        # Document group
         document_group = QGroupBox("Document")
         document_layout = QVBoxLayout()
         document_group.setLayout(document_layout)
         self.document_display_area = QTextEdit()
-        self.document_display_area.setPlaceholderText("Upload a document to see its content here.")
+        self.document_display_area.setPlaceholderText(
+            "Upload a document to see its content here."
+        )
         self.document_display_area.setReadOnly(True)
         document_layout.addWidget(self.document_display_area)
         splitter.addWidget(document_group)
 
-        # Results group
         results_group = QGroupBox("Analysis Results")
         results_layout = QVBoxLayout()
         results_group.setLayout(results_layout)
         self.analysis_results_area = QTextEdit()
-        self.analysis_results_area.setPlaceholderText("Analysis results will appear here.")
+        self.analysis_results_area.setPlaceholderText(
+            "Analysis results will appear here."
+        )
         self.analysis_results_area.setReadOnly(True)
         results_layout.addWidget(self.analysis_results_area)
         splitter.addWidget(results_group)
@@ -119,7 +124,6 @@ class MainApplicationWindow(QMainWindow):
         theme = self.load_theme_setting()
         self.apply_stylesheet(theme)
         self.load_rubrics_to_list()
-
 
     def get_light_theme_stylesheet(self):
         return """
@@ -134,24 +138,25 @@ class MainApplicationWindow(QMainWindow):
                 border-radius: 5px;
                 margin-top: 10px;
                 font-weight: bold;
-             }
+            }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 subcontrol-position: top center;
                 padding: 0 3px;
+                background-color: #ffffff;
             }
             QLabel {
                 color: #000000;
             }
             QPushButton {
-                background-color: #e0e0e0;
+                background-color: #d0d0d0;
                 color: #000000;
-                border: 1px solid #c0c0c0;
+                border: 1px solid #b0b0b0;
                 padding: 5px;
                 border-radius: 3px;
             }
             QPushButton:hover {
-                background-color: #d0d0d0;
+                background-color: #e0e0e0;
             }
             QPushButton:pressed {
                 background-color: #c0c0c0;
@@ -237,43 +242,49 @@ class MainApplicationWindow(QMainWindow):
             self.setStyleSheet(self.get_dark_theme_stylesheet())
 
     def open_file_dialog(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, 'Select Document', '', 'All Files (*.*)')
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, "Select Document", "", "All Files (*.*)"
+        )
         if file_name:
             self._current_file_path = file_name
             self.status_bar.showMessage(f"Loaded document: {os.path.basename(file_name)}")
             try:
-                with open(file_name, 'r', encoding='utf-8') as f:
+                with open(file_name, "r", encoding="utf-8") as f:
                     self.document_display_area.setText(f.read())
             except Exception:
-                 self.document_display_area.setText(f"Could not display preview for: {file_name}")
-
+                self.document_display_area.setText(
+                    f"Could not display preview for: {file_name}"
+                )
 
     def run_analysis(self):
         if not self._current_file_path:
-            QMessageBox.warning(self, "Analysis Error", "Please upload a document to analyze first.")
+            QMessageBox.warning(
+                self, "Analysis Error", "Please upload a document to analyze first."
+            )
             return
 
         selected_items = self.rubric_list_widget.selectedItems()
         data = {}
         if selected_items:
             rubric_id = selected_items[0].data(Qt.ItemDataRole.UserRole)
-            data['rubric_id'] = rubric_id
-            self.status_bar.showMessage(f"Running analysis with rubric: {selected_items[0].text()}...")
+            data["rubric_id"] = rubric_id
+            self.status_bar.showMessage(
+                f"Running analysis with rubric: {selected_items[0].text()}..."
+            )
         else:
             discipline = self.discipline_combo.currentText()
-            data['discipline'] = discipline
-            self.status_bar.showMessage(f"Running analysis with discipline: {discipline}...")
+            data["discipline"] = discipline
+            self.status_bar.showMessage(
+                f"Running analysis with discipline: {discipline}..."
+            )
 
-        # Start progress bar and disable run_analysis button
         self.progress_bar.setRange(0, 0)
         self.progress_bar.show()
         self.run_analysis_button.setEnabled(False)
         self.status_bar.showMessage("Running analysis...")
         self.run_analysis_threaded(data)
 
-
     def run_analysis_threaded(self, data):
-        # Threaded/worker-based analysis approach
         self.thread = QThread()
         self.worker = AnalysisWorker(self._current_file_path, data)
         self.worker.moveToThread(self.thread)
@@ -310,8 +321,8 @@ class MainApplicationWindow(QMainWindow):
             rubrics = response.json()
             if rubrics:
                 for rubric in rubrics:
-                    item = QListWidgetItem(rubric['name'])
-                    item.setData(Qt.ItemDataRole.UserRole, rubric['id'])
+                    item = QListWidgetItem(rubric["name"])
+                    item.setData(Qt.ItemDataRole.UserRole, rubric["id"])
                     self.rubric_list_widget.addItem(item)
                 self.rubric_list_widget.setEnabled(True)
             else:
@@ -323,7 +334,9 @@ class MainApplicationWindow(QMainWindow):
         except Exception as e:
             self.rubric_list_widget.clear()
             self.rubric_list_widget.addItem("Error loading rubrics")
-            self.rubric_list_widget.item(0).setFlags(self.rubric_list_widget.item(0).flags() & ~Qt.ItemIsEnabled)
+            self.rubric_list_widget.item(0).setFlags(
+                self.rubric_list_widget.item(0).flags() & ~Qt.ItemIsEnabled
+            )
             self.rubric_list_widget.setEnabled(False)
             self.handle_error(f"Failed to load rubrics from backend:\n{e}")
 

@@ -47,7 +47,7 @@ class LLMComplianceAnalyzer:
 
     def analyze_document(self, document_text: str) -> str:
         """
-        Analyzes the document using an iterative RAG pipeline.
+        Analyzes the document using an advanced iterative RAG pipeline.
 
         Args:
             document_text (str): The text of the document to analyze.
@@ -74,7 +74,14 @@ class LLMComplianceAnalyzer:
                 context_text = "\n".join([g['text'] for g in all_retrieved_guidelines])
                 inputs = self.summarizer_tokenizer(context_text, return_tensors="pt", max_length=1024, truncation=True)
                 inputs = {k: v.to(self.summarizer_model.device) for k, v in inputs.items()}
-                summary_ids = self.summarizer_model.generate(**inputs, max_length=250, min_length=50, length_penalty=2.0, num_beams=4, early_stopping=True)
+                summary_ids = self.summarizer_model.generate(
+                    **inputs,
+                    max_length=250,
+                    min_length=50,
+                    length_penalty=2.0,
+                    num_beams=4,
+                    early_stopping=True
+                )
                 context = self.summarizer_tokenizer.decode(summary_ids[0], skip_special_tokens=True)
                 logger.info("Context summarization complete.")
             else:
@@ -85,17 +92,23 @@ class LLMComplianceAnalyzer:
                 context=context,
                 document_text=document_text,
                 max_iterations=max_iterations,
-                current_iteration=i + 1
+                current_iteration=i+1
             )
 
             tokenized_inputs = self.tokenizer(prompt, return_tensors="pt")
-            inputs = {k: v.to(self.generator_model.device) for k, v in tokenized_inputs.items()}
-            output = self.generator_model.generate(**inputs, max_new_tokens=512, temperature=0.7, top_p=0.95, do_sample=True)
+            device = self.generator_model.device if hasattr(self.generator_model, 'device') else next(self.generator_model.parameters()).device
+            inputs = {k: v.to(device) for k, v in tokenized_inputs.items()}
+            output = self.generator_model.generate(
+                **inputs,
+                max_new_tokens=512,
+                temperature=0.7,
+                top_p=0.95,
+                do_sample=True
+            )
             generated_text = self.tokenizer.decode(output[0], skip_special_tokens=True)
 
             # 3. Check for a new search query
             analysis_section = generated_text.split("**Analysis:**")[-1].strip()
-
             if "[SEARCH]" in analysis_section:
                 new_query = analysis_section.split("[SEARCH]")[-1].strip()
                 logger.info(f"LLM requested a new search with query: '{new_query}'")
@@ -114,3 +127,4 @@ class LLMComplianceAnalyzer:
 
         logger.info("Compliance analysis finished.")
         return analysis_section
+
