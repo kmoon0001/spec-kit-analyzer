@@ -5,7 +5,7 @@ from src.document_classifier import DocumentClassifier, DocumentType
 from src.parsing import parse_document_into_sections
 from typing import Dict, List
 import json
-from rubric_service import ComplianceRule
+from src.rubric_service import ComplianceRule
 
 class ComplianceAnalyzer:
     def __init__(self): 
@@ -131,6 +131,7 @@ You are an expert Medicare compliance officer for a Skilled Nursing Facility (SN
 ---
 {context}
 ---
+Test Rule
 
 **Your Task:**
 Based on all the information above, provide a detailed compliance analysis. Identify any potential risks, explain why they are risks according to the retrieved rules, and suggest specific actions to mitigate them. If no risks are found, state that the document appears to be compliant.

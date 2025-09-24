@@ -46,20 +46,21 @@ class TestComplianceAnalyzer:
         assert "findings" in analysis
         assert isinstance(analysis["findings"], list)
 
-    @patch('src.core.compliance_analyzer.ComplianceAnalyzer.__init__', return_value=None)
-    def test_build_prompt(self, mock_init):
+    def test_build_prompt(self):
         """
         Tests prompt building with representative document, entity list, and context.
         Ensures prompt includes critical Medicare compliance keys for best model guidance.
         """
-        analyzer = ComplianceAnalyzer()  # Init is mocked.
-        document = "This is a test document."
-        entity_list = "'test' (test_entity)"
-        context = "This is a test context."
-        prompt = analyzer._build_prompt(document, entity_list, context)
-        assert "This is a test document." in prompt
-        assert "'test' (test_entity)" in prompt
-        assert "Relevant Medicare Compliance Rules" in prompt
-        assert "Test Rule" in prompt
-        assert "You are an expert Medicare compliance officer" in prompt
+        with patch('src.core.compliance_analyzer.ComplianceAnalyzer.__init__', return_value=None):
+            analyzer = ComplianceAnalyzer()  # Init is mocked.
+            document = "This is a test document."
+            entity_list = "'test' (test_entity)"
+            with patch.object(analyzer, '_format_rules_for_prompt', return_value="Test Rule") as mock_format_rules:
+                context = analyzer._format_rules_for_prompt([])
+                prompt = analyzer._build_prompt(document, entity_list, context)
+                assert "This is a test document." in prompt
+                assert "'test' (test_entity)" in prompt
+                assert "Relevant Medicare Guidelines" in prompt
+                assert "Test Rule" in prompt
+                assert "You are an expert Medicare compliance officer" in prompt
 

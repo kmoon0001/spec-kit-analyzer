@@ -179,9 +179,9 @@ class GuidelineService:
         distances, indices = self.faiss_index.search(query_embedding, top_k)
 
         results = []
-        for i in indices[0]:
-            if i != -1: # FAISS returns -1 for no result
+        for i, dist in zip(indices[0], distances[0]):
+            if i != -1:
                 chunk = self.guideline_chunks[i]
-                results.append({"text": chunk[0], "source": chunk[1]})
+                results.append({"text": chunk[0], "source": chunk[1], "score": dist})
 
         return results

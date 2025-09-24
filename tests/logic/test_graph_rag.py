@@ -5,8 +5,8 @@ import sys
 # Add the src directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
 
-from core.hybrid_retriever import HybridRetriever
-from rubric_service import ComplianceRule
+from src.core.hybrid_retriever import HybridRetriever
+from src.rubric_service import ComplianceRule
 
 @pytest.fixture(scope="module")
 def retriever():
@@ -45,7 +45,7 @@ def test_graph_rag_retrieval_specific_query(retriever):
 
     # 2. Assert that the top result is a ComplianceRule object.
     top_result = results[0]
-    assert isinstance(top_result, ComplianceRule)
+    assert top_result.__class__ == ComplianceRule
 
     # 3. Assert that the top result is the one we expect.
     # We expect the "Goals" rule to be the most relevant.

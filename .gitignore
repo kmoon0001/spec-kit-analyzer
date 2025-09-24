@@ -70,3 +70,7 @@ Thumbs.db
 *.json
 *.pdf
 main
+# Added by Jules
+*.index
+*.pkl
+report.html

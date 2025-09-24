@@ -47,104 +47,83 @@ class RubricService:
     def get_rules(self) -> List[ComplianceRule]:
         """
         Queries the ontology to retrieve all compliance rules.
-        This method now uses a simpler query and processes the results in Python
-        to avoid SPARQL engine inconsistencies with GROUP_CONCAT.
         """
-        if not len(self.graph):
-            logger.warning("Ontology graph is empty. Cannot retrieve rules.")
+        if not self.graph:
+            logger.warning("Ontology graph is not loaded. Cannot retrieve rules.")
             return []
 
-        NS_URI = "http://example.com/speckit/ontology#"
-        # A simpler query to get all rule properties.
-        query = f"""
-            SELECT ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?document_type ?suggestion ?financial_impact
-                   (GROUP_CONCAT(DISTINCT ?safe_pos_kw; SEPARATOR="|") AS ?positive_keywords)
-                   (GROUP_CONCAT(DISTINCT ?safe_neg_kw; SEPARATOR="|") AS ?negative_keywords)
-            WHERE {{
-                ?rule a <{NS_URI}ComplianceRule> .
-                OPTIONAL {{ ?rule <{NS_URI}hasIssueTitle> ?title . }}
-                OPTIONAL {{ ?rule <{NS_URI}hasIssueDetail> ?detail . }}
-                OPTIONAL {{ ?rule <{NS_URI}hasSeverity> ?severity . }}
-                OPTIONAL {{ ?rule <{NS_URI}hasStrictSeverity> ?strict_severity . }}
-                OPTIONAL {{ ?rule <{NS_URI}hasIssueCategory> ?category . }}
-                OPTIONAL {{ ?rule <{NS_URI}hasDiscipline> ?discipline . }}
-                OPTIONAL {{ ?rule <{NS_URI}hasDocumentType> ?document_type . }}
-                OPTIONAL {{ ?rule <{NS_URI}hasSuggestion> ?suggestion . }}
-                OPTIONAL {{ ?rule <{NS_URI}hasFinancialImpact> ?financial_impact . }}
-                OPTIONAL {{
-                    ?rule <{NS_URI}hasPositiveKeywords> ?pos_ks .
-                    ?pos_ks <{NS_URI}hasKeyword> ?pos_kw .
-                }}
-                OPTIONAL {{
-                    ?rule <{NS_URI}hasNegativeKeywords> ?neg_ks .
-                    ?neg_ks <{NS_URI}hasKeyword> ?neg_kw .
-                }}
-                BIND(IF(BOUND(?pos_kw), ?pos_kw, "") AS ?safe_pos_kw)
-                BIND(IF(BOUND(?neg_kw), ?neg_kw, "") AS ?safe_neg_kw)
-            }}
+        # SPARQL query to fetch all rules and their properties
+        query = """
+        PREFIX ns: <http://example.com/speckit/ontology#>
+        SELECT
+            ?rule
+            ?severity
+            ?strict_severity
+            ?issue_title
+            ?issue_detail
+            ?issue_category
+            ?discipline
+            ?document_type
+            ?suggestion
+            ?financial_impact
+            (GROUP_CONCAT(DISTINCT ?safe_pos_kw; SEPARATOR="|") AS ?positive_keywords)
+            (GROUP_CONCAT(DISTINCT ?safe_neg_kw; SEPARATOR="|") AS ?negative_keywords)
+        WHERE {
+            ?rule a ns:ComplianceRule .
+            OPTIONAL { ?rule ns:hasSeverity ?severity . }
+            OPTIONAL { ?rule ns:hasStrictSeverity ?strict_severity . }
+            OPTIONAL { ?rule ns:hasIssueTitle ?issue_title . }
+            OPTIONAL { ?rule ns:hasIssueDetail ?issue_detail . }
+            OPTIONAL { ?rule ns:hasIssueCategory ?issue_category . }
+            OPTIONAL { ?rule ns:hasDiscipline ?discipline . }
+            OPTIONAL { ?rule ns:hasDocumentType ?document_type . }
+            OPTIONAL { ?rule ns:hasSuggestion ?suggestion . }
+            OPTIONAL { ?rule ns:hasFinancialImpact ?financial_impact . }
+            OPTIONAL {
+                ?rule ns:hasPositiveKeywords ?pos_ks .
+                ?pos_ks ns:hasKeyword ?pos_kw .
+            }
+            OPTIONAL {
+                ?rule ns:hasNegativeKeywords ?neg_ks .
+                ?neg_ks ns:hasKeyword ?neg_kw .
+            }
+            BIND(IF(BOUND(?pos_kw), ?pos_kw, "") AS ?safe_pos_kw)
+            BIND(IF(BOUND(?neg_kw), ?neg_kw, "") AS ?safe_neg_kw)
+        }
+        GROUP BY ?rule ?severity ?strict_severity ?issue_title ?issue_detail ?issue_category ?discipline ?document_type ?suggestion ?financial_impact
         """
 
-        rules_data = {}
+        rules = []
         try:
             results = self.graph.query(query)
             for row in results:
-                rule_uri = str(row.rule)
-                if rule_uri not in rules_data:
-                    rules_data[rule_uri] = {"uri": rule_uri, "positive_keywords": [], "negative_keywords": []}
+                # Split concatenated keywords into a list and filter out empty strings
+                positive_keywords = str(row.positive_keywords).split('|') if row.positive_keywords else []
+                positive_keywords = [kw for kw in positive_keywords if kw]
+                negative_keywords = str(row.negative_keywords).split('|') if row.negative_keywords else []
+                negative_keywords = [kw for kw in negative_keywords if kw]
 
-                prop = str(row.p).replace(NS_URI, "")
-                obj = str(row.o)
-
-                if prop == "hasIssueTitle":
-                    rules_data[rule_uri]["issue_title"] = obj
-                elif prop == "hasIssueDetail":
-                    rules_data[rule_uri]["issue_detail"] = obj
-                elif prop == "hasSeverity":
-                    rules_data[rule_uri]["severity"] = obj
-                elif prop == "hasStrictSeverity":
-                    rules_data[rule_uri]["strict_severity"] = obj
-                elif prop == "hasIssueCategory":
-                    rules_data[rule_uri]["issue_category"] = obj
-                elif prop == "hasDiscipline":
-                    rules_data[rule_uri]["discipline"] = obj
-                elif prop == "hasDocumentType":
-                    rules_data[rule_uri]["document_type"] = obj
-                elif prop == "hasSuggestion":
-                    rules_data[rule_uri]["suggestion"] = obj
-                elif prop == "hasFinancialImpact":
-                    rules_data[rule_uri]["financial_impact"] = int(obj)
-                elif prop == "hasPositiveKeywords":
-                    # This gives the BNode for the keyword set, need to query for the keywords
-                    keyword_query = f"SELECT ?kw WHERE {{ <{obj}> <{NS_URI}hasKeyword> ?kw . }}"
-                    for kw_row in self.graph.query(keyword_query):
-                        rules_data[rule_uri]["positive_keywords"].append(str(kw_row.kw))
-                elif prop == "hasNegativeKeywords":
-                    keyword_query = f"SELECT ?kw WHERE {{ <{obj}> <{NS_URI}hasKeyword> ?kw . }}"
-                    for kw_row in self.graph.query(keyword_query):
-                        rules_data[rule_uri]["negative_keywords"].append(str(kw_row.kw))
-
-            rules = []
-            for uri, data in rules_data.items():
+                # Create a ComplianceRule object from the query result
                 rule = ComplianceRule(
-                    uri=uri,
-                    severity=data.get("severity", ""),
-                    strict_severity=data.get("strict_severity", ""),
-                    issue_title=data.get("issue_title", ""),
-                    issue_detail=data.get("issue_detail", ""),
-                    issue_category=data.get("issue_category", "General"),
-                    discipline=data.get("discipline", "All"),
-                    document_type=data.get("document_type"),
-                    suggestion=data.get("suggestion", "No suggestion available."),
-                    financial_impact=data.get("financial_impact", 0),
-                    positive_keywords=data.get("positive_keywords", []),
-                    negative_keywords=data.get("negative_keywords", [])
+                    uri=str(row.rule),
+                    severity=str(row.severity or ""),
+                    strict_severity=str(row.strict_severity or ""),
+                    issue_title=str(row.issue_title or ""),
+                    issue_detail=str(row.issue_detail or ""),
+                    issue_category=str(row.issue_category or "General"),
+                    discipline=str(row.discipline or "All"),
+                    document_type=str(row.document_type) if row.document_type else None,
+                    suggestion=str(row.suggestion or "No suggestion available."),
+                    financial_impact=int(row.financial_impact) if row.financial_impact else 0,
+                    positive_keywords=positive_keywords,
+                    negative_keywords=negative_keywords,
                 )
                 rules.append(rule)
 
             logger.info(f"Successfully retrieved and processed {len(rules)} rules from the ontology.")
         except Exception as e:
             logger.exception(f"Failed to query and process rules from ontology: {e}")
-            return [] # Return empty list on failure
+            return []
 
         return rules
 
