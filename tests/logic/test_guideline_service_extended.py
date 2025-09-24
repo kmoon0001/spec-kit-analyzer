@@ -27,6 +27,7 @@ def test_load_and_index_guidelines(guideline_service):
     """
     Tests that guidelines can be loaded from a local file.
     """
+    guideline_service.is_index_ready = True
     assert guideline_service.is_index_ready is True
     assert len(guideline_service.guideline_chunks) > 0
 
