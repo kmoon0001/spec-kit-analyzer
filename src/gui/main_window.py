@@ -8,10 +8,25 @@ from PySide6.QtWidgets import (
     QStatusBar,
     QMenuBar,
     QFileDialog,
-    QSplitter,
-    QListWidgetItem
+from PySide6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QMessageBox,
+    QMainWindow,
+    QStatusBar,
+    QMenuBar,
+    QFileDialog,
+    QSplitter,           # from feature branch
+    QTextEdit,           # from main branch
+    QHBoxLayout,         # from main branch
+    QListWidget,         # from main branch
+    QListWidgetItem,     # from both
+    QComboBox,           # from main branch
+    QLabel,              # from main branch
+    QGroupBox,           # from main branch
+    QProgressBar         # from main branch
 )
-from PySide6.QtCore import Qt, QThread
+from PySide6.QtCore import Qt, QThread  # keep QThread only if it's used elsewhere!
 from .dialogs.rubric_manager_dialog import RubricManagerDialog
 from .widgets.control_panel import ControlPanel
 from .widgets.document_view import DocumentView
@@ -44,71 +59,181 @@ class MainApplicationWindow(QMainWindow):
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage('Ready')
 
+        self.progress_bar = QProgressBar(self.status_bar)
+        self.status_bar.addPermanentWidget(self.progress_bar)
+        self.progress_bar.hide()
+
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         main_layout = QVBoxLayout(self.central_widget)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(10)
 
-        self.control_panel = ControlPanel(self)
-        main_layout.addWidget(self.control_panel)
+# ---- Controls Group ----
+controls_group = QGroupBox("Analysis Controls")
+controls_layout = QHBoxLayout()
+controls_group.setLayout(controls_layout)
+main_layout.addWidget(controls_group)
 
-        splitter = QSplitter(Qt.Horizontal)
+self.upload_button = QPushButton('Upload Document')
+self.upload_button.clicked.connect(self.open_file_dialog)
+controls_layout.addWidget(self.upload_button)
 
-        self.document_view = DocumentView()
-        splitter.addWidget(self.document_view)
+self.clear_button = QPushButton('Clear Display')
+self.clear_button.clicked.connect(self.clear_display)
+controls_layout.addWidget(self.clear_button)
 
-        self.analysis_view = AnalysisView()
-        splitter.addWidget(self.analysis_view)
+controls_layout.addStretch()
 
-        splitter.setSizes([500, 700])
-        main_layout.addWidget(splitter)
+controls_layout.addWidget(QLabel("Discipline:"))
+self.discipline_combo = QComboBox()
+self.discipline_combo.addItems(["All", "PT", "OT", "SLP"])
+controls_layout.addWidget(self.discipline_combo)
+
+controls_layout.addWidget(QLabel("OR Select a Rubric:"))
+self.rubric_list_widget = QListWidget()
+self.rubric_list_widget.setMaximumHeight(100)
+self.rubric_list_widget.addItem("No rubric selected")
+self.rubric_list_widget.item(0).setFlags(self.rubric_list_widget.item(0).flags() & ~Qt.ItemIsEnabled)
+self.rubric_list_widget.setEnabled(False)
+controls_layout.addWidget(self.rubric_list_widget)
+
+self.run_analysis_button = QPushButton("Run Analysis")
+self.run_analysis_button.clicked.connect(self.run_analysis)
+controls_layout.addWidget(self.run_analysis_button)
+
+# ---- Splitter for Document/Results Groups ----
+splitter = QSplitter(Qt.Horizontal)
+main_layout.addWidget(splitter)
+
+# Document group
+document_group = QGroupBox("Document")
+document_layout = QVBoxLayout()
+document_group.setLayout(document_layout)
+self.document_display_area = QTextEdit()
+self.document_display_area.setPlaceholderText("Upload a document to see its content here.")
+self.document_display_area.setReadOnly(True)
+document_layout.addWidget(self.document_display_area)
+splitter.addWidget(document_group)
+
+# Results group
+results_group = QGroupBox("Analysis Results")
+results_layout = QVBoxLayout()
+results_group.setLayout(results_layout)
+self.analysis_results_area = QTextEdit()
+self.analysis_results_area.setPlaceholderText("Analysis results will appear here.")
+self.analysis_results_area.setReadOnly(True)
+results_layout.addWidget(self.analysis_results_area)
+splitter.addWidget(results_group)
+
+# (Optional) If you have a load_theme_setting method:
+theme = self.load_theme_setting()
+self.apply_stylesheet(theme)
+
+        self.analysis_results_area = QTextEdit()
+        self.analysis_results_area.setPlaceholderText("Analysis results will appear here.")
+        self.analysis_results_area.setReadOnly(True)
+        results_layout.addWidget(self.analysis_results_area)
 
         self.load_rubrics_to_list()
-        theme = self.load_theme_setting()
-        self.apply_stylesheet(theme)
+theme = self.load_theme_setting()
+self.apply_stylesheet(theme)
 
     def get_light_theme_stylesheet(self):
         return """
             QMainWindow {
+            QMainWindow {
                 background-color: #f0f0f0;
                 color: #000000;
             }
+            }
             QGroupBox {
-                border: 1px solid #d0d0d0;
+                background-color: #3c3c3c;
+                color: #f0f0f0;
+                border: 1px solid #555;
+                border-radius: 5px;
+            QGroupBox {
+                background-color: #3c3c3c;
+                color: #000000;
+                border: 1px solid #555;
                 border-radius: 5px;
                 margin-top: 10px;
                 font-weight: bold;
-                color: #000000;
+             }
+
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                subcontrol-position: top left;
-                padding: 0 5px;
+                subcontrol-position: top center;
+                padding: 0 3px;
+                background-color: #3c3c3c;
+            }
+            QLabel {
+                color: #f0f0f0;
             }
             QPushButton {
-                background-color: #0078d7;
-                color: white;
-                border: none;
-                padding: 10px;
-                border-radius: 5px;
+                background-color: #555;
+                color: #f0f0f0;
+                border: 1px solid #777;
+                padding: 5px;
+                border-radius: 3px;
             }
             QPushButton:hover {
-                background-color: #005a9e;
+                background-color: #666;
             }
             QPushButton:pressed {
-                background-color: #003c6a;
+                background-color: #444;
             }
             QTextEdit, QListWidget, QComboBox {
-                background-color: #ffffff;
+              background-color: #ffffff;
                 color: #000000;
                 border: 1px solid #d0d0d0;
                 border-radius: 5px;
+            }
+
+            QTextEdit {
+                background-color: #2d2d2d;
+                color: #f0f0f0;
+                border: 1px solid #555;
+            }
+            QComboBox {
+                background-color: #555;
+                color: #f0f0f0;
+                border: 1px solid #777;
+              padding: 5px;
+              border-radius: 3px;
+          }
+            QListWidget {
+                background-color: #2d2d2d;
+                color: #f0f0f0;
+                border: 1px solid #555;
+            }
+
                 padding: 5px;
+                border-radius: 3px;
+            }
+            QListWidget {
+                background-color: #2d2d2d;
+                color: #f0f0f0;
+                border: 1px solid #555;
+            }
+            QMenuBar {
+                background-color: #3c3c3c;
+                color: #f0f0f0;
+            }
+            QMenuBar::item:selected {
+                background-color: #555;
+            }
+            QMenu {
+                background-color: #3c3c3c;
+                color: #f0f0f0;
+            }
+            QMenu::item:selected {
+                background-color: #555;
             }
             QStatusBar {
-                background-color: #0078d7;
-                color: white;
+                background-color: #3c3c3c;
+                color: #f0f0f0;
             }
             QLabel {
                 color: #000000;
@@ -197,29 +322,36 @@ class MainApplicationWindow(QMainWindow):
             data['discipline'] = discipline
             self.status_bar.showMessage(f"Running analysis with discipline: {discipline}...")
 
-        self.thread = QThread()
-        self.worker = AnalysisWorker(self._current_file_path, data)
-        self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.run)
-        self.worker.success.connect(self.on_analysis_success)
-        self.worker.error.connect(self.on_analysis_error)
-        self.worker.finished.connect(self.thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.start()
+# Start progress bar and disable run_analysis button
+self.progress_bar.setRange(0, 0)
+self.progress_bar.show()
+self.control_panel.run_analysis_button.setEnabled(False)
+self.status_bar.showMessage("Running analysis...")
 
-        self.control_panel.run_analysis_button.setEnabled(False)
-        self.status_bar.showMessage("Running analysis...")
+def run_analysis_threaded(self, data):
+    # Threaded/worker-based analysis approach
+    self.thread = QThread()
+    self.worker = AnalysisWorker(self._current_file_path, data)
+    self.worker.moveToThread(self.thread)
+    self.thread.started.connect(self.worker.run)
+    self.worker.success.connect(self.on_analysis_success)
+    self.worker.error.connect(self.on_analysis_error)
+    self.worker.finished.connect(self.thread.quit)
+    self.worker.finished.connect(self.worker.deleteLater)
+    self.thread.finished.connect(self.thread.deleteLater)
+    self.thread.start()
 
-    def on_analysis_success(self, result):
-        self.analysis_view.setHtml(result)
-        self.status_bar.showMessage("Analysis complete.")
-        self.control_panel.run_analysis_button.setEnabled(True)
+def on_analysis_success(self, result):
+    self.progress_bar.hide()
+    self.analysis_results_area.setText(result)
+    self.status_bar.showMessage("Analysis complete.")
+    self.control_panel.run_analysis_button.setEnabled(True)
 
-    def on_analysis_error(self, error_message):
-        QMessageBox.critical(self, "Analysis Error", error_message)
-        self.status_bar.showMessage("Backend analysis failed.")
-        self.control_panel.run_analysis_button.setEnabled(True)
+def on_analysis_error(self, error_message):
+    self.progress_bar.hide()
+    QMessageBox.critical(self, "Analysis Error", error_message)
+    self.status_bar.showMessage("Backend analysis failed.")
+    self.control_panel.run_analysis_button.setEnabled(True)
 
     def manage_rubrics(self):
         dialog = RubricManagerDialog(self)
@@ -232,16 +364,29 @@ class MainApplicationWindow(QMainWindow):
             response = requests.get(f"{API_URL}/rubrics/")
             response.raise_for_status()
             rubrics = response.json()
-            for rubric in rubrics:
-                item = QListWidgetItem(rubric['name'])
-                item.setData(Qt.ItemDataRole.UserRole, rubric['id'])
-                self.control_panel.rubric_list_widget.addItem(item)
+if rubrics:
+    for rubric in rubrics:
+        item = QListWidgetItem(rubric['name'])
+        item.setData(Qt.ItemDataRole.UserRole, rubric['id'])
+        self.rubric_list_widget.addItem(item)
+    self.rubric_list_widget.setEnabled(True)
+else:
+    self.rubric_list_widget.addItem("No rubrics found")
+    self.rubric_list_widget.item(0).setFlags(
+        self.rubric_list_widget.item(0).flags() & ~Qt.ItemIsEnabled
+    )
+    self.rubric_list_widget.setEnabled(False)
         except Exception as e:
+            self.rubric_list_widget.clear()
+            self.rubric_list_widget.addItem("Error loading rubrics")
+            self.rubric_list_widget.item(0).setFlags(self.rubric_list_widget.item(0).flags() & ~Qt.ItemIsEnabled)
+            self.rubric_list_widget.setEnabled(False)
             self.handle_error(f"Failed to load rubrics from backend:\n{e}")
 
     def clear_display(self):
-        self.document_view.clear()
-        self.analysis_view.setHtml("")
+self.document_display_area.clear()
+self.analysis_results_area.clear()
+
         self._current_file_path = None
         self.status_bar.showMessage("Display cleared.")
 

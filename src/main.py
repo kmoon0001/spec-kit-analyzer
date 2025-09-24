@@ -1,6 +1,7 @@
 import sys
 from PySide6.QtWidgets import QApplication
-from src.gui.main_window import MainApplicationWindow, initialize_database
+from src.gui.main_window import MainApplicationWindow
+from src.core.database import initialize_database
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

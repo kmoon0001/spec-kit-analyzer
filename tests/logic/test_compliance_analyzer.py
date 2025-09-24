@@ -1,66 +1,92 @@
 import pytest
 import os
+import sys
 from unittest.mock import patch, MagicMock
-from src.core.compliance_analyzer import ComplianceAnalyzer
-from src.document_classifier import DocumentClassifier, DocumentType
-from src.parsing import parse_document_into_sections
+
+# Add the src directory to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
+
+# Corrected imports
+from core.compliance_analyzer import ComplianceAnalyzer
+from document_classifier import DocumentClassifier, DocumentType
+from parsing import parse_document_into_sections
 from typing import Dict, List
 
 class TestComplianceAnalyzer:
 
-    @pytest.fixture(scope="class")
+    # Note: The 'analyzer_instance' fixture is now function-scoped to ensure
+    # that patches are applied correctly to each test function.
+    @pytest.fixture(scope="function")
     def analyzer_instance(self):
-        """Fixture to create a single ComplianceAnalyzer instance for the slow integration test."""
-        return ComplianceAnalyzer()
+        """
+        Fixture to create a new ComplianceAnalyzer instance for each test function.
+        """
+        # We patch the heavy components to keep tests fast.
+        with patch('core.compliance_analyzer.AutoModelForCausalLM.from_pretrained'), \
+             patch('core.compliance_analyzer.AutoTokenizer.from_pretrained'), \
+             patch('core.compliance_analyzer.pipeline'), \
+             patch('core.compliance_analyzer.HybridRetriever'):
+            instance = ComplianceAnalyzer()
+            yield instance
 
-    def test_document_classification(self):
+    def test_document_classification(self, analyzer_instance):
         """Tests the document classifier with different inputs."""
-        classifier = DocumentClassifier()
+        classifier = analyzer_instance.classifier
         eval_doc = "This is a patient evaluation."
         assert classifier.classify(eval_doc) == DocumentType.EVALUATION
         pn_doc = "This is a progress note."
         assert classifier.classify(pn_doc) == DocumentType.PROGRESS_NOTE
         unclassified_doc = "This is a regular document."
-        assert classifier.classify(unclassified_doc) is None
+        assert classifier.classify(unclassified_doc) == DocumentType.UNKNOWN
 
-    @patch('src.core.compliance_analyzer.ComplianceAnalyzer.__init__', return_value=None)
-    def test_rubric_loading(self, mock_init):
-        """Tests rubric loading logic in a fast unit test."""
-        analyzer = ComplianceAnalyzer()
-        # This test is no longer valid as the rubric loading has changed significantly.
-        # I will mark it as skipped.
-        pytest.skip("Rubric loading has been refactored.")
-
-    @patch('src.core.compliance_analyzer.ComplianceAnalyzer.__init__', return_value=None)
-    def test_build_prompt(self, mock_init):
-        # Create an instance of the analyzer (init is mocked)
-        analyzer = ComplianceAnalyzer()
-        # Define mock data
+    def test_build_prompt(self, analyzer_instance):
+        """Tests the building of the prompt."""
         document = "This is a test document."
         entity_list = "'test' (test_entity)"
-        context = "This is a test context."
-        graph_rules = "Rule: Test Rule"
-        # Call the method
-        prompt = analyzer._build_prompt(document, entity_list, context, graph_rules)
-        # Assert the prompt is constructed correctly
+        context = "- **Rule:** Test Rule\n  **Detail:** Test detail.\n  **Suggestion:** Test suggestion."
+        prompt = analyzer_instance._build_prompt(document, entity_list, context)
         assert "This is a test document." in prompt
         assert "'test' (test_entity)" in prompt
-        assert "This is a test context." in prompt
-        assert "Rule: Test Rule" in prompt
+        assert "Relevant Medicare Compliance Rules" in prompt
+        assert "Test Rule" in prompt
         assert "You are an expert Medicare compliance officer" in prompt
 
-    def test_integration_analysis(self, analyzer_instance):
+    def test_analyze_document_integration(self, analyzer_instance):
         """
-        A slow integration test that runs the full analysis pipeline on a sample document.
+        A more integrated test for the analyze_document method.
+        The HybridRetriever is already mocked in the fixture.
         """
-        sample_document = '''
-Subjective: Patient reports feeling tired but motivated. States goal is to "walk my daughter down the aisle."
-Objective: Patient participated in 45 minutes of physical therapy. Gait training on level surfaces with rolling walker for 100 feet with moderate assistance. Moderate verbal cueing required for sequencing.
-Assessment: Patient making steady progress towards goals.
-Plan: Continue with current plan of care.
-'''
-        analysis = analyzer_instance.analyze_document(sample_document)
+        # Configure the mocked retriever instance that is part of the analyzer
+        mock_retriever = analyzer_instance.retriever
+        mock_rule = MagicMock()
+        mock_rule.issue_title = "Test Rule"
+        mock_rule.issue_detail = "This is a test rule detail."
+        mock_rule.suggestion = "This is a test suggestion."
+        mock_retriever.search.return_value = [mock_rule]
 
-        assert isinstance(analysis, dict)
+        # Mock the LLM's response
+        mock_llm_output = """
+        ```json
+        {
+          "findings": [
+            {
+              "text": "Gait training",
+              "risk": "The test rule was violated.",
+              "suggestion": "Follow the test suggestion."
+            }
+          ]
+        }
+        ```
+        """
+        analyzer_instance.generator_tokenizer.decode.return_value = mock_llm_output
+
+        sample_document = "Gait training for 100 feet."
+
+        analysis = analyzer_instance.analyze_document(sample_document, discipline="pt")
+
+        # Assertions
+        mock_retriever.search.assert_called_once()
         assert "findings" in analysis
-        assert isinstance(analysis["findings"], list)
+        assert len(analysis["findings"]) == 1
+        assert analysis["findings"][0]["risk"] == "The test rule was violated."
+        print("\nSuccessfully tested analyze_document integration.")
