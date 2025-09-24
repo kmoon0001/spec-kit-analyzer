@@ -1,5 +1,6 @@
 import re
 import pickle
+import os
 from rank_bm25 import BM25Okapi
 
 def preprocess_text(text):
@@ -53,14 +54,22 @@ def create_bm25_index():
 
     # Save the index and the original corpus to disk
     print("Saving index and corpus to disk...")
-    with open("bm25_index.pkl", "wb") as f:
+
+    # Create the data directory if it doesn't exist
+    data_dir = "data"
+    os.makedirs(data_dir, exist_ok=True)
+
+    bm25_path = os.path.join(data_dir, "bm25_index.pkl")
+    corpus_path = os.path.join(data_dir, "medicare_guideline_corpus.pkl")
+
+    with open(bm25_path, "wb") as f:
         pickle.dump(bm25, f)
 
-    with open("medicare_guideline_corpus.pkl", "wb") as f:
+    with open(corpus_path, "wb") as f:
         pickle.dump(corpus, f)
 
-    print("BM25 index created and saved successfully to 'bm25_index.pkl'.")
-    print("Text corpus saved successfully to 'medicare_guideline_corpus.pkl'.")
+    print(f"BM25 index created and saved successfully to '{bm25_path}'.")
+    print(f"Text corpus saved successfully to '{corpus_path}'.")
 
 
 if __name__ == "__main__":

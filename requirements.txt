@@ -18,3 +18,6 @@ openpyxl
 torch
 transformers
 sentence-transformers
+rank_bm25
+bitsandbytes
+accelerate
