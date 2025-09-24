@@ -84,63 +84,28 @@ class RubricService:
             }}
         """
 
-        rules_data = {}
+        rules = []
         try:
             results = self.graph.query(query)
             for row in results:
-                rule_uri = str(row.rule)
-                if rule_uri not in rules_data:
-                    rules_data[rule_uri] = {"uri": rule_uri, "positive_keywords": [], "negative_keywords": []}
+                pos_kws = str(row.positive_keywords).split('|') if row.positive_keywords else []
+                neg_kws = str(row.negative_keywords).split('|') if row.negative_keywords else []
 
-                prop = str(row.p).replace(NS_URI, "")
-                obj = str(row.o)
-
-                if prop == "hasIssueTitle":
-                    rules_data[rule_uri]["issue_title"] = obj
-                elif prop == "hasIssueDetail":
-                    rules_data[rule_uri]["issue_detail"] = obj
-                elif prop == "hasSeverity":
-                    rules_data[rule_uri]["severity"] = obj
-                elif prop == "hasStrictSeverity":
-                    rules_data[rule_uri]["strict_severity"] = obj
-                elif prop == "hasIssueCategory":
-                    rules_data[rule_uri]["issue_category"] = obj
-                elif prop == "hasDiscipline":
-                    rules_data[rule_uri]["discipline"] = obj
-                elif prop == "hasDocumentType":
-                    rules_data[rule_uri]["document_type"] = obj
-                elif prop == "hasSuggestion":
-                    rules_data[rule_uri]["suggestion"] = obj
-                elif prop == "hasFinancialImpact":
-                    rules_data[rule_uri]["financial_impact"] = int(obj)
-                elif prop == "hasPositiveKeywords":
-                    # This gives the BNode for the keyword set, need to query for the keywords
-                    keyword_query = f"SELECT ?kw WHERE {{ <{obj}> <{NS_URI}hasKeyword> ?kw . }}"
-                    for kw_row in self.graph.query(keyword_query):
-                        rules_data[rule_uri]["positive_keywords"].append(str(kw_row.kw))
-                elif prop == "hasNegativeKeywords":
-                    keyword_query = f"SELECT ?kw WHERE {{ <{obj}> <{NS_URI}hasKeyword> ?kw . }}"
-                    for kw_row in self.graph.query(keyword_query):
-                        rules_data[rule_uri]["negative_keywords"].append(str(kw_row.kw))
-
-            rules = []
-            for uri, data in rules_data.items():
                 rule = ComplianceRule(
-                    uri=uri,
-                    severity=data.get("severity", ""),
-                    strict_severity=data.get("strict_severity", ""),
-                    issue_title=data.get("issue_title", ""),
-                    issue_detail=data.get("issue_detail", ""),
-                    issue_category=data.get("issue_category", "General"),
-                    discipline=data.get("discipline", "All"),
-                    document_type=data.get("document_type"),
-                    suggestion=data.get("suggestion", "No suggestion available."),
-                    financial_impact=data.get("financial_impact", 0),
-                    positive_keywords=data.get("positive_keywords", []),
-                    negative_keywords=data.get("negative_keywords", [])
+                    uri=str(row.rule),
+                    severity=str(row.severity) if row.severity else "",
+                    strict_severity=str(row.strict_severity) if row.strict_severity else "",
+                    issue_title=str(row.title) if row.title else "",
+                    issue_detail=str(row.detail) if row.detail else "",
+                    issue_category=str(row.category) if row.category else "General",
+                    discipline=str(row.discipline) if row.discipline else "All",
+                    document_type=str(row.document_type) if row.document_type else None,
+                    suggestion=str(row.suggestion) if row.suggestion else "No suggestion available.",
+                    financial_impact=int(row.financial_impact) if row.financial_impact else 0,
+                    positive_keywords=[kw for kw in pos_kws if kw],
+                    negative_keywords=[kw for kw in neg_kws if kw]
                 )
                 rules.append(rule)
-
             logger.info(f"Successfully retrieved and processed {len(rules)} rules from the ontology.")
         except Exception as e:
             logger.exception(f"Failed to query and process rules from ontology: {e}")

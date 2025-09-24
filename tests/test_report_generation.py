@@ -7,18 +7,23 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from src.core.analysis_service import AnalysisService
 
+from unittest.mock import patch
+
 @pytest.mark.timeout(600)
-def test_report_generation(): 
+def test_report_generation():
     """
     Tests the generation of the new HTML report.
     """
     report_file = "report.html"
     try:
-        # 1. Initialize the AnalysisService
-        service = AnalysisService()
+        # Mock GuidelineService to avoid actual model loading
+        with patch('src.core.analysis_service.GuidelineService') as mock_guideline_service:
+            mock_guideline_service.return_value.search.return_value = []
+            # 1. Initialize the AnalysisService
+            service = AnalysisService()
 
-        # 2. Define the test file
-        test_file = "test_data/bad_note_1.txt"
+            # 2. Define the test file
+            test_file = "test_data/bad_note_1.txt"
 
         # 3. Run the analysis
         report_html = service.analyze_document(test_file)

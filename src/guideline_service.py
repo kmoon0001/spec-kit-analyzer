@@ -157,9 +157,9 @@ class GuidelineService:
         source_name = os.path.basename(file_path)
         return self._extract_text_from_pdf(file_path, source_name)
 
-    def search(self, query: str, top_k: int = None) -> List[dict]:
+    def search(self, query: str, top_k: int = None, exclude_sources: List[str] = None) -> List[dict]:
         """
-        Performs a FAISS similarity search through the loaded guidelines.
+        Performs a FAISS similarity search, optionally excluding sources.
         """
         if top_k is None:
             top_k = self.config['retrieval_settings']['similarity_top_k']
@@ -168,20 +168,22 @@ class GuidelineService:
             logger.warning("Search called before guidelines were loaded and indexed.")
             return []
 
-        query_embedding = self.model.encode([query], convert_to_tensor=True)
-        # Ensure it's a numpy array before continuing
-        if not isinstance(query_embedding, np.ndarray):
-            query_embedding = query_embedding.cpu().numpy()
-
+        query_embedding = self.model.encode([query], convert_to_tensor=True).cpu().numpy()
         if query_embedding.dtype != np.float32:
             query_embedding = query_embedding.astype(np.float32)
 
-        distances, indices = self.faiss_index.search(query_embedding, top_k)
+        # Fetch more results initially to have enough after filtering
+        fetch_k = top_k * 2
+        distances, indices = self.faiss_index.search(query_embedding, fetch_k)
 
         results = []
+        if exclude_sources is None:
+            exclude_sources = []
+
         for i in indices[0]:
-            if i != -1: # FAISS returns -1 for no result
+            if i != -1 and len(results) < top_k:
                 chunk = self.guideline_chunks[i]
-                results.append({"text": chunk[0], "source": chunk[1]})
+                if chunk[1] not in exclude_sources:
+                    results.append({"text": chunk[0], "source": chunk[1]})
 
         return results

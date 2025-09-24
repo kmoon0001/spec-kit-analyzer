@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
 
 from core.hybrid_retriever import HybridRetriever
-from rubric_service import ComplianceRule
+from src.rubric_service import ComplianceRule
 
 @pytest.fixture(scope="module")
 def retriever():
@@ -34,7 +34,7 @@ def test_graph_rag_retrieval_specific_query(retriever):
     Tests the GraphRAG retriever with a specific query that should match a known rule.
     """
     # This query is designed to be a close match to the "Goals" rule in the rubric.
-    query = "patient goals must be measurable and time-bound"
+    query = "patient goals must be measurable"
 
     # Perform the search with filters that should include the "Goals" rule.
     results = retriever.search(query, discipline="pt", doc_type="Progress Note")

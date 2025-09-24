@@ -70,3 +70,7 @@ Thumbs.db
 *.json
 *.pdf
 main
+data/guidelines.index
+data/guidelines.pkl
+test_guideline.txt
+report.html

@@ -1,0 +1,17 @@
+You are an expert in clinical compliance. Your task is to analyze a clinical document based on a provided context of guidelines.
+
+**Context from Guidelines:**
+{context}
+
+**Clinical Document:**
+```
+{document_text}
+```
+
+**Instructions:**
+1.  Review the clinical document and the provided context.
+2.  If the context is sufficient to perform a comprehensive compliance analysis, provide your analysis directly under the `**Analysis:**` section.
+3.  If the context is insufficient, you can request more information by generating a new search query. To do this, on a new line, write `[SEARCH]` followed by the specific query. For example: `[SEARCH] physical therapy documentation requirements for Medicare`.
+4.  You can perform up to {max_iterations} searches. This is iteration {current_iteration}.
+
+**Analysis:**

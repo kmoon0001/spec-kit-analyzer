@@ -20,13 +20,19 @@ class TestComplianceAnalyzer:
         """
         Fixture to create a new ComplianceAnalyzer instance for each test function.
         """
-        # We patch the heavy components to keep tests fast.
-        with patch('core.compliance_analyzer.AutoModelForCausalLM.from_pretrained'), \
-             patch('core.compliance_analyzer.AutoTokenizer.from_pretrained'), \
-             patch('core.compliance_analyzer.pipeline'), \
-             patch('core.compliance_analyzer.HybridRetriever'):
-            instance = ComplianceAnalyzer()
-            yield instance
+        with patch('src.core.compliance_analyzer.HybridRetriever') as mock_hybrid_retriever:
+            mock_retriever_instance = MagicMock()
+            mock_rule = MagicMock()
+            mock_rule.issue_title = "Test Rule"
+            mock_retriever_instance.search.return_value = [mock_rule]
+            mock_hybrid_retriever.return_value = mock_retriever_instance
+
+            # We patch the heavy components to keep tests fast.
+            with patch('src.core.compliance_analyzer.AutoModelForCausalLM.from_pretrained'), \
+                 patch('src.core.compliance_analyzer.AutoTokenizer.from_pretrained'), \
+                 patch('src.core.compliance_analyzer.pipeline'):
+                instance = ComplianceAnalyzer()
+                yield instance
 
     def test_document_classification(self, analyzer_instance):
         """Tests the document classifier with different inputs."""
@@ -51,6 +57,6 @@ class TestComplianceAnalyzer:
         # Assert the prompt is constructed correctly
         assert "This is a test document." in prompt
         assert "'test' (test_entity)" in prompt
-        assert "Relevant Medicare Compliance Rules" in prompt
+        assert "Relevant Medicare Guidelines" in prompt
         assert "Test Rule" in prompt
         assert "You are an expert Medicare compliance officer" in prompt
