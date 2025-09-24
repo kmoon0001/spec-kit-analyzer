@@ -5,11 +5,11 @@ import tempfile
 from src.rubric_service import RubricService
 from src.parsing import parse_document_content
 from src.guideline_service import GuidelineService
+from src.core.llm_analyzer import LLMComplianceAnalyzer
 from src.database import DATABASE_PATH
 
 class AnalysisService:
     def __init__(self):  
-        self.guideline_service = GuidelineService()
         guideline_sources = [
             "_default_medicare_benefit_policy_manual.txt",
             "_default_medicare_part.txt"
