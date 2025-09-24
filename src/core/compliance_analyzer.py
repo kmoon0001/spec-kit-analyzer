@@ -7,7 +7,7 @@ from typing import Dict, List
 import json
 
 class ComplianceAnalyzer:
-    def __init__(self):
+    def __init__(self): 
         generator_model_name = "nabilfaieaz/tinyllama-med-full"
 
         self.generator_tokenizer = AutoTokenizer.from_pretrained(generator_model_name)
