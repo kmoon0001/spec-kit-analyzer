@@ -1,28 +1,30 @@
 # Clinical Compliance Analyzer
 
-This project is a desktop application for analyzing clinical documents for compliance with a set of rules.
+This project is a desktop application for analyzing clinical documents for compliance with a set of rules. It also includes a backend API for a web-based version of the tool.
 
 ## 🌟 Key Features
 
 - **GUI Application**: A desktop application built with PySide6 for analyzing documents.
-- **Document Parsing**: Supports parsing of various document formats, including PDF, DOCX, and plain text.
+- **Backend API**: A backend API built with FastAPI for a web-based version of the tool.
+- **Document Parsing**: Supports parsing of various document formats, including PDF and DOCX.
 - **Compliance Analysis**: Analyzes documents against a set of rules defined in a rubric.
-- **Medicare Guidelines**: Searches for relevant Medicare guidelines based on the analysis findings using a Retrieval-Augmented Generation (RAG) pipeline.
-- **PHI Scrubbing**: Includes a feature to scrub Protected Health Information (PHI) from documents.
+- **Medicare Guidelines**: Searches for relevant Medicare guidelines based on the analysis findings.
 
 ## 📂 Project Structure
-
-The main application logic is contained within the `src/` directory.
 
 ```
 .
 ├── src/
-│   ├── core/              # Core application logic (compliance analysis, RAG, etc.)
-│   ├── gui/               # GUI application code (PySide6)
-│   ├── resources/         # Data files (rubrics, templates, etc.)
-│   ├── main.py            # The GUI application entry point
-│   └── ...
-├── requirements.txt       # Project dependencies
+│   ├── api/
+│   │   └── main.py          # The FastAPI application
+│   ├── core/
+│   │   └── ...              # Core application logic
+│   ├── gui/
+│   │   └── ...              # GUI application code
+│   ├── resources/
+│   │   └── ...              # Data files (rubrics, etc.)
+│   └── main.py              # The GUI application entry point
+├── requirements.txt         # Project dependencies
 └── ...
 ```
 
@@ -43,6 +45,12 @@ The main application logic is contained within the `src/` directory.
     ```bash
     python src/main.py
     ```
+
+3.  **Run the Backend API:**
+    ```bash
+    gunicorn -w 4 -k uvicorn.workers.UvicornWorker src.api.main:app
+    ```
+    The API will be accessible at `http://localhost:8000`.
 
 ## 🧪 Running Tests
 

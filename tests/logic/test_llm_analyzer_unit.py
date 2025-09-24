@@ -52,14 +52,14 @@ def mock_guideline_service():
     return mock_service
 
 # Now import the service after mocks are set up
-from src.core.compliance_analyzer import ComplianceAnalyzer
+from src.core.llm_analyzer import LLMComplianceAnalyzer
 
 def test_analyze_document(mock_transformers, mock_guideline_service):
     """
     Tests the full analyze_document workflow with mocked dependencies.
     """
     # Initialize the analyzer with the mocked guideline service
-    analyzer = ComplianceAnalyzer(guideline_service=mock_guideline_service)
+    analyzer = LLMComplianceAnalyzer(guideline_service=mock_guideline_service)
 
     document_text = "This is a test document."
     result = analyzer.analyze_document(document_text)
