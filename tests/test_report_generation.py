@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from src.core.analysis_service import AnalysisService
 
 @pytest.mark.timeout(600)
-def test_report_generation():
+def test_report_generation(): 
     """
     Tests the generation of the new HTML report.
     """
