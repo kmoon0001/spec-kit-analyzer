@@ -6,7 +6,7 @@ from src.rubric_service import RubricService, ComplianceRule
 
 def test_initialization_with_valid_rubric():
     """
-    Tests that the RubricService initializes correctly.
+    Tests that the RubricService initializes correctly. 
     """
     service = RubricService()
     assert service.graph is not None
