@@ -16,7 +16,7 @@ class ComplianceRule:
     severity: str
     strict_severity: str
     issue_title: str
-    issue_detail: str
+    issue_detail: str 
     issue_category: str
     discipline: str
     document_type: Optional[str] = None
@@ -35,14 +35,16 @@ class RubricService:
         Initializes the service by loading all .ttl rubric ontologies from the src directory.
         """
         self.graph = Graph()
-        # The main ontology is in pt_compliance_rubric.ttl, load it first.
-        main_ontology = "src/resources/pt_compliance_rubric.ttl"
-
-        try:
-            self.graph.parse(main_ontology, format="turtle", encoding="utf-8")
-            logger.info(f"Successfully loaded rubric file: {main_ontology}")
-        except Exception as e:
-            logger.exception(f"Failed to load or parse the rubric ontology: {e}")
+        if ontology_path:
+            self.graph.parse(ontology_path, format="turtle", encoding="utf-8")
+            logger.info(f"Successfully loaded rubric file: {ontology_path}")
+        else:
+            main_ontology = "src/resources/pt_compliance_rubric.ttl"
+            try:
+                self.graph.parse(main_ontology, format="turtle", encoding="utf-8")
+                logger.info(f"Successfully loaded rubric file: {main_ontology}")
+            except Exception as e:
+                logger.exception(f"Failed to load or parse the rubric ontology: {e}")
 
     def get_rules(self) -> List[ComplianceRule]:
         """
@@ -55,40 +57,40 @@ class RubricService:
             return []
 
         NS_URI = "http://example.com/speckit/ontology#"
-        # A simpler query to get all rule properties.
         query = f"""
-            SELECT ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?document_type ?suggestion ?financial_impact
-                   (GROUP_CONCAT(DISTINCT ?safe_pos_kw; SEPARATOR="|") AS ?positive_keywords)
-                   (GROUP_CONCAT(DISTINCT ?safe_neg_kw; SEPARATOR="|") AS ?negative_keywords)
-            WHERE {{
-                ?rule a <{NS_URI}ComplianceRule> .
-                OPTIONAL {{ ?rule <{NS_URI}hasIssueTitle> ?title . }}
-                OPTIONAL {{ ?rule <{NS_URI}hasIssueDetail> ?detail . }}
-                OPTIONAL {{ ?rule <{NS_URI}hasSeverity> ?severity . }}
-                OPTIONAL {{ ?rule <{NS_URI}hasStrictSeverity> ?strict_severity . }}
-                OPTIONAL {{ ?rule <{NS_URI}hasIssueCategory> ?category . }}
-                OPTIONAL {{ ?rule <{NS_URI}hasDiscipline> ?discipline . }}
-                OPTIONAL {{ ?rule <{NS_URI}hasDocumentType> ?document_type . }}
-                OPTIONAL {{ ?rule <{NS_URI}hasSuggestion> ?suggestion . }}
-                OPTIONAL {{ ?rule <{NS_URI}hasFinancialImpact> ?financial_impact . }}
-                OPTIONAL {{
-                    ?rule <{NS_URI}hasPositiveKeywords> ?pos_ks .
-                    ?pos_ks <{NS_URI}hasKeyword> ?pos_kw .
-                }}
-                OPTIONAL {{
-                    ?rule <{NS_URI}hasNegativeKeywords> ?neg_ks .
-                    ?neg_ks <{NS_URI}hasKeyword> ?neg_kw .
-                }}
-                BIND(IF(BOUND(?pos_kw), ?pos_kw, "") AS ?safe_pos_kw)
-                BIND(IF(BOUND(?neg_kw), ?neg_kw, "") AS ?safe_neg_kw)
+        SELECT ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?document_type ?suggestion ?financial_impact
+               (GROUP_CONCAT(DISTINCT ?safe_pos_kw; SEPARATOR="|") AS ?positive_keywords)
+               (GROUP_CONCAT(DISTINCT ?safe_neg_kw; SEPARATOR="|") AS ?negative_keywords)
+        WHERE {{
+            ?rule a <{NS_URI}ComplianceRule> .
+            OPTIONAL {{ ?rule <{NS_URI}hasIssueTitle> ?title . }}
+            OPTIONAL {{ ?rule <{NS_URI}hasIssueDetail> ?detail . }}
+            OPTIONAL {{ ?rule <{NS_URI}hasSeverity> ?severity . }}
+            OPTIONAL {{ ?rule <{NS_URI}hasStrictSeverity> ?strict_severity . }}
+            OPTIONAL {{ ?rule <{NS_URI}hasIssueCategory> ?category . }}
+            OPTIONAL {{ ?rule <{NS_URI}hasDiscipline> ?discipline . }}
+            OPTIONAL {{ ?rule <{NS_URI}hasDocumentType> ?document_type . }}
+            OPTIONAL {{ ?rule <{NS_URI}hasSuggestion> ?suggestion . }}
+            OPTIONAL {{ ?rule <{NS_URI}hasFinancialImpact> ?financial_impact . }}
+            OPTIONAL {{
+                ?rule <{NS_URI}hasPositiveKeywords> ?pos_ks .
+                ?pos_ks <{NS_URI}hasKeyword> ?pos_kw .
             }}
+            OPTIONAL {{
+                ?rule <{NS_URI}hasNegativeKeywords> ?neg_ks .
+                ?neg_ks <{NS_URI}hasKeyword> ?neg_kw .
+            }}
+            BIND(IF(BOUND(?pos_kw), ?pos_kw, "") AS ?safe_pos_kw)
+            BIND(IF(BOUND(?neg_kw), ?neg_kw, "") AS ?safe_neg_kw)
+        }}
+        GROUP BY ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?document_type ?suggestion ?financial_impact
         """
 
-        rules = []
         try:
             results = self.graph.query(query)
+
+            rules = []
             for row in results:
-                # Directly create ComplianceRule objects from the row data
                 rule = ComplianceRule(
                     uri=str(row.rule),
                     issue_title=str(row.title) if row.title else "",
@@ -104,13 +106,11 @@ class RubricService:
                     negative_keywords=str(row.negative_keywords).split('|') if row.negative_keywords else []
                 )
                 rules.append(rule)
-
             logger.info(f"Successfully retrieved and processed {len(rules)} rules from the ontology.")
+            return rules
         except Exception as e:
             logger.exception(f"Failed to query and process rules from ontology: {e}")
-            return [] # Return empty list on failure
-
-        return rules
+            return []
 
     def get_filtered_rules(self, doc_type: str, discipline: str = "All") -> List[ComplianceRule]:
         """

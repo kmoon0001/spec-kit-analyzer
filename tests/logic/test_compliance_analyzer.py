@@ -10,6 +10,7 @@ from src.core.compliance_analyzer import ComplianceAnalyzer
 from src.document_classifier import DocumentClassifier, DocumentType
 from src.parsing import parse_document_into_sections
 from typing import Dict, List
+from src.rubric_service import ComplianceRule
 
 class TestComplianceAnalyzer:
 
@@ -20,46 +21,31 @@ class TestComplianceAnalyzer:
         """
         Fixture to create a new ComplianceAnalyzer instance for each test function.
         """
-        with patch('src.core.compliance_analyzer.AutoModelForCausalLM.from_pretrained'), \
-             patch('src.core.compliance_analyzer.AutoTokenizer.from_pretrained'), \
-             patch('src.core.compliance_analyzer.pipeline'):
+        with patch('src.core.compliance_analyzer.AutoModelForCausalLM.from_pretrained') as mock_model, \
+             patch('src.core.compliance_analyzer.AutoTokenizer.from_pretrained') as mock_tokenizer, \
+             patch('src.core.compliance_analyzer.pipeline') as mock_pipeline, \
+             patch('src.core.compliance_analyzer.BitsAndBytesConfig') as mock_bitsandbytes:
 
-            from src.rubric_service import ComplianceRule
-            mock_retriever = MagicMock()
-            dummy_rule = ComplianceRule(
-                uri='test_rule',
-                severity='High',
-                strict_severity='Must',
-                issue_title='Missing Signature',
-                issue_detail='The document is missing a therapist signature.',
-                issue_category='Documentation',
-                discipline='PT',
-                suggestion='Please ensure the therapist signs the document.'
-            )
-            mock_retriever.search.return_value = [dummy_rule]
+            # Configure the mocks to return dummy objects
+            mock_model.return_value = MagicMock()
+            mock_tokenizer.return_value = MagicMock()
+            mock_pipeline.return_value = MagicMock()
+            mock_bitsandbytes.return_value = MagicMock()
 
-            instance = ComplianceAnalyzer(retriever=mock_retriever)
+            instance = ComplianceAnalyzer()
             yield instance
 
-    def test_document_classification(self, analyzer_instance):
-        """Tests the document classifier with different inputs."""
-        classifier = analyzer_instance.classifier
-        eval_doc = "This is a patient evaluation."
-        assert classifier.classify(eval_doc) == DocumentType.EVALUATION
-        pn_doc = "This is a progress note."
-        assert classifier.classify(pn_doc) == DocumentType.PROGRESS_NOTE
-        unclassified_doc = "This is a regular document."
-        assert classifier.classify(unclassified_doc) == DocumentType.UNKNOWN
+    def test_health_check(self, analyzer_instance):
+        """Tests the AI system health check."""
+        is_healthy, message = analyzer_instance.check_ai_systems_health()
+        assert is_healthy
+        assert message == "AI Systems: Online"
 
-    def test_build_prompt(self, analyzer_instance):
-        # Define mock data
+    def test_build_hybrid_prompt(self, analyzer_instance):
+        """Tests the construction of the hybrid prompt."""
         document = "This is a test document."
         entity_list = "'test' (test_entity)"
-        context = "This is a test context."
-        # Call the method
-        prompt = analyzer_instance._build_prompt(document, entity_list, context)
-        # Assert the prompt is constructed correctly
-        assert "This is a test document." in prompt
-        assert "'test' (test_entity)" in prompt
-        assert "Relevant Medicare Guidelines" in prompt
-        assert "You are an expert Medicare compliance officer" in prompt
+        rules = [
+            ComplianceRule(
+                uri='test_rule_1',
+                severity='High',

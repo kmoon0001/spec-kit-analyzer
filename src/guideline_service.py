@@ -120,12 +120,8 @@ class GuidelineService:
             embedding_dim = embeddings_np.shape[1]
             self.faiss_index = faiss.IndexFlatL2(embedding_dim)
             self.faiss_index.add(embeddings_np)
-        else:
-            logger.warning("No guideline chunks found to build the index.")
-            # Create an empty index to avoid errors on search
-            embedding_dim = self.model.get_sentence_embedding_dimension()
-            self.faiss_index = faiss.IndexFlatL2(embedding_dim)
-            self.is_index_ready = True
+
+        self.is_index_ready = True
         logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks using FAISS.")
 
     def _extract_text_from_pdf(self, file_path: str, source_name: str) -> List[Tuple[str, str]]:
@@ -177,8 +173,8 @@ class GuidelineService:
             top_k = self.config['retrieval_settings']['similarity_top_k']
 
         if not self.is_index_ready or not self.faiss_index:
-            logger.warning("Search called before guidelines were loaded and indexed, loading now.")
-            self._load_or_build_index()
+            logger.warning("Search called before guidelines were loaded and indexed.")
+            return []
 
         query_embedding = self.model.encode([query], convert_to_tensor=True)
         # Ensure it's a numpy array before continuing
@@ -191,12 +187,9 @@ class GuidelineService:
         distances, indices = self.faiss_index.search(query_embedding, top_k)
 
         results = []
-        if not self.guideline_chunks:
-            return results
-
-        for i in indices[0]:
-            if i != -1: # FAISS returns -1 for no result
+        for i, dist in zip(indices[0], distances[0]):
+            if i != -1:
                 chunk = self.guideline_chunks[i]
-                results.append({"text": chunk[0], "source": chunk[1]})
+                results.append({"text": chunk[0], "source": chunk[1], "score": dist})
 
         return results
