@@ -1,14 +1,24 @@
 import torch
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from .hybrid_retriever import HybridRetriever
-from .document_classifier import DocumentClassifier, DocumentType
-from .parsing import parse_document_into_sections
+from .graph_retriever import GraphRetriever
+from ..document_classifier import DocumentClassifier, DocumentType
+from ..parsing import parse_document_into_sections
 from typing import Dict, List
 import json
 
 class ComplianceAnalyzer:
     def __init__(self):
-	@@ -24,66 +24,86 @@ def __init__(self):
+        # Initialize the retrievers
+        self.hybrid_retriever = HybridRetriever()
+        self.graph_retriever = GraphRetriever()
+
+        # Initialize the NER pipeline
+        ner_model_name = "d4data/biomedical-ner-all"
+        self.ner_pipeline = pipeline("ner", model=ner_model_name, aggregation_strategy="simple")
+        print(f"NER model '{ner_model_name}' loaded successfully.")
+
+        # Initialize the generator LLM
         generator_model_name = "nabilfaieaz/tinyllama-med-full"
 
         self.generator_tokenizer = AutoTokenizer.from_pretrained(generator_model_name)
@@ -34,19 +44,23 @@ class ComplianceAnalyzer:
 
         # 1. Extract entities
         entities = self.ner_pipeline(document_text)
-        entity_list = ", ".join([f"'{entity['word']}' ({entity['entity_group']})" for entity in entities])
+        entity_words = [entity['word'] for entity in entities]
+        entity_list_str = ", ".join([f"'{entity['word']}' ({entity['entity_group']})" for entity in entities])
 
-        # 2. Retrieve context
-        retrieved_docs = self.retriever.search(document_text)
+        # 2. Retrieve context from both retrievers
+        retrieved_docs = self.hybrid_retriever.search(document_text)
         context = "\n".join(retrieved_docs)
+
+        graph_rules = self.graph_retriever.search(entity_words)
+        graph_rules_text = "\n".join([f"- {rule.issue_title}: {rule.issue_detail}" for rule in graph_rules])
+
         # Truncate context to avoid exceeding model's context window
-        max_context_length = 4000
+        max_context_length = 3000 # Reduced to make space for graph rules
         if len(context) > max_context_length:
             context = context[:max_context_length] + "\n..."
 
-
         # 3. Build prompt
-        prompt = self._build_prompt(document_text, entity_list, context)
+        prompt = self._build_prompt(document_text, entity_list_str, context, graph_rules_text)
 
         # 4. Generate with LLM
         inputs = self.generator_tokenizer(prompt, return_tensors="pt").to(self.generator_model.device)
@@ -78,7 +92,7 @@ class ComplianceAnalyzer:
         print("Analysis generated.")
         return analysis
 
-    def _build_prompt(self, document: str, entity_list: str, context: str) -> str:
+    def _build_prompt(self, document: str, entity_list: str, context: str, graph_rules_text: str) -> str:
         """
         Builds the prompt for the LLM.
         """
@@ -92,9 +106,13 @@ You are an expert Medicare compliance officer for a Skilled Nursing Facility (SN
 ---
 {entity_list}
 ---
-	@@ -92,35 +112,30 @@ def _build_section_prompt(self, section_name, section_text, entities, context, d
+**Relevant Medicare Guidelines (from text search):**
 ---
 {context}
+---
+**Relevant Compliance Rules (from knowledge graph):**
+---
+{graph_rules_text}
 ---
 **Your Task:**
 Based on all the information above, provide a detailed compliance analysis. Identify any potential risks, explain why they are risks according to the guidelines, and suggest specific actions to mitigate them. If no risks are found, state that the document appears to be compliant.
@@ -120,7 +138,7 @@ if __name__ == '__main__':
     sample_document = '''
 Subjective: Patient reports feeling tired but motivated. States goal is to "walk my daughter down the aisle."
 Objective: Patient participated in 45 minutes of physical therapy. Gait training on level surfaces with rolling walker for 100 feet with moderate assistance. Moderate verbal cueing required for sequencing.
-	@@ -131,6 +146,4 @@ def _build_section_prompt(self, section_name, section_text, entities, context, d
+'''
     analysis_results = analyzer.analyze_document(sample_document)
 
     print("\n\n--- FINAL COMPLIANCE ANALYSIS ---")
