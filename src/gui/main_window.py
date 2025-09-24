@@ -11,11 +11,12 @@ from PySide6.QtWidgets import (
     QSplitter,
     QListWidgetItem
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread
 from .dialogs.rubric_manager_dialog import RubricManagerDialog
 from .widgets.control_panel import ControlPanel
 from .widgets.document_view import DocumentView
 from .widgets.analysis_view import AnalysisView
+from .workers.analysis_worker import AnalysisWorker
 
 API_URL = "http://127.0.0.1:8000"
 
@@ -131,31 +132,37 @@ class MainApplicationWindow(QMainWindow):
         selected_items = self.control_panel.rubric_list_widget.selectedItems()
         data = {}
         if selected_items:
-            # Rubric-based analysis
             rubric_id = selected_items[0].data(Qt.ItemDataRole.UserRole)
             data['rubric_id'] = rubric_id
             self.status_bar.showMessage(f"Running analysis with rubric: {selected_items[0].text()}...")
         else:
-            # Discipline-based analysis
             discipline = self.control_panel.discipline_combo.currentText()
             data['discipline'] = discipline
             self.status_bar.showMessage(f"Running analysis with discipline: {discipline}...")
 
-        try:
-            with open(self._current_file_path, 'rb') as f:
-                files = {'file': (os.path.basename(self._current_file_path), f)}
-                response = requests.post(f"{API_URL}/analyze", files=files, data=data)
+        self.thread = QThread()
+        self.worker = AnalysisWorker(self._current_file_path, data)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.success.connect(self.on_analysis_success)
+        self.worker.error.connect(self.on_analysis_error)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.start()
 
-            if response.status_code == 200:
-                self.analysis_view.setHtml(response.text)
-                self.status_bar.showMessage("Analysis complete.")
-            else:
-                error_text = f"Error from backend: {response.status_code}\n\n{response.text}"
-                QMessageBox.critical(self, "Analysis Error", error_text)
-                self.status_bar.showMessage("Backend analysis failed.")
-        except Exception as e:
-            QMessageBox.critical(self, "Connection Error", f"Failed to connect to backend or perform analysis:\n{e}")
-            self.status_bar.showMessage("Connection to backend failed.")
+        self.control_panel.run_analysis_button.setEnabled(False)
+        self.status_bar.showMessage("Running analysis...")
+
+    def on_analysis_success(self, result):
+        self.analysis_view.setHtml(result)
+        self.status_bar.showMessage("Analysis complete.")
+        self.control_panel.run_analysis_button.setEnabled(True)
+
+    def on_analysis_error(self, error_message):
+        QMessageBox.critical(self, "Analysis Error", error_message)
+        self.status_bar.showMessage("Backend analysis failed.")
+        self.control_panel.run_analysis_button.setEnabled(True)
 
     def manage_rubrics(self):
         dialog = RubricManagerDialog(self)
