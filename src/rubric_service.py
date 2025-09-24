@@ -61,9 +61,7 @@ class RubricService:
 
         NS_URI = "http://example.com/speckit/ontology#"
         query = f"""
-            SELECT ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?document_type ?suggestion ?financial_impact
-                   (GROUP_CONCAT(DISTINCT ?pos_kw; SEPARATOR="|") AS ?positive_keywords)
-                   (GROUP_CONCAT(DISTINCT ?neg_kw; SEPARATOR="|") AS ?negative_keywords)
+            SELECT ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?document_type ?suggestion ?financial_impact ?positive_keywords ?negative_keywords
             WHERE {{
                 ?rule a <{NS_URI}ComplianceRule> .
                 OPTIONAL {{ ?rule <{NS_URI}hasTitle> ?title . }}
@@ -75,16 +73,25 @@ class RubricService:
                 OPTIONAL {{ ?rule <{NS_URI}hasDocumentType> ?document_type . }}
                 OPTIONAL {{ ?rule <{NS_URI}hasSuggestion> ?suggestion . }}
                 OPTIONAL {{ ?rule <{NS_URI}hasFinancialImpact> ?financial_impact . }}
+
                 OPTIONAL {{
-                    ?rule <{NS_URI}hasPositiveKeywords> ?pos_ks .
-                    ?pos_ks <{NS_URI}hasKeyword> ?pos_kw .
+                    SELECT ?rule (GROUP_CONCAT(DISTINCT ?pos_kw; SEPARATOR="|") AS ?positive_keywords)
+                    WHERE {{
+                        ?rule <{NS_URI}hasPositiveKeywords> ?pos_ks .
+                        ?pos_ks <{NS_URI}hasKeyword> ?pos_kw .
+                    }}
+                    GROUP BY ?rule
                 }}
+
                 OPTIONAL {{
-                    ?rule <{NS_URI}hasNegativeKeywords> ?neg_ks .
-                    ?neg_ks <{NS_URI}hasKeyword> ?neg_kw .
+                    SELECT ?rule (GROUP_CONCAT(DISTINCT ?neg_kw; SEPARATOR="|") AS ?negative_keywords)
+                    WHERE {{
+                        ?rule <{NS_URI}hasNegativeKeywords> ?neg_ks .
+                        ?neg_ks <{NS_URI}hasKeyword> ?neg_kw .
+                    }}
+                    GROUP BY ?rule
                 }}
             }}
-            GROUP BY ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?document_type ?suggestion ?financial_impact
         """
 
         rules = []
