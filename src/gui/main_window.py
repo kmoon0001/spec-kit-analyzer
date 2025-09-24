@@ -2,25 +2,20 @@ import os
 import requests
 from PySide6.QtWidgets import (
     QWidget,
-    QPushButton,
     QVBoxLayout,
     QMessageBox,
     QMainWindow,
     QStatusBar,
     QMenuBar,
     QFileDialog,
-    QTextEdit,
-    QHBoxLayout,
-    QListWidget,
-    QListWidgetItem,
-    QComboBox,
-    QLabel,
     QSplitter,
-    QGroupBox
+    QListWidgetItem
 )
-from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtCore import Qt
 from .dialogs.rubric_manager_dialog import RubricManagerDialog
+from .widgets.control_panel import ControlPanel
+from .widgets.document_view import DocumentView
+from .widgets.analysis_view import AnalysisView
 
 API_URL = "http://127.0.0.1:8000"
 
@@ -51,59 +46,16 @@ class MainApplicationWindow(QMainWindow):
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(10)
 
-        # Controls Group
-        controls_group = QGroupBox("Controls")
-        controls_layout = QVBoxLayout(controls_group)
+        self.control_panel = ControlPanel(self)
+        main_layout.addWidget(self.control_panel)
 
-        # File operations
-        file_ops_layout = QHBoxLayout()
-        self.upload_button = QPushButton('Upload Document')
-        self.upload_button.clicked.connect(self.open_file_dialog)
-        file_ops_layout.addWidget(self.upload_button)
-        self.clear_button = QPushButton('Clear Display')
-        self.clear_button.clicked.connect(self.clear_display)
-        file_ops_layout.addWidget(self.clear_button)
-        controls_layout.addLayout(file_ops_layout)
-
-        # Analysis options
-        analysis_ops_layout = QHBoxLayout()
-
-        discipline_layout = QVBoxLayout()
-        discipline_layout.addWidget(QLabel("Discipline:"))
-        self.discipline_combo = QComboBox()
-        self.discipline_combo.addItems(["All", "PT", "OT", "SLP"])
-        discipline_layout.addWidget(self.discipline_combo)
-        analysis_ops_layout.addLayout(discipline_layout)
-
-        rubric_layout = QVBoxLayout()
-        rubric_layout.addWidget(QLabel("OR Select a Rubric:"))
-        self.rubric_list_widget = QListWidget()
-        self.rubric_list_widget.setPlaceholderText("No rubric selected")
-        self.rubric_list_widget.setMaximumHeight(100)
-        rubric_layout.addWidget(self.rubric_list_widget)
-        analysis_ops_layout.addLayout(rubric_layout)
-
-        analysis_ops_layout.addStretch()
-
-        self.run_analysis_button = QPushButton("Run Analysis")
-        self.run_analysis_button.clicked.connect(self.run_analysis)
-        analysis_ops_layout.addWidget(self.run_analysis_button, 0, Qt.AlignBottom)
-
-        controls_layout.addLayout(analysis_ops_layout)
-
-        main_layout.addWidget(controls_group)
-
-        # Document and results display
         splitter = QSplitter(Qt.Horizontal)
 
-        self.document_display_area = QTextEdit()
-        self.document_display_area.setPlaceholderText("Upload a document to see its content here.")
-        self.document_display_area.setReadOnly(True)
-        splitter.addWidget(self.document_display_area)
+        self.document_view = DocumentView()
+        splitter.addWidget(self.document_view)
 
-        self.analysis_results_area = QWebEngineView()
-        self.analysis_results_area.setHtml("<p>Analysis results will appear here.</p>")
-        splitter.addWidget(self.analysis_results_area)
+        self.analysis_view = AnalysisView()
+        splitter.addWidget(self.analysis_view)
 
         splitter.setSizes([500, 700])
         main_layout.addWidget(splitter)
@@ -114,13 +66,15 @@ class MainApplicationWindow(QMainWindow):
     def apply_stylesheet(self):
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #f0f0f0;
+                background-color: #2b2b2b;
+                color: #f0f0f0;
             }
             QGroupBox {
-                border: 1px solid #d0d0d0;
+                border: 1px solid #444;
                 border-radius: 5px;
                 margin-top: 10px;
                 font-weight: bold;
+                color: #f0f0f0;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
@@ -128,11 +82,12 @@ class MainApplicationWindow(QMainWindow):
                 padding: 0 5px;
             }
             QPushButton {
-                background-color: #0078d7;
+                background-color: #007acc;
                 color: white;
                 border: none;
                 padding: 10px;
                 border-radius: 5px;
+                box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
             }
             QPushButton:hover {
                 background-color: #005a9e;
@@ -141,13 +96,18 @@ class MainApplicationWindow(QMainWindow):
                 background-color: #003c6a;
             }
             QTextEdit, QListWidget, QComboBox {
-                border: 1px solid #d0d0d0;
+                background-color: #3c3c3c;
+                color: #f0f0f0;
+                border: 1px solid #555;
                 border-radius: 5px;
                 padding: 5px;
             }
             QStatusBar {
-                background-color: #0078d7;
+                background-color: #007acc;
                 color: white;
+            }
+            QLabel {
+                color: #f0f0f0;
             }
         """)
 
@@ -158,9 +118,9 @@ class MainApplicationWindow(QMainWindow):
             self.status_bar.showMessage(f"Loaded document: {os.path.basename(file_name)}")
             try:
                 with open(file_name, 'r', encoding='utf-8') as f:
-                    self.document_display_area.setText(f.read())
+                    self.document_view.setText(f.read())
             except Exception:
-                 self.document_display_area.setText(f"Could not display preview for: {file_name}")
+                 self.document_view.setText(f"Could not display preview for: {file_name}")
 
 
     def run_analysis(self):
@@ -168,7 +128,7 @@ class MainApplicationWindow(QMainWindow):
             QMessageBox.warning(self, "Analysis Error", "Please upload a document to analyze first.")
             return
 
-        selected_items = self.rubric_list_widget.selectedItems()
+        selected_items = self.control_panel.rubric_list_widget.selectedItems()
         data = {}
         if selected_items:
             # Rubric-based analysis
@@ -177,7 +137,7 @@ class MainApplicationWindow(QMainWindow):
             self.status_bar.showMessage(f"Running analysis with rubric: {selected_items[0].text()}...")
         else:
             # Discipline-based analysis
-            discipline = self.discipline_combo.currentText()
+            discipline = self.control_panel.discipline_combo.currentText()
             data['discipline'] = discipline
             self.status_bar.showMessage(f"Running analysis with discipline: {discipline}...")
 
@@ -187,7 +147,7 @@ class MainApplicationWindow(QMainWindow):
                 response = requests.post(f"{API_URL}/analyze", files=files, data=data)
 
             if response.status_code == 200:
-                self.analysis_results_area.setHtml(response.text)
+                self.analysis_view.setHtml(response.text)
                 self.status_bar.showMessage("Analysis complete.")
             else:
                 error_text = f"Error from backend: {response.status_code}\n\n{response.text}"
@@ -203,7 +163,7 @@ class MainApplicationWindow(QMainWindow):
         self.load_rubrics_to_list()
 
     def load_rubrics_to_list(self):
-        self.rubric_list_widget.clear()
+        self.control_panel.rubric_list_widget.clear()
         try:
             response = requests.get(f"{API_URL}/rubrics/")
             response.raise_for_status()
@@ -211,13 +171,13 @@ class MainApplicationWindow(QMainWindow):
             for rubric in rubrics:
                 item = QListWidgetItem(rubric['name'])
                 item.setData(Qt.ItemDataRole.UserRole, rubric['id'])
-                self.rubric_list_widget.addItem(item)
+                self.control_panel.rubric_list_widget.addItem(item)
         except Exception as e:
             self.handle_error(f"Failed to load rubrics from backend:\n{e}")
 
     def clear_display(self):
-        self.document_display_area.clear()
-        self.analysis_results_area.setHtml("")
+        self.document_view.clear()
+        self.analysis_view.setHtml("")
         self._current_file_path = None
         self.status_bar.showMessage("Display cleared.")
 
