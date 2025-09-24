@@ -10,3 +10,10 @@ def chunk_text(text: str, max_chars: int = 4000):
         chunks.append(text[start:end])
         start = end
     return chunks
+
+import yaml
+
+def load_config():
+    """Loads the application configuration from config.yaml."""
+    with open('config.yaml', 'r') as f:
+        return yaml.safe_load(f)

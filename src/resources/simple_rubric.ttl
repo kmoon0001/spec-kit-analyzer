@@ -1,0 +1,44 @@
+@prefix : <http://example.com/speckit/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+: a owl:Ontology . 
+
+:ComplianceRule a owl:Class .
+:KeywordSet a owl:Class .
+
+:hasPositiveKeywords a owl:ObjectProperty .
+:hasNegativeKeywords a owl:ObjectProperty .
+
+:hasSeverity a owl:DatatypeProperty .
+:hasStrictSeverity a owl:DatatypeProperty .
+:hasIssueTitle a owl:DatatypeProperty .
+:hasIssueDetail a owl:DatatypeProperty .
+:hasIssueCategory a owl:DatatypeProperty .
+:hasKeyword a owl:DatatypeProperty .
+:hasFinancialImpact a owl:DatatypeProperty .
+:hasDiscipline a owl:DatatypeProperty .
+
+:SignatureRule a :ComplianceRule ;
+    :hasSeverity "finding" ;
+    :hasStrictSeverity "flag" ;
+    :hasIssueTitle "Provider signature/date possibly missing" ;
+    :hasIssueDetail "No explicit evidence of dated/signature entries found." ;
+    :hasIssueCategory "Signatures/Dates" ;
+    :hasFinancialImpact "50" ;
+    :hasDiscipline "pt" ;
+    :hasNegativeKeywords :SignatureKeywords .
+
+:SignatureKeywords a :KeywordSet ;
+    :hasKeyword "signature", "signed", "dated" .
+
+:OTSignatureRule a :ComplianceRule ;
+    :hasSeverity "finding" ;
+    :hasStrictSeverity "flag" ;
+    :hasIssueTitle "OT Provider signature/date possibly missing" ;
+    :hasIssueDetail "No explicit evidence of dated/signature entries found for OT." ;
+    :hasIssueCategory "Signatures/Dates" ;
+    :hasFinancialImpact "50" ;
+    :hasDiscipline "ot" ;
+    :hasNegativeKeywords :SignatureKeywords .

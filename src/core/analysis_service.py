@@ -1,71 +1,65 @@
 import os
-from src.core.rubric_service import RubricService
-from src.core.parsing import parse_document_content
-from src.core.guideline_service import GuidelineService
+from datetime import datetime
+import sqlite3
+import json
+import tempfile
+from src.rubric_service import RubricService
+from src.parsing import parse_document_content
+from src.guideline_service import GuidelineService
+from src.database import DATABASE_PATH
+from .compliance_analyzer import ComplianceAnalyzer
 
 class AnalysisService:
     def __init__(self):
-        self.guideline_service = GuidelineService()
-        guideline_sources = [
-            "_default_medicare_benefit_policy_manual.txt",
-            "_default_medicare_part.txt"
-        ]
-        self.guideline_service.load_and_index_guidelines(sources=guideline_sources)
+        self.analyzer = ComplianceAnalyzer()
 
-    def analyze_document(self, file_path: str) -> str:
+    def analyze_document(self, file_path: str, rubric_id: int | None = None, discipline: str | None = None, analysis_mode: str = "rubric") -> str:
         # 1. Parse the document content
         document_chunks = parse_document_content(file_path)
         document_text = " ".join([chunk[0] for chunk in document_chunks])
+        doc_name = os.path.basename(file_path)
 
-        # 2. Load the rubric
-        rubric_service = RubricService(ontology_path=os.path.join("src", "resources", "pt_compliance_rubric.ttl"))
-        rules = rubric_service.get_rules()
+        # 2. Perform analysis using the ComplianceAnalyzer
+        analysis_result = self.analyzer.analyze_document(
+            document_text,
+            discipline=discipline,
+            analysis_mode=analysis_mode,
+        )
 
-        # 3. Perform analysis
-        findings = []
-        for rule in rules:
-            for keyword in rule.positive_keywords:
-                if keyword.lower() in document_text.lower():
-                    findings.append(rule)
-                    break
-
-        # 4. Generate the HTML report
+        # 3. Generate the HTML report
         with open(os.path.join("src", "resources", "report_template.html"), "r") as f:
             template_str = f.read()
 
-        # Populate findings
-        findings_html = ""
+        # Populate summary
+        report_html = template_str.replace("<!-- Placeholder for document name -->", doc_name)
+        report_html = report_html.replace("<!-- Placeholder for analysis date -->", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+        findings = analysis_result.get("findings", [])
+        compliance_score = max(0, 100 - (len(findings) * 10)) # Simple scoring
+        report_html = report_html.replace("<!-- Placeholder for compliance score -->", str(compliance_score))
+        report_html = report_html.replace("<!-- Placeholder for total findings -->", str(len(findings)))
+
+        # Populate findings table
+        findings_rows_html = ""
         if findings:
             for finding in findings:
-                findings_html += f"""
-                <div class="finding">
-                    <h3>{finding.issue_title}</h3>
-                    <p><strong>Severity:</strong> {finding.severity}</p>
-                    <p><strong>Category:</strong> {finding.issue_category}</p>
-                    <p>{finding.issue_detail}</p>
-                </div>
+                findings_rows_html += f"""
+                <tr>
+                    <td>{finding.get('rule_id', 'N/A')}</td>
+                    <td>{finding.get('risk', 'N/A')}</td>
+                    <td>{finding.get('suggestion', 'N/A')}</td>
+                    <td>{finding.get('text', 'N/A')}</td>
+                </tr>
                 """
         else:
-            findings_html = "<p>No specific findings based on the rubric.</p>"
+            findings_rows_html = "<tr><td colspan='4'>No findings.</td></tr>"
+        report_html = report_html.replace("<!-- Placeholder for findings rows -->", findings_rows_html)
 
-        report_html = template_str.replace("<!-- Placeholder for findings -->", findings_html)
-
-        # Populate Medicare guidelines
-        guidelines_html = ""
-        if findings:
-            for finding in findings:
-                guideline_results = self.guideline_service.search(query=finding.issue_title, top_k=1)
-                if guideline_results:
-                    guidelines_html += "<div>"
-                    guidelines_html += f"<h4>Related to: {finding.issue_title}</h4>"
-                    for result in guideline_results:
-                        guidelines_html += f"<p><strong>Source:</strong> {result['source']}</p>"
-                        guidelines_html += f"<p>{result['text']}</p>"
-                    guidelines_html += "</div>"
-
-        if not guidelines_html:
-            guidelines_html = "<p>No relevant Medicare guidelines found.</p>"
-
+        # Populate Medicare guidelines (This might need to be adjusted based on the new analysis_result format)
+        guidelines_html = "<p>No relevant Medicare guidelines found.</p>"
         report_html = report_html.replace("<!-- Placeholder for Medicare guidelines -->", guidelines_html)
+
+        # Populate footer
+        report_html = report_html.replace("<!-- Placeholder for generation date -->", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
         return report_html

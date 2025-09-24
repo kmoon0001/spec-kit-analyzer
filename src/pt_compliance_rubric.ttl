@@ -86,23 +86,18 @@
 
 # Rule 2: Goals check
 # This rule triggers if 'goal' is present, but measurable/time-bound keywords are NOT found.
-# ... continue with your rule definitions ...
-
-    rdfs:domain :ComplianceRule ;
-    rdfs:range rdfs:Literal .
-
-# --- Individuals (Rules) ---
-
-# Rule 1: Signature/Date check
-:SignatureRule a :ComplianceRule ;
+:GoalsRule a :ComplianceRule ;
     :hasSeverity "finding" ;
     :hasStrictSeverity "flag" ;
-    :hasIssueTitle "Provider signature/date possibly missing" ;
-    :hasIssueDetail "No explicit evidence of dated/signature entries found." ;
-    :hasIssueCategory "Signatures/Dates" ;
-    :hasFinancialImpact 50 ;
+    :hasIssueTitle "Goals may not be measurable/time-bound" ;
+    :hasIssueDetail "Consider restating goals with measurable, time-bound targets and baselines." ;
+    :hasIssueCategory "Goals" ;
+    :hasFinancialImpact "50" ;
     :hasDiscipline "pt" ;
-    :hasNegativeKeywords :SignatureKeywords .
+    :hasDocumentType "Progress Note" ;
+    :hasSuggestion "To improve, ensure each goal is SMART (Specific, Measurable, Achievable, Relevant, Time-bound). For example, instead of 'improve strength', write 'Patient will increase right knee extension strength from 3/5 to 4/5 within 2 weeks to improve ambulation'." ;
+    :hasPositiveKeywords :GoalsKeywordsPresent ;
+    :hasNegativeKeywords :GoalsKeywordsMissing .
 
 :SignatureKeywords a :KeywordSet ;
     :hasKeyword "signature" , "signed" , "dated" .

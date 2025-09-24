@@ -6,59 +6,127 @@ import logging
 import os
 import re
 import tempfile
+import pickle
 from typing import List, Tuple
 
 # Third-party
 import pdfplumber
 import requests
-from rank_bm25 import BM25Okapi
- 
-# Local
+import numpy as np
+import faiss
+from sentence_transformers import SentenceTransformer
+from src.utils import load_config
 
 logger = logging.getLogger(__name__)
 
-
-def simple_tokenizer(text: str) -> List[str]:
-    """
-    A simple tokenizer that lowercases and removes punctuation.
-    """
-    return re.sub(r'[^\w\s]','',text).lower().split()
-
-
 class GuidelineService:
     """
-    Manages loading, indexing, and searching of compliance guidelines.
+    Manages loading, indexing, and searching of compliance guidelines using a neural retriever.
+    Implements caching for the FAISS index and guideline chunks to improve startup time.
     """
 
-    def __init__(self):
+    def __init__(self, sources: List[str]):
         """
         Initializes the GuidelineService.
         """
+        self.config = load_config()
+        model_name = self.config['models']['retriever']
+
         self.guideline_chunks: List[Tuple[str, str]] = []
         self.is_index_ready = False
-        self.bm25_index = None
+        self.faiss_index = None
+
+        self.cache_dir = "data"
+        self.index_path = os.path.join(self.cache_dir, "guidelines.index")
+        self.chunks_path = os.path.join(self.cache_dir, "guidelines.pkl")
+        self.source_paths = sources
+
+        logger.info(f"Loading Sentence Transformer model: {model_name}")
+        self.model = SentenceTransformer(model_name)
+
+        self._load_or_build_index()
         logger.info("GuidelineService initialized.")
 
-    def load_and_index_guidelines(self, sources: List[str]) -> None:
-        """
-        Loads guidelines from a list of local file paths and builds a BM25 index.
-        """
+    def _load_or_build_index(self):
+        """Loads the index from cache if valid, otherwise builds it from source."""
+        if self._is_cache_valid():
+            logger.info("Loading guidelines index from cache...")
+            self._load_index_from_cache()
+        else:
+            logger.info("Cache not found or is invalid. Building index from source...")
+            self._build_index_from_sources()
+            self._save_index_to_cache()
+
+    def _is_cache_valid(self) -> bool:
+        """Checks if the cached index and chunks exist and are up-to-date."""
+        if not os.path.exists(self.index_path) or not os.path.exists(self.chunks_path):
+            return False
+
+        # Check if the sources have changed
+        with open(self.chunks_path, 'rb') as f:
+            cached_chunks = pickle.load(f)
+        cached_sources = set(chunk[1] for chunk in cached_chunks)
+        current_sources = set(os.path.basename(path) for path in self.source_paths)
+        if cached_sources != current_sources:
+            return False
+
+        cache_mod_time = os.path.getmtime(self.index_path)
+        for src_path in self.source_paths:
+            if not os.path.exists(src_path) or os.path.getmtime(src_path) > cache_mod_time:
+                return False # Source file is newer than cache
+        return True
+
+    def _load_index_from_cache(self):
+        """Loads the FAISS index and guideline chunks from disk."""
+        try:
+            self.faiss_index = faiss.read_index(self.index_path)
+            with open(self.chunks_path, 'rb') as f:
+                self.guideline_chunks = pickle.load(f)
+            self.is_index_ready = True
+            logger.info(f"Successfully loaded {len(self.guideline_chunks)} chunks and FAISS index from cache.")
+        except Exception as e:
+            logger.error(f"Failed to load index from cache: {e}")
+            self.is_index_ready = False
+
+    def _save_index_to_cache(self):
+        """Saves the FAISS index and guideline chunks to disk."""
+        if not self.faiss_index or not self.guideline_chunks:
+            logger.warning("Attempted to save cache, but index or chunks are missing.")
+            return
+
+        try:
+            faiss.write_index(self.faiss_index, self.index_path)
+            with open(self.chunks_path, 'wb') as f:
+                pickle.dump(self.guideline_chunks, f)
+            logger.info(f"Successfully saved index and chunks to '{self.cache_dir}'.")
+        except Exception as e:
+            logger.error(f"Failed to save index to cache: {e}")
+
+    def _build_index_from_sources(self) -> None:
+        """Loads guidelines from a list of local file paths and builds a FAISS index."""
         self.guideline_chunks = []
-        for source_path in sources:
+        for source_path in self.source_paths:
             self.guideline_chunks.extend(self._load_from_local_path(source_path))
 
-        # Create BM25 index
         if self.guideline_chunks:
-            tokenized_corpus = [simple_tokenizer(chunk[0]) for chunk in self.guideline_chunks]
-            self.bm25_index = BM25Okapi(tokenized_corpus)
+            logger.info("Encoding guidelines into vectors...")
+            texts_to_encode = [chunk[0] for chunk in self.guideline_chunks]
+            embeddings = self.model.encode(texts_to_encode, convert_to_tensor=True, show_progress_bar=True)
+            embeddings_np = embeddings.cpu().numpy()
+
+            if embeddings_np.dtype != np.float32:
+                embeddings_np = embeddings_np.astype(np.float32)
+
+            embedding_dim = embeddings_np.shape[1]
+            self.faiss_index = faiss.IndexFlatL2(embedding_dim)
+            self.faiss_index.add(embeddings_np)
 
         self.is_index_ready = True
-        logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks.")
+        logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks using FAISS.")
 
-    def _extract_text_from_pdf(
-        self, file_path: str, source_name: str
-    ) -> List[Tuple[str, str]]:
-        """Extracts text from a PDF file, chunking it by paragraph."""
+    def _extract_text_from_pdf(self, file_path: str, source_name: str) -> List[Tuple[str, str]]:
+        # ... (rest of the file is unchanged)
+        """Extracts text from a file, chunking it by paragraph."""
         chunks = []
         try:
             if file_path.lower().endswith('.txt'):
@@ -87,27 +155,6 @@ class GuidelineService:
             raise
         return chunks
 
-    def _load_from_url(self, url: str) -> List[Tuple[str, str]]:
-        """Downloads a PDF from a URL, extracts text, and cleans up."""
-        logger.info(f"Downloading and parsing guidelines from {url}...")
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-            try:
-                response = requests.get(url, timeout=30)
-                response.raise_for_status()
-                tmp_file.write(response.content)
-                tmp_file_path = tmp_file.name
-            except requests.RequestException as e:
-                logger.error(f"Failed to download PDF from {url}: {e}")
-                os.unlink(tmp_file.name)
-                return []
-
-        try:
-            source_name = os.path.basename(url)
-            return self._extract_text_from_pdf(tmp_file_path, source_name)
-        finally:
-            os.unlink(tmp_file_path)
-
     def _load_from_local_path(self, file_path: str) -> List[Tuple[str, str]]:
         """Loads and extracts text chunks from a local file."""
         logger.info(f"Parsing guidelines from local file: {file_path}...")
@@ -118,28 +165,31 @@ class GuidelineService:
         source_name = os.path.basename(file_path)
         return self._extract_text_from_pdf(file_path, source_name)
 
-    def search(self, query: str, top_k: int = 2) -> List[dict]:
+    def search(self, query: str, top_k: int = None) -> List[dict]:
         """
-        Performs a BM25 search through the loaded guidelines.
+        Performs a FAISS similarity search through the loaded guidelines.
         """
-        if not self.is_index_ready or not self.bm25_index:
+        if top_k is None:
+            top_k = self.config['retrieval_settings']['similarity_top_k']
+
+        if not self.is_index_ready or not self.faiss_index:
             logger.warning("Search called before guidelines were loaded and indexed.")
             return []
 
-        tokenized_query = simple_tokenizer(query)
+        query_embedding = self.model.encode([query], convert_to_tensor=True)
+        # Ensure it's a numpy array before continuing
+        if not isinstance(query_embedding, np.ndarray):
+            query_embedding = query_embedding.cpu().numpy()
 
-        # Get scores for all documents
-        doc_scores = self.bm25_index.get_scores(tokenized_query)
+        if query_embedding.dtype != np.float32:
+            query_embedding = query_embedding.astype(np.float32)
 
-        # Get the top_k indices
-        top_indices = sorted(range(len(doc_scores)), key=lambda i: doc_scores[i], reverse=True)[:top_k]
+        distances, indices = self.faiss_index.search(query_embedding, top_k)
 
-        # Filter out results with a score of 0
-        top_chunks = []
-        for i in top_indices:
-            if doc_scores[i] > 0:
-                top_chunks.append(self.guideline_chunks[i])
-
-        results = [{"text": chunk[0], "source": chunk[1]} for chunk in top_chunks]
+        results = []
+        for i, dist in zip(indices[0], distances[0]):
+            if i != -1:
+                chunk = self.guideline_chunks[i]
+                results.append({"text": chunk[0], "source": chunk[1], "score": dist})
 
         return results
