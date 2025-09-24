@@ -18,3 +18,4 @@ openpyxl
 torch
 transformers
 sentence-transformers
+gunicorn

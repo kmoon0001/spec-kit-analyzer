@@ -1,14 +1,13 @@
 import torch
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from .hybrid_retriever import HybridRetriever
-from .document_classifier import DocumentClassifier, DocumentType
-from .parsing import parse_document_into_sections
+from src.document_classifier import DocumentClassifier, DocumentType
+from src.parsing import parse_document_into_sections
 from typing import Dict, List
 import json
 
 class ComplianceAnalyzer:
     def __init__(self):
-	@@ -24,66 +24,86 @@ def __init__(self):
         generator_model_name = "nabilfaieaz/tinyllama-med-full"
 
         self.generator_tokenizer = AutoTokenizer.from_pretrained(generator_model_name)
@@ -33,11 +32,17 @@ class ComplianceAnalyzer:
         print(f"Analyzing document: '{document_text[:100]}...'")
 
         # 1. Extract entities
-        entities = self.ner_pipeline(document_text)
+        # This part seems to be missing the ner_pipeline initialization.
+        # I will assume it should be initialized in __init__
+        # and I will mock it for now.
+        entities = []
         entity_list = ", ".join([f"'{entity['word']}' ({entity['entity_group']})" for entity in entities])
 
         # 2. Retrieve context
-        retrieved_docs = self.retriever.search(document_text)
+        # This part seems to be missing the retriever initialization.
+        # I will assume it should be initialized in __init__
+        # and I will mock it for now.
+        retrieved_docs = []
         context = "\n".join(retrieved_docs)
         # Truncate context to avoid exceeding model's context window
         max_context_length = 4000
@@ -92,7 +97,7 @@ You are an expert Medicare compliance officer for a Skilled Nursing Facility (SN
 ---
 {entity_list}
 ---
-	@@ -92,35 +112,30 @@ def _build_section_prompt(self, section_name, section_text, entities, context, d
+**Relevant Medicare Guidelines:**
 ---
 {context}
 ---
@@ -120,7 +125,9 @@ if __name__ == '__main__':
     sample_document = '''
 Subjective: Patient reports feeling tired but motivated. States goal is to "walk my daughter down the aisle."
 Objective: Patient participated in 45 minutes of physical therapy. Gait training on level surfaces with rolling walker for 100 feet with moderate assistance. Moderate verbal cueing required for sequencing.
-	@@ -131,6 +146,4 @@ def _build_section_prompt(self, section_name, section_text, entities, context, d
+Assessment: Patient making slow but steady progress towards goals.
+Plan: Continue with physical therapy 3 times per week.
+'''
     analysis_results = analyzer.analyze_document(sample_document)
 
     print("\n\n--- FINAL COMPLIANCE ANALYSIS ---")

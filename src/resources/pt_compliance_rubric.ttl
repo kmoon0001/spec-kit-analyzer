@@ -61,7 +61,6 @@
 # --- Individuals (Rules) ---
 
 # Rule 1: Signature/Date check
-# This rule triggers if NONE of the keywords are found.
 :SignatureRule a :ComplianceRule ;
     :hasSeverity "finding" ;
     :hasStrictSeverity "flag" ;
@@ -73,10 +72,11 @@
     :hasNegativeKeywords :SignatureKeywords .
 
 :SignatureKeywords a :KeywordSet ;
-    :hasKeyword "signature", "signed", "dated" .
+    :hasKeyword "signature" ;
+    :hasKeyword "signed" ;
+    :hasKeyword "dated" .
 
 # Rule 2: Goals check
-# This rule triggers if 'goal' is present, but measurable/time-bound keywords are NOT found.
 :GoalsRule a :ComplianceRule ;
     :hasSeverity "finding" ;
     :hasStrictSeverity "flag" ;
@@ -89,10 +89,12 @@
     :hasNegativeKeywords :GoalsKeywordsMissing .
 
 :GoalsKeywordsPresent a :KeywordSet ; :hasKeyword "goal" .
-:GoalsKeywordsMissing a :KeywordSet ; :hasKeyword "measurable", "time", "timed" .
+:GoalsKeywordsMissing a :KeywordSet ;
+    :hasKeyword "measurable" ;
+    :hasKeyword "time" ;
+    :hasKeyword "timed" .
 
 # Rule 3: Medical Necessity check
-# This rule triggers if NONE of the keywords are found.
 :MedicalNecessityRule a :ComplianceRule ;
     :hasSeverity "finding" ;
     :hasStrictSeverity "flag" ;
@@ -104,10 +106,11 @@
     :hasNegativeKeywords :MedicalNecessityKeywords .
 
 :MedicalNecessityKeywords a :KeywordSet ;
-    :hasKeyword "medical necessity", "reasonable and necessary", "necessity" .
+    :hasKeyword "medical necessity" ;
+    :hasKeyword "reasonable and necessary" ;
+    :hasKeyword "necessity" .
 
 # Rule 4: Assistant Supervision check
-# This rule triggers if 'assistant' is present, but 'supervis' is NOT found.
 :AssistantSupervisionRule a :ComplianceRule ;
     :hasSeverity "suggestion" ;
     :hasStrictSeverity "finding" ;
@@ -123,7 +126,6 @@
 :AssistantKeywordsMissing a :KeywordSet ; :hasKeyword "supervis" .
 
 # Rule 5: Plan of Care check
-# This rule triggers if NONE of the keywords are found.
 :PlanOfCareRule a :ComplianceRule ;
     :hasSeverity "finding" ;
     :hasStrictSeverity "flag" ;
@@ -135,4 +137,7 @@
     :hasNegativeKeywords :PlanOfCareKeywords .
 
 :PlanOfCareKeywords a :KeywordSet ;
-    :hasKeyword "plan of care", "poc", "certification", "recert" .
+    :hasKeyword "plan of care" ;
+    :hasKeyword "poc" ;
+    :hasKeyword "certification" ;
+    :hasKeyword "recert" .
