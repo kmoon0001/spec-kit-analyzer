@@ -1,5 +1,5 @@
 from PySide6.QtCore import QObject, Signal
-from src.core.compliance_analyzer import ComplianceAnalyzer
+from src.compliance_analyzer import ComplianceAnalyzer
 
 class AILoaderWorker(QObject):
     finished = Signal(object, bool, str)  # analyzer, is_healthy, status_message

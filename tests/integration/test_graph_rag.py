@@ -49,7 +49,7 @@ def test_graph_rag_retrieval_specific_query(retriever):
 
     # 3. Assert that the top result is the one we expect.
     # We expect the "Goals" rule to be the most relevant.
-    assert "Goals" in top_result.issue_title, f"Top result should be about 'Goals', but got '{top_result.issue_title}'."
+    assert "Goals may not be measurable/time-bound" in top_result.issue_title, f"Top result should be about 'Goals may not be measurable/time-bound', but got '{top_result.issue_title}'."
     print(f"\nSuccessfully retrieved rule: '{top_result.issue_title}' for query: '{query}'")
 
 def test_graph_rag_retrieval_another_query(retriever):

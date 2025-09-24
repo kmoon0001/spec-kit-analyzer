@@ -1,6 +1,5 @@
 import os
 import requests
-import json
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -21,17 +20,15 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QPushButton
 )
-from PySide6.QtCore import Qt
-from PySide6.QtPrintSupport import QPrintDialog, QPrinter
-from PySide6.QtGui import QTextDocument
+from PySide6.QtCore import Qt, QThread  # keep QThread only if it's used elsewhere!
 from .dialogs.rubric_manager_dialog import RubricManagerDialog
 from .widgets.control_panel import ControlPanel
 from .widgets.document_view import DocumentView
 from .widgets.analysis_view import AnalysisView
 from .workers.analysis_worker import AnalysisWorker
+from .workers.folder_analysis_worker import FolderAnalysisWorker
 from .workers.ai_loader_worker import AILoaderWorker
-from src.core.compliance_analyzer import ComplianceAnalyzer
-from src.gui.export import generate_pdf_report
+from src.compliance_analyzer import ComplianceAnalyzer
 
 API_URL = "http://127.0.0.1:8000"
 
@@ -50,13 +47,7 @@ class MainApplicationWindow(QMainWindow):
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
         self.file_menu = self.menu_bar.addMenu('File')
-        self.export_action = self.file_menu.addAction('Export to PDF', self.export_to_pdf)
-        self.print_action = self.file_menu.addAction('Print', self.print_report)
-        self.file_menu.addSeparator()
         self.file_menu.addAction('Exit', self.close)
-
-        self.export_action.setEnabled(False)
-        self.print_action.setEnabled(False)
         self.tools_menu = self.menu_bar.addMenu('Tools')
         self.tools_menu.addAction('Manage Rubrics', self.manage_rubrics)
         self.theme_menu = self.menu_bar.addMenu('Theme')
@@ -89,6 +80,10 @@ class MainApplicationWindow(QMainWindow):
         self.upload_button = QPushButton('Upload Document')
         self.upload_button.clicked.connect(self.open_file_dialog)
         controls_layout.addWidget(self.upload_button)
+
+        self.upload_folder_button = QPushButton('Upload Folder')
+        self.upload_folder_button.clicked.connect(self.open_folder_dialog)
+        controls_layout.addWidget(self.upload_folder_button)
 
         self.clear_button = QPushButton('Clear Display')
         self.clear_button.clicked.connect(self.clear_display)
@@ -272,6 +267,13 @@ class MainApplicationWindow(QMainWindow):
             except Exception:
                  self.document_view.setText(f"Could not display preview for: {file_name}")
 
+    def open_folder_dialog(self):
+        folder_name = QFileDialog.getExistingDirectory(self, 'Select Folder')
+        if folder_name:
+            self._current_folder_path = folder_name
+            self.status_bar.showMessage(f"Loaded folder: {os.path.basename(folder_name)}")
+            self.run_folder_analysis()
+
 
     def run_analysis(self):
         if not self._current_file_path:
@@ -300,28 +302,84 @@ class MainApplicationWindow(QMainWindow):
         else:
             data['analysis_mode'] = 'llm_only'
 
-        self.run_analysis_threaded(data)
+        try:
+            with open(self._current_file_path, 'rb') as f:
+                files = {'file': (os.path.basename(self._current_file_path), f)}
+                response = requests.post(f"{API_URL}/analyze", files=files, data=data)
+            response.raise_for_status()
+            result = response.json()
+            task_id = result['task_id']
+            self.run_analysis_threaded(data, task_id)
+        except Exception as e:
+            self.on_analysis_error(f"Failed to start analysis: {e}")
 
-    def run_analysis_threaded(self, data):
+    def run_folder_analysis(self):
+        if not self._current_folder_path:
+            QMessageBox.warning(self, "Analysis Error", "Please upload a folder to analyze first.")
+            return
+
+        data = {}
+        discipline = self.control_panel.discipline_combo.currentText()
+        data['discipline'] = discipline
+        self.status_bar.showMessage(f"Running analysis with discipline: {discipline}...")
+
+        # Start progress bar and disable run_analysis button
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.show()
+        self.control_panel.run_analysis_button.setEnabled(False)
+        self.status_bar.showMessage("Running analysis...")
+
+        try:
+            files = []
+            for filename in os.listdir(self._current_folder_path):
+                file_path = os.path.join(self._current_folder_path, filename)
+                if os.path.isfile(file_path):
+                    files.append(('files', (filename, open(file_path, 'rb'))))
+
+            response = requests.post(f"{API_URL}/analyze_folder", files=files, data=data)
+            response.raise_for_status()
+            result = response.json()
+            task_id = result['task_id']
+            self.run_folder_analysis_threaded(data, task_id)
+        except Exception as e:
+            self.on_analysis_error(f"Failed to start analysis: {e}")
+
+    def run_analysis_threaded(self, data, task_id):
         # Threaded/worker-based analysis approach
         self.thread = QThread()
-        self.worker = AnalysisWorker(self._current_file_path, data)
+        self.worker = AnalysisWorker(self._current_file_path, data, task_id)
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
         self.worker.success.connect(self.on_analysis_success)
         self.worker.error.connect(self.on_analysis_error)
+        self.worker.progress.connect(self.on_analysis_progress)
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
         self.thread.start()
+
+    def run_folder_analysis_threaded(self, data, task_id):
+        # Threaded/worker-based analysis approach
+        self.thread = QThread()
+        self.worker = FolderAnalysisWorker(data, task_id)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.success.connect(self.on_analysis_success)
+        self.worker.error.connect(self.on_analysis_error)
+        self.worker.progress.connect(self.on_analysis_progress)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.start()
+
+    def on_analysis_progress(self, progress):
+        self.progress_bar.setValue(progress)
 
     def on_analysis_success(self, result):
         self.progress_bar.hide()
         self.analysis_results_area.setText(result)
         self.status_bar.showMessage("Analysis complete.")
         self.control_panel.run_analysis_button.setEnabled(True)
-        self.export_action.setEnabled(True)
-        self.print_action.setEnabled(True)
 
     def on_analysis_error(self, error_message):
         self.progress_bar.hide()
@@ -364,8 +422,6 @@ class MainApplicationWindow(QMainWindow):
         self.analysis_results_area.clear()
         self._current_file_path = None
         self.status_bar.showMessage("Display cleared.")
-        self.export_action.setEnabled(False)
-        self.print_action.setEnabled(False)
 
     def handle_error(self, message):
         QMessageBox.critical(self, "Error", message)
@@ -407,68 +463,3 @@ class MainApplicationWindow(QMainWindow):
         self.ai_status_label.setStyleSheet(
             "color: green;" if is_healthy else "color: red;"
         )
-
-    def export_to_pdf(self):
-        analysis_results = self.analysis_results_area.toPlainText()
-        if not analysis_results:
-            QMessageBox.warning(self, "Export Error", "No analysis results to export.")
-            return
-
-        success, message = generate_pdf_report(analysis_results, self)
-        if success:
-            self.status_bar.showMessage(f"Report successfully exported to {message}")
-        else:
-            QMessageBox.critical(self, "Export Error", message)
-
-    def print_report(self):
-        analysis_results_str = self.analysis_results_area.toPlainText()
-        if not analysis_results_str:
-            QMessageBox.warning(self, "Print Error", "No analysis results to print.")
-            return
-
-        try:
-            analysis_results = json.loads(analysis_results_str)
-        except json.JSONDecodeError:
-            QMessageBox.critical(self, "Print Error", "Failed to decode analysis results.")
-            return
-
-        # Define the path for the template
-        template_path = os.path.join(os.path.dirname(__file__), '..', 'report_template.html')
-
-        # Read the template file
-        try:
-            with open(template_path, 'r') as f:
-                template_content = f.read()
-        except FileNotFoundError:
-            QMessageBox.critical(self, "Print Error", f"Report template not found at {template_path}")
-            return
-
-        # Create a Jinja2 template object
-        from jinja2 import Template
-        template = Template(template_content)
-
-        # Transform the analysis results to match the template's expectations
-        findings = []
-        for finding in analysis_results.get('findings', []):
-            findings.append({
-                'title': finding.get('rule_id', 'N/A'),
-                'category': finding.get('risk_description', 'N/A'),
-                'justification': finding.get('text_quote', 'N/A'),
-                'observation': finding.get('suggestion', 'N/A')
-            })
-
-        # Render the template with the analysis results
-        html_content = template.render(
-            findings=findings,
-            guidelines=analysis_results.get('guidelines', [])
-        )
-
-        # Print the rendered HTML
-        printer = QPrinter(QPrinter.HighResolution)
-        dialog = QPrintDialog(printer, self)
-
-        if dialog.exec() == QPrintDialog.Accepted:
-            doc = QTextDocument()
-            doc.setHtml(html_content)
-            doc.print_(printer)
-            self.status_bar.showMessage("Report sent to printer.")
