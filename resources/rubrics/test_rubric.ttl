@@ -4,7 +4,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 # Rule for keyword search test
-:rule1 a :ComplianceRule ;
+:rule1 a :ComplianceRule ; 
     :issue_title "Signature Requirement" ;
     :issue_detail "The therapist's signature is required on all documentation." ;
     :suggestion "Ensure the therapist signs the document." ;
