@@ -1,6 +1,6 @@
 import torch
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from .hybrid_retriever import HybridRetriever
+from .hybrid_retriever import HybridRetriever 
 from src.document_classifier import DocumentClassifier, DocumentType
 from src.parsing import parse_document_into_sections
 from typing import Dict, List
