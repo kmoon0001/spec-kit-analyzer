@@ -1,16 +1,16 @@
 import sys
-from PyQt6.QtWidgets import QApplication
+import os
 
-# Import the main window and the database initializer
+# Add the parent directory to Python path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from PySide6.QtWidgets import QApplication
 from src.gui.main_window import MainApplicationWindow
-from src.database import init_db
+from src.core.database import initialize_database
 
 if __name__ == '__main__':
-    # Initialize the database first to ensure tables are created
-    init_db()
-
-    # Create and run the application
     app = QApplication(sys.argv)
+    initialize_database()
     main_win = MainApplicationWindow()
-    # The main window will be shown after a successful login
+    main_win.show()
     sys.exit(app.exec())
