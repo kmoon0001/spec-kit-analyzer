@@ -8,7 +8,8 @@ import json
 from rubric_service import ComplianceRule
 
 class ComplianceAnalyzer:
-    def __init__(self): 
+    def __init__(self, retriever: HybridRetriever = None, use_query_transformation: bool = False):
+        self.use_query_transformation = use_query_transformation
         generator_model_name = "nabilfaieaz/tinyllama-med-full"
 
         # Initialize the document classifier
@@ -16,7 +17,7 @@ class ComplianceAnalyzer:
         print("Document Classifier initialized successfully.")
 
         # Initialize the GraphRAG retriever
-        self.retriever = HybridRetriever()
+        self.retriever = retriever or HybridRetriever()
         print("GraphRAG Hybrid Retriever initialized successfully.")
 
         # Initialize the generator LLM
@@ -51,7 +52,11 @@ class ComplianceAnalyzer:
         print(f"Extracted entities: {entity_list}")
 
         # 3. Retrieve context from GraphRAG
-        retrieved_rules = self.retriever.search(document_text, discipline=discipline, doc_type=doc_type_str)
+        doc_type = self.classifier.predict(document_text)
+        query = document_text
+        if self.use_query_transformation:
+            query = self._transform_query(query)
+        retrieved_rules = self.retriever.search(query=query, discipline=discipline, doc_type=doc_type.name)
         context = self._format_rules_for_prompt(retrieved_rules)
 
         # 2. Retrieve context
@@ -94,6 +99,13 @@ class ComplianceAnalyzer:
 
         print("Analysis generated.")
         return analysis
+
+    def _transform_query(self, query: str) -> str:
+        """
+        Transforms the query to improve retrieval results.
+        (Placeholder for more advanced logic)
+        """
+        return query
 
     def _format_rules_for_prompt(self, rules: List[ComplianceRule]) -> str:
         """
