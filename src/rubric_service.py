@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from rdflib import Graph, Namespace
-from rdflib.plugins.sparql import prepareQuery
+from rdflib.plugins.sparql import prepareQuery 
 
 logger = logging.getLogger(__name__)
 
@@ -35,21 +35,14 @@ class RubricService:
         Initializes the service by loading all .ttl rubric ontologies from the src directory.
         """
         self.graph = Graph()
-        # The rubrics are designed to be loaded together.
-        # We will load all .ttl files from the src directory into one graph.
-        import glob
         # The main ontology is in pt_compliance_rubric.ttl, load it first.
-        main_ontology = "src/pt_compliance_rubric.ttl"
-        other_rubrics = glob.glob("src/*.ttl")
-        other_rubrics.remove(main_ontology)
+        main_ontology = "src/resources/pt_compliance_rubric.ttl"
 
         try:
-            self.graph.parse(main_ontology, format="turtle")
-            for file_path in other_rubrics:
-                self.graph.parse(file_path, format="turtle")
-            logger.info(f"Successfully loaded all rubric files.")
+            self.graph.parse(main_ontology, format="turtle", encoding="utf-8")
+            logger.info(f"Successfully loaded rubric file: {main_ontology}")
         except Exception as e:
-            logger.exception(f"Failed to load or parse the rubric ontologies: {e}")
+            logger.exception(f"Failed to load or parse the rubric ontology: {e}")
 
     def get_rules(self) -> List[ComplianceRule]:
         """
@@ -64,10 +57,30 @@ class RubricService:
         NS_URI = "http://example.com/speckit/ontology#"
         # A simpler query to get all rule properties.
         query = f"""
-            SELECT ?rule ?p ?o
+            SELECT ?rule ?title ?detail ?severity ?strict_severity ?category ?discipline ?document_type ?suggestion ?financial_impact
+                   (GROUP_CONCAT(DISTINCT ?safe_pos_kw; SEPARATOR="|") AS ?positive_keywords)
+                   (GROUP_CONCAT(DISTINCT ?safe_neg_kw; SEPARATOR="|") AS ?negative_keywords)
             WHERE {{
                 ?rule a <{NS_URI}ComplianceRule> .
-                ?rule ?p ?o .
+                OPTIONAL {{ ?rule <{NS_URI}hasIssueTitle> ?title . }}
+                OPTIONAL {{ ?rule <{NS_URI}hasIssueDetail> ?detail . }}
+                OPTIONAL {{ ?rule <{NS_URI}hasSeverity> ?severity . }}
+                OPTIONAL {{ ?rule <{NS_URI}hasStrictSeverity> ?strict_severity . }}
+                OPTIONAL {{ ?rule <{NS_URI}hasIssueCategory> ?category . }}
+                OPTIONAL {{ ?rule <{NS_URI}hasDiscipline> ?discipline . }}
+                OPTIONAL {{ ?rule <{NS_URI}hasDocumentType> ?document_type . }}
+                OPTIONAL {{ ?rule <{NS_URI}hasSuggestion> ?suggestion . }}
+                OPTIONAL {{ ?rule <{NS_URI}hasFinancialImpact> ?financial_impact . }}
+                OPTIONAL {{
+                    ?rule <{NS_URI}hasPositiveKeywords> ?pos_ks .
+                    ?pos_ks <{NS_URI}hasKeyword> ?pos_kw .
+                }}
+                OPTIONAL {{
+                    ?rule <{NS_URI}hasNegativeKeywords> ?neg_ks .
+                    ?neg_ks <{NS_URI}hasKeyword> ?neg_kw .
+                }}
+                BIND(IF(BOUND(?pos_kw), ?pos_kw, "") AS ?safe_pos_kw)
+                BIND(IF(BOUND(?neg_kw), ?neg_kw, "") AS ?safe_neg_kw)
             }}
         """
 

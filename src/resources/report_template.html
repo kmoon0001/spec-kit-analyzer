@@ -1,19 +1,81 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Compliance Analysis Report</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinical Compliance Report</title>
     <style>
-        body { font-family: sans-serif; margin: 2em; }
-        .report-container { border: 1px solid #ccc; padding: 20px; border-radius: 5px; }
-        h1, h2 { color: #333; }
-        pre { white-space: pre-wrap; background-color: #f4f4f4; padding: 15px; border-radius: 5px; }
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+        }
+        .header, .footer {
+            text-align: center;
+            padding: 10px; 
+            background-color: #f2f2f2;
+        }
+        .summary {
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            padding: 15px;
+        }
+        .findings table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .findings th, .findings td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .findings th {
+            background-color: #f2f2f2;
+        }
+        .guidelines {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
-    <div class="report-container">
-        <h1>Compliance Analysis Report</h1>
-        <h2>LLM-Generated Analysis</h2>
-        <pre><!-- Placeholder for LLM analysis --></pre>
+
+    <div class="header">
+        <h1>Clinical Compliance Report</h1>
     </div>
+
+    <div class="summary">
+        <h2>Analysis Summary</h2>
+        <p><strong>Document:</strong> <!-- Placeholder for document name --></p>
+        <p><strong>Analysis Date:</strong> <!-- Placeholder for analysis date --></p>
+        <p><strong>Overall Compliance Score:</strong> <!-- Placeholder for compliance score -->%</p>
+        <p><strong>Total Findings:</strong> <!-- Placeholder for total findings --></p>
+    </div>
+
+    <div class="findings">
+        <h2>Findings</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Severity</th>
+                    <th>Category</th>
+                    <th>Issue</th>
+                    <th>Recommendation</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Placeholder for findings rows -->
+            </tbody>
+        </table>
+    </div>
+
+    <div class="guidelines">
+        <h2>Relevant Medicare Guidelines</h2>
+        <!-- Placeholder for Medicare guidelines -->
+    </div>
+
+    <div class="footer">
+        <p>Generated on: <!-- Placeholder for generation date --></p>
+        <p>This report is auto-generated and should be used for informational purposes only.</p>
+    </div>
+
 </body>
 </html>

@@ -13,12 +13,9 @@ python-multipart
 python-docx
 pytesseract
 Pillow
-pandas
+pandas 
 openpyxl
 torch
 transformers
 sentence-transformers
-faiss-cpu
-bitsandbytes
-accelerate
-optimum
+gunicorn
