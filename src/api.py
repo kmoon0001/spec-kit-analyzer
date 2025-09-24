@@ -25,9 +25,9 @@ class AnalysisResult(BaseModel):
     task_id: str
     status: str
 
-def run_analysis(file_path: str, task_id: str, rubric_id: int | None, discipline: str | None):
+def run_analysis(file_path: str, task_id: str, rubric_id: int | None, discipline: str | None, analysis_mode: str):
     try:
-        report_html = analysis_service.analyze_document(file_path, rubric_id=rubric_id, discipline=discipline)
+        report_html = analysis_service.analyze_document(file_path, rubric_id=rubric_id, discipline=discipline, analysis_mode=analysis_mode)
         tasks[task_id] = {"status": "completed", "result": report_html}
     except Exception as e:
         tasks[task_id] = {"status": "failed", "error": str(e)}
@@ -42,6 +42,7 @@ async def analyze_document(
     file: UploadFile = File(...),
     discipline: str = Form("All"),
     rubric_id: int = Form(None),
+    analysis_mode: str = Form("rubric"),
 ):
     """
     Starts an asynchronous analysis of the uploaded document.
@@ -49,6 +50,7 @@ async def analyze_document(
     - **file**: The clinical document to analyze.
     - **discipline**: The discipline to analyze for (e.g., 'PT', 'OT').
     - **rubric_id**: The ID of the rubric to use for analysis.
+    - **analysis_mode**: The analysis mode ('rubric', 'llm_only', or 'hybrid').
     - Returns a task ID to check the analysis status.
     """
     task_id = str(uuid.uuid4())
@@ -56,7 +58,7 @@ async def analyze_document(
     with open(temp_file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    background_tasks.add_task(run_analysis, temp_file_path, task_id, rubric_id, discipline)
+    background_tasks.add_task(run_analysis, temp_file_path, task_id, rubric_id, discipline, analysis_mode)
     tasks[task_id] = {"status": "processing"}
 
     return {"task_id": task_id, "status": "processing"}
