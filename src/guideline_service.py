@@ -11,54 +11,61 @@ from typing import List, Tuple
 # Third-party
 import pdfplumber
 import requests
-from rank_bm25 import BM25Okapi
- 
+import numpy as np
+import faiss
+from sentence_transformers import SentenceTransformer
+
 # Local
 
 logger = logging.getLogger(__name__)
 
 
-def simple_tokenizer(text: str) -> List[str]:
-    """
-    A simple tokenizer that lowercases and removes punctuation.
-    """
-    return re.sub(r'[^\w\s]','',text).lower().split()
-
-
 class GuidelineService:
     """
-    Manages loading, indexing, and searching of compliance guidelines.
+    Manages loading, indexing, and searching of compliance guidelines using a neural retriever.
     """
 
-    def __init__(self):
+    def __init__(self, model_name: str = 'pritamdeka/S-PubMedBert-MS-MARCO'):
         """
         Initializes the GuidelineService.
         """
         self.guideline_chunks: List[Tuple[str, str]] = []
         self.is_index_ready = False
-        self.bm25_index = None
+        self.faiss_index = None
+        logger.info(f"Loading Sentence Transformer model: {model_name}")
+        self.model = SentenceTransformer(model_name)
         logger.info("GuidelineService initialized.")
 
     def load_and_index_guidelines(self, sources: List[str]) -> None:
         """
-        Loads guidelines from a list of local file paths and builds a BM25 index.
+        Loads guidelines from a list of local file paths and builds a FAISS index.
         """
         self.guideline_chunks = []
         for source_path in sources:
             self.guideline_chunks.extend(self._load_from_local_path(source_path))
 
-        # Create BM25 index
+        # Create FAISS index
         if self.guideline_chunks:
-            tokenized_corpus = [simple_tokenizer(chunk[0]) for chunk in self.guideline_chunks]
-            self.bm25_index = BM25Okapi(tokenized_corpus)
+            logger.info("Encoding guidelines into vectors...")
+            texts_to_encode = [chunk[0] for chunk in self.guideline_chunks]
+            embeddings = self.model.encode(texts_to_encode, convert_to_tensor=True, show_progress_bar=True)
+            embeddings_np = embeddings.cpu().numpy()
+
+            # FAISS expects float32
+            if embeddings_np.dtype != np.float32:
+                embeddings_np = embeddings_np.astype(np.float32)
+
+            embedding_dim = embeddings_np.shape[1]
+            self.faiss_index = faiss.IndexFlatL2(embedding_dim)
+            self.faiss_index.add(embeddings_np)
 
         self.is_index_ready = True
-        logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks.")
+        logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks using FAISS.")
 
     def _extract_text_from_pdf(
         self, file_path: str, source_name: str
     ) -> List[Tuple[str, str]]:
-        """Extracts text from a PDF file, chunking it by paragraph."""
+        """Extracts text from a file, chunking it by paragraph."""
         chunks = []
         try:
             if file_path.lower().endswith('.txt'):
@@ -88,7 +95,7 @@ class GuidelineService:
         return chunks
 
     def _load_from_url(self, url: str) -> List[Tuple[str, str]]:
-        """Downloads a PDF from a URL, extracts text, and cleans up."""
+        """Downloads a file from a URL, extracts text, and cleans up."""
         logger.info(f"Downloading and parsing guidelines from {url}...")
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
@@ -120,26 +127,23 @@ class GuidelineService:
 
     def search(self, query: str, top_k: int = 2) -> List[dict]:
         """
-        Performs a BM25 search through the loaded guidelines.
+        Performs a FAISS similarity search through the loaded guidelines.
         """
-        if not self.is_index_ready or not self.bm25_index:
+        if not self.is_index_ready or not self.faiss_index:
             logger.warning("Search called before guidelines were loaded and indexed.")
             return []
 
-        tokenized_query = simple_tokenizer(query)
+        query_embedding = self.model.encode([query], convert_to_tensor=True).cpu().numpy()
 
-        # Get scores for all documents
-        doc_scores = self.bm25_index.get_scores(tokenized_query)
+        if query_embedding.dtype != np.float32:
+            query_embedding = query_embedding.astype(np.float32)
 
-        # Get the top_k indices
-        top_indices = sorted(range(len(doc_scores)), key=lambda i: doc_scores[i], reverse=True)[:top_k]
+        distances, indices = self.faiss_index.search(query_embedding, top_k)
 
-        # Filter out results with a score of 0
-        top_chunks = []
-        for i in top_indices:
-            if doc_scores[i] > 0:
-                top_chunks.append(self.guideline_chunks[i])
-
-        results = [{"text": chunk[0], "source": chunk[1]} for chunk in top_chunks]
+        results = []
+        for i in indices[0]:
+            if i != -1: # FAISS returns -1 for no result
+                chunk = self.guideline_chunks[i]
+                results.append({"text": chunk[0], "source": chunk[1]})
 
         return results
