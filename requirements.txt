@@ -19,3 +19,7 @@ torch
 transformers
 sentence-transformers
 gunicorn
+faiss-cpu
+bitsandbytes
+rank_bm25
+accelerate

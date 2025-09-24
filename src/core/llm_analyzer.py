@@ -71,6 +71,8 @@ class LLMComplianceAnalyzer:
         # 3. Generate the analysis
         logger.info("Generating analysis with the LLM...")
         tokenized_inputs = self.tokenizer(prompt, return_tensors="pt")
+        if isinstance(tokenized_inputs, str):
+            tokenized_inputs = self.tokenizer.encode_plus(prompt, return_tensors="pt")
         device = next(self.generator_model.parameters()).device
         inputs = {k: v.to(device) for k, v in tokenized_inputs.items()}
 

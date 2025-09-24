@@ -1,27 +1,27 @@
 import torch
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from .hybrid_retriever import HybridRetriever 
+from .hybrid_retriever import HybridRetriever
 from src.document_classifier import DocumentClassifier, DocumentType
 from src.parsing import parse_document_into_sections
 from typing import Dict, List
 import json
-from rubric_service import ComplianceRule
+from src.rubric_service import ComplianceRule
 
 class ComplianceAnalyzer:
     def __init__(self, retriever: HybridRetriever = None, use_query_transformation: bool = False):
         self.use_query_transformation = use_query_transformation
+
         generator_model_name = "nabilfaieaz/tinyllama-med-full"
 
         # Initialize the document classifier
         self.classifier = DocumentClassifier()
         print("Document Classifier initialized successfully.")
 
-        # Initialize the GraphRAG retriever
-        self.retriever = retriever or HybridRetriever()
+        # Initialize the HybridRetriever (GraphRAG)
+        self.retriever = retriever if retriever else HybridRetriever()
         print("GraphRAG Hybrid Retriever initialized successfully.")
 
         # Initialize the generator LLM
-        generator_model_name = "nabilfaieaz/tinyllama-med-full"
         self.generator_tokenizer = AutoTokenizer.from_pretrained(generator_model_name)
         quantization_config = BitsAndBytesConfig(load_in_4bit=True)
         self.generator_model = AutoModelForCausalLM.from_pretrained(
@@ -33,6 +33,9 @@ class ComplianceAnalyzer:
         print(f"Generator LLM '{generator_model_name}' loaded successfully.")
         print("\nCompliance Analyzer initialized successfully.")
 
+        # Entity pipeline (NER) could be initialized here as well for future expansion
+        # self.ner_pipeline = pipeline("ner", model="your-ner-model")
+
     def analyze_document(self, document_text: str, discipline: str) -> Dict:
         """
         Analyzes a document for compliance.
@@ -43,32 +46,23 @@ class ComplianceAnalyzer:
         print("\n--- Starting Compliance Analysis ---")
         print(f"Analyzing document: '{document_text[:100]}...'")
 
-        # 1. Extract entities
-        # This part seems to be missing the ner_pipeline initialization.
-        # I will assume it should be initialized in __init__
-        # and I will mock it for now.
+        # 1. Extract entities (expand with real NER if available)
         entities = []
         entity_list = ", ".join([f"'{entity['word']}' ({entity['entity_group']})" for entity in entities])
         print(f"Extracted entities: {entity_list}")
 
-        # 3. Retrieve context from GraphRAG
-        doc_type = self.classifier.predict(document_text)
+        # 2. Classify document type (use your true logic if needed)
+        doc_type = self.classifier.classify(document_text)
+        doc_type_str = doc_type.value
+        print(f"Classified document as: {doc_type_str}")
+
+        # 3. Retrieve context from HybridRetriever (GraphRAG)
+        doc_type_obj = self.classifier.predict(document_text)
         query = document_text
         if self.use_query_transformation:
             query = self._transform_query(query)
-        retrieved_rules = self.retriever.search(query=query, discipline=discipline, doc_type=doc_type.name)
+        retrieved_rules = self.retriever.search(query=query, discipline=discipline, doc_type=doc_type_obj.name)
         context = self._format_rules_for_prompt(retrieved_rules)
-
-        # 2. Retrieve context
-        # This part seems to be missing the retriever initialization.
-        # I will assume it should be initialized in __init__
-        # and I will mock it for now.
-        retrieved_docs = []
-        context = "\n".join(retrieved_docs)
-        # Truncate context to avoid exceeding model's context window
-        max_context_length = 4000
-        if len(context) > max_context_length:
-            context = context[:max_context_length] + "\n..."
         print("Retrieved and formatted context from GraphRAG.")
 
         # 4. Build prompt
@@ -79,9 +73,9 @@ class ComplianceAnalyzer:
         output = self.generator_model.generate(**inputs, max_new_tokens=512, num_return_sequences=1)
         result = self.generator_tokenizer.decode(output[0], skip_special_tokens=True)
 
-        # 6. Extract and parse JSON
+        # 6. Extract and parse JSON (robust error handling)
         try:
-            json_start = result.find('```json')
+            json_start = result.find('```
             if json_start != -1:
                 json_str = result[json_start + 7:].strip()
                 json_end = json_str.rfind('```')
@@ -160,20 +154,3 @@ Return the analysis as a JSON object with the following structure:
 }}
 
 **Compliance Analysis:**
-```json
-"""
-
-if __name__ == '__main__':
-    analyzer = ComplianceAnalyzer()
-
-    # Sample clinical document
-    sample_document = '''
-Subjective: Patient reports feeling tired but motivated. States goal is to "walk my daughter down the aisle."
-Objective: Patient participated in 45 minutes of physical therapy. Gait training on level surfaces with rolling walker for 100 feet with moderate assistance. Moderate verbal cueing required for sequencing.
-Assessment: Patient making slow but steady progress towards goals.
-Plan: Continue with physical therapy 3 times per week.
-'''
-    analysis_results = analyzer.analyze_document(sample_document)
-
-    print("\n\n--- FINAL COMPLIANCE ANALYSIS ---")
-    print(json.dumps(analysis_results, indent=2))
