@@ -33,7 +33,11 @@ def mock_retriever():
 def test_compliance_analyzer_initialization(mock_explanation_engine, mock_prompt_manager, mock_ner_pipeline, mock_config, mock_guideline_service, mock_retriever):
     """Tests the initialization of the ComplianceAnalyzer"""
     analyzer = ComplianceAnalyzer(mock_config, mock_guideline_service, mock_retriever)
-    mock_ner_pipeline.assert_called_once_with(model_name=mock_config['models']['ner_model'])
+    mock_ner_pipeline.assert_called_once_with(
+        model_name=mock_config['models']['ner_model'],
+        quantization=mock_config['models']['quantization'],
+        performance_profile='medium'
+    )
     mock_prompt_manager.assert_called_once_with(template_path=mock_config['models']['prompt_template'])
     assert isinstance(analyzer.explanation_engine, MagicMock)
 
@@ -56,7 +60,7 @@ def test_analyze_document(mock_explanation_engine, mock_prompt_manager, mock_ner
 
     # Assertions
     mock_ner_pipeline.return_value.extract_entities.assert_called_once_with("Test document")
-    mock_retriever.retrieve.assert_called_once()
+    mock_retriever.search.assert_called_once()
     mock_prompt_manager.return_value.build_prompt.assert_called_once()
     mock_explanation_engine.return_value.add_explanations.assert_called_once()
     assert result == {"explained": True}
