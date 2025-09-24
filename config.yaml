@@ -2,7 +2,10 @@
 APP_NAME: Therapy Compliance Analyzer
 ENVIRONMENT: production
 DB_PATH: ./data/compliance.db
-ENCRYPTION_KEY: "{{GENERATE_YOUR_OWN_KEY}}"  # Replace with generated key
+# IMPORTANT: Generate a secure, random key for encryption.
+# You can use a command like `openssl rand -hex 32` to generate a key.
+# Store this key securely and do not commit it to version control.
+ENCRYPTION_KEY: "" # Replace with your generated key
 OCR_ENGINE: Tesseract
 NLP_MODELS:
   - ClinicalBERT

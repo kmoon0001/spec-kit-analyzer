@@ -12,14 +12,14 @@ if os.environ.get("SKIP_MODEL_DOWNLOAD", "false").lower() == "true":
 # This model is great for identifying medical entities.
 print("Loading NER model...")
 ner_model_name = "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
-ner_pipeline = pipeline("token-classification", model=ner_model_name, aggregation_strategy="simple")
+ner_pipeline = pipeline("token-classification", model=ner_model_name, revision="e00c20f", aggregation_strategy="simple")
 print(f"NER model '{ner_model_name}' loaded successfully.")
 
 # --- 2. Load the RAG Retriever Model ---
 # This model is used to find relevant documents from your knowledge base.
 print("\nLoading Retriever model...")
 retriever_model_name = "pritamdeka/S-PubMedBert-MS-MARCO"
-retriever = SentenceTransformer(retriever_model_name)
+retriever = SentenceTransformer(retriever_model_name, model_kwargs={'revision': '96786c7'})
 print(f"Retriever model '{retriever_model_name}' loaded successfully.")
 
 # --- 3. Load the TinyLlama Generator Model ---
@@ -29,11 +29,12 @@ print("\nLoading Generator LLM (TinyLlama)...")
 generator_model_name = "nabilfaieaz/tinyllama-med-full"
 
 # Load the tokenizer
-generator_tokenizer = AutoTokenizer.from_pretrained(generator_model_name)
+generator_tokenizer = AutoTokenizer.from_pretrained(generator_model_name, revision="f9e026b")
 
 # Load the model with 4-bit quantization
 generator_model = AutoModelForCausalLM.from_pretrained(
     generator_model_name,
+    revision="f9e026b",
     load_in_4bit=True,
     device_map="auto" # Automatically use GPU if available
 )

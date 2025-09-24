@@ -49,3 +49,15 @@ class TestComplianceAnalyzer:
             ComplianceRule(
                 uri='test_rule_1',
                 severity='High',
+                strict_severity='High',
+                issue_title='Test Rule 1',
+                issue_detail='This is a test rule.',
+                issue_category='Test',
+                discipline='pt',
+                document_type='Test Document',
+                suggestion='This is a test suggestion.',
+                financial_impact=100,
+                positive_keywords=['test'],
+                negative_keywords=[]
+            )
+        ]
