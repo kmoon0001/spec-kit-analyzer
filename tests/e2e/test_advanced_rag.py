@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 import json
-from src.core.compliance_analyzer import ComplianceAnalyzer
+from src.compliance_analyzer import ComplianceAnalyzer
 from src.rubric_service import ComplianceRule
 from src.document_classifier import DocumentType
 
@@ -46,7 +46,7 @@ def compliance_analyzer_with_mocks(mocker):
     # NOTE: CrossEncoder is not used in the current implementation, so it's not mocked.
 
     # 4. Instantiate the real ComplianceAnalyzer, which will now use the mocked services
-    analyzer = ComplianceAnalyzer(use_query_transformation=True) # Enable for testing
+    analyzer = ComplianceAnalyzer(config={}, guideline_service=MagicMock(), retriever=MagicMock())
 
     # 5. Mock the classifier and LLM generator for predictable behavior in tests
     analyzer.classifier = MagicMock()
