@@ -1,185 +1,172 @@
 import logging
 import torch
 import json
-import os
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from src.guideline_service import GuidelineService
-from src.utils import load_config
 from src.rubric_service import ComplianceRule
+from src.utils import load_config
 
 logger = logging.getLogger(__name__)
 
+# ========== Prompt Template Manager ==========
+class PromptManager:
+    def __init__(self, config):
+        # Load prompt templates from config or external file
+        self.template = config.get('prompt_template', self.default_template())
+
+    def default_template(self):
+        return (
+            "You are an expert Medicare compliance officer for a Skilled Nursing Facility (SNF). "
+            "Your task is to analyze a clinical therapy document for potential compliance risks based on the provided Medicare guidelines.\n\n"
+            "**Clinical Document:**\n---\n{document}\n---\n\n"
+            "**Extracted Clinical Entities:**\n---\n{entities}\n---\n"
+            "**Relevant Medicare Guidelines:**\n---\n{context}\n---\n"
+            "**Your Task:**\nBased on all the information above, provide a detailed compliance analysis. "
+            "Identify any potential risks, explain why they are risks according to the retrieved rules, and suggest specific actions to mitigate them. "
+            "If no risks are found, state that the document appears to be compliant.\n\n"
+            "**Output Format:**\nReturn the analysis as a JSON object with the following structure:\n"
+            "{\"findings\": [{\"text\": \"<original text>\", \"risk\": \"<compliance risk>\", \"suggestion\": \"<mitigation>\"}]}\n\n"
+            "**Compliance Analysis:**\n"
+        )
+
+    def build_prompt(self, document, entities, context):
+        return self.template.format(document=document, entities=entities, context=context)
+
+# ========== NER Entity Extractor ==========
+class EntityExtractor:
+    def __init__(self, config):
+        ner_model = config.get("ner_model", None)
+        self.ner_pipeline = pipeline("ner", model=ner_model) if ner_model else None
+
+    def extract(self, text):
+        if self.ner_pipeline:
+            entities = self.ner_pipeline(text)
+            return ", ".join([f"'{e['word']}' ({e['entity_group']})" for e in entities])
+        else:
+            return ""
+
+# ========== Explanation Engine ==========
+class ExplanationEngine:
+    def __init__(self, config):
+        # Customize as needed for model/logic
+        pass
+
+    def generate_explanation(self, analysis):
+        # Example: add rationale for each finding (expand with custom logic)
+        if 'findings' in analysis:
+            for finding in analysis['findings']:
+                finding['explanation'] = f"Risk was identified due to presence of: {finding.get('risk', 'N/A')}"
+        return analysis
+
+# ========== Main ComplianceAnalyzer Pipeline ==========
 class ComplianceAnalyzer:
     """
-    Analyzes documents for compliance using a RAG pipeline with a quantized LLM.
+    Flexible clinical document compliance analyzer. Modular, config-driven, extensible.
+    Supports retriever/RAG, guideline system, quantized LLM, prompt manager, NER, explanation post-process.
     """
-
-    def __init__(self, guideline_service: GuidelineService = None):
-        """
-        Initializes the ComplianceAnalyzer.
-
-        Args:
-            guideline_service (GuidelineService): An instance of the GuidelineService for retrieving relevant guidelines.
-        """
-        self.config = load_config()
-        generator_model_name = self.config['models']['generator']
+    def __init__(
+        self,
+        guideline_service: GuidelineService = None,
+        retriever=None,
+        config=None,
+        use_query_transformation=False
+    ):
+        self.config = config or load_config()
+        generator_model_name = self.config['models'].get('generator', "nabilfaieaz/tinyllama-med-full")
 
         logger.info(f"Initializing ComplianceAnalyzer with model: {generator_model_name}")
 
         self.guideline_service = guideline_service or GuidelineService()
+        self.retriever = retriever if retriever else None
 
-        # Configure quantization to load the model in 4-bit
+        quantization = self.config.get('quantization', {})
         quantization_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.bfloat16
+            load_in_4bit=quantization.get('load_in_4bit', True),
+            bnb_4bit_quant_type=quantization.get('quant_type', "nf4"),
+            bnb_4bit_compute_dtype=getattr(torch, quantization.get('compute_dtype', "bfloat16")),
         )
 
-        self.tokenizer = AutoTokenizer.from_pretrained(generator_model_name)
+        self.generator_tokenizer = AutoTokenizer.from_pretrained(generator_model_name)
         self.generator_model = AutoModelForCausalLM.from_pretrained(
             generator_model_name,
             quantization_config=quantization_config,
             device_map="auto"
         )
-
         logger.info(f"Generator LLM '{generator_model_name}' loaded successfully.")
 
+        self.use_query_transformation = use_query_transformation
+
+        # Modular helpers
+        self.prompt_manager = PromptManager(self.config)
+        self.entity_extractor = EntityExtractor(self.config)
+        self.explanation_engine = ExplanationEngine(self.config)
+
     def analyze_document(self, document_text: str, discipline: str, analysis_mode: str = "llm_only") -> dict:
-        """
-        Analyzes the document using the RAG pipeline.
+        logger.info("--- Starting Compliance Analysis ---")
+        logger.info(f"Analyzing document: '{document_text[:100]}...'")
 
-        Args:
-            document_text (str): The text of the document to analyze.
-            discipline (str): The discipline to filter by (e.g., 'pt', 'ot', 'slp').
-            analysis_mode (str): The analysis mode ('llm_only' or 'hybrid').
+        entities_str = self.entity_extractor.extract(document_text)
+        logger.info(f"Extracted entities: {entities_str}")
 
-        Returns:
-            dict: The compliance analysis report generated by the LLM.
-        """
-        logger.info(f"Starting compliance analysis with mode: {analysis_mode}...")
+        doc_type = self.guideline_service.classify_document(document_text)
+        doc_type_str = doc_type.value if hasattr(doc_type, 'value') else str(doc_type)
+        logger.info(f"Classified as: {doc_type_str}")
 
-        # 1. Retrieve relevant guidelines or rules
-        if analysis_mode == "hybrid":
-            rules = self._get_rules_for_discipline(discipline)
-            if not rules:
-                return {"error": "No rules found for the specified discipline."}
-            prompt = self._build_hybrid_prompt(document_text, "", rules)
-        else: # llm_only
-            logger.info("Retrieving relevant guidelines...")
-            query = document_text[:512]
-            top_k = self.config['retrieval_settings']['similarity_top_k']
-            retrieved_guidelines = self.guideline_service.search(query=query, top_k=top_k)
-            context = "\n".join([f"- {g['source']}: {g['text']}" for g in retrieved_guidelines])
-            with open("src/core/prompt_template.txt", "r") as f:
-                prompt_template = f.read()
-            prompt = prompt_template.format(context=context, document_text=document_text)
-
-        # 3. Generate the analysis
-        logger.info("Generating analysis with the LLM...")
-        tokenized_inputs = self.tokenizer(prompt, return_tensors="pt")
-        if isinstance(tokenized_inputs, str):
-            tokenized_inputs = self.tokenizer.encode_plus(prompt, return_tensors="pt")
-        device = next(self.generator_model.parameters()).device
-        inputs = {k: v.to(device) for k, v in tokenized_inputs.items()}
-
-        # Generate text with a reasonable max length
-        output = self.generator_model.generate(
-            **inputs,
-            max_new_tokens=512,
-            temperature=0.7,
-            top_p=0.95,
-            do_sample=True
+        query = document_text
+        doc_type_obj = doc_type
+        if self.use_query_transformation:
+            query = self._transform_query(query)
+        retrieved_rules = (
+            self.retriever.search(query=query, discipline=discipline, doc_type=doc_type_obj.name)
+            if self.retriever else
+            self.guideline_service.search(query=query, discipline=discipline, doc_type=doc_type_obj.name)
         )
+        context_str = self._format_rules_for_prompt(retrieved_rules)
+        logger.info("Retrieved and formatted context.")
 
-        generated_text = self.tokenizer.decode(output[0], skip_special_tokens=True)
+        prompt = self.prompt_manager.build_prompt(document_text, entities_str, context_str)
 
-        # Extract only the analysis part from the generated text
-        analysis_section = generated_text.split("**Analysis:**")[-1].strip()
+        inputs = self.generator_tokenizer(prompt, return_tensors="pt").to(self.generator_model.device)
+        output = self.generator_model.generate(**inputs, max_new_tokens=512, num_return_sequences=1)
+        result = self.generator_tokenizer.decode(output[0], skip_special_tokens=True)
 
-        logger.info("Compliance analysis finished.")
+        analysis = self._parse_json_output(result)
+        logger.info("Raw model analysis returned.")
+
+        analysis = self.explanation_engine.generate_explanation(analysis)
+        logger.info("Explanations generated.")
+
+        return analysis
+
+    def _transform_query(self, query: str) -> str:
+        return query
+
+    def _format_rules_for_prompt(self, rules: list) -> str:
+        if not rules:
+            return "No specific compliance rules were retrieved. Analyze based on general Medicare principles."
+        formatted_rules = []
+        for rule in rules:
+            formatted_rules.append(
+                f"- **Rule:** {getattr(rule, 'issue_title', '')}\n"
+                f"  **Detail:** {getattr(rule, 'issue_detail', '')}\n"
+                f"  **Suggestion:** {getattr(rule, 'suggestion', '')}"
+            )
+        return "\n".join(formatted_rules)
+
+    def _parse_json_output(self, result: str) -> dict:
         try:
-            return json.loads(analysis_section)
-        except json.JSONDecodeError:
-            logger.error("Failed to parse LLM output as JSON.")
-            return {"error": "Failed to parse LLM output."}
-
-    def check_ai_systems_health(self):
-        """
-        Checks the health of the AI systems.
-        Returns a tuple of (is_healthy, status_message).
-        """
-        try:
-            # Check if models are loaded (this is a basic check)
-            if self.generator_model and self.tokenizer and self.guideline_service:
-                # A more robust check would involve a test inference
-                return True, "AI Systems: Online"
+            json_start = result.find('```
+            if json_start != -1:
+                json_str = result[json_start + 7:].strip()
+                json_end = json_str.rfind('```')
+                if json_end != -1:
+                    json_str = json_str[:json_end].strip()
             else:
-                return False, "AI Systems: Offline - Models not loaded"
-        except Exception as e:
-            return False, f"AI Systems: Error - {e}"
-
-    def _get_rules_for_discipline(self, discipline: str) -> list[ComplianceRule]:
-        """
-        Loads the compliance rules for a given discipline from the corresponding rubric file.
-        """
-        from src.rubric_service import RubricService
-        rubric_path = f"src/resources/{discipline.lower()}_compliance_rubric.ttl"
-        if not os.path.exists(rubric_path):
-            logger.warning(f"No specific rubric found for discipline: {discipline}. Falling back to default.")
-            # Fallback to a default rubric if the discipline-specific one doesn't exist
-            rubric_path = "src/resources/pt_compliance_rubric.ttl"
-
-        if not os.path.exists(rubric_path):
-            logger.error(f"Default rubric file not found at: {rubric_path}")
-            return []
-
-        rubric_service = RubricService(ontology_path=rubric_path)
-        return rubric_service.get_rules()
-
-    def _build_hybrid_prompt(self, document: str, entity_list: str, rules: list[ComplianceRule]) -> str:
-        """
-        Builds the prompt for the LLM for hybrid analysis.
-        """
-        rules_text = ""
-        for i, rule in enumerate(rules):
-            rules_text += f"\n**Rule {i+1}: {rule.issue_title}**\n"
-            rules_text += f"- **Detail:** {rule.issue_detail}\n"
-            rules_text += f"- **Suggestion:** {rule.suggestion}\n"
-
-        return f"""
-You are an expert Medicare compliance officer for a Skilled Nursing Facility (SNF). Your task is to analyze a clinical therapy document for potential compliance risks based on a specific set of rules.
-
-**Clinical Document:**
----
-{document}
----
-
-**Extracted Clinical Entities:**
----
-{entity_list}
----
-
-**Your Task:**
-For each of the following rules, analyze the document and determine if there is a violation. Provide a detailed explanation for each finding.
-
-**Rules to Evaluate:**
----
-{rules_text}
----
-
-**Output Format:**
-Return the analysis as a JSON object with the following structure:
-{{
-  "findings": [
-    {{
-      "rule_id": "<the id of the rule being evaluated>",
-      "text": "<text from the original document that contains the finding>",
-      "risk": "<description of the compliance risk based on the rule>",
-      "suggestion": "<suggestion to mitigate the risk>"
-    }}
-  ]
-}}
-
-**Compliance Analysis:**
-```json
-"""
+                json_start = result.find('{')
+                json_end = result.rfind('}') + 1
+                json_str = result[json_start:json_end]
+            analysis = json.loads(json_str)
+        except (json.JSONDecodeError, IndexError, ValueError) as e:
+            logger.error(f"Error parsing JSON output: {e}\nRaw model output:\n{result}")
+            analysis = {"error": "Failed to parse JSON output from model."}
+        return analysis
