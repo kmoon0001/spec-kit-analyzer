@@ -4,7 +4,7 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
 # Ontology Information
-: a owl:Ontology .
+: a owl:Ontology . 
 
 # --- Classes ---
 :ComplianceRule a owl:Class ;
