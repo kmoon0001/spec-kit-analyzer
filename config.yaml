@@ -23,6 +23,12 @@ section_headers:
   - Assessment
   - Plan
 
+# OCR settings
+ocr:
+  preprocessing: true
+  deskew: true
+  resolution: 300
+
 # Configuration for the RAG Pipeline
 models:
   ner_model: "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
