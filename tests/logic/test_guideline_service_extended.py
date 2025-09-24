@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from src.guideline_service import GuidelineService
-
+ 
 @pytest.fixture
 def guideline_service():
     """Fixture to create a GuidelineService instance."""
