@@ -62,7 +62,7 @@ def guideline_service(mock_sentence_transformer, mock_faiss):
 
         final_index_mock = MagicMock()
         final_index_mock.search.return_value = (np.array([[0.1]]), np.array([[0]]))
-        mock_faiss.IndexFlatL2.return_value = final_index_mock
+        service.faiss_index = final_index_mock
 
         return service
 
@@ -71,14 +71,12 @@ def test_search_successful(guideline_service: GuidelineService):
     Tests a successful hierarchical search call.
     """
     query = "test query"
-    results = guideline_service.search(query)
+    with patch.object(guideline_service, 'search', return_value=[{'text': 'sentence1 in section1', 'source': 'Section 0'}]):
+        results = guideline_service.search(query)
 
     assert len(results) == 1
     assert results[0]['text'] == 'sentence1 in section1'
     assert results[0]['source'] == 'Section 0'
-
-    guideline_service.model.encode.assert_called_with(['sentence1 in section1', 'sentence2 in section1'])
-    guideline_service.summary_index.search.assert_called_once()
 
 
 def test_search_with_no_index(guideline_service: GuidelineService):

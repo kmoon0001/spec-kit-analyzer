@@ -31,8 +31,14 @@ def mock_transformers():
         # Mock model
         mock_model_instance = MagicMock()
         # Simulate a generated output that includes the original prompt
-        mock_model_instance.generate.return_value = ["mock prompt **Analysis:** mock analysis result"]
-        mock_tokenizer_instance.decode.return_value = "mock prompt **Analysis:** mock analysis result"
+        mock_model_instance.generate.side_effect = [
+            ["mock prompt **Analysis:** [SEARCH] mock analysis result"],
+            ["mock prompt **Analysis:** final analysis"]
+        ]
+        mock_tokenizer_instance.decode.side_effect = [
+            "mock prompt **Analysis:** [SEARCH] mock analysis result",
+            "mock prompt **Analysis:** final analysis"
+        ]
         mock_model.from_pretrained.return_value = mock_model_instance
 
         yield mock_tokenizer, mock_model
@@ -66,7 +72,7 @@ def test_analyze_document(mock_transformers, mock_guideline_service):
     mock_model_instance = mock_model.from_pretrained()
 
     # Check that generate was called
-    mock_model_instance.generate.assert_called_once()
+    assert mock_model_instance.generate.call_count == 2
 
     # 3. Check if the result is correctly parsed from the model's output
-    assert result == "mock analysis result"
+    assert result == "final analysis"

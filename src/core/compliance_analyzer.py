@@ -1,171 +1,66 @@
-import logging
-import torch
-import json
-from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from src.guideline_service import GuidelineService
-from src.rubric_service import ComplianceRule
-from src.utils import load_config
-
-logger = logging.getLogger(__name__)
-
-# ========== Prompt Template Manager ==========
-class PromptManager:
-    def __init__(self, config):
-        # Load prompt templates from config or external file
-        self.template = config.get('prompt_template', self.default_template())
-
-    def default_template(self):
-        return (
-            "You are an expert Medicare compliance officer for a Skilled Nursing Facility (SNF). "
-            "Your task is to analyze a clinical therapy document for potential compliance risks based on the provided Medicare guidelines.\n\n"
-            "**Clinical Document:**\n---\n{document}\n---\n\n"
-            "**Extracted Clinical Entities:**\n---\n{entities}\n---\n"
-            "**Relevant Medicare Guidelines:**\n---\n{context}\n---\n"
-            "**Your Task:**\nBased on all the information above, provide a detailed compliance analysis. "
-            "Identify any potential risks, explain why they are risks according to the retrieved rules, and suggest specific actions to mitigate them. "
-            "If no risks are found, state that the document appears to be compliant.\n\n"
-            "**Output Format:**\nReturn the analysis as a JSON object with the following structure:\n"
-            "{\"findings\": [{\"text\": \"<original text>\", \"risk\": \"<compliance risk>\", \"suggestion\": \"<mitigation>\"}]}\n\n"
-            "**Compliance Analysis:**\n"
-        )
-
-    def build_prompt(self, document, entities, context):
-        return self.template.replace("{document}", document).replace("{entities}", entities).replace("{context}", context)
-
-# ========== NER Entity Extractor ==========
-class EntityExtractor:
-    def __init__(self, config):
-        ner_model = config.get("ner_model", None)
-        self.ner_pipeline = pipeline("ner", model=ner_model) if ner_model else None
-
-    def extract(self, text):
-        if self.ner_pipeline:
-            entities = self.ner_pipeline(text)
-            return ", ".join([f"'{e['word']}' ({e['entity_group']})" for e in entities])
-        else:
-            return ""
-
-# ========== Explanation Engine ==========
-class ExplanationEngine:
-    def __init__(self, config):
-        # Customize as needed for model/logic
-        pass
-
-    def generate_explanation(self, analysis):
-        # Example: add rationale for each finding (expand with custom logic)
-        if 'findings' in analysis:
-            for finding in analysis['findings']:
-                finding['explanation'] = f"Risk was identified due to presence of: {finding.get('risk', 'N/A')}"
-        return analysis
-
-# ========== Main ComplianceAnalyzer Pipeline ==========
-class ComplianceAnalyzer:
-    """
-    Flexible clinical document compliance analyzer. Modular, config-driven, extensible.
-    Supports retriever/RAG, guideline system, quantized LLM, prompt manager, NER, explanation post-process.
-    """
-    def __init__(
-        self,
-        guideline_service: GuidelineService = None,
-        retriever=None,
-        config=None,
-        use_query_transformation=False
-    ):
-        self.config = config or load_config()
-        generator_model_name = self.config['models'].get('generator', "nabilfaieaz/tinyllama-med-full")
-
-        logger.info(f"Initializing ComplianceAnalyzer with model: {generator_model_name}")
-
-        self.guideline_service = guideline_service or GuidelineService(sources=["_default_medicare_benefit_policy_manual.txt"])
-        self.retriever = retriever if retriever else None
-
-        quantization = self.config.get('quantization', {})
-        quantization_config = BitsAndBytesConfig(
-            load_in_4bit=quantization.get('load_in_4bit', True),
-            bnb_4bit_quant_type=quantization.get('quant_type', "nf4"),
-            bnb_4bit_compute_dtype=getattr(torch, quantization.get('compute_dtype', "bfloat16")),
-        )
-
-        self.generator_tokenizer = AutoTokenizer.from_pretrained(generator_model_name)
-        self.generator_model = AutoModelForCausalLM.from_pretrained(
-            generator_model_name,
-            quantization_config=quantization_config,
-            device_map="auto"
-        )
-        logger.info(f"Generator LLM '{generator_model_name}' loaded successfully.")
-
-        self.use_query_transformation = use_query_transformation
-
-        # Modular helpers
-        self.prompt_manager = PromptManager(self.config)
-        self.entity_extractor = EntityExtractor(self.config)
-        self.explanation_engine = ExplanationEngine(self.config)
-
-    def analyze_document(self, document_text: str, discipline: str, analysis_mode: str = "llm_only") -> dict:
-        logger.info("--- Starting Compliance Analysis ---")
-        logger.info(f"Analyzing document: '{document_text[:100]}...'")
-
-        entities_str = self.entity_extractor.extract(document_text)
-        logger.info(f"Extracted entities: {entities_str}")
-
-        doc_type = self.guideline_service.classify_document(document_text)
-        doc_type_str = doc_type.value if hasattr(doc_type, 'value') else str(doc_type)
-        logger.info(f"Classified as: {doc_type_str}")
-
-        query = document_text
-        doc_type_obj = doc_type
-        if self.use_query_transformation:
-            query = self._transform_query(query)
-        retrieved_rules = (
-            self.retriever.search(query=query)
-            if self.retriever else
-            self.guideline_service.search(query=query)
-        )
-        context_str = self._format_rules_for_prompt(retrieved_rules)
-        logger.info("Retrieved and formatted context.")
-
-        prompt = self.prompt_manager.build_prompt(document_text, entities_str, context_str)
-
-        inputs = self.generator_tokenizer(prompt, return_tensors="pt").to(self.generator_model.device)
-        output = self.generator_model.generate(**inputs, max_new_tokens=512, num_return_sequences=1)
-        result = self.generator_tokenizer.decode(output[0], skip_special_tokens=True)
-
-        analysis = self._parse_json_output(result)
-        logger.info("Raw model analysis returned.")
-
-        analysis = self.explanation_engine.generate_explanation(analysis)
-        logger.info("Explanations generated.")
-
-        return analysis
-
-    def _transform_query(self, query: str) -> str:
-        return query
-
-    def _format_rules_for_prompt(self, rules: list) -> str:
-        if not rules:
-            return "No specific compliance rules were retrieved. Analyze based on general Medicare principles."
-        formatted_rules = []
-        for rule in rules:
-            formatted_rules.append(
-                f"- **Rule:** {rule.get('text', '')}\n"
-                f"  **Source:** {rule.get('source', '')}\n"
-            )
-        return "\n".join(formatted_rules)
-
-    def _parse_json_output(self, result: str) -> dict:
-        try:
-            json_start = result.find('```json')
-            if json_start != -1:
-                json_str = result[json_start + 7:].strip()
-                json_end = json_str.rfind('```')
-                if json_end != -1:
-                    json_str = json_str[:json_end].strip()
-            else:
-                json_start = result.find('{')
-                json_end = result.rfind('}') + 1
-                json_str = result[json_start:json_end]
-            analysis = json.loads(json_str)
-        except (json.JSONDecodeError, IndexError, ValueError) as e:
-            logger.error(f"Error parsing JSON output: {e}\nRaw model output:\n{result}")
-            analysis = {"error": "Failed to parse JSON output from model."}
-        return analysis
+116         query = document_text
+117         doc_type_obj = doc_type
+118         if self.use_query_transformation:
+119             query = self._transform_query(query)
+120         retrieved_rules = (
+121             self.retriever.search(query=query)
+122             if self.retriever
+123             else
+124             self.guideline_service.search(query=query)
+125         )
+126         context_str = self._format_rules_for_prompt(retrieved_rules)
+127         logger.info("Retrieved and formatted context.")
+128
+129         prompt = self.prompt_manager.build_prompt(document_text, entities_str, context_str)
+130
+131         inputs = self.generator_tokenizer(prompt, return_tensors="pt").to(self.generator_model.device)
+132         output = self.generator_model.generate(**inputs, max_new_tokens=512, num_return_sequences=1)
+133         result = self.generator_tokenizer.decode(output[0], skip_special_tokens=True)
+134
+135         analysis = self._parse_json_output(result)
+136         logger.info("Raw model analysis returned.")
+137
+138         analysis = self.explanation_engine.generate_explanation(analysis)
+139         logger.info("Explanations generated.")
+140
+141         return analysis
+142
+143     def _transform_query(self, query: str) -> str:
+144         return query
+145
+146     def _format_rules_for_prompt(self, rules: list) -> str:
+147         if not rules:
+148             return "No specific compliance rules were retrieved. Analyze based on general Medicare principles."
+149         formatted_rules = []
+150         for rule in rules:
+151             formatted_rules.append(
+152                 f"- **Rule:** {rule.get('text', '')}\n"
+153                 f"  **Source:** {rule.get('source', '')}\n"
+154             )
+155         return "\n".join(formatted_rules)
+156
+157     def _parse_json_output(self, result: str) -> dict:
+158         """
+159         Parses JSON output from the model with robust error handling.
+160         """
+161         try:
+162             # First try to find JSON wrapped in code blocks
+163             json_start = result.find('```json')
+164             if json_start != -1:
+165                 json_str = result[json_start + 7:].strip()
+166                 json_end = json_str.rfind('```')
+167                 if json_end != -1:
+168                     json_str = json_str[:json_end].strip()
+169             else:
+170                 # Fall back to finding raw JSON braces
+171                 json_start = result.find('{')
+172                 json_end = result.rfind('}') + 1
+173                 json_str = result[json_start:json_end]
+174             
+175             analysis = json.loads(json_str)
+176             return analysis
+177             
+178         except (json.JSONDecodeError, IndexError, ValueError) as e:
+179             logger.error(f"Error parsing JSON output: {e}\nRaw model output:\n{result}")
+180             analysis = {"error": "Failed to parse JSON output from model."}
+181             return analysis
