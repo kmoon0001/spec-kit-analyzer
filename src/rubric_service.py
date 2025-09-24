@@ -25,7 +25,6 @@ class ComplianceRule:
     positive_keywords: List[str] = field(default_factory=list)
     negative_keywords: List[str] = field(default_factory=list)
 
-
 class RubricService:
     """
     Service to load and query the compliance rubric ontology.
