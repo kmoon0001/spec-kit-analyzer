@@ -7,7 +7,7 @@ API_URL = "http://127.0.0.1:8000"
 class AnalysisWorker(QObject):
     finished = Signal()
     error = Signal(str)
-    success = Signal(str)
+    success = Signal(str) 
 
     def __init__(self, file_path, data):
         super().__init__()
