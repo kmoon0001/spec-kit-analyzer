@@ -18,3 +18,7 @@ openpyxl
 torch
 transformers
 sentence-transformers
+faiss-cpu
+bitsandbytes
+accelerate
+optimum
