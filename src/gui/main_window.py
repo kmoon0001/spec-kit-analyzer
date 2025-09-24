@@ -14,7 +14,9 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QComboBox,
-    QLabel
+    QLabel,
+    QSplitter,
+    QGroupBox
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtCore import Qt
@@ -30,7 +32,7 @@ class MainApplicationWindow(QMainWindow):
 
     def initUI(self):
         self.setWindowTitle('Therapy Compliance Analyzer')
-        self.setGeometry(100, 100, 1024, 768)
+        self.setGeometry(100, 100, 1200, 800)
 
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
@@ -46,46 +48,108 @@ class MainApplicationWindow(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         main_layout = QVBoxLayout(self.central_widget)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
 
-        # Top button layout
-        button_layout = QHBoxLayout()
+        # Controls Group
+        controls_group = QGroupBox("Controls")
+        controls_layout = QVBoxLayout(controls_group)
+
+        # File operations
+        file_ops_layout = QHBoxLayout()
         self.upload_button = QPushButton('Upload Document')
         self.upload_button.clicked.connect(self.open_file_dialog)
-        button_layout.addWidget(self.upload_button)
+        file_ops_layout.addWidget(self.upload_button)
         self.clear_button = QPushButton('Clear Display')
         self.clear_button.clicked.connect(self.clear_display)
-        button_layout.addWidget(self.clear_button)
-        main_layout.addLayout(button_layout)
+        file_ops_layout.addWidget(self.clear_button)
+        controls_layout.addLayout(file_ops_layout)
 
-        # Controls layout
-        controls_layout = QHBoxLayout()
-        controls_layout.addWidget(QLabel("Discipline:"))
+        # Analysis options
+        analysis_ops_layout = QHBoxLayout()
+
+        discipline_layout = QVBoxLayout()
+        discipline_layout.addWidget(QLabel("Discipline:"))
         self.discipline_combo = QComboBox()
         self.discipline_combo.addItems(["All", "PT", "OT", "SLP"])
-        controls_layout.addWidget(self.discipline_combo)
+        discipline_layout.addWidget(self.discipline_combo)
+        analysis_ops_layout.addLayout(discipline_layout)
 
-        controls_layout.addWidget(QLabel("OR Select a Rubric:"))
+        rubric_layout = QVBoxLayout()
+        rubric_layout.addWidget(QLabel("OR Select a Rubric:"))
         self.rubric_list_widget = QListWidget()
         self.rubric_list_widget.setPlaceholderText("No rubric selected")
         self.rubric_list_widget.setMaximumHeight(100)
-        controls_layout.addWidget(self.rubric_list_widget)
+        rubric_layout.addWidget(self.rubric_list_widget)
+        analysis_ops_layout.addLayout(rubric_layout)
+
+        analysis_ops_layout.addStretch()
 
         self.run_analysis_button = QPushButton("Run Analysis")
         self.run_analysis_button.clicked.connect(self.run_analysis)
-        controls_layout.addWidget(self.run_analysis_button)
-        main_layout.addLayout(controls_layout)
+        analysis_ops_layout.addWidget(self.run_analysis_button, 0, Qt.AlignBottom)
+
+        controls_layout.addLayout(analysis_ops_layout)
+
+        main_layout.addWidget(controls_group)
 
         # Document and results display
+        splitter = QSplitter(Qt.Horizontal)
+
         self.document_display_area = QTextEdit()
         self.document_display_area.setPlaceholderText("Upload a document to see its content here.")
         self.document_display_area.setReadOnly(True)
-        main_layout.addWidget(self.document_display_area)
+        splitter.addWidget(self.document_display_area)
 
         self.analysis_results_area = QWebEngineView()
         self.analysis_results_area.setHtml("<p>Analysis results will appear here.</p>")
-        main_layout.addWidget(self.analysis_results_area)
+        splitter.addWidget(self.analysis_results_area)
+
+        splitter.setSizes([500, 700])
+        main_layout.addWidget(splitter)
 
         self.load_rubrics_to_list()
+        self.apply_stylesheet()
+
+    def apply_stylesheet(self):
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #f0f0f0;
+            }
+            QGroupBox {
+                border: 1px solid #d0d0d0;
+                border-radius: 5px;
+                margin-top: 10px;
+                font-weight: bold;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top left;
+                padding: 0 5px;
+            }
+            QPushButton {
+                background-color: #0078d7;
+                color: white;
+                border: none;
+                padding: 10px;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #005a9e;
+            }
+            QPushButton:pressed {
+                background-color: #003c6a;
+            }
+            QTextEdit, QListWidget, QComboBox {
+                border: 1px solid #d0d0d0;
+                border-radius: 5px;
+                padding: 5px;
+            }
+            QStatusBar {
+                background-color: #0078d7;
+                color: white;
+            }
+        """)
 
     def open_file_dialog(self):
         file_name, _ = QFileDialog.getOpenFileName(self, 'Select Document', '', 'All Files (*.*)')
