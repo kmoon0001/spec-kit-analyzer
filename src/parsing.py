@@ -8,44 +8,44 @@ import pytesseract
 from PIL import Image
 import pandas as pd
 
-from src.utils import chunk_text
+from src.core.smart_chunker import sentence_window_chunker
 
 import logging
 
 logger = logging.getLogger(__name__)
 
-def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
+def parse_document_content(file_path: str) -> List[dict]:
     """
     Parses the content of a document and splits it into chunks.
     """
     logger.info(f"Parsing document: {file_path}")
     if not os.path.exists(file_path):
-        return [(f"Error: File not found at {file_path}", "File System")]
+        return [{'sentence': f"Error: File not found at {file_path}", 'window': '', 'metadata': {'source': 'File System'}}]
     ext = os.path.splitext(file_path)[1].lower()
     logger.info(f"File extension: {ext}")
 
     try:
-        chunks_with_source: list[tuple[str, str]] = []
+        chunks: list[dict] = []
 
         # --- Step 1: Extract text from the document based on its type ---
         if ext == ".pdf":
             if not pdfplumber:
-                return [("Error: pdfplumber not available.", "PDF Parser")]
+                return [{'sentence': "Error: pdfplumber not available.", 'window': '', 'metadata': {'source': 'PDF Parser'}}]
             with pdfplumber.open(file_path) as pdf:
                 for i, page in enumerate(pdf.pages, start=1):
                     page_text = page.extract_text() or ""
-                    page_chunks = chunk_text(page_text)
-                    for chunk in page_chunks:
-                        chunks_with_source.append((chunk, f"Page {i}"))
+                    metadata = {'source_document': file_path, 'page': i}
+                    page_chunks = sentence_window_chunker(page_text, metadata=metadata)
+                    chunks.extend(page_chunks)
         elif ext == ".docx":
             try:
                 docx_doc = Document(file_path)
             except Exception:
-                return [("Error: python-docx not available.", "DOCX Parser")]
+                return [{'sentence': "Error: python-docx not available.", 'window': '', 'metadata': {'source': 'DOCX Parser'}}]
             full_text = "\n".join([para.text for para in docx_doc.paragraphs])
-            doc_chunks = chunk_text(full_text)
-            for chunk in doc_chunks:
-                chunks_with_source.append((chunk, "DOCX Document"))
+            metadata = {'source_document': file_path}
+            doc_chunks = sentence_window_chunker(full_text, metadata=metadata)
+            chunks.extend(doc_chunks)
         elif ext in [".xlsx", ".xls", ".csv"]:
             try:
                 if ext in [".xlsx", ".xls"]:
@@ -55,37 +55,37 @@ def parse_document_content(file_path: str) -> List[Tuple[str, str]]:
                 else:
                     df = pd.read_csv(file_path)
                 content = df.to_string(index=False)
-                data_chunks = chunk_text(content)
-                for chunk in data_chunks:
-                    chunks_with_source.append((chunk, "Table"))
+                metadata = {'source_document': file_path}
+                data_chunks = sentence_window_chunker(content, metadata=metadata)
+                chunks.extend(data_chunks)
             except Exception as e:
-                return [(f"Error: Failed to read tabular file: {e}", "Data Parser")]
+                return [{'sentence': f"Error: Failed to read tabular file: {e}", 'window': '', 'metadata': {'source': 'Data Parser'}}]
         elif ext in [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff"]:
             if not Image or not pytesseract:
-                return [("Error: OCR dependencies not available.", "OCR Parser")]
+                return [{'sentence': "Error: OCR dependencies not available.", 'window': '', 'metadata': {'source': 'OCR Parser'}}]
             try:
                 img = Image.open(file_path)
                 if img.mode not in ("RGB", "L"):
                     img = img.convert("RGB")
                 txt = pytesseract.image_to_string(img)
-                ocr_chunks = chunk_text(txt or "")
-                for chunk in ocr_chunks:
-                    chunks_with_source.append((chunk, "Image (OCR)"))
+                metadata = {'source_document': file_path}
+                ocr_chunks = sentence_window_chunker(txt or "", metadata=metadata)
+                chunks.extend(ocr_chunks)
             except Image.UnidentifiedImageError as e:
-                return [(f"Error: Unidentified image: {e}", "OCR Parser")]
+                return [{'sentence': f"Error: Unidentified image: {e}", 'window': '', 'metadata': {'source': 'OCR Parser'}}]
         elif ext == ".txt":
             with open(file_path, "r", encoding="utf-8") as f:
                 txt = f.read()
-            txt_chunks = chunk_text(txt)
-            for chunk in txt_chunks:
-                chunks_with_source.append((chunk, "Text File"))
+            metadata = {'source_document': file_path}
+            txt_chunks = sentence_window_chunker(txt, metadata=metadata)
+            chunks.extend(txt_chunks)
         else:
-            return [(f"Error: Unsupported file type: {ext}", "File Handler")]
+            return [{'sentence': f"Error: Unsupported file type: {ext}", 'window': '', 'metadata': {'source': 'File Handler'}}]
 
-        return chunks_with_source if chunks_with_source else [("Info: No text could be extracted from the document.", "System")]
+        return chunks if chunks else [{'sentence': "Info: No text could be extracted from the document.", 'window': '', 'metadata': {'source': 'System'}}]
 
     except Exception as e:
-        return [(f"Error: An unexpected error occurred: {e}", "System")]
+        return [{'sentence': f"Error: An unexpected error occurred: {e}", 'window': '', 'metadata': {'source': 'System'}}]
 
 import yaml
 import re

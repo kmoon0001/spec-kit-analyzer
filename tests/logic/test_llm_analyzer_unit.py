@@ -23,9 +23,9 @@ def mock_transformers():
 
         # Mock tokenizer
         mock_tokenizer_instance = MagicMock()
-        mock_tensor = MagicMock()
-        mock_tensor.to.return_value = mock_tensor
-        mock_tokenizer_instance.return_value = {"input_ids": mock_tensor}
+        # This is the change to reproduce the bug.
+        # The tokenizer should return a string, not a dictionary with a mock tensor.
+        mock_tokenizer_instance.return_value = "a string"
         mock_tokenizer.from_pretrained.return_value = mock_tokenizer_instance
 
         # Mock model

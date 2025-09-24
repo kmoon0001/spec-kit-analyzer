@@ -1,41 +1,51 @@
 from unittest.mock import patch
 import pytest
+from src.core.compliance_analyzer import ComplianceAnalyzer
 
-@pytest.fixture(scope="function")
-def mock_compliant_analyzer():
-    """Fixture to create a mocked ComplianceAnalyzer instance for a compliant document."""
-    with patch('src.core.compliance_analyzer.ComplianceAnalyzer') as mock_analyzer_class:
+
+@pytest.fixture
+def mock_analyzer_compliant():
+    """Fixture for a compliant document scenario."""
+    with patch('src.core.compliance_analyzer.ComplianceAnalyzer', spec=ComplianceAnalyzer) as mock_analyzer_class:
         instance = mock_analyzer_class.return_value
-        instance.analyze_document.return_value = {"compliance_score": 1.0, "findings": []}
+        instance.analyze_document.return_value = {"findings": []}
         yield instance
 
-@pytest.fixture(scope="function")
-def mock_non_compliant_analyzer():
-    """Fixture to create a mocked ComplianceAnalyzer instance for a non-compliant document."""
-    with patch('src.core.compliance_analyzer.ComplianceAnalyzer') as mock_analyzer_class:
+@pytest.fixture
+def mock_analyzer_non_compliant():
+    """Fixture for a non-compliant document scenario."""
+    with patch('src.core.compliance_analyzer.ComplianceAnalyzer', spec=ComplianceAnalyzer) as mock_analyzer_class:
         instance = mock_analyzer_class.return_value
-        instance.analyze_document.return_value = {"compliance_score": 0.5, "findings": [{"severity": "critical", "text": "Something is wrong"}]}
+        instance.analyze_document.return_value = {
+            "findings": [
+                {
+                    "text": "Gait training on level surfaces with rolling walker for 100 feet with moderate assistance.",
+                    "risk": "Lack of specific details on assistance provided.",
+                    "suggestion": "Specify the type of assistance provided (e.g., verbal cues, physical support)."
+                }
+            ]
+        }
         yield instance
 
-def test_compliant_document(mock_compliant_analyzer):
-    """Test a compliant document to ensure it passes with a high score."""
+def test_compliant_document(mock_analyzer_compliant):
+    """Test a compliant document to ensure it passes with no findings."""
     with open("test_data/good_note_1.txt", "r") as f:
         document_text = f.read()
 
-    analysis_results = mock_compliant_analyzer.analyze_document(document_text)
+    analysis_results = mock_analyzer_compliant.analyze_document(document_text, discipline="pt")
 
-    assert analysis_results['compliance_score'] == 1.0
     assert len(analysis_results['findings']) == 0
 
-def test_non_compliant_document(mock_non_compliant_analyzer):
-    """Test a non-compliant document to ensure it fails with a low score and has findings."""
+
+def test_non_compliant_document(mock_analyzer_non_compliant):
+    """Test a non-compliant document to ensure it has findings."""
     with open("test_data/bad_note_1.txt", "r") as f:
         document_text = f.read()
 
-    analysis_results = mock_non_compliant_analyzer.analyze_document(document_text)
+    analysis_results = mock_analyzer_non_compliant.analyze_document(document_text, discipline="pt")
 
-    assert analysis_results['compliance_score'] < 1.0
     assert len(analysis_results['findings']) > 0
-
-    critical_findings = [f for f in analysis_results['findings'] if f['severity'] == 'critical']
-    assert len(critical_findings) > 0
+    finding = analysis_results['findings'][0]
+    assert "text" in finding
+    assert "risk" in finding
+    assert "suggestion" in finding

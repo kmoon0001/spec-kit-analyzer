@@ -93,8 +93,11 @@ class HybridRetriever:
         tokenized_query = query.lower().split()
         # We need a new BM25 index for the filtered corpus
         filtered_tokenized_corpus = [doc.lower().split() for doc in filtered_corpus]
-        filtered_bm25 = BM25Okapi(filtered_tokenized_corpus)
-        bm25_scores = filtered_bm25.get_scores(tokenized_query)
+        if not any(filtered_tokenized_corpus): # check if all lists are empty
+            bm25_scores = np.zeros(len(filtered_corpus))
+        else:
+            filtered_bm25 = BM25Okapi(filtered_tokenized_corpus)
+            bm25_scores = filtered_bm25.get_scores(tokenized_query)
 
         # --- Dense Retriever Search (Semantic) on filtered corpus ---
         query_embedding = self.dense_retriever.encode(query, convert_to_tensor=True)

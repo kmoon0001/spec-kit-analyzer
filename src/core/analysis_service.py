@@ -2,20 +2,19 @@ import os
 from datetime import datetime
 import sqlite3
 import tempfile
-from typing import List
 from src.rubric_service import RubricService
 from src.parsing import parse_document_content
 from src.guideline_service import GuidelineService
 from src.database import DATABASE_PATH
-from src.core.llm_analyzer import LLMComplianceAnalyzer
+from .llm_analyzer import LLMComplianceAnalyzer
 
 class AnalysisService:
-    def __init__(self, guideline_sources: List[str] = None):
-        if guideline_sources is None:
-            guideline_sources = [
-                "_default_medicare_benefit_policy_manual.txt",
-                "_default_medicare_part.txt"
-            ]
+    def __init__(self):  
+        guideline_sources = [
+            "_default_medicare_benefit_policy_manual.txt",
+            "_default_medicare_part.txt"
+        ]
+
         # GuidelineService is initialized with the sources, which triggers loading or building the index
         self.guideline_service = GuidelineService(sources=guideline_sources)
 

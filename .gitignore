@@ -70,7 +70,7 @@ Thumbs.db
 *.json
 *.pdf
 main
-# Added by Jules
-*.index
+
+# Cached files
 *.pkl
-report.html
+*.index
