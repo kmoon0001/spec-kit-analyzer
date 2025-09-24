@@ -13,11 +13,14 @@ python-multipart
 python-docx
 pytesseract
 Pillow
-pandas
+pandas 
 openpyxl
 torch
 transformers
 sentence-transformers
-numpy
-opencv-python
+gunicorn
+faiss-cpu
+bitsandbytes
 rank_bm25
+accelerate
+nltk
