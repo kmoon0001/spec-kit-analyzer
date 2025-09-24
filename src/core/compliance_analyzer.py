@@ -5,10 +5,10 @@ from src.document_classifier import DocumentClassifier, DocumentType
 from src.parsing import parse_document_into_sections
 from typing import Dict, List
 import json
-from rubric_service import ComplianceRule
+from src.rubric_service import ComplianceRule
 
 class ComplianceAnalyzer:
-    def __init__(self): 
+    def __init__(self, retriever=None):
         generator_model_name = "nabilfaieaz/tinyllama-med-full"
 
         # Initialize the document classifier
@@ -16,7 +16,7 @@ class ComplianceAnalyzer:
         print("Document Classifier initialized successfully.")
 
         # Initialize the GraphRAG retriever
-        self.retriever = HybridRetriever()
+        self.retriever = retriever if retriever else HybridRetriever()
         print("GraphRAG Hybrid Retriever initialized successfully.")
 
         # Initialize the generator LLM
@@ -50,20 +50,14 @@ class ComplianceAnalyzer:
         entity_list = ", ".join([f"'{entity['word']}' ({entity['entity_group']})" for entity in entities])
         print(f"Extracted entities: {entity_list}")
 
+        # 2. Classify document type
+        doc_type = self.classifier.classify(document_text)
+        doc_type_str = doc_type.value
+        print(f"Classified document as: {doc_type_str}")
+
         # 3. Retrieve context from GraphRAG
         retrieved_rules = self.retriever.search(document_text, discipline=discipline, doc_type=doc_type_str)
         context = self._format_rules_for_prompt(retrieved_rules)
-
-        # 2. Retrieve context
-        # This part seems to be missing the retriever initialization.
-        # I will assume it should be initialized in __init__
-        # and I will mock it for now.
-        retrieved_docs = []
-        context = "\n".join(retrieved_docs)
-        # Truncate context to avoid exceeding model's context window
-        max_context_length = 4000
-        if len(context) > max_context_length:
-            context = context[:max_context_length] + "\n..."
         print("Retrieved and formatted context from GraphRAG.")
 
         # 4. Build prompt

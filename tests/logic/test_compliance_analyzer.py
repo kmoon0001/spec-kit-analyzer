@@ -20,12 +20,25 @@ class TestComplianceAnalyzer:
         """
         Fixture to create a new ComplianceAnalyzer instance for each test function.
         """
-        # We patch the heavy components to keep tests fast.
-        with patch('core.compliance_analyzer.AutoModelForCausalLM.from_pretrained'), \
-             patch('core.compliance_analyzer.AutoTokenizer.from_pretrained'), \
-             patch('core.compliance_analyzer.pipeline'), \
-             patch('core.compliance_analyzer.HybridRetriever'):
-            instance = ComplianceAnalyzer()
+        with patch('src.core.compliance_analyzer.AutoModelForCausalLM.from_pretrained'), \
+             patch('src.core.compliance_analyzer.AutoTokenizer.from_pretrained'), \
+             patch('src.core.compliance_analyzer.pipeline'):
+
+            from src.rubric_service import ComplianceRule
+            mock_retriever = MagicMock()
+            dummy_rule = ComplianceRule(
+                uri='test_rule',
+                severity='High',
+                strict_severity='Must',
+                issue_title='Missing Signature',
+                issue_detail='The document is missing a therapist signature.',
+                issue_category='Documentation',
+                discipline='PT',
+                suggestion='Please ensure the therapist signs the document.'
+            )
+            mock_retriever.search.return_value = [dummy_rule]
+
+            instance = ComplianceAnalyzer(retriever=mock_retriever)
             yield instance
 
     def test_document_classification(self, analyzer_instance):
@@ -38,19 +51,15 @@ class TestComplianceAnalyzer:
         unclassified_doc = "This is a regular document."
         assert classifier.classify(unclassified_doc) == DocumentType.UNKNOWN
 
-    @patch('src.core.compliance_analyzer.ComplianceAnalyzer.__init__', return_value=None)
-    def test_build_prompt(self, mock_init):
-        # Create an instance of the analyzer (init is mocked)
-        analyzer = ComplianceAnalyzer()
+    def test_build_prompt(self, analyzer_instance):
         # Define mock data
         document = "This is a test document."
         entity_list = "'test' (test_entity)"
         context = "This is a test context."
         # Call the method
-        prompt = analyzer._build_prompt(document, entity_list, context)
+        prompt = analyzer_instance._build_prompt(document, entity_list, context)
         # Assert the prompt is constructed correctly
         assert "This is a test document." in prompt
         assert "'test' (test_entity)" in prompt
-        assert "Relevant Medicare Compliance Rules" in prompt
-        assert "Test Rule" in prompt
+        assert "Relevant Medicare Guidelines" in prompt
         assert "You are an expert Medicare compliance officer" in prompt
