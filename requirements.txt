@@ -13,7 +13,7 @@ python-multipart
 python-docx
 pytesseract
 Pillow
-pandas 
+pandas
 openpyxl
 torch
 transformers
@@ -24,3 +24,16 @@ bitsandbytes
 rank_bm25
 accelerate
 nltk
+PyYAML
+pdfplumber
+requests
+numpy
+faiss-cpu
+sentence-transformers
+rank_bm25
+rdflib
+pydantic
+ctransformers
+matplotlib
+PySide6
+transformers

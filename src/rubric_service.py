@@ -1,36 +1,34 @@
-from __future__ import annotations
-
 import logging
-from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+from rdflib import Graph, URIRef, Literal, Namespace
+from rdflib.namespace import RDF, RDFS
+from pydantic import BaseModel, Field
+import json
 
-from rdflib import Graph, Namespace
-from rdflib.plugins.sparql import prepareQuery 
-
+# Setup basic logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Define a dataclass to hold the rule information in a structured way
-@dataclass
-class ComplianceRule:
+# Pydantic model for a compliance rule
+class ComplianceRule(BaseModel):
     uri: str
-    severity: str
-    strict_severity: str
     issue_title: str
-    issue_detail: str 
+    issue_detail: str
+    severity: str
+    strict_severity: Optional[str] = None
     issue_category: str
     discipline: str
     document_type: Optional[str] = None
-    suggestion: str = ""
-    financial_impact: int = 0
-    positive_keywords: List[str] = field(default_factory=list)
-    negative_keywords: List[str] = field(default_factory=list)
-
+    suggestion: str
+    financial_impact: int
+    positive_keywords: List[str] = Field(default_factory=list)
+    negative_keywords: List[str] = Field(default_factory=list)
 
 class RubricService:
     """
-    Service to load and query the compliance rubric ontology.
+    A service to manage and query compliance rubrics from a TTL ontology file.
     """
-    def __init__(self, ontology_path: str = None): # Path is now optional
+    def __init__(self, ontology_path: str = None):  # Path is now optional
         """
         Initializes the service by loading all .ttl rubric ontologies from the src directory.
         """
@@ -107,11 +105,10 @@ class RubricService:
                 )
                 rules.append(rule)
             logger.info(f"Successfully retrieved and processed {len(rules)} rules from the ontology.")
+            return rules
         except Exception as e:
             logger.exception(f"Failed to query and process rules from ontology: {e}")
-            return [] # Return empty list on failure
-
-        return rules
+            return []
 
     def get_filtered_rules(self, doc_type: str, discipline: str = "All") -> List[ComplianceRule]:
         """

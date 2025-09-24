@@ -1,12 +1,12 @@
 from unittest.mock import patch
 import pytest
-from src.core.compliance_analyzer import ComplianceAnalyzer
+from src.compliance_analyzer import ComplianceAnalyzer
 
 
 @pytest.fixture
 def mock_analyzer_compliant():
     """Fixture for a compliant document scenario."""
-    with patch('src.core.compliance_analyzer.ComplianceAnalyzer', spec=ComplianceAnalyzer) as mock_analyzer_class:
+    with patch('src.compliance_analyzer.ComplianceAnalyzer', spec=ComplianceAnalyzer) as mock_analyzer_class:
         instance = mock_analyzer_class.return_value
         instance.analyze_document.return_value = {"findings": []}
         yield instance
@@ -14,7 +14,7 @@ def mock_analyzer_compliant():
 @pytest.fixture
 def mock_analyzer_non_compliant():
     """Fixture for a non-compliant document scenario."""
-    with patch('src.core.compliance_analyzer.ComplianceAnalyzer', spec=ComplianceAnalyzer) as mock_analyzer_class:
+    with patch('src.compliance_analyzer.ComplianceAnalyzer', spec=ComplianceAnalyzer) as mock_analyzer_class:
         instance = mock_analyzer_class.return_value
         instance.analyze_document.return_value = {
             "findings": [
@@ -32,7 +32,7 @@ def test_compliant_document(mock_analyzer_compliant):
     with open("test_data/good_note_1.txt", "r") as f:
         document_text = f.read()
 
-    analysis_results = mock_analyzer_compliant.analyze_document(document_text, discipline="pt")
+    analysis_results = mock_analyzer_compliant.analyze_document(document_text, discipline="pt", doc_type="evaluation")
 
     assert len(analysis_results['findings']) == 0
 
@@ -42,7 +42,7 @@ def test_non_compliant_document(mock_analyzer_non_compliant):
     with open("test_data/bad_note_1.txt", "r") as f:
         document_text = f.read()
 
-    analysis_results = mock_analyzer_non_compliant.analyze_document(document_text, discipline="pt")
+    analysis_results = mock_analyzer_non_compliant.analyze_document(document_text, discipline="pt", doc_type="evaluation")
 
     assert len(analysis_results['findings']) > 0
     finding = analysis_results['findings'][0]

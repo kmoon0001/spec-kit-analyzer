@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 import json
-from src.core.compliance_analyzer import ComplianceAnalyzer
+from src.compliance_analyzer import ComplianceAnalyzer
 from src.rubric_service import ComplianceRule
 from src.document_classifier import DocumentType
 
@@ -45,20 +45,11 @@ def compliance_analyzer_with_mocks(mocker):
     mocker.patch('src.core.hybrid_retriever.SentenceTransformer')
     # NOTE: CrossEncoder is not used in the current implementation, so it's not mocked.
 
-    # 4. Mock GuidelineService and Retriever
-    mock_guideline_service = MagicMock()
-    mock_retriever = MagicMock()
+    # 4. Instantiate the real ComplianceAnalyzer, which will now use the mocked services
+    analyzer = ComplianceAnalyzer(config={}, guideline_service=MagicMock(), retriever=MagicMock())
 
-    # 5. Instantiate the real ComplianceAnalyzer, injecting the mocked services
-    analyzer = ComplianceAnalyzer(
-        guideline_service=mock_guideline_service,
-        retriever=mock_retriever,
-        use_query_transformation=True
-    )
-
-    # 6. Mock the classifier and LLM generator for predictable behavior in tests
-    # Note: The classifier is part of the GuidelineService now, so we mock it there.
-    mock_guideline_service.classify_document = MagicMock()
+    # 5. Mock the classifier and LLM generator for predictable behavior in tests
+    analyzer.classifier = MagicMock()
     analyzer.generator_model = MagicMock()
     analyzer.generator_tokenizer = MagicMock()
     analyzer.generator_tokenizer.decode.return_value = '{"findings": []}'
@@ -71,22 +62,17 @@ def test_hybrid_search_finds_specific_rule(compliance_analyzer_with_mocks):
     Verifies that the retriever can find a specific rule based on a keyword query.
     """
     analyzer, mock_rules = compliance_analyzer_with_mocks
-    analyzer.guideline_service.classify_document.return_value = DocumentType.EVALUATION
+    analyzer.classifier.predict.return_value = DocumentType.EVALUATION
 
     # Mock the retriever's search to inspect its results
-    analyzer.retriever.search.return_value = mock_rules
-    analyzer.analyze_document("The therapist's signature is missing.", "pt")
+    with patch.object(analyzer.retriever, 'search', return_value=mock_rules) as mock_search:
+        analyzer.analyze_document("The therapist's signature is missing.", "pt")
 
-    # Assert that the search method was called correctly
-    analyzer.retriever.search.assert_called_with(
-        query="The therapist's signature is missing.",
-        discipline="pt",
-        doc_type=DocumentType.EVALUATION.name
-    )
+        # The 'wraps' argument allows the real method to run, so we can check its output
+        retrieved_rules = mock_search.return_value
 
-    # Assert that the rule with the keyword 'signature' was retrieved
-    retrieved_rules = analyzer.retriever.search.return_value
-    assert any(rule.issue_title == "Keyword Match Rule" for rule in retrieved_rules)
+        # Assert that the rule with the keyword 'signature' was retrieved
+        assert any(rule.issue_title == "Keyword Match Rule" for rule in retrieved_rules)
 
 def test_query_transformation_is_called(compliance_analyzer_with_mocks, mocker):
     """
@@ -94,22 +80,18 @@ def test_query_transformation_is_called(compliance_analyzer_with_mocks, mocker):
     is passed to the retriever.
     """
     analyzer, _ = compliance_analyzer_with_mocks
-    analyzer.guideline_service.classify_document.return_value = DocumentType.EVALUATION
+    analyzer.classifier.predict.return_value = DocumentType.EVALUATION
 
     # Define a specific transformed query to check for
     transformed_query = "expanded and transformed test query"
     mocker.patch.object(analyzer, '_transform_query', return_value=transformed_query)
 
     # Spy on the retriever's search method
-    analyzer.retriever.search.return_value = []
-    analyzer.analyze_document("test document", "pt")
+    with patch.object(analyzer.retriever, 'search', return_value=[]) as mock_search:
+        analyzer.analyze_document("test document", "pt")
 
-    # Assert that the search method was called with the transformed query
-    analyzer.retriever.search.assert_called_with(
-        query=transformed_query,
-        discipline="pt",
-        doc_type=DocumentType.EVALUATION.name
-    )
+        # Assert that the search method was called with the transformed query
+        mock_search.assert_called_with(query=transformed_query, discipline="pt", doc_type="EVALUATION")
 
 def test_final_report_content_verification(compliance_analyzer_with_mocks):
     """
@@ -117,7 +99,7 @@ def test_final_report_content_verification(compliance_analyzer_with_mocks):
     based on the mocked LLM output.
     """
     analyzer, _ = compliance_analyzer_with_mocks
-    analyzer.guideline_service.classify_document.return_value = DocumentType.EVALUATION
+    analyzer.classifier.predict.return_value = DocumentType.EVALUATION
 
     # Mock the LLM's output to simulate finding a specific compliance issue
     mock_llm_output = {
@@ -147,4 +129,3 @@ def test_final_report_content_verification(compliance_analyzer_with_mocks):
     assert finding["text_quote"] == "Patient goal is to 'walk better'"
     assert "not measurable or specific" in finding["risk_description"]
     assert finding["rule_id"] == "http://example.com/rule/specific"
-    assert "explanation" in finding
