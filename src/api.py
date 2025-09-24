@@ -9,7 +9,7 @@ from src.core.analysis_service import AnalysisService
 # Add metadata for the API
 app = FastAPI(
     title="Clinical Compliance Analyzer API",
-    description="API for analyzing clinical documents for compliance.",
+    description="API for analyzing clinical documents for compliance.", 
     version="1.0.0",
 )
 
