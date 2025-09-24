@@ -31,11 +31,11 @@ ocr:
 
 # Configuration for the RAG Pipeline
 models:
-  ner_model: "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
+  ner_model: "d4data/biomedical-ner-all"
   retriever: "pritamdeka/S-PubMedBert-MS-MARCO"
-  generator: "nabilfaieaz/tinyllama-med-full"
-  summarizer: "sshleifer/distilbart-cnn-12-6"
-  prompt_template: "default_prompt.txt"
+  llm_repo_id: "TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
+  llm_filename: "mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+  prompt_template: "src/core/prompt_template.txt"
   quantization: "none"
 
 retrieval_settings:

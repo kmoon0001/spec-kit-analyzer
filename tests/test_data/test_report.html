@@ -57,24 +57,22 @@
     <h1>Compliance Analysis Report</h1>
 
     <h2>Analysis Findings</h2>
-    {% if analysis.findings %}
-        {% for finding in analysis.findings %}
+
+
             <details>
-                <summary>{{ finding.issue_title }} (Confidence: {{ "%.2f"|format(finding.confidence) }})</summary>
+                <summary>Lack of Objective Measurement of Progress (Confidence: 1.00)</summary>
                 <div class="finding-content">
-                    <p><strong>Reasoning:</strong> {{ finding.reasoning }}</p>
-                    <p><strong>Suggestion:</strong> {{ finding.suggestion }}</p>
-                    {% if finding.explanation %}
+                    <p><strong>Reasoning:</strong> 'Progress towards goals is good.' does not provide any quantifiable or objective data on the patient's progress.</p>
+                    <p><strong>Suggestion:</strong> Consider using standardized tests, measurements, or scales to objectively assess and document the patient's progress towards goals.</p>
+
                         <div class="guidelines">
-                            <p><strong>Guideline:</strong> {{ finding.explanation.detail }}</p>
-                            <p><strong>Guideline Text:</strong> {{ finding.explanation.guideline_text }}</p>
+                            <p><strong>Guideline:</strong> This finding relates to the guideline: 'Lack of quantifiable progress'.</p>
+                            <p><strong>Guideline Text:</strong> The patient's progress towards goals is not objectively measured or quantified.</p>
                         </div>
-                    {% endif %}
+
                 </div>
             </details>
-        {% endfor %}
-    {% else %}
-        <p>No compliance issues were found in the document.</p>
-    {% endif %}
+
+
 </body>
 </html>

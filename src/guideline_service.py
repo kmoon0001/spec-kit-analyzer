@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 # Standard library
+import json
 import logging
 import os
 import re
@@ -170,7 +171,25 @@ class GuidelineService:
             return []
 
         source_name = os.path.basename(file_path)
-        return self._extract_text_from_pdf(file_path, source_name)
+        if file_path.lower().endswith('.json'):
+            return self._extract_text_from_json(file_path, source_name)
+        else:
+            return self._extract_text_from_pdf(file_path, source_name)
+
+    def _extract_text_from_json(self, file_path: str, source_name: str) -> List[Tuple[str, str]]:
+        """Extracts text from a JSON file, assuming a list of objects with specific keys."""
+        chunks = []
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            for item in data:
+                # Combine the relevant fields into a single string for embedding
+                text = f"Title: {item.get('issue_title', '')}. Detail: {item.get('issue_detail', '')}"
+                chunks.append((text, source_name))
+        except Exception as e:
+            logger.error(f"Failed to extract text from '{file_path}': {e}")
+            raise
+        return chunks
 
     def search(self, query: str, top_k: int = None) -> List[dict]:
         """
