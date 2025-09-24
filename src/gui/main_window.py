@@ -36,6 +36,9 @@ class MainApplicationWindow(QMainWindow):
         self.file_menu.addAction('Exit', self.close)
         self.tools_menu = self.menu_bar.addMenu('Tools')
         self.tools_menu.addAction('Manage Rubrics', self.manage_rubrics)
+        self.theme_menu = self.menu_bar.addMenu('Theme')
+        self.theme_menu.addAction('Light', self.set_light_theme)
+        self.theme_menu.addAction('Dark', self.set_dark_theme)
 
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
@@ -62,10 +65,58 @@ class MainApplicationWindow(QMainWindow):
         main_layout.addWidget(splitter)
 
         self.load_rubrics_to_list()
-        self.apply_stylesheet()
+        theme = self.load_theme_setting()
+        self.apply_stylesheet(theme)
 
-    def apply_stylesheet(self):
-        self.setStyleSheet("""
+    def get_light_theme_stylesheet(self):
+        return """
+            QMainWindow {
+                background-color: #f0f0f0;
+                color: #000000;
+            }
+            QGroupBox {
+                border: 1px solid #d0d0d0;
+                border-radius: 5px;
+                margin-top: 10px;
+                font-weight: bold;
+                color: #000000;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top left;
+                padding: 0 5px;
+            }
+            QPushButton {
+                background-color: #0078d7;
+                color: white;
+                border: none;
+                padding: 10px;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #005a9e;
+            }
+            QPushButton:pressed {
+                background-color: #003c6a;
+            }
+            QTextEdit, QListWidget, QComboBox {
+                background-color: #ffffff;
+                color: #000000;
+                border: 1px solid #d0d0d0;
+                border-radius: 5px;
+                padding: 5px;
+            }
+            QStatusBar {
+                background-color: #0078d7;
+                color: white;
+            }
+            QLabel {
+                color: #000000;
+            }
+        """
+
+    def get_dark_theme_stylesheet(self):
+        return """
             QMainWindow {
                 background-color: #2b2b2b;
                 color: #f0f0f0;
@@ -110,7 +161,13 @@ class MainApplicationWindow(QMainWindow):
             QLabel {
                 color: #f0f0f0;
             }
-        """)
+        """
+
+    def apply_stylesheet(self, theme="dark"):
+        if theme == "light":
+            self.setStyleSheet(self.get_light_theme_stylesheet())
+        else:
+            self.setStyleSheet(self.get_dark_theme_stylesheet())
 
     def open_file_dialog(self):
         file_name, _ = QFileDialog.getOpenFileName(self, 'Select Document', '', 'All Files (*.*)')
@@ -191,3 +248,22 @@ class MainApplicationWindow(QMainWindow):
     def handle_error(self, message):
         QMessageBox.critical(self, "Error", message)
         self.status_bar.showMessage("An error occurred.")
+
+    def save_theme_setting(self, theme):
+        with open("theme.cfg", "w") as f:
+            f.write(theme)
+
+    def load_theme_setting(self):
+        try:
+            with open("theme.cfg", "r") as f:
+                return f.read().strip()
+        except FileNotFoundError:
+            return "dark"
+
+    def set_light_theme(self):
+        self.apply_stylesheet("light")
+        self.save_theme_setting("light")
+
+    def set_dark_theme(self):
+        self.apply_stylesheet("dark")
+        self.save_theme_setting("dark")
