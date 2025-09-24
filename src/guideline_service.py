@@ -7,7 +7,7 @@ import logging
 import os
 import re
 import tempfile
-import joblib
+import pickle
 from typing import List, Tuple
 
 # Third-party
@@ -39,11 +39,11 @@ class GuidelineService:
 
         self.cache_dir = "data"
         self.index_path = os.path.join(self.cache_dir, "guidelines.index")
-        self.chunks_path = os.path.join(self.cache_dir, "guidelines.joblib")
+        self.chunks_path = os.path.join(self.cache_dir, "guidelines.pkl")
         self.source_paths = sources
 
         logger.info(f"Loading Sentence Transformer model: {model_name}")
-        self.model = SentenceTransformer(model_name, model_kwargs={'revision': '96786c7'})
+        self.model = SentenceTransformer(model_name)
 
         self._load_or_build_index()
         logger.info("GuidelineService initialized.")
@@ -72,7 +72,7 @@ class GuidelineService:
 
         # Check if the sources have changed
         with open(self.chunks_path, 'rb') as f:
-            cached_chunks = joblib.load(f)
+            cached_chunks = pickle.load(f)
         cached_sources = set(chunk[1] for chunk in cached_chunks)
         current_sources = set(os.path.basename(path) for path in self.source_paths)
         if cached_sources != current_sources:
@@ -89,7 +89,7 @@ class GuidelineService:
         try:
             self.faiss_index = faiss.read_index(self.index_path)
             with open(self.chunks_path, 'rb') as f:
-                self.guideline_chunks = joblib.load(f)
+                self.guideline_chunks = pickle.load(f)
             self.is_index_ready = True
             logger.info(f"Successfully loaded {len(self.guideline_chunks)} chunks and FAISS index from cache.")
         except Exception as e:
@@ -105,7 +105,7 @@ class GuidelineService:
         try:
             faiss.write_index(self.faiss_index, self.index_path)
             with open(self.chunks_path, 'wb') as f:
-                joblib.dump(self.guideline_chunks, f)
+                pickle.dump(self.guideline_chunks, f)
             logger.info(f"Successfully saved index and chunks to '{self.cache_dir}'.")
         except Exception as e:
             logger.error(f"Failed to save index to cache: {e}")
