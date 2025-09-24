@@ -11,7 +11,7 @@ NLP_MODELS:
 RUBRIC_PATH: ./data/rubrics/
 REPORT_PATH: ./data/reports/
 REPORT_RETENTION_HOURS: 24
-AUTO_UPDATE: true
+AUTO_UPDATE: true 
 ANALYTICS_PATH: ./data/analytics/
 PHI_SCRUBBER: enabled
 UI_MODE: responsive

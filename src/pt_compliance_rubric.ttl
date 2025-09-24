@@ -86,14 +86,6 @@
 
 # Rule 2: Goals check
 # This rule triggers if 'goal' is present, but measurable/time-bound keywords are NOT found.
-# ... continue with your rule definitions ...
-
-    rdfs:domain :ComplianceRule ;
-    rdfs:range rdfs:Literal .
-
-# --- Individuals (Rules) ---
-
-# Rule 1: Signature/Date check
 :SignatureRule a :ComplianceRule ;
     :hasSeverity "finding" ;
     :hasStrictSeverity "flag" ;
