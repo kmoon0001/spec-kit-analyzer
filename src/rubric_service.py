@@ -16,7 +16,7 @@ class ComplianceRule:
     severity: str
     strict_severity: str
     issue_title: str
-    issue_detail: str
+    issue_detail: str 
     issue_category: str
     discipline: str
     document_type: Optional[str] = None
