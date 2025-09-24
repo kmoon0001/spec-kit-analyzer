@@ -1,5 +1,5 @@
 import re
-import pickle
+import joblib
 from rank_bm25 import BM25Okapi
 
 def preprocess_text(text):
@@ -53,14 +53,14 @@ def create_bm25_index():
 
     # Save the index and the original corpus to disk
     print("Saving index and corpus to disk...")
-    with open("bm25_index.pkl", "wb") as f:
-        pickle.dump(bm25, f)
+    with open("bm25_index.joblib", "wb") as f:
+        joblib.dump(bm25, f)
 
-    with open("medicare_guideline_corpus.pkl", "wb") as f:
-        pickle.dump(corpus, f)
+    with open("medicare_guideline_corpus.joblib", "wb") as f:
+        joblib.dump(corpus, f)
 
-    print("BM25 index created and saved successfully to 'bm25_index.pkl'.")
-    print("Text corpus saved successfully to 'medicare_guideline_corpus.pkl'.")
+    print("BM25 index created and saved successfully to 'bm25_index.joblib'.")
+    print("Text corpus saved successfully to 'medicare_guideline_corpus.joblib'.")
 
 
 if __name__ == "__main__":
