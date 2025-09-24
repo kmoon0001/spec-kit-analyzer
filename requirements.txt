@@ -24,4 +24,3 @@ bitsandbytes
 rank_bm25
 accelerate
 nltk
-joblib
