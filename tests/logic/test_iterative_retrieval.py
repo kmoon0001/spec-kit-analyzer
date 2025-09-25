@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # This test file validates the logic of an iterative retrieval process.
 # It uses a hypothetical orchestrator to test the flow in isolation.

@@ -1,7 +1,6 @@
 import os
 import yaml
 import logging
-import numpy as np
 import pickle
 from src.parsing import parse_document_content
 
