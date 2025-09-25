@@ -6,5 +6,6 @@ class LLMComplianceAnalyzer:
     def __init__(self, guideline_service=None):
         pass
 
-    def analyze_document(self, document_text):
+    @staticmethod
+    def analyze_document(document_text):
         return {"analysis": "mock analysis"}

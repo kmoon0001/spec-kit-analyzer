@@ -136,7 +136,8 @@ class MainApplicationWindow(QMainWindow):
         self.apply_stylesheet(theme)
         self.load_rubrics_to_list()
 
-    def get_light_theme_stylesheet(self):
+    @staticmethod
+    def get_light_theme_stylesheet():
         return """
             QMainWindow {
                 background-color: #f0f0f0;
@@ -198,7 +199,8 @@ class MainApplicationWindow(QMainWindow):
             }
         """
 
-    def get_dark_theme_stylesheet(self):
+    @staticmethod
+    def get_dark_theme_stylesheet():
         return """
             QMainWindow {
                 background-color: #2b2b2b;
@@ -423,11 +425,13 @@ class MainApplicationWindow(QMainWindow):
         QMessageBox.critical(self, "Error", message)
         self.status_bar.showMessage("An error occurred.")
 
-    def save_theme_setting(self, theme):
+    @staticmethod
+    def save_theme_setting(theme):
         with open("theme.cfg", "w") as f:
             f.write(theme)
 
-    def load_theme_setting(self):
+    @staticmethod
+    def load_theme_setting():
         try:
             with open("theme.cfg", "r") as f:
                 return f.read().strip()

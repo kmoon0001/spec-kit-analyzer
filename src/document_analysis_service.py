@@ -70,7 +70,8 @@ Return the analysis as a JSON object with the following structure:
 **Compliance Analysis:**
 """
 
-    def _format_rules_for_prompt(self, rules: List[Dict[str, Any]]) -> str:
+    @staticmethod
+    def _format_rules_for_prompt(rules: List[Dict[str, Any]]) -> str:
         """
         Formats retrieved rules for inclusion in the prompt.
         """
@@ -86,7 +87,8 @@ Return the analysis as a JSON object with the following structure:
             )
         return "\\n".join(formatted_rules)
 
-    def _generate_analysis_from_prompt(self, prompt: str) -> str:
+    @staticmethod
+    def _generate_analysis_from_prompt(prompt: str) -> str:
         """
         Placeholder for the actual LLM call.
         """
@@ -104,7 +106,8 @@ Return the analysis as a JSON object with the following structure:
 }
 """
 
-    def _parse_json_output(self, result: str) -> dict:
+    @staticmethod
+    def _parse_json_output(result: str) -> dict:
         """
         Parses JSON output from the model with robust error handling.
         """

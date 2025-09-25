@@ -9,7 +9,8 @@ class DocumentClassifier:
     """
     A simple classifier to determine the type of a clinical document.
     """
-    def classify(self, text: str) -> DocumentType:
+    @staticmethod
+    def classify(text: str) -> DocumentType:
         """
         Classifies the document text based on keywords.
 
