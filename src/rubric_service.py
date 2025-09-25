@@ -20,7 +20,7 @@ class RubricService:
                 logger.exception(f"Failed to load or parse the rubric ontology: {e}")
 
     def get_rules(self) -> List[ComplianceRule]:
-        if not len(self.graph):
+        if not self.graph:
             logger.warning("Ontology graph is empty. Cannot retrieve rules.")
             return []
         try:

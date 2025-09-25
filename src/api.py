@@ -1,12 +1,11 @@
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException, Form, Depends
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 import shutil
 import os
 import uuid
 from src.core.analysis_service import AnalysisService
-from src.config import settings
 from src.auth import create_access_token, get_current_user, Token
 
 # Add metadata for the API

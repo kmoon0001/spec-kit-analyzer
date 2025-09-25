@@ -11,7 +11,8 @@ class ReportGenerator:
         self.llm_template_str = self._load_template(os.path.join(os.path.dirname(ROOT_DIR), "backend", "app", "templates", "llm_report_template.html"))
         self.rubric_template_str = self._load_template(os.path.join(os.path.dirname(ROOT_DIR), "src", "resources", "report_template.html"))
 
-    def _load_template(self, template_path: str) -> str:
+    @staticmethod
+    def _load_template(template_path: str) -> str:
         try:
             with open(template_path, "r") as f:
                 return f.read()

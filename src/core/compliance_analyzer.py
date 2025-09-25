@@ -39,10 +39,12 @@ class ComplianceAnalyzer:
 
         return analysis
 
-    def _transform_query(self, query: str) -> str:
+    @staticmethod
+    def _transform_query(query: str) -> str:
         return query
 
-    def _format_rules_for_prompt(self, rules: list) -> str:
+    @staticmethod
+    def _format_rules_for_prompt(rules: list) -> str:
         if not rules:
             return "No specific compliance rules were retrieved. Analyze based on general Medicare principles."
         formatted_rules = []
@@ -53,7 +55,8 @@ class ComplianceAnalyzer:
             )
         return "\n".join(formatted_rules)
 
-    def _parse_json_output(self, result: str) -> dict:
+    @staticmethod
+    def _parse_json_output(result: str) -> dict:
         """
         Parses JSON output from the model with robust error handling.
         """
