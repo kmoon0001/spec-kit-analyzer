@@ -1,5 +1,4 @@
 import os
-import pytest
 from src.parsing import parse_document_content, parse_document_into_sections
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))

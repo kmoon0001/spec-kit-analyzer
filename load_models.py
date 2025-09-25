@@ -1,7 +1,6 @@
 import os
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from sentence_transformers import SentenceTransformer
-import torch
 
 # Check for the environment variable to skip downloads
 if os.environ.get("SKIP_MODEL_DOWNLOAD", "false").lower() == "true":

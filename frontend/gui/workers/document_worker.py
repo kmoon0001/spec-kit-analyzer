@@ -1,4 +1,3 @@
-import os
 from typing import List, Tuple
 from PySide6.QtCore import QObject, Signal as pyqtSignal
 from backend.app.parsing import parse_document_content

@@ -1,9 +1,7 @@
 import os
 from datetime import datetime
 import json
-import tempfile
 import yaml
-from src.rubric_service import RubricService
 from src.parsing import parse_document_content
 from .compliance_analyzer import ComplianceAnalyzer
 from .hybrid_retriever import HybridRetriever

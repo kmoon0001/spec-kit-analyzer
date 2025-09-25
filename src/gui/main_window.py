@@ -22,13 +22,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QThread  # keep QThread only if it's used elsewhere!
 from .dialogs.rubric_manager_dialog import RubricManagerDialog
-from .widgets.control_panel import ControlPanel
-from .widgets.document_view import DocumentView
-from .widgets.analysis_view import AnalysisView
 from .workers.analysis_worker import AnalysisWorker
 from .workers.folder_analysis_worker import FolderAnalysisWorker
 from .workers.ai_loader_worker import AILoaderWorker
-from src.compliance_analyzer import ComplianceAnalyzer
 
 API_URL = "http://127.0.0.1:8000"
 
