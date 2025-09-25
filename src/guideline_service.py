@@ -71,8 +71,8 @@ class GuidelineService:
         # Check if the sources have changed
         with open(self.chunks_path, 'rb') as f:
             cached_chunks = pickle.load(f)
-        cached_sources = set(chunk[1] for chunk in cached_chunks)
-        current_sources = set(os.path.basename(path) for path in self.source_paths)
+        cached_sources = {chunk[1] for chunk in cached_chunks}
+        current_sources = {os.path.basename(path) for path in self.source_paths}
         if cached_sources != current_sources:
             return False
 
