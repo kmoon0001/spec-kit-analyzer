@@ -33,13 +33,15 @@ class TestComplianceAnalyzer:
             instance = ComplianceAnalyzer()
             yield instance
 
-    def test_health_check(self, analyzer_instance):
+    @staticmethod
+    def test_health_check(analyzer_instance):
         """Tests the AI system health check."""
         is_healthy, message = analyzer_instance.check_ai_systems_health()
         assert is_healthy
         assert message == "AI Systems: Online"
 
-    def test_build_hybrid_prompt(self, analyzer_instance):
+    @staticmethod
+    def test_build_hybrid_prompt(analyzer_instance):
         """Tests the construction of the hybrid prompt."""
         document = "This is a test document."
         entity_list = "'test' (test_entity)"
