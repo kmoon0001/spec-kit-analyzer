@@ -1,34 +1,18 @@
 import logging
-from typing import List, Optional, Dict, Any
-from rdflib import Graph, URIRef, Literal, Namespace
-from rdflib.namespace import RDF, RDFS
-from pydantic import BaseModel, Field
-import json
+from typing import List
+from rdflib import Graph
+from src.models import ComplianceRule
 
-# Setup basic logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Pydantic model for a compliance rule
-class ComplianceRule(BaseModel):
-    uri: str
-    issue_title: str
-    issue_detail: str
-    severity: str
-    strict_severity: Optional[str] = None
-    issue_category: str
-    discipline: str
-    document_type: Optional[str] = None
-    suggestion: str
-    financial_impact: int
-    positive_keywords: List[str] = Field(default_factory=list)
-    negative_keywords: List[str] = Field(default_factory=list)
 
 class RubricService:
     """
-    A service to manage and query compliance rubrics from a TTL ontology file.
+    Manages loading and querying compliance rubrics from ontology files.
     """
-    def __init__(self, ontology_path: str = None):  # Path is now optional
+
+    def __init__(self, ontology_path: str = None):
         """
         Initializes the service by loading all .ttl rubric ontologies from the src directory.
         """
@@ -123,7 +107,6 @@ class RubricService:
         """
         all_rules = self.get_rules()
 
-        # Filter by document type
         if not doc_type or doc_type == "Unknown":
             doc_type_rules = all_rules
         else:
@@ -132,7 +115,6 @@ class RubricService:
                 if rule.document_type is None or rule.document_type == doc_type
             ]
 
-        # Filter by discipline
         if discipline == "All":
             final_rules = doc_type_rules
         else:
