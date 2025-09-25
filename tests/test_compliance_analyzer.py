@@ -1,64 +1,100 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from src.compliance_analyzer import ComplianceAnalyzer
 
-@pytest.fixture
-def mock_config():
-    """Fixture for mock config"""
-    return {
-        "models": {
-            "ner_model": "dslim/bert-base-NER",
-            "prompt_template": "default_prompt.txt",
-            "quantization": "none",
-            "llm_repo_id": "google/flan-t5-small",
-            "llm_filename": "model.safetensors"
-        }
-    }
+# Import the class we are testing
+from src.core.compliance_analyzer import ComplianceAnalyzer
 
-@pytest.fixture
-def mock_guideline_service():
-    """Fixture for mock GuidelineService"""
-    return MagicMock()
+# --- Mocks for all dependencies ---
 
 @pytest.fixture
 def mock_retriever():
-    """Fixture for mock HybridRetriever"""
     retriever = MagicMock()
-    retriever.retrieve.return_value = [
-        {"issue_title": "Test Rule", "issue_detail": "Details", "suggestion": "Suggestion"}
-    ]
+    retriever.retrieve.return_value = [{"issue_title": "Mocked Rule"}]
     return retriever
 
-@patch('src.compliance_analyzer.NERPipeline')
-@patch('src.compliance_analyzer.PromptManager')
-@patch('src.compliance_analyzer.ExplanationEngine')
-def test_compliance_analyzer_initialization(mock_explanation_engine, mock_prompt_manager, mock_ner_pipeline, mock_config, mock_guideline_service, mock_retriever):
-    """Tests the initialization of the ComplianceAnalyzer"""
-    analyzer = ComplianceAnalyzer(mock_config, mock_guideline_service, mock_retriever)
-    mock_ner_pipeline.assert_called_once_with(model_name=mock_config['models']['ner_model'])
-    mock_prompt_manager.assert_called_once_with(template_path=mock_config['models']['prompt_template'])
-    assert isinstance(analyzer.explanation_engine, MagicMock)
+@pytest.fixture
+def mock_ner_pipeline():
+    ner = MagicMock()
+    ner.extract_entities.return_value = [{"entity_group": "Test", "word": "Entity"}]
+    return ner
 
-@patch('src.compliance_analyzer.NERPipeline')
-@patch('src.compliance_analyzer.PromptManager')
-@patch('src.compliance_analyzer.ExplanationEngine')
-def test_analyze_document(mock_explanation_engine, mock_prompt_manager, mock_ner_pipeline, mock_config, mock_guideline_service, mock_retriever):
-    """Tests the document analysis workflow"""
-    # Setup mocks
-    mock_ner_pipeline.return_value.extract_entities.return_value = [{"entity_group": "Test", "word": "Entity"}]
-    mock_prompt_manager.return_value.build_prompt.return_value = "Test prompt"
-    mock_explanation_engine.return_value.add_explanations.return_value = {"explained": True}
+@pytest.fixture
+def mock_llm_service():
+    llm = MagicMock()
+    llm.generate_analysis.return_value = '{"findings": [{"text": "Problematic text."}]}'
+    return llm
 
-    analyzer = ComplianceAnalyzer(mock_config, mock_guideline_service, mock_retriever)
-    analyzer.ner_pipeline = mock_ner_pipeline.return_value
-    analyzer.prompt_manager = mock_prompt_manager.return_value
-    analyzer.explanation_engine = mock_explanation_engine.return_value
+@pytest.fixture
+def mock_nlg_service():
+    nlg = MagicMock()
+    nlg.generate_personalized_tip.return_value = "This is a generated tip."
+    return nlg
 
+@pytest.fixture
+def mock_explanation_engine():
+    exp = MagicMock()
+    exp.add_explanations.return_value = {"findings": [{"text": "Problematic text."}]}
+    return exp
+
+@pytest.fixture
+def mock_prompt_manager():
+    pm = MagicMock()
+    pm.build_prompt.return_value = "This is a test prompt."
+    return pm
+
+# --- Tests ---
+
+def test_compliance_analyzer_initialization(
+    mock_retriever, mock_ner_pipeline, mock_llm_service, 
+    mock_nlg_service, mock_explanation_engine, mock_prompt_manager
+):
+    """Tests that the ComplianceAnalyzer correctly initializes with all its dependencies."""
+    # Act
+    analyzer = ComplianceAnalyzer(
+        retriever=mock_retriever,
+        ner_pipeline=mock_ner_pipeline,
+        llm_service=mock_llm_service,
+        nlg_service=mock_nlg_service,
+        explanation_engine=mock_explanation_engine,
+        prompt_manager=mock_prompt_manager
+    )
+    
+    # Assert
+    assert analyzer.retriever is mock_retriever
+    assert analyzer.ner_pipeline is mock_ner_pipeline
+    assert analyzer.llm_service is mock_llm_service
+    assert analyzer.nlg_service is mock_nlg_service
+
+
+def test_analyze_document_orchestration(
+    mock_retriever, mock_ner_pipeline, mock_llm_service, 
+    mock_nlg_service, mock_explanation_engine, mock_prompt_manager
+):
+    """
+    Tests that analyze_document correctly orchestrates calls to its dependencies.
+    """
+    # Arrange
+    analyzer = ComplianceAnalyzer(
+        retriever=mock_retriever,
+        ner_pipeline=mock_ner_pipeline,
+        llm_service=mock_llm_service,
+        nlg_service=mock_nlg_service,
+        explanation_engine=mock_explanation_engine,
+        prompt_manager=mock_prompt_manager
+    )
+    
+    # Act
     result = analyzer.analyze_document("Test document", "PT", "evaluation")
 
-    # Assertions
-    mock_ner_pipeline.return_value.extract_entities.assert_called_once_with("Test document")
+    # Assert
+    # 1. Verify the orchestration flow
+    mock_ner_pipeline.extract_entities.assert_called_once_with("Test document")
     mock_retriever.retrieve.assert_called_once()
-    mock_prompt_manager.return_value.build_prompt.assert_called_once()
-    mock_explanation_engine.return_value.add_explanations.assert_called_once()
-    assert result == {"explained": True}
+    mock_prompt_manager.build_prompt.assert_called_once()
+    mock_llm_service.generate_analysis.assert_called_once()
+    mock_explanation_engine.add_explanations.assert_called_once()
+    mock_nlg_service.generate_personalized_tip.assert_called_once()
+
+    # 2. Verify the final result includes the generated tip
+    assert "findings" in result
+    assert result["findings"][0]["personalized_tip"] == "This is a generated tip."
