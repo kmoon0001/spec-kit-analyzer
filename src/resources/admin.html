@@ -11,6 +11,7 @@
         th { background-color: #007acc; color: white; }
         tr:nth-child(even) { background-color: #f2f2f2; }
         button { padding: 8px 12px; cursor: pointer; border-radius: 4px; border: none; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
         .activate-btn { background-color: #28a745; color: white; }
         .deactivate-btn { background-color: #dc3545; color: white; }
         .create-form { margin-top: 30px; padding: 20px; border: 1px solid #ddd; background-color: #fff; }
@@ -52,8 +53,10 @@
 
     <script>
         const API_URL = 'http://127.0.0.1:8000';
-        // This token would need to be provided securely, for a local tool, we can prompt for it.
-        const TOKEN = prompt("Please enter your admin access token:");
+        
+        // **ENHANCEMENT**: Automatically get the token from the URL query parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const TOKEN = urlParams.get('token');
 
         async function fetchUsers() {
             try {
@@ -133,7 +136,7 @@
         if (TOKEN) {
             fetchUsers();
         } else {
-            alert("No token provided. Dashboard cannot be loaded.");
+            document.body.innerHTML = '<h1>Error: No admin access token provided. Please launch from the desktop application.</h1>';
         }
     </script>
 

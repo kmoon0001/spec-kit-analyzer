@@ -24,7 +24,7 @@ class ChatWorker(QObject):
             headers = {"Authorization": f"Bearer {self.token}"}
             payload = {"history": self.history}
             
-            response = requests.post(f"{API_URL}/chat/chat", json=payload, headers=headers)
+            response = requests.post(f"{API_URL}/chat/", json=payload, headers=headers)
             response.raise_for_status()
             
             ai_response = response.json()['response']

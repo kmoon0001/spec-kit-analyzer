@@ -27,3 +27,5 @@ nltk
 ctransformers
 markdown
 slowapi
+numpy
+scipy

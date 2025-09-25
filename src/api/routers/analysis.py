@@ -3,6 +3,8 @@ from fastapi.responses import HTMLResponse
 import shutil
 import os
 import uuid
+import logging
+import pickle
 
 from ... import schemas, models, crud
 from ...auth import get_current_active_user
@@ -10,6 +12,7 @@ from ...core.analysis_service import AnalysisService
 from ...database import SessionLocal
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 analysis_service = AnalysisService()
 tasks = {}
@@ -21,28 +24,43 @@ def run_analysis_and_save(
     discipline: str | None, 
     analysis_mode: str
 ):
-    """Runs the analysis, saves the raw data to the DB, and generates the report."""
+    """Runs the analysis with semantic caching, saves the data, and generates the report."""
     db = SessionLocal()
     try:
-        # Perform the full analysis to get the structured data
         with open(file_path, 'r', encoding='utf-8') as f:
             document_text = f.read()
-        
-        analysis_result = analysis_service.analyzer.analyze_document(
-            document=document_text,
-            discipline=discipline,
-            doc_type="Unknown" # This will be replaced by the classifier
-        )
 
-        # Save the raw analysis data to the database
-        report_data = {
-            "document_name": doc_name,
-            "compliance_score": analysis_service.report_generator.risk_scoring_service.calculate_compliance_score(analysis_result.get("findings", [])),
-            "analysis_result": analysis_result # Store the raw JSON data
-        }
-        crud.create_report_and_findings(db, report_data, analysis_result.get("findings", []))
+        # 1. Generate embedding for the new document
+        embedding_bytes = analysis_service.get_document_embedding(document_text)
+        new_embedding = pickle.loads(embedding_bytes)
 
-        # Generate the HTML report for immediate viewing
+        # 2. Check for a semantically similar report in the cache (database)
+        cached_report = crud.find_similar_report(db, new_embedding)
+
+        if cached_report:
+            # --- CACHE HIT ---
+            logger.info(f"Semantic cache hit for document: {doc_name}. Using cached report ID: {cached_report.id}")
+            analysis_result = cached_report.analysis_result
+        else:
+            # --- CACHE MISS ---
+            logger.info(f"Semantic cache miss for document: {doc_name}. Performing full analysis.")
+            # Perform the full analysis to get the structured data
+            analysis_result = analysis_service.analyzer.analyze_document(
+                document=document_text,
+                discipline=discipline,
+                doc_type="Unknown" # This will be replaced by the classifier
+            )
+
+            # Save the new analysis result and its embedding to the database
+            report_data = {
+                "document_name": doc_name,
+                "compliance_score": analysis_service.report_generator.risk_scoring_service.calculate_compliance_score(analysis_result.get("findings", [])),
+                "analysis_result": analysis_result,
+                "document_embedding": embedding_bytes
+            }
+            crud.create_report_and_findings(db, report_data, analysis_result.get("findings", []))
+
+        # 3. Generate the HTML report (either from cached or new data)
         report_html = analysis_service.report_generator.generate_html_report(
             analysis_result=analysis_result,
             doc_name=doc_name,
@@ -52,6 +70,7 @@ def run_analysis_and_save(
         tasks[task_id] = {"status": "completed", "result": report_html}
 
     except Exception as e:
+        logger.error(f"Error in analysis background task: {e}", exc_info=True)
         tasks[task_id] = {"status": "failed", "error": str(e)}
     finally:
         db.close()
