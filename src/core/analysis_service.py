@@ -16,6 +16,7 @@ from .nlg_service import NLGService
 from .ner import NERPipeline
 from .explanation import ExplanationEngine
 from .prompt_manager import PromptManager
+from .fact_checker_service import FactCheckerService # New Import
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +34,15 @@ class AnalysisService:
             with open(config_path, "r") as f:
                 config = yaml.safe_load(f)
 
+            # 1. Initialize the core AI models and services
             llm_service = LLMService(
                 model_repo_id=config['models']['generator'],
                 model_filename=config['models'].get('generator_filename'),
                 llm_settings=config.get('llm_settings', {})
             )
-
+            fact_checker_service = FactCheckerService(model_name=config['models']['fact_checker'])
+            ner_pipeline = NERPipeline(model_names=config['models']['ner_ensemble'])
             self.retriever = HybridRetriever()
-            ner_pipeline = NERPipeline(model_name=config['models']['ner'])
             self.preprocessing_service = PreprocessingService()
             self.report_generator = ReportGenerator()
             explanation_engine = ExplanationEngine()
@@ -59,13 +61,15 @@ class AnalysisService:
                 template_path=os.path.join(ROOT_DIR, config['models']['analysis_prompt_template'])
             )
 
+            # 2. Initialize the main analyzer, passing it all the pre-loaded components
             self.analyzer = ComplianceAnalyzer(
                 retriever=self.retriever,
                 ner_pipeline=ner_pipeline,
                 llm_service=llm_service,
                 nlg_service=nlg_service,
                 explanation_engine=explanation_engine,
-                prompt_manager=analysis_prompt_manager
+                prompt_manager=analysis_prompt_manager,
+                fact_checker_service=fact_checker_service # Pass the new service
             )
             logger.info("AnalysisService initialized successfully.")
 
@@ -74,14 +78,12 @@ class AnalysisService:
             raise e
 
     def get_document_embedding(self, text: str) -> bytes:
-        """Generates a vector embedding for a given text and serializes it."""
         if not self.retriever or not self.retriever.dense_retriever:
             raise RuntimeError("Dense retriever is not initialized.")
         embedding = self.retriever.dense_retriever.encode(text)
         return pickle.dumps(embedding)
 
     def analyze_document(self, file_path: str, discipline: str) -> dict:
-        """Performs the full analysis and returns the structured result data."""
         doc_name = os.path.basename(file_path)
         logger.info(f"Starting analysis for document: {doc_name}")
 
@@ -92,7 +94,7 @@ class AnalysisService:
         logger.info(f"Document classified as: {doc_type}")
 
         analysis_result = self.analyzer.analyze_document(
-            document=corrected_text,
+            document_text=corrected_text,
             discipline=discipline,
             doc_type=doc_type
         )
