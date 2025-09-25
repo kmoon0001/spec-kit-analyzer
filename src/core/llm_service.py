@@ -1,29 +1,32 @@
 import logging
 from ctransformers import AutoModelForCausalLM
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
 class LLMService:
     """
-    A service class for interacting with a local Large Language Model.
+    A service class for interacting with a local, GGUF-quantized Large Language Model.
     """
-    def __init__(self, model_repo_id: str, model_filename: str):
+    def __init__(self, model_repo_id: str, model_filename: str, llm_settings: Dict[str, Any]):
         """
-        Initializes the LLMService by loading the specified model.
+        Initializes the LLMService by loading the specified GGUF model with ctransformers.
         """
-        logger.info(f"Loading model: {model_repo_id}/{model_filename}...")
+        self.llm = None
+        self.generation_params = llm_settings.get('generation_params', {})
+        logger.info(f"Loading GGUF model: {model_repo_id}/{model_filename}...")
         try:
             self.llm = AutoModelForCausalLM.from_pretrained(
                 model_repo_id,
                 model_file=model_filename,
-                model_type="mistral",
-                gpu_layers=0,  # Change to a non-zero value if you have a GPU
-                context_length=4096
+                model_type=llm_settings.get('model_type', 'llama'),
+                gpu_layers=llm_settings.get('gpu_layers', 0),
+                context_length=llm_settings.get('context_length', 2048)
             )
-            logger.info("Model loaded successfully.")
+            logger.info("GGUF Model loaded successfully.")
         except Exception as e:
-            logger.error(f"Failed to load model: {e}")
-            self.llm = None
+            logger.error(f"FATAL: Failed to load GGUF model: {e}", exc_info=True)
+            raise RuntimeError(f"Could not load LLM model: {e}") from e
 
     def is_ready(self) -> bool:
         """
@@ -33,17 +36,18 @@ class LLMService:
 
     def generate_analysis(self, prompt: str) -> str:
         """
-        Generates analysis by running the prompt through the LLM.
+        Generates a response by running the prompt through the loaded LLM.
         """
         if not self.is_ready():
             logger.error("LLM is not available. Cannot generate analysis.")
             return '{"error": "LLM not available"}'
 
-        logger.info("Generating analysis with the LLM...")
+        logger.info("Generating response with the LLM...")
         try:
-            raw_text = self.llm(prompt, max_new_tokens=2048, temperature=0.2, top_p=0.95, repetition_penalty=1.1)
-            logger.info("LLM analysis generated successfully.")
+            # Pass the generation parameters directly to the model call
+            raw_text = self.llm(prompt, **self.generation_params)
+            logger.info("LLM response generated successfully.")
             return raw_text
         except Exception as e:
-            logger.error(f"Error during LLM generation: {e}")
+            logger.error(f"Error during LLM generation: {e}", exc_info=True)
             return f'{{"error": "Failed to generate analysis: {e}"}}'
