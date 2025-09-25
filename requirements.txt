@@ -37,6 +37,7 @@ SQLAlchemy
 passlib[bcrypt]
 python-multipart
 PyJWT
+python-jose[cryptography]
 
 # Numeric & Science
 numpy
