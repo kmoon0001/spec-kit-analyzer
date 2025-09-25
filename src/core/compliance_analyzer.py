@@ -58,7 +58,8 @@ class ComplianceAnalyzer:
 
         return explained_analysis
 
-    def _format_rules_for_prompt(self, rules: List[Dict[str, Any]]) -> str:
+    @staticmethod
+    def _format_rules_for_prompt(rules: List[Dict[str, Any]]) -> str:
         """
         Formats retrieved rules for inclusion in the prompt.
         """
