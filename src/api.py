@@ -1,10 +1,13 @@
-from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException, Form
+from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException, Form, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 import shutil
 import os
 import uuid
 from src.core.analysis_service import AnalysisService
+from src.config import settings
+from src.auth import create_access_token, get_current_user, Token
 
 # Add metadata for the API
 app = FastAPI(
@@ -36,6 +39,14 @@ def run_analysis(file_path: str, task_id: str, rubric_id: int | None, discipline
         if os.path.exists(file_path):
             os.remove(file_path)
 
+@app.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    # In a real application, you would validate the username and password against a database
+    if form_data.username == "testuser" and form_data.password == "testpassword":
+        access_token = create_access_token(data={"sub": form_data.username})
+        return {"access_token": access_token, "token_type": "bearer"}
+    raise HTTPException(status_code=400, detail="Incorrect username or password")
+
 @app.post("/analyze", response_model=AnalysisResult, status_code=202)
 async def analyze_document(
     background_tasks: BackgroundTasks,
@@ -43,6 +54,7 @@ async def analyze_document(
     discipline: str = Form("All"),
     rubric_id: int = Form(None),
     analysis_mode: str = Form("rubric"),
+    current_user: str = Depends(get_current_user),
 ):
     """
     Starts an asynchronous analysis of the uploaded document.
@@ -54,7 +66,15 @@ async def analyze_document(
     - Returns a task ID to check the analysis status.
     """
     task_id = str(uuid.uuid4())
-    temp_file_path = f"temp_{task_id}_{file.filename}"
+
+    # Sanitize the filename to prevent directory traversal attacks
+    sanitized_filename = os.path.basename(file.filename)
+    temp_dir = "temp"
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
+
+    temp_file_path = os.path.join(temp_dir, f"{task_id}_{sanitized_filename}")
+
     with open(temp_file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
@@ -64,7 +84,7 @@ async def analyze_document(
     return {"task_id": task_id, "status": "processing"}
 
 @app.get("/tasks/{task_id}", response_model=TaskStatus, responses={200: {"content": {"text/html": {}}}})
-async def get_task_status(task_id: str):
+async def get_task_status(task_id: str, current_user: str = Depends(get_current_user)):
     """
     Retrieves the status or result of an analysis task.
 

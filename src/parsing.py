@@ -99,14 +99,12 @@ DEFAULT_SECTION_HEADERS = [
     "Physical Examination", "Diagnosis", "Treatment Plan"
 ]
 
+from src.config import settings
+
 def load_section_headers() -> list:
     """Load section headers from config.yaml, fallback to defaults on error."""
     try:
-        with open('config.yaml', 'r') as f:
-            config = yaml.safe_load(f)
-        headers = config.get('section_headers', [])
-        if headers:
-            return headers
+        return settings.section_headers
     except (FileNotFoundError, yaml.YAMLError):
         pass
     return DEFAULT_SECTION_HEADERS

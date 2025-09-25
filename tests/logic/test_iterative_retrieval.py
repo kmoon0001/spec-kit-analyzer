@@ -23,10 +23,10 @@ def mock_settings():
 # Mock the heavy dependencies
 @pytest.fixture
 def mock_transformers():
-    with patch('src.core.llm_analyzer.AutoTokenizer') as mock_tokenizer, \
-         patch('src.core.llm_analyzer.AutoModelForCausalLM') as mock_causal_lm, \
-         patch('src.core.llm_analyzer.AutoModelForSeq2SeqLM') as mock_seq2seq_lm, \
-         patch('src.core.llm_analyzer.BitsAndBytesConfig') as mock_bnb_config:
+    with patch('src.core.compliance_analyzer.AutoTokenizer') as mock_tokenizer, \
+         patch('src.core.compliance_analyzer.AutoModelForCausalLM') as mock_causal_lm, \
+         patch('src.core.compliance_analyzer.AutoModelForSeq2SeqLM') as mock_seq2seq_lm, \
+         patch('src.core.compliance_analyzer.BitsAndBytesConfig') as mock_bnb_config:
 
         # Mock tokenizers
         mock_generator_tokenizer_inst = MagicMock()
@@ -84,7 +84,7 @@ def mock_guideline_service():
     return mock_service
 
 # Now import the service after mocks are set up
-from src.core.llm_analyzer import LLMComplianceAnalyzer
+from src.core.compliance_analyzer import ComplianceAnalyzer
 
 def test_iterative_retrieval_loop(mock_transformers, mock_guideline_service):
     """
@@ -102,7 +102,7 @@ def test_iterative_retrieval_loop(mock_transformers, mock_guideline_service):
         [{"text": "guideline about signatures", "source": "signatures_guideline.txt"}],
     ]
 
-    analyzer = LLMComplianceAnalyzer(guideline_service=mock_guideline_service)
+    analyzer = ComplianceAnalyzer(guideline_service=mock_guideline_service)
 
     # Patch the open function to avoid FileNotFoundError for the prompt template
     mock_template = "Context: {context} Document: {document_text} Iteration: {current_iteration}/{max_iterations}"
@@ -141,7 +141,7 @@ def test_summarization_and_exclude_sources(mock_transformers, mock_guideline_ser
             [{"text": "guideline about billing", "source": "billing.txt"}],
     ]
 
-    analyzer = LLMComplianceAnalyzer(guideline_service=mock_guideline_service)
+    analyzer = ComplianceAnalyzer(guideline_service=mock_guideline_service)
 
     # Patch the open function
     mock_template = "Context: {context} Document: {document_text} Iteration: {current_iteration}/{max_iterations}"

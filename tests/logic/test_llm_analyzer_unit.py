@@ -18,8 +18,8 @@ def mock_settings():
 # Mock the heavy dependencies
 @pytest.fixture
 def mock_transformers():
-    with patch('src.core.llm_analyzer.AutoTokenizer') as mock_tokenizer, \
-         patch('src.core.llm_analyzer.AutoModelForCausalLM') as mock_model:
+    with patch('src.core.compliance_analyzer.AutoTokenizer') as mock_tokenizer, \
+         patch('src.core.compliance_analyzer.AutoModelForCausalLM') as mock_model:
 
         # Mock tokenizer
         mock_tokenizer_instance = MagicMock()
@@ -52,14 +52,14 @@ def mock_guideline_service():
     return mock_service
 
 # Now import the service after mocks are set up
-from src.core.llm_analyzer import LLMComplianceAnalyzer
+from src.core.compliance_analyzer import ComplianceAnalyzer
 
 def test_analyze_document(mock_transformers, mock_guideline_service):
     """
     Tests the full analyze_document workflow with mocked dependencies.
     """
     # Initialize the analyzer with the mocked guideline service
-    analyzer = LLMComplianceAnalyzer(guideline_service=mock_guideline_service)
+    analyzer = ComplianceAnalyzer(guideline_service=mock_guideline_service)
 
     document_text = "This is a test document."
     result = analyzer.analyze_document(document_text)
