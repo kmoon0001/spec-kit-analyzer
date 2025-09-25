@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <style>
+        body { font-family: sans-serif; margin: 40px; background-color: #f4f4f9; }
+        h1 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #007acc; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        button { padding: 8px 12px; cursor: pointer; border-radius: 4px; border: none; }
+        .activate-btn { background-color: #28a745; color: white; }
+        .deactivate-btn { background-color: #dc3545; color: white; }
+        .create-form { margin-top: 30px; padding: 20px; border: 1px solid #ddd; background-color: #fff; }
+    </style>
+</head>
+<body>
+
+    <h1>User and License Management</h1>
+
+    <div id="user-table">
+        <h2>Existing Users</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>License Key</th>
+                    <th>Is Active?</th>
+                    <th>Is Admin?</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="user-list">
+                <!-- User data will be populated here by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <div class="create-form">
+        <h2>Create New User</h2>
+        <form id="create-user-form">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+            <button type="submit">Create User</button>
+        </form>
+    </div>
+
+    <script>
+        const API_URL = 'http://127.0.0.1:8000';
+        // This token would need to be provided securely, for a local tool, we can prompt for it.
+        const TOKEN = prompt("Please enter your admin access token:");
+
+        async function fetchUsers() {
+            try {
+                const response = await fetch(`${API_URL}/admin/users`, {
+                    headers: { 'Authorization': `Bearer ${TOKEN}` }
+                });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const users = await response.json();
+                const userList = document.getElementById('user-list');
+                userList.innerHTML = '';
+                users.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${user.id}</td>
+                        <td>${user.username}</td>
+                        <td>${user.license_key || 'N/A'}</td>
+                        <td>${user.is_active}</td>
+                        <td>${user.is_admin}</td>
+                        <td>
+                            <button class="activate-btn" onclick="activateUser(${user.id})" ${user.is_active ? 'disabled' : ''}>Activate</button>
+                            <button class="deactivate-btn" onclick="deactivateUser(${user.id})" ${!user.is_active ? 'disabled' : ''}>Deactivate</button>
+                        </td>
+                    `;
+                    userList.appendChild(row);
+                });
+            } catch (error) {
+                alert('Failed to fetch users: ' + error);
+            }
+        }
+
+        async function activateUser(userId) {
+            await toggleUserStatus(userId, 'activate');
+        }
+
+        async function deactivateUser(userId) {
+            await toggleUserStatus(userId, 'deactivate');
+        }
+
+        async function toggleUserStatus(userId, action) {
+            try {
+                const response = await fetch(`${API_URL}/admin/users/${userId}/${action}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${TOKEN}` }
+                });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                fetchUsers(); // Refresh the list
+            } catch (error) {
+                alert(`Failed to ${action} user: ` + error);
+            }
+        }
+
+        document.getElementById('create-user-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const username = event.target.username.value;
+            const password = event.target.password.value;
+            try {
+                const response = await fetch(`${API_URL}/admin/users`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${TOKEN}`
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+                event.target.reset();
+                fetchUsers(); // Refresh the list
+            } catch (error) {
+                alert('Failed to create user: ' + error);
+            }
+        });
+
+        // Initial load
+        if (TOKEN) {
+            fetchUsers();
+        } else {
+            alert("No token provided. Dashboard cannot be loaded.");
+        }
+    </script>
+
+</body>
+</html>

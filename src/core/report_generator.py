@@ -60,14 +60,17 @@ class ReportGenerator:
 
                 tip_to_display = finding.get('personalized_tip', finding.get('suggestion', 'N/A'))
                 
-                # **MODIFICATION**: Embed both context and text into the link
                 problematic_text = finding.get('text', 'N/A')
                 context_snippet = finding.get('context_snippet', problematic_text)
                 
-                # Create a combined string and encode it
                 combined_payload = f"{context_snippet}|||{problematic_text}"
                 encoded_payload = urllib.parse.quote(combined_payload)
                 clickable_text = f'<a href="highlight://{encoded_payload}">{problematic_text}</a>'
+
+                # Create the context for the chat link
+                chat_context = f"Regarding the finding titled '{finding.get('issue_title', 'N/A')}' in my document, which you identified with the text '{problematic_text}', please explain further."
+                encoded_chat_context = urllib.parse.quote(chat_context)
+                chat_link = f'<a href="chat://{encoded_chat_context}">Discuss with AI</a>'
 
                 findings_rows_html += f"""
                 <tr {row_class}>
@@ -75,10 +78,11 @@ class ReportGenerator:
                     <td>{risk_display}</td>
                     <td>{tip_to_display}</td>
                     <td>{clickable_text}</td>
+                    <td>{chat_link}</td>
                 </tr>
                 """
         else:
-            findings_rows_html = "<tr><td colspan='4'>No findings.</td></tr>"
+            findings_rows_html = "<tr><td colspan='5'>No findings.</td></tr>"
         report_html = report_html.replace("<!-- Placeholder for findings rows -->", findings_rows_html)
 
         report_html = report_html.replace("<!-- Placeholder for model limitations -->", self.model_limitations_html)

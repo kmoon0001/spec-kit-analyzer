@@ -2,6 +2,8 @@ import os
 import sys
 import requests
 import urllib.parse
+import webbrowser
+import jwt # Import the jwt library
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QMessageBox, QMainWindow, QStatusBar, QMenuBar, 
     QFileDialog, QSplitter, QTextEdit, QHBoxLayout, QListWidget, QListWidgetItem, 
@@ -14,6 +16,7 @@ from PyQt6.QtGui import QTextDocument
 from .dialogs.rubric_manager_dialog import RubricManagerDialog
 from .dialogs.login_dialog import LoginDialog
 from .dialogs.change_password_dialog import ChangePasswordDialog
+from .dialogs.chat_dialog import ChatDialog
 
 # Workers
 from .workers.analysis_starter_worker import AnalysisStarterWorker
@@ -32,6 +35,7 @@ class MainApplicationWindow(QMainWindow):
         super().__init__()
         self.access_token = None
         self.username = None
+        self.is_admin = False
         self._current_file_path = None
         self._current_folder_path = None
         self.analyzer_service = None
@@ -80,13 +84,18 @@ class MainApplicationWindow(QMainWindow):
             try:
                 response = requests.post(f"{API_URL}/auth/token", data={"username": username, "password": password})
                 response.raise_for_status()
-                self.access_token = response.json()['access_token']
+                token_data = response.json()
+                self.access_token = token_data['access_token']
                 self.username = username
+                
+                decoded_token = jwt.decode(self.access_token, options={"verify_signature": False})
+                self.is_admin = decoded_token.get('is_admin', False)
+
                 self.user_status_label.setText(f"Logged in as: {self.username}")
                 self.status_bar.showMessage("Login successful.")
                 self.load_main_ui()
                 self.show()
-            except requests.exceptions.RequestException as e:
+            except (requests.exceptions.RequestException, jwt.exceptions.DecodeError) as e:
                 QMessageBox.critical(self, "Login Failed", f"Failed to authenticate: {e}")
                 self.close()
         else:
@@ -95,6 +104,7 @@ class MainApplicationWindow(QMainWindow):
     def logout(self):
         self.access_token = None
         self.username = None
+        self.is_admin = False
         self.user_status_label.setText("")
         self.setCentralWidget(None)
         self.show_login_dialog()
@@ -111,10 +121,17 @@ class MainApplicationWindow(QMainWindow):
 
         self.dashboard_widget.refresh_requested.connect(self.load_dashboard_data)
 
+        if self.is_admin:
+            self.admin_menu = self.menu_bar.addMenu("Admin")
+            self.admin_menu.addAction("Open Admin Dashboard", self.open_admin_dashboard)
+
         self.load_dashboard_data()
 
         theme = self.load_theme_setting()
         self.apply_stylesheet(theme)
+
+    def open_admin_dashboard(self):
+        webbrowser.open(f"{API_URL}/admin/dashboard")
 
     def _create_analysis_tab(self) -> QWidget:
         analysis_widget = QWidget()
@@ -161,40 +178,48 @@ class MainApplicationWindow(QMainWindow):
         self.analysis_results_area.setPlaceholderText("Analysis results will appear here.")
         self.analysis_results_area.setReadOnly(True)
         self.analysis_results_area.setOpenExternalLinks(False)
-        self.analysis_results_area.anchorClicked.connect(self.handle_text_highlight_request)
+        self.analysis_results_area.anchorClicked.connect(self.handle_anchor_click)
         results_layout.addWidget(self.analysis_results_area)
         splitter.addWidget(results_group)
 
         return analysis_widget
 
-    def handle_text_highlight_request(self, url: QUrl):
+    def handle_anchor_click(self, url: QUrl):
         if url.scheme() == 'highlight':
-            combined_payload = urllib.parse.unquote(url.path())
-            parts = combined_payload.split('|||')
-            
-            context_snippet = parts[0]
-            text_to_highlight = parts[1] if len(parts) > 1 else context_snippet
+            self.handle_text_highlight_request(url)
+        elif url.scheme() == 'chat':
+            self.handle_chat_request(url)
 
-            doc = self.document_display_area.document()
-            context_cursor = doc.find(context_snippet, 0, QTextDocument.FindFlag.FindCaseSensitively)
+    def handle_text_highlight_request(self, url: QUrl):
+        combined_payload = urllib.parse.unquote(url.path())
+        parts = combined_payload.split('|||')
+        context_snippet = parts[0]
+        text_to_highlight = parts[1] if len(parts) > 1 else context_snippet
 
-            if not context_cursor.isNull():
-                inner_cursor = doc.find(text_to_highlight, context_cursor.selectionStart(), QTextDocument.FindFlag.FindCaseSensitively)
-                if not inner_cursor.isNull() and inner_cursor.selectionEnd() <= context_cursor.selectionEnd():
-                    self.document_display_area.setTextCursor(inner_cursor)
-                    self.tabs.setCurrentIndex(0)
-                    self.document_display_area.setFocus()
-                    return
+        doc = self.document_display_area.document()
+        context_cursor = doc.find(context_snippet, 0, QTextDocument.FindFlag.FindCaseSensitively)
 
-            # Fallback to simple search if context search fails
-            cursor = self.document_display_area.textCursor()
-            cursor.movePosition(cursor.MoveOperation.Start)
-            self.document_display_area.setTextCursor(cursor)
-            if self.document_display_area.find(text_to_highlight, QTextDocument.FindFlag.FindCaseSensitively):
+        if not context_cursor.isNull():
+            inner_cursor = doc.find(text_to_highlight, context_cursor.selectionStart(), QTextDocument.FindFlag.FindCaseSensitively)
+            if not inner_cursor.isNull() and inner_cursor.selectionEnd() <= context_cursor.selectionEnd():
+                self.document_display_area.setTextCursor(inner_cursor)
                 self.tabs.setCurrentIndex(0)
                 self.document_display_area.setFocus()
-            else:
-                self.status_bar.showMessage(f"Could not find text: '{text_to_highlight}'", 5000)
+                return
+
+        cursor = self.document_display_area.textCursor()
+        cursor.movePosition(cursor.MoveOperation.Start)
+        self.document_display_area.setTextCursor(cursor)
+        if self.document_display_area.find(text_to_highlight, QTextDocument.FindFlag.FindCaseSensitively):
+            self.tabs.setCurrentIndex(0)
+            self.document_display_area.setFocus()
+        else:
+            self.status_bar.showMessage(f"Could not find text: '{text_to_highlight}'", 5000)
+
+    def handle_chat_request(self, url: QUrl):
+        initial_context = urllib.parse.unquote(url.path())
+        chat_dialog = ChatDialog(initial_context, self.access_token, self)
+        chat_dialog.exec()
 
     def show_change_password_dialog(self):
         dialog = ChangePasswordDialog(self)

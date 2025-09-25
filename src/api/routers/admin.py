@@ -1,13 +1,26 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List
 import uuid
+import os
 
 from ... import crud, schemas, models
 from ...database import get_db
 from ...auth import get_current_admin_user, auth_service
 
 router = APIRouter()
+
+# Get the absolute path to the project's root directory
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+ADMIN_HTML_PATH = os.path.join(ROOT_DIR, "src", "resources", "admin.html")
+
+@router.get("/dashboard", response_class=FileResponse)
+def get_admin_dashboard(admin_user: models.User = Depends(get_current_admin_user)):
+    """Serves the admin dashboard HTML page. Admin only."""
+    if not os.path.exists(ADMIN_HTML_PATH):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="admin.html not found")
+    return FileResponse(ADMIN_HTML_PATH)
 
 @router.get("/users", response_model=List[schemas.User])
 def read_users(
