@@ -5,7 +5,7 @@ import markdown
 import urllib.parse
 
 from .risk_scoring_service import RiskScoringService
-from .habit_mapper import get_habit_for_finding # Import the new habit mapper
+from .habit_mapper import get_habit_for_finding
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
@@ -50,14 +50,23 @@ class ReportGenerator:
         findings_rows_html = ""
         if findings:
             for finding in findings:
-                row_class = 'class="low-confidence"' if finding.get('is_low_confidence') else ''
-                
-                risk_display = finding.get('risk', 'N/A')
-                confidence = finding.get('confidence')
-                if isinstance(confidence, (int, float)):
-                    risk_display += f" ({confidence:.0%} confidence)"
+                # Determine the row class based on flags
+                row_class = ''
+                if finding.get('is_disputed'):
+                    row_class = 'class="disputed"'
                 elif finding.get('is_low_confidence'):
-                     risk_display += " (Low Confidence)"
+                    row_class = 'class="low-confidence"'
+                
+                # Create the risk/confidence display string
+                risk_display = finding.get('risk', 'N/A')
+                if finding.get('is_disputed'):
+                    risk_display += " <b>(Disputed by Fact-Checker)</b>"
+                else:
+                    confidence = finding.get('confidence')
+                    if isinstance(confidence, (int, float)):
+                        risk_display += f" ({confidence:.0%} confidence)"
+                    elif finding.get('is_low_confidence'):
+                        risk_display += " (Low Confidence)"
 
                 tip_to_display = finding.get('personalized_tip', finding.get('suggestion', 'N/A'))
                 
@@ -68,11 +77,10 @@ class ReportGenerator:
                 encoded_payload = urllib.parse.quote(combined_payload)
                 clickable_text = f'<a href="highlight://{encoded_payload}">{problematic_text}</a>'
 
-                chat_context = f"Regarding the finding titled '{finding.get('issue_title', 'N/A')}' in my document, which you identified with the text '{problematic_text}', please explain further."
+                chat_context = f"Regarding the finding titled '{finding.get('issue_title', 'N/A')}', which you identified with the text '{problematic_text}', please explain further."
                 encoded_chat_context = urllib.parse.quote(chat_context)
                 chat_link = f'<a href="chat://{encoded_chat_context}">Discuss with AI</a>'
 
-                # **MODIFICATION**: Get the habit for the finding
                 habit = get_habit_for_finding(finding)
                 habit_html = f'<div class="habit-name">{habit["name"]}</div><div class="habit-explanation">{habit["explanation"]}</div>'
 

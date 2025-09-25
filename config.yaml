@@ -12,15 +12,20 @@ ocr:
 
 # Configuration for AI Models and Services
 models:
-  # State-of-the-art NER for medical pathology detection
-  ner: "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
+  # NER Ensemble: A list of models for comprehensive entity recognition
+  ner_ensemble:
+    - "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"  # The Specialist
+    - "d4data/biomedical-ner-all"                         # The Generalist
   
   # Best-in-class sentence transformer for medical semantic search
   retriever: "pritamdeka/S-PubMedBert-MS-MARCO"
   
   # Fast, locally-deployable medical text generator
   generator: "nabilfaieaz/tinyllama-med-full"
-  
+
+  # Small, fast model for fact-checking and validation
+  fact_checker: "google/flan-t5-small"
+
   # Prompt Templates
   analysis_prompt_template: "src/core/prompt_template.txt"
   nlg_prompt_template: "src/core/nlg_prompt_template.txt"
@@ -28,10 +33,9 @@ models:
 
 # Settings for the generator model
 llm_settings:
-  # Note: These settings may need to be adjusted for TinyLLaMA
   gpu_layers: 0
-  model_type: "llama" # Changed from mistral to llama for TinyLLaMA
-  context_length: 2048 # Adjusted for TinyLLaMA
+  model_type: "llama"
+  context_length: 2048
   generation_params:
     max_new_tokens: 1024
     temperature: 0.3
