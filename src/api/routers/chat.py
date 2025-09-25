@@ -5,16 +5,15 @@ from ... import schemas, models
 from ...database import get_db
 from ...auth import get_current_active_user
 from ...core.chat_service import ChatService
-from ...core.analysis_service import AnalysisService # We need this to get the llm_service
+from ...core.analysis_service import AnalysisService
 
 router = APIRouter()
 
 # This is a simple way to get a pre-initialized llm_service instance.
-# In a larger application, you might use a more sophisticated dependency injection system.
 analysis_service = AnalysisService()
 llm_service = analysis_service.analyzer.llm_service
 
-@router.post("/chat", response_model=schemas.ChatResponse)
+@router.post("/", response_model=schemas.ChatResponse)
 def chat_with_ai(
     chat_request: schemas.ChatRequest,
     db: Session = Depends(get_db),
@@ -29,9 +28,9 @@ def chat_with_ai(
             detail="The AI model is not available. Please try again later."
         )
 
-    # The client sends the full history, so we create a new chat service for each turn.
-    # The initial "system" message in the history provides the context.
     try:
+        # The client sends the full history, so we create a new chat service for each turn.
+        # The initial "system" message in the history provides the context.
         chat_service = ChatService(llm_service=llm_service, initial_context="")
         chat_service.history = [message.dict() for message in chat_request.history]
         

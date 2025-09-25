@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, ForeignKey, JSON, LargeBinary
 from sqlalchemy.orm import relationship
 from .database import Base
 import datetime
@@ -10,7 +10,7 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
-    is_admin = Column(Boolean, default=False) # New field for admin users
+    is_admin = Column(Boolean, default=False)
     license_key = Column(String, unique=True, index=True, nullable=True)
 
 class Rubric(Base):
@@ -28,6 +28,7 @@ class Report(Base):
     analysis_date = Column(DateTime, default=datetime.datetime.utcnow)
     compliance_score = Column(Integer)
     analysis_result = Column(JSON)
+    document_embedding = Column(LargeBinary, nullable=True) # New column for semantic caching
 
     findings = relationship("Finding", back_populates="report", cascade="all, delete-orphan")
 
