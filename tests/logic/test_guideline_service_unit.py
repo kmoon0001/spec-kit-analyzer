@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import numpy as np
 
 # Mock heavy dependencies at the module level before they are imported by the service

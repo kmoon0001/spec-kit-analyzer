@@ -1,5 +1,4 @@
 import requests
-import os
 from PyQt6.QtCore import QObject, Signal
 from typing import List, Tuple
 

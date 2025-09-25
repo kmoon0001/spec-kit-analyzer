@@ -1,6 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock
-import os
+from unittest.mock import patch
 
 # To test the full pipeline, we don't need to run the actual script.
 # Instead, we can test the behavior of the main orchestrator, the AnalysisService.
