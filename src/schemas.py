@@ -1,19 +1,39 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional, List
+import datetime
 
-class ComplianceRule(BaseModel):
-    uri: str
-    issue_title: str
-    issue_detail: str
-    severity: str
-    strict_severity: str
-    issue_category: str
-    discipline: str
-    document_type: Optional[str] = None
-    suggestion: str
-    financial_impact: int
-    positive_keywords: List[str]
-    negative_keywords: List[str]
+# --- Schemas for Reports and Findings (Dashboard) ---
+
+class FindingBase(BaseModel):
+    rule_id: str
+    risk: str
+    personalized_tip: str
+    problematic_text: str
+
+class Finding(FindingBase):
+    id: int
+    report_id: int
+
+    class Config:
+        orm_mode = True
+
+class ReportBase(BaseModel):
+    document_name: str
+    compliance_score: int
+
+class Report(ReportBase):
+    id: int
+    analysis_date: datetime.datetime
+    findings: List[Finding] = []
+
+    class Config:
+        orm_mode = True
+
+class FindingSummary(BaseModel):
+    rule_id: str
+    count: int
+
+# --- Schemas for Rubrics ---
 
 class RubricBase(BaseModel):
     name: str
@@ -28,6 +48,8 @@ class Rubric(RubricBase):
     class Config:
         orm_mode = True
 
+# --- Schemas for Users and Auth ---
+
 class UserBase(BaseModel):
     username: str
 
@@ -41,12 +63,18 @@ class User(UserBase):
     class Config:
         orm_mode = True
 
+class UserPasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
 class Token(BaseModel):
     access_token: str
     token_type: str
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+
+# --- Schemas for Analysis Tasks ---
 
 class TaskStatus(BaseModel):
     task_id: str

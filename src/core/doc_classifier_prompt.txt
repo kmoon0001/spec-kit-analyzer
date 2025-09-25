@@ -1,0 +1,11 @@
+You are an expert at classifying clinical and therapeutic documents. Your task is to analyze the following text and determine its type. The possible types are "Progress Note", "Evaluation", "Discharge Summary", or "Unknown".
+
+**Instructions:**
+Respond with ONLY the document type from the list above. Do not add any other words, explanations, or punctuation.
+
+**Document Text:**
+"""
+{{ document_text }}
+"""
+
+**Classification:**
