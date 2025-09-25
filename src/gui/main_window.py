@@ -12,21 +12,17 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, QUrl
 from PyQt6.QtGui import QTextDocument
 
-# Dialogs
-from .dialogs.rubric_manager_dialog import RubricManagerDialog
-from .dialogs.login_dialog import LoginDialog
-from .dialogs.change_password_dialog import ChangePasswordDialog
-from .dialogs.chat_dialog import ChatDialog
-
-# Workers
-from .workers.analysis_starter_worker import AnalysisStarterWorker
-from .workers.analysis_worker import AnalysisWorker
-from .workers.folder_analysis_worker import FolderAnalysisWorker
-from .workers.ai_loader_worker import AILoaderWorker
-from .workers.dashboard_worker import DashboardWorker
-
-# Widgets
-from .widgets.dashboard_widget import DashboardWidget
+# Use absolute imports from the src root
+from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
+from src.gui.dialogs.login_dialog import LoginDialog
+from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
+from src.gui.dialogs.chat_dialog import ChatDialog
+from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
+from src.gui.workers.analysis_worker import AnalysisWorker
+from src.gui.workers.folder_analysis_worker import FolderAnalysisWorker
+from src.gui.workers.ai_loader_worker import AILoaderWorker
+from src.gui.workers.dashboard_worker import DashboardWorker
+from src.gui.widgets.dashboard_widget import DashboardWidget
 
 API_URL = "http://127.0.0.1:8000"
 
@@ -220,6 +216,10 @@ class MainApplicationWindow(QMainWindow):
         initial_context = urllib.parse.unquote(url.path())
         chat_dialog = ChatDialog(initial_context, self.access_token, self)
         chat_dialog.exec()
+
+    def manage_rubrics(self):
+        dialog = RubricManagerDialog(self.access_token, self)
+        dialog.exec()
 
     def show_change_password_dialog(self):
         dialog = ChangePasswordDialog(self)

@@ -1,20 +1,17 @@
-from sqlalchemy import create_engine, Column, Integer, String, Boolean
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from src.config import config
 
-engine = create_engine(config.database.url, connect_args={"check_same_thread": False})
+# Get the database URL from the environment variable
+import os
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./compliance.db")
+
+engine = create_engine(
+    DATABASE_URL, connect_args={"check_same_thread": False}
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
-
-class User(Base):
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
-    is_active = Column(Boolean, default=True)
 
 def get_db():
     db = SessionLocal()
@@ -24,4 +21,7 @@ def get_db():
         db.close()
 
 def init_db():
+    # Import all the models here before creating the tables
+    # This ensures they are registered with the Base metadata
+    from . import models
     Base.metadata.create_all(bind=engine)
