@@ -1,3 +1,5 @@
+import yaml
+
 def chunk_text(text: str, max_chars: int = 4000):
     chunks = []
     start = 0
@@ -11,9 +13,12 @@ def chunk_text(text: str, max_chars: int = 4000):
         start = end
     return chunks
 
-import yaml
-
 def load_config():
     """Loads the application configuration from config.yaml."""
     with open('config.yaml', 'r') as f:
         return yaml.safe_load(f)
+
+def save_config(config):
+    """Saves the application configuration to config.yaml."""
+    with open('config.yaml', 'w') as f:
+        yaml.dump(config, f)
