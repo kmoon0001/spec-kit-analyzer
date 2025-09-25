@@ -43,10 +43,10 @@ def create_user(
     db_user = crud.get_user_by_username(db, username=user.username)
     if db_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already registered")
-    
+
     hashed_password = auth_service.get_password_hash(user.password)
     license_key = str(uuid.uuid4()) # Generate a unique license key
-    
+
     new_user = models.User(
         username=user.username, 
         hashed_password=hashed_password, 
@@ -68,7 +68,7 @@ def activate_user(
     db_user = db.query(models.User).filter(models.User.id == user_id).first()
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    
+
     db_user.is_active = True
     db.commit()
     db.refresh(db_user)
@@ -84,7 +84,7 @@ def deactivate_user(
     db_user = db.query(models.User).filter(models.User.id == user_id).first()
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    
+
     db_user.is_active = False
     db.commit()
     db.refresh(db_user)

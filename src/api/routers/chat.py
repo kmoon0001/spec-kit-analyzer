@@ -33,12 +33,12 @@ def chat_with_ai(
         # The initial "system" message in the history provides the context.
         chat_service = ChatService(llm_service=llm_service, initial_context="")
         chat_service.history = [message.dict() for message in chat_request.history]
-        
+
         # The last message in the history is the new user message
         user_message = chat_service.history[-1]['content']
 
         ai_response = chat_service.get_response(user_message)
-        
+
         return schemas.ChatResponse(response=ai_response)
 
     except Exception as e:

@@ -53,7 +53,7 @@ class FactCheckerService:
             """
 
             response = self.pipeline(prompt, max_length=10)[0]['generated_text']
-            
+
             # Check the response from the fact-checker
             if 'yes' in response.lower():
                 return True

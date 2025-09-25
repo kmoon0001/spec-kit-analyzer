@@ -59,7 +59,7 @@ class ComplianceAnalyzer:
                 confidence = finding.get("confidence", 1.0)
                 if isinstance(confidence, (int, float)) and confidence < CONFIDENCE_THRESHOLD:
                     finding['is_low_confidence'] = True
-                
+
                 # c. Generate personalized tip
                 tip = self.nlg_service.generate_personalized_tip(finding)
                 finding['personalized_tip'] = tip

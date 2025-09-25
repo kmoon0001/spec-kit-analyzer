@@ -31,7 +31,7 @@ class ChatDialog(QDialog):
         self.message_input = QLineEdit()
         self.message_input.setPlaceholderText("Ask a follow-up question...")
         self.send_button = QPushButton("Send")
-        
+
         input_layout.addWidget(self.message_input)
         input_layout.addWidget(self.send_button)
         self.layout.addLayout(input_layout)
@@ -62,7 +62,7 @@ class ChatDialog(QDialog):
 
         self.worker.success.connect(self.on_ai_response)
         self.worker.error.connect(self.on_chat_error)
-        
+
         self.thread.started.connect(self.worker.run)
         self.thread.finished.connect(self.thread.deleteLater)
         self.worker.finished.connect(self.worker.deleteLater)

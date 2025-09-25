@@ -46,7 +46,7 @@ def find_similar_report(db: Session, new_embedding: np.ndarray) -> models.Report
         # Deserialize the stored embedding
         cached_embedding = pickle.loads(report.document_embedding)
         
-        # Calculate cosine similarity (1 - cosine distance)
+# Calculate cosine similarity (1 - cosine distance)
         similarity = 1 - cosine(new_embedding, cached_embedding)
         
         if similarity > highest_similarity:

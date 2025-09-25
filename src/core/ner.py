@@ -70,6 +70,6 @@ class NERPipeline:
             }
             for group, word, start, end in all_entities
         ]
-        
+
         logger.info(f"Extracted {len(unique_entity_list)} unique entities from ensemble.")
         return unique_entity_list
