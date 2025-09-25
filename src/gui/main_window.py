@@ -3,7 +3,7 @@ import sys
 import requests
 import urllib.parse
 import webbrowser
-import jwt # Import the jwt library
+import jwt
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QMessageBox, QMainWindow, QStatusBar, QMenuBar, 
     QFileDialog, QSplitter, QTextEdit, QHBoxLayout, QListWidget, QListWidgetItem, 
@@ -131,7 +131,7 @@ class MainApplicationWindow(QMainWindow):
         self.apply_stylesheet(theme)
 
     def open_admin_dashboard(self):
-        webbrowser.open(f"{API_URL}/admin/dashboard")
+        webbrowser.open(f"{API_URL}/admin/dashboard?token={self.access_token}")
 
     def _create_analysis_tab(self) -> QWidget:
         analysis_widget = QWidget()
