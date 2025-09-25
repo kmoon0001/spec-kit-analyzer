@@ -8,7 +8,7 @@ from src.database import init_db
 if __name__ == '__main__':
     # Initialize the database first to ensure tables are created
     init_db()
-    
+
     # Create and run the application
     app = QApplication(sys.argv)
     main_win = MainApplicationWindow()
