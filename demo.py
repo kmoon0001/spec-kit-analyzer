@@ -51,7 +51,8 @@ class DummyMainWindow:
         self.entity_consolidation_service = EntityConsolidationService()
         self.compliance_rules = []
 
-    def log(self, message: str):
+    @staticmethod
+    def log(message: str):
         """A dummy logging function."""
         print(f"[App Log] {message}")
 

@@ -33,7 +33,8 @@ class UnifiedTextExtractor:
         if tesseract_cmd:
             pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
-    def extract_from_pdf(self, file_path: str) -> str:
+    @staticmethod
+    def extract_from_pdf(file_path: str) -> str:
         text = ""
         with pdfplumber.open(file_path) as pdf:
             for page in pdf.pages:
@@ -42,15 +43,18 @@ class UnifiedTextExtractor:
                     text += page_text + "\n"
         return text
 
-    def extract_from_word(self, file_path: str) -> str:
+    @staticmethod
+    def extract_from_word(file_path: str) -> str:
         doc = docx.Document(file_path)
         return "\n".join([para.text for para in doc.paragraphs])
 
-    def extract_from_excel(self, file_path: str) -> str:
+    @staticmethod
+    def extract_from_excel(file_path: str) -> str:
         df = pd.read_excel(file_path)
         return df.to_string()
 
-    def extract_from_image(self, file_path: str) -> str:
+    @staticmethod
+    def extract_from_image(file_path: str) -> str:
         image = Image.open(file_path)
         text = pytesseract.image_to_string(image)
         return text
