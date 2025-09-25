@@ -1,49 +1,66 @@
+import pytest
+from unittest.mock import patch, MagicMock
 import os
-import logging
+
+# To test the full pipeline, we don't need to run the actual script.
+# Instead, we can test the behavior of the main orchestrator, the AnalysisService.
+# This test verifies that when analyze_document is called, all the correct sub-components
+# are called in the right order.
+
 from src.core.analysis_service import AnalysisService
 
-# Configure logging to see the output from the services
-logging.basicConfig(level=logging.INFO)
-logging.getLogger("transformers").setLevel(logging.WARNING) # Suppress verbose transformer logs
+@pytest.fixture
+def mock_dependencies():
+    """Mocks all the sub-services that AnalysisService initializes."""
+    with patch('src.core.analysis_service.HybridRetriever') as mock_retriever, \
+         patch('src.core.analysis_service.PreprocessingService') as mock_preproc, \
+         patch('src.core.analysis_service.DocumentClassifier') as mock_classifier, \
+         patch('src.core.analysis_service.ComplianceAnalyzer') as mock_analyzer, \
+         patch('src.core.analysis_service.ReportGenerator') as mock_reporter, \
+         patch('src.core.analysis_service.parse_document_content') as mock_parser, \
+         patch('src.core.analysis_service.yaml.safe_load') as mock_yaml: # Mock config loading
+        
+        # Configure return values for the mocked components
+        mock_parser.return_value = [{'sentence': 'This is a test sentence.'}]
+        mock_classifier.return_value.classify_document.return_value = "Progress Note"
+        mock_analyzer.return_value.analyze_document.return_value = {"findings": []}
+        mock_reporter.return_value.generate_html_report.return_value = "<html>Mock Report</html>"
 
-def test_pipeline():
+        yield {
+            'retriever': mock_retriever,
+            'preproc': mock_preproc,
+            'classifier': mock_classifier,
+            'analyzer': mock_analyzer,
+            'reporter': mock_reporter,
+            'parser': mock_parser
+        }
+
+def test_full_analysis_pipeline_orchestration(mock_dependencies):
     """
-    Tests the full RAG pipeline from AnalysisService.
+    Tests that the AnalysisService correctly orchestrates the entire pipeline.
     """
-    print("--- Starting RAG Pipeline Test ---")
+    # Arrange
+    # Initializing the service will use all the mocked components from the fixture
+    service = AnalysisService()
+    test_file_path = "/fake/path/to/doc.txt"
 
-    # 1. Initialize the AnalysisService
-    # This will also initialize the GuidelineService and the LLMComplianceAnalyzer,
-    # and download the necessary models. This might take a while on the first run.
-    print("Initializing AnalysisService...")
-    try:
-        analysis_service = AnalysisService()
-        print("AnalysisService initialized successfully.")
-    except Exception as e:
-        print(f"Failed to initialize AnalysisService: {e}")
-        return
+    # Act
+    report = service.analyze_document(test_file_path, discipline="PT", analysis_mode="rubric")
 
-    # 2. Define the path to a test document
-    test_file = os.path.join("test_data", "good_note_1.txt")
-    if not os.path.exists(test_file):
-        print(f"Error: Test file not found at {test_file}")
-        return
+    # Assert
+    # 1. Verify that the document was parsed and preprocessed
+    mock_dependencies['parser'].assert_called_once_with(test_file_path)
+    mock_dependencies['preproc'].return_value.correct_text.assert_called_once()
 
-    print(f"\nAnalyzing test file: {test_file}")
+    # 2. Verify that the document was classified
+    mock_dependencies['classifier'].return_value.classify_document.assert_called_once()
 
-    # 3. Run the analysis
-    try:
-        report_html = analysis_service.analyze_document(test_file)
-        print("\n--- Analysis Complete ---")
-        print("Generated HTML Report:")
-        print("="*80)
-        print(report_html)
-        print("="*80)
-    except Exception as e:
-        print(f"\nAn error occurred during analysis: {e}")
+    # 3. Verify that the core analysis was performed with the classified doc_type
+    analyze_call_args = mock_dependencies['analyzer'].return_value.analyze_document.call_args
+    assert analyze_call_args.kwargs['doc_type'] == "Progress Note"
 
-    print("\n--- RAG Pipeline Test Finished ---")
+    # 4. Verify that the report was generated with the analysis result
+    mock_dependencies['reporter'].return_value.generate_html_report.assert_called_once()
 
-
-if __name__ == "__main__":
-    test_pipeline()
+    # 5. Verify the final output
+    assert report == "<html>Mock Report</html>"
