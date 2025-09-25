@@ -9,7 +9,9 @@ def mock_config():
         "models": {
             "ner_model": "dslim/bert-base-NER",
             "prompt_template": "default_prompt.txt",
-            "quantization": "none"
+            "quantization": "none",
+            "llm_repo_id": "google/flan-t5-small",
+            "llm_filename": "model.safetensors"
         }
     }
 

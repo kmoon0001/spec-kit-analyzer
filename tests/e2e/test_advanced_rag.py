@@ -18,19 +18,22 @@ def compliance_analyzer_with_mocks(mocker):
             uri="http://example.com/rule/keyword",
             issue_title="Keyword Match Rule",
             issue_detail="This rule is designed to be found by keyword search. It contains the word 'signature'.",
-            suggestion="N/A", severity="Low", strict_severity="Low", issue_category="Test", discipline="pt", document_type="Evaluation"
+                suggestion="N/A", severity="Low", strict_severity="Low", issue_category="Test", discipline="pt", document_type="Evaluation",
+                financial_impact=0, positive_keywords=[], negative_keywords=[]
         ),
         ComplianceRule(
             uri="http://example.com/rule/semantic",
             issue_title="Semantic Match Rule",
             issue_detail="This rule is about clinician authentication, which is semantically similar to signing.",
-            suggestion="N/A", severity="High", strict_severity="High", issue_category="Test", discipline="pt", document_type="Evaluation"
+                suggestion="N/A", severity="High", strict_severity="High", issue_category="Test", discipline="pt", document_type="Evaluation",
+                financial_impact=0, positive_keywords=[], negative_keywords=[]
         ),
         ComplianceRule(
             uri="http://example.com/rule/specific",
             issue_title="Specific Goal Rule",
             issue_detail="Goals must be measurable and specific.",
-            suggestion="Rewrite goals to be measurable.", severity="Medium", strict_severity="Medium", issue_category="Content", discipline="pt", document_type="Evaluation"
+                suggestion="Rewrite goals to be measurable.", severity="Medium", strict_severity="Medium", issue_category="Content", discipline="pt", document_type="Evaluation",
+                financial_impact=0, positive_keywords=[], negative_keywords=[]
         )
     ]
 
@@ -40,8 +43,7 @@ def compliance_analyzer_with_mocks(mocker):
     mocker.patch('src.core.hybrid_retriever.RubricService', return_value=mock_rubric_service_instance)
 
     # 3. Mock the expensive ML models
-    mocker.patch('src.core.compliance_analyzer.AutoModelForCausalLM.from_pretrained')
-    mocker.patch('src.core.compliance_analyzer.AutoTokenizer.from_pretrained')
+    mocker.patch('src.core.llm_service.LLMService')
     mocker.patch('src.core.hybrid_retriever.SentenceTransformer')
     # NOTE: CrossEncoder is not used in the current implementation, so it's not mocked.
 
@@ -50,9 +52,7 @@ def compliance_analyzer_with_mocks(mocker):
 
     # 5. Mock the classifier and LLM generator for predictable behavior in tests
     analyzer.classifier = MagicMock()
-    analyzer.generator_model = MagicMock()
-    analyzer.generator_tokenizer = MagicMock()
-    analyzer.generator_tokenizer.decode.return_value = '{"findings": []}'
+    analyzer.llm_service.generate.return_value = '{"findings": []}'
 
     # Return the analyzer and the mock rules for use in tests
     return analyzer, mock_rules

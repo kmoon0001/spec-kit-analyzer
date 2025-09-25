@@ -49,7 +49,7 @@ def test_graph_rag_retrieval_specific_query(retriever):
 
     # 3. Assert that the top result is the one we expect.
     # We expect the "Goals" rule to be the most relevant.
-    assert "Provider signature/date possibly missing" in top_result.issue_title, f"Top result should be about 'Provider signature/date possibly missing', but got '{top_result.issue_title}'."
+    assert "Goals may not be measurable/time-bound" in top_result.issue_title, f"Top result should be about 'Goals may not be measurable/time-bound', but got '{top_result.issue_title}'."
     print(f"\nSuccessfully retrieved rule: '{top_result.issue_title}' for query: '{query}'")
 
 def test_graph_rag_retrieval_another_query(retriever):
@@ -65,9 +65,9 @@ def test_graph_rag_retrieval_another_query(retriever):
     assert results is not None
     assert len(results) > 0
 
-    # Assert that the "Signature" rule is one of the top results.
-    assert any("signature" in r.issue_title.lower() for r in results), \
-        f"The 'Signature' rule was not found in the top results for query '{query}'."
+    # Assert that the "Signature" rule is the top result.
+    assert "Provider signature/date possibly missing" in results[0].issue_title, \
+        f"The 'Signature' rule was not the top result for query '{query}'."
     print(f"\nSuccessfully retrieved rule containing 'Signature' for query: '{query}'")
 
 def test_graph_rag_retrieval_no_results(retriever):
