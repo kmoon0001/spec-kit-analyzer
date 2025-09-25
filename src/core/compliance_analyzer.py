@@ -2,100 +2,83 @@ import logging
 import json
 from typing import Dict, Any, List
 
-from src.core.ner import NERPipeline
-from src.core.prompt_manager import PromptManager
-from src.core.explanation import ExplanationEngine
-from src.core.llm_service import LLMService
+from .llm_service import LLMService
+from .nlg_service import NLGService
+from .ner import NERPipeline
+from .explanation import ExplanationEngine
+from .prompt_manager import PromptManager
 
 logger = logging.getLogger(__name__)
 
+# Define a threshold for what is considered a low-confidence finding
+CONFIDENCE_THRESHOLD = 0.7
+
 class ComplianceAnalyzer:
     """
-    An all-in-one, extensible class for the ComplianceAnalyzer system.
+    A service that orchestrates the core compliance analysis of a document.
+    It receives pre-initialized components and does not load models itself.
     """
 
-    def __init__(self, config: Dict[str, Any], guideline_service: Any, retriever: Any):
+    def __init__(self, retriever: Any, ner_pipeline: NERPipeline, llm_service: LLMService, nlg_service: NLGService, explanation_engine: ExplanationEngine, prompt_manager: PromptManager):
         """
-        Initializes the ComplianceAnalyzer with config-driven components.
+        Initializes the ComplianceAnalyzer with pre-loaded components.
         """
-        self.config = config
-        self.guideline_service = guideline_service
         self.retriever = retriever
-
-        # Initialize components from config
-        self.ner_pipeline = NERPipeline(model_name=self.config['models']['ner_model'])
-        self.prompt_manager = PromptManager(template_path=self.config['models']['prompt_template'])
-        self.explanation_engine = ExplanationEngine()
-        self.llm_service = LLMService(
-            model_repo_id=self.config['models']['llm_repo_id'],
-            model_filename=self.config['models']['llm_filename']
-        )
+        self.ner_pipeline = ner_pipeline
+        self.llm_service = llm_service
+        self.nlg_service = nlg_service
+        self.explanation_engine = explanation_engine
+        self.prompt_manager = prompt_manager
 
     def analyze_document(self, document: str, discipline: str, doc_type: str) -> Dict[str, Any]:
         """
-        Analyzes a single document for compliance.
+        Analyzes a document, generates tips, and flags low-confidence findings.
         """
-        # 1. Extract entities
+        # 1. Retrieve relevant guidelines based on an initial entity extraction
         entities = self.ner_pipeline.extract_entities(document)
         entity_list = ", ".join([f"{entity['entity_group']}: {entity['word']}" for entity in entities])
-
-        # 2. Retrieve relevant guidelines
         search_query = f"{discipline} {doc_type} {entity_list}"
         retrieved_rules = self.retriever.retrieve(search_query)
 
-        # 3. Build the prompt
-        prompt = self.prompt_manager.build_prompt(
-            document_text=document,
-            entity_list=entity_list,
-            context=self._format_rules_for_prompt(retrieved_rules)
-        )
+        # 2. Build the main analysis prompt
+        context = self._format_rules_for_prompt(retrieved_rules)
+        prompt = self.prompt_manager.build_prompt(context=context, document_text=document)
 
-        # 4. Generate analysis (placeholder for actual model call)
+        # 3. Generate the core analysis from the LLM
         raw_analysis = self._generate_analysis(prompt)
 
-        # 5. Post-process for explanations
+        # 4. Post-process for explanations
         explained_analysis = self.explanation_engine.add_explanations(raw_analysis, retrieved_rules)
+
+        # 5. Process findings for uncertainty and generate personalized tips
+        if "findings" in explained_analysis:
+            for finding in explained_analysis["findings"]:
+                # a. Check for low confidence
+                confidence = finding.get("confidence", 1.0)
+                if isinstance(confidence, (int, float)) and confidence < CONFIDENCE_THRESHOLD:
+                    finding['is_low_confidence'] = True
+                
+                # b. Generate personalized tip
+                tip = self.nlg_service.generate_personalized_tip(finding)
+                finding['personalized_tip'] = tip
 
         return explained_analysis
 
-    @staticmethod
-    def _format_rules_for_prompt(rules: List[Dict[str, Any]]) -> str:
-        """
-        Formats retrieved rules for inclusion in the prompt.
-        """
+    def _format_rules_for_prompt(self, rules: List[Dict[str, Any]]) -> str:
         if not rules:
             return "No specific compliance rules were retrieved. Analyze based on general Medicare principles."
-
-        formatted_rules = []
-        for rule in rules:
-            formatted_rules.append(
-                f"- **Rule ID:** {rule.get('id', '')}\n"
-                f"  **Title:** {rule.get('issue_title', '')}\n"
-                f"  **Detail:** {rule.get('issue_detail', '')}\n"
-                f"  **Suggestion:** {rule.get('suggestion', '')}"
-            )
-        return "\n".join(formatted_rules)
+        return "\n".join([f"- Title: {r.get('issue_title', '')}, Detail: {r.get('issue_detail', '')}" for r in rules])
 
     def _generate_analysis(self, prompt: str) -> Dict[str, Any]:
-        """
-        Generates the analysis by calling the LLM service and parsing the output.
-        """
         raw_output = self.llm_service.generate_analysis(prompt)
-
-        # Basic parsing of the raw output.
-        # This assumes the LLM returns a JSON string.
         try:
-            # A more robust cleanup to handle cases where the model wraps the JSON in markdown
-            # or adds extra text. We'll find the first '{' and the last '}'
             start = raw_output.find('{')
             end = raw_output.rfind('}')
             if start != -1 and end != -1:
                 json_str = raw_output[start:end+1]
-                analysis_result = json.loads(json_str)
+                return json.loads(json_str)
             else:
                 raise json.JSONDecodeError("No JSON object found in the output.", raw_output, 0)
         except json.JSONDecodeError:
             logger.error("Failed to decode LLM output into JSON.")
-            analysis_result = {"error": "Invalid JSON output from LLM", "raw_output": raw_output}
-
-        return analysis_result
+            return {"error": "Invalid JSON output from LLM", "raw_output": raw_output}

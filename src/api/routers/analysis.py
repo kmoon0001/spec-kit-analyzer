@@ -4,23 +4,57 @@ import shutil
 import os
 import uuid
 
-from ... import schemas, models
+from ... import schemas, models, crud
 from ...auth import get_current_active_user
 from ...core.analysis_service import AnalysisService
+from ...database import SessionLocal
 
 router = APIRouter()
 
 analysis_service = AnalysisService()
 tasks = {}
 
-def run_analysis(file_path: str, task_id: str, rubric_id: int | None, discipline: str | None, analysis_mode: str):
+def run_analysis_and_save(
+    file_path: str, 
+    task_id: str, 
+    doc_name: str,
+    discipline: str | None, 
+    analysis_mode: str
+):
+    """Runs the analysis, saves the raw data to the DB, and generates the report."""
+    db = SessionLocal()
     try:
-        report_html = analysis_service.analyze_document(file_path, rubric_id=rubric_id, discipline=discipline, analysis_mode=analysis_mode)
+        # Perform the full analysis to get the structured data
+        with open(file_path, 'r', encoding='utf-8') as f:
+            document_text = f.read()
+        
+        analysis_result = analysis_service.analyzer.analyze_document(
+            document=document_text,
+            discipline=discipline,
+            doc_type="Unknown" # This will be replaced by the classifier
+        )
+
+        # Save the raw analysis data to the database
+        report_data = {
+            "document_name": doc_name,
+            "compliance_score": analysis_service.report_generator.risk_scoring_service.calculate_compliance_score(analysis_result.get("findings", [])),
+            "analysis_result": analysis_result # Store the raw JSON data
+        }
+        crud.create_report_and_findings(db, report_data, analysis_result.get("findings", []))
+
+        # Generate the HTML report for immediate viewing
+        report_html = analysis_service.report_generator.generate_html_report(
+            analysis_result=analysis_result,
+            doc_name=doc_name,
+            analysis_mode=analysis_mode
+        )
+
         tasks[task_id] = {"status": "completed", "result": report_html}
+
     except Exception as e:
         tasks[task_id] = {"status": "failed", "error": str(e)}
     finally:
-        # Clean up the temporary file
+        db.close()
         if os.path.exists(file_path):
             os.remove(file_path)
 
@@ -29,38 +63,23 @@ async def analyze_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     discipline: str = Form("All"),
-    rubric_id: int = Form(None),
     analysis_mode: str = Form("rubric"),
     current_user: models.User = Depends(get_current_active_user),
 ):
-    """
-    Starts an asynchronous analysis of the uploaded document.
-
-    - **file**: The clinical document to analyze.
-    - **discipline**: The discipline to analyze for (e.g., 'PT', 'OT').
-    - **rubric_id**: The ID of the rubric to use for analysis.
-    - **analysis_mode**: The analysis mode ('rubric', 'llm_only', or 'hybrid').
-    - Returns a task ID to check the analysis status.
-    """
     task_id = str(uuid.uuid4())
     temp_file_path = f"temp_{task_id}_{file.filename}"
     with open(temp_file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    background_tasks.add_task(run_analysis, temp_file_path, task_id, rubric_id, discipline, analysis_mode)
+    background_tasks.add_task(
+        run_analysis_and_save, temp_file_path, task_id, file.filename, discipline, analysis_mode
+    )
     tasks[task_id] = {"status": "processing"}
 
     return {"task_id": task_id, "status": "processing"}
 
 @router.get("/tasks/{task_id}", response_model=schemas.TaskStatus, responses={200: {"content": {"text/html": {}}}})
 async def get_task_status(task_id: str, current_user: models.User = Depends(get_current_active_user)):
-    """
-    Retrieves the status or result of an analysis task.
-
-    - **task_id**: The ID of the task to check.
-    - If the task is **completed**, it returns the HTML compliance report.
-    - If the task is **processing** or **failed**, it returns the status.
-    """
     task = tasks.get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")

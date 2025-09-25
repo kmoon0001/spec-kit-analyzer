@@ -2,43 +2,36 @@
 APP_NAME: Therapy Compliance Analyzer
 ENVIRONMENT: production
 DB_PATH: ./data/compliance.db
-# IMPORTANT: Generate a secure, random key for encryption.
-# You can use a command like `openssl rand -hex 32` to generate a key.
-# Store this key securely and do not commit it to version control.
 ENCRYPTION_KEY: "" # Replace with your generated key
-OCR_ENGINE: Tesseract
-NLP_MODELS:
-  - ClinicalBERT
-  - BioBERT
-  - AraG
-RUBRIC_PATH: ./data/rubrics/
-REPORT_PATH: ./data/reports/
-REPORT_RETENTION_HOURS: 24
-AUTO_UPDATE: true 
-ANALYTICS_PATH: ./data/analytics/
-PHI_SCRUBBER: enabled
-UI_MODE: responsive
 
-# Section headers for parsing clinical notes
-section_headers:
-  - Subjective
-  - Objective
-  - Assessment
-  - Plan
+# OCR settings
+ocr:
+  preprocessing: true
+  deskew: true
+  resolution: 300
 
-# Configuration for the RAG Pipeline
+# Configuration for AI Models and Services
 models:
-  ner: "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
+  ner: "d4data/biomedical-ner-all"
   retriever: "pritamdeka/S-PubMedBert-MS-MARCO"
-  generator: "nabilfaieaz/tinyllama-med-full"
-  summarizer: "sshleifer/distilbart-cnn-12-6"
+  generator: "TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
+  generator_filename: "mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+  
+  # Prompt Templates
+  analysis_prompt_template: "src/core/prompt_template.txt"
+  nlg_prompt_template: "src/core/nlg_prompt_template.txt"
+  doc_classifier_prompt: "src/core/doc_classifier_prompt.txt"
 
+llm_settings:
+  gpu_layers: 0
+  model_type: "mistral"
+  context_length: 4096
+  generation_params:
+    max_new_tokens: 2048
+    temperature: 0.2
+    top_p: 0.95
+    repetition_penalty: 1.1
+
+# Retrieval settings
 retrieval_settings:
   similarity_top_k: 3
-
-iterative_retrieval:
-  max_iterations: 3
-
-paths:
-  index_dir: "sentence_index"
-  docs_dir: "data"
