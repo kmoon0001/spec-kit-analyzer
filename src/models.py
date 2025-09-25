@@ -10,6 +10,8 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False) # New field for admin users
+    license_key = Column(String, unique=True, index=True, nullable=True)
 
 class Rubric(Base):
     __tablename__ = "rubrics"
@@ -25,7 +27,7 @@ class Report(Base):
     document_name = Column(String, index=True)
     analysis_date = Column(DateTime, default=datetime.datetime.utcnow)
     compliance_score = Column(Integer)
-    analysis_result = Column(JSON) # New column to store raw analysis data
+    analysis_result = Column(JSON)
 
     findings = relationship("Finding", back_populates="report", cascade="all, delete-orphan")
 
