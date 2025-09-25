@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import (
     QApplication,
     QWidget,
     QLabel,
-    QLineEdit,
     QPushButton,
     QVBoxLayout,
     QMessageBox,
@@ -24,8 +23,7 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QListWidgetItem,
     QInputDialog,
-    QCheckBox,
-)
+    )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog

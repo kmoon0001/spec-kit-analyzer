@@ -1,5 +1,3 @@
-import os
-import pytest
 from src.rubric_service import RubricService, ComplianceRule
 
 # No longer need to define paths as the service loads all rubrics by default.

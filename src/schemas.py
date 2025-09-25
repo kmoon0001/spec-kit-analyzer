@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 
 class ComplianceRule(BaseModel):
@@ -47,3 +47,12 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+
+class TaskStatus(BaseModel):
+    task_id: str
+    status: str
+    error: str | None = None
+
+class AnalysisResult(BaseModel):
+    task_id: str
+    status: str
