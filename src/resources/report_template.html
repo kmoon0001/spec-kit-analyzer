@@ -8,16 +8,33 @@
         body {
             font-family: sans-serif;
             margin: 20px;
+            background-color: #f9f9f9;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .header, .footer {
             text-align: center;
-            padding: 10px; 
-            background-color: #f2f2f2;
+            padding: 10px;
+            color: #555;
         }
-        .summary {
+        .header {
+            border-bottom: 1px solid #eee;
+        }
+        .footer {
+            border-top: 1px solid #eee;
+            font-size: 0.8em;
+        }
+        .summary, .findings, .guidelines, .llm-analysis, .limitations {
             margin-bottom: 20px;
-            border: 1px solid #ccc;
+            border: 1px solid #eee;
             padding: 15px;
+            border-radius: 5px;
         }
         .findings table {
             width: 100%;
@@ -25,19 +42,26 @@
         }
         .findings th, .findings td {
             border: 1px solid #ddd;
-            padding: 8px;
+            padding: 10px;
             text-align: left;
         }
         .findings th {
             background-color: #f2f2f2;
         }
-        .guidelines, .llm-analysis {
-            margin-top: 20px;
+        /* Style for low-confidence findings */
+        .low-confidence {
+            background-color: #fffbe6; /* Light yellow background */
+        }
+        .low-confidence td {
+            color: #8a6d3b; /* Darker text for readability */
+        }
+        h1, h2 {
+            color: #333;
         }
     </style>
 </head>
 <body>
-
+<div class="container">
     <div class="header">
         <h1>Clinical Compliance Report</h1>
     </div>
@@ -55,10 +79,10 @@
         <table>
             <thead>
                 <tr>
-                    <th>Severity</th>
-                    <th>Category</th>
-                    <th>Issue</th>
-                    <th>Recommendation</th>
+                    <th>Rule ID</th>
+                    <th>Risk/Severity</th>
+                    <th>Personalized Tip</th>
+                    <th>Problematic Text</th>
                 </tr>
             </thead>
             <tbody>
@@ -77,10 +101,15 @@
         <!-- Placeholder for LLM analysis -->
     </div>
 
-    <div class="footer">
-        <p>Generated on: <!-- Placeholder for generation date --></p>
-        <p>This report is auto-generated and should be used for informational purposes only.</p>
+    <div class="limitations">
+        <h2>AI Model Limitations</h2>
+        <!-- Placeholder for model limitations -->
     </div>
 
+    <div class="footer">
+        <p>Generated on: <!-- Placeholder for generation date --></p>
+        <p>This report is auto-generated and should be used for informational purposes only. It is not a substitute for professional clinical or legal judgment.</p>
+    </div>
+</div>
 </body>
 </html>

@@ -1,61 +1,28 @@
 import os
+from pydantic import BaseModel, Field
 import yaml
-from pydantic import BaseModel
-from typing import List, Optional
 
-class ModelsConfig(BaseModel):
-    ner_model: str
-    retriever: str
-    llm_repo_id: str
-    llm_filename: str
-    prompt_template: str
-    quantization: str
+class DatabaseConfig(BaseModel):
+    url: str = Field(..., env="DATABASE_URL")
 
-class RetrievalSettingsConfig(BaseModel):
-    similarity_top_k: int
+class AuthConfig(BaseModel):
+    secret_key: str = Field(..., env="SECRET_KEY")
+    algorithm: str = Field(..., env="ALGORITHM")
+    access_token_expire_minutes: int = Field(..., env="ACCESS_TOKEN_EXPIRE_MINUTES")
 
-class IterativeRetrievalConfig(BaseModel):
-    max_iterations: int
+class AppConfig(BaseModel):
+    database: DatabaseConfig
+    auth: AuthConfig
 
-class PathsConfig(BaseModel):
-    index_dir: str
-    docs_dir: str
+def load_config_from_yaml(path: str = "config.yaml") -> dict:
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return yaml.safe_load(f)
+    return {}
 
-class OCRConfig(BaseModel):
-    preprocessing: bool
-    deskew: bool
-    resolution: int
+def get_config() -> AppConfig:
+    config_data = load_config_from_yaml()
+    # This will now raise a validation error if env vars are not set
+    return AppConfig.parse_obj(config_data)
 
-class Settings(BaseModel):
-    app_name: str
-    environment: str
-    db_path: str
-    encryption_key: str
-    ocr_engine: str
-    nlp_models: List[str]
-    rubric_path: str
-    report_path: str
-    report_retention_hours: int
-    auto_update: bool
-    analytics_path: str
-    phi_scrubber: str
-    ui_mode: str
-    section_headers: List[str]
-    ocr: OCRConfig
-    models: ModelsConfig
-    retrieval_settings: RetrievalSettingsConfig
-    iterative_retrieval: IterativeRetrievalConfig
-    paths: PathsConfig
-    api_url: Optional[str] = "http://127.0.0.1:8000"
-
-def get_settings() -> Settings:
-    config_path = os.path.join(os.path.dirname(__file__), '..', 'config.yaml')
-    with open(config_path, 'r') as f:
-        config_data = yaml.safe_load(f)
-
-    # Convert keys to lowercase
-    config_data_lower = {k.lower(): v for k, v in config_data.items()}
-
-    return Settings(**config_data_lower)
-
-settings = get_settings()
+config = get_config()

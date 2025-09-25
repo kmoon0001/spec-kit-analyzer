@@ -37,6 +37,7 @@ models:
   llm_filename: "mistral-7b-instruct-v0.2.Q4_K_M.gguf"
   prompt_template: "src/core/prompt_template.txt"
   quantization: "none"
+  nlg_prompt_template: "src/core/nlg_prompt_template.txt" # Path to the new prompt
 
 retrieval_settings:
   similarity_top_k: 3
