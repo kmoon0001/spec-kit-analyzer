@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime
 import markdown
-import urllib.parse # Import the new library
+import urllib.parse
 
 from .risk_scoring_service import RiskScoringService
 
@@ -60,10 +60,14 @@ class ReportGenerator:
 
                 tip_to_display = finding.get('personalized_tip', finding.get('suggestion', 'N/A'))
                 
-                # **MODIFICATION**: Make the problematic text a clickable link
+                # **MODIFICATION**: Embed both context and text into the link
                 problematic_text = finding.get('text', 'N/A')
-                encoded_text = urllib.parse.quote(problematic_text)
-                clickable_text = f'<a href="highlight://{encoded_text}">{problematic_text}</a>'
+                context_snippet = finding.get('context_snippet', problematic_text)
+                
+                # Create a combined string and encode it
+                combined_payload = f"{context_snippet}|||{problematic_text}"
+                encoded_payload = urllib.parse.quote(combined_payload)
+                clickable_text = f'<a href="highlight://{encoded_payload}">{problematic_text}</a>'
 
                 findings_rows_html += f"""
                 <tr {row_class}>

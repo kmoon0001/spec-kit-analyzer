@@ -6,14 +6,14 @@ pytest-mock
 matplotlib
 pyyaml
 rdflib
-PySide6
+PyQt6
 fastapi
 uvicorn
 python-multipart
 python-docx
 pytesseract
 Pillow
-pandas 
+pandas
 openpyxl
 torch
 transformers
@@ -25,3 +25,5 @@ rank_bm25
 accelerate
 nltk
 ctransformers
+markdown
+slowapi

@@ -1,4 +1,5 @@
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel
+from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QPushButton
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.dates as mdates
@@ -7,9 +8,20 @@ class DashboardWidget(QWidget):
     """
     A widget to display compliance trends and other visualizations.
     """
+    # Add the custom signal
+    refresh_requested = pyqtSignal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.layout = QHBoxLayout(self)
+        # Use a QVBoxLayout to stack the refresh button on top of the charts
+        self.layout = QVBoxLayout(self)
+        
+        # --- Refresh Button ---
+        self.refresh_button = QPushButton("Refresh Dashboard")
+        self.refresh_button.clicked.connect(self.refresh_requested.emit)
+        
+        # A container for the charts
+        charts_layout = QHBoxLayout()
         
         # --- Compliance Trend Chart ---
         self.trends_canvas = MplCanvas(self, width=6, height=5, dpi=100)
@@ -17,8 +29,12 @@ class DashboardWidget(QWidget):
         # --- Findings Summary Chart ---
         self.summary_canvas = MplCanvas(self, width=6, height=5, dpi=100)
 
-        self.layout.addWidget(self.trends_canvas)
-        self.layout.addWidget(self.summary_canvas)
+        charts_layout.addWidget(self.trends_canvas)
+        charts_layout.addWidget(self.summary_canvas)
+
+        # Add widgets to the main layout
+        self.layout.addWidget(self.refresh_button)
+        self.layout.addLayout(charts_layout)
 
     def update_dashboard(self, data: dict):
         """
@@ -41,17 +57,25 @@ class DashboardWidget(QWidget):
         if not reports:
             ax.text(0.5, 0.5, "No compliance trend data to display.", ha='center', va='center')
         else:
-            # Matplotlib expects Python datetimes, so we parse the ISO strings
-            dates = [mdates.datestr2num(r['analysis_date']) for r in reversed(reports)]
-            scores = [r['compliance_score'] for r in reversed(reports)]
+            dates = []
+            scores = []
+            for r in reversed(reports):
+                try:
+                    dates.append(mdates.datestr2num(r['analysis_date']))
+                    scores.append(r['compliance_score'])
+                except (ValueError, TypeError):
+                    continue
 
-            ax.plot(dates, scores, marker='o', linestyle='-')
-            ax.set_title("Compliance Score Over Time")
-            ax.set_xlabel("Analysis Date")
-            ax.set_ylabel("Compliance Score")
-            ax.grid(True)
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-            self.trends_canvas.figure.autofmt_xdate() # Improve date formatting
+            if not dates:
+                 ax.text(0.5, 0.5, "No valid trend data to display.", ha='center', va='center')
+            else:
+                ax.plot(dates, scores, marker='o', linestyle='-')
+                ax.set_title("Compliance Score Over Time")
+                ax.set_xlabel("Analysis Date")
+                ax.set_ylabel("Compliance Score")
+                ax.grid(True)
+                ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+                self.trends_canvas.figure.autofmt_xdate()
 
         self.trends_canvas.draw()
 
@@ -63,14 +87,18 @@ class DashboardWidget(QWidget):
         if not summary:
             ax.text(0.5, 0.5, "No findings summary data to display.", ha='center', va='center')
         else:
+            top_n = 10
+            summary = summary[:top_n]
+            
             rule_ids = [item['rule_id'] for item in summary]
             counts = [item['count'] for item in summary]
 
             ax.barh(rule_ids, counts)
-            ax.set_title("Top 5 Most Common Findings")
+            ax.set_title(f"Top {len(rule_ids)} Most Common Findings")
             ax.set_xlabel("Number of Occurrences")
             ax.set_ylabel("Finding Type (Rule ID)")
-            ax.invert_yaxis() # Display the highest count at the top
+            ax.invert_yaxis()
+            self.summary_canvas.figure.tight_layout(pad=1.5)
 
         self.summary_canvas.draw()
 

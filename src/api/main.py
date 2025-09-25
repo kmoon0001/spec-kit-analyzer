@@ -1,82 +1,33 @@
-from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException, Form
-from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
-import shutil
-import os
-import uuid
-from src.core.analysis_service import AnalysisService
+from fastapi import FastAPI, Request
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
-# Add metadata for the API
+# Import all the modular routers
+from .routers import auth, analysis, dashboard, admin, health
+
+# 1. Create a rate limiter instance
+# This will use the client's IP address as the key
+limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
+
+# 2. Create the FastAPI app
 app = FastAPI(
     title="Clinical Compliance Analyzer API",
-    description="API for analyzing clinical documents for compliance.", 
+    description="API for analyzing clinical documents for compliance.",
     version="1.0.0",
 )
 
-analysis_service = AnalysisService()
-tasks = {}
+# 3. Add the rate-limiting middleware and exception handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-class TaskStatus(BaseModel):
-    task_id: str
-    status: str
-    error: str | None = None
+# 4. Include all the routers
+app.include_router(health.router, tags=["Health"])
+app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+app.include_router(admin.router, prefix="/admin", tags=["Admin"])
+app.include_router(analysis.router, prefix="/analysis", tags=["Analysis"])
+app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 
-class AnalysisResult(BaseModel):
-    task_id: str
-    status: str
-
-def run_analysis(file_path: str, task_id: str, rubric_id: int | None, discipline: str | None, analysis_mode: str):
-    try:
-        report_html = analysis_service.analyze_document(file_path, rubric_id=rubric_id, discipline=discipline, analysis_mode=analysis_mode)
-        tasks[task_id] = {"status": "completed", "result": report_html}
-    except Exception as e:
-        tasks[task_id] = {"status": "failed", "error": str(e)}
-    finally:
-        # Clean up the temporary file
-        if os.path.exists(file_path):
-            os.remove(file_path)
-
-@app.post("/analyze", response_model=AnalysisResult, status_code=202)
-async def analyze_document(
-    background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-    discipline: str = Form("All"),
-    rubric_id: int = Form(None),
-    analysis_mode: str = Form("rubric"),
-):
-    """
-    Starts an asynchronous analysis of the uploaded document.
-
-    - **file**: The clinical document to analyze.
-    - **discipline**: The discipline to analyze for (e.g., 'PT', 'OT').
-    - **rubric_id**: The ID of the rubric to use for analysis.
-    - **analysis_mode**: The analysis mode ('rubric', 'llm_only', or 'hybrid').
-    - Returns a task ID to check the analysis status.
-    """
-    task_id = str(uuid.uuid4())
-    temp_file_path = f"temp_{task_id}_{file.filename}"
-    with open(temp_file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    background_tasks.add_task(run_analysis, temp_file_path, task_id, rubric_id, discipline, analysis_mode)
-    tasks[task_id] = {"status": "processing"}
-
-    return {"task_id": task_id, "status": "processing"}
-
-@app.get("/tasks/{task_id}", response_model=TaskStatus, responses={200: {"content": {"text/html": {}}}})
-async def get_task_status(task_id: str):
-    """
-    Retrieves the status or result of an analysis task.
-
-    - **task_id**: The ID of the task to check.
-    - If the task is **completed**, it returns the HTML compliance report.
-    - If the task is **processing** or **failed**, it returns the status.
-    """
-    task = tasks.get(task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    if task["status"] == "completed":
-        return HTMLResponse(content=task["result"])
-    else:
-        return task
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the Clinical Compliance Analyzer API"}
