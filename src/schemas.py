@@ -59,6 +59,7 @@ class UserCreate(UserBase):
 class User(UserBase):
     id: int
     is_active: bool
+    is_admin: bool = False
 
     class Config:
         orm_mode = True
@@ -84,3 +85,15 @@ class TaskStatus(BaseModel):
 class AnalysisResult(BaseModel):
     task_id: str
     status: str
+
+# --- Schemas for Conversational Chat (New) ---
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    history: List[ChatMessage]
+
+class ChatResponse(BaseModel):
+    response: str

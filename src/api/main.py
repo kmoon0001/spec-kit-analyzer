@@ -4,10 +4,9 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 # Import all the modular routers
-from .routers import auth, analysis, dashboard, admin, health
+from .routers import auth, analysis, dashboard, admin, health, chat # Import the new router
 
 # 1. Create a rate limiter instance
-# This will use the client's IP address as the key
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
 
 # 2. Create the FastAPI app
@@ -27,6 +26,7 @@ app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
 app.include_router(analysis.router, prefix="/analysis", tags=["Analysis"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
+app.include_router(chat.router, prefix="/chat", tags=["Chat"]) # Add the new router
 
 @app.get("/")
 def read_root():
