@@ -26,3 +26,4 @@ accelerate
 nltk
 ctransformers
 markdown
+pyspellchecker

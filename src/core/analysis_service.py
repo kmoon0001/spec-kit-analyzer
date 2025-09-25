@@ -4,6 +4,7 @@ from src.parsing import parse_document_content
 from .compliance_analyzer import ComplianceAnalyzer
 from .hybrid_retriever import HybridRetriever
 from .report_generator import ReportGenerator
+from .preprocessing_service import PreprocessingService # Import the new service
 
 # Get the absolute path to the project's root directory
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -14,8 +15,9 @@ class AnalysisService:
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
 
-        # Initialize the components required by the ComplianceAnalyzer
+        # Initialize all services
         retriever = HybridRetriever()
+        self.preprocessing_service = PreprocessingService() # Instantiate the new service
         self.analyzer = ComplianceAnalyzer(
             config=config,
             retriever=retriever
@@ -28,14 +30,17 @@ class AnalysisService:
         document_text = " ".join([chunk['sentence'] for chunk in document_chunks])
         doc_name = os.path.basename(file_path)
 
-        # 2. Perform analysis using the ComplianceAnalyzer
+        # 2. Preprocess the text (new step)
+        corrected_text = self.preprocessing_service.correct_text(document_text)
+
+        # 3. Perform analysis using the ComplianceAnalyzer on the corrected text
         analysis_result = self.analyzer.analyze_document(
-            document_text,
+            corrected_text,
             discipline=discipline,
             doc_type="Unknown",  # This should be determined from the document
         )
 
-        # 3. Generate the HTML report
+        # 4. Generate the HTML report
         report_html = self.report_generator.generate_html_report(
             analysis_result=analysis_result,
             doc_name=doc_name,

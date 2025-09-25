@@ -1,0 +1,14 @@
+# A list of common medical terms and abbreviations to improve spell-checking accuracy.
+# Each term should be on a new line.
+
+SOAP
+subluxation
+hemiparesis
+hemiplegia
+nystagmus
+dysphagia
+prognosis
+comorbidity
+ventriculoperitoneal
+kyphosis
+scoliosis
