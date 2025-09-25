@@ -1,19 +1,17 @@
-import os
 import time
 import requests
 from PySide6.QtCore import QObject, Signal
 
 API_URL = "http://127.0.0.1:8000"
 
-class AnalysisWorker(QObject):
+class FolderAnalysisWorker(QObject):
     finished = Signal()
     error = Signal(str)
-    success = Signal(str)
+    success = Signal(list)
     progress = Signal(int)
 
-    def __init__(self, file_path, data, task_id):
+    def __init__(self, data, task_id):
         super().__init__()
-        self.file_path = file_path
         self.data = data
         self.task_id = task_id
 

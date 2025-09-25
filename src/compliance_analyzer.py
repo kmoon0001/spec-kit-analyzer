@@ -1,11 +1,11 @@
 import logging
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 from src.core.ner import NERPipeline
 from src.core.prompt_manager import PromptManager
 from src.core.explanation import ExplanationEngine
-from src.core.llm_service import LLMService
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +23,13 @@ class ComplianceAnalyzer:
         self.retriever = retriever
 
         # Initialize components from config
-        self.ner_pipeline = NERPipeline(model_name=self.config['models']['ner_model'])
+        self.ner_pipeline = NERPipeline(
+            model_name=self.config['models']['ner_model'],
+            quantization=self.config.get('quantization', 'none'),
+            performance_profile=self.config.get('performance_profile', 'medium')
+        )
         self.prompt_manager = PromptManager(template_path=self.config['models']['prompt_template'])
         self.explanation_engine = ExplanationEngine()
-        self.llm_service = LLMService(
-            model_repo_id=self.config['models']['llm_repo_id'],
-            model_filename=self.config['models']['llm_filename']
-        )
 
     def analyze_document(self, document: str, discipline: str, doc_type: str) -> Dict[str, Any]:
         """
@@ -41,24 +41,31 @@ class ComplianceAnalyzer:
 
         # 2. Retrieve relevant guidelines
         search_query = f"{discipline} {doc_type} {entity_list}"
-        retrieved_rules = self.retriever.retrieve(search_query)
+        retrieved_rules = self.retriever.search(query=search_query, discipline=discipline, doc_type=doc_type)
 
-        # 3. Build the prompt
-        prompt = self.prompt_manager.build_prompt(
-            document_text=document,
-            entity_list=entity_list,
-            context=self._format_rules_for_prompt(retrieved_rules)
+        # 3. Generate analysis
+        analysis = self._generate_analysis(
+            document, entity_list, retrieved_rules
         )
 
-        # 4. Generate analysis (placeholder for actual model call)
-        raw_analysis = self._generate_analysis(prompt)
-
-        # 5. Post-process for explanations
-        explained_analysis = self.explanation_engine.add_explanations(raw_analysis, retrieved_rules)
+        # 4. Post-process for explanations
+        explained_analysis = self.explanation_engine.add_explanations(analysis)
 
         return explained_analysis
 
-    def _format_rules_for_prompt(self, rules: List[Dict[str, Any]]) -> str:
+    def _generate_analysis(self, document: str, entity_list: str, retrieved_rules: list) -> Dict[str, Any]:
+        """
+        Generates a compliance analysis for a given document.
+        """
+        prompt = self.prompt_manager.build_prompt(
+            document=document,
+            entity_list=entity_list,
+            context=self._format_rules_for_prompt(retrieved_rules)
+        )
+        raw_analysis = self._generate_analysis_from_prompt(prompt)
+        return self._parse_json_output(raw_analysis)
+
+    def _format_rules_for_prompt(self, rules: list) -> str:
         """
         Formats retrieved rules for inclusion in the prompt.
         """
@@ -68,33 +75,50 @@ class ComplianceAnalyzer:
         formatted_rules = []
         for rule in rules:
             formatted_rules.append(
-                f"- **Rule ID:** {rule.get('id', '')}\n"
-                f"  **Title:** {rule.get('issue_title', '')}\n"
-                f"  **Detail:** {rule.get('issue_detail', '')}\n"
-                f"  **Suggestion:** {rule.get('suggestion', '')}"
+                f"- **Rule:** {rule.issue_title}\n"
+                f"  **Detail:** {rule.issue_detail}\n"
+                f"  **Suggestion:** {rule.suggestion}"
             )
-        return "\n".join(formatted_rules)
+        return "\\n".join(formatted_rules)
 
-    def _generate_analysis(self, prompt: str) -> Dict[str, Any]:
+    def _generate_analysis_from_prompt(self, prompt: str) -> str:
         """
-        Generates the analysis by calling the LLM service and parsing the output.
+        Placeholder for the actual LLM call.
         """
-        raw_output = self.llm_service.generate_analysis(prompt)
+        logger.info("Generating analysis with prompt:\\n%s", prompt)
+        # In a real implementation, this would call the LLM
+        return """
+{
+    "findings": [
+        {
+            "text": "Sample finding text",
+            "risk": "Sample risk description",
+            "suggestion": "Sample suggestion for mitigation"
+        }
+    ]
+}
+"""
 
-        # Basic parsing of the raw output.
-        # This assumes the LLM returns a JSON string.
+    def _parse_json_output(self, result: str) -> dict:
+        """
+        Parses JSON output from the model with robust error handling.
+        """
         try:
-            # A more robust cleanup to handle cases where the model wraps the JSON in markdown
-            # or adds extra text. We'll find the first '{' and the last '}'
-            start = raw_output.find('{')
-            end = raw_output.rfind('}')
-            if start != -1 and end != -1:
-                json_str = raw_output[start:end+1]
-                analysis_result = json.loads(json_str)
+            json_start = result.find('```json')
+            if json_start != -1:
+                json_str = result[json_start + 7:].strip()
+                json_end = json_str.rfind('```')
+                if json_end != -1:
+                    json_str = json_str[:json_end].strip()
             else:
-                raise json.JSONDecodeError("No JSON object found in the output.", raw_output, 0)
-        except json.JSONDecodeError:
-            logger.error("Failed to decode LLM output into JSON.")
-            analysis_result = {"error": "Invalid JSON output from LLM", "raw_output": raw_output}
+                json_start = result.find('{')
+                json_end = result.rfind('}') + 1
+                json_str = result[json_start:json_end]
 
-        return analysis_result
+            analysis = json.loads(json_str)
+            return analysis
+
+        except (json.JSONDecodeError, IndexError, ValueError) as e:
+            logger.error(f"Error parsing JSON output: {e}\\nRaw model output:\\n{result}")
+            analysis = {"error": "Failed to parse JSON output from model."}
+            return analysis

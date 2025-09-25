@@ -50,7 +50,7 @@ class HybridRetriever:
 
         logging.info("Hybrid Retriever (GraphRAG) initialized successfully.")
 
-    def search(self, query: str, top_k: int = 5, discipline: str = "All", doc_type: str = "Unknown") -> List[ComplianceRule]:
+    def search(self, query: str, top_k: int = 5, discipline: str = "All", doc_type: str = "Unknown", **kwargs) -> List[ComplianceRule]:
         """
         Performs a hybrid search and returns the top_k relevant ComplianceRule objects,
         filtered by discipline and document type.
@@ -134,33 +134,3 @@ class HybridRetriever:
 
         logging.info(f"Returning {len(top_k_results)} combined results.")
         return top_k_results
-
-if __name__ == '__main__':
-    # This main block is for demonstration and testing purposes.
-    retriever = HybridRetriever()
-
-    if retriever.rules:
-        # Example query
-        query = "patient goals must be measurable"
-        print(f"\n--- Hybrid Search Results for query: '{query}' (PT, Progress Note) ---")
-
-        # Perform the search with filtering
-        search_results = retriever.search(query, discipline="pt", doc_type="Progress Note")
-
-        # Print the results
-        for i, rule in enumerate(search_results):
-            print(f"\nResult {i+1}:")
-            print(f"  Title: {rule.issue_title}")
-            print(f"  Detail: {rule.issue_detail}")
-            print(f"  Discipline: {rule.discipline}")
-            print(f"  Doc Type: {rule.document_type}")
-
-        query_2 = "signature of therapist"
-        print(f"\n--- Hybrid Search Results for query: '{query_2}' (All disciplines) ---")
-        search_results_2 = retriever.search(query_2, discipline="All")
-        for i, rule in enumerate(search_results_2):
-            print(f"\nResult {i+1}:")
-            print(f"  Title: {rule.issue_title}")
-            print(f"  Detail: {rule.issue_detail}")
-            print(f"  Discipline: {rule.discipline}")
-            print(f"  Doc Type: {rule.document_type}")
