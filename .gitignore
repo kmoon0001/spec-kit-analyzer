@@ -1,15 +1,12 @@
-
-feature/local-ai-chat
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+
 # C extensions
 *.so
+
 # Distribution / packaging
-.Python
 build/
 develop-eggs/
 dist/
@@ -25,14 +22,15 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
 # PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -40,11 +38,12 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+.pytest_cache/
 nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
-.pytest_cache/
+
 # Environments
 .env
 .venv
@@ -53,24 +52,21 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
 # IDEs
 .idea/
 .vscode/
 *.sublime-project
 *.sublime-workspace
+
 # OS-specific
 .DS_Store
 Thumbs.db
-# From the other side of the merge
-*.db
-*.db-journal
-*.log
-*.bak
-*.csv
-*.json
-*.pdf
-main
 
-# Cached files
+# Other generated files
+*.log
+*.db
+*.sqlite3
+*.csv
 *.pkl
-*.index
+*.html

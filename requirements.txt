@@ -1,32 +1,47 @@
-pdfplumber
-pypdfium2
-requests
-pytest
-pytest-mock
-matplotlib
-pyyaml
-rdflib
-PyQt6
+# Core Web & API
 fastapi
 uvicorn
-python-multipart
+gunicorn
+slowapi
+requests
+
+# GUI
+PyQt6
+matplotlib
+
+# Data & Parsing
+pdfplumber
+pypdfium2
 python-docx
-pytesseract
-Pillow
 pandas
 openpyxl
+pyyaml
+markdown
+
+# AI & Machine Learning
 torch
 transformers
 sentence-transformers
-gunicorn
+ctransformers
 faiss-cpu
 bitsandbytes
 rank_bm25
 accelerate
 nltk
-ctransformers
-markdown
-slowapi
+pyspellchecker
+
+# Database
+SQLAlchemy
+
+# Security & Auth
+passlib[bcrypt]
+python-multipart
+PyJWT
+
+# Numeric & Science
 numpy
 scipy
-PyJWT
+
+# Testing
+pytest
+pytest-mock
