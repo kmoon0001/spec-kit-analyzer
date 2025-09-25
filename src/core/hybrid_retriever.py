@@ -95,6 +95,6 @@ class HybridRetriever:
 
         # Sort by RRF score and return the top_k rule dictionaries
         sorted_fused_indices = sorted(rrf_scores.keys(), key=lambda x: rrf_scores[x], reverse=True)
-        
+
         top_k_results = [self.rules[i] for i in sorted_fused_indices[:top_k]]
         return top_k_results

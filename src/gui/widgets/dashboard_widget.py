@@ -15,17 +15,17 @@ class DashboardWidget(QWidget):
         super().__init__(parent)
         # Use a QVBoxLayout to stack the refresh button on top of the charts
         self.layout = QVBoxLayout(self)
-        
+
         # --- Refresh Button ---
         self.refresh_button = QPushButton("Refresh Dashboard")
         self.refresh_button.clicked.connect(self.refresh_requested.emit)
-        
+
         # A container for the charts
         charts_layout = QHBoxLayout()
-        
+
         # --- Compliance Trend Chart ---
         self.trends_canvas = MplCanvas(self, width=6, height=5, dpi=100)
-        
+
         # --- Findings Summary Chart ---
         self.summary_canvas = MplCanvas(self, width=6, height=5, dpi=100)
 
@@ -39,7 +39,7 @@ class DashboardWidget(QWidget):
     def update_dashboard(self, data: dict):
         """
         Updates both dashboard plots with new data from the API.
-        
+
         Args:
             data: A dictionary containing 'reports' and 'summary' data.
         """
@@ -89,7 +89,7 @@ class DashboardWidget(QWidget):
         else:
             top_n = 10
             summary = summary[:top_n]
-            
+
             rule_ids = [item['rule_id'] for item in summary]
             counts = [item['count'] for item in summary]
 

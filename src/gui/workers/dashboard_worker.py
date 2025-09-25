@@ -25,7 +25,7 @@ class DashboardWorker(QObject):
 
         try:
             headers = {"Authorization": f"Bearer {self.token}"}
-            
+
             # 1. Fetch historical reports
             reports_response = requests.get(f"{API_URL}/dashboard/reports", headers=headers)
             reports_response.raise_for_status()

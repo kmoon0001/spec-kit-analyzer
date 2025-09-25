@@ -31,7 +31,7 @@ class ChatService:
 
         try:
             self.history.append({"role": "user", "content": user_message})
-            
+
             prompt = self._build_prompt_from_history()
             ai_response = self.llm_service.generate_analysis(prompt)
 

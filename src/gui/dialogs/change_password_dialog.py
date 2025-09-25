@@ -18,10 +18,10 @@ class ChangePasswordDialog(QDialog):
         self.layout = QFormLayout(self)
         self.current_password_input = QLineEdit(self)
         self.current_password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        
+
         self.new_password_input = QLineEdit(self)
         self.new_password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        
+
         self.confirm_password_input = QLineEdit(self)
         self.confirm_password_input.setEchoMode(QLineEdit.EchoMode.Password)
 
@@ -47,7 +47,7 @@ class ChangePasswordDialog(QDialog):
         if new_password != confirm_password:
             QMessageBox.warning(self, "Input Error", "The new passwords do not match.")
             return
-        
+
         self.accept()
 
     def get_passwords(self):
