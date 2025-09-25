@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, QUrl
 from PyQt6.QtGui import QTextDocument
 
-# Use absolute imports from the src root
+# Corrected: Use absolute imports from the src root
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
 from src.gui.dialogs.login_dialog import LoginDialog
 from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
@@ -240,7 +240,6 @@ class MainApplicationWindow(QMainWindow):
         self.thread = QThread()
         self.worker = DashboardWorker(self.access_token)
         self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.run)
         self.worker.success.connect(self.on_dashboard_data_loaded)
         self.worker.error.connect(lambda msg: self.status_bar.showMessage(f"Dashboard Error: {msg}"))
         self.worker.finished.connect(self.thread.quit)

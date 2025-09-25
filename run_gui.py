@@ -1,24 +1,26 @@
 import sys
 import os
-from unittest.mock import patch
 
-# Add the src directory to the Python path to allow for absolute imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# --- The Definitive Path Solution ---
+# 1. Get the absolute path of the directory where this script is located.
+# This will be the project's root directory.
+project_root = os.path.dirname(os.path.abspath(__file__))
 
-from PySide6.QtWidgets import QApplication
-from src.gui.main_window import MainApplicationWindow as MainWindow
+# 2. Add the project root to the Python path.
+# This ensures that any `import src. ...` statements will work correctly.
+sys.path.insert(0, project_root)
 
-if __name__ == '__main__':
-    app = QApplication.instance()
-    if app is None:
-        print("Creating QApplication...")
-        app = QApplication(sys.argv)
+# 3. Now that the path is correct, we can import and run the application.
+from PyQt6.QtWidgets import QApplication
+from src.gui.main_window import MainApplicationWindow
+from src.database import init_db
 
-    print("Patching MainWindow._init_llm_thread...")
-    with patch.object(MainWindow, '_init_llm_thread', return_value=None):
-        print("Creating MainWindow instance...")
-        window = MainWindow()
-        print("MainWindow instance created.")
-        # We don't call window.show() or app.exec() because we just want to see if instantiation crashes.
-
-    print("Success: MainWindow was instantiated without crashing.")
+if __name__ == "__main__":
+    print("Initializing database...")
+    init_db()
+    
+    print("Starting GUI application...")
+    app = QApplication(sys.argv)
+    main_win = MainApplicationWindow()
+    # The main window will be shown after a successful login
+    sys.exit(app.exec())
