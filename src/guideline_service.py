@@ -45,7 +45,8 @@ class GuidelineService:
         self._load_or_build_index()
         logger.info("GuidelineService initialized.")
 
-    def classify_document(self, document_text: str) -> str:
+    @staticmethod
+    def classify_document(document_text: str) -> str:
         """
         Classifies the document based on its content.
         Placeholder implementation.
@@ -129,7 +130,8 @@ class GuidelineService:
         self.is_index_ready = True
         logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks using FAISS.")
 
-    def _extract_text_from_pdf(self, file_path: str, source_name: str) -> List[Tuple[str, str]]:
+    @staticmethod
+    def _extract_text_from_pdf(file_path: str, source_name: str) -> List[Tuple[str, str]]:
         # ... (rest of the file is unchanged)
         """Extracts text from a file, chunking it by paragraph."""
         chunks = []
@@ -173,7 +175,8 @@ class GuidelineService:
         else:
             return self._extract_text_from_pdf(file_path, source_name)
 
-    def _extract_text_from_json(self, file_path: str, source_name: str) -> List[Tuple[str, str]]:
+    @staticmethod
+    def _extract_text_from_json(file_path: str, source_name: str) -> List[Tuple[str, str]]:
         """Extracts text from a JSON file, assuming a list of objects with specific keys."""
         chunks = []
         try:
