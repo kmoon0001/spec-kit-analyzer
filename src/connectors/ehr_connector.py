@@ -16,7 +16,6 @@ class EHRConnector(ABC):
         Initializes the connector with the necessary API configuration,
         such as base URL, API keys, or authentication credentials.
         """
-        pass
 
     @abstractmethod
     def fetch_documents(self, patient_id: str) -> List[Dict[str, Any]]:
@@ -31,7 +30,6 @@ class EHRConnector(ABC):
             and should contain at least 'document_id' and 'document_name'.
             Example: [{"document_id": "123", "document_name": "PT Eval - 2023-10-27"}]
         """
-        pass
 
     @abstractmethod
     def download_document(self, document_id: str) -> str:
@@ -44,7 +42,6 @@ class EHRConnector(ABC):
         Returns:
             The full text content of the document as a string.
         """
-        pass
 
     @abstractmethod
     def upload_report(self, patient_id: str, report_html: str) -> bool:
@@ -58,4 +55,3 @@ class EHRConnector(ABC):
         Returns:
             True if the upload was successful, False otherwise.
         """
-        pass
