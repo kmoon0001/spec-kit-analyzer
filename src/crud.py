@@ -1,6 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-from . import models, schemas
+from . import models
 import datetime
 import pickle
 import numpy as np

@@ -21,7 +21,4 @@ def get_db():
         db.close()
 
 def init_db():
-    # Import all the models here before creating the tables
-    # This ensures they are registered with the Base metadata
-    from . import models
     Base.metadata.create_all(bind=engine)

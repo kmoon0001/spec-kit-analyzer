@@ -1,13 +1,11 @@
 import os
-import sys
 import requests
 import urllib.parse
 import webbrowser
 import jwt
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QMessageBox, QMainWindow, QStatusBar, QMenuBar, 
-    QFileDialog, QSplitter, QTextEdit, QHBoxLayout, QListWidget, QListWidgetItem, 
-    QComboBox, QLabel, QGroupBox, QProgressBar, QCheckBox, QPushButton, QTabWidget
+    QFileDialog, QSplitter, QTextEdit, QHBoxLayout, QLabel, QGroupBox, QProgressBar, QPushButton, QTabWidget
 )
 from PyQt6.QtCore import Qt, QThread, QUrl
 from PyQt6.QtGui import QTextDocument
@@ -19,7 +17,6 @@ from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
 from src.gui.workers.analysis_worker import AnalysisWorker
-from src.gui.workers.folder_analysis_worker import FolderAnalysisWorker
 from src.gui.workers.ai_loader_worker import AILoaderWorker
 from src.gui.workers.dashboard_worker import DashboardWorker
 from src.gui.widgets.dashboard_widget import DashboardWidget
