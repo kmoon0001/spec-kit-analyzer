@@ -5,6 +5,7 @@ import markdown
 import urllib.parse
 
 from .risk_scoring_service import RiskScoringService
+from .habit_mapper import get_habit_for_finding # Import the new habit mapper
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
@@ -67,17 +68,20 @@ class ReportGenerator:
                 encoded_payload = urllib.parse.quote(combined_payload)
                 clickable_text = f'<a href="highlight://{encoded_payload}">{problematic_text}</a>'
 
-                # Create the context for the chat link
                 chat_context = f"Regarding the finding titled '{finding.get('issue_title', 'N/A')}' in my document, which you identified with the text '{problematic_text}', please explain further."
                 encoded_chat_context = urllib.parse.quote(chat_context)
                 chat_link = f'<a href="chat://{encoded_chat_context}">Discuss with AI</a>'
 
+                # **MODIFICATION**: Get the habit for the finding
+                habit = get_habit_for_finding(finding)
+                habit_html = f'<div class="habit-name">{habit["name"]}</div><div class="habit-explanation">{habit["explanation"]}</div>'
+
                 findings_rows_html += f"""
                 <tr {row_class}>
-                    <td>{finding.get('rule_id', 'N/A')}</td>
                     <td>{risk_display}</td>
-                    <td>{tip_to_display}</td>
                     <td>{clickable_text}</td>
+                    <td>{tip_to_display}</td>
+                    <td>{habit_html}</td>
                     <td>{chat_link}</td>
                 </tr>
                 """
@@ -86,8 +90,5 @@ class ReportGenerator:
         report_html = report_html.replace("<!-- Placeholder for findings rows -->", findings_rows_html)
 
         report_html = report_html.replace("<!-- Placeholder for model limitations -->", self.model_limitations_html)
-        report_html = report_html.replace("<!-- Placeholder for Medicare guidelines -->", "<p>Feature not yet implemented.</p>")
-        report_html = report_html.replace("<!-- Placeholder for LLM analysis -->", "<p>Feature not yet implemented.</p>")
 
-        report_html = report_html.replace("<!-- Placeholder for generation date -->", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         return report_html
