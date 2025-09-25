@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from PyQt6.QtWidgets import QDialog
 
 # Import the main window we want to test

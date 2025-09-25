@@ -1,9 +1,8 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from PyQt6.QtWidgets import QDialog
 
 from src.gui.main_window import MainApplicationWindow
-from src.core.analysis_service import AnalysisService
 
 # --- Fixtures ---
 
