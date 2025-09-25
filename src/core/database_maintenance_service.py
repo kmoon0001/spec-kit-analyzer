@@ -8,7 +8,8 @@ class DatabaseMaintenanceService:
     """
     A service to handle periodic database maintenance tasks, like purging old data.
     """
-    def purge_old_reports(self, retention_days: int):
+    @staticmethod
+    def purge_old_reports(retention_days: int):
         """
         Connects to the database and purges reports older than the retention period.
 

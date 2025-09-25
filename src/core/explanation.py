@@ -30,7 +30,8 @@ class ExplanationEngine:
         
         return analysis_result
 
-    def _get_context_snippet(self, text_to_find: str, full_text: str, window: int = 20) -> str:
+    @staticmethod
+    def _get_context_snippet(text_to_find: str, full_text: str, window: int = 20) -> str:
         """
         Finds a snippet of text and returns it with a surrounding context window.
 

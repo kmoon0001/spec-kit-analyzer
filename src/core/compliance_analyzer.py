@@ -66,7 +66,8 @@ class ComplianceAnalyzer:
 
         return explained_analysis
 
-    def _format_rules_for_prompt(self, rules: List[Dict[str, Any]]) -> str:
+    @staticmethod
+    def _format_rules_for_prompt(rules: List[Dict[str, Any]]) -> str:
         if not rules:
             return "No specific compliance rules were retrieved. Analyze based on general Medicare principles."
         return "\n".join([f"- Title: {r.get('name', '')}, Content: {r.get('content', '')}" for r in rules])
