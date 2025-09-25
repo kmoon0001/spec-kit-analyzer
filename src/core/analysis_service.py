@@ -2,9 +2,7 @@ import os
 from datetime import datetime
 import sqlite3
 import json
-import tempfile
 import yaml
-from src.rubric_service import RubricService
 from src.parsing import parse_document_content
 from src.guideline_service import GuidelineService
 from src.database import DATABASE_PATH

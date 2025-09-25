@@ -2,7 +2,6 @@ import os
 import sys
 import pytest
 import json
-from types import SimpleNamespace
 
 # Ensure the src directory is in the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
