@@ -40,9 +40,9 @@ class ReportGenerator:
         report_html = report_html.replace("<!-- Placeholder for analysis date -->", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
         findings = analysis_result.get("findings", [])
-        
+
         compliance_score = self.risk_scoring_service.calculate_compliance_score(findings)
-        
+
         report_html = report_html.replace("<!-- Placeholder for compliance score -->", str(compliance_score))
         report_html = report_html.replace("<!-- Placeholder for total findings -->", str(len(findings)))
 
@@ -55,7 +55,7 @@ class ReportGenerator:
                     row_class = 'class="disputed"'
                 elif finding.get('is_low_confidence'):
                     row_class = 'class="low-confidence"'
-                
+
 # Create the risk/confidence display string
                 risk_display = finding.get('risk', 'N/A')
                 if finding.get('is_disputed'):
@@ -68,10 +68,10 @@ class ReportGenerator:
                         risk_display += " (Low Confidence)"
 
                 tip_to_display = finding.get('personalized_tip', finding.get('suggestion', 'N/A'))
-                
+
                 problematic_text = finding.get('text', 'N/A')
                 context_snippet = finding.get('context_snippet', problematic_text)
-                
+
                 combined_payload = f"{context_snippet}|||{problematic_text}"
                 encoded_payload = urllib.parse.quote(combined_payload)
                 clickable_text = f'<a href="highlight://{encoded_payload}">{problematic_text}</a>'

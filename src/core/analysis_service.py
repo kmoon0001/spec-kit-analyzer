@@ -50,7 +50,7 @@ class AnalysisService:
                 llm_service=llm_service,
                 prompt_template_path=os.path.join(ROOT_DIR, config['models']['doc_classifier_prompt'])
             )
-            
+
             nlg_service = NLGService(
                 llm_service=llm_service,
                 prompt_template_path=os.path.join(ROOT_DIR, config['models']['nlg_prompt_template'])
@@ -97,5 +97,5 @@ class AnalysisService:
             discipline=discipline,
             doc_type=doc_type
         )
-        
+
         return analysis_result
