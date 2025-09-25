@@ -5,14 +5,11 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
-import tempfile
 import pickle
 from typing import List, Tuple
 
 # Third-party
 import pdfplumber
-import requests
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer

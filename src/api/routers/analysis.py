@@ -1,29 +1,17 @@
-from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException, Form
+from fastapi import APIRouter, Depends, UploadFile, File, BackgroundTasks, HTTPException, Form
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
 import shutil
 import os
 import uuid
-from src.core.analysis_service import AnalysisService
 
-# Add metadata for the API
-app = FastAPI(
-    title="Clinical Compliance Analyzer API",
-    description="API for analyzing clinical documents for compliance.", 
-    version="1.0.0",
-)
+from ... import schemas, models
+from ...auth import get_current_active_user
+from ...core.analysis_service import AnalysisService
+
+router = APIRouter()
 
 analysis_service = AnalysisService()
 tasks = {}
-
-class TaskStatus(BaseModel):
-    task_id: str
-    status: str
-    error: str | None = None
-
-class AnalysisResult(BaseModel):
-    task_id: str
-    status: str
 
 def run_analysis(file_path: str, task_id: str, rubric_id: int | None, discipline: str | None, analysis_mode: str):
     try:
@@ -36,13 +24,14 @@ def run_analysis(file_path: str, task_id: str, rubric_id: int | None, discipline
         if os.path.exists(file_path):
             os.remove(file_path)
 
-@app.post("/analyze", response_model=AnalysisResult, status_code=202)
+@router.post("/analyze", response_model=schemas.AnalysisResult, status_code=202)
 async def analyze_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     discipline: str = Form("All"),
     rubric_id: int = Form(None),
     analysis_mode: str = Form("rubric"),
+    current_user: models.User = Depends(get_current_active_user),
 ):
     """
     Starts an asynchronous analysis of the uploaded document.
@@ -63,8 +52,8 @@ async def analyze_document(
 
     return {"task_id": task_id, "status": "processing"}
 
-@app.get("/tasks/{task_id}", response_model=TaskStatus, responses={200: {"content": {"text/html": {}}}})
-async def get_task_status(task_id: str):
+@router.get("/tasks/{task_id}", response_model=schemas.TaskStatus, responses={200: {"content": {"text/html": {}}}})
+async def get_task_status(task_id: str, current_user: models.User = Depends(get_current_active_user)):
     """
     Retrieves the status or result of an analysis task.
 

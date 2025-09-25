@@ -7,8 +7,6 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from src.core.compliance_analyzer import ComplianceAnalyzer
-from src.document_classifier import DocumentClassifier, DocumentType
-from src.parsing import parse_document_into_sections
 from typing import Dict, List
 from src.rubric_service import ComplianceRule
 
