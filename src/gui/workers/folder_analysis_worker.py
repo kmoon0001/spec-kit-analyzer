@@ -57,7 +57,7 @@ class FolderAnalysisWorker(QObject):
 
         if attempts >= max_attempts:
             self.error.emit("Analysis timed out.")
-        
+
         self.finished.emit()
 
     def stop(self):
