@@ -45,10 +45,10 @@ def find_similar_report(db: Session, new_embedding: np.ndarray) -> models.Report
     for report in cached_reports:
         # Deserialize the stored embedding
         cached_embedding = pickle.loads(report.document_embedding)
-        
+
 # Calculate cosine similarity (1 - cosine distance)
         similarity = 1 - cosine(new_embedding, cached_embedding)
-        
+
         if similarity > highest_similarity:
             highest_similarity = similarity
             best_match = report
@@ -78,7 +78,7 @@ def get_findings_summary(db: Session, limit: int = 5):
             for finding in report.analysis_result['findings']:
                 rule_id = finding.get('rule_id', 'Unknown')
                 summary[rule_id] = summary.get(rule_id, 0) + 1
-    
+
     sorted_summary = sorted(summary.items(), key=lambda item: item[1], reverse=True)
     return [{"rule_id": rule_id, "count": count} for rule_id, count in sorted_summary[:limit]]
 

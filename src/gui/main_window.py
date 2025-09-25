@@ -80,7 +80,7 @@ class MainApplicationWindow(QMainWindow):
                 token_data = response.json()
                 self.access_token = token_data['access_token']
                 self.username = username
-                
+
                 decoded_token = jwt.decode(self.access_token, options={"verify_signature": False})
                 self.is_admin = decoded_token.get('is_admin', False)
 

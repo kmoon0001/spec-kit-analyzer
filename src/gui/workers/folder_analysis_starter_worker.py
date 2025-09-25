@@ -23,7 +23,7 @@ class FolderAnalysisStarterWorker(QObject):
         """
         try:
             headers = {"Authorization": f"Bearer {self.token}"}
-            
+
 # The backend expects a specific endpoint for folder analysis
             response = requests.post(
                 f"{API_URL}/analysis/analyze_folder", 
