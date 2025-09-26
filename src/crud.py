@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from . import models
 import datetime
 import pickle
+from typing import Dict
 import numpy as np
 from scipy.spatial.distance import cosine
 
@@ -65,17 +66,17 @@ def get_report(db: Session, report_id: int):
     return db.query(models.Report).filter(models.Report.id == report_id).first()
 
 def change_user_password(db: Session, user: models.User, new_hashed_password: str):
-    user.hashed_password = new_hashed_password
+    user.hashed_password = new_hashed_password  # type: ignore[assignment]
     db.commit()
     db.refresh(user)
     return user
 
 def get_findings_summary(db: Session, limit: int = 5):
     reports = db.query(models.Report).all()
-    summary = {}
+    summary: Dict[str, int] = {}
     for report in reports:
-        if report.analysis_result and 'findings' in report.analysis_result:
-            for finding in report.analysis_result['findings']:
+        if report.analysis_result and 'findings' in report.analysis_result:  # type: ignore[operator]
+            for finding in report.analysis_result['findings']:  # type: ignore[attr-defined]
                 rule_id = finding.get('rule_id', 'Unknown')
                 summary[rule_id] = summary.get(rule_id, 0) + 1
 
