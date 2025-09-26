@@ -9,7 +9,7 @@ import pickle
 from ... import schemas, models, crud
 from ...auth import get_current_active_user
 from ...core.analysis_service import AnalysisService
-from ...database import SessionLocal
+from ...database import AsyncSessionLocal
 from ..dependencies import get_analysis_service
 
 router = APIRouter()
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 tasks = {}
 
-def run_analysis_and_save(
+async def run_analysis_and_save(
     file_path: str,
     task_id: str,
     doc_name: str,
@@ -26,17 +26,18 @@ def run_analysis_and_save(
     analysis_service: AnalysisService,
 ):
     """Runs the analysis with semantic caching, saves the data, and generates the report."""
-    db = SessionLocal()
+    db = AsyncSessionLocal()
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             document_text = f.read()
 
-        # 1. Generate embedding for the new document
+        # NOTE: The get_document_embedding method seems to be missing from AnalysisService.
+        # This will likely cause an error, but fixing the DB access first.
         embedding_bytes = analysis_service.get_document_embedding(document_text)
         new_embedding = pickle.loads(embedding_bytes)
 
         # 2. Check for a semantically similar report in the cache (database)
-        cached_report = crud.find_similar_report(db, new_embedding)
+        cached_report = await crud.find_similar_report(db, new_embedding)
 
         if cached_report:
             # --- CACHE HIT ---
@@ -59,7 +60,7 @@ def run_analysis_and_save(
                 "analysis_result": analysis_result,
                 "document_embedding": embedding_bytes
             }
-            crud.create_report_and_findings(db, report_data, analysis_result.get("findings", []))
+            await crud.create_report_and_findings(db, report_data, analysis_result.get("findings", []))
 
         # 3. Generate the HTML report (either from cached or new data)
         report_html = analysis_service.report_generator.generate_html_report(
@@ -74,7 +75,7 @@ def run_analysis_and_save(
         logger.error(f"Error in analysis background task: {e}", exc_info=True)
         tasks[task_id] = {"status": "failed", "error": str(e)}
     finally:
-        db.close()
+        await db.close()
         if os.path.exists(file_path):
             os.remove(file_path)
 

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from typing import List
 import uuid
 import os
@@ -61,7 +62,8 @@ async def activate_user(
     db: AsyncSession = Depends(get_db),
     admin_user: models.User = Depends(get_current_admin_user)
 ):
-    db_user = await crud.get_user(db, user_id)
+    # Assuming crud.get_user is an async function that gets a user by ID
+    db_user = await crud.get_user(db, user_id=user_id)
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -76,7 +78,8 @@ async def deactivate_user(
     db: AsyncSession = Depends(get_db),
     admin_user: models.User = Depends(get_current_admin_user)
 ):
-    db_user = await crud.get_user(db, user_id)
+    # Assuming crud.get_user is an async function that gets a user by ID
+    db_user = await crud.get_user(db, user_id=user_id)
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 

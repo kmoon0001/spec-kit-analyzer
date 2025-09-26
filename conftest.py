@@ -12,7 +12,7 @@ from src.database import Base
 from src.core.llm_service import LLMService
 from src.core.nlg_service import NLGService
 from src.core.ner import NERPipeline
-from src.core.hybrid_retriever import HybridRetriever
+from src.core.retriever import HybridRetriever
 from src.core.compliance_analyzer import ComplianceAnalyzer
 from src.core.report_generator import ReportGenerator
 from src.core.fact_checker_service import FactCheckerService

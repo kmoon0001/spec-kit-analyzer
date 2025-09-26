@@ -8,7 +8,7 @@ from slowapi.errors import RateLimitExceeded
 from apscheduler.schedulers.background import BackgroundScheduler
 
 # Import all the modular routers
-from .routers import auth, analysis, dashboard, admin, health, chat
+from .routers import auth, analysis, dashboard, admin, health, chat, compliance
 from ..core.database_maintenance_service import DatabaseMaintenanceService
 from .dependencies import startup_event as api_startup, shutdown_event as api_shutdown
 
@@ -87,6 +87,7 @@ app.include_router(admin.router, prefix="/admin", tags=["Admin"])
 app.include_router(analysis.router, prefix="/analysis", tags=["Analysis"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
+app.include_router(compliance.router, prefix="/compliance", tags=["Compliance"])
 
 @app.get("/")
 def read_root():

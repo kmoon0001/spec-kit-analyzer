@@ -1,11 +1,41 @@
-@prefix : <http://example.com/ns#> .
+@prefix : <http://example.com/speckit/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
-:rule1 a :ComplianceRule ;
-    :issueTitle "Provider signature/date possibly missing" ;
-    :issueDetail "The provider's signature and date are not clearly identified." ;
-    :issueCategory "Authentication" ;
-    :severity "flag" ;
-    :strictSeverity "flag" ;
-    :negativeKeywords "signature", "signed" .
+# --- Classes ---
+:ComplianceRule a owl:Class .
+:KeywordSet a owl:Class .
+
+# --- Object Properties ---
+:hasNegativeKeywords a owl:ObjectProperty ;
+    rdfs:domain :ComplianceRule ;
+    rdfs:range :KeywordSet .
+
+# --- Datatype Properties ---
+:hasSeverity a owl:DatatypeProperty .
+:hasStrictSeverity a owl:DatatypeProperty .
+:hasIssueTitle a owl:DatatypeProperty .
+:hasIssueDetail a owl:DatatypeProperty .
+:hasIssueCategory a owl:DatatypeProperty .
+:hasKeyword a owl:DatatypeProperty .
+:hasFinancialImpact a owl:DatatypeProperty .
+:hasDiscipline a owl:DatatypeProperty .
+:hasDocumentType a owl:DatatypeProperty .
+:hasSuggestion a owl:DatatypeProperty .
+
+# --- Individuals (Rules) ---
+:SignatureRule a :ComplianceRule ;
+    :hasSeverity "finding" ;
+    :hasStrictSeverity "flag" ;
+    :hasIssueTitle "Provider signature/date possibly missing" ;
+    :hasIssueDetail "No explicit evidence of dated/signature entries found." ;
+    :hasIssueCategory "Signatures/Dates" ;
+    :hasFinancialImpact "50" ;
+    :hasDiscipline "pt" ;
+    :hasDocumentType "any" ;
+    :hasSuggestion "Ensure the document is signed and dated." ;
+    :hasNegativeKeywords :SignatureKeywords .
+
+:SignatureKeywords a :KeywordSet ;
+    :hasKeyword "signature" , "signed" , "dated" .

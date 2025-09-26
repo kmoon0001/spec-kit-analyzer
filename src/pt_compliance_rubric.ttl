@@ -99,23 +99,6 @@
     :hasPositiveKeywords :GoalsKeywordsPresent ;
     :hasNegativeKeywords :GoalsKeywordsMissing .
 
-:SignatureKeywords a :KeywordSet ;
-    :hasKeyword "signature" , "signed" , "dated" .
-
-# Rule 2: Goals check
-:GoalsRule a :ComplianceRule ;
-    :hasSeverity "finding" ;
-    :hasStrictSeverity "flag" ;
-    :hasIssueTitle "Goals may not be measurable/time-bound" ;
-    :hasIssueDetail "Consider restating goals with measurable, time-bound targets and baselines." ;
-    :hasIssueCategory "Goals" ;
-    :hasFinancialImpact "50" ;
-    :hasDiscipline "pt" ;
-    :hasDocumentType "Progress Note" ;
-    :hasSuggestion "To improve, ensure each goal is SMART (Specific, Measurable, Achievable, Relevant, Time-bound). For example, instead of 'improve strength', write 'Patient will increase right knee extension strength from 3/5 to 4/5 within 2 weeks to improve ambulation'." ;
-    :hasPositiveKeywords :GoalsKeywordsPresent ;
-    :hasNegativeKeywords :GoalsKeywordsMissing .
-
 :GoalsKeywordsPresent a :KeywordSet ; :hasKeyword "goal" .
 :GoalsKeywordsMissing a :KeywordSet ; :hasKeyword "measurable", "time", "timed" .
 
