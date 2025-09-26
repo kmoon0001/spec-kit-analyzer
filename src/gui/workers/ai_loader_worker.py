@@ -1,7 +1,7 @@
 import os
 import yaml
 import logging
-from PyQt6.QtCore import QObject, Signal
+from PyQt6.QtCore import QObject, pyqtSignal as Signal
 
 # Import the services this worker needs to run
 from src.core.analysis_service import AnalysisService

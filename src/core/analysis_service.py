@@ -11,7 +11,6 @@ from .report_generator import ReportGenerator
 from .preprocessing_service import PreprocessingService
 from .document_classifier import DocumentClassifier
 from .llm_service import LLMService
-from .nlg_service import NLGService
 from .ner import NERPipeline
 from .explanation import ExplanationEngine
 from .prompt_manager import PromptManager
@@ -51,11 +50,6 @@ class AnalysisService:
                 prompt_template_path=os.path.join(ROOT_DIR, config['models']['doc_classifier_prompt'])
             )
 
-            nlg_service = NLGService(
-                llm_service=llm_service,
-                prompt_template_path=os.path.join(ROOT_DIR, config['models']['nlg_prompt_template'])
-            )
-
             analysis_prompt_manager = PromptManager(
                 template_path=os.path.join(ROOT_DIR, config['models']['analysis_prompt_template'])
             )
@@ -65,7 +59,6 @@ class AnalysisService:
                 retriever=self.retriever,
                 ner_pipeline=ner_pipeline,
                 llm_service=llm_service,
-                nlg_service=nlg_service,
                 explanation_engine=explanation_engine,
                 prompt_manager=analysis_prompt_manager,
                 fact_checker_service=fact_checker_service # Pass the new service
