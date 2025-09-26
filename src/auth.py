@@ -8,8 +8,9 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from . import crud, models, schemas
-from .config import config
-from .database import get_db
+from .config import settings
+from .database import get_async_db as get_db
+from sqlalchemy.ext.asyncio import AsyncSession
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -17,9 +18,9 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 class AuthService:
     def __init__(self):
-        self.secret_key = config.auth.secret_key
-        self.algorithm = config.auth.algorithm
-        self.access_token_expire_minutes = config.auth.access_token_expire_minutes
+        self.secret_key = settings.auth.secret_key
+        self.algorithm = settings.auth.algorithm
+        self.access_token_expire_minutes = settings.auth.access_token_expire_minutes
 
     def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None):
         to_encode = data.copy()
@@ -41,7 +42,7 @@ class AuthService:
 
 auth_service = AuthService()
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> models.User:
+async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> models.User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -57,17 +58,23 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except JWTError:
         raise credentials_exception
 
-    user = crud.get_user_by_username(db, username=username)
+<<<<<<< HEAD
+    user = await crud.get_user_by_username(db, username=username)
+||||||| 24e8eb0
+    user = crud.get_user_by_username(db, username=token_data.username)
+=======
+    user = await crud.get_user_by_username(db, username=token_data.username)
+>>>>>>> origin/main
     if user is None:
         raise credentials_exception
     return user
 
-def get_current_active_user(current_user: models.User = Depends(get_current_user)) -> models.User:
+async def get_current_active_user(current_user: models.User = Depends(get_current_user)) -> models.User:
     if not current_user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
     return current_user
 
-def get_current_admin_user(current_user: models.User = Depends(get_current_active_user)) -> models.User:
+async def get_current_admin_user(current_user: models.User = Depends(get_current_active_user)) -> models.User:
     """Security dependency to ensure the current user is an administrator."""
     if not current_user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="The user does not have administrative privileges.")

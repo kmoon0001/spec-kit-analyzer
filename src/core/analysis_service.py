@@ -5,15 +5,14 @@ from src.parsing import parse_document_content
 
 # Import all the necessary services
 from .compliance_analyzer import ComplianceAnalyzer
-from .hybrid_retriever import HybridRetriever
+from .retriever import HybridRetriever
 from .report_generator import ReportGenerator
-from .preprocessing_service import PreprocessingService
 from .document_classifier import DocumentClassifier
 from .llm_service import LLMService
-from .nlg_service import NLGService
 from .ner import NERPipeline
 from .explanation import ExplanationEngine
 from .prompt_manager import PromptManager
+from .fact_checker import FactCheckerService # Make sure this import is present
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +23,9 @@ class AnalysisService:
     The central orchestrator for the entire analysis pipeline.
     Initializes and holds all AI-related services.
     """
-    def __init__(self):
-        logger.info("Initializing AnalysisService and all sub-components...")
+    def __init__(self, retriever: HybridRetriever):
+        logger.info("Initializing AnalysisService with injected retriever...")
+        self.retriever = retriever
         try:
             config_path = os.path.join(ROOT_DIR, "config.yaml")
             with open(config_path, "r") as f:
@@ -38,21 +38,15 @@ class AnalysisService:
                 llm_settings=config.get('llm_settings', {})
             )
 
-            # 2. Initialize all other services, reusing the LLM service where needed
-            retriever = HybridRetriever()
-            ner_pipeline = NERPipeline(model_name=config['models']['ner'])
-            self.preprocessing_service = PreprocessingService()
+            # 2. Initialize all other services
+            fact_checker_service = FactCheckerService(model_name=config['models']['fact_checker'])
+            ner_pipeline = NERPipeline(model_names=config['models']['ner_ensemble'])
             self.report_generator = ReportGenerator()
             explanation_engine = ExplanationEngine()
 
             self.document_classifier = DocumentClassifier(
                 llm_service=llm_service,
                 prompt_template_path=os.path.join(ROOT_DIR, config['models']['doc_classifier_prompt'])
-            )
-            
-            nlg_service = NLGService(
-                llm_service=llm_service,
-                prompt_template_path=os.path.join(ROOT_DIR, config['models']['nlg_prompt_template'])
             )
 
             analysis_prompt_manager = PromptManager(
@@ -61,19 +55,17 @@ class AnalysisService:
 
             # 3. Initialize the main analyzer, passing it the pre-loaded components
             self.analyzer = ComplianceAnalyzer(
-                retriever=retriever,
+                retriever=self.retriever, # Use the injected retriever
                 ner_pipeline=ner_pipeline,
                 llm_service=llm_service,
-                nlg_service=nlg_service,
                 explanation_engine=explanation_engine,
-                prompt_manager=analysis_prompt_manager
+                prompt_manager=analysis_prompt_manager,
+                fact_checker_service=fact_checker_service
             )
             logger.info("AnalysisService initialized successfully.")
 
         except Exception as e:
             logger.error(f"FATAL: Failed to initialize AnalysisService: {e}", exc_info=True)
-            # In a real application, you might want to handle this more gracefully
-            # but for now, we re-raise to make it clear initialization failed.
             raise e
 
     def analyze_document(self, file_path: str, discipline: str, analysis_mode: str) -> str:
@@ -82,7 +74,9 @@ class AnalysisService:
 
         # 1. Parse and preprocess the document text
         document_text = " ".join([chunk['sentence'] for chunk in parse_document_content(file_path)])
-        corrected_text = self.preprocessing_service.correct_text(document_text)
+
+        # Preprocessing step removed as the service is obsolete
+        corrected_text = document_text
 
         # 2. Classify the document type (New Step)
         doc_type = self.document_classifier.classify_document(corrected_text)

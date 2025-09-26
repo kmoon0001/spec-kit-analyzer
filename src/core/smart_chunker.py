@@ -1,6 +1,5 @@
-import nltk  # type: ignore
+import nltk
 import logging
-from typing import Optional, Dict, Any
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -15,9 +14,7 @@ except LookupError:
     nltk.download('punkt_tab', quiet=True)
     logger.info("'punkt' tokenizer downloaded successfully.")
 
-def sentence_window_chunker(
-    text: str, window_size: int = 1, metadata: Optional[Dict[Any, Any]] = None
-):
+def sentence_window_chunker(text: str, window_size: int = 1, metadata: dict | None = None):
     """
     Splits text into sentences and creates chunks with a sliding window of context.
 

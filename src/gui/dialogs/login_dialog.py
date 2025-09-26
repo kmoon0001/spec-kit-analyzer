@@ -1,36 +1,33 @@
 from PyQt6.QtWidgets import (
     QDialog,
-    QVBoxLayout,
-    QLabel,
-    QLineEdit,
-    QPushButton,
     QDialogButtonBox,
+    QFormLayout,
+    QLineEdit,
+    QLabel
 )
 
 class LoginDialog(QDialog):
     """
-    A dialog to get username and password from the user.
+    A mock dialog for user login.
     """
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Login")
-        self.username_input = QLineEdit()
-        self.password_input = QLineEdit()
+
+        self.layout = QFormLayout(self)
+        self.username_input = QLineEdit(self)
+        self.password_input = QLineEdit(self)
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
 
-        layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("Username:"))
-        layout.addWidget(self.username_input)
-        layout.addWidget(QLabel("Password:"))
-        layout.addWidget(self.password_input)
+        self.layout.addRow(QLabel("Username:"), self.username_input)
+        self.layout.addRow(QLabel("Password:"), self.password_input)
 
-        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)
+        self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
 
-    def get_credentials(self) -> tuple[str, str]:
-        """
-        Returns the entered username and password.
-        """
+        self.layout.addWidget(self.button_box)
+
+    def get_credentials(self):
+        """Returns the entered username and password."""
         return self.username_input.text(), self.password_input.text()

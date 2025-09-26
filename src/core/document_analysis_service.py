@@ -1,7 +1,6 @@
 import logging
-from typing import Optional, Dict, Any
 import numpy as np
-import faiss  # type: ignore
+import faiss
 from sentence_transformers import SentenceTransformer
 from src.utils import load_config
 
@@ -56,9 +55,7 @@ class DocumentAnalysisService:
         self.is_index_ready = True
         logger.info(f"Successfully indexed {len(self.chunks)} document chunks.")
 
-    def search(
-        self, query: str, top_k: int = 5, metadata_filter: Optional[Dict[Any, Any]] = None
-    ) -> list[dict]:
+    def search(self, query: str, top_k: int = 5, metadata_filter: dict | None = None) -> list[dict]:
         """
         Performs a FAISS similarity search through the document chunks.
 

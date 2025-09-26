@@ -1,117 +1,103 @@
-import os
-import json
 import logging
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from .hybrid_retriever import HybridRetriever
-from .phi_scrubber import scrub_phi
+from typing import Dict, Any, List
+
+from .llm_service import LLMService
+from .ner import NERPipeline
+from .explanation import ExplanationEngine
+from .prompt_manager import PromptManager
+from .fact_checker_service import FactCheckerService
 
 logger = logging.getLogger(__name__)
+CONFIDENCE_THRESHOLD = 0.7  # Confidence score below which a finding is flagged
 
 class ComplianceAnalyzer:
-    def __init__(self, generator_model_name="nabilfaieaz/tinyllama-med-full"):
-        """
-        Initializes the ComplianceAnalyzer.
-        """
-        logger.info("Initializing ComplianceAnalyzer...")
-        self.retriever = HybridRetriever()
+    """
+    Orchestrates the core compliance analysis of a document by coordinating various services.
+    It receives pre-initialized components and does not load models itself.
+    """
 
-        logger.info(f"Loading generator LLM '{generator_model_name}'...")
-        self.generator_tokenizer = AutoTokenizer.from_pretrained(generator_model_name, revision="f9e026b")
-        self.generator_model = AutoModelForCausalLM.from_pretrained(
-            generator_model_name,
-            revision="f9e026b",
-            load_in_4bit=True,
-            torch_dtype=torch.bfloat16,
-            device_map="auto"
+    def __init__(self, retriever: Any, ner_pipeline: NERPipeline, llm_service: LLMService, 
+                 explanation_engine: ExplanationEngine, prompt_manager: PromptManager, 
+                 fact_checker_service: FactCheckerService):
+        self.retriever = retriever
+        self.ner_pipeline = ner_pipeline
+        self.llm_service = llm_service
+        self.explanation_engine = explanation_engine
+        self.prompt_manager = prompt_manager
+        self.fact_checker_service = fact_checker_service
+        logger.info("ComplianceAnalyzer initialized with all services.")
+
+    def analyze_document(self, document_text: str, discipline: str, doc_type: str) -> Dict[str, Any]:
+        """Analyzes a document for compliance risks using a multi-step pipeline."""
+        logger.info(f"Starting compliance analysis for document type: {doc_type}")
+
+        # 1. Retrieve relevant compliance rules
+        retrieved_rules = self.retriever.retrieve_rules(document_text, discipline=discipline, doc_type=doc_type)
+        logger.info(f"Retrieved {len(retrieved_rules)} rules for analysis.")
+
+        # 2. Extract clinical entities
+        entities = self.ner_pipeline.extract_entities(document_text)
+        entity_list_str = ", ".join(entities) if entities else "No specific entities extracted."
+
+        # 3. Build the prompt for the LLM
+        formatted_rules = self._format_rules_for_prompt(retrieved_rules)
+        prompt = self.prompt_manager.build_prompt(
+            document=document_text,
+            entity_list=entity_list_str,
+            context=formatted_rules
         )
-        logger.info(f"Generator LLM '{generator_model_name}' loaded successfully.")
 
-    def analyze_document(self, document_text: str, discipline: str, analysis_mode: str) -> dict:
-        """
-        Analyzes a document for compliance.
-        """
-        # This is a placeholder implementation.
-        # The original implementation was likely more complex.
-        return {"findings": []}
+        # 4. Get initial analysis from the LLM
+        raw_analysis_result = self.llm_service.generate_text(prompt)
+        initial_analysis = self.llm_service.parse_json_output(raw_analysis_result)
 
-    def _transform_query(self, query: str) -> str:
-        return query
+        # 5. Add explanations to the findings
+        explained_analysis = self.explanation_engine.explain_findings(initial_analysis, retrieved_rules)
 
-    def _format_rules_for_prompt(self, rules: list) -> str:
+        # 6. Post-process findings (fact-checking, confidence, tips)
+        final_analysis = self._post_process_findings(explained_analysis, retrieved_rules)
+        logger.info("Compliance analysis complete.")
+
+        return final_analysis
+
+    def _post_process_findings(self, explained_analysis: Dict[str, Any], retrieved_rules: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Adds flags for disputed findings, low confidence, and generates personalized tips."""
+        if "findings" in explained_analysis:
+            for finding in explained_analysis["findings"]:
+                rule_id = finding.get("rule_id")
+                associated_rule = next((r for r in retrieved_rules if r.get('id') == rule_id), None)
+
+                # Fact-check the finding
+                if associated_rule and not self.fact_checker_service.is_finding_plausible(finding, associated_rule):
+                    finding['is_disputed'] = True
+
+                # Check for low confidence
+                confidence = finding.get("confidence", 1.0)
+                if isinstance(confidence, (float, int)) and confidence < CONFIDENCE_THRESHOLD:
+                    finding['is_low_confidence'] = True
+                
+                # Generate a personalized tip (assuming llm_service has this method as per the merge)
+                try:
+                    tip = self.llm_service.generate_personalized_tip(finding)
+                    finding['personalized_tip'] = tip
+                except AttributeError:
+                     finding['personalized_tip'] = "Tip generation is currently unavailable."
+
+        return explained_analysis
+
+    @staticmethod
+    def _format_rules_for_prompt(rules: List[Dict[str, Any]]) -> str:
+        """Formats a list of rule dictionaries into a string for the LLM prompt."""
         if not rules:
             return "No specific compliance rules were retrieved. Analyze based on general Medicare principles."
+        
         formatted_rules = []
         for rule in rules:
             formatted_rules.append(
-                f"- **Rule:** {getattr(rule, 'issue_title', '')}\n"
-                f"  **Detail:** {getattr(rule, 'issue_detail', '')}\n"
-                f"  **Suggestion:** {getattr(rule, 'suggestion', '')}"
+                f"- **Rule:** {rule.get('issue_title', 'N/A')}
+"
+                f"  **Detail:** {rule.get('issue_detail', 'N/A')}
+"
+                f"  **Suggestion:** {rule.get('suggestion', 'N/A')}"
             )
         return "\n".join(formatted_rules)
-
-    def _build_prompt(self, document: str, entity_list: str, context: str) -> str:
-        """
-        Builds the prompt for the LLM.
-        """
-        return f"""
-You are an expert Medicare compliance officer for a Skilled Nursing Facility (SNF). Your task is to analyze a clinical therapy document for potential compliance risks based on the provided Medicare guidelines.
-
-**Clinical Document:**
----
-{document}
----
-
-**Extracted Clinical Entities:**
----
-{entity_list}
----
-
-**Relevant Medicare Guidelines:**
----
-{context}
----
-
-**Your Task:**
-Based on all the information above, provide a detailed compliance analysis. Identify any potential risks, explain why they are risks according to the retrieved rules, and suggest specific actions to mitigate them. If no risks are found, state that the document appears to be compliant.
-
-**Output Format:**
-Return the analysis as a JSON object with the following structure:
-{{
-  "findings": [
-    {{
-      "text": "<original text from document that contains the finding>",
-      "risk": "<description of the compliance risk based on retrieved rules>",
-      "suggestion": "<suggestion to mitigate the risk>"
-    }}
-  ]
-}}
-
-**Compliance Analysis:**
-"""
-
-    def _parse_json_output(self, result: str) -> dict:
-        """
-        Parses JSON output from the model with robust error handling.
-        """
-        try:
-            # First try to find JSON wrapped in code blocks
-            json_start = result.find('```json')
-            if json_start != -1:
-                json_str = result[json_start + 7:].strip()
-                json_end = json_str.rfind('```')
-                if json_end != -1:
-                    json_str = json_str[:json_end].strip()
-            else:
-                # Fall back to finding raw JSON braces
-                json_start = result.find('{')
-                json_end = result.rfind('}') + 1
-                json_str = result[json_start:json_end]
-
-            analysis = json.loads(json_str)
-            return analysis
-
-        except (json.JSONDecodeError, IndexError, ValueError) as e:
-            logger.error(f"Error parsing JSON output: {e}\\nRaw model output:\\n{result}")
-            analysis = {"error": "Failed to parse JSON output from model."}
-            return analysis

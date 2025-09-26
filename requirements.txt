@@ -4,6 +4,7 @@ uvicorn
 gunicorn
 slowapi
 requests
+httpx
 
 # GUI
 PyQt6
@@ -34,7 +35,9 @@ pyspellchecker
 
 # Database
 SQLAlchemy
- 
+rdflib
+aiosqlite
+
 # Security & Auth
 passlib[bcrypt]
 python-multipart
@@ -45,9 +48,12 @@ python-jose[cryptography]
 numpy
 scipy
 
+# Scheduling
+apscheduler
+tenacity
+
 # Testing
 pytest
 pytest-mock
 pytest-qt
-httpx
-pytesseract
+pytest-asyncio

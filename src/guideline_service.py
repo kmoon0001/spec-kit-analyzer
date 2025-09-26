@@ -72,9 +72,19 @@ class GuidelineService:
 
         # Check if the sources have changed
         with open(self.chunks_path, 'rb') as f:
+<<<<<<< HEAD
             cached_chunks = joblib.load(f)
+        cached_sources = {chunk[1] for chunk in cached_chunks}
+        current_sources = {os.path.basename(path) for path in self.source_paths}
+||||||| 24e8eb0
+            cached_chunks = pickle.load(f)
         cached_sources = set(chunk[1] for chunk in cached_chunks)
         current_sources = set(os.path.basename(path) for path in self.source_paths)
+=======
+            cached_chunks = pickle.load(f)
+        cached_sources = {chunk[1] for chunk in cached_chunks}
+        current_sources = {os.path.basename(path) for path in self.source_paths}
+>>>>>>> origin/main
         if cached_sources != current_sources:
             return False
 
@@ -219,3 +229,9 @@ class GuidelineService:
                 results.append({"text": chunk[0], "source": chunk[1], "score": dist})
 
         return results
+
+def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
+    """
+    Mock function to parse a guideline file. Returns an empty list.
+    """
+    return []

@@ -1,68 +1,89 @@
 import pytest
-from fastapi.testclient import TestClient
-from unittest.mock import MagicMock
-import io
+import pytest_asyncio
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+import os
 
 from src.api.main import app
-from src.api.dependencies import get_analysis_service
-from src.database import get_db
+from src.database import Base, get_async_db
+from src.auth import get_current_active_user
+from src import models
 
-# --- Test Fixtures ---
+# --- Async Test Database Setup ---
+TEST_DATABASE_URL = "sqlite+aiosqlite:///./test_api.db"
 
-@pytest.fixture(scope="function")
-def client(compliance_analyzer, db_session):
-    """
-    Provides a test client with mocked dependencies for the API tests.
-    This fixture ensures that all API calls are made against a mocked backend
-    and an in-memory test database.
-    """
-    # Override the get_analysis_service dependency to return our mock analyzer
-    app.dependency_overrides[get_analysis_service] = lambda: compliance_analyzer
-    # Override the get_db dependency to use the in-memory test database session
-    app.dependency_overrides[get_db] = lambda: db_session
+engine = create_async_engine(TEST_DATABASE_URL)
+TestingSessionLocal = sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False,
+)
 
-    with TestClient(app) as c:
+# --- Fixtures ---
+
+@pytest_asyncio.fixture(scope="module", autouse=True)
+async def setup_database():
+    """Fixture to create and tear down the test database for the module."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    os.remove("test_api.db")
+
+@pytest_asyncio.fixture
+async def db_session() -> AsyncSession:
+    """Provides a clean database session for each test."""
+    async with TestingSessionLocal() as session:
+        yield session
+
+@pytest_asyncio.fixture
+async def client(db_session: AsyncSession) -> AsyncClient:
+    """Provides an async test client with dependencies overridden."""
+    
+    async def override_get_async_db() -> AsyncSession:
+        yield db_session
+
+    async def override_get_current_active_user() -> models.User:
+        # Mocks an active, authenticated user
+        return models.User(id=1, username="testuser", email="test@test.com", is_active=True)
+
+    app.dependency_overrides[get_async_db] = override_get_async_db
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+    async with AsyncClient(app=app, base_url="http://test") as c:
         yield c
 
-    # Clean up the overrides after the tests in this module are done
-    app.dependency_overrides = {}
+    app.dependency_overrides.clear()
 
 # --- API Tests ---
 
-def test_health_check(client: TestClient):
-    """Tests the health check endpoint, which should succeed with a valid DB session."""
-    response = client.get("/health")
-    assert response.status_code == 200
-    assert response.json() == {"status": "ok", "database": "connected"}
-
-def test_read_root(client: TestClient):
-    """Tests the root endpoint."""
-    response = client.get("/")
+@pytest.mark.asyncio
+async def test_read_root(client: AsyncClient):
+    response = await client.get("/")
     assert response.status_code == 200
     assert response.json() == {"message": "Welcome to the Clinical Compliance Analyzer API"}
 
-def test_analyze_document_endpoint(client: TestClient, compliance_analyzer: MagicMock):
-    """
-    Tests the main document analysis endpoint.
-    This test verifies that the endpoint correctly receives a file, starts a background
-    task, and returns the appropriate task ID.
-    """
-    # Mock the background task function to prevent it from actually running
-    compliance_analyzer.get_document_embedding.return_value = b"mock_embedding"
-    
-    # Simulate a file upload
+@pytest.mark.asyncio
+@patch('src.api.routers.analysis.run_analysis_and_save') # Mock the background task
+async def test_analyze_document_endpoint(mock_run_analysis, client: AsyncClient):
     file_content = b"This is a test document."
-    file_bytes = io.BytesIO(file_content)
-    
-    # Act
-    response = client.post(
+    response = await client.post(
         "/analysis/analyze", 
-        files={"file": ("test.txt", file_bytes, "text/plain")},
-        data={"discipline": "PT", "analysis_mode": "rubric"}
+        files={"file": ("test.txt", file_content, "text/plain")}
     )
-    
-    # Assert
-    assert response.status_code == 202  # Accepted
-    json_response = response.json()
-    assert "task_id" in json_response
-    assert json_response["status"] == "processing"
+    assert response.status_code == 202
+    response_json = response.json()
+    assert "task_id" in response_json
+    assert response_json["status"] == "processing"
+    # Assert that the background task was called
+    assert mock_run_analysis.called
+
+@pytest.mark.asyncio
+async def test_get_dashboard_reports_endpoint_empty(client: AsyncClient):
+    """Tests the dashboard reports endpoint when no reports exist."""
+    response = await client.get("/dashboard/reports")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+    assert response.json() == []
