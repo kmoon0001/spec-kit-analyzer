@@ -13,7 +13,8 @@ import pdfplumber
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
-from src.utils import load_config
+from ..config import get_config
+from ..parsing import parse_guideline_file
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +28,8 @@ class GuidelineService:
         """
         Initializes the GuidelineService.
         """
-        self.config = load_config()
-        model_name = self.config['models']['retriever']
+        self.config = get_config()
+        model_name = self.config.models.retriever
 
         self.guideline_chunks: List[Tuple[str, str]] = []
         self.is_index_ready = False
@@ -196,7 +197,7 @@ class GuidelineService:
         Performs a FAISS similarity search through the loaded guidelines.
         """
         if top_k is None:
-            top_k = self.config['retrieval_settings']['similarity_top_k']
+            top_k = self.config.retrieval_settings.similarity_top_k
 
         if not self.is_index_ready or not self.faiss_index:
             logger.warning("Search called before guidelines were loaded and indexed.")
@@ -220,8 +221,3 @@ class GuidelineService:
 
         return results
 
-def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
-    """
-    Mock function to parse a guideline file. Returns an empty list.
-    """
-    return []

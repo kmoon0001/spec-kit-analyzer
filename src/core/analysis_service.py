@@ -1,9 +1,11 @@
 import os
-import yaml
 import logging
 import pickle
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+from sqlalchemy.orm import Session
 
+from src.config import get_config
+from src.database import SessionLocal
 from src.parsing import parse_document_content
 
 # Corrected imports to reflect refactoring
@@ -17,11 +19,7 @@ from .ner import NERPipeline
 from .explanation import ExplanationEngine
 from .prompt_manager import PromptManager
 from .fact_checker_service import FactCheckerService
-
-# Placeholders for services that might be missing files or have constructor mismatches
-# This avoids causing immediate new errors and allows us to focus on one problem at a time.
-class PreprocessingService:
-    def correct_text(self, text): return text
+from .preprocessing_service import PreprocessingService
 
 logger = logging.getLogger(__name__)
 
@@ -33,39 +31,42 @@ class AnalysisService:
     The central orchestrator for the entire analysis pipeline.
     Initializes and holds all AI-related services.
     """
-    def __init__(self):
+    def __init__(self, db: Optional[Session] = None):
         logger.info("Initializing AnalysisService and all sub-components...")
+        self.db = db
+        self._session_managed_internally = False
         try:
-            config_path = os.path.join(ROOT_DIR, "config.yaml")
-            with open(config_path, "r") as f:
-                config = yaml.safe_load(f)
+            # If no db session is provided, create a new one.
+            # The service is responsible for closing this session.
+            if self.db is None:
+                self.db = SessionLocal()
+                self._session_managed_internally = True
 
-            # 1. Initialize services
+            config = get_config()
+
+            # 1. Initialize services, passing the database session where needed
             llm_service = LLMService(
-                model_repo_id=config['models']['generator'],
-                model_filename=config['models'].get('generator_filename'),
-                llm_settings=config.get('llm_settings', {})
+                model_repo_id=config.models.generator,
+                model_filename=config.models.generator_filename,
+                llm_settings=config.llm_settings
             )
-            self.fact_checker_service = FactCheckerService(model_name=config['models']['fact_checker'])
-            # Temporarily adjust constructor call to match placeholder
-            self.ner_pipeline = NERPipeline(model_name="placeholder_for_ensemble")
-            self.retriever = HybridRetriever()
+            self.fact_checker_service = FactCheckerService(model_name=config.models.fact_checker)
+            self.ner_pipeline = NERPipeline(model_name=config.models.ner_primary_model)
+            self.retriever = HybridRetriever(db=self.db) # Pass the session
             self.preprocessing_service = PreprocessingService()
             self.report_generator = ReportGenerator()
             self.explanation_engine = ExplanationEngine()
 
             self.document_classifier = DocumentClassifier(
                 llm_service=llm_service,
-                prompt_template_path=os.path.join(ROOT_DIR, config['models']['doc_classifier_prompt'])
+                prompt_template_path=os.path.join(ROOT_DIR, config.models.doc_classifier_prompt)
             )
-            # Temporarily adjust constructor call to match placeholder
-            self.nlg_service = NLGService(model_name="placeholder_nlg")
+            self.nlg_service = NLGService(llm_service=llm_service, prompt_template_path=os.path.join(ROOT_DIR, config.models.nlg_prompt_template))
 
             analysis_prompt_manager = PromptManager(
-                template_path=os.path.join(ROOT_DIR, config['models']['analysis_prompt_template'])
+                template_path=os.path.join(ROOT_DIR, config.models.analysis_prompt_template)
             )
 
-            # 2. Initialize the new LLM analyzer instead of the old one
             self.llm_analyzer = LLMComplianceAnalyzer(
                 llm_service=llm_service,
                 prompt_manager=analysis_prompt_manager,
@@ -74,7 +75,20 @@ class AnalysisService:
 
         except Exception as e:
             logger.error(f"FATAL: Failed to initialize AnalysisService: {e}", exc_info=True)
+            self.close() # Clean up the session if an error occurs
             raise e
+
+    def close(self):
+        """Closes the database session if it was created by this service."""
+        if self._session_managed_internally and self.db:
+            self.db.close()
+            logger.info("Database session closed by AnalysisService.")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
     def get_document_embedding(self, text: str) -> bytes:
         if not self.retriever or not self.retriever.dense_retriever:
@@ -124,4 +138,4 @@ class AnalysisService:
     def _format_rules_for_prompt(self, rules: List[Dict[str, Any]]) -> str:
         if not rules:
             return "No specific compliance rules were retrieved. Analyze based on general Medicare principles."
-        return "\n".join([f"- Title: {r.get('name', '')}, Content: {r.g_et('content', '')}" for r in rules])
+        return "\n".join([f"- Title: {r.get('name', '')}, Content: {r.get('content', '')}" for r in rules])

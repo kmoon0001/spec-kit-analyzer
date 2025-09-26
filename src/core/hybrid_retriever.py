@@ -5,8 +5,8 @@ from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import cos_sim
 from typing import List, Dict
 
+from sqlalchemy.orm import Session
 # Import the database components needed to fetch rules
-from ..database import SessionLocal
 from .. import crud
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -16,11 +16,11 @@ class HybridRetriever:
     A retriever that uses a hybrid of keyword-based (BM25) and semantic (dense)
     search to find relevant compliance rules from the application DATABASE.
     """
-    def __init__(self, dense_model_name='pritamdeka/S-PubMedBert-MS-MARCO'):
+    def __init__(self, db: Session, dense_model_name='pritamdeka/S-PubMedBert-MS-MARCO'):
         logging.info("Initializing Hybrid Retriever...")
 
         # 1. Load rules directly from the database
-        self.rules = self._load_rules_from_db()
+        self.rules = self._load_rules_from_db(db)
         if not self.rules:
             logging.warning("No rules loaded from the database. Retriever will be empty.")
             self.corpus = []
@@ -46,12 +46,9 @@ class HybridRetriever:
         self.corpus_embeddings = self.dense_retriever.encode(self.corpus, convert_to_tensor=True)
         logging.info("Hybrid Retriever initialized successfully.")
 
-    @staticmethod
-    def _load_rules_from_db() -> List[Dict]:
-        """Fetches all rubrics from the database on startup."""
-        db = None
+    def _load_rules_from_db(self, db: Session) -> List[Dict]:
+        """Fetches all rubrics from the database using the provided session."""
         try:
-            db = SessionLocal()
             # Use the crud function to get all rubrics
             rubric_models = crud.get_rubrics(db, limit=1000) # Get up to 1000 rubrics
             # Convert the SQLAlchemy models to simple dictionaries
@@ -59,9 +56,6 @@ class HybridRetriever:
         except Exception as e:
             logging.error(f"Failed to load rules from database: {e}", exc_info=True)
             return []
-        finally:
-            if db:
-                db.close()
 
     def retrieve(self, query: str, top_k: int = 5, **kwargs) -> List[Dict]:
         """

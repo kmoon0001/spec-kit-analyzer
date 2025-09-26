@@ -6,9 +6,9 @@ import numpy as np
 # The patch targets are now pointing to where the objects are *used*, not where they are defined.
 @pytest.fixture(autouse=True, scope="module")
 def mock_heavy_dependencies():
-    with patch('src.guideline_service.SentenceTransformer') as mock_st, \
-         patch('src.guideline_service.faiss') as mock_faiss, \
-         patch('src.guideline_service.parse_guideline_file') as mock_parse:
+    with patch('src.core.guideline_service.SentenceTransformer') as mock_st, \
+         patch('src.core.guideline_service.faiss') as mock_faiss, \
+         patch('src.core.guideline_service.parse_guideline_file') as mock_parse:
 
         # Configure mock instances and their methods
         mock_model_instance = MagicMock()
@@ -31,7 +31,7 @@ def mock_heavy_dependencies():
 @pytest.fixture
 def guideline_service():
     """Provides a GuidelineService instance for testing with mocked dependencies."""
-    from src.guideline_service import GuidelineService
+    from src.core.guideline_service import GuidelineService
 
     service = GuidelineService(sources=["dummy_source.txt"])
     # Manually set the index as ready since _load_or_build_index is effectively mocked

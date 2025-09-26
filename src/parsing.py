@@ -108,3 +108,24 @@ def parse_document_into_sections(document_text: str) -> Dict[str, str]:
         sections[current_section] = " ".join(current_text).strip()
 
     return sections
+
+
+def parse_guideline_file(file_path: str) -> List[Dict[str, str]]:
+    """
+    Parses a guideline text file into a list of dictionaries.
+    Each dictionary represents a chunk of text.
+    """
+    logger.info(f"Parsing guideline file: {file_path}")
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            text = f.read()
+        # For now, treat the whole file as a single chunk.
+        return [{'text': text, 'source': os.path.basename(file_path)}]
+    except FileNotFoundError:
+        error_message = f"Error: Guideline file not found at {file_path}"
+        logger.error(error_message)
+        return []
+    except Exception as e:
+        error_message = f"Error parsing guideline file '{os.path.basename(file_path)}': {e}"
+        logger.error(error_message, exc_info=True)
+        return []

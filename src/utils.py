@@ -1,5 +1,4 @@
 import os
-import yaml
 from typing import List
 
 # Get the absolute path to the project's root directory
@@ -31,11 +30,3 @@ def chunk_text(text: str, max_chars: int = 4000) -> List[str]:
         start_index = end_index
 
     return chunks
-
-def load_config():
-    """Loads the application configuration from config.yaml."""
-    # Correct the path to point to the project root, not the 'src' directory
-    project_root = os.path.dirname(ROOT_DIR)
-    config_path = os.path.join(project_root, "config.yaml")
-    with open(config_path, 'r') as f:
-        return yaml.safe_load(f)

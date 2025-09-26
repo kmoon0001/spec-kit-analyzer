@@ -1,63 +1,81 @@
-import os
-import sys
 import pytest
-from types import SimpleNamespace
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
-# Ensure the src directory is in the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from src.core.analysis_service import AnalysisService
+from src.database import Base
+from src.models import Rubric
 
-from src.main import run_analyzer, LocalRAG, GuidelineService, RubricService, _generate_suggested_questions, nlp
-from src.llm_analyzer import run_llm_analysis
+# --- In-Memory Database Setup for E2E Test ---
 
-@pytest.mark.timeout(600)
-def test_analyzer_logic_e2e():
+@pytest.fixture(scope="module")
+def seeded_db_session():
     """
-    Tests the core analysis logic end-to-end without loading the GUI.
+    A fixture that creates and seeds a completely isolated, in-memory SQLite database,
+    and yields the session for use in tests. This is the most robust way to test
+    database-dependent services.
     """
-    # 1. Create a mock main window object. It just needs to hold the services.
-    mock_window = SimpleNamespace()
-    mock_window.log = lambda x: print(x) # A simple logger
+    engine = create_engine("sqlite:///:memory:")
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-    # 2. Initialize the RAG and Guideline services, which happens in the background in the real app.
-    # NOTE: This will download AI models on the first run and may take a few minutes.
-    print("Loading AI models...")
-    mock_window.local_rag = LocalRAG(model_repo_id="TheBloke/Mistral-7B-Instruct-v0.2-GGUF", model_filename="mistral-7b-instruct-v0.2.Q4_K_M.gguf")
-    assert mock_window.local_rag.is_ready()
+    Base.metadata.create_all(bind=engine)
+    db = TestingSessionLocal()
 
-    print("Loading and indexing guidelines...")
-    mock_window.guideline_service = GuidelineService(mock_window.local_rag)
-    mock_window.guideline_service.load_and_index_guidelines(["test_data/static_guidelines.txt"])
-    assert mock_window.guideline_service.is_index_ready
-    print("Models and guidelines loaded.")
+    test_rubrics = [
+        Rubric(name="Goal Specificity", content="Goals must be measurable and specific, not vague like 'get stronger'."),
+        Rubric(name="Signature Missing", content="All documents must be signed by the therapist."),
+        Rubric(name="Untimed Codes", content="Each CPT code must have the total time spent documented."),
+    ]
 
-    # 3. Define the parameters for the analysis run.
-    test_file = os.path.abspath("test_data/bad_note_1.txt")
-    disciplines = ['pt', 'ot', 'slp']
+    try:
+        db.add_all(test_rubrics)
+        db.commit()
+        print("\n--- In-Memory E2E Database Seeded ---")
+        yield db
+    finally:
+        print("\n--- In-Memory E2E Database Cleanup ---")
+        db.close()
+        Base.metadata.drop_all(bind=engine)
 
-    # 4. Run the analyzer function directly.
-    print(f"Starting analysis on {test_file}...")
-    results = run_analyzer(
-        file_path=test_file,
-        selected_disciplines=disciplines,
-        main_window_instance=mock_window
-    )
-    print("Analysis complete.")
+@pytest.mark.e2e
+def test_e2e_analysis_on_bad_note(seeded_db_session):
+    """
+    Tests the full analysis pipeline end-to-end using a self-contained,
+    in-memory database.
+    """
+    # 1. Initialize the AnalysisService directly with the seeded in-memory database session.
+    #    This ensures the service and all its sub-components use the test's isolated database.
+    try:
+        service = AnalysisService(db=seeded_db_session)
+    except Exception as e:
+        pytest.fail(f"Failed to initialize the core AnalysisService: {e}")
 
-    # 5. Assert that the results are valid and contain our new features.
-    assert results is not None, "Analysis did not produce any results."
+    # 2. Define the path to the test document and ensure it exists
+    test_file_path = os.path.abspath("test_data/bad_note_1.txt")
+    assert os.path.exists(test_file_path), f"Test file not found at: {test_file_path}"
 
-    issues = results.get("issues", [])
-    assert len(issues) > 0, "The LLM-based analysis failed to find any issues in the bad note."
+    # 3. Run the analysis on the document
+    results = service.analyze_document(file_path=test_file_path, discipline="PT")
 
-    first_issue = issues[0]
-    assert "reasoning" in first_issue, "The issue dictionary is missing the 'reasoning' field from the LLM."
-    assert len(first_issue["reasoning"]) > 0, "The 'reasoning' field is empty."
+    # 4. Assert that the analysis produced a valid, non-empty result
+    assert results is not None, "The analysis service returned None."
+    assert "findings" in results, f"The 'findings' key is missing from the analysis results. Got: {results}"
 
-    assert "confidence" in first_issue, "The issue is missing a 'confidence' score."
-    assert isinstance(first_issue["confidence"], float)
+    findings = results["findings"]
+    assert isinstance(findings, list), "The 'findings' should be a list."
+    assert len(findings) > 0, "No compliance findings were returned for a document known to have issues."
 
-    print("\n--- Verification Summary ---")
-    print(f"Found {len(issues)} issues.")
-    print(f"Reasoning for first issue ('{first_issue['title']}'): {first_issue['reasoning']}")
-    print("End-to-end logic test passed successfully.")
-    print("--------------------------")
+    # 5. Assert the structure of the findings
+    first_finding = findings[0]
+    assert "text" in first_finding
+    assert "risk" in first_finding
+    assert "suggestion" in first_finding
+    assert "confidence" in first_finding
+    assert "personalized_tip" in first_finding
+
+    print(f"\nE2E Test Passed: Found {len(findings)} findings in the test document.")
+    print(f"First finding: {first_finding['risk']}")
+
+    # Close the service to release the database connection
+    service.close()

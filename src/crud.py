@@ -95,6 +95,6 @@ def delete_reports_older_than(db: Session, days: int) -> int:
 
 def get_rubrics(db: Session, limit: int = 1000):
     """
-    Mock function to get rubrics. Returns an empty list.
+    Retrieves all rubrics from the database.
     """
-    return []
+    return db.query(models.Rubric).limit(limit).all()

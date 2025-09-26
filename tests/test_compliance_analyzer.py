@@ -16,52 +16,42 @@ def mock_prompt_manager():
     return pm
 
 @pytest.fixture
-def llm_service_with_mocked_model():
+def mock_llm_service():
     """
-    This fixture is the key to preventing the model download.
-    It patches the 'from_pretrained' method in the ctransformers library
-    so that it returns a mock object instead of downloading a real model.
+    Mocks the LLMService to prevent model downloads and control its behavior.
+    This is a more robust way to mock the service for these specific tests.
     """
-    # Patch the method that downloads the model
-    with patch('ctransformers.AutoModelForCausalLM.from_pretrained') as mock_from_pretrained:
-        # The mock model needs to be callable to simulate generation
-        mock_llm = MagicMock()
-        mock_llm.return_value = '{"findings": [{"text": "Mocked LLM analysis."}]}'
-        mock_from_pretrained.return_value = mock_llm
+    # We create a mock instance of the service, specifying the class to ensure
+    # that the mock has the same methods and properties as the real service.
+    service = MagicMock(spec=LLMService)
+    # We configure the return value of the method that is called by the analyzer.
+    service.generate_analysis.return_value = '{"findings": [{"text": "Mocked LLM analysis."}]}'
+    yield service
 
-        # Now, instantiate the real LLMService. It will use the mocked download method.
-        llm_service = LLMService(
-            model_repo_id="TheBloke/Fake-Model-GGUF", # Fake model
-            model_filename="fake-model.gguf",
-            llm_settings={'generation_params': {}}
-        )
-        # We can also mock the generate_analysis method directly if we want more control
-        llm_service.generate_analysis = MagicMock(return_value='{"findings": [{"text": "Mocked LLM analysis."}]}')
-        yield llm_service
 
 # --- Tests ---
 
-def test_llm_compliance_analyzer_initialization(llm_service_with_mocked_model, mock_prompt_manager):
+def test_llm_compliance_analyzer_initialization(mock_llm_service, mock_prompt_manager):
     """
     Tests that the LLMComplianceAnalyzer correctly initializes with its dependencies.
     """
     # Act
     analyzer = LLMComplianceAnalyzer(
-        llm_service=llm_service_with_mocked_model,
+        llm_service=mock_llm_service,
         prompt_manager=mock_prompt_manager
     )
     
     # Assert
-    assert analyzer.llm_service is llm_service_with_mocked_model
+    assert analyzer.llm_service is mock_llm_service
     assert analyzer.prompt_manager is mock_prompt_manager
 
-def test_analyze_document_orchestration(llm_service_with_mocked_model, mock_prompt_manager):
+def test_analyze_document_orchestration(mock_llm_service, mock_prompt_manager):
     """
-    Tests that analyze_document correctly orchestrates calls to its dependencies (prompt manager and llm service).
+    Tests that analyze_document correctly orchestrates calls to its dependencies.
     """
     # Arrange
     analyzer = LLMComplianceAnalyzer(
-        llm_service=llm_service_with_mocked_model,
+        llm_service=mock_llm_service,
         prompt_manager=mock_prompt_manager
     )
     
@@ -76,7 +66,7 @@ def test_analyze_document_orchestration(llm_service_with_mocked_model, mock_prom
     )
 
     # 2. Verify that the llm_service was called with the generated prompt
-    llm_service_with_mocked_model.generate_analysis.assert_called_once_with("This is a formatted prompt.")
+    mock_llm_service.generate_analysis.assert_called_once_with("This is a formatted prompt.")
 
     # 3. Verify the result is the parsed JSON from the mocked LLM
     assert "findings" in result

@@ -1,88 +1,84 @@
 import pytest
 from unittest.mock import patch, MagicMock
 import os
-import sys
 
-# Ensure the src directory is in the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-# Mock all the modules that are either missing or we want to isolate
-MOCK_MODULES = {
-    'src.core.nlg_service': MagicMock(),
-    'src.core.preprocessing_service': MagicMock(),
-    'src.core.risk_scoring_service': MagicMock(),
-    'src.parsing': MagicMock(),
-    'yaml': MagicMock(),
-    'src.core.compliance_analyzer': MagicMock(),
-    'src.core.hybrid_retriever': MagicMock(),
-    'src.core.report_generator': MagicMock(),
-    'src.core.document_classifier': MagicMock(),
-    'src.core.llm_service': MagicMock(),
-    'src.core.ner': MagicMock(),
-    'src.core.explanation': MagicMock(),
-    'src.core.prompt_manager': MagicMock(),
-    'src.core.fact_checker_service': MagicMock(),
-}
-
-# Apply the mocks
-for module, mock in MOCK_MODULES.items():
-    sys.modules[module] = mock
-
-# Now we can import the service
+# We need to import the class to be tested
 from src.core.analysis_service import AnalysisService
 
-@pytest.fixture(autouse=True)
-def reset_mocks():
-    """Reset mocks before each test to ensure isolation."""
-    for mock in MOCK_MODULES.values():
-        mock.reset_mock()
+@pytest.fixture
+def mock_all_sub_services():
+    """A fixture to mock all dependencies of AnalysisService for isolated testing."""
 
-def test_analysis_service_orchestration():
+    # Define a mock config object that mimics the structure of AppConfig
+    mock_config = MagicMock()
+    mock_config.models.generator = "dummy_generator"
+    mock_config.models.generator_filename = "dummy_generator.gguf"
+    mock_config.models.fact_checker = "dummy_fact_checker"
+    mock_config.models.ner_ensemble = ["dummy_ner_model"]
+    mock_config.models.doc_classifier_prompt = "dummy_doc_prompt.txt"
+    mock_config.models.nlg_prompt_template = "dummy_nlg_template.txt"
+    mock_config.models.analysis_prompt_template = "dummy_analysis_template.txt"
+    mock_config.llm_settings = {}
+
+    with patch('src.core.analysis_service.get_config', return_value=mock_config) as mock_get_config, \
+         patch('src.core.analysis_service.LLMService') as mock_LLMService, \
+         patch('src.core.analysis_service.FactCheckerService') as mock_FactCheckerService, \
+         patch('src.core.analysis_service.NERPipeline') as mock_NERPipeline, \
+         patch('src.core.analysis_service.HybridRetriever') as mock_HybridRetriever, \
+         patch('src.core.analysis_service.PreprocessingService') as mock_PreprocessingService, \
+         patch('src.core.analysis_service.ReportGenerator') as mock_ReportGenerator, \
+         patch('src.core.analysis_service.ExplanationEngine') as mock_ExplanationEngine, \
+         patch('src.core.analysis_service.DocumentClassifier') as mock_DocumentClassifier, \
+         patch('src.core.analysis_service.NLGService') as mock_NLGService, \
+         patch('src.core.analysis_service.PromptManager') as mock_PromptManager, \
+         patch('src.core.analysis_service.LLMComplianceAnalyzer') as mock_LLMComplianceAnalyzer, \
+         patch('src.core.analysis_service.parse_document_content') as mock_parse_document_content:
+
+        # This dictionary will hold the instances of the mocks, not the classes
+        mocks = {
+            'get_config': mock_get_config,
+            'LLMService': mock_LLMService.return_value,
+            'FactCheckerService': mock_FactCheckerService.return_value,
+            'NERPipeline': mock_NERPipeline.return_value,
+            'HybridRetriever': mock_HybridRetriever.return_value,
+            'PreprocessingService': mock_PreprocessingService.return_value,
+            'ReportGenerator': mock_ReportGenerator.return_value,
+            'ExplanationEngine': mock_ExplanationEngine.return_value,
+            'DocumentClassifier': mock_DocumentClassifier.return_value,
+            'NLGService': mock_NLGService.return_value,
+            'PromptManager': mock_PromptManager.return_value,
+            'LLMComplianceAnalyzer': mock_LLMComplianceAnalyzer.return_value,
+            'parse_document_content': mock_parse_document_content
+        }
+        yield mocks
+
+def test_analysis_service_orchestration(mock_all_sub_services):
     """
-    Tests the AnalysisService's orchestration logic in isolation.
+    Tests that AnalysisService.analyze_document correctly orchestrates its sub-components.
     """
-    # 1. Arrange: Configure the mocks to simulate a successful analysis
+    # Arrange: Configure the return values of the mocked dependencies
+    mock_all_sub_services['parse_document_content'].return_value = [{'sentence': 'This is a test.'}]
+    mock_all_sub_services['PreprocessingService'].correct_text.return_value = "This is a corrected test."
+    mock_all_sub_services['DocumentClassifier'].classify_document.return_value = "Test Note"
+    mock_all_sub_services['HybridRetriever'].retrieve.return_value = [] # empty rules
+    mock_all_sub_services['LLMComplianceAnalyzer'].analyze_document.return_value = {"findings": ["finding1"]}
+    mock_all_sub_services['ExplanationEngine'].add_explanations.return_value = {"findings": [{"confidence": 0.9, "rule_id": "123"}]}
+    mock_all_sub_services['FactCheckerService'].is_finding_plausible.return_value = True
+    mock_all_sub_services['NLGService'].generate_personalized_tip.return_value = "A helpful tip."
 
-    # Mock the return value of yaml.safe_load
-    MOCK_MODULES['yaml'].safe_load.return_value = {'models': {
-        'generator': 'mock_generator', 'fact_checker': 'mock_fact_checker',
-        'ner_ensemble': ['mock_ner'], 'doc_classifier_prompt': 'mock_prompt',
-        'nlg_prompt_template': 'mock_template', 'analysis_prompt_template': 'mock_template'
-    }}
-
-    # Mock the return value of the parsing function
-    MOCK_MODULES['src.parsing'].parse_document_content.return_value = [{'sentence': 'This is a test.'}]
-
-    # Get the mock instances that will be created inside AnalysisService
-    mock_preprocessor = MOCK_MODULES['src.core.preprocessing_service'].PreprocessingService.return_value
-    mock_doc_classifier = MOCK_MODULES['src.core.document_classifier'].DocumentClassifier.return_value
-    mock_analyzer = MOCK_MODULES['src.core.compliance_analyzer'].ComplianceAnalyzer.return_value
-
-    # Configure the behavior of the mocked instances
-    mock_preprocessor.correct_text.return_value = "This is a corrected test."
-    mock_doc_classifier.classify_document.return_value = "Test Note"
-    mock_analyzer.analyze_document.return_value = {"status": "success", "findings": ["finding1"]}
-
-    # Create a dummy file for the service to "read"
-    test_file_path = "test_data/fake_note.txt"
-    os.makedirs(os.path.dirname(test_file_path), exist_ok=True)
-    with open(test_file_path, "w") as f:
-        f.write("This is a test document.")
-
-    # 2. Act: Instantiate the AnalysisService and run the analysis
+    # Act: Instantiate the service. Its __init__ method will now use all the mocks.
     service = AnalysisService()
-    result = service.analyze_document(file_path=test_file_path, discipline="ot")
+    result = service.analyze_document(file_path="fake/doc.txt", discipline="PT")
 
-    # 3. Assert: Verify the orchestration flow
-    MOCK_MODULES['src.parsing'].parse_document_content.assert_called_once_with(test_file_path)
-    mock_preprocessor.correct_text.assert_called_once_with("This is a test.")
-    mock_doc_classifier.classify_document.assert_called_once_with("This is a corrected test.")
-    mock_analyzer.analyze_document.assert_called_once_with(
-        document_text="This is a corrected test.",
-        discipline="ot",
-        doc_type="Test Note"
-    )
-    assert result == {"status": "success", "findings": ["finding1"]}
+    # Assert: Verify that the orchestration logic calls the correct methods
+    mock_all_sub_services['parse_document_content'].assert_called_once_with("fake/doc.txt")
+    mock_all_sub_services['PreprocessingService'].correct_text.assert_called_once_with("This is a test.")
+    mock_all_sub_services['DocumentClassifier'].classify_document.assert_called_once_with("This is a corrected test.")
+    mock_all_sub_services['HybridRetriever'].retrieve.assert_called_once()
+    mock_all_sub_services['LLMComplianceAnalyzer'].analyze_document.assert_called_once()
+    mock_all_sub_services['ExplanationEngine'].add_explanations.assert_called_once()
+    mock_all_sub_services['NLGService'].generate_personalized_tip.assert_called_once()
 
-    # Clean up the dummy file
-    os.remove(test_file_path)
+    # Check final result structure
+    assert "findings" in result
+    assert "personalized_tip" in result["findings"][0]
