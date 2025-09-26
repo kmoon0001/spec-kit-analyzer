@@ -8,9 +8,7 @@ httpx
 
 # GUI
 PyQt6
-PyQt6-WebEngine
 matplotlib
-pytesseract
 
 # Data & Parsing
 pdfplumber
@@ -53,4 +51,5 @@ apscheduler
 # Testing
 pytest
 pytest-mock
-pytest-qt
+httpx
+pytesseract
