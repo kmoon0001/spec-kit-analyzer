@@ -1,14 +1,14 @@
 import time
 import requests
-from PyQt6.QtCore import QObject, pyqtSignal as Signal
+from PyQt6.QtCore import QObject, pyqtSignal
 
 API_URL = "http://127.0.0.1:8000"
 
 class FolderAnalysisWorker(QObject):
-    finished = Signal()  # type: ignore[attr-defined]
-    error = Signal(str)  # type: ignore[attr-defined]
-    success = Signal(str)  # type: ignore[attr-defined]
-    progress = Signal(int)  # type: ignore[attr-defined]
+    finished = pyqtSignal()
+    error = pyqtSignal(str)
+    success = pyqtSignal(str)
+    progress = pyqtSignal(int)
 
     def __init__(self, task_id: str):
         super().__init__()
