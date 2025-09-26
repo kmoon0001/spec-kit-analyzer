@@ -34,6 +34,17 @@ class RubricSchema(RubricCreate):
     class Config:
         from_attributes = True
 
+
+class RubricCreate(BaseModel):
+    name: str
+    content: str
+
+class RubricSchema(RubricCreate):
+    id: int
+
+    class Config:
+        orm_mode = True
+
 class Report(Base):
     __tablename__ = "reports"
 

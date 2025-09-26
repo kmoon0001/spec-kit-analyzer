@@ -1,7 +1,6 @@
 import os
 import yaml
 import logging
-import pickle
 from src.parsing import parse_document_content
 
 # Import all the necessary services
@@ -13,7 +12,7 @@ from .llm_service import LLMService
 from .ner import NERPipeline
 from .explanation import ExplanationEngine
 from .prompt_manager import PromptManager
-from .fact_checker_service import FactCheckerService # New Import
+from .fact_checker import FactCheckerService # Make sure this import is present
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +31,14 @@ class AnalysisService:
             with open(config_path, "r") as f:
                 config = yaml.safe_load(f)
 
-            # 1. Initialize the core AI models and services
+            # 1. Initialize the core LLM service first
             llm_service = LLMService(
                 model_repo_id=config['models']['generator'],
                 model_filename=config['models'].get('generator_filename'),
                 llm_settings=config.get('llm_settings', {})
             )
+
+            # 2. Initialize all other services
             fact_checker_service = FactCheckerService(model_name=config['models']['fact_checker'])
             ner_pipeline = NERPipeline(model_names=config['models']['ner_ensemble'])
             self.report_generator = ReportGenerator()
@@ -52,9 +53,9 @@ class AnalysisService:
                 template_path=os.path.join(ROOT_DIR, config['models']['analysis_prompt_template'])
             )
 
-            # 2. Initialize the main analyzer, passing it all the pre-loaded components
+            # 3. Initialize the main analyzer, passing it the pre-loaded components
             self.analyzer = ComplianceAnalyzer(
-                retriever=self.retriever,
+                retriever=self.retriever, # Use the injected retriever
                 ner_pipeline=ner_pipeline,
                 llm_service=llm_service,
                 explanation_engine=explanation_engine,
@@ -67,28 +68,33 @@ class AnalysisService:
             logger.error(f"FATAL: Failed to initialize AnalysisService: {e}", exc_info=True)
             raise e
 
-    def get_document_embedding(self, text: str) -> bytes:
-        if not self.retriever or not self.retriever.dense_retriever:
-            raise RuntimeError("Dense retriever is not initialized.")
-        embedding = self.retriever.dense_retriever.encode(text)
-        return pickle.dumps(embedding)
-
-    def analyze_document(self, file_path: str, discipline: str) -> dict:
+    def analyze_document(self, file_path: str, discipline: str, analysis_mode: str) -> str:
         doc_name = os.path.basename(file_path)
         logger.info(f"Starting analysis for document: {doc_name}")
 
+        # 1. Parse and preprocess the document text
         document_text = " ".join([chunk['sentence'] for chunk in parse_document_content(file_path)])
 
         # Preprocessing step removed as the service is obsolete
         corrected_text = document_text
 
+        # 2. Classify the document type (New Step)
         doc_type = self.document_classifier.classify_document(corrected_text)
         logger.info(f"Document classified as: {doc_type}")
 
+        # 3. Perform the core compliance analysis
         analysis_result = self.analyzer.analyze_document(
-            document_text=corrected_text,
+            document=corrected_text,
             discipline=discipline,
-            doc_type=doc_type
+            doc_type=doc_type # Use the classified type
         )
 
-        return analysis_result
+        # 4. Generate the final HTML report
+        report_html = self.report_generator.generate_html_report(
+            analysis_result=analysis_result,
+            doc_name=doc_name,
+            analysis_mode=analysis_mode
+        )
+
+        logger.info(f"Analysis complete for document: {doc_name}")
+        return report_html
