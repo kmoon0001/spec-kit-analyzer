@@ -57,11 +57,22 @@
     <h1>Compliance Analysis Report</h1>
 
     <h2>Section-by-Section Analysis</h2>
-    <!-- Placeholder for findings -->
+    {% for finding in findings %}
+    <details>
+        <summary>{{ finding.title }}</summary>
+        <div class="finding-content">
+            <p><strong>Category:</strong> {{ finding.category }}</p>
+            <p><strong>Justification:</strong> {{ finding.justification }}</p>
+            <p><strong>Observation:</strong> {{ finding.observation }}</p>
+        </div>
+    </details>
+    {% endfor %}
 
     <div class="guidelines">
         <h2>Medicare Guidelines</h2>
-        <!-- Placeholder for Medicare guidelines -->
+        {% for guideline in guidelines %}
+        <p>{{ guideline }}</p>
+        {% endfor %}
     </div>
 </body>
 </html>

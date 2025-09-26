@@ -1,6 +1,7 @@
 import logging
 import torch
 import json
+import re
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from src.guideline_service import GuidelineService
 from src.rubric_service import ComplianceRule
@@ -24,8 +25,7 @@ class PromptManager:
             "**Your Task:**\nBased on all the information above, provide a detailed compliance analysis. "
             "Identify any potential risks, explain why they are risks according to the retrieved rules, and suggest specific actions to mitigate them. "
             "If no risks are found, state that the document appears to be compliant.\n\n"
-            "**Output Format:**\nReturn the analysis as a JSON object with the following structure:\n"
-            "{\"findings\": [{\"text\": \"<original text>\", \"risk\": \"<compliance risk>\", \"suggestion\": \"<mitigation>\"}]}\n\n"
+            "**Output Format:**\nReturn the analysis as a JSON object.\n\n"
             "**Compliance Analysis:**\n"
         )
 
@@ -133,6 +133,17 @@ class ComplianceAnalyzer:
         analysis = self._parse_json_output(result)
         logger.info("Raw model analysis returned.")
 
+        while "search" in analysis:
+            search_query = analysis["search"]
+            logger.info(f"LLM requested a search: {search_query}")
+            retrieved_rules = self.guideline_service.search(query=search_query)
+            context_str = self._format_rules_for_prompt(retrieved_rules)
+            prompt = self.prompt_manager.build_prompt(document_text, entities_str, context_str)
+            inputs = self.generator_tokenizer(prompt, return_tensors="pt").to(self.generator_model.device)
+            output = self.generator_model.generate(**inputs, max_new_tokens=512, num_return_sequences=1)
+            result = self.generator_tokenizer.decode(output[0], skip_special_tokens=True)
+            analysis = self._parse_json_output(result)
+
         analysis = self.explanation_engine.generate_explanation(analysis)
         logger.info("Explanations generated.")
 
@@ -155,17 +166,23 @@ class ComplianceAnalyzer:
 
     def _parse_json_output(self, result: str) -> dict:
         try:
-            json_start = result.find('```
-            if json_start != -1:
-                json_str = result[json_start + 7:].strip()
-                json_end = json_str.rfind('```')
-                if json_end != -1:
-                    json_str = json_str[:json_end].strip()
+            # Correctly handle JSON extraction from markdown code blocks
+            json_match = re.search(r"```json\n(.*?)\n```", result, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1).strip()
+                analysis = json.loads(json_str)
+            elif "[SEARCH]" in result:
+                search_query = result.split("[SEARCH]")[-1].strip()
+                analysis = {"search": search_query}
             else:
+                # Fallback for plain JSON object
                 json_start = result.find('{')
                 json_end = result.rfind('}') + 1
-                json_str = result[json_start:json_end]
-            analysis = json.loads(json_str)
+                if json_start != -1 and json_end != 0:
+                    json_str = result[json_start:json_end]
+                    analysis = json.loads(json_str)
+                else:
+                    raise ValueError("No JSON object found in the output.")
         except (json.JSONDecodeError, IndexError, ValueError) as e:
             logger.error(f"Error parsing JSON output: {e}\nRaw model output:\n{result}")
             analysis = {"error": "Failed to parse JSON output from model."}

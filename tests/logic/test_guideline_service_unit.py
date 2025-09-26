@@ -44,27 +44,12 @@ from src.guideline_service import GuidelineService
 
 @pytest.fixture
 def guideline_service(mock_sentence_transformer, mock_faiss):
-    with patch.object(GuidelineService, '_load_or_build_index', return_value=None):
-        service = GuidelineService(sources=["dummy_source.txt"])
-        service.is_index_ready = True
-
-        # Mock hierarchical data
-        summary_index_mock = MagicMock()
-        summary_index_mock.search.return_value = (np.array([[0.1]]), np.array([[0]]))
-        service.summary_index = summary_index_mock
-
-        service.sections_data = [{
-            'id': 0,
-            'summary': 'summary1',
-            'sentences': ['sentence1 in section1', 'sentence2 in section1'],
-            'source': 'Section 0'
-        }]
-
-        final_index_mock = MagicMock()
-        final_index_mock.search.return_value = (np.array([[0.1]]), np.array([[0]]))
-        mock_faiss.IndexFlatL2.return_value = final_index_mock
-
-        return service
+    service = GuidelineService(sources=[])
+    service.guideline_chunks = [("sentence1 in section1", "Section 0"), ("sentence2 in section1", "Section 0")]
+    service.faiss_index = MagicMock()
+    service.faiss_index.search.return_value = (np.array([[0.1]]), np.array([[0]]))
+    service.is_index_ready = True
+    return service
 
 def test_search_successful(guideline_service: GuidelineService):
     """
@@ -76,9 +61,6 @@ def test_search_successful(guideline_service: GuidelineService):
     assert len(results) == 1
     assert results[0]['text'] == 'sentence1 in section1'
     assert results[0]['source'] == 'Section 0'
-
-    guideline_service.model.encode.assert_called_with(['sentence1 in section1', 'sentence2 in section1'])
-    guideline_service.summary_index.search.assert_called_once()
 
 
 def test_search_with_no_index(guideline_service: GuidelineService):

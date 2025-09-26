@@ -18,21 +18,23 @@ def mock_settings():
 # Mock the heavy dependencies
 @pytest.fixture
 def mock_transformers():
-    with patch('src.core.llm_analyzer.AutoTokenizer') as mock_tokenizer, \
-         patch('src.core.llm_analyzer.AutoModelForCausalLM') as mock_model:
+    with patch('src.core.compliance_analyzer.AutoTokenizer') as mock_tokenizer, \
+         patch('src.core.compliance_analyzer.AutoModelForCausalLM') as mock_model:
 
         # Mock tokenizer
         mock_tokenizer_instance = MagicMock()
         # This is the change to reproduce the bug.
         # The tokenizer should return a string, not a dictionary with a mock tensor.
-        mock_tokenizer_instance.return_value = "a string"
+        mock_tensor = MagicMock()
+        mock_tensor.to.return_value = mock_tensor
+        mock_tokenizer_instance.return_value = mock_tensor
         mock_tokenizer.from_pretrained.return_value = mock_tokenizer_instance
 
         # Mock model
         mock_model_instance = MagicMock()
         # Simulate a generated output that includes the original prompt
-        mock_model_instance.generate.return_value = ["mock prompt **Analysis:** mock analysis result"]
-        mock_tokenizer_instance.decode.return_value = "mock prompt **Analysis:** mock analysis result"
+        mock_model_instance.generate.return_value = ["mock prompt **Analysis:** {\"result\": \"mock analysis result\"}"]
+        mock_tokenizer_instance.decode.return_value = "mock prompt **Analysis:** {\"result\": \"mock analysis result\"}"
         mock_model.from_pretrained.return_value = mock_model_instance
 
         yield mock_tokenizer, mock_model
@@ -46,7 +48,7 @@ def mock_guideline_service():
     return mock_service
 
 # Now import the service after mocks are set up
-from src.core.llm_analyzer import LLMComplianceAnalyzer
+from src.core.compliance_analyzer import ComplianceAnalyzer as LLMComplianceAnalyzer
 
 def test_analyze_document(mock_transformers, mock_guideline_service):
     """
@@ -56,7 +58,7 @@ def test_analyze_document(mock_transformers, mock_guideline_service):
     analyzer = LLMComplianceAnalyzer(guideline_service=mock_guideline_service)
 
     document_text = "This is a test document."
-    result = analyzer.analyze_document(document_text)
+    result = analyzer.analyze_document(document_text, "PT")
 
     # 1. Check if the guideline service was called
     mock_guideline_service.search.assert_called_once()
@@ -69,4 +71,4 @@ def test_analyze_document(mock_transformers, mock_guideline_service):
     mock_model_instance.generate.assert_called_once()
 
     # 3. Check if the result is correctly parsed from the model's output
-    assert result == "mock analysis result"
+    assert result == {"result": "mock analysis result"}
