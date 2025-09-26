@@ -1,5 +1,11 @@
 import logging
-from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
+from transformers import (
+    pipeline,
+    AutoTokenizer,
+    AutoModelForTokenClassification,
+    PreTrainedModel,
+    PreTrainedTokenizer,
+)
 from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -20,11 +26,18 @@ class NERPipeline:
         for model_name in model_names:
             try:
                 logger.info(f"Loading NER model: {model_name}...")
-                # Load model and tokenizer
-                tokenizer = AutoTokenizer.from_pretrained(model_name)
-                model = AutoModelForTokenClassification.from_pretrained(model_name)
+                # Load model and tokenizer with explicit types to help mypy resolve overloads
+                tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(model_name)
+                model: PreTrainedModel = AutoModelForTokenClassification.from_pretrained(model_name)
                 # Create a pipeline for this model
-                self.pipelines.append(pipeline("ner", model=model, tokenizer=tokenizer, aggregation_strategy="simple"))
+                self.pipelines.append(
+                    pipeline(  # type: ignore[call-overload]
+                        "ner",
+                        model=model,
+                        tokenizer=tokenizer,
+                        aggregation_strategy="simple",
+                    )
+                )
                 logger.info(f"Successfully loaded NER model: {model_name}")
             except Exception as e:
                 logger.error(f"Failed to load NER model {model_name}: {e}", exc_info=True)

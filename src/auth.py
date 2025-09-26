@@ -46,15 +46,16 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, auth_service.secret_key, algorithms=[auth_service.algorithm])
-        username: str = payload.get("sub")
-        if username is None:
+        payload = jwt.decode(
+            token, auth_service.secret_key, algorithms=[auth_service.algorithm]
+        )
+        username = payload.get("sub")
+        if not isinstance(username, str):
             raise credentials_exception
-        token_data = schemas.TokenData(username=username)
     except JWTError:
         raise credentials_exception
 
-    user = crud.get_user_by_username(db, username=token_data.username)
+    user = crud.get_user_by_username(db, username=username)
     if user is None:
         raise credentials_exception
     return user

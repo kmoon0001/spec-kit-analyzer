@@ -6,12 +6,12 @@ import json
 import logging
 import os
 import pickle
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 # Third-party
 import pdfplumber
 import numpy as np
-import faiss
+import faiss  # type: ignore
 from sentence_transformers import SentenceTransformer
 from src.utils import load_config
 
@@ -125,6 +125,7 @@ class GuidelineService:
 
             embedding_dim = embeddings_np.shape[1]
             self.faiss_index = faiss.IndexFlatL2(embedding_dim)
+            assert self.faiss_index is not None
             self.faiss_index.add(embeddings_np)
 
         self.is_index_ready = True
@@ -191,7 +192,7 @@ class GuidelineService:
             raise
         return chunks
 
-    def search(self, query: str, top_k: int = None) -> List[dict]:
+    def search(self, query: str, top_k: Optional[int] = None) -> List[dict]:
         """
         Performs a FAISS similarity search through the loaded guidelines.
         """

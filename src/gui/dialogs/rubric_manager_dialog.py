@@ -42,10 +42,14 @@ class RubricManagerDialog(QDialog):
         remove_button = button_box.addButton("Remove Selected", QDialogButtonBox.ButtonRole.ActionRole)
         close_button = button_box.addButton(QDialogButtonBox.StandardButton.Close)
 
-        close_button.clicked.connect(self.accept)
-        add_button.clicked.connect(self.add_rubric_from_file)
-        edit_button.clicked.connect(self.edit_rubric)
-        remove_button.clicked.connect(self.remove_rubric)
+        if close_button:
+            close_button.clicked.connect(self.accept)
+        if add_button:
+            add_button.clicked.connect(self.add_rubric_from_file)
+        if edit_button:
+            edit_button.clicked.connect(self.edit_rubric)
+        if remove_button:
+            remove_button.clicked.connect(self.remove_rubric)
 
         layout.addWidget(button_box)
         self.load_rubrics()

@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session
-from . import models
+from . import models, schemas
 import datetime
 import pickle
+from typing import Dict
 import numpy as np
 from scipy.spatial.distance import cosine
 
@@ -65,17 +66,17 @@ def get_report(db: Session, report_id: int):
     return db.query(models.Report).filter(models.Report.id == report_id).first()
 
 def change_user_password(db: Session, user: models.User, new_hashed_password: str):
-    user.hashed_password = new_hashed_password
+    user.hashed_password = new_hashed_password  # type: ignore[assignment]
     db.commit()
     db.refresh(user)
     return user
 
 def get_findings_summary(db: Session, limit: int = 5):
     reports = db.query(models.Report).all()
-    summary = {}
+    summary: Dict[str, int] = {}
     for report in reports:
         if report.analysis_result and 'findings' in report.analysis_result:
-            for finding in report.analysis_result['findings']:
+            for finding in report.analysis_result['findings']:  # type: ignore[attr-defined]
                 rule_id = finding.get('rule_id', 'Unknown')
                 summary[rule_id] = summary.get(rule_id, 0) + 1
 
@@ -92,3 +93,43 @@ def delete_reports_older_than(db: Session, days: int) -> int:
         reports_to_delete.delete(synchronize_session=False)
         db.commit()
     return num_deleted
+
+# --- Rubric CRUD Functions ---
+
+def get_rubric_by_name(db: Session, name: str):
+    """Gets a single rubric by its unique name."""
+    return db.query(models.Rubric).filter(models.Rubric.name == name).first()
+
+def get_rubric(db: Session, rubric_id: int):
+    """Gets a single rubric by its ID."""
+    return db.query(models.Rubric).filter(models.Rubric.id == rubric_id).first()
+
+def get_rubrics(db: Session, skip: int = 0, limit: int = 100):
+    """Gets all rubrics, sorted by name."""
+    return db.query(models.Rubric).order_by(models.Rubric.name).offset(skip).limit(limit).all()
+
+def create_rubric(db: Session, rubric: schemas.RubricCreate):
+    """Creates a new rubric in the database."""
+    db_rubric = models.Rubric(name=rubric.name, content=rubric.content)
+    db.add(db_rubric)
+    db.commit()
+    db.refresh(db_rubric)
+    return db_rubric
+
+def update_rubric(db: Session, rubric_id: int, rubric_update: schemas.RubricCreate):
+    """Updates an existing rubric."""
+    db_rubric = db.query(models.Rubric).filter(models.Rubric.id == rubric_id).first()
+    if db_rubric:
+        db_rubric.name = rubric_update.name  # type: ignore[assignment]
+        db_rubric.content = rubric_update.content  # type: ignore[assignment]
+        db.commit()
+        db.refresh(db_rubric)
+    return db_rubric
+
+def delete_rubric(db: Session, rubric_id: int):
+    """Deletes a rubric from the database."""
+    db_rubric = db.query(models.Rubric).filter(models.Rubric.id == rubric_id).first()
+    if db_rubric:
+        db.delete(db_rubric)
+        db.commit()
+    return db_rubric

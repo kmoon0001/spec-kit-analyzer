@@ -4,7 +4,7 @@ from typing import List, Tuple, Dict
 
 import pdfplumber
 from docx import Document
-import pytesseract
+import pytesseract  # type: ignore
 from PIL import Image
 import pandas as pd
 
@@ -66,7 +66,7 @@ def parse_document_content(file_path: str) -> List[dict]:
             try:
                 img = Image.open(file_path)
                 if img.mode not in ("RGB", "L"):
-                    img = img.convert("RGB")
+                    img = img.convert("RGB")  # type: ignore[assignment]
                 txt = pytesseract.image_to_string(img)
                 metadata = {'source_document': file_path}
                 ocr_chunks = sentence_window_chunker(txt or "", metadata=metadata)

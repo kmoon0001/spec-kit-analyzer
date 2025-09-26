@@ -3,24 +3,25 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-# Import all the modular routers
-from .routers import auth, analysis, dashboard, admin, health, chat # Import the new router
+from .routers import auth, analysis, dashboard, admin, health, chat
+from src.core.analysis_service import AnalysisService
 
-# 1. Create a rate limiter instance
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
 
-# 2. Create the FastAPI app
 app = FastAPI(
     title="Clinical Compliance Analyzer API",
     description="API for analyzing clinical documents for compliance.",
     version="1.0.0",
 )
 
-# 3. Add the rate-limiting middleware and exception handler
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+@app.on_event("startup")
+def startup_event():
+    """Create and attach the AnalysisService instance at startup."""
+    app.state.analysis_service = AnalysisService()
 
-# 4. Include all the routers
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+
 app.include_router(health.router, tags=["Health"])
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])

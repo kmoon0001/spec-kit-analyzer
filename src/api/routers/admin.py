@@ -69,7 +69,7 @@ def activate_user(
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    db_user.is_active = True
+    db_user.is_active = True  # type: ignore[assignment]
     db.commit()
     db.refresh(db_user)
     return db_user
@@ -85,7 +85,7 @@ def deactivate_user(
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    db_user.is_active = False
+    db_user.is_active = False  # type: ignore[assignment]
     db.commit()
     db.refresh(db_user)
     return db_user

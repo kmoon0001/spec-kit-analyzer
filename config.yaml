@@ -14,15 +14,15 @@ ocr:
 models:
   # NER Ensemble: A list of models for comprehensive entity recognition
   ner_ensemble:
-    - "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"  # The Specialist
-    - "GanjinZero/bio-distilbert-ner"                       # The Efficient Generalist
+    - "dslim/bert-base-NER"                       # A reliable, general-purpose NER model
+    - "elastic/distilbert-base-cased-finetuned-conll03-english" # A fast and reliable generalist
   
   # Best-in-class sentence transformer for medical semantic search
   retriever: "pritamdeka/S-PubMedBert-MS-MARCO"
   
   # Quantized, locally-deployable medical text generator
-  generator: "TheBloke/TinyLlama-2-1B-Medical-GGUF"
-  generator_filename: "tinyllama-2-1b-medical.Q4_K_M.gguf" # A popular quantized version
+  generator: "andrijdavid/TinyLlama-1.1B-Chat-v1.0-GGUF"
+  generator_filename: "TinyLlama-1.1B-Chat-v1.0-Q4_K_M.gguf" # A popular quantized version
 
   # Small, fast model for fact-checking and validation
   fact_checker: "google/flan-t5-small"
@@ -34,7 +34,7 @@ models:
 
 # Settings for the generator model
 llm_settings:
-  gpu_layers: 50  # Offload all possible layers to GPU for GGUF models
+  gpu_layers: 0  # Offload all possible layers to GPU for GGUF models
   model_type: "llama"
   context_length: 2048
   generation_params:
