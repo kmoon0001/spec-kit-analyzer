@@ -21,8 +21,8 @@ models:
   retriever: "pritamdeka/S-PubMedBert-MS-MARCO"
   
   # Quantized, locally-deployable medical text generator
-  generator: "TheBloke/TinyLlama-2-1B-Medical-GGUF"
-  generator_filename: "tinyllama-2-1b-medical.Q4_K_M.gguf" # A popular quantized version
+  generator: "mistralai/Magistral-Small-2509-GGUF"
+  generator_filename: "Magistral-Small-2509-Q4_K_M.gguf" # A popular quantized version
 
   # Small, fast model for fact-checking and validation
   fact_checker: "google/flan-t5-small"
