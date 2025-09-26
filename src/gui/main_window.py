@@ -36,6 +36,13 @@ class MainApplicationWindow(QMainWindow):
         self.worker = None
 
         self.init_base_ui()
+
+    def start(self):
+        """
+        Starts the application's main logic, including loading models and showing the login dialog.
+        This is called after the window is created to avoid blocking the constructor,
+        which makes the main window testable.
+        """
         self.load_ai_models()
         # self.show_login_dialog() # Obsolete login flow
         self.load_main_ui() # Load main UI directly
