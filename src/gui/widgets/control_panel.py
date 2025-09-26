@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QComboBox,
     QLabel,
-    QGroupBox
+    QGroupBox,
 )
 from PyQt6.QtCore import Qt
 
