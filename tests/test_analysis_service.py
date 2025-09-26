@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 import os
 import sys
 
@@ -32,9 +32,7 @@ def mock_core_dependencies():
 from src.core.analysis_service import AnalysisService
 
 def test_analysis_service_orchestration():
-    """
-    Tests the AnalysisService's orchestration logic in isolation.
-    """
+    """Tests the AnalysisService's orchestration logic in isolation."""
     # 1. Arrange: Configure the mocks to simulate a successful analysis
     # Use a more targeted patch for yaml to avoid interfering with other tests.
     with patch('src.core.analysis_service.yaml.safe_load') as mock_safe_load:

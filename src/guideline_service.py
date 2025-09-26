@@ -24,9 +24,7 @@ class GuidelineService:
     """
 
     def __init__(self, sources: List[str]):
-        """
-        Initializes the GuidelineService.
-        """
+        """Initializes the GuidelineService."""
         self.config = load_config()
         model_name = self.config['models']['retriever']
 
@@ -172,8 +170,7 @@ class GuidelineService:
         source_name = os.path.basename(file_path)
         if file_path.lower().endswith('.json'):
             return self._extract_text_from_json(file_path, source_name)
-        else:
-            return self._extract_text_from_pdf(file_path, source_name)
+        return self._extract_text_from_pdf(file_path, source_name)
 
     @staticmethod
     def _extract_text_from_json(file_path: str, source_name: str) -> List[Tuple[str, str]]:
@@ -192,9 +189,7 @@ class GuidelineService:
         return chunks
 
     def search(self, query: str, top_k: int = None) -> List[dict]:
-        """
-        Performs a FAISS similarity search through the loaded guidelines.
-        """
+        """Performs a FAISS similarity search through the loaded guidelines."""
         if top_k is None:
             top_k = self.config['retrieval_settings']['similarity_top_k']
 
@@ -219,3 +214,17 @@ class GuidelineService:
                 results.append({"text": chunk[0], "source": chunk[1], "score": dist})
 
         return results
+<<<<<<< HEAD
+||||||| c46cdd8
+
+def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
+    """
+    Mock function to parse a guideline file. Returns an empty list.
+    """
+    return []
+=======
+
+def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
+    """Mock function to parse a guideline file. Returns an empty list."""
+    return []
+>>>>>>> origin/main

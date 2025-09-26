@@ -15,11 +15,11 @@ matplotlib
 pdfplumber
 pypdfium2
 python-docx
-pytesseract
 pandas
 openpyxl
 pyyaml
 markdown
+pytesseract
 
 # AI & Machine Learning
 torch
@@ -35,6 +35,8 @@ pyspellchecker
 
 # Database
 SQLAlchemy
+rdflib
+aiosqlite
 
 # Security & Auth
 passlib[bcrypt]
@@ -48,9 +50,10 @@ scipy
 
 # Scheduling
 apscheduler
+tenacity
 
 # Testing
 pytest
 pytest-mock
-httpx
-pytesseract
+pytest-qt
+pytest-asyncio

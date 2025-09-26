@@ -7,9 +7,18 @@ from PyQt6.QtWidgets import (
 )
 
 class LoginDialog(QDialog):
+<<<<<<< HEAD
     """
     A mock dialog for user login.
     """
+||||||| c46cdd8
+    """
+    A placeholder for the missing LoginDialog.
+    This class is intended to resolve an ImportError and allow the test suite to run.
+    """
+=======
+    """A mock dialog for user login."""
+>>>>>>> origin/main
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Login")
@@ -29,5 +38,12 @@ class LoginDialog(QDialog):
         self.layout.addWidget(self.button_box)
 
     def get_credentials(self):
+<<<<<<< HEAD
         """Returns the entered username and password."""
         return self.username_input.text(), self.password_input.text()
+||||||| c46cdd8
+        return "user", "password"
+=======
+        """Returns the entered username and password."""
+        return self.username_input.text(), self.password_input.text()
+>>>>>>> origin/main

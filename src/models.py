@@ -17,9 +17,37 @@ class Rubric(Base):
     __tablename__ = "rubrics"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)
-    content = Column(Text)
+    name = Column(String, unique=True, index=True, nullable=False)
+    content = Column(Text, nullable=False)
+    category = Column(String, index=True, nullable=True)
 
+<<<<<<< HEAD
+||||||| c46cdd8
+
+class RubricCreate(BaseModel):
+    name: str
+    content: str
+
+class Rubric(RubricCreate):
+    id: int
+
+    class Config:
+        orm_mode = True
+
+=======
+
+class RubricCreate(BaseModel):
+    name: str
+    content: str
+    category: str | None = None
+
+class RubricSchema(RubricCreate):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+>>>>>>> origin/main
 class Report(Base):
     __tablename__ = "reports"
 

@@ -7,8 +7,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from .dependencies import app_state, get_analysis_service
-from ..core.analysis_service import AnalysisService
+from .dependencies import get_analysis_service, startup_event as api_startup, shutdown_event as api_shutdown
 from .routers import auth, analysis, dashboard, admin, health, chat
 from ..core.database_maintenance_service import DatabaseMaintenanceService
 
@@ -50,27 +49,27 @@ app = FastAPI(
 )
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     """
     Actions to perform on application startup.
-    - Clears the temporary upload directory.
-    - Schedules the database maintenance job.
-    - Loads the AI models into a singleton.
     """
-    logger.info("Running startup tasks...")
+    # 1. Run API-level startup logic (e.g., model loading)
+    await api_startup()
 
-    # 1. Clean up any orphaned temporary files
+    # 2. Clean up any orphaned temporary files from previous runs
+    logger.info("Running startup tasks...")
     clear_temp_uploads()
 
-    # 2. Initialize and start the background scheduler
+    # 3. Initialize and start the background scheduler
     scheduler = BackgroundScheduler(daemon=True)
     scheduler.add_job(run_database_maintenance, 'interval', days=1)
     scheduler.start()
     logger.info("Scheduler started for daily database maintenance.")
 
-    # 3. Load the heavy AI model and store it in the app_state
-    app_state['analysis_service'] = AnalysisService()
-    logger.info("AI Analysis Service initialized.")
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Actions to perform on application shutdown."""
+    await api_shutdown()
 
 # --- Middleware and Exception Handlers ---
 app.state.limiter = limiter

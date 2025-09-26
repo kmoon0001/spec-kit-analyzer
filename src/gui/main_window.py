@@ -2,7 +2,6 @@ import os
 import requests
 import urllib.parse
 import webbrowser
-import jwt
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QMessageBox, QMainWindow, QStatusBar, QMenuBar, 
     QFileDialog, QSplitter, QTextEdit, QHBoxLayout, QLabel, QGroupBox, QProgressBar, QPushButton, QTabWidget
@@ -12,7 +11,12 @@ from PyQt6.QtGui import QTextDocument
 
 # Corrected: Use absolute imports from the src root
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
+<<<<<<< HEAD
 from src.gui.dialogs.login_dialog import LoginDialog
+||||||| c46cdd8
+# from src.gui.dialogs.login_dialog import LoginDialog # Obsolete
+=======
+>>>>>>> origin/main
 from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
@@ -44,7 +48,16 @@ class MainApplicationWindow(QMainWindow):
         which makes the main window testable.
         """
         self.load_ai_models()
+<<<<<<< HEAD
         self.show_login_dialog()
+||||||| c46cdd8
+        # self.show_login_dialog() # Obsolete login flow
+        self.load_main_ui() # Load main UI directly
+        self.show()
+=======
+        self.load_main_ui() # Load main UI directly
+        self.show()
+>>>>>>> origin/main
 
     def init_base_ui(self):
         self.setWindowTitle('Therapy Compliance Analyzer')
@@ -76,6 +89,7 @@ class MainApplicationWindow(QMainWindow):
         self.status_bar.addPermanentWidget(self.progress_bar)
         self.progress_bar.hide()
 
+<<<<<<< HEAD
     def show_login_dialog(self):
         self.hide()
         dialog = LoginDialog(self)
@@ -100,6 +114,10 @@ class MainApplicationWindow(QMainWindow):
                 self.close()
         else:
             self.close()
+||||||| c46cdd8
+    # def show_login_dialog(self): ... # Obsolete login flow
+=======
+>>>>>>> origin/main
 
     def logout(self):
         self.access_token = None
@@ -107,7 +125,18 @@ class MainApplicationWindow(QMainWindow):
         self.is_admin = False
         self.user_status_label.setText("")
         self.setCentralWidget(None)
+<<<<<<< HEAD
         self.show_login_dialog()
+||||||| c46cdd8
+        # self.show_login_dialog() # Obsolete login flow
+        QMessageBox.information(self, "Logged Out", "You have been logged out.")
+        # Since login is removed, we can just close or show a message.
+        # For now, let's just clear the UI. A real implementation might close the app.
+=======
+        QMessageBox.information(self, "Logged Out", "You have been logged out.")
+        # Since login is removed, we can just close or show a message.
+        # For now, let's just clear the UI. A real implementation might close the app.
+>>>>>>> origin/main
 
     def load_main_ui(self):
         self.tabs = QTabWidget()
@@ -347,11 +376,13 @@ class MainApplicationWindow(QMainWindow):
         else:
             self.setStyleSheet(self.get_dark_theme_stylesheet())
 
-    def save_theme_setting(self, theme):
+    @staticmethod
+    def save_theme_setting(theme):
         with open("theme.cfg", "w") as f:
             f.write(theme)
 
-    def load_theme_setting(self):
+    @staticmethod
+    def load_theme_setting():
         try:
             with open("theme.cfg", "r") as f:
                 return f.read().strip()

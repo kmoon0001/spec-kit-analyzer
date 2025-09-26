@@ -4,7 +4,17 @@ import yaml
 # Get the absolute path to the project's root directory
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+<<<<<<< HEAD
 def chunk_text(text: str, max_chars: int = 4000):
+||||||| c46cdd8
+def chunk_text(text: str, max_chars: int = 4000) -> List[str]:
+    """
+    Splits a text into chunks of a maximum size, attempting to break at newlines.
+    """
+=======
+def chunk_text(text: str, max_chars: int = 4000) -> List[str]:
+    """Splits a text into chunks of a maximum size, attempting to break at newlines."""
+>>>>>>> origin/main
     chunks = []
     start = 0
     n = len(text)

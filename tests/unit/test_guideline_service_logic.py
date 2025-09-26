@@ -41,10 +41,20 @@ def guideline_service(mock_heavy_dependencies):
     service.faiss_index = mock_heavy_dependencies["faiss_module"].IndexFlatL2()
     return service
 
+<<<<<<< HEAD:tests/logic/test_guideline_service_logic.py
 def test_search_successful_orchestration(guideline_service: GuidelineService):
     """
     Tests that the search method correctly orchestrates the search.
     """
+||||||| c46cdd8:tests/logic/test_guideline_service_logic.py
+def test_search_successful_orchestration(guideline_service: 'GuidelineService'):
+    """
+    Tests that the search method correctly orchestrates the search process.
+    """
+=======
+def test_search_successful_orchestration(guideline_service: 'GuidelineService'):
+    """Tests that the search method correctly orchestrates the search process."""
+>>>>>>> origin/main:tests/unit/test_guideline_service_logic.py
     # Arrange
     query = "test query"
 
@@ -64,10 +74,20 @@ def test_search_successful_orchestration(guideline_service: GuidelineService):
     assert "Test sentence 1 about Medicare." in results[0]['text']
     assert results[0]['source'] == 'dummy_source.txt'
 
+<<<<<<< HEAD:tests/logic/test_guideline_service_logic.py
 def test_search_returns_empty_if_index_not_ready(guideline_service: GuidelineService):
     """
     Tests that search returns an empty list if the index is not ready.
     """
+||||||| c46cdd8:tests/logic/test_guideline_service_logic.py
+def test_search_returns_empty_if_index_not_ready(guideline_service: 'GuidelineService'):
+    """
+    Tests that search returns an empty list if the index is not ready.
+    """
+=======
+def test_search_returns_empty_if_index_not_ready(guideline_service: 'GuidelineService'):
+    """Tests that search returns an empty list if the index is not ready."""
+>>>>>>> origin/main:tests/unit/test_guideline_service_logic.py
     # Arrange
     guideline_service.is_index_ready = False
 

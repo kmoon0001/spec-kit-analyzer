@@ -1,6 +1,7 @@
 import os
 from pydantic import BaseModel, Field
 import yaml
+from functools import lru_cache
 
 class DatabaseConfig(BaseModel):
     url: str = Field(default="sqlite:///./test.db")
@@ -10,18 +11,35 @@ class AuthConfig(BaseModel):
     algorithm: str = Field(default="HS256")
     access_token_expire_minutes: int = Field(default=30)
 
-class AppConfig(BaseModel):
+class RetrieverConfig(BaseModel):
+    dense_model_name: str = Field(default="pritamdeka/S-PubMedBert-MS-MARCO", description="The name of the sentence transformer model for dense retrieval.")
+    rrf_k: int = Field(default=60, description="The 'k' parameter for Reciprocal Rank Fusion (RRF) to balance keyword and semantic search.")
+
+class Settings(BaseModel):
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     auth: AuthConfig = Field(default_factory=AuthConfig)
+    retriever: RetrieverConfig = Field(default_factory=RetrieverConfig)
 
 def load_config_from_yaml(path: str = "config.yaml") -> dict:
     if os.path.exists(path):
         with open(path, "r") as f:
+<<<<<<< HEAD
             return yaml.safe_load(f) or {}
+||||||| c46cdd8
+            return yaml.safe_load(f)
+=======
+            # Return an empty dict if the file is empty to prevent errors
+            return yaml.safe_load(f) or {}
+>>>>>>> origin/main
     return {}
 
-def get_config() -> AppConfig:
+@lru_cache()
+def get_settings() -> Settings:
+    """
+    Loads the application settings from the YAML file.
+    The result is cached to avoid repeated file I/O.
+    """
     config_data = load_config_from_yaml()
-    return AppConfig.model_validate(config_data)
+    return Settings.model_validate(config_data)
 
-config = get_config()
+settings = get_settings()

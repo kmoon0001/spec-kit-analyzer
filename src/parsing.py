@@ -84,6 +84,7 @@ def parse_document_content(file_path: str) -> List[dict]:
 
         return chunks if chunks else [{'sentence': "Info: No text could be extracted from the document.", 'window': '', 'metadata': {'source': 'System'}}]
 
+<<<<<<< HEAD
     except Exception as e:
         return [{'sentence': f"Error: An unexpected error occurred: {e}", 'window': '', 'metadata': {'source': 'System'}}]
 
@@ -147,3 +148,8 @@ def parse_text_into_sections(text: str) -> Dict[str, str]:
 
 # For compatibility: expose both parse_text_into_sections and parse_document_into_sections
 parse_document_into_sections = parse_text_into_sections
+||||||| c46cdd8
+    return sections
+=======
+    return sections
+>>>>>>> origin/main
