@@ -1,5 +1,5 @@
 import logging
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal as Signal
 
 # Import the services this worker needs to run
 from src.config import get_config
@@ -13,7 +13,7 @@ class AILoaderWorker(QObject):
     A worker to handle all application startup tasks in the background,
     including database maintenance and loading AI models.
     """
-    finished = pyqtSignal(object, bool, str)  # analyzer, is_healthy, status_message
+    finished = Signal(object, bool, str)  # analyzer, is_healthy, status_message
 
     def run(self):
         """Runs startup tasks: database purge, then AI model loading."""

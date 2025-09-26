@@ -1,8 +1,8 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
 from . import models
 import datetime
 from typing import List, Dict, Optional
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, delete
 
 async def get_user_by_username(db: AsyncSession, username: str) -> Optional[models.User]:
     result = await db.execute(select(models.User).filter(models.User.username == username))

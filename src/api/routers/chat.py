@@ -22,18 +22,16 @@ async def chat_with_ai(
     if not llm_service.is_ready():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The AI model is not available. Please try again later."
+            detail="The AI model is not available. Please try again later.",
         )
 
-    try:
-        # The client sends the full history, so we create a new chat service for each turn.
-        # The initial "system" message in the history provides the context.
-        chat_service = ChatService(llm_service=llm_service, initial_context="")
-        chat_service.history = [message.dict() for message in chat_request.history]
+    chat_service = ChatService(db=db, user=current_user, llm_service=llm_service)
 
-        # The last message in the history is the new user message
-        user_message = chat_service.history[-1]['content']
+    response_text = chat_service.process_message(chat_request.message, chat_request.history)
 
+<<<<<<< HEAD
+    return schemas.ChatResponse(response=response_text)
+||||||| 278fb88
         ai_response = chat_service.get_response(user_message)
 
         return schemas.ChatResponse(response=ai_response)
@@ -43,3 +41,14 @@ async def chat_with_ai(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred during the chat session: {e}"
         )
+=======
+        ai_response = chat_service.get_response(user_message)
+
+        return schemas.ChatResponse(response=ai_response)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred during the chat session: {e}"
+        )
+>>>>>>> origin/main

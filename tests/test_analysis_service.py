@@ -1,6 +1,35 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
+import sys
+import os
+
+# Ensure the src directory is in the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Mock all the modules that are either missing or we want to isolate
+MOCK_MODULES = {
+    'src.core.nlg_service': MagicMock(),
+    'src.core.preprocessing_service': MagicMock(),
+    'src.core.risk_scoring_service': MagicMock(),
+    'src.parsing': MagicMock(),
+    'yaml': MagicMock(),
+    'src.core.compliance_analyzer': MagicMock(),
+    'src.core.hybrid_retriever': MagicMock(),
+    'src.core.report_generator': MagicMock(),
+    'src.core.document_classifier': MagicMock(),
+    'src.core.llm_service': MagicMock(),
+    'src.core.ner': MagicMock(),
+    'src.core.explanation': MagicMock(),
+    'src.core.prompt_manager': MagicMock(),
+    'src.core.fact_checker_service': MagicMock(),
+}
+
+# Apply the mocks
+for module, mock in MOCK_MODULES.items():
+    sys.modules[module] = mock
+
+# Now we can import the service
 from src.core.analysis_service import AnalysisService
 
 @pytest.fixture
