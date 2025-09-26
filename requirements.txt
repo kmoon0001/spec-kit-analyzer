@@ -8,7 +8,9 @@ httpx
 
 # GUI
 PyQt6
+PyQt6-WebEngine
 matplotlib
+pytesseract
 
 # Data & Parsing
 pdfplumber
