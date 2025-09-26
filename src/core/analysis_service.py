@@ -8,10 +8,8 @@ from src.parsing import parse_document_content
 from .compliance_analyzer import ComplianceAnalyzer
 from .hybrid_retriever import HybridRetriever
 from .report_generator import ReportGenerator
-from .preprocessing_service import PreprocessingService
 from .document_classifier import DocumentClassifier
 from .llm_service import LLMService
-from .nlg_service import NLGService
 from .ner import NERPipeline
 from .explanation import ExplanationEngine
 from .prompt_manager import PromptManager
@@ -42,18 +40,12 @@ class AnalysisService:
             fact_checker_service = FactCheckerService(model_name=config['models']['fact_checker'])
             ner_pipeline = NERPipeline(model_names=config['models']['ner_ensemble'])
             self.retriever = HybridRetriever()
-            self.preprocessing_service = PreprocessingService()
             self.report_generator = ReportGenerator()
             explanation_engine = ExplanationEngine()
 
             self.document_classifier = DocumentClassifier(
                 llm_service=llm_service,
                 prompt_template_path=os.path.join(ROOT_DIR, config['models']['doc_classifier_prompt'])
-            )
-
-            nlg_service = NLGService(
-                llm_service=llm_service,
-                prompt_template_path=os.path.join(ROOT_DIR, config['models']['nlg_prompt_template'])
             )
 
             analysis_prompt_manager = PromptManager(
@@ -65,7 +57,6 @@ class AnalysisService:
                 retriever=self.retriever,
                 ner_pipeline=ner_pipeline,
                 llm_service=llm_service,
-                nlg_service=nlg_service,
                 explanation_engine=explanation_engine,
                 prompt_manager=analysis_prompt_manager,
                 fact_checker_service=fact_checker_service # Pass the new service
@@ -87,7 +78,9 @@ class AnalysisService:
         logger.info(f"Starting analysis for document: {doc_name}")
 
         document_text = " ".join([chunk['sentence'] for chunk in parse_document_content(file_path)])
-        corrected_text = self.preprocessing_service.correct_text(document_text)
+
+        # Preprocessing step removed as the service is obsolete
+        corrected_text = document_text
 
         doc_type = self.document_classifier.classify_document(corrected_text)
         logger.info(f"Document classified as: {doc_type}")

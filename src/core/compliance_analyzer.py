@@ -3,7 +3,6 @@ import json
 from typing import Dict, Any, List
 
 from .llm_service import LLMService
-from .nlg_service import NLGService
 from .ner import NERPipeline
 from .explanation import ExplanationEngine
 from .prompt_manager import PromptManager
@@ -19,11 +18,10 @@ class ComplianceAnalyzer:
     It receives pre-initialized components and does not load models itself.
     """
 
-    def __init__(self, retriever: Any, ner_pipeline: NERPipeline, llm_service: LLMService, nlg_service: NLGService, explanation_engine: ExplanationEngine, prompt_manager: PromptManager, fact_checker_service: FactCheckerService):
+    def __init__(self, retriever: Any, ner_pipeline: NERPipeline, llm_service: LLMService, explanation_engine: ExplanationEngine, prompt_manager: PromptManager, fact_checker_service: FactCheckerService):
         self.retriever = retriever
         self.ner_pipeline = ner_pipeline
         self.llm_service = llm_service
-        self.nlg_service = nlg_service
         self.explanation_engine = explanation_engine
         self.prompt_manager = prompt_manager
         self.fact_checker_service = fact_checker_service
@@ -61,8 +59,8 @@ class ComplianceAnalyzer:
                     finding['is_low_confidence'] = True
 
                 # c. Generate personalized tip
-                tip = self.nlg_service.generate_personalized_tip(finding)
-                finding['personalized_tip'] = tip
+                # The NLGService has been removed, so we'll just add a placeholder.
+                finding['personalized_tip'] = "Consider reviewing this finding for compliance."
 
         return explained_analysis
 
