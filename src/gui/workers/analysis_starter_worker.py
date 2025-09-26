@@ -1,5 +1,6 @@
 import requests
-from PyQt6.QtCore import QObject, pyqtSignal as Signal
+import os
+from PyQt6.QtCore import QObject, pyqtSignal
 
 API_URL = "http://127.0.0.1:8000"
 
@@ -7,8 +8,8 @@ class AnalysisStarterWorker(QObject):
     """
     A one-shot worker to start the analysis on the backend without freezing the UI.
     """
-    success = Signal(str)  # Emits the task_id on success
-    error = Signal(str)
+    success = pyqtSignal(str)  # Emits the task_id on success
+    error = pyqtSignal(str)
 
     def __init__(self, file_path: str, data: dict, token: str):
         super().__init__()
