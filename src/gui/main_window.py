@@ -329,11 +329,13 @@ class MainApplicationWindow(QMainWindow):
         else:
             self.setStyleSheet(self.get_dark_theme_stylesheet())
 
-    def save_theme_setting(self, theme):
+    @staticmethod
+    def save_theme_setting(theme):
         with open("theme.cfg", "w") as f:
             f.write(theme)
 
-    def load_theme_setting(self):
+    @staticmethod
+    def load_theme_setting():
         try:
             with open("theme.cfg", "r") as f:
                 return f.read().strip()
