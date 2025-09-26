@@ -1,5 +1,4 @@
 import requests
-import os
 from PyQt6.QtCore import QObject, pyqtSignal as Signal
 
 API_URL = "http://127.0.0.1:8000"
