@@ -1,4 +1,3 @@
-import os
 import yaml
 import logging
 from src.core.llm_service import LLMService

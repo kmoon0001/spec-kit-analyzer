@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 import os
 import sys
 
@@ -38,9 +38,7 @@ def reset_mocks():
         mock.reset_mock()
 
 def test_analysis_service_orchestration():
-    """
-    Tests the AnalysisService's orchestration logic in isolation.
-    """
+    """Tests the AnalysisService's orchestration logic in isolation."""
     # 1. Arrange: Configure the mocks to simulate a successful analysis
 
     # Mock the return value of yaml.safe_load

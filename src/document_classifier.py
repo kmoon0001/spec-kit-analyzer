@@ -6,9 +6,7 @@ class DocumentType(Enum):
     UNKNOWN = auto()
 
 class DocumentClassifier:
-    """
-    A simple classifier to determine the type of a clinical document.
-    """
+    """A simple classifier to determine the type of a clinical document."""
     @staticmethod
     def classify(text: str) -> DocumentType:
         """

@@ -6,14 +6,11 @@ from types import SimpleNamespace
 # Ensure the src directory is in the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.main import run_analyzer, LocalRAG, GuidelineService, RubricService, _generate_suggested_questions, nlp
-from src.llm_analyzer import run_llm_analysis
+from src.main import run_analyzer, LocalRAG, GuidelineService
 
 @pytest.mark.timeout(600)
 def test_analyzer_logic_e2e():
-    """
-    Tests the core analysis logic end-to-end without loading the GUI.
-    """
+    """Tests the core analysis logic end-to-end without loading the GUI."""
     # 1. Create a mock main window object. It just needs to hold the services.
     mock_window = SimpleNamespace()
     mock_window.log = lambda x: print(x) # A simple logger

@@ -2,7 +2,6 @@ import os
 import requests
 import urllib.parse
 import webbrowser
-import jwt
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QMessageBox, QMainWindow, QStatusBar, QMenuBar,
     QFileDialog, QSplitter, QTextEdit, QHBoxLayout, QLabel, QGroupBox, QProgressBar, QPushButton, QTabWidget, QTextBrowser
@@ -12,7 +11,6 @@ from PyQt6.QtGui import QTextDocument
 
 # Corrected: Use absolute imports from the src root
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
-# from src.gui.dialogs.login_dialog import LoginDialog # Obsolete
 from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
@@ -44,7 +42,6 @@ class MainApplicationWindow(QMainWindow):
         which makes the main window testable.
         """
         self.load_ai_models()
-        # self.show_login_dialog() # Obsolete login flow
         self.load_main_ui() # Load main UI directly
         self.show()
 
@@ -78,7 +75,6 @@ class MainApplicationWindow(QMainWindow):
         self.status_bar.addPermanentWidget(self.progress_bar)
         self.progress_bar.hide()
 
-    # def show_login_dialog(self): ... # Obsolete login flow
 
     def logout(self):
         self.access_token = None
@@ -86,7 +82,6 @@ class MainApplicationWindow(QMainWindow):
         self.is_admin = False
         self.user_status_label.setText("")
         self.setCentralWidget(None)
-        # self.show_login_dialog() # Obsolete login flow
         QMessageBox.information(self, "Logged Out", "You have been logged out.")
         # Since login is removed, we can just close or show a message.
         # For now, let's just clear the UI. A real implementation might close the app.

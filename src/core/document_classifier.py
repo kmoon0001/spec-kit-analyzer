@@ -5,9 +5,7 @@ from .prompt_manager import PromptManager
 logger = logging.getLogger(__name__)
 
 class DocumentClassifier:
-    """
-    A service to classify a document into a predefined category.
-    """
+    """A service to classify a document into a predefined category."""
     def __init__(self, llm_service: LLMService, prompt_template_path: str):
         """
         Initializes the DocumentClassifier.
@@ -50,9 +48,8 @@ class DocumentClassifier:
             if classification in self.possible_types:
                 logger.info(f"Document classified as: {classification}")
                 return classification
-            else:
-                logger.warning(f"LLM returned an unexpected document type: '{classification}'. Defaulting to 'Unknown'.")
-                return "Unknown"
+            logger.warning(f"LLM returned an unexpected document type: '{classification}'. Defaulting to 'Unknown'.")
+            return "Unknown"
 
         except Exception as e:
             logger.error(f"Error during document classification: {e}")

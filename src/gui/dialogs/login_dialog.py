@@ -7,9 +7,7 @@ from PyQt6.QtWidgets import (
 )
 
 class LoginDialog(QDialog):
-    """
-    A mock dialog for user login.
-    """
+    """A mock dialog for user login."""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Login")

@@ -1,10 +1,23 @@
+<<<<<<< HEAD
 import logging
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+||||||| 4db3b6b
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+=======
+>>>>>>> origin/main
 
 from ..core.analysis_service import AnalysisService
+<<<<<<< HEAD
 from ..core.retriever import HybridRetriever # Assuming this is the new location
 from ..database import get_async_db, AsyncSessionLocal
+||||||| 4db3b6b
+from ..core.retriever import HybridRetriever
+from ..database import get_async_db, AsyncSessionLocal
+=======
+from ..core.retriever import HybridRetriever
+>>>>>>> origin/main
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -33,9 +46,7 @@ async def get_retriever() -> HybridRetriever:
     return app_state["retriever"]
 
 async def startup_event():
-    """
-    Application startup event handler. Initializes singleton services.
-    """
+    """Application startup event handler. Initializes singleton services."""
     logger.info("Application starting up...")
     # 1. Initialize the retriever, which is a dependency for other services.
     retriever = await get_retriever()
@@ -47,9 +58,21 @@ async def startup_event():
     logger.info("Application startup complete. Services are initialized.")
 
 async def shutdown_event():
-    """
-    Application shutdown event handler.
-    """
+    """Application shutdown event handler."""
     logger.info("Application shutting down...")
     # Clean up resources if needed
+<<<<<<< HEAD
     pass
+||||||| 4db3b6b
+    pass
+
+# Add a logger to this file
+import logging
+logger = logging.getLogger(__name__)
+=======
+    pass
+
+# Add a logger to this file
+import logging
+logger = logging.getLogger(__name__)
+>>>>>>> origin/main

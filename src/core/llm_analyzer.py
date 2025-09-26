@@ -16,11 +16,24 @@ logger = logging.getLogger(__name__)
 CONFIDENCE_THRESHOLD = 0.7
 
 class LLMComplianceAnalyzer:
+<<<<<<< HEAD
     """
     A service that orchestrates the core compliance analysis of a document
     using a Large Language Model.
     """
+||||||| 4db3b6b
+    """
+    A placeholder class to resolve an import error in the tests.
+    """
+    def __init__(self, guideline_service=None):
+        pass
+=======
+    """A placeholder class to resolve an import error in the tests."""
+    def __init__(self, guideline_service=None):
+        pass
+>>>>>>> origin/main
 
+<<<<<<< HEAD
     def __init__(self, llm_service: LLMService, prompt_manager: PromptManager):
         self.llm_service = llm_service
         self.prompt_manager = prompt_manager
@@ -52,3 +65,12 @@ class LLMComplianceAnalyzer:
         except json.JSONDecodeError:
             logger.error("Failed to decode LLM output into JSON.", exc_info=True)
             return {"error": "Invalid JSON output from LLM", "raw_output": raw_output}
+||||||| 4db3b6b
+    @staticmethod
+    def analyze_document(document_text):
+        return {"analysis": "mock analysis"}
+=======
+    @staticmethod
+    def analyze_document(document_text):
+        return {"analysis": "mock analysis"}
+>>>>>>> origin/main

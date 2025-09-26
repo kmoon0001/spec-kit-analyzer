@@ -155,7 +155,7 @@ class HybridRetriever:
         k = self.settings.rrf_k
 
         # Create a mapping from the temporary index (in the filtered list) back to the original rule index
-        idx_map = {temp_idx: original_idx for temp_idx, original_idx in enumerate(indices_to_search)}
+        idx_map = dict(enumerate(indices_to_search))
 
         # Get the rank of each document for both BM25 and dense retrieval results.
         # The rank is its position in the sorted list (e.g., the best item has rank 1).

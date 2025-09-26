@@ -7,6 +7,7 @@ class PromptManager:
     """
     A placeholder for the Prompt Manager.
 
+<<<<<<< HEAD
     In a real implementation, this service would intelligently construct
     prompts using templates and dynamically inserted context.
     """
@@ -28,3 +29,10 @@ class PromptManager:
         """
         logger.info("Building prompt (placeholder implementation).")
         return self.template.format(context=context, document_text=document_text)
+||||||| 4db3b6b
+    def build_prompt(self, **kwargs):
+        return self.template.format(**kwargs)
+=======
+    def build_prompt(self, **kwargs):
+        return self.template.format(**kwargs)
+>>>>>>> origin/main

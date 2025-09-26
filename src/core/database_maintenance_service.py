@@ -13,9 +13,7 @@ class DatabaseMaintenanceService:
 
     @staticmethod
     def _purge_old_reports_sync(retention_days: int):
-        """
-        Synchronous wrapper to run the async purge logic.
-        """
+        """Synchronous wrapper to run the async purge logic."""
         async def purge():
             if retention_days <= 0:
                 logger.info("Database purging is disabled (retention_days <= 0).")
@@ -37,7 +35,17 @@ class DatabaseMaintenanceService:
         asyncio.run(purge())
 
     def purge_old_reports(self, retention_days: int):
+<<<<<<< HEAD
         """
         Public method to trigger the synchronous purge.
         """
         self._purge_old_reports_sync(retention_days)
+||||||| 4db3b6b
+        """
+        Public method to trigger the synchronous purge.
+        """
+        self._purge_old_reports_sync(retention_days)
+=======
+        """Public method to trigger the synchronous purge."""
+        self._purge_old_reports_sync(retention_days)
+>>>>>>> origin/main
