@@ -22,5 +22,7 @@ if __name__ == "__main__":
     print("Starting GUI application...")
     app = QApplication(sys.argv)
     main_win = MainApplicationWindow()
-    # The main window will be shown after a successful login
+    # Start the application logic (loading models, showing login) after the window is created.
+    main_win.start()
+    # The main window will be shown by the start() method after a successful login.
     sys.exit(app.exec())
