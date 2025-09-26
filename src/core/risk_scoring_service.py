@@ -10,7 +10,8 @@ class RiskScoringService:
         """
         pass
 
-    def calculate_compliance_score(self, findings: List[Dict[str, Any]]) -> int:
+    @staticmethod
+    def calculate_compliance_score(findings: List[Dict[str, Any]]) -> int:
         """
         Calculates a mock compliance score.
         """

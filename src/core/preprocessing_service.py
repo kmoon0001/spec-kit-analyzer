@@ -8,7 +8,8 @@ class PreprocessingService:
         """
         pass
 
-    def correct_text(self, text: str) -> str:
+    @staticmethod
+    def correct_text(text: str) -> str:
         """
         A mock text correction method.
         """

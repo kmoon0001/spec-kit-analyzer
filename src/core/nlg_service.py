@@ -11,7 +11,8 @@ class NLGService:
         self.llm_service = llm_service
         self.prompt_template_path = prompt_template_path
 
-    def generate_personalized_tip(self, finding: Dict[str, Any]) -> str:
+    @staticmethod
+    def generate_personalized_tip(finding: Dict[str, Any]) -> str:
         """
         Generates a mock personalized tip for a given compliance finding.
         """
