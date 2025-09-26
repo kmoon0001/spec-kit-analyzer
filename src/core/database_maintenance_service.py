@@ -35,17 +35,5 @@ class DatabaseMaintenanceService:
         asyncio.run(purge())
 
     def purge_old_reports(self, retention_days: int):
-<<<<<<< HEAD
-        """
-        Public method to trigger the synchronous purge.
-        """
-        self._purge_old_reports_sync(retention_days)
-||||||| 4db3b6b
-        """
-        Public method to trigger the synchronous purge.
-        """
-        self._purge_old_reports_sync(retention_days)
-=======
         """Public method to trigger the synchronous purge."""
         self._purge_old_reports_sync(retention_days)
->>>>>>> origin/main

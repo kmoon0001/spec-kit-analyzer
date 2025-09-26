@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ... import schemas, models
-from ...database import get_db
+from ...database import get_async_db as get_db
 from ...auth import get_current_active_user
 from ...core.chat_service import ChatService
 from ...core.analysis_service import AnalysisService
@@ -11,9 +11,9 @@ from ..dependencies import get_analysis_service
 router = APIRouter()
 
 @router.post("/", response_model=schemas.ChatResponse)
-def chat_with_ai(
+async def chat_with_ai(
     chat_request: schemas.ChatRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
     analysis_service: AnalysisService = Depends(get_analysis_service),
 ):

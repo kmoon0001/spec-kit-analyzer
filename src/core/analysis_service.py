@@ -12,7 +12,7 @@ from .llm_service import LLMService
 from .ner import NERPipeline
 from .explanation import ExplanationEngine
 from .prompt_manager import PromptManager
-from .fact_checker import FactCheckerService # Make sure this import is present
+from .fact_checker_service import FactCheckerService # Make sure this import is present
 
 logger = logging.getLogger(__name__)
 

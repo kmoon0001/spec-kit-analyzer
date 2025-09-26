@@ -41,6 +41,10 @@ class AuthService:
 
 auth_service = AuthService()
 
+def get_auth_service() -> AuthService:
+    """Dependency that provides the auth service instance."""
+    return auth_service
+
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> models.User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -57,13 +61,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
     except JWTError:
         raise credentials_exception
 
-<<<<<<< HEAD
     user = await crud.get_user_by_username(db, username=username)
-||||||| 24e8eb0
-    user = crud.get_user_by_username(db, username=token_data.username)
-=======
-    user = await crud.get_user_by_username(db, username=token_data.username)
->>>>>>> origin/main
     if user is None:
         raise credentials_exception
     return user
