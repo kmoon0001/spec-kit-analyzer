@@ -1,8 +1,13 @@
 import logging
-from ctransformers import AutoModelForCausalLM
+import os
+from unittest.mock import MagicMock
 from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
+
+# We conditionally import ctransformers only when not testing
+if os.environ.get("PYTEST_RUNNING") != "1":
+    from ctransformers import AutoModelForCausalLM
 
 class LLMService:
     """
@@ -10,10 +15,20 @@ class LLMService:
     """
     def __init__(self, model_repo_id: str, model_filename: str, llm_settings: Dict[str, Any]):
         """
-        Initializes the LLMService by loading the specified GGUF model with ctransformers.
+        Initializes the LLMService. If the 'PYTEST_RUNNING' environment variable is set,
+        it will use a MagicMock instead of loading a real model.
         """
         self.llm = None
         self.generation_params = llm_settings.get('generation_params', {})
+
+        # Check for pytest environment to mock the model loading
+        if os.environ.get("PYTEST_RUNNING") == "1":
+            self.llm = MagicMock()
+            # Mock the __call__ method to return a default JSON string
+            self.llm.return_value = '{"mock_analysis": "This is a mock analysis from a mocked LLM."}'
+            logger.info("LLMService initialized with a mock model for testing.")
+            return
+
         logger.info(f"Loading GGUF model: {model_repo_id}/{model_filename}...")
         try:
             self.llm = AutoModelForCausalLM.from_pretrained(

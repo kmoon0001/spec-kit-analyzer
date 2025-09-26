@@ -9,7 +9,8 @@ from src.core.compliance_analyzer import ComplianceAnalyzer
 @pytest.fixture
 def mock_retriever():
     retriever = MagicMock()
-    retriever.retrieve.return_value = [{"issue_title": "Mocked Rule"}]
+    # The orchestration test needs a rule with an ID to trigger the fact checker
+    retriever.retrieve.return_value = [{"id": "test_rule_1", "issue_title": "Mocked Rule"}]
     return retriever
 
 @pytest.fixture
@@ -33,7 +34,10 @@ def mock_nlg_service():
 @pytest.fixture
 def mock_explanation_engine():
     exp = MagicMock()
-    exp.add_explanations.return_value = {"findings": [{"text": "Problematic text."}]}
+    # The orchestration test needs a finding with a rule_id to trigger the fact checker
+    exp.add_explanations.return_value = {
+        "findings": [{"text": "Problematic text.", "rule_id": "test_rule_1"}]
+    }
     return exp
 
 @pytest.fixture
@@ -42,11 +46,19 @@ def mock_prompt_manager():
     pm.build_prompt.return_value = "This is a test prompt."
     return pm
 
+@pytest.fixture
+def mock_fact_checker_service():
+    """Provides a mock for the new FactCheckerService dependency."""
+    fc = MagicMock()
+    fc.is_finding_plausible.return_value = True
+    return fc
+
 # --- Tests ---
 
 def test_compliance_analyzer_initialization(
-    mock_retriever, mock_ner_pipeline, mock_llm_service, 
-    mock_nlg_service, mock_explanation_engine, mock_prompt_manager
+    mock_retriever, mock_ner_pipeline, mock_llm_service,
+    mock_nlg_service, mock_explanation_engine, mock_prompt_manager,
+    mock_fact_checker_service  # Add the new fixture
 ):
     """Tests that the ComplianceAnalyzer correctly initializes with all its dependencies."""
     # Act
@@ -56,7 +68,8 @@ def test_compliance_analyzer_initialization(
         llm_service=mock_llm_service,
         nlg_service=mock_nlg_service,
         explanation_engine=mock_explanation_engine,
-        prompt_manager=mock_prompt_manager
+        prompt_manager=mock_prompt_manager,
+        fact_checker_service=mock_fact_checker_service  # Pass the new dependency
     )
     
     # Assert
@@ -64,11 +77,13 @@ def test_compliance_analyzer_initialization(
     assert analyzer.ner_pipeline is mock_ner_pipeline
     assert analyzer.llm_service is mock_llm_service
     assert analyzer.nlg_service is mock_nlg_service
+    assert analyzer.fact_checker_service is mock_fact_checker_service
 
 
 def test_analyze_document_orchestration(
-    mock_retriever, mock_ner_pipeline, mock_llm_service, 
-    mock_nlg_service, mock_explanation_engine, mock_prompt_manager
+    mock_retriever, mock_ner_pipeline, mock_llm_service,
+    mock_nlg_service, mock_explanation_engine, mock_prompt_manager,
+    mock_fact_checker_service # Add the new fixture
 ):
     """
     Tests that analyze_document correctly orchestrates calls to its dependencies.
@@ -80,7 +95,8 @@ def test_analyze_document_orchestration(
         llm_service=mock_llm_service,
         nlg_service=mock_nlg_service,
         explanation_engine=mock_explanation_engine,
-        prompt_manager=mock_prompt_manager
+        prompt_manager=mock_prompt_manager,
+        fact_checker_service=mock_fact_checker_service # Pass the new dependency
     )
     
     # Act
@@ -93,6 +109,7 @@ def test_analyze_document_orchestration(
     mock_prompt_manager.build_prompt.assert_called_once()
     mock_llm_service.generate_analysis.assert_called_once()
     mock_explanation_engine.add_explanations.assert_called_once()
+    mock_fact_checker_service.is_finding_plausible.assert_called_once() # Verify fact checker is called
     mock_nlg_service.generate_personalized_tip.assert_called_once()
 
     # 2. Verify the final result includes the generated tip

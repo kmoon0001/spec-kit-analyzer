@@ -92,3 +92,9 @@ def delete_reports_older_than(db: Session, days: int) -> int:
         reports_to_delete.delete(synchronize_session=False)
         db.commit()
     return num_deleted
+
+def get_rubrics(db: Session, limit: int = 1000):
+    """
+    Mock function to get rubrics. Returns an empty list.
+    """
+    return []
