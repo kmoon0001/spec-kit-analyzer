@@ -46,7 +46,8 @@ class HybridRetriever:
         self.corpus_embeddings = self.dense_retriever.encode(self.corpus, convert_to_tensor=True)
         logging.info("Hybrid Retriever initialized successfully.")
 
-    def _load_rules_from_db(self) -> List[Dict]:
+    @staticmethod
+    def _load_rules_from_db() -> List[Dict]:
         """Fetches all rubrics from the database on startup."""
         db = None
         try:

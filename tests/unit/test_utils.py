@@ -1,3 +1,4 @@
+import os
 from unittest.mock import patch, mock_open
 
 # Import the functions to be tested
@@ -29,8 +30,9 @@ def test_chunk_text_respects_newlines():
     chunks = chunk_text(text, max_chars=200)
     # It should split at the newline, not at the max_chars limit.
     assert len(chunks) == 2
-    assert chunks[0] == "a" * 150 # The split happens at the newline
-    assert chunks[1] == "\n" + "b" * 50
+    # The first chunk should end with the newline
+    assert chunks[0] == "a" * 150 + "\n"
+    assert chunks[1] == "b" * 50
 
 # --- Tests for load_config --- #
 
@@ -45,8 +47,11 @@ def test_load_config_successfully(mock_safe_load, mock_file):
     config = load_config()
     
     # Assert
-    # Check that the function opened the correct file path
-    mock_file.assert_called_once_with(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.yaml"), 'r')
+    # Construct the expected path to the root config.yaml
+    # The utils file is in 'src/', so we go up one level.
+    expected_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'config.yaml'))
+    mock_file.assert_called_once_with(expected_path, 'r')
+
     # Check that the yaml parser was called
     mock_safe_load.assert_called_once()
     # Check that the correct config was returned

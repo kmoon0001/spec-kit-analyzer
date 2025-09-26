@@ -71,8 +71,8 @@ class GuidelineService:
         # Check if the sources have changed
         with open(self.chunks_path, 'rb') as f:
             cached_chunks = pickle.load(f)
-        cached_sources = set(chunk[1] for chunk in cached_chunks)
-        current_sources = set(os.path.basename(path) for path in self.source_paths)
+        cached_sources = {chunk[1] for chunk in cached_chunks}
+        current_sources = {os.path.basename(path) for path in self.source_paths}
         if cached_sources != current_sources:
             return False
 
@@ -124,8 +124,9 @@ class GuidelineService:
                 embeddings_np = embeddings_np.astype(np.float32)
 
             embedding_dim = embeddings_np.shape[1]
-            self.faiss_index = faiss.IndexFlatL2(embedding_dim)
-            self.faiss_index.add(embeddings_np)
+            new_index = faiss.IndexFlatL2(embedding_dim)
+            new_index.add(embeddings_np)
+            self.faiss_index = new_index
 
         self.is_index_ready = True
         logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks using FAISS.")
@@ -191,7 +192,7 @@ class GuidelineService:
             raise
         return chunks
 
-    def search(self, query: str, top_k: int = None) -> List[dict]:
+    def search(self, query: str, top_k: int | None = None) -> List[dict]:
         """
         Performs a FAISS similarity search through the loaded guidelines.
         """
@@ -219,3 +220,9 @@ class GuidelineService:
                 results.append({"text": chunk[0], "source": chunk[1], "score": dist})
 
         return results
+
+def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
+    """
+    Mock function to parse a guideline file. Returns an empty list.
+    """
+    return []

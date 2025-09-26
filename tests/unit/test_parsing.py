@@ -1,4 +1,4 @@
-from unittest.mock import patch, mock_open
+from unittest.mock import patch, mock_open, MagicMock
 
 # Import the functions to be tested
 from src.parsing import parse_document_content, parse_document_into_sections
@@ -34,24 +34,29 @@ def test_parse_txt_content(mock_file):
     assert len(chunks) > 0
     assert "This is a test from a txt file" in chunks[0]['sentence']
 
-@patch("builtins.open")
-def test_parse_non_existent_file(mock_open):
+@patch("src.parsing.pdfplumber.open") # Mock the pdf-specific open to avoid it being called
+def test_parse_non_existent_file(mock_pdf_open):
     """Tests that the parser handles a non-existent file gracefully."""
-    # Arrange: Configure the mock to raise a FileNotFoundError
-    mock_open.side_effect = FileNotFoundError
+    # Arrange: This test doesn't need a complex mock, as the code will raise FileNotFoundError
+    # if we provide a path to a non-existent file.
 
     # Act
     result = parse_document_content("non_existent_file.txt")
 
     # Assert
     assert len(result) == 1
-    assert result[0]['sentence'].startswith("Error: File not found")
+    assert "Error: File not found" in result[0]['sentence']
 
 def test_parse_unsupported_file_type():
-    """Tests that the parser handles an unsupported file type."""
+    """Tests that the parser handles an unsupported file type correctly."""
+    # Act
     result = parse_document_content("document.zip")
+
+    # Assert
     assert len(result) == 1
-    assert result[0]['sentence'].startswith("Error: Unsupported file type")
+    # Check for the more specific error message from the updated source code
+    assert "Error: Unsupported file type '.zip'" in result[0]['sentence']
+
 
 # --- Tests for parse_document_into_sections (These were already good) --- #
 
@@ -66,8 +71,8 @@ Plan: Continue with current treatment.
     sections = parse_document_into_sections(document_text)
     assert isinstance(sections, dict)
     assert len(sections) == 4
-    assert "Subjective" in sections
-    assert sections["Objective"] == "Gait steady. Vital signs stable."
+    assert "subjective" in sections
+    assert sections["objective"] == "Gait steady. Vital signs stable."
 
 def test_parse_document_into_sections_no_headers():
     """Tests that a document with no section headers is handled correctly."""

@@ -21,11 +21,11 @@ class ChatDialog(QDialog):
         ]
 
         # --- UI Setup ---
-        self.layout = QVBoxLayout(self)
+        self.main_layout = QVBoxLayout(self)
 
         self.chat_display = QTextEdit()
         self.chat_display.setReadOnly(True)
-        self.layout.addWidget(self.chat_display)
+        self.main_layout.addWidget(self.chat_display)
 
         input_layout = QHBoxLayout()
         self.message_input = QLineEdit()
@@ -34,10 +34,10 @@ class ChatDialog(QDialog):
 
         input_layout.addWidget(self.message_input)
         input_layout.addWidget(self.send_button)
-        self.layout.addLayout(input_layout)
+        self.main_layout.addLayout(input_layout)
 
         self.close_button = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-        self.layout.addWidget(self.close_button)
+        self.main_layout.addWidget(self.close_button)
 
         # --- Connections ---
         self.send_button.clicked.connect(self.send_message)

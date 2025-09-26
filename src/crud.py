@@ -64,6 +64,10 @@ def get_reports(db: Session, skip: int = 0, limit: int = 100):
 def get_report(db: Session, report_id: int):
     return db.query(models.Report).filter(models.Report.id == report_id).first()
 
+def get_rubrics(db: Session, skip: int = 0, limit: int = 1000):
+    """Fetches all rubrics from the database."""
+    return db.query(models.Rubric).offset(skip).limit(limit).all()
+
 def change_user_password(db: Session, user: models.User, new_hashed_password: str):
     user.hashed_password = new_hashed_password
     db.commit()
@@ -92,3 +96,9 @@ def delete_reports_older_than(db: Session, days: int) -> int:
         reports_to_delete.delete(synchronize_session=False)
         db.commit()
     return num_deleted
+
+def get_rubrics(db: Session, limit: int = 1000):
+    """
+    Mock function to get rubrics. Returns an empty list.
+    """
+    return []

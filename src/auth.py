@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
+from functools import lru_cache
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -8,7 +9,7 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from . import crud, models, schemas
-from .config import config
+from .config import get_config
 from .database import get_db
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -17,6 +18,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 class AuthService:
     def __init__(self):
+        config = get_config()
         self.secret_key = config.auth.secret_key
         self.algorithm = config.auth.algorithm
         self.access_token_expire_minutes = config.auth.access_token_expire_minutes
@@ -31,15 +33,23 @@ class AuthService:
         encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
         return encoded_jwt
 
-    def verify_password(self, plain_password, hashed_password):
+    @staticmethod
+    def verify_password(plain_password, hashed_password):
         return pwd_context.verify(plain_password, hashed_password)
 
-    def get_password_hash(self, password):
+    @staticmethod
+    def get_password_hash(password):
         return pwd_context.hash(password)
 
-auth_service = AuthService()
+@lru_cache()
+def get_auth_service() -> AuthService:
+    return AuthService()
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> models.User:
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+    auth_service: AuthService = Depends(get_auth_service)
+) -> models.User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -47,14 +57,14 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     )
     try:
         payload = jwt.decode(token, auth_service.secret_key, algorithms=[auth_service.algorithm])
-        username: str = payload.get("sub")
-        if username is None:
+        username = payload.get("sub")
+        if not isinstance(username, str):
             raise credentials_exception
         token_data = schemas.TokenData(username=username)
     except JWTError:
         raise credentials_exception
 
-    user = crud.get_user_by_username(db, username=token_data.username)
+    user = crud.get_user_by_username(db, username=username)
     if user is None:
         raise credentials_exception
     return user
