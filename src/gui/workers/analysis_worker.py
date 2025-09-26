@@ -10,8 +10,10 @@ class AnalysisWorker(QObject):
     success = pyqtSignal(str)
     progress = pyqtSignal(int)
 
-    def __init__(self, task_id: str):
+    def __init__(self, file_path, data, task_id):
         super().__init__()
+        self.file_path = file_path
+        self.data = data
         self.task_id = task_id
 
     def run(self):

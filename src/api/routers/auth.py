@@ -4,17 +4,13 @@ from sqlalchemy.orm import Session
 from datetime import timedelta
 
 from ... import crud, schemas, models
-from ...auth import AuthService, get_auth_service, get_current_active_user
+from ...auth import auth_service, get_current_active_user
 from ...database import get_db
 
 router = APIRouter()
 
 @router.post("/token", response_model=schemas.Token)
-def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db),
-    auth_service: AuthService = Depends(get_auth_service)
-):
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     # 1. Verify username and password
     user = crud.get_user_by_username(db, username=form_data.username)
     if not user or not auth_service.verify_password(form_data.password, user.hashed_password):
@@ -42,8 +38,7 @@ def login_for_access_token(
 def change_password(
     password_data: schemas.UserPasswordChange, 
     db: Session = Depends(get_db), 
-    current_user: models.User = Depends(get_current_active_user),
-    auth_service: AuthService = Depends(get_auth_service)
+    current_user: models.User = Depends(get_current_active_user)
 ):
     if not auth_service.verify_password(password_data.current_password, current_user.hashed_password):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password.")

@@ -7,7 +7,7 @@ import os
 
 from ... import crud, schemas, models
 from ...database import get_db
-from ...auth import AuthService, get_auth_service, get_current_admin_user
+from ...auth import get_current_admin_user, auth_service
 
 router = APIRouter()
 
@@ -35,10 +35,9 @@ def read_users(
 
 @router.post("/users", response_model=schemas.User, status_code=status.HTTP_201_CREATED)
 def create_user(
-    user: schemas.UserCreate,
+    user: schemas.UserCreate, 
     db: Session = Depends(get_db),
-    admin_user: models.User = Depends(get_current_admin_user),
-    auth_service: AuthService = Depends(get_auth_service),
+    admin_user: models.User = Depends(get_current_admin_user)
 ):
     """Creates a new user. Admin only."""
     db_user = crud.get_user_by_username(db, username=user.username)
@@ -70,7 +69,7 @@ def activate_user(
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    db_user.is_active = True  # type: ignore[assignment]
+    db_user.is_active = True
     db.commit()
     db.refresh(db_user)
     return db_user
@@ -86,7 +85,7 @@ def deactivate_user(
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    db_user.is_active = False  # type: ignore[assignment]
+    db_user.is_active = False
     db.commit()
     db.refresh(db_user)
     return db_user
