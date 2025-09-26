@@ -1,5 +1,5 @@
 import requests
-from PyQt6.QtCore import QObject, Signal
+from PyQt6.QtCore import QObject, pyqtSignal
 from typing import List, Tuple
 
 API_URL = "http://127.0.0.1:8000"
@@ -8,8 +8,8 @@ class FolderAnalysisStarterWorker(QObject):
     """
     A one-shot worker to start the folder analysis on the backend without freezing the UI.
     """
-    success = Signal(str)  # Emits the task_id on success
-    error = Signal(str)
+    success = pyqtSignal(str)  # Emits the task_id on success
+    error = pyqtSignal(str)
 
     def __init__(self, files: List[Tuple], data: dict, token: str):
         super().__init__()
