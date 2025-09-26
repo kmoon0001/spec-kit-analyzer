@@ -1,106 +1,70 @@
 import logging
+import pickle
 import numpy as np
-import faiss
-from sentence_transformers import SentenceTransformer
-from src.utils import load_config
 
+from src.core.parsing import DocumentParser
+from src.core.document_classifier import DocumentClassifier
+from src.core.guideline_service import GuidelineService
+from src.core.llm_analyzer import LLMAnalyzer
+from src.core.report_generator import ReportGenerator
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class DocumentAnalysisService:
     """
-    Manages the analysis of a single document by creating an in-memory FAISS index
-    of its chunks and allowing for semantic search.
+    This service class orchestrates the entire document analysis pipeline.
+    It integrates various components like parsing, classification, analysis, and reporting.
     """
-
-    def __init__(self, chunks: list[dict]):
+    def __init__(self):
         """
-        Initializes the DocumentAnalysisService.
-
-        Args:
-            chunks (list[dict]): A list of chunks from the smart_chunker.
-                                 Each chunk is a dict with 'sentence', 'window', and 'metadata'.
+        Initializes all the necessary components for the analysis pipeline.
+        This follows a Singleton-like pattern where services are initialized once.
         """
-        self.config = load_config()
-        model_name = self.config['models']['retriever']
+        logger.info("Initializing DocumentAnalysisService and its components...")
+        self.parser = DocumentParser()
+        self.classifier = DocumentClassifier()
+        self.guideline_service = GuidelineService()
+        self.llm_analyzer = LLMAnalyzer()
+        self.report_generator = ReportGenerator()
+        logger.info("DocumentAnalysisService initialized successfully.")
 
-        self.chunks = chunks
-        self.is_index_ready = False
-        self.faiss_index = None
-
-        logger.info(f"Loading Sentence Transformer model: {model_name}")
-        self.model = SentenceTransformer(model_name)
-
-        self._build_index()
-        logger.info("DocumentAnalysisService initialized.")
-
-    def _build_index(self):
-        """Builds an in-memory FAISS index from the document chunks."""
-        if not self.chunks:
-            logger.warning("No chunks provided to build the index.")
-            return
-
-        logger.info("Encoding document chunks into vectors...")
-        # We search based on the core sentence, not the whole window
-        texts_to_encode = [chunk['sentence'] for chunk in self.chunks]
-
-        embeddings = self.model.encode(texts_to_encode, convert_to_tensor=False, show_progress_bar=False)
-
-        if embeddings.dtype != np.float32:
-            embeddings = embeddings.astype(np.float32)
-
-        embedding_dim = embeddings.shape[1]
-        self.faiss_index = faiss.IndexFlatL2(embedding_dim)
-        self.faiss_index.add(embeddings)
-
-        self.is_index_ready = True
-        logger.info(f"Successfully indexed {len(self.chunks)} document chunks.")
-
-    def search(self, query: str, top_k: int = 5, metadata_filter: dict = None) -> list[dict]:
+    def get_document_embedding(self, text: str) -> bytes:
         """
-        Performs a FAISS similarity search through the document chunks.
-
-        Args:
-            query (str): The search query.
-            top_k (int): The number of top results to return.
-            metadata_filter (dict): A dictionary to filter chunks by metadata before searching.
-
-        Returns:
-            list[dict]: A list of the top matching chunks.
+        Generates a semantic embedding for the given text.
+        This is used for caching and similarity checks.
         """
-        if not self.is_index_ready or not self.faiss_index:
-            logger.warning("Search called before the index was ready.")
-            return []
+        return self.llm_analyzer.get_embedding(text)
 
-        # 1. Pre-filtering (if a filter is provided)
-        candidate_chunks = self.chunks
-        if metadata_filter:
-            candidate_chunks = [
-                chunk for chunk in self.chunks
-                if all(item in chunk['metadata'].items() for item in metadata_filter.items())
-            ]
-            if not candidate_chunks:
-                return [] # No chunks matched the filter
+    def analyze_document(self, doc_content: str, doc_name: str) -> tuple[dict, list]:
+        """
+        Runs the full analysis pipeline on a given document.
+        """
+        logger.info(f"Starting analysis for document: {doc_name}")
 
-        # 2. Embedding and Searching
-        # For now, we search on all chunks and filter later. A more advanced implementation
-        # would re-build a temporary index from the filtered chunks.
-        query_embedding = self.model.encode([query])
-        if query_embedding.dtype != np.float32:
-            query_embedding = query_embedding.astype(np.float32)
+        # 1. Parse the document content to extract text
+        # This step is simplified as we assume text is already extracted.
+        # In a real scenario, this would handle different file formats.
+        parsed_text = doc_content # In a real system, parser.parse(doc_content)
 
-        # We need to search for more results initially, as some might be filtered out
-        search_k = top_k * 3 if metadata_filter else top_k
-        distances, indices = self.faiss_index.search(query_embedding, search_k)
+        # 2. Classify the document type (e.g., "Progress Note")
+        doc_type = self.classifier.classify_document(parsed_text)
+        logger.info(f"Classified document as: {doc_type}")
 
-        # 3. Post-filtering and result assembly
-        results = []
-        # Get the indices of the candidate chunks for quick lookup
-        candidate_indices = {i for i, chunk in enumerate(self.chunks) if chunk in candidate_chunks}
+        # 3. Retrieve relevant guidelines using the RAG pipeline
+        relevant_guidelines = self.guideline_service.get_relevant_guidelines(parsed_text)
+        logger.info(f"Retrieved {len(relevant_guidelines)} relevant guidelines.")
 
-        for i in indices[0]:
-            if i != -1 and i in candidate_indices:
-                results.append(self.chunks[i])
-            if len(results) == top_k:
-                break
+        # 4. Perform the core analysis using the LLM
+        analysis_result = self.llm_analyzer.analyze(parsed_text, relevant_guidelines)
+        logger.info("LLM analysis complete.")
 
-        return results
+        # 5. Generate the final report data
+        report_data, findings_data = self.report_generator.generate_report(
+            doc_name=doc_name,
+            analysis_result=analysis_result
+        )
+        logger.info("Report generation complete.")
+
+        return report_data, findings_data

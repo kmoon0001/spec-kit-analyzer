@@ -1,59 +1,50 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import List
 
-from ... import crud, schemas, models
-from ...database import get_db
-from ...auth import get_current_active_user
-from ...core.report_generator import ReportGenerator # Import the generator
+from src.database import schemas, crud, models, get_db
+from src.api.routers.auth import get_current_active_user
 
 router = APIRouter()
 
-# Instantiate the report generator once to reuse it
-report_generator = ReportGenerator()
-
-@router.get("/reports", response_model=List[schemas.Report])
-def read_reports(
-    skip: int = 0, 
-    limit: int = 100, 
+@router.get("/summary", response_model=schemas.DashboardSummary)
+def get_dashboard_summary(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
     """
-    Retrieves a list of historical analysis reports for the dashboard.
+    Provides a summary of compliance data for the dashboard.
     """
-    reports = crud.get_reports(db, skip=skip, limit=limit)
-    return reports
+    total_reports = len(crud.get_reports(db, limit=1000)) # A simple count for now
 
-@router.get("/reports/{report_id}", response_class=HTMLResponse)
-def read_report(
-    report_id: int,
+    # This is a placeholder for a more complex calculation
+    average_score = 75
+
+    # Get the most common findings
+    common_findings = crud.get_findings_summary(db, limit=5)
+
+    return {
+        "total_reports_analyzed": total_reports,
+        "average_compliance_score": average_score,
+        "most_common_findings": common_findings
+    }
+
+@router.get("/trend", response_model=List[schemas.ComplianceTrendPoint])
+def get_compliance_trend(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
     """
-    Retrieves a single report by ID and generates its HTML view on the fly.
+    Provides data points for the compliance score trend chart.
     """
-    db_report = crud.get_report(db, report_id=report_id)
-    if db_report is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
+    reports = crud.get_reports(db, limit=30) # Get last 30 reports for the trend
 
-    # Generate the HTML report from the stored JSON data
-    report_html = report_generator.generate_html_report(
-        analysis_result=db_report.analysis_result,
-        doc_name=db_report.document_name,
-        analysis_mode="rubric" # The mode doesn't affect our current template
-    )
-    return HTMLResponse(content=report_html)
+    trend_data = [
+        {
+            "date": report.analysis_date.strftime("%Y-%m-%d"),
+            "score": report.compliance_score
+        }
+        for report in reversed(reports) # Reverse to show oldest to newest
+    ]
 
-@router.get("/findings-summary", response_model=List[schemas.FindingSummary])
-def read_findings_summary(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
-):
-    """
-    Retrieves a summary of the most common compliance findings.
-    """
-    summary = crud.get_findings_summary(db)
-    return summary
+    return trend_data

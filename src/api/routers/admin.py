@@ -5,9 +5,9 @@ from typing import List
 import uuid
 import os
 
-from ... import crud, schemas, models
-from ...database import get_db
-from ...auth import get_current_admin_user, auth_service
+from src.database import crud, models, schemas
+from src.database.database import get_db
+from src.api.routers import auth
 
 router = APIRouter()
 
@@ -16,7 +16,7 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '
 ADMIN_HTML_PATH = os.path.join(ROOT_DIR, "src", "resources", "admin.html")
 
 @router.get("/dashboard", response_class=FileResponse)
-def get_admin_dashboard(admin_user: models.User = Depends(get_current_admin_user)):
+def get_admin_dashboard(admin_user: models.User = Depends(auth.get_current_admin_user)):
     """Serves the admin dashboard HTML page. Admin only."""
     if not os.path.exists(ADMIN_HTML_PATH):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="admin.html not found")
@@ -27,7 +27,7 @@ def read_users(
     skip: int = 0, 
     limit: int = 100, 
     db: Session = Depends(get_db),
-    admin_user: models.User = Depends(get_current_admin_user)
+    admin_user: models.User = Depends(auth.get_current_admin_user)
 ):
     """Retrieves a list of all users. Admin only."""
     users = db.query(models.User).offset(skip).limit(limit).all()
@@ -37,14 +37,14 @@ def read_users(
 def create_user(
     user: schemas.UserCreate, 
     db: Session = Depends(get_db),
-    admin_user: models.User = Depends(get_current_admin_user)
+    admin_user: models.User = Depends(auth.get_current_admin_user)
 ):
     """Creates a new user. Admin only."""
     db_user = crud.get_user_by_username(db, username=user.username)
     if db_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already registered")
 
-    hashed_password = auth_service.get_password_hash(user.password)
+    hashed_password = auth.auth_service.get_password_hash(user.password)
     license_key = str(uuid.uuid4()) # Generate a unique license key
 
     new_user = models.User(
@@ -62,7 +62,7 @@ def create_user(
 def activate_user(
     user_id: int, 
     db: Session = Depends(get_db),
-    admin_user: models.User = Depends(get_current_admin_user)
+    admin_user: models.User = Depends(auth.get_current_admin_user)
 ):
     """Activates a user's license. Admin only."""
     db_user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -78,7 +78,7 @@ def activate_user(
 def deactivate_user(
     user_id: int, 
     db: Session = Depends(get_db),
-    admin_user: models.User = Depends(get_current_admin_user)
+    admin_user: models.User = Depends(auth.get_current_admin_user)
 ):
     """Deactivates a user's license. Admin only."""
     db_user = db.query(models.User).filter(models.User.id == user_id).first()

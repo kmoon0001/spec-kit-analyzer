@@ -92,3 +92,33 @@ def delete_reports_older_than(db: Session, days: int) -> int:
         reports_to_delete.delete(synchronize_session=False)
         db.commit()
     return num_deleted
+
+# CRUD operations for Rubrics
+def create_rubric(db: Session, rubric: models.RubricCreate):
+    db_rubric = models.Rubric(name=rubric.name, content=rubric.content)
+    db.add(db_rubric)
+    db.commit()
+    db.refresh(db_rubric)
+    return db_rubric
+
+def get_rubrics(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Rubric).offset(skip).limit(limit).all()
+
+def get_rubric(db: Session, rubric_id: int):
+    return db.query(models.Rubric).filter(models.Rubric.id == rubric_id).first()
+
+def update_rubric(db: Session, rubric_id: int, rubric: models.RubricCreate):
+    db_rubric = db.query(models.Rubric).filter(models.Rubric.id == rubric_id).first()
+    if db_rubric:
+        db_rubric.name = rubric.name
+        db_rubric.content = rubric.content
+        db.commit()
+        db.refresh(db_rubric)
+    return db_rubric
+
+def delete_rubric(db: Session, rubric_id: int):
+    db_rubric = db.query(models.Rubric).filter(models.Rubric.id == rubric_id).first()
+    if db_rubric:
+        db.delete(db_rubric)
+        db.commit()
+    return db_rubric

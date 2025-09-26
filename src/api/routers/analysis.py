@@ -1,109 +1,111 @@
-from fastapi import APIRouter, Depends, UploadFile, File, BackgroundTasks, HTTPException, Form
-from fastapi.responses import HTMLResponse
-import shutil
-import os
-import uuid
+from fastapi import APIRouter, File, UploadFile, Form, Depends, HTTPException, BackgroundTasks
+from sqlalchemy.orm import Session
+from typing import List
 import logging
-import pickle
+import traceback
 
-from ... import schemas, models, crud
-from ...auth import get_current_active_user
-from ...core.analysis_service import AnalysisService
-from ...database import SessionLocal
+from src.database import schemas, crud, models
+from src.database.database import get_db
+from src.core.document_analysis_service import DocumentAnalysisService
+from src.api.routers.auth import get_current_active_user
 
-router = APIRouter()
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-analysis_service = AnalysisService()
-tasks = {}
+router = APIRouter()
 
-def run_analysis_and_save(
-    file_path: str, 
-    task_id: str, 
-    doc_name: str,
-    discipline: str | None, 
-    analysis_mode: str
-):
-    """Runs the analysis with semantic caching, saves the data, and generates the report."""
-    db = SessionLocal()
+# Initialize the analysis service
+# This service holds the AI models and can be reused across requests
+analysis_service = DocumentAnalysisService()
+
+
+def analyze_and_save_task(db: Session, doc_content: str, doc_name: str):
+    """
+    A background task to run the analysis and save the report.
+    This prevents the API from timing out on long analyses.
+    """
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            document_text = f.read()
+        logger.info(f"Starting background analysis for document: {doc_name}")
+        # 1. Run the full analysis pipeline
+        report_data, findings_data = analysis_service.analyze_document(doc_content, doc_name)
 
-        # 1. Generate embedding for the new document
-        embedding_bytes = analysis_service.get_document_embedding(document_text)
-        new_embedding = pickle.loads(embedding_bytes)
-
-        # 2. Check for a semantically similar report in the cache (database)
-        cached_report = crud.find_similar_report(db, new_embedding)
-
-        if cached_report:
-            # --- CACHE HIT ---
-            logger.info(f"Semantic cache hit for document: {doc_name}. Using cached report ID: {cached_report.id}")
-            analysis_result = cached_report.analysis_result
-        else:
-            # --- CACHE MISS ---
-            logger.info(f"Semantic cache miss for document: {doc_name}. Performing full analysis.")
-            # Perform the full analysis to get the structured data
-            analysis_result = analysis_service.analyzer.analyze_document(
-                document=document_text,
-                discipline=discipline,
-                doc_type="Unknown" # This will be replaced by the classifier
-            )
-
-            # Save the new analysis result and its embedding to the database
-            report_data = {
-                "document_name": doc_name,
-                "compliance_score": analysis_service.report_generator.risk_scoring_service.calculate_compliance_score(analysis_result.get("findings", [])),
-                "analysis_result": analysis_result,
-                "document_embedding": embedding_bytes
-            }
-            crud.create_report_and_findings(db, report_data, analysis_result.get("findings", []))
-
-        # 3. Generate the HTML report (either from cached or new data)
-        report_html = analysis_service.report_generator.generate_html_report(
-            analysis_result=analysis_result,
-            doc_name=doc_name,
-            analysis_mode=analysis_mode
-        )
-
-        tasks[task_id] = {"status": "completed", "result": report_html}
+        # 2. Save the report and findings to the database
+        crud.create_report_and_findings(db, report_data=report_data, findings_data=findings_data)
+        logger.info(f"Successfully saved analysis report for: {doc_name}")
 
     except Exception as e:
-        logger.error(f"Error in analysis background task: {e}", exc_info=True)
-        tasks[task_id] = {"status": "failed", "error": str(e)}
-    finally:
-        db.close()
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        # Log the full error traceback for debugging
+        tb_str = traceback.format_exc()
+        logger.error(f"Error during background analysis for {doc_name}: {e}\n{tb_str}")
 
-@router.post("/analyze", response_model=schemas.AnalysisResult, status_code=202)
-async def analyze_document(
+
+@router.post("/analyze/text", status_code=202)
+def analyze_text(
+    background_tasks: BackgroundTasks,
+    text_input: schemas.TextInput,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """
+    Accepts plain text, runs analysis in the background,
+    and returns immediately with a confirmation.
+    """
+    doc_name = f"text_input_{text_input.title[:20]}.txt"
+    # Add the analysis task to be run in the background
+    background_tasks.add_task(analyze_and_save_task, db, text_input.content, doc_name)
+
+    return {"message": "Analysis has been started in the background."}
+
+
+@router.post("/analyze/file", status_code=202)
+async def analyze_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    discipline: str = Form("All"),
-    analysis_mode: str = Form("rubric"),
-    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
 ):
-    task_id = str(uuid.uuid4())
-    temp_file_path = f"temp_{task_id}_{file.filename}"
-    with open(temp_file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    """
+    Accepts a file upload, runs analysis in the background,
+    and returns immediately.
+    """
+    try:
+        content = await file.read()
+        doc_name = file.filename
+        # Add the analysis task to be run in the background
+        background_tasks.add_task(analyze_and_save_task, db, content.decode('utf-8', errors='ignore'), doc_name)
 
-    background_tasks.add_task(
-        run_analysis_and_save, temp_file_path, task_id, file.filename, discipline, analysis_mode
-    )
-    tasks[task_id] = {"status": "processing"}
+        return {"message": "File analysis has been started in the background."}
 
-    return {"task_id": task_id, "status": "processing"}
+    except Exception as e:
+        logger.error(f"Error processing file upload: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process file: {e}")
 
-@router.get("/tasks/{task_id}", response_model=schemas.TaskStatus, responses={200: {"content": {"text/html": {}}}})
-async def get_task_status(task_id: str, current_user: models.User = Depends(get_current_active_user)):
-    task = tasks.get(task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
 
-    if task["status"] == "completed":
-        return HTMLResponse(content=task["result"])
-    else:
-        return task
+@router.get("/reports", response_model=List[schemas.Report])
+def get_reports(
+    skip: int = 0,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """
+    Retrieves a list of the most recent analysis reports.
+    """
+    reports = crud.get_reports(db, skip=skip, limit=limit)
+    return reports
+
+
+@router.get("/reports/{report_id}", response_model=schemas.Report)
+def get_report_details(
+    report_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """
+    Retrieves the full details of a specific analysis report.
+    """
+    report = crud.get_report(db, report_id=report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return report
