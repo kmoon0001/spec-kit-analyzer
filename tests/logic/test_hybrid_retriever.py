@@ -22,13 +22,13 @@ def retriever(mock_sentence_transformer):
     """
     Provides a HybridRetriever instance with mocked rules and dependencies.
     """
-    # Mock the rules that the retriever would normally load from a file
+    # Mock the rules that the retriever would normally load from the database
     mock_rules = [
-        {'uri': 'rule1', 'issue_title': 'Goal Specificity', 'issue_detail': 'Goals must be measurable.'},
-        {'uri': 'rule2', 'issue_title': 'Signature Missing', 'issue_detail': 'All documents must be signed.'},
+        {'id': 1, 'name': 'Goal Specificity', 'content': 'Goals must be measurable.'},
+        {'id': 2, 'name': 'Signature Missing', 'content': 'All documents must be signed.'},
     ]
     
-    with patch.object(HybridRetriever, '_load_rules', return_value=mock_rules):
+    with patch.object(HybridRetriever, '_load_rules_from_db', return_value=mock_rules):
         retriever_instance = HybridRetriever()
     return retriever_instance
 
@@ -69,4 +69,4 @@ def test_retriever_search_logic(retriever):
     # The BM25 score for rule2 is low (0.1), but the dense score is high (0.8).
     # The hybrid score should reflect a combination of these.
     # A simple test is to ensure the top result is one of our mock rules.
-    assert results[0]['issue_title'] in ['Goal Specificity', 'Signature Missing']
+    assert results[0]['name'] in ['Goal Specificity', 'Signature Missing']

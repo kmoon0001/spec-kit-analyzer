@@ -10,9 +10,12 @@ def chunk_text(text: str, max_chars: int = 4000):
     n = len(text)
     while start < n:
         end = min(start + max_chars, n)
-        newline_pos = text.rfind("\n", start, end)
-        if newline_pos != -1 and newline_pos > start + 1000:
-            end = newline_pos
+        # If not at the end of the text, try to find a newline to split on
+        if end < n:
+            newline_pos = text.rfind("\n", start, end)
+            # Split at the newline if it's a reasonable place to do so
+            if newline_pos != -1 and newline_pos > start:
+                end = newline_pos + 1 # Include the newline in the chunk
         chunks.append(text[start:end])
         start = end
     return chunks
