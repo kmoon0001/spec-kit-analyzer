@@ -5,11 +5,14 @@ from __future__ import annotations
 import json
 import logging
 import os
-import pickle
+import re
+import tempfile
+import joblib
 from typing import List, Tuple
 
 # Third-party
 import pdfplumber
+import requests
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
@@ -34,17 +37,16 @@ class GuidelineService:
 
         self.cache_dir = "data"
         self.index_path = os.path.join(self.cache_dir, "guidelines.index")
-        self.chunks_path = os.path.join(self.cache_dir, "guidelines.pkl")
+        self.chunks_path = os.path.join(self.cache_dir, "guidelines.joblib")
         self.source_paths = sources
 
         logger.info(f"Loading Sentence Transformer model: {model_name}")
-        self.model = SentenceTransformer(model_name)
+        self.model = SentenceTransformer(model_name, model_kwargs={'revision': '96786c7'})
 
         self._load_or_build_index()
         logger.info("GuidelineService initialized.")
 
-    @staticmethod
-    def classify_document(document_text: str) -> str:
+    def classify_document(self, document_text: str) -> str:
         """
         Classifies the document based on its content.
         Placeholder implementation.
@@ -68,9 +70,19 @@ class GuidelineService:
 
         # Check if the sources have changed
         with open(self.chunks_path, 'rb') as f:
+<<<<<<< HEAD
+            cached_chunks = joblib.load(f)
+        cached_sources = {chunk[1] for chunk in cached_chunks}
+        current_sources = {os.path.basename(path) for path in self.source_paths}
+||||||| 24e8eb0
+            cached_chunks = pickle.load(f)
+        cached_sources = set(chunk[1] for chunk in cached_chunks)
+        current_sources = set(os.path.basename(path) for path in self.source_paths)
+=======
             cached_chunks = pickle.load(f)
         cached_sources = {chunk[1] for chunk in cached_chunks}
         current_sources = {os.path.basename(path) for path in self.source_paths}
+>>>>>>> origin/main
         if cached_sources != current_sources:
             return False
 
@@ -85,7 +97,7 @@ class GuidelineService:
         try:
             self.faiss_index = faiss.read_index(self.index_path)
             with open(self.chunks_path, 'rb') as f:
-                self.guideline_chunks = pickle.load(f)
+                self.guideline_chunks = joblib.load(f)
             self.is_index_ready = True
             logger.info(f"Successfully loaded {len(self.guideline_chunks)} chunks and FAISS index from cache.")
         except Exception as e:
@@ -101,7 +113,7 @@ class GuidelineService:
         try:
             faiss.write_index(self.faiss_index, self.index_path)
             with open(self.chunks_path, 'wb') as f:
-                pickle.dump(self.guideline_chunks, f)
+                joblib.dump(self.guideline_chunks, f)
             logger.info(f"Successfully saved index and chunks to '{self.cache_dir}'.")
         except Exception as e:
             logger.error(f"Failed to save index to cache: {e}")
@@ -128,8 +140,7 @@ class GuidelineService:
         self.is_index_ready = True
         logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks using FAISS.")
 
-    @staticmethod
-    def _extract_text_from_pdf(file_path: str, source_name: str) -> List[Tuple[str, str]]:
+    def _extract_text_from_pdf(self, file_path: str, source_name: str) -> List[Tuple[str, str]]:
         # ... (rest of the file is unchanged)
         """Extracts text from a file, chunking it by paragraph."""
         chunks = []
@@ -172,8 +183,7 @@ class GuidelineService:
             return self._extract_text_from_json(file_path, source_name)
         return self._extract_text_from_pdf(file_path, source_name)
 
-    @staticmethod
-    def _extract_text_from_json(file_path: str, source_name: str) -> List[Tuple[str, str]]:
+    def _extract_text_from_json(self, file_path: str, source_name: str) -> List[Tuple[str, str]]:
         """Extracts text from a JSON file, assuming a list of objects with specific keys."""
         chunks = []
         try:

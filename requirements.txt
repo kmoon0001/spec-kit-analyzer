@@ -10,6 +10,7 @@ httpx
 PyQt6
 PyQt6-WebEngine
 matplotlib
+pytesseract
 
 # Data & Parsing
 pdfplumber
@@ -19,7 +20,6 @@ pandas
 openpyxl
 pyyaml
 markdown
-pytesseract
 
 # AI & Machine Learning
 torch

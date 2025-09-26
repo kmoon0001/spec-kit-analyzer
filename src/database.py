@@ -20,7 +20,19 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from .config import get_settings
 
+<<<<<<< HEAD
 settings = get_settings()
+<<<<<<< HEAD
+>>>>>>> origin/main
+||||||| 604b275
+=======
+||||||| 24e8eb0
+# Get the database URL from the environment variable
+import os
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./compliance.db")
+=======
+settings = get_settings()
+>>>>>>> origin/main
 >>>>>>> origin/main
 
 # Ensure the URL is async-compatible (e.g., "sqlite+aiosqlite:///./compliance.db")

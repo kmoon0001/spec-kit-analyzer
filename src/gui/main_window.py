@@ -3,8 +3,8 @@ import requests
 import urllib.parse
 import webbrowser
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QMessageBox, QMainWindow, QStatusBar, QMenuBar, 
-    QFileDialog, QSplitter, QTextEdit, QHBoxLayout, QLabel, QGroupBox, QProgressBar, QPushButton, QTabWidget
+    QWidget, QVBoxLayout, QMessageBox, QMainWindow, QStatusBar, QMenuBar,
+    QFileDialog, QSplitter, QTextEdit, QHBoxLayout, QLabel, QGroupBox, QProgressBar, QPushButton, QTabWidget, QTextBrowser
 )
 from PyQt6.QtCore import Qt, QThread, QUrl
 from PyQt6.QtGui import QTextDocument
@@ -36,7 +36,7 @@ class MainApplicationWindow(QMainWindow):
         self._current_file_path = None
         self._current_folder_path = None
         self.analyzer_service = None
-        self.thread = None
+        self.worker_thread = None
         self.worker = None
 
         self.init_base_ui()
@@ -203,10 +203,10 @@ class MainApplicationWindow(QMainWindow):
         results_group = QGroupBox("Analysis Results")
         results_layout = QVBoxLayout()
         results_group.setLayout(results_layout)
-        self.analysis_results_area = QTextEdit()
+        self.analysis_results_area = QTextBrowser()
         self.analysis_results_area.setPlaceholderText("Analysis results will appear here.")
         self.analysis_results_area.setReadOnly(True)
-        self.analysis_results_area.setOpenExternalLinks(False)
+        self.analysis_results_area.setOpenExternalLinks(True)
         self.analysis_results_area.anchorClicked.connect(self.handle_anchor_click)
         results_layout.addWidget(self.analysis_results_area)
         splitter.addWidget(results_group)
@@ -226,15 +226,25 @@ class MainApplicationWindow(QMainWindow):
         text_to_highlight = parts[1] if len(parts) > 1 else context_snippet
 
         doc = self.document_display_area.document()
-        context_cursor = doc.find(context_snippet, 0, QTextDocument.FindFlag.FindCaseSensitively)
+        if doc:
+            context_cursor = doc.find(
+                context_snippet, 0, QTextDocument.FindFlag.FindCaseSensitively
+            )
 
-        if not context_cursor.isNull():
-            inner_cursor = doc.find(text_to_highlight, context_cursor.selectionStart(), QTextDocument.FindFlag.FindCaseSensitively)
-            if not inner_cursor.isNull() and inner_cursor.selectionEnd() <= context_cursor.selectionEnd():
-                self.document_display_area.setTextCursor(inner_cursor)
-                self.tabs.setCurrentIndex(0)
-                self.document_display_area.setFocus()
-                return
+            if not context_cursor.isNull():
+                inner_cursor = doc.find(
+                    text_to_highlight,
+                    context_cursor.selectionStart(),
+                    QTextDocument.FindFlag.FindCaseSensitively,
+                )
+                if (
+                    not inner_cursor.isNull()
+                    and inner_cursor.selectionEnd() <= context_cursor.selectionEnd()
+                ):
+                    self.document_display_area.setTextCursor(inner_cursor)
+                    self.tabs.setCurrentIndex(0)
+                    self.document_display_area.setFocus()
+                    return
 
         cursor = self.document_display_area.textCursor()
         cursor.movePosition(cursor.MoveOperation.Start)
@@ -270,15 +280,15 @@ class MainApplicationWindow(QMainWindow):
 
     def load_dashboard_data(self):
         self.status_bar.showMessage("Refreshing dashboard data...")
-        self.thread = QThread()
+        self.worker_thread = QThread()
         self.worker = DashboardWorker(self.access_token)
-        self.worker.moveToThread(self.thread)
+        self.worker.moveToThread(self.worker_thread)
         self.worker.success.connect(self.on_dashboard_data_loaded)
         self.worker.error.connect(lambda msg: self.status_bar.showMessage(f"Dashboard Error: {msg}"))
-        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker_thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.start()
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        self.worker_thread.start()
 
     def on_dashboard_data_loaded(self, data):
         self.dashboard_widget.update_dashboard(data)
@@ -293,32 +303,32 @@ class MainApplicationWindow(QMainWindow):
         self.run_analysis_button.setEnabled(False)
         self.status_bar.showMessage("Starting analysis...")
 
-        self.thread = QThread()
+        self.worker_thread = QThread()
         self.worker = AnalysisStarterWorker(self._current_file_path, {}, self.access_token)
-        self.worker.moveToThread(self.thread)
+        self.worker.moveToThread(self.worker_thread)
         self.worker.success.connect(self.handle_analysis_started)
         self.worker.error.connect(self.on_analysis_error)
-        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker_thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.start()
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        self.worker_thread.start()
 
     def handle_analysis_started(self, task_id: str):
         self.status_bar.showMessage(f"Analysis in progress... (Task ID: {task_id})")
         self.run_analysis_threaded(task_id)
 
     def run_analysis_threaded(self, task_id: str):
-        self.thread = QThread()
+        self.worker_thread = QThread()
         self.worker = AnalysisWorker(task_id)
-        self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.run)
+        self.worker.moveToThread(self.worker_thread)
+        self.worker_thread.started.connect(self.worker.run)
         self.worker.success.connect(self.on_analysis_success)
         self.worker.error.connect(self.on_analysis_error)
         self.worker.progress.connect(self.on_analysis_progress)
-        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker_thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.start()
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        self.worker_thread.start()
 
     def on_analysis_progress(self, progress):
         self.progress_bar.setValue(progress)
@@ -355,15 +365,15 @@ class MainApplicationWindow(QMainWindow):
         self.status_bar.showMessage("Display cleared.")
 
     def load_ai_models(self):
-        self.thread = QThread()
+        self.worker_thread = QThread()
         self.worker = AILoaderWorker()
-        self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.run)
+        self.worker.moveToThread(self.worker_thread)
+        self.worker_thread.started.connect(self.worker.run)
         self.worker.finished.connect(self.on_ai_loaded)
-        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker_thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.start()
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        self.worker_thread.start()
 
     def on_ai_loaded(self, analyzer_service, is_healthy, status_message):
         self.analyzer_service = analyzer_service

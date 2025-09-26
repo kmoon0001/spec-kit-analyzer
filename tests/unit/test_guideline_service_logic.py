@@ -7,10 +7,25 @@ from src.guideline_service import GuidelineService
 
 @pytest.fixture
 def mock_heavy_dependencies():
+<<<<<<< HEAD
     """Mocks the heavy SentenceTransformer and FAISS dependencies."""
     with patch('src.guideline_service.SentenceTransformer') as mock_st_class, \
          patch('src.guideline_service.faiss') as mock_faiss_module:
+||||||| 604b275
+    with patch('src.guideline_service.SentenceTransformer') as mock_st, \
+         patch('src.guideline_service.faiss') as mock_faiss, \
+         patch('src.guideline_service.parse_guideline_file') as mock_parse:
+=======
+    """Mocks the heavy SentenceTransformer and FAISS dependencies."""
+    with patch('src.guideline_service.SentenceTransformer') as mock_st_class, \
+         patch('src.guideline_service.faiss') as mock_faiss_module:
+        
+        mock_st_instance = MagicMock()
+        mock_st_instance.encode.return_value = np.random.rand(1, 384).astype('float32')
+        mock_st_class.return_value = mock_st_instance
+>>>>>>> origin/main
 
+<<<<<<< HEAD
         mock_st_instance = MagicMock()
         mock_st_instance.encode.return_value = np.random.rand(1, 384).astype('float32')
         mock_st_class.return_value = mock_st_instance
@@ -18,6 +33,22 @@ def mock_heavy_dependencies():
         mock_faiss_index = MagicMock()
         mock_faiss_index.search.return_value = (np.array([[0.1]]), np.array([[0]]))
         mock_faiss_module.IndexFlatL2.return_value = mock_faiss_index
+||||||| 604b275
+        # Configure mock instances and their methods
+        mock_model_instance = MagicMock()
+        mock_model_instance.encode.return_value = np.random.rand(1, 384).astype('float32')
+        mock_st.return_value = mock_model_instance
+
+        mock_faiss_index_instance = MagicMock()
+        mock_faiss_index_instance.search.return_value = (np.array([[0.1]]), np.array([[0]]))
+        mock_faiss.IndexFlatL2.return_value = mock_faiss_index_instance
+
+        mock_parse.return_value = [{'text': 'Test sentence 1 about Medicare.', 'source': 'dummy_source.txt'}]
+=======
+        mock_faiss_index = MagicMock()
+        mock_faiss_index.search.return_value = (np.array([[0.1]]), np.array([[0]]))
+        mock_faiss_module.IndexFlatL2.return_value = mock_faiss_index
+>>>>>>> origin/main
 
         yield {
             "st_class": mock_st_class,
@@ -41,6 +72,7 @@ def guideline_service(mock_heavy_dependencies):
     service.faiss_index = mock_heavy_dependencies["faiss_module"].IndexFlatL2()
     return service
 
+<<<<<<< HEAD
 <<<<<<< HEAD:tests/logic/test_guideline_service_logic.py
 def test_search_successful_orchestration(guideline_service: GuidelineService):
     """
@@ -52,9 +84,28 @@ def test_search_successful_orchestration(guideline_service: 'GuidelineService'):
     Tests that the search method correctly orchestrates the search process.
     """
 =======
+||||||| 604b275
+=======
+<<<<<<< HEAD
+def test_search_successful_orchestration(guideline_service: GuidelineService):
+    """
+    Tests that the search method correctly orchestrates the search.
+    """
+||||||| 4db3b6b
+def test_search_successful_orchestration(guideline_service: 'GuidelineService'):
+    """
+    Tests that the search method correctly orchestrates the search process.
+    """
+=======
+>>>>>>> origin/main
 def test_search_successful_orchestration(guideline_service: 'GuidelineService'):
     """Tests that the search method correctly orchestrates the search process."""
+<<<<<<< HEAD
 >>>>>>> origin/main:tests/unit/test_guideline_service_logic.py
+||||||| 604b275
+=======
+>>>>>>> origin/main
+>>>>>>> origin/main
     # Arrange
     query = "test query"
 
@@ -74,6 +125,7 @@ def test_search_successful_orchestration(guideline_service: 'GuidelineService'):
     assert "Test sentence 1 about Medicare." in results[0]['text']
     assert results[0]['source'] == 'dummy_source.txt'
 
+<<<<<<< HEAD
 <<<<<<< HEAD:tests/logic/test_guideline_service_logic.py
 def test_search_returns_empty_if_index_not_ready(guideline_service: GuidelineService):
     """
@@ -85,14 +137,33 @@ def test_search_returns_empty_if_index_not_ready(guideline_service: 'GuidelineSe
     Tests that search returns an empty list if the index is not ready.
     """
 =======
+||||||| 604b275
+=======
+<<<<<<< HEAD
+def test_search_returns_empty_if_index_not_ready(guideline_service: GuidelineService):
+    """
+    Tests that search returns an empty list if the index is not ready.
+    """
+||||||| 4db3b6b
+def test_search_returns_empty_if_index_not_ready(guideline_service: 'GuidelineService'):
+    """
+    Tests that search returns an empty list if the index is not ready.
+    """
+=======
+>>>>>>> origin/main
 def test_search_returns_empty_if_index_not_ready(guideline_service: 'GuidelineService'):
     """Tests that search returns an empty list if the index is not ready."""
+<<<<<<< HEAD
 >>>>>>> origin/main:tests/unit/test_guideline_service_logic.py
+||||||| 604b275
+=======
+>>>>>>> origin/main
+>>>>>>> origin/main
     # Arrange
     guideline_service.is_index_ready = False
-
+    
     # Act
     results = guideline_service.search("another query")
-
+    
     # Assert
     assert results == []

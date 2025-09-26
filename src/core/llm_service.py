@@ -1,13 +1,8 @@
 import logging
-import os
-from unittest.mock import MagicMock
+from ctransformers import AutoModelForCausalLM  # type: ignore
 from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
-
-# We conditionally import ctransformers only when not testing
-if os.environ.get("PYTEST_RUNNING") != "1":
-    from ctransformers import AutoModelForCausalLM
 
 class LLMService:
     """
@@ -15,20 +10,10 @@ class LLMService:
     """
     def __init__(self, model_repo_id: str, model_filename: str, llm_settings: Dict[str, Any]):
         """
-        Initializes the LLMService. If the 'PYTEST_RUNNING' environment variable is set,
-        it will use a MagicMock instead of loading a real model.
+        Initializes the LLMService by loading the specified GGUF model with ctransformers.
         """
         self.llm = None
         self.generation_params = llm_settings.get('generation_params', {})
-
-        # Check for pytest environment to mock the model loading
-        if os.environ.get("PYTEST_RUNNING") == "1":
-            self.llm = MagicMock()
-            # Mock the __call__ method to return a default JSON string
-            self.llm.return_value = '{"mock_analysis": "This is a mock analysis from a mocked LLM."}'
-            logger.info("LLMService initialized with a mock model for testing.")
-            return
-
         logger.info(f"Loading GGUF model: {model_repo_id}/{model_filename}...")
         try:
             self.llm = AutoModelForCausalLM.from_pretrained(
@@ -48,11 +33,24 @@ class LLMService:
         return self.llm is not None
 
     def generate_analysis(self, prompt: str) -> str:
+<<<<<<< HEAD
+        """
+        Generates a response by running the prompt through the loaded LLM.
+        """
+        if self.llm is None:
+||||||| 4db3b6b
+        """
+        Generates a response by running the prompt through the loaded LLM.
+        """
+        if not self.is_ready():
+=======
         """Generates a response by running the prompt through the loaded LLM."""
         if not self.is_ready():
+>>>>>>> origin/main
             logger.error("LLM is not available. Cannot generate analysis.")
             return '{"error": "LLM not available"}'
 
+        assert self.llm is not None
         logger.info("Generating response with the LLM...")
         try:
             # Pass the generation parameters directly to the model call
@@ -61,4 +59,49 @@ class LLMService:
             return raw_text
         except Exception as e:
             logger.error(f"Error during LLM generation: {e}", exc_info=True)
+<<<<<<< HEAD
             return f'{{"error": "Failed to generate analysis: {e}"}}'
+||||||| 604b275
+            return f'{{"error": "Failed to generate analysis: {e}"}}'
+=======
+<<<<<<< HEAD
+            return f'{{"error": "Failed to generate analysis: {e}"}}'
+
+    def generate_personalized_tip(self, finding: Dict[str, Any]) -> str:
+        """
+        Generates a personalized tip for a specific compliance finding.
+        """
+        if self.llm is None:
+            logger.error("LLM is not available. Cannot generate tip.")
+            return "LLM not available."
+
+        prompt_template = """
+        Given the following compliance issue found in a clinical document, provide a concise, actionable tip for the therapist to improve their documentation.
+        The user is a Physical, Occupational, or Speech Therapist. The tip should be professional, helpful, and directly related to the finding.
+
+        Finding Title: "{title}"
+        Finding Description: "{description}"
+        Relevant quote from document: "{text}"
+
+        Personalized Tip:
+        """
+        prompt = prompt_template.format(
+            title=finding.get('title', 'N/A'),
+            description=finding.get('description', 'N/A'),
+            text=finding.get('text', 'N/A')
+        )
+
+        logger.info(f"Generating personalized tip for finding: {finding.get('title')}")
+        try:
+            tip = self.llm(prompt, **self.generation_params)
+            logger.info("Personalized tip generated successfully.")
+            return tip.strip()
+        except Exception as e:
+            logger.error(f"Error during tip generation: {e}", exc_info=True)
+            return "Could not generate a tip due to an internal error."
+||||||| 4db3b6b
+            return f'{{"error": "Failed to generate analysis: {e}"}}'
+=======
+            return f'{{"error": "Failed to generate analysis: {e}"}}'
+>>>>>>> origin/main
+>>>>>>> origin/main

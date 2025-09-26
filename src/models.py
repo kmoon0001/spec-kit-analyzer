@@ -47,6 +47,21 @@ class RubricSchema(RubricCreate):
     class Config:
         from_attributes = True
 
+<<<<<<< HEAD
+>>>>>>> origin/main
+||||||| 604b275
+=======
+
+class RubricCreate(BaseModel):
+    name: str
+    content: str
+
+class RubricSchema(RubricCreate):
+    id: int
+
+    class Config:
+        orm_mode = True
+
 >>>>>>> origin/main
 class Report(Base):
     __tablename__ = "reports"

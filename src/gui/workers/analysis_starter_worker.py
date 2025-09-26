@@ -24,9 +24,9 @@ class AnalysisStarterWorker(QObject):
             with open(self.file_path, 'rb') as f:
                 files = {'file': (os.path.basename(self.file_path), f)}
                 response = requests.post(
-                    f"{API_URL}/analysis/analyze", 
-                    files=files, 
-                    data=self.data, 
+                    f"{API_URL}/analysis/analyze",
+                    files=files,
+                    data=self.data,
                     headers=headers
                 )
             response.raise_for_status()

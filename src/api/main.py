@@ -42,6 +42,7 @@ def run_database_maintenance():
 
 # --- FastAPI App Setup ---
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
+
 app = FastAPI(
     title="Clinical Compliance Analyzer API",
     description="API for analyzing clinical documents for compliance.",
