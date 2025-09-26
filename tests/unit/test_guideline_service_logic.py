@@ -1,39 +1,49 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import numpy as np
 
-# Mock heavy dependencies at the module level before they are imported by the service
-@pytest.fixture(autouse=True, scope="module")
-def mock_heavy_dependencies():
-    with patch('sentence_transformers.SentenceTransformer') as mock_st, \
-         patch('faiss.IndexFlatL2') as mock_faiss_index, \
-         patch('src.guideline_service.parse_guideline_file') as mock_parse:
-        
-        # Configure mocks
-        mock_st.return_value.encode.return_value = np.random.rand(1, 384).astype('float32')
-        mock_faiss_index.return_value.search.return_value = (np.array([[0.1]]), np.array([[0]]))
-        mock_parse.return_value = [{
-            'summary': 'Test summary about Medicare',
-            'sentences': ['Test sentence 1 about Medicare.', 'This is another sentence.'],
-            'source': 'dummy_source.txt'
-        }]
-        
-        yield
-
-# Import the service *after* the mocks are in place
+# Import the service *after* the mocks will be set up
 from src.guideline_service import GuidelineService
 
 @pytest.fixture
-def guideline_service():
+def mock_heavy_dependencies():
+    """Mocks the heavy SentenceTransformer and FAISS dependencies."""
+    with patch('src.guideline_service.SentenceTransformer') as mock_st_class, \
+         patch('src.guideline_service.faiss') as mock_faiss_module:
+        
+        mock_st_instance = MagicMock()
+        mock_st_instance.encode.return_value = np.random.rand(1, 384).astype('float32')
+        mock_st_class.return_value = mock_st_instance
+
+        mock_faiss_index = MagicMock()
+        mock_faiss_index.search.return_value = (np.array([[0.1]]), np.array([[0]]))
+        mock_faiss_module.IndexFlatL2.return_value = mock_faiss_index
+
+        yield {
+            "st_class": mock_st_class,
+            "faiss_module": mock_faiss_module
+        }
+
+@pytest.fixture
+def guideline_service(mock_heavy_dependencies):
     """Provides a GuidelineService instance for testing with mocked dependencies."""
-    service = GuidelineService(sources=["dummy_source.txt"])
-    # Manually set the index as ready since _load_or_build_index is effectively mocked
+    with patch.object(GuidelineService, '_load_or_build_index', return_value=None):
+        service = GuidelineService(sources=["dummy_source.txt"])
+
+    # Manually set the state that _load_or_build_index would have set
     service.is_index_ready = True
+    service.guideline_chunks = [
+        ('Test sentence 1 about Medicare.', 'dummy_source.txt'),
+        ('This is another sentence.', 'dummy_source.txt'),
+    ]
+    # The model instance is already mocked via the class mock
+    # Set the faiss_index to the mocked instance
+    service.faiss_index = mock_heavy_dependencies["faiss_module"].IndexFlatL2()
     return service
 
 def test_search_successful_orchestration(guideline_service: GuidelineService):
     """
-    Tests that the search method correctly orchestrates the hierarchical search.
+    Tests that the search method correctly orchestrates the search.
     """
     # Arrange
     query = "test query"
@@ -43,15 +53,15 @@ def test_search_successful_orchestration(guideline_service: GuidelineService):
 
     # Assert
     # 1. Check that the query was encoded
-    guideline_service.model.encode.assert_called_with([query])
+    guideline_service.model.encode.assert_called_with([query], convert_to_tensor=True)
 
-    # 2. Check that the hierarchical search was performed (summary -> final)
-    guideline_service.summary_index.search.assert_called_once()
+    # 2. Check that the main index search was performed
     guideline_service.faiss_index.search.assert_called_once()
 
     # 3. Check that the results are correctly formatted
     assert len(results) > 0
-    assert "medicare" in results[0]['text'].lower()
+    # The mock search returns index 0, so we expect the first chunk
+    assert "Test sentence 1 about Medicare." in results[0]['text']
     assert results[0]['source'] == 'dummy_source.txt'
 
 def test_search_returns_empty_if_index_not_ready(guideline_service: GuidelineService):
