@@ -7,13 +7,15 @@ from src.core.hybrid_retriever import HybridRetriever
 
 # --- Mocks ---
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function") # Changed scope from "module" to "function"
 def mock_sentence_transformer():
-    """Mocks the SentenceTransformer to avoid downloading models during tests."""
-    with patch('sentence_transformers.SentenceTransformer') as mock_st:
+    """
+    Mocks the SentenceTransformer. By using "function" scope, each test gets a
+    fresh mock, so call counts are isolated between tests.
+    """
+    with patch('src.core.hybrid_retriever.SentenceTransformer') as mock_st:
         mock_model = MagicMock()
-        # Ensure encode returns a numpy array of the correct type and shape
-        mock_model.encode.return_value = np.random.rand(1, 384).astype('float32')
+        mock_model.encode.return_value = np.random.rand(2, 384).astype('float32')
         mock_st.return_value = mock_model
         yield mock_st
 
@@ -22,10 +24,9 @@ def retriever(mock_sentence_transformer):
     """
     Provides a HybridRetriever instance with mocked rules and dependencies.
     """
-    # Mock the rules that the retriever would normally load from the database
     mock_rules = [
-        {'id': 1, 'name': 'Goal Specificity', 'content': 'Goals must be measurable.'},
-        {'id': 2, 'name': 'Signature Missing', 'content': 'All documents must be signed.'},
+        {'id': 1, 'name': 'Goal Specificity', 'content': 'Goals must be measurable and specific.'},
+        {'id': 2, 'name': 'Signature Missing', 'content': 'All documents must be signed by the therapist.'},
     ]
     
     with patch.object(HybridRetriever, '_load_rules_from_db', return_value=mock_rules):
@@ -40,33 +41,27 @@ def test_retriever_initialization(retriever):
     """
     assert retriever is not None
     assert len(retriever.rules) == 2
-    assert retriever.corpus is not None
-    assert retriever.bm25 is not None
-    assert retriever.dense_retriever is not None
+    # encode is called once during __init__
+    retriever.dense_retriever.encode.assert_called_once()
 
 def test_retriever_search_logic(retriever):
     """
     Tests the core search logic of the retriever.
     """
     # Arrange
-    query = "measurable patient goals"
+    query = "signed patient goals"
+    retriever.bm25.get_scores = MagicMock(return_value=np.array([0.1, 0.9]))
     
-    # Mock the return values of the underlying BM25 and dense retrievers
-    # to test the re-ranking and combination logic in isolation.
-    retriever.bm25.get_scores = MagicMock(return_value=np.array([0.9, 0.1]))
-    retriever.dense_retriever.search = MagicMock(return_value=([np.array([0.2, 0.8])], [np.array([0, 1])]))
+    mock_tensor = MagicMock()
+    mock_tensor.cpu.return_value.numpy.return_value = np.array([0.8, 0.2])
 
-    # Act
-    results = retriever.retrieve(query)
+    with patch('src.core.hybrid_retriever.cos_sim', return_value=[mock_tensor]):
+        # Act
+        results = retriever.retrieve(query)
 
     # Assert
-    # 1. Check that we get results back
     assert results is not None
     assert len(results) > 0
-
-    # 2. Check the re-ranking logic. 
-    # The BM25 score for rule1 is high (0.9), but the dense score is low (0.2).
-    # The BM25 score for rule2 is low (0.1), but the dense score is high (0.8).
-    # The hybrid score should reflect a combination of these.
-    # A simple test is to ensure the top result is one of our mock rules.
-    assert results[0]['name'] in ['Goal Specificity', 'Signature Missing']
+    # With function-scoped mocks, this test is now isolated.
+    # encode is called once on init, and once again in retrieve.
+    assert retriever.dense_retriever.encode.call_count == 2

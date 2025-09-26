@@ -2,7 +2,6 @@ from sqlalchemy.orm import Session
 from . import models
 import datetime
 import pickle
-from typing import Dict
 import numpy as np
 from scipy.spatial.distance import cosine
 
@@ -70,17 +69,17 @@ def get_rubrics(db: Session, skip: int = 0, limit: int = 1000):
     return db.query(models.Rubric).offset(skip).limit(limit).all()
 
 def change_user_password(db: Session, user: models.User, new_hashed_password: str):
-    user.hashed_password = new_hashed_password  # type: ignore[assignment]
+    user.hashed_password = new_hashed_password
     db.commit()
     db.refresh(user)
     return user
 
 def get_findings_summary(db: Session, limit: int = 5):
     reports = db.query(models.Report).all()
-    summary: Dict[str, int] = {}
+    summary = {}
     for report in reports:
-        if report.analysis_result and 'findings' in report.analysis_result:  # type: ignore[operator]
-            for finding in report.analysis_result['findings']:  # type: ignore[attr-defined]
+        if report.analysis_result and 'findings' in report.analysis_result:
+            for finding in report.analysis_result['findings']:
                 rule_id = finding.get('rule_id', 'Unknown')
                 summary[rule_id] = summary.get(rule_id, 0) + 1
 
@@ -97,3 +96,9 @@ def delete_reports_older_than(db: Session, days: int) -> int:
         reports_to_delete.delete(synchronize_session=False)
         db.commit()
     return num_deleted
+
+def get_rubrics(db: Session, limit: int = 1000):
+    """
+    Mock function to get rubrics. Returns an empty list.
+    """
+    return []

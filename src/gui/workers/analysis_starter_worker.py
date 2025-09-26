@@ -1,6 +1,6 @@
 import requests
 import os
-from PyQt6.QtCore import QObject, pyqtSignal as Signal
+from PyQt6.QtCore import QObject, pyqtSignal
 
 API_URL = "http://127.0.0.1:8000"
 
@@ -8,8 +8,8 @@ class AnalysisStarterWorker(QObject):
     """
     A one-shot worker to start the analysis on the backend without freezing the UI.
     """
-    success = Signal(str)  # Emits the task_id on success # type: ignore
-    error = Signal(str) # type: ignore
+    success = pyqtSignal(str)  # Emits the task_id on success
+    error = pyqtSignal(str)
 
     def __init__(self, file_path: str, data: dict, token: str):
         super().__init__()
@@ -26,9 +26,9 @@ class AnalysisStarterWorker(QObject):
             with open(self.file_path, 'rb') as f:
                 files = {'file': (os.path.basename(self.file_path), f)}
                 response = requests.post(
-                    f"{API_URL}/analysis/analyze", 
-                    files=files, 
-                    data=self.data, 
+                    f"{API_URL}/analysis/analyze",
+                    files=files,
+                    data=self.data,
                     headers=headers
                 )
             response.raise_for_status()

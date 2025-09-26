@@ -4,24 +4,25 @@ uvicorn
 gunicorn
 slowapi
 requests
+httpx
 
 # GUI
 PyQt6
-PyQt6-WebEngine
 matplotlib
-pytesseract
 
 # Data & Parsing
 pdfplumber
 pypdfium2
 python-docx
+pytesseract
 pandas
 openpyxl
 pyyaml
 markdown
+pytesseract
 
 # AI & Machine Learning
-torch
+torch 
 transformers
 sentence-transformers
 ctransformers
@@ -34,7 +35,7 @@ pyspellchecker
 
 # Database
 SQLAlchemy
-
+ 
 # Security & Auth
 passlib[bcrypt]
 python-multipart
@@ -45,8 +46,10 @@ python-jose[cryptography]
 numpy
 scipy
 
+# Scheduling
+apscheduler
+
 # Testing
 pytest
 pytest-mock
 httpx
-pytesseract
