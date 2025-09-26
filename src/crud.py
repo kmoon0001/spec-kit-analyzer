@@ -105,8 +105,6 @@ async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
     return num_deleted
 
 async def get_rubrics(db: AsyncSession, limit: int = 1000) -> list[models.Rubric]:
-    """
-    Asynchronously retrieves all rubrics from the database.
-    """
+    """Asynchronously retrieves all rubrics from the database."""
     result = await db.execute(select(models.Rubric).limit(limit))
     return result.scalars().all()

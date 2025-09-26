@@ -4,9 +4,7 @@ from typing import Dict, Any, List
 logger = logging.getLogger(__name__)
 
 class ExplanationEngine:
-    """
-    A service to post-process analysis findings, adding explanations and context.
-    """
+    """A service to post-process analysis findings, adding explanations and context."""
 
     def add_explanations(self, analysis_result: Dict[str, Any], full_document_text: str) -> Dict[str, Any]:
         """

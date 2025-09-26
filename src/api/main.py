@@ -72,9 +72,7 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """
-    Actions to perform on application shutdown.
-    """
+    """Actions to perform on application shutdown."""
     await api_shutdown()
 
 # Add middleware and exception handlers

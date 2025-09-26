@@ -56,9 +56,7 @@ async def test_initialization_and_data_loading(mock_get_rubrics, mock_settings, 
 
 @patch('src.crud.get_rubrics', new_callable=AsyncMock)
 async def test_retrieval_flow(mock_get_rubrics, mock_settings, sample_rules):
-    """
-    Test the full, non-blocking retrieval flow.
-    """
+    """Test the full, non-blocking retrieval flow."""
     # Arrange
     mock_get_rubrics.return_value = sample_rules
     query = "What are the best practices for python?"
@@ -77,9 +75,7 @@ async def test_retrieval_flow(mock_get_rubrics, mock_settings, sample_rules):
 
 @patch('src.crud.get_rubrics', new_callable=AsyncMock)
 async def test_category_filtering(mock_get_rubrics, mock_settings, sample_rules):
-    """
-    Test that the retriever correctly filters results by category.
-    """
+    """Test that the retriever correctly filters results by category."""
     # Arrange
     mock_get_rubrics.return_value = sample_rules
     query = "What is important for health?"
@@ -98,9 +94,7 @@ async def test_category_filtering(mock_get_rubrics, mock_settings, sample_rules)
 
 @patch('src.crud.get_rubrics', new_callable=AsyncMock)
 async def test_retriever_with_no_rules(mock_get_rubrics, mock_settings):
-    """
-    Test the retriever's behavior when the database returns no rules.
-    """
+    """Test the retriever's behavior when the database returns no rules."""
     # Arrange
     mock_get_rubrics.return_value = []
 

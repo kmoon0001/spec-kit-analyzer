@@ -6,9 +6,7 @@ from typing import List
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def chunk_text(text: str, max_chars: int = 4000) -> List[str]:
-    """
-    Splits a text into chunks of a maximum size, attempting to break at newlines.
-    """
+    """Splits a text into chunks of a maximum size, attempting to break at newlines."""
     chunks = []
     start_index = 0
     while start_index < len(text):

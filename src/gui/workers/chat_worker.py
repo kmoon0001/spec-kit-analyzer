@@ -5,9 +5,7 @@ from typing import List, Dict
 API_URL = "http://127.0.0.1:8000"
 
 class ChatWorker(QObject):
-    """
-    A worker to handle a single turn in a chat conversation with the backend.
-    """
+    """A worker to handle a single turn in a chat conversation with the backend."""
     success = pyqtSignal(str)  # Emits the AI's response message
     error = pyqtSignal(str)
 

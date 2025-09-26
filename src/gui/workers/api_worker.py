@@ -2,9 +2,7 @@ import requests
 from PyQt6.QtCore import QObject, pyqtSignal
 
 class ApiAnalysisWorker(QObject):
-    """
-    A QThread worker for calling the backend analysis API.
-    """
+    """A QThread worker for calling the backend analysis API."""
     finished = pyqtSignal(dict) 
     error = pyqtSignal(str)
 
@@ -14,9 +12,7 @@ class ApiAnalysisWorker(QObject):
         self.api_url = api_url
 
     def run(self):
-        """
-        Sends the file to the backend and emits the result.
-        """
+        """Sends the file to the backend and emits the result."""
         try:
             with open(self.file_path, 'rb') as f:
                 files = {'file': (self.file_path, f)}
