@@ -10,6 +10,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 # Import all the modular routers
 from .routers import auth, analysis, dashboard, admin, health, chat
 from ..core.database_maintenance_service import DatabaseMaintenanceService
+from .dependencies import startup_event as api_startup, shutdown_event as api_shutdown
 
 # --- Configuration ---
 DATABASE_PURGE_RETENTION_DAYS = 7  # Days to keep old reports
@@ -49,21 +50,32 @@ app = FastAPI(
 )
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     """
     Actions to perform on application startup.
     - Clears the temporary upload directory.
     - Schedules the database maintenance job.
+    - Initializes API services like the retriever.
     """
-    # 1. Clean up any orphaned temporary files from previous runs
+    # 1. Run API-level startup logic (e.g., model loading)
+    await api_startup()
+
+    # 2. Clean up any orphaned temporary files from previous runs
     logger.info("Running startup tasks...")
     clear_temp_uploads()
 
-    # 2. Initialize and start the background scheduler
+    # 3. Initialize and start the background scheduler
     scheduler = BackgroundScheduler(daemon=True)
     scheduler.add_job(run_database_maintenance, 'interval', days=1)
     scheduler.start()
     logger.info("Scheduler started. Database maintenance job is scheduled to run daily.")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """
+    Actions to perform on application shutdown.
+    """
+    await api_shutdown()
 
 # Add middleware and exception handlers
 app.state.limiter = limiter

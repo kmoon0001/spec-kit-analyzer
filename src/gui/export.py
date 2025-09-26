@@ -1,5 +1,5 @@
 import os
-from PySide6.QtWidgets import QFileDialog
+from PyQt6.QtWidgets import QFileDialog
 from xhtml2pdf import pisa
 from jinja2 import Template
 import json
