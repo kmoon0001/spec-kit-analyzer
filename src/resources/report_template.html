@@ -16,8 +16,8 @@
         .findings th { background-color: #f2f2f2; }
         .low-confidence { background-color: #fffbe6; }
         .low-confidence td { color: #8a6d3b; }
-        .disputed { background-color: #f2dede; } /* Style for disputed findings */
-        .disputed td { color: #a94442; border-color: #ebccd1; } /* Darker red text */
+        .disputed { background-color: #f2dede; }
+        .disputed td { color: #a94442; border-color: #ebccd1; }
         h1, h2 { color: #333; }
         .habit-name { font-weight: bold; }
         .habit-explanation { font-size: 0.9em; color: #555; }
@@ -31,10 +31,10 @@
 
     <div class="summary">
         <h2>Analysis Summary</h2>
-        <p><strong>Document:</strong> <!-- Placeholder for document name --></p>
-        <p><strong>Analysis Date:</strong> <!-- Placeholder for analysis date --></p>
-        <p><strong>Overall Compliance Score:</strong> <!-- Placeholder for compliance score -->%</p>
-        <p><strong>Total Findings:</strong> <!-- Placeholder for total findings --></p>
+        <p><strong>Document:</strong> {{ analysis.document_name }}</p>
+        <p><strong>Analysis Date:</strong> {{ analysis.analysis_date }}</p>
+        <p><strong>Overall Compliance Score:</strong> {{ analysis.compliance_score }}%</p>
+        <p><strong>Total Findings:</strong> {{ analysis.total_findings }}</p>
     </div>
 
     <div class="findings">
@@ -50,18 +50,33 @@
                 </tr>
             </thead>
             <tbody>
-                <!-- Placeholder for findings rows -->
+                {% for finding in analysis.findings %}
+                <tr class="{{ 'low-confidence' if finding.low_confidence }} {{ 'disputed' if finding.disputed }}">
+                    <td>{{ finding.risk_level }}</td>
+                    <td>{{ finding.problematic_text }}</td>
+                    <td>{{ finding.personalized_tip }}</td>
+                    <td>
+                        <span class="habit-name">{{ finding.habit.name }}</span><br>
+                        <span class="habit-explanation">{{ finding.habit.explanation }}</span>
+                    </td>
+                    <td>
+                        {% if finding.disputable %}
+                        <button>Dispute</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
 
     <div class="limitations">
         <h2>AI Model Limitations</h2>
-        <!-- Placeholder for model limitations -->
+        <p>{{ analysis.limitations_text }}</p>
     </div>
 
     <div class="footer">
-        <p>Generated on: <!-- Placeholder for generation date --></p>
+        <p>Generated on: {{ analysis.generation_date }}</p>
         <p>This report is auto-generated and should be used for informational purposes only. It is not a substitute for professional clinical or legal judgment.</p>
     </div>
 </div>
