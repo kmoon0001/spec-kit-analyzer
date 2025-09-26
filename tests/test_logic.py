@@ -1,60 +1,84 @@
-import os
-import sys
 import pytest
-from types import SimpleNamespace
+import pytest_asyncio
+import os
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
 
-# Ensure the src directory is in the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Import the application's Base for metadata and the core services
+from src.database import Base
+from src.models import Rubric
+from src.core.retriever import HybridRetriever
+from src.core.analysis_service import AnalysisService
 
-from src.main import run_analyzer, LocalRAG, GuidelineService
+# --- Async In-Memory Database Fixture ---
 
-@pytest.mark.timeout(600)
-def test_analyzer_logic_e2e():
-    """Tests the core analysis logic end-to-end without loading the GUI."""
-    # 1. Create a mock main window object. It just needs to hold the services.
-    mock_window = SimpleNamespace()
-    mock_window.log = lambda x: print(x) # A simple logger
+@pytest_asyncio.fixture(scope="module")
+async def seeded_db_session() -> AsyncSession:
+    """
+    Creates and seeds an isolated, in-memory async SQLite database for E2E testing.
+    """
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    TestingSessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
-    # 2. Initialize the RAG and Guideline services, which happens in the background in the real app.
-    # NOTE: This will download AI models on the first run and may take a few minutes.
-    print("Loading AI models...")
-    mock_window.local_rag = LocalRAG(model_repo_id="TheBloke/Mistral-7B-Instruct-v0.2-GGUF", model_filename="mistral-7b-instruct-v0.2.Q4_K_M.gguf")
-    assert mock_window.local_rag.is_ready()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
-    print("Loading and indexing guidelines...")
-    mock_window.guideline_service = GuidelineService(mock_window.local_rag)
-    mock_window.guideline_service.load_and_index_guidelines(["test_data/static_guidelines.txt"])
-    assert mock_window.guideline_service.is_index_ready
-    print("Models and guidelines loaded.")
+    session = TestingSessionLocal()
+    try:
+        # Seed the database with test rubrics
+        test_rubrics = [
+            Rubric(name="Goal Specificity", content="Goals must be measurable and specific."),
+            Rubric(name="Signature Missing", content="All documents must be signed."),
+        ]
+        session.add_all(test_rubrics)
+        await session.commit()
+        yield session
+    finally:
+        await session.close()
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
 
-    # 3. Define the parameters for the analysis run.
-    test_file = os.path.abspath("test_data/bad_note_1.txt")
-    disciplines = ['pt', 'ot', 'slp']
+# --- E2E Test ---
 
-    # 4. Run the analyzer function directly.
-    print(f"Starting analysis on {test_file}...")
-    results = run_analyzer(
-        file_path=test_file,
-        selected_disciplines=disciplines,
-        main_window_instance=mock_window
-    )
-    print("Analysis complete.")
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_e2e_analysis_on_bad_note(seeded_db_session: AsyncSession):
+    """
+    Tests the full analysis pipeline end-to-end using a self-contained,
+    in-memory async database.
+    """
+    # 1. Initialize the full dependency chain for the AnalysisService
+    #    This uses the real services, not mocks, for a true E2E test.
+    try:
+        # The retriever needs the async db session to load guidelines
+        retriever = await HybridRetriever.create(db_session=seeded_db_session, guideline_sources=[])
+        # The analysis service needs the retriever
+        service = AnalysisService(retriever=retriever)
+    except Exception as e:
+        pytest.fail(f"Failed to initialize the core services for E2E test: {e}")
 
-    # 5. Assert that the results are valid and contain our new features.
-    assert results is not None, "Analysis did not produce any results."
+    # 2. Define the path to the test document
+    # Ensure you have a 'test_data/bad_note_1.txt' file in your project root for this to pass
+    test_file_path = "test_data/bad_note_1.txt"
+    if not os.path.exists(test_file_path):
+        os.makedirs("test_data", exist_ok=True)
+        with open(test_file_path, "w") as f:
+            f.write("The patient feels stronger. Plan is to continue.")
 
-    issues = results.get("issues", [])
-    assert len(issues) > 0, "The LLM-based analysis failed to find any issues in the bad note."
+    # 3. Run the analysis on the document
+    results = service.analyze_document(file_path=test_file_path, discipline="PT")
 
-    first_issue = issues[0]
-    assert "reasoning" in first_issue, "The issue dictionary is missing the 'reasoning' field from the LLM."
-    assert len(first_issue["reasoning"]) > 0, "The 'reasoning' field is empty."
+    # 4. Assert that the analysis produced a valid, non-empty result
+    assert results is not None, "The analysis service returned None."
+    assert "findings" in results, f"The 'findings' key is missing from the analysis results. Got: {results}"
 
-    assert "confidence" in first_issue, "The issue is missing a 'confidence' score."
-    assert isinstance(first_issue["confidence"], float)
+    findings = results["findings"]
+    assert isinstance(findings, list), "The 'findings' should be a list."
+    assert len(findings) > 0, "No compliance findings were returned for a document known to have issues."
 
-    print("\n--- Verification Summary ---")
-    print(f"Found {len(issues)} issues.")
-    print(f"Reasoning for first issue ('{first_issue['title']}'): {first_issue['reasoning']}")
-    print("End-to-end logic test passed successfully.")
-    print("--------------------------")
+    # 5. Assert the structure of the findings
+    first_finding = findings[0]
+    assert "text" in first_finding
+    assert "risk" in first_finding
+    assert "suggestion" in first_finding
+    assert "confidence" in first_finding

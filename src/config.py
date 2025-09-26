@@ -1,45 +1,31 @@
-import os
-from pydantic import BaseModel, Field
-import yaml
-from functools import lru_cache
+database:
+  url: "sqlite:///./compliance.db"
 
-class DatabaseConfig(BaseModel):
-    url: str = Field(default="sqlite:///./test.db")
+auth:
+  secret_key: "a_very_secret_key"
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
 
-class AuthConfig(BaseModel):
-    secret_key: str = Field(default="a_very_secret_key")
-    algorithm: str = Field(default="HS256")
-    access_token_expire_minutes: int = Field(default=30)
+maintenance:
+  purge_retention_days: 60
 
-class RetrieverConfig(BaseModel):
-    dense_model_name: str = Field(default="pritamdeka/S-PubMedBert-MS-MARCO", description="The name of the sentence transformer model for dense retrieval.")
-    rrf_k: int = Field(default=60, description="The 'k' parameter for Reciprocal Rank Fusion (RRF) to balance keyword and semantic search.")
+models:
+  generator: "mistralai/Magistral-Small-2509-GGUF"
+  generator_filename: "Magistral-Small-2509-Q4_K_M.gguf"
+  retriever: "pritamdeka/S-PubMedBert-MS-MARCO"
+  fact_checker: "hamish-haggerty/t5-base-e2e-qg"
+  ner_ensemble:
+    - "d4data/biomedical-ner-all"
+  doc_classifier_prompt: "src/resources/prompts/doc_classifier_prompt.txt"
+  analysis_prompt_template: "src/resources/prompts/analysis_prompt_template.txt"
+  nlg_prompt_template: "src/resources/prompts/nlg_prompt_template.txt"
 
-class Settings(BaseModel):
-    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
-    auth: AuthConfig = Field(default_factory=AuthConfig)
-    retriever: RetrieverConfig = Field(default_factory=RetrieverConfig)
+llm_settings:
+  model_type: "mistral"
+  context_length: 4096
+  generation_params:
+    temperature: 0.1
+    max_new_tokens: 8192
 
-def load_config_from_yaml(path: str = "config.yaml") -> dict:
-    if os.path.exists(path):
-        with open(path, "r") as f:
-<<<<<<< HEAD
-            return yaml.safe_load(f) or {}
-||||||| c46cdd8
-            return yaml.safe_load(f)
-=======
-            # Return an empty dict if the file is empty to prevent errors
-            return yaml.safe_load(f) or {}
->>>>>>> origin/main
-    return {}
-
-@lru_cache()
-def get_settings() -> Settings:
-    """
-    Loads the application settings from the YAML file.
-    The result is cached to avoid repeated file I/O.
-    """
-    config_data = load_config_from_yaml()
-    return Settings.model_validate(config_data)
-
-settings = get_settings()
+retrieval_settings:
+  similarity_top_k: 3

@@ -15,7 +15,6 @@ async def login_for_access_token(
     db: AsyncSession = Depends(get_db),
     auth_service: AuthService = Depends(get_auth_service)
 ):
-    # 1. Verify username and password
     user = await crud.get_user_by_username(db, username=form_data.username)
     if not user or not auth_service.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
@@ -24,14 +23,12 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # 2. NEW: Check if the user's license is active
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is inactive or license has expired. Please contact support."
         )
 
-    # 3. Create and return the access token
     access_token_expires = timedelta(minutes=auth_service.access_token_expire_minutes)
     access_token = auth_service.create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
