@@ -21,7 +21,7 @@ markdown
 pytesseract
 
 # AI & Machine Learning
-torch
+torch 
 transformers
 sentence-transformers
 ctransformers
