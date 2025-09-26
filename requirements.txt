@@ -4,6 +4,7 @@ uvicorn
 gunicorn
 slowapi
 requests
+httpx
 
 # GUI
 PyQt6
@@ -17,6 +18,7 @@ pandas
 openpyxl
 pyyaml
 markdown
+pytesseract
 
 # AI & Machine Learning
 torch
@@ -42,6 +44,9 @@ python-jose[cryptography]
 # Numeric & Science
 numpy
 scipy
+
+# Scheduling
+apscheduler
 
 # Testing
 pytest

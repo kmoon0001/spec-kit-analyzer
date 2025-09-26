@@ -86,7 +86,9 @@ async def analyze_document(
     current_user: models.User = Depends(get_current_active_user),
 ):
     task_id = str(uuid.uuid4())
-    temp_file_path = f"temp_{task_id}_{file.filename}"
+    upload_dir = "tmp/uploads"
+    os.makedirs(upload_dir, exist_ok=True)  # Ensure the directory exists
+    temp_file_path = os.path.join(upload_dir, f"temp_{task_id}_{file.filename}")
     with open(temp_file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 

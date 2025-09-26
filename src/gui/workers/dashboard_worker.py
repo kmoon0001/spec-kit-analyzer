@@ -1,5 +1,5 @@
 import requests
-from PyQt6.QtCore import QObject, Signal
+from PyQt6.QtCore import QObject, pyqtSignal as Signal
 from typing import Dict
 
 API_URL = "http://127.0.0.1:8000"
