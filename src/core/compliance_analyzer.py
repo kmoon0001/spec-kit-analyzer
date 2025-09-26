@@ -170,47 +170,12 @@ class ComplianceAnalyzer:
         """Formats a list of rule dictionaries into a string for the LLM prompt."""
         if not rules:
             return "No specific compliance rules were retrieved. Analyze based on general Medicare principles."
-<<<<<<< HEAD
         
         formatted_rules = []
         for rule in rules:
             formatted_rules.append(
-                f"- **Rule:** {rule.get('issue_title', 'N/A')}
-"
-                f"  **Detail:** {rule.get('issue_detail', 'N/A')}
-"
+                f"- **Rule:** {rule.get('issue_title', 'N/A')}\n"
+                f"  **Detail:** {rule.get('issue_detail', 'N/A')}\n"
                 f"  **Suggestion:** {rule.get('suggestion', 'N/A')}"
             )
         return "\n".join(formatted_rules)
-||||||| 4db3b6b
-        return "\n".join([f"- Title: {r.get('name', '')}, Content: {r.get('content', '')}" for r in rules])
-
-    def _generate_analysis(self, prompt: str) -> Dict[str, Any]:
-        raw_output = self.llm_service.generate_analysis(prompt)
-        try:
-            start = raw_output.find('{')
-            end = raw_output.rfind('}')
-            if start != -1 and end != -1:
-                json_str = raw_output[start:end+1]
-                return json.loads(json_str)
-            else:
-                raise json.JSONDecodeError("No JSON object found in the output.", raw_output, 0)
-        except json.JSONDecodeError:
-            logger.error("Failed to decode LLM output into JSON.")
-            return {"error": "Invalid JSON output from LLM", "raw_output": raw_output}
-=======
-        return "\n".join([f"- Title: {r.get('name', '')}, Content: {r.get('content', '')}" for r in rules])
-
-    def _generate_analysis(self, prompt: str) -> Dict[str, Any]:
-        raw_output = self.llm_service.generate_analysis(prompt)
-        try:
-            start = raw_output.find('{')
-            end = raw_output.rfind('}')
-            if start != -1 and end != -1:
-                json_str = raw_output[start:end+1]
-                return json.loads(json_str)
-            raise json.JSONDecodeError("No JSON object found in the output.", raw_output, 0)
-        except json.JSONDecodeError:
-            logger.error("Failed to decode LLM output into JSON.")
-            return {"error": "Invalid JSON output from LLM", "raw_output": raw_output}
->>>>>>> origin/main

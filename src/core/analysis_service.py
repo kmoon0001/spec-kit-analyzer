@@ -13,8 +13,14 @@ from .llm_service import LLMService
 from .ner import NERPipeline
 from .explanation import ExplanationEngine
 from .prompt_manager import PromptManager
+<<<<<<< HEAD
 from .fact_checker import FactCheckerService
 from ..config import get_config
+||||||| 278fb88
+from .fact_checker import FactCheckerService # Make sure this import is present
+=======
+from .fact_checker_service import FactCheckerService # Make sure this import is present
+>>>>>>> origin/main
 
 logger = logging.getLogger(__name__)
 

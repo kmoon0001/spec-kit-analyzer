@@ -20,8 +20,8 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from .config import get_settings
 
-<<<<<<< HEAD
 settings = get_settings()
+<<<<<<< HEAD
 <<<<<<< HEAD
 >>>>>>> origin/main
 ||||||| 604b275
@@ -33,6 +33,16 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./compliance.db")
 =======
 settings = get_settings()
 >>>>>>> origin/main
+>>>>>>> origin/main
+||||||| 278fb88
+||||||| 24e8eb0
+# Get the database URL from the environment variable
+import os
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./compliance.db")
+=======
+settings = get_settings()
+>>>>>>> origin/main
+=======
 >>>>>>> origin/main
 
 # Ensure the URL is async-compatible (e.g., "sqlite+aiosqlite:///./compliance.db")
@@ -70,5 +80,11 @@ async def init_db():
     async with engine.begin() as conn:
         # For SQLite, metadata.create_all is a blocking operation.
         # To run it in an async context, we use run_sync.
+<<<<<<< HEAD
+        await conn.run_sync(Base.metadata.create_all)
+>>>>>>> origin/main
+||||||| 278fb88
+        await conn.run_sync(Base.metadata.create_all)
+=======
         await conn.run_sync(Base.metadata.create_all)
 >>>>>>> origin/main

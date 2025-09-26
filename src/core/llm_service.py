@@ -33,20 +33,8 @@ class LLMService:
         return self.llm is not None
 
     def generate_analysis(self, prompt: str) -> str:
-<<<<<<< HEAD
-        """
-        Generates a response by running the prompt through the loaded LLM.
-        """
-        if self.llm is None:
-||||||| 4db3b6b
-        """
-        Generates a response by running the prompt through the loaded LLM.
-        """
-        if not self.is_ready():
-=======
         """Generates a response by running the prompt through the loaded LLM."""
         if not self.is_ready():
->>>>>>> origin/main
             logger.error("LLM is not available. Cannot generate analysis.")
             return '{"error": "LLM not available"}'
 
@@ -59,7 +47,6 @@ class LLMService:
             return raw_text
         except Exception as e:
             logger.error(f"Error during LLM generation: {e}", exc_info=True)
-<<<<<<< HEAD
             return f'{{"error": "Failed to generate analysis: {e}"}}'
 ||||||| 604b275
             return f'{{"error": "Failed to generate analysis: {e}"}}'
@@ -71,7 +58,7 @@ class LLMService:
         """
         Generates a personalized tip for a specific compliance finding.
         """
-        if self.llm is None:
+        if not self.is_ready():
             logger.error("LLM is not available. Cannot generate tip.")
             return "LLM not available."
 
@@ -98,10 +85,21 @@ class LLMService:
             return tip.strip()
         except Exception as e:
             logger.error(f"Error during tip generation: {e}", exc_info=True)
+<<<<<<< HEAD
             return "Could not generate a tip due to an internal error."
 ||||||| 4db3b6b
             return f'{{"error": "Failed to generate analysis: {e}"}}'
 =======
             return f'{{"error": "Failed to generate analysis: {e}"}}'
 >>>>>>> origin/main
+>>>>>>> origin/main
+||||||| 278fb88
+            return "Could not generate a tip due to an internal error."
+||||||| 4db3b6b
+            return f'{{"error": "Failed to generate analysis: {e}"}}'
+=======
+            return f'{{"error": "Failed to generate analysis: {e}"}}'
+>>>>>>> origin/main
+=======
+            return "Could not generate a tip due to an internal error."
 >>>>>>> origin/main

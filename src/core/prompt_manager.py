@@ -9,9 +9,14 @@ class PromptManager:
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 ||||||| 604b275
 =======
 <<<<<<< HEAD
+||||||| 278fb88
+<<<<<<< HEAD
+=======
+>>>>>>> origin/main
     In a real implementation, this service would intelligently construct
     prompts using templates and dynamically inserted context.
     """
@@ -32,6 +37,7 @@ class PromptManager:
         Builds a final prompt string from a context and document text.
         """
         logger.info("Building prompt (placeholder implementation).")
+<<<<<<< HEAD
         return self.template.format(context=context, document_text=document_text)
 ||||||| 4db3b6b
 >>>>>>> origin/main
@@ -70,4 +76,16 @@ class PromptManager:
     def build_prompt(self, **kwargs):
         return self.template.format(**kwargs)
 >>>>>>> origin/main
+>>>>>>> origin/main
+||||||| 278fb88
+        return self.template.format(context=context, document_text=document_text)
+||||||| 4db3b6b
+    def build_prompt(self, **kwargs):
+        return self.template.format(**kwargs)
+=======
+    def build_prompt(self, **kwargs):
+        return self.template.format(**kwargs)
+>>>>>>> origin/main
+=======
+        return self.template.format(context=context, document_text=document_text)
 >>>>>>> origin/main
