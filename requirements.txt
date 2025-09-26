@@ -13,6 +13,7 @@ matplotlib
 pdfplumber
 pypdfium2
 python-docx
+pytesseract
 pandas
 openpyxl
 pyyaml
@@ -46,3 +47,4 @@ scipy
 # Testing
 pytest
 pytest-mock
+httpx
