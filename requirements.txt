@@ -14,7 +14,6 @@ matplotlib
 pdfplumber
 pypdfium2
 python-docx
-pytesseract
 pandas
 openpyxl
 pyyaml
@@ -35,6 +34,8 @@ pyspellchecker
 
 # Database
 SQLAlchemy
+rdflib
+aiosqlite
  
 # Security & Auth
 passlib[bcrypt]
@@ -48,8 +49,10 @@ scipy
 
 # Scheduling
 apscheduler
+tenacity
 
 # Testing
 pytest
 pytest-mock
-httpx
+pytest-qt
+pytest-asyncio

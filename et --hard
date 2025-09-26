@@ -1,0 +1,87 @@
+[33mefc4b42[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/export-print-reports[m[33m)[m HEAD@{0}: checkout: moving from fix/import-errors-and-model-download to feature/export-print-reports
+[33ma1aeb3c[m[33m ([m[1;31morigin/fix/import-errors-and-model-download[m[33m, [m[1;32mfix/import-errors-and-model-download[m[33m)[m HEAD@{1}: commit (merge): Merge remote-tracking branch 'origin/fix/import-errors-and-model-download' into fix/import-errors-and-model-download
+[33m27fbb23[m HEAD@{2}: rebase (finish): returning to refs/heads/fix/import-errors-and-model-download
+[33m27fbb23[m HEAD@{3}: rebase (pick): Fix numerous runtime errors and inconsistencies
+[33mffbb328[m HEAD@{4}: rebase (continue): Fix: Resolve import errors and prevent model download in tests
+[33mfb3307e[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{5}: rebase (start): checkout refs/remotes/origin/main
+[33m6307ab9[m HEAD@{6}: checkout: moving from fix/import-errors-and-model-download to fix/import-errors-and-model-download
+[33m6307ab9[m HEAD@{7}: branch: Reset to origin/fix/import-errors-and-model-download
+[33m8714d22[m HEAD@{8}: rebase (finish): returning to refs/heads/fix/import-errors-and-model-download
+[33m8714d22[m HEAD@{9}: rebase (continue): fix(tests): Stabilize test suite and fix all backend issues
+[33mb3a9786[m HEAD@{10}: rebase (pick): Update requirements.txt
+[33mbfa210c[m HEAD@{11}: rebase (continue): feat: Add automated cleanup for temporary files and database records
+[33m4b3bd6b[m HEAD@{12}: rebase (pick): refactor: remove unnecessary generator
+[33me77d55d[m HEAD@{13}: rebase (continue): refactor: change methods not using its bound instance to staticmethods
+[33ma814027[m HEAD@{14}: rebase (continue): fix: Repair inconsistent and broken codebase
+[33m96bf9b1[m HEAD@{15}: rebase (continue): fix: Repair inconsistent and broken codebase
+[33m70966f7[m HEAD@{16}: rebase (pick): feat(tests): Add isolated test for AnalysisService
+[33m45a3051[m HEAD@{17}: rebase (continue): refactor: Remove obsolete code and fix test suite
+[33mba9ab88[m HEAD@{18}: rebase (pick): refactor: Remove obsolete model-related files
+[33meda3812[m HEAD@{19}: rebase (continue): Fix a large number of type errors across the codebase
+[33m6307ab9[m HEAD@{20}: rebase (start): checkout origin/fix/import-errors-and-model-download
+[33mcc2d842[m HEAD@{21}: rebase (finish): returning to refs/heads/fix/import-errors-and-model-download
+[33mcc2d842[m HEAD@{22}: rebase (pick): Fix numerous runtime errors and inconsistencies
+[33m3cb18e6[m HEAD@{23}: rebase (continue): Fix: Resolve import errors and prevent model download in tests
+[33mfb3307e[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{24}: rebase (start): checkout refs/remotes/origin/main
+[33m6307ab9[m HEAD@{25}: checkout: moving from fix/import-errors-and-model-download to fix/import-errors-and-model-download
+[33m6307ab9[m HEAD@{26}: branch: Reset to origin/fix/import-errors-and-model-download
+[33m6307ab9[m HEAD@{27}: commit (cherry-pick): Fix numerous runtime errors and inconsistencies
+[33m032e64a[m HEAD@{28}: checkout: moving from fix/runtime-errors to fix/import-errors-and-model-download
+[33mab5bf9f[m[33m ([m[1;31morigin/fix/runtime-errors[m[33m, [m[1;32mfix/runtime-errors[m[33m)[m HEAD@{29}: commit (merge): Merge remote-tracking branch 'origin/fix/runtime-errors' into fix/runtime-errors
+[33m490797c[m HEAD@{30}: rebase (finish): returning to refs/heads/fix/runtime-errors
+[33m490797c[m HEAD@{31}: rebase (continue): Fix numerous runtime errors and inconsistencies
+[33m431bec9[m HEAD@{32}: rebase (start): checkout refs/remotes/origin/main
+[33m18584a2[m HEAD@{33}: checkout: moving from fix/runtime-errors to fix/runtime-errors
+[33m18584a2[m HEAD@{34}: branch: Reset to origin/fix/runtime-errors
+[33m18584a2[m HEAD@{35}: checkout: moving from feature/export-print-reports to fix/runtime-errors
+[33mefc4b42[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/export-print-reports[m[33m)[m HEAD@{36}: rebase (finish): returning to refs/heads/feature/export-print-reports
+[33mefc4b42[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/export-print-reports[m[33m)[m HEAD@{37}: rebase (pick): - Fixed a major indentation bug in `src/rubric_service.py` that affected rule retrieval.
+[33me76e9f9[m HEAD@{38}: rebase (continue): fix(tests): Stabilize test suite and fix all backend issues
+[33m0206434[m HEAD@{39}: rebase (continue): fix(tests): Stabilize test suite and fix all backend issues
+[33m50819eb[m HEAD@{40}: rebase (pick): Update requirements.txt
+[33mc92408a[m HEAD@{41}: rebase (continue): feat: Add automated cleanup for temporary files and database records
+[33m22403c9[m HEAD@{42}: rebase (pick): Update requirements.txt
+[33m41a73d3[m HEAD@{43}: rebase (pick): Update requirements.txt
+[33m29ae6c7[m HEAD@{44}: rebase (pick): feat: Add automated cleanup for temporary files and database records
+[33m143a020[m HEAD@{45}: rebase (continue): fix: Repair inconsistent and broken codebase
+[33me497dae[m HEAD@{46}: rebase (pick): refactor: remove unnecessary generator
+[33m2b3ad24[m HEAD@{47}: rebase (pick): refactor: change methods not using its bound instance to staticmethods
+[33m30de9ed[m HEAD@{48}: rebase (pick): Fix a large number of type errors across the codebase
+[33mfc0a7a0[m HEAD@{49}: rebase (pick): fix: Repair inconsistent and broken codebase
+[33ma67e59c[m HEAD@{50}: rebase (pick): fix: Repair inconsistent and broken codebase
+[33m6bac34b[m HEAD@{51}: rebase (pick): feat(tests): Add isolated test for AnalysisService
+[33m43a2515[m HEAD@{52}: rebase (continue): refactor: Remove obsolete code and fix test suite
+[33md1d0071[m HEAD@{53}: rebase (pick): refactor: Remove obsolete model-related files
+[33mfc0a659[m HEAD@{54}: rebase (pick): Fix a large number of type errors across the codebase
+[33mee4305d[m HEAD@{55}: rebase (pick): refactor: remove unnecessary whitespace
+[33mca9bced[m HEAD@{56}: rebase (pick): refactor: remove unnecessary whitespace
+[33m94775ee[m HEAD@{57}: rebase (pick): refactor: remove unnecessary `pass`
+[33m07e2cde[m HEAD@{58}: rebase (pick): refactor: remove unused imports
+[33mdc6db36[m HEAD@{59}: rebase (pick): fixed
+[33mdb84266[m HEAD@{60}: rebase (pick): fixed
+[33m309926b[m HEAD@{61}: rebase (pick): fixcd
+[33m0f7d6db[m HEAD@{62}: rebase (pick): fixcd
+[33m670059d[m HEAD@{63}: rebase (pick): fixcd
+[33m9a08092[m HEAD@{64}: rebase (pick): fixcd
+[33m27d584d[m HEAD@{65}: rebase (pick): fixcd
+[33m62e8d7c[m HEAD@{66}: rebase (pick): fixcd
+[33m9768d41[m HEAD@{67}: rebase (pick): fixcd
+[33m4917c54[m HEAD@{68}: rebase (pick): fixcd
+[33m4658951[m HEAD@{69}: rebase (pick): fixcd
+[33m33713ee[m HEAD@{70}: rebase (pick): fixcd
+[33m6ff380a[m HEAD@{71}: rebase (pick): fixcd
+[33me2088e6[m HEAD@{72}: rebase (pick): fixcd
+[33m3f56889[m HEAD@{73}: rebase (pick): fixcd
+[33mdb0bb3c[m HEAD@{74}: rebase (continue): fixcd
+[33m7262813[m HEAD@{75}: rebase (pick): refactor: change methods not using its bound instance to staticmethods
+[33m7bd010d[m HEAD@{76}: rebase (pick): Refactor tests/e2e/test_advanced_rag.py to use mocking and best practices.
+[33ma3ebea2[m HEAD@{77}: rebase (pick): fixcd
+[33m0631f68[m HEAD@{78}: rebase (pick): refactor: remove unused imports
+[33m6b70715[m HEAD@{79}: rebase (pick): fixcd
+[33m97e0567[m HEAD@{80}: rebase (pick): ci: add .deepsource.toml
+[33m8124eb8[m HEAD@{81}: rebase (continue): Fix application runnability issues
+[33m9a99b31[m HEAD@{82}: rebase (pick): Fix application runnability issues
+[33m5a3b32b[m HEAD@{83}: rebase (continue): WIP: Address best-practice issues and fix test suite
+[33m8b7efbb[m HEAD@{84}: rebase (pick): WIP: Address best-practice issues and fix test suite
+[33m5a2abe9[m HEAD@{85}: rebase (continue): This commit is the result of a failed attempt to refactor the codebase. It should not be merged. I am submitting it to record the state of my work before I was blocked by an environmental issue.
+[33md97ede5[m HEAD@{86}: rebase (pick): This commit is the result of a failed attempt to 

@@ -18,7 +18,6 @@ def parse_document_content(file_path: str) -> List[Dict[str, str]]:
     """
     logger.info(f"Parsing document: {file_path}")
 
-    # 1. Check for supported file extensions first
     supported_extensions = ['.pdf', '.txt', '.docx']
     file_ext = os.path.splitext(file_path)[1].lower()
 
@@ -27,7 +26,6 @@ def parse_document_content(file_path: str) -> List[Dict[str, str]]:
         logger.warning(error_message)
         return [{'sentence': error_message, 'source': 'parser'}]
 
-    # 2. Try to open and parse the file
     try:
         chunks = []
         if file_ext == '.pdf':
@@ -41,14 +39,6 @@ def parse_document_content(file_path: str) -> List[Dict[str, str]]:
                 text = f.read()
             chunks.append({'sentence': text, 'source': os.path.basename(file_path)})
 
-        # Note: python-docx is not in requirements, so this part is commented out but shows
-        # how it would be extended. If it were active, it would need a test case.
-        # elif file_ext == '.docx':
-        #     import docx
-        #     doc = docx.Document(file_path)
-        #     full_text = "\n".join([para.text for para in doc.paragraphs])
-        #     chunks.append({'sentence': full_text, 'source': os.path.basename(file_path)})
-
         return chunks
 
     except FileNotFoundError:
@@ -60,18 +50,14 @@ def parse_document_content(file_path: str) -> List[Dict[str, str]]:
         logger.error(error_message, exc_info=True)
         return [{'sentence': error_message, 'source': 'parser'}]
 
-
 def parse_document_into_sections(document_text: str) -> Dict[str, str]:
     """
     Parses a document's full text into standard sections (Subjective, Objective, etc.).
-    This version correctly handles cases where content is on the same line as the header.
     """
     sections = {}
     current_section = "unclassified"
     current_text = []
     headers = ["subjective", "objective", "assessment", "plan"]
-
-    # This flag helps handle documents that don't start with a standard header
     found_first_header = False
 
     for line in document_text.strip().split('\n'):
@@ -80,46 +66,37 @@ def parse_document_into_sections(document_text: str) -> Dict[str, str]:
             continue
 
         line_lower = stripped_line.lower()
-
         found_header = None
-        # Check if the line starts with any of the known headers, followed by a colon
         for header in headers:
             if line_lower.startswith(header + ":"):
                 found_header = header
                 break
 
         if found_header:
-            # If we were already processing a section, save its content before starting the new one.
             if current_text and (found_first_header or current_section != "unclassified"):
                  sections[current_section] = " ".join(current_text).strip()
 
             found_first_header = True
             current_section = found_header
-            # The content is the part of the line after the header and colon
             content_start_index = len(found_header) + 1
             initial_content = stripped_line[content_start_index:].strip()
             current_text = [initial_content] if initial_content else []
         else:
-            # This line is a continuation of the current section's content
             current_text.append(stripped_line)
 
-    # Save the last processed section
     if current_text or not sections:
         sections[current_section] = " ".join(current_text).strip()
 
     return sections
 
-
 def parse_guideline_file(file_path: str) -> List[Dict[str, str]]:
     """
     Parses a guideline text file into a list of dictionaries.
-    Each dictionary represents a chunk of text.
     """
     logger.info(f"Parsing guideline file: {file_path}")
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             text = f.read()
-        # For now, treat the whole file as a single chunk.
         return [{'text': text, 'source': os.path.basename(file_path)}]
     except FileNotFoundError:
         error_message = f"Error: Guideline file not found at {file_path}"

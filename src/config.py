@@ -58,3 +58,5 @@ def get_config() -> AppConfig:
     """
     config_data = load_config_from_yaml()
     return AppConfig.model_validate(config_data)
+
+config = get_config()

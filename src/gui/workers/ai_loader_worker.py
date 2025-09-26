@@ -16,9 +16,7 @@ class AILoaderWorker(QObject):
     finished = pyqtSignal(object, bool, str)  # analyzer, is_healthy, status_message
 
     def run(self):
-        """
-        Runs startup tasks: database purge, then AI model loading.
-        """
+        """Runs startup tasks: database purge, then AI model loading."""
         try:
             # 1. Load configuration using the centralized function
             config = get_config()

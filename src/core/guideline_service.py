@@ -25,9 +25,7 @@ class GuidelineService:
     """
 
     def __init__(self, sources: List[str]):
-        """
-        Initializes the GuidelineService.
-        """
+        """Initializes the GuidelineService."""
         self.config = get_config()
         model_name = self.config.models.retriever
 
@@ -69,7 +67,6 @@ class GuidelineService:
         if not os.path.exists(self.index_path) or not os.path.exists(self.chunks_path):
             return False
 
-        # Check if the sources have changed
         with open(self.chunks_path, 'rb') as f:
             cached_chunks = pickle.load(f)
         cached_sources = {chunk[1] for chunk in cached_chunks}
@@ -80,7 +77,7 @@ class GuidelineService:
         cache_mod_time = os.path.getmtime(self.index_path)
         for src_path in self.source_paths:
             if not os.path.exists(src_path) or os.path.getmtime(src_path) > cache_mod_time:
-                return False # Source file is newer than cache
+                return False
         return True
 
     def _load_index_from_cache(self):
@@ -133,7 +130,6 @@ class GuidelineService:
 
     @staticmethod
     def _extract_text_from_pdf(file_path: str, source_name: str) -> List[Tuple[str, str]]:
-        # ... (rest of the file is unchanged)
         """Extracts text from a file, chunking it by paragraph."""
         chunks = []
         try:
@@ -155,9 +151,7 @@ class GuidelineService:
                         for para in paragraphs:
                             cleaned_para = para.replace('\n', ' ').strip()
                             if cleaned_para:
-                                chunks.append(
-                                    (cleaned_para, f"{source_name} (Page {i+1})")
-                                )
+                                chunks.append((cleaned_para, f"{source_name} (Page {i+1})"))
         except Exception as e:
             logger.error(f"Failed to extract text from '{file_path}': {e}")
             raise
@@ -173,8 +167,7 @@ class GuidelineService:
         source_name = os.path.basename(file_path)
         if file_path.lower().endswith('.json'):
             return self._extract_text_from_json(file_path, source_name)
-        else:
-            return self._extract_text_from_pdf(file_path, source_name)
+        return self._extract_text_from_pdf(file_path, source_name)
 
     @staticmethod
     def _extract_text_from_json(file_path: str, source_name: str) -> List[Tuple[str, str]]:
@@ -184,7 +177,6 @@ class GuidelineService:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             for item in data:
-                # Combine the relevant fields into a single string for embedding
                 text = f"Title: {item.get('issue_title', '')}. Detail: {item.get('issue_detail', '')}"
                 chunks.append((text, source_name))
         except Exception as e:
@@ -193,9 +185,7 @@ class GuidelineService:
         return chunks
 
     def search(self, query: str, top_k: int = None) -> List[dict]:
-        """
-        Performs a FAISS similarity search through the loaded guidelines.
-        """
+        """Performs a FAISS similarity search through the loaded guidelines."""
         if top_k is None:
             top_k = self.config.retrieval_settings.similarity_top_k
 
@@ -204,7 +194,6 @@ class GuidelineService:
             return []
 
         query_embedding = self.model.encode([query], convert_to_tensor=True)
-        # Ensure it's a numpy array before continuing
         if not isinstance(query_embedding, np.ndarray):
             query_embedding = query_embedding.cpu().numpy()
 
@@ -221,3 +210,6 @@ class GuidelineService:
 
         return results
 
+def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
+    """Mock function to parse a guideline file. Returns an empty list."""
+    return []

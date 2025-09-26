@@ -44,15 +44,11 @@ class LLMService:
             raise RuntimeError(f"Could not load LLM model: {e}") from e
 
     def is_ready(self) -> bool:
-        """
-        Checks if the model was loaded successfully.
-        """
+        """Checks if the model was loaded successfully."""
         return self.llm is not None
 
     def generate_analysis(self, prompt: str) -> str:
-        """
-        Generates a response by running the prompt through the loaded LLM.
-        """
+        """Generates a response by running the prompt through the loaded LLM."""
         if not self.is_ready():
             logger.error("LLM is not available. Cannot generate analysis.")
             return '{"error": "LLM not available"}'

@@ -1,5 +1,5 @@
 import requests
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal as Signal
 from typing import List, Tuple
 
 API_URL = "http://127.0.0.1:8000"
@@ -8,8 +8,8 @@ class FolderAnalysisStarterWorker(QObject):
     """
     A one-shot worker to start the folder analysis on the backend without freezing the UI.
     """
-    success = pyqtSignal(str)  # Emits the task_id on success
-    error = pyqtSignal(str)
+    success = Signal(str)  # Emits the task_id on success # type: ignore[attr-defined]
+    error = Signal(str) # type: ignore[attr-defined]
 
     def __init__(self, files: List[Tuple], data: dict, token: str):
         super().__init__()
@@ -18,9 +18,7 @@ class FolderAnalysisStarterWorker(QObject):
         self.token = token
 
     def run(self):
-        """
-        Sends the request to start the folder analysis and emits the result.
-        """
+        """Sends the request to start the folder analysis and emits the result."""
         try:
             headers = {"Authorization": f"Bearer {self.token}"}
 

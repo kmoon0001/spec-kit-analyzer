@@ -17,9 +17,7 @@ def chat_with_ai(
     current_user: models.User = Depends(get_current_active_user),
     analysis_service: AnalysisService = Depends(get_analysis_service),
 ):
-    """
-    Handles a conversational chat request with the AI.
-    """
+    """Handles a conversational chat request with the AI."""
     llm_service = analysis_service.analyzer.llm_service
     if not llm_service.is_ready():
         raise HTTPException(

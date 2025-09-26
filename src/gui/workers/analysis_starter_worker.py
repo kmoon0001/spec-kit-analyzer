@@ -18,17 +18,15 @@ class AnalysisStarterWorker(QObject):
         self.token = token
 
     def run(self):
-        """
-        Sends the request to start the analysis and emits the result.
-        """
+        """Sends the request to start the analysis and emits the result."""
         try:
             headers = {"Authorization": f"Bearer {self.token}"}
             with open(self.file_path, 'rb') as f:
                 files = {'file': (os.path.basename(self.file_path), f)}
                 response = requests.post(
-                    f"{API_URL}/analysis/analyze",
-                    files=files,
-                    data=self.data,
+                    f"{API_URL}/analysis/analyze", 
+                    files=files, 
+                    data=self.data, 
                     headers=headers
                 )
             response.raise_for_status()
