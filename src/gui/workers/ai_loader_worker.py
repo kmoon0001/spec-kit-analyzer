@@ -9,13 +9,15 @@ from src.core.database_maintenance_service import DatabaseMaintenanceService
 
 logger = logging.getLogger(__name__)
 
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+
 
 class AILoaderWorker(QObject):
     """
     A worker to handle all application startup tasks in the background,
     including database maintenance and loading AI models.
     """
+
     finished = Signal(object, bool, str)  # analyzer, is_healthy, status_message
 
     def run(self):
@@ -30,7 +32,7 @@ class AILoaderWorker(QObject):
 
             # 2. Run Database Maintenance (New Step)
             maintenance_service = DatabaseMaintenanceService()
-            retention_days = config.get('purge_retention_days', 0)
+            retention_days = config.get("purge_retention_days", 0)
             maintenance_service.purge_old_reports(retention_days)
 
             # 3. Initialize the main AnalysisService (which loads all AI models)

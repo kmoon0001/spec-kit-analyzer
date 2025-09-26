@@ -5,6 +5,7 @@ from ...database import get_db
 
 router = APIRouter()
 
+
 @router.get("/health", status_code=status.HTTP_200_OK)
 def health_check(db: Session = Depends(get_db)):
     """
@@ -14,10 +15,10 @@ def health_check(db: Session = Depends(get_db)):
     """
     try:
         # Perform a simple, fast query to check the database connection
-        db.execute('SELECT 1')
+        db.execute("SELECT 1")
         return {"status": "ok", "database": "connected"}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"status": "error", "database": "disconnected", "reason": str(e)}
+            detail={"status": "error", "database": "disconnected", "reason": str(e)},
         )

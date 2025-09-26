@@ -13,11 +13,12 @@ router = APIRouter()
 analysis_service = AnalysisService()
 llm_service = analysis_service.analyzer.llm_service
 
+
 @router.post("/", response_model=schemas.ChatResponse)
 def chat_with_ai(
     chat_request: schemas.ChatRequest,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_active_user),
 ):
     """
     Handles a conversational chat request with the AI.
@@ -25,7 +26,7 @@ def chat_with_ai(
     if not llm_service.is_ready():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The AI model is not available. Please try again later."
+            detail="The AI model is not available. Please try again later.",
         )
 
     try:
@@ -35,7 +36,7 @@ def chat_with_ai(
         chat_service.history = [message.dict() for message in chat_request.history]
 
         # The last message in the history is the new user message
-        user_message = chat_service.history[-1]['content']
+        user_message = chat_service.history[-1]["content"]
 
         ai_response = chat_service.get_response(user_message)
 
@@ -44,5 +45,5 @@ def chat_with_ai(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred during the chat session: {e}"
+            detail=f"An error occurred during the chat session: {e}",
         )

@@ -4,11 +4,13 @@ from typing import Dict
 
 logger = logging.getLogger(__name__)
 
+
 class FactCheckerService:
     """
     A service to validate the findings of the main analysis LLM using a second,
     smaller, and more logical model. This provides a cross-check on the results.
     """
+
     def __init__(self, model_name: str):
         """
         Initializes the FactCheckerService by loading a sequence-to-sequence model.
@@ -21,10 +23,14 @@ class FactCheckerService:
             logger.info(f"Loading Fact-Checker model: {model_name}...")
             tokenizer = AutoTokenizer.from_pretrained(model_name)
             model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-            self.pipeline = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
+            self.pipeline = pipeline(
+                "text2text-generation", model=model, tokenizer=tokenizer
+            )
             logger.info(f"Successfully loaded Fact-Checker model: {model_name}")
         except Exception as e:
-            logger.error(f"Failed to load Fact-Checker model {model_name}: {e}", exc_info=True)
+            logger.error(
+                f"Failed to load Fact-Checker model {model_name}: {e}", exc_info=True
+            )
 
     def is_finding_plausible(self, finding: Dict, rule: Dict) -> bool:
         """
@@ -39,7 +45,7 @@ class FactCheckerService:
         """
         if not self.pipeline:
             logger.warning("Fact-Checker model not loaded. Skipping validation.")
-            return True # Default to plausible if the checker is not available
+            return True  # Default to plausible if the checker is not available
 
         try:
             # Construct a simple, logical prompt for the fact-checker
@@ -52,14 +58,14 @@ class FactCheckerService:
             Answer:
             """
 
-            response = self.pipeline(prompt, max_length=10)[0]['generated_text']
+            response = self.pipeline(prompt, max_length=10)[0]["generated_text"]
 
             # Check the response from the fact-checker
-            if 'yes' in response.lower():
+            if "yes" in response.lower():
                 return True
             else:
                 return False
 
         except Exception as e:
             logger.error(f"Error during fact-checking: {e}", exc_info=True)
-            return True # Default to plausible in case of an error
+            return True  # Default to plausible in case of an error

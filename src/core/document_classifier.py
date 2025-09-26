@@ -4,10 +4,12 @@ from .prompt_manager import PromptManager
 
 logger = logging.getLogger(__name__)
 
+
 class DocumentClassifier:
     """
     A service to classify a document into a predefined category.
     """
+
     def __init__(self, llm_service: LLMService, prompt_template_path: str):
         """
         Initializes the DocumentClassifier.
@@ -18,7 +20,12 @@ class DocumentClassifier:
         """
         self.llm_service = llm_service
         self.prompt_manager = PromptManager(template_path=prompt_template_path)
-        self.possible_types = ["Progress Note", "Evaluation", "Discharge Summary", "Unknown"]
+        self.possible_types = [
+            "Progress Note",
+            "Evaluation",
+            "Discharge Summary",
+            "Unknown",
+        ]
 
     def classify_document(self, document_text: str) -> str:
         """
@@ -44,14 +51,16 @@ class DocumentClassifier:
             raw_classification = self.llm_service.generate_analysis(prompt)
 
             # Clean up the output
-            classification = raw_classification.strip().replace('"', '')
+            classification = raw_classification.strip().replace('"', "")
 
             # Ensure the classification is one of the valid types
             if classification in self.possible_types:
                 logger.info(f"Document classified as: {classification}")
                 return classification
             else:
-                logger.warning(f"LLM returned an unexpected document type: '{classification}'. Defaulting to 'Unknown'.")
+                logger.warning(
+                    f"LLM returned an unexpected document type: '{classification}'. Defaulting to 'Unknown'."
+                )
                 return "Unknown"
 
         except Exception as e:

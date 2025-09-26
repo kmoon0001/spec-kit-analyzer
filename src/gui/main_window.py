@@ -4,8 +4,21 @@ import urllib.parse
 import webbrowser
 import jwt
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QMessageBox, QMainWindow, QStatusBar, QMenuBar, 
-    QFileDialog, QSplitter, QTextEdit, QHBoxLayout, QLabel, QGroupBox, QProgressBar, QPushButton, QTabWidget
+    QWidget,
+    QVBoxLayout,
+    QMessageBox,
+    QMainWindow,
+    QStatusBar,
+    QMenuBar,
+    QFileDialog,
+    QSplitter,
+    QTextEdit,
+    QHBoxLayout,
+    QLabel,
+    QGroupBox,
+    QProgressBar,
+    QPushButton,
+    QTabWidget,
 )
 from PyQt6.QtCore import Qt, QThread, QUrl
 from PyQt6.QtGui import QTextDocument
@@ -22,6 +35,7 @@ from src.gui.workers.dashboard_worker import DashboardWorker
 from src.gui.widgets.dashboard_widget import DashboardWidget
 
 API_URL = "http://127.0.0.1:8000"
+
 
 class MainApplicationWindow(QMainWindow):
     def __init__(self):
@@ -40,25 +54,25 @@ class MainApplicationWindow(QMainWindow):
         self.show_login_dialog()
 
     def init_base_ui(self):
-        self.setWindowTitle('Therapy Compliance Analyzer')
+        self.setWindowTitle("Therapy Compliance Analyzer")
         self.setGeometry(100, 100, 1200, 800)
 
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
-        self.file_menu = self.menu_bar.addMenu('File')
-        self.file_menu.addAction('Logout', self.logout)
+        self.file_menu = self.menu_bar.addMenu("File")
+        self.file_menu.addAction("Logout", self.logout)
         self.file_menu.addSeparator()
-        self.file_menu.addAction('Exit', self.close)
-        self.tools_menu = self.menu_bar.addMenu('Tools')
-        self.tools_menu.addAction('Manage Rubrics', self.manage_rubrics)
-        self.tools_menu.addAction('Change Password', self.show_change_password_dialog)
-        self.theme_menu = self.menu_bar.addMenu('Theme')
-        self.theme_menu.addAction('Light', self.set_light_theme)
-        self.theme_menu.addAction('Dark', self.set_dark_theme)
+        self.file_menu.addAction("Exit", self.close)
+        self.tools_menu = self.menu_bar.addMenu("Tools")
+        self.tools_menu.addAction("Manage Rubrics", self.manage_rubrics)
+        self.tools_menu.addAction("Change Password", self.show_change_password_dialog)
+        self.theme_menu = self.menu_bar.addMenu("Theme")
+        self.theme_menu.addAction("Light", self.set_light_theme)
+        self.theme_menu.addAction("Dark", self.set_dark_theme)
 
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage('Ready')
+        self.status_bar.showMessage("Ready")
 
         self.ai_status_label = QLabel("Loading AI models...")
         self.status_bar.addPermanentWidget(self.ai_status_label)
@@ -75,21 +89,31 @@ class MainApplicationWindow(QMainWindow):
         if dialog.exec():
             username, password = dialog.get_credentials()
             try:
-                response = requests.post(f"{API_URL}/auth/token", data={"username": username, "password": password})
+                response = requests.post(
+                    f"{API_URL}/auth/token",
+                    data={"username": username, "password": password},
+                )
                 response.raise_for_status()
                 token_data = response.json()
-                self.access_token = token_data['access_token']
+                self.access_token = token_data["access_token"]
                 self.username = username
 
-                decoded_token = jwt.decode(self.access_token, options={"verify_signature": False})
-                self.is_admin = decoded_token.get('is_admin', False)
+                decoded_token = jwt.decode(
+                    self.access_token, options={"verify_signature": False}
+                )
+                self.is_admin = decoded_token.get("is_admin", False)
 
                 self.user_status_label.setText(f"Logged in as: {self.username}")
                 self.status_bar.showMessage("Login successful.")
                 self.load_main_ui()
                 self.show()
-            except (requests.exceptions.RequestException, jwt.exceptions.DecodeError) as e:
-                QMessageBox.critical(self, "Login Failed", f"Failed to authenticate: {e}")
+            except (
+                requests.exceptions.RequestException,
+                jwt.exceptions.DecodeError,
+            ) as e:
+                QMessageBox.critical(
+                    self, "Login Failed", f"Failed to authenticate: {e}"
+                )
                 self.close()
         else:
             self.close()
@@ -137,11 +161,11 @@ class MainApplicationWindow(QMainWindow):
         controls_group.setLayout(controls_layout)
         main_layout.addWidget(controls_group)
 
-        self.upload_button = QPushButton('Upload Document')
+        self.upload_button = QPushButton("Upload Document")
         self.upload_button.clicked.connect(self.open_file_dialog)
         controls_layout.addWidget(self.upload_button)
 
-        self.clear_button = QPushButton('Clear Display')
+        self.clear_button = QPushButton("Clear Display")
         self.clear_button.clicked.connect(self.clear_display)
         controls_layout.addWidget(self.clear_button)
 
@@ -159,7 +183,9 @@ class MainApplicationWindow(QMainWindow):
         document_layout = QVBoxLayout()
         document_group.setLayout(document_layout)
         self.document_display_area = QTextEdit()
-        self.document_display_area.setPlaceholderText("Upload a document to see its content here.")
+        self.document_display_area.setPlaceholderText(
+            "Upload a document to see its content here."
+        )
         self.document_display_area.setReadOnly(True)
         document_layout.addWidget(self.document_display_area)
         splitter.addWidget(document_group)
@@ -168,7 +194,9 @@ class MainApplicationWindow(QMainWindow):
         results_layout = QVBoxLayout()
         results_group.setLayout(results_layout)
         self.analysis_results_area = QTextEdit()
-        self.analysis_results_area.setPlaceholderText("Analysis results will appear here.")
+        self.analysis_results_area.setPlaceholderText(
+            "Analysis results will appear here."
+        )
         self.analysis_results_area.setReadOnly(True)
         self.analysis_results_area.setOpenExternalLinks(False)
         self.analysis_results_area.anchorClicked.connect(self.handle_anchor_click)
@@ -178,23 +206,32 @@ class MainApplicationWindow(QMainWindow):
         return analysis_widget
 
     def handle_anchor_click(self, url: QUrl):
-        if url.scheme() == 'highlight':
+        if url.scheme() == "highlight":
             self.handle_text_highlight_request(url)
-        elif url.scheme() == 'chat':
+        elif url.scheme() == "chat":
             self.handle_chat_request(url)
 
     def handle_text_highlight_request(self, url: QUrl):
         combined_payload = urllib.parse.unquote(url.path())
-        parts = combined_payload.split('|||')
+        parts = combined_payload.split("|||")
         context_snippet = parts[0]
         text_to_highlight = parts[1] if len(parts) > 1 else context_snippet
 
         doc = self.document_display_area.document()
-        context_cursor = doc.find(context_snippet, 0, QTextDocument.FindFlag.FindCaseSensitively)
+        context_cursor = doc.find(
+            context_snippet, 0, QTextDocument.FindFlag.FindCaseSensitively
+        )
 
         if not context_cursor.isNull():
-            inner_cursor = doc.find(text_to_highlight, context_cursor.selectionStart(), QTextDocument.FindFlag.FindCaseSensitively)
-            if not inner_cursor.isNull() and inner_cursor.selectionEnd() <= context_cursor.selectionEnd():
+            inner_cursor = doc.find(
+                text_to_highlight,
+                context_cursor.selectionStart(),
+                QTextDocument.FindFlag.FindCaseSensitively,
+            )
+            if (
+                not inner_cursor.isNull()
+                and inner_cursor.selectionEnd() <= context_cursor.selectionEnd()
+            ):
                 self.document_display_area.setTextCursor(inner_cursor)
                 self.tabs.setCurrentIndex(0)
                 self.document_display_area.setFocus()
@@ -203,11 +240,15 @@ class MainApplicationWindow(QMainWindow):
         cursor = self.document_display_area.textCursor()
         cursor.movePosition(cursor.MoveOperation.Start)
         self.document_display_area.setTextCursor(cursor)
-        if self.document_display_area.find(text_to_highlight, QTextDocument.FindFlag.FindCaseSensitively):
+        if self.document_display_area.find(
+            text_to_highlight, QTextDocument.FindFlag.FindCaseSensitively
+        ):
             self.tabs.setCurrentIndex(0)
             self.document_display_area.setFocus()
         else:
-            self.status_bar.showMessage(f"Could not find text: '{text_to_highlight}'", 5000)
+            self.status_bar.showMessage(
+                f"Could not find text: '{text_to_highlight}'", 5000
+            )
 
     def handle_chat_request(self, url: QUrl):
         initial_context = urllib.parse.unquote(url.path())
@@ -224,13 +265,26 @@ class MainApplicationWindow(QMainWindow):
             current_password, new_password = dialog.get_passwords()
             try:
                 headers = {"Authorization": f"Bearer {self.access_token}"}
-                payload = {"current_password": current_password, "new_password": new_password}
-                response = requests.post(f"{API_URL}/auth/users/change-password", json=payload, headers=headers)
+                payload = {
+                    "current_password": current_password,
+                    "new_password": new_password,
+                }
+                response = requests.post(
+                    f"{API_URL}/auth/users/change-password",
+                    json=payload,
+                    headers=headers,
+                )
                 response.raise_for_status()
-                QMessageBox.information(self, "Success", "Password changed successfully.")
+                QMessageBox.information(
+                    self, "Success", "Password changed successfully."
+                )
             except requests.exceptions.RequestException as e:
-                detail = e.response.json().get('detail', str(e)) if e.response else str(e)
-                QMessageBox.critical(self, "Error", f"Failed to change password: {detail}")
+                detail = (
+                    e.response.json().get("detail", str(e)) if e.response else str(e)
+                )
+                QMessageBox.critical(
+                    self, "Error", f"Failed to change password: {detail}"
+                )
 
     def load_dashboard_data(self):
         self.status_bar.showMessage("Refreshing dashboard data...")
@@ -238,7 +292,9 @@ class MainApplicationWindow(QMainWindow):
         self.worker = DashboardWorker(self.access_token)
         self.worker.moveToThread(self.thread)
         self.worker.success.connect(self.on_dashboard_data_loaded)
-        self.worker.error.connect(lambda msg: self.status_bar.showMessage(f"Dashboard Error: {msg}"))
+        self.worker.error.connect(
+            lambda msg: self.status_bar.showMessage(f"Dashboard Error: {msg}")
+        )
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
@@ -258,7 +314,9 @@ class MainApplicationWindow(QMainWindow):
         self.status_bar.showMessage("Starting analysis...")
 
         self.thread = QThread()
-        self.worker = AnalysisStarterWorker(self._current_file_path, {}, self.access_token)
+        self.worker = AnalysisStarterWorker(
+            self._current_file_path, {}, self.access_token
+        )
         self.worker.moveToThread(self.thread)
         self.worker.success.connect(self.handle_analysis_started)
         self.worker.error.connect(self.on_analysis_error)
@@ -300,16 +358,22 @@ class MainApplicationWindow(QMainWindow):
         self.run_analysis_button.setEnabled(True)
 
     def open_file_dialog(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, 'Select Document', '', 'All Files (*.*)')
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, "Select Document", "", "All Files (*.*)"
+        )
         if file_name:
             self._current_file_path = file_name
-            self.status_bar.showMessage(f"Loaded document: {os.path.basename(file_name)}")
+            self.status_bar.showMessage(
+                f"Loaded document: {os.path.basename(file_name)}"
+            )
             self.run_analysis_button.setEnabled(True)
             try:
-                with open(file_name, 'r', encoding='utf-8') as f:
+                with open(file_name, "r", encoding="utf-8") as f:
                     self.document_display_area.setText(f.read())
             except (IOError, UnicodeDecodeError) as e:
-                self.document_display_area.setText(f"Could not display preview for: {file_name}\n{e}")
+                self.document_display_area.setText(
+                    f"Could not display preview for: {file_name}\n{e}"
+                )
 
     def clear_display(self):
         self.document_display_area.clear()
@@ -332,7 +396,9 @@ class MainApplicationWindow(QMainWindow):
     def on_ai_loaded(self, analyzer_service, is_healthy, status_message):
         self.analyzer_service = analyzer_service
         self.ai_status_label.setText(status_message)
-        self.ai_status_label.setStyleSheet("color: green;" if is_healthy else "color: red;")
+        self.ai_status_label.setStyleSheet(
+            "color: green;" if is_healthy else "color: red;"
+        )
 
     def apply_stylesheet(self, theme="dark"):
         if theme == "light":

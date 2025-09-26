@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import QApplication
 from src.gui.main_window import MainApplicationWindow
 from src.database import init_db
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Initialize the database first to ensure tables are created
     init_db()
 

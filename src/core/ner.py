@@ -4,11 +4,13 @@ from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
+
 class NERPipeline:
     """
     A pipeline for Named Entity Recognition that uses an ensemble of models
     to achieve higher accuracy and recall.
     """
+
     def __init__(self, model_names: List[str]):
         """
         Initializes the NER ensemble by loading multiple models.
@@ -24,10 +26,19 @@ class NERPipeline:
                 tokenizer = AutoTokenizer.from_pretrained(model_name)
                 model = AutoModelForTokenClassification.from_pretrained(model_name)
                 # Create a pipeline for this model
-                self.pipelines.append(pipeline("ner", model=model, tokenizer=tokenizer, aggregation_strategy="simple"))
+                self.pipelines.append(
+                    pipeline(
+                        "ner",
+                        model=model,
+                        tokenizer=tokenizer,
+                        aggregation_strategy="simple",
+                    )
+                )
                 logger.info(f"Successfully loaded NER model: {model_name}")
             except Exception as e:
-                logger.error(f"Failed to load NER model {model_name}: {e}", exc_info=True)
+                logger.error(
+                    f"Failed to load NER model {model_name}: {e}", exc_info=True
+                )
 
     def extract_entities(self, text: str) -> List[Dict[str, Any]]:
         """
@@ -51,25 +62,25 @@ class NERPipeline:
                 for entity in entities:
                     # Create a unique, hashable representation of the entity to avoid duplicates
                     entity_tuple = (
-                        entity.get('entity_group'),
-                        entity.get('word'),
-                        entity.get('start'),
-                        entity.get('end')
+                        entity.get("entity_group"),
+                        entity.get("word"),
+                        entity.get("start"),
+                        entity.get("end"),
                     )
                     all_entities.add(entity_tuple)
             except Exception as e:
-                logger.error(f"Error during entity extraction with one of the models: {e}", exc_info=True)
+                logger.error(
+                    f"Error during entity extraction with one of the models: {e}",
+                    exc_info=True,
+                )
 
         # Convert the set of unique tuples back into a list of dictionaries
         unique_entity_list = [
-            {
-                "entity_group": group,
-                "word": word,
-                "start": start,
-                "end": end
-            }
+            {"entity_group": group, "word": word, "start": start, "end": end}
             for group, word, start, end in all_entities
         ]
 
-        logger.info(f"Extracted {len(unique_entity_list)} unique entities from ensemble.")
+        logger.info(
+            f"Extracted {len(unique_entity_list)} unique entities from ensemble."
+        )
         return unique_entity_list

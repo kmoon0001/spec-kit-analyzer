@@ -17,6 +17,7 @@ from src.utils import load_config
 
 logger = logging.getLogger(__name__)
 
+
 class GuidelineService:
     """
     Manages loading, indexing, and searching of compliance guidelines using a neural retriever.
@@ -28,7 +29,7 @@ class GuidelineService:
         Initializes the GuidelineService.
         """
         self.config = load_config()
-        model_name = self.config['models']['retriever']
+        model_name = self.config["models"]["retriever"]
 
         self.guideline_chunks: List[Tuple[str, str]] = []
         self.is_index_ready = False
@@ -69,7 +70,7 @@ class GuidelineService:
             return False
 
         # Check if the sources have changed
-        with open(self.chunks_path, 'rb') as f:
+        with open(self.chunks_path, "rb") as f:
             cached_chunks = pickle.load(f)
         cached_sources = set(chunk[1] for chunk in cached_chunks)
         current_sources = set(os.path.basename(path) for path in self.source_paths)
@@ -78,18 +79,23 @@ class GuidelineService:
 
         cache_mod_time = os.path.getmtime(self.index_path)
         for src_path in self.source_paths:
-            if not os.path.exists(src_path) or os.path.getmtime(src_path) > cache_mod_time:
-                return False # Source file is newer than cache
+            if (
+                not os.path.exists(src_path)
+                or os.path.getmtime(src_path) > cache_mod_time
+            ):
+                return False  # Source file is newer than cache
         return True
 
     def _load_index_from_cache(self):
         """Loads the FAISS index and guideline chunks from disk."""
         try:
             self.faiss_index = faiss.read_index(self.index_path)
-            with open(self.chunks_path, 'rb') as f:
+            with open(self.chunks_path, "rb") as f:
                 self.guideline_chunks = pickle.load(f)
             self.is_index_ready = True
-            logger.info(f"Successfully loaded {len(self.guideline_chunks)} chunks and FAISS index from cache.")
+            logger.info(
+                f"Successfully loaded {len(self.guideline_chunks)} chunks and FAISS index from cache."
+            )
         except Exception as e:
             logger.error(f"Failed to load index from cache: {e}")
             self.is_index_ready = False
@@ -102,7 +108,7 @@ class GuidelineService:
 
         try:
             faiss.write_index(self.faiss_index, self.index_path)
-            with open(self.chunks_path, 'wb') as f:
+            with open(self.chunks_path, "wb") as f:
                 pickle.dump(self.guideline_chunks, f)
             logger.info(f"Successfully saved index and chunks to '{self.cache_dir}'.")
         except Exception as e:
@@ -117,7 +123,9 @@ class GuidelineService:
         if self.guideline_chunks:
             logger.info("Encoding guidelines into vectors...")
             texts_to_encode = [chunk[0] for chunk in self.guideline_chunks]
-            embeddings = self.model.encode(texts_to_encode, convert_to_tensor=True, show_progress_bar=True)
+            embeddings = self.model.encode(
+                texts_to_encode, convert_to_tensor=True, show_progress_bar=True
+            )
             embeddings_np = embeddings.cpu().numpy()
 
             if embeddings_np.dtype != np.float32:
@@ -128,20 +136,24 @@ class GuidelineService:
             self.faiss_index.add(embeddings_np)
 
         self.is_index_ready = True
-        logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks using FAISS.")
+        logger.info(
+            f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks using FAISS."
+        )
 
     @staticmethod
-    def _extract_text_from_pdf(file_path: str, source_name: str) -> List[Tuple[str, str]]:
+    def _extract_text_from_pdf(
+        file_path: str, source_name: str
+    ) -> List[Tuple[str, str]]:
         # ... (rest of the file is unchanged)
         """Extracts text from a file, chunking it by paragraph."""
         chunks = []
         try:
-            if file_path.lower().endswith('.txt'):
-                with open(file_path, 'r', encoding='utf-8') as f:
+            if file_path.lower().endswith(".txt"):
+                with open(file_path, "r", encoding="utf-8") as f:
                     text = f.read()
-                paragraphs = text.split('\n\n')
+                paragraphs = text.split("\n\n")
                 for para in paragraphs:
-                    cleaned_para = para.replace('\n', ' ').strip()
+                    cleaned_para = para.replace("\n", " ").strip()
                     if cleaned_para:
                         chunks.append((cleaned_para, source_name))
                 return chunks
@@ -150,9 +162,9 @@ class GuidelineService:
                 for i, page in enumerate(pdf.pages):
                     text = page.extract_text()
                     if text:
-                        paragraphs = text.split('\n\n')
+                        paragraphs = text.split("\n\n")
                         for para in paragraphs:
-                            cleaned_para = para.replace('\n', ' ').strip()
+                            cleaned_para = para.replace("\n", " ").strip()
                             if cleaned_para:
                                 chunks.append(
                                     (cleaned_para, f"{source_name} (Page {i+1})")
@@ -170,17 +182,19 @@ class GuidelineService:
             return []
 
         source_name = os.path.basename(file_path)
-        if file_path.lower().endswith('.json'):
+        if file_path.lower().endswith(".json"):
             return self._extract_text_from_json(file_path, source_name)
         else:
             return self._extract_text_from_pdf(file_path, source_name)
 
     @staticmethod
-    def _extract_text_from_json(file_path: str, source_name: str) -> List[Tuple[str, str]]:
+    def _extract_text_from_json(
+        file_path: str, source_name: str
+    ) -> List[Tuple[str, str]]:
         """Extracts text from a JSON file, assuming a list of objects with specific keys."""
         chunks = []
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             for item in data:
                 # Combine the relevant fields into a single string for embedding
@@ -196,7 +210,7 @@ class GuidelineService:
         Performs a FAISS similarity search through the loaded guidelines.
         """
         if top_k is None:
-            top_k = self.config['retrieval_settings']['similarity_top_k']
+            top_k = self.config["retrieval_settings"]["similarity_top_k"]
 
         if not self.is_index_ready or not self.faiss_index:
             logger.warning("Search called before guidelines were loaded and indexed.")

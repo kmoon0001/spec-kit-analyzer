@@ -4,6 +4,7 @@ from typing import Dict, Any, List
 
 logger = logging.getLogger(__name__)
 
+
 class DocumentAnalysisService:
     """
     A service for generating compliance analysis for a given document.
@@ -15,11 +16,15 @@ class DocumentAnalysisService:
         """
         self.config = config
 
-    def generate_analysis(self, document: str, entity_list: str, retrieved_rules: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def generate_analysis(
+        self, document: str, entity_list: str, retrieved_rules: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """
         Generates a compliance analysis for a given document.
         """
-        prompt = self._build_prompt(document, entity_list, self._format_rules_for_prompt(retrieved_rules))
+        prompt = self._build_prompt(
+            document, entity_list, self._format_rules_for_prompt(retrieved_rules)
+        )
         raw_analysis = self._generate_analysis_from_prompt(prompt)
         return self._parse_json_output(raw_analysis)
 
@@ -27,7 +32,7 @@ class DocumentAnalysisService:
         """
         Builds the prompt for the LLM.
         """
-        if self.config.get('reviewer_difficulty') == 'strict':
+        if self.config.get("reviewer_difficulty") == "strict":
             difficulty_instruction = "Your analysis should be strict and identify even minor potential compliance risks."
         else:
             difficulty_instruction = "Your analysis should be moderate and focus on significant compliance risks."
@@ -112,21 +117,23 @@ Return the analysis as a JSON object with the following structure:
         Parses JSON output from the model with robust error handling.
         """
         try:
-            json_start = result.find('```json')
+            json_start = result.find("```json")
             if json_start != -1:
-                json_str = result[json_start + 7:].strip()
-                json_end = json_str.rfind('```')
+                json_str = result[json_start + 7 :].strip()
+                json_end = json_str.rfind("```")
                 if json_end != -1:
                     json_str = json_str[:json_end].strip()
             else:
-                json_start = result.find('{')
-                json_end = result.rfind('}') + 1
+                json_start = result.find("{")
+                json_end = result.rfind("}") + 1
                 json_str = result[json_start:json_end]
 
             analysis = json.loads(json_str)
             return analysis
 
         except (json.JSONDecodeError, IndexError, ValueError) as e:
-            logger.error(f"Error parsing JSON output: {e}\\nRaw model output:\\n{result}")
+            logger.error(
+                f"Error parsing JSON output: {e}\\nRaw model output:\\n{result}"
+            )
             analysis = {"error": "Failed to parse JSON output from model."}
             return analysis

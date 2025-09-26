@@ -4,10 +4,12 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.dates as mdates
 
+
 class DashboardWidget(QWidget):
     """
     A widget to display compliance trends and other visualizations.
     """
+
     # Add the custom signal
     refresh_requested = pyqtSignal()
 
@@ -43,8 +45,8 @@ class DashboardWidget(QWidget):
         Args:
             data: A dictionary containing 'reports' and 'summary' data.
         """
-        reports_data = data.get('reports', [])
-        summary_data = data.get('summary', [])
+        reports_data = data.get("reports", [])
+        summary_data = data.get("summary", [])
 
         self._update_trends_plot(reports_data)
         self._update_summary_plot(summary_data)
@@ -55,26 +57,38 @@ class DashboardWidget(QWidget):
         ax.clear()
 
         if not reports:
-            ax.text(0.5, 0.5, "No compliance trend data to display.", ha='center', va='center')
+            ax.text(
+                0.5,
+                0.5,
+                "No compliance trend data to display.",
+                ha="center",
+                va="center",
+            )
         else:
             dates = []
             scores = []
             for r in reversed(reports):
                 try:
-                    dates.append(mdates.datestr2num(r['analysis_date']))
-                    scores.append(r['compliance_score'])
+                    dates.append(mdates.datestr2num(r["analysis_date"]))
+                    scores.append(r["compliance_score"])
                 except (ValueError, TypeError):
                     continue
 
             if not dates:
-                 ax.text(0.5, 0.5, "No valid trend data to display.", ha='center', va='center')
+                ax.text(
+                    0.5,
+                    0.5,
+                    "No valid trend data to display.",
+                    ha="center",
+                    va="center",
+                )
             else:
-                ax.plot(dates, scores, marker='o', linestyle='-')
+                ax.plot(dates, scores, marker="o", linestyle="-")
                 ax.set_title("Compliance Score Over Time")
                 ax.set_xlabel("Analysis Date")
                 ax.set_ylabel("Compliance Score")
                 ax.grid(True)
-                ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+                ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
                 self.trends_canvas.figure.autofmt_xdate()
 
         self.trends_canvas.draw()
@@ -85,13 +99,19 @@ class DashboardWidget(QWidget):
         ax.clear()
 
         if not summary:
-            ax.text(0.5, 0.5, "No findings summary data to display.", ha='center', va='center')
+            ax.text(
+                0.5,
+                0.5,
+                "No findings summary data to display.",
+                ha="center",
+                va="center",
+            )
         else:
             top_n = 10
             summary = summary[:top_n]
 
-            rule_ids = [item['rule_id'] for item in summary]
-            counts = [item['count'] for item in summary]
+            rule_ids = [item["rule_id"] for item in summary]
+            counts = [item["count"] for item in summary]
 
             ax.barh(rule_ids, counts)
             ax.set_title(f"Top {len(rule_ids)} Most Common Findings")
@@ -102,8 +122,10 @@ class DashboardWidget(QWidget):
 
         self.summary_canvas.draw()
 
+
 class MplCanvas(FigureCanvas):
     """A reusable Matplotlib canvas widget for PyQt."""
+
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)

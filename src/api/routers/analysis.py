@@ -1,4 +1,12 @@
-from fastapi import APIRouter, Depends, UploadFile, File, BackgroundTasks, HTTPException, Form
+from fastapi import (
+    APIRouter,
+    Depends,
+    UploadFile,
+    File,
+    BackgroundTasks,
+    HTTPException,
+    Form,
+)
 from fastapi.responses import HTMLResponse
 import shutil
 import os
@@ -17,17 +25,18 @@ logger = logging.getLogger(__name__)
 analysis_service = AnalysisService()
 tasks = {}
 
+
 def run_analysis_and_save(
-    file_path: str, 
-    task_id: str, 
+    file_path: str,
+    task_id: str,
     doc_name: str,
-    discipline: str | None, 
-    analysis_mode: str
+    discipline: str | None,
+    analysis_mode: str,
 ):
     """Runs the analysis with semantic caching, saves the data, and generates the report."""
     db = SessionLocal()
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             document_text = f.read()
 
         # 1. Generate embedding for the new document
@@ -39,32 +48,40 @@ def run_analysis_and_save(
 
         if cached_report:
             # --- CACHE HIT ---
-            logger.info(f"Semantic cache hit for document: {doc_name}. Using cached report ID: {cached_report.id}")
+            logger.info(
+                f"Semantic cache hit for document: {doc_name}. Using cached report ID: {cached_report.id}"
+            )
             analysis_result = cached_report.analysis_result
         else:
             # --- CACHE MISS ---
-            logger.info(f"Semantic cache miss for document: {doc_name}. Performing full analysis.")
+            logger.info(
+                f"Semantic cache miss for document: {doc_name}. Performing full analysis."
+            )
             # Perform the full analysis to get the structured data
             analysis_result = analysis_service.analyzer.analyze_document(
                 document=document_text,
                 discipline=discipline,
-                doc_type="Unknown" # This will be replaced by the classifier
+                doc_type="Unknown",  # This will be replaced by the classifier
             )
 
             # Save the new analysis result and its embedding to the database
             report_data = {
                 "document_name": doc_name,
-                "compliance_score": analysis_service.report_generator.risk_scoring_service.calculate_compliance_score(analysis_result.get("findings", [])),
+                "compliance_score": analysis_service.report_generator.risk_scoring_service.calculate_compliance_score(
+                    analysis_result.get("findings", [])
+                ),
                 "analysis_result": analysis_result,
-                "document_embedding": embedding_bytes
+                "document_embedding": embedding_bytes,
             }
-            crud.create_report_and_findings(db, report_data, analysis_result.get("findings", []))
+            crud.create_report_and_findings(
+                db, report_data, analysis_result.get("findings", [])
+            )
 
         # 3. Generate the HTML report (either from cached or new data)
         report_html = analysis_service.report_generator.generate_html_report(
             analysis_result=analysis_result,
             doc_name=doc_name,
-            analysis_mode=analysis_mode
+            analysis_mode=analysis_mode,
         )
 
         tasks[task_id] = {"status": "completed", "result": report_html}
@@ -76,6 +93,7 @@ def run_analysis_and_save(
         db.close()
         if os.path.exists(file_path):
             os.remove(file_path)
+
 
 @router.post("/analyze", response_model=schemas.AnalysisResult, status_code=202)
 async def analyze_document(
@@ -91,14 +109,26 @@ async def analyze_document(
         shutil.copyfileobj(file.file, buffer)
 
     background_tasks.add_task(
-        run_analysis_and_save, temp_file_path, task_id, file.filename, discipline, analysis_mode
+        run_analysis_and_save,
+        temp_file_path,
+        task_id,
+        file.filename,
+        discipline,
+        analysis_mode,
     )
     tasks[task_id] = {"status": "processing"}
 
     return {"task_id": task_id, "status": "processing"}
 
-@router.get("/tasks/{task_id}", response_model=schemas.TaskStatus, responses={200: {"content": {"text/html": {}}}})
-async def get_task_status(task_id: str, current_user: models.User = Depends(get_current_active_user)):
+
+@router.get(
+    "/tasks/{task_id}",
+    response_model=schemas.TaskStatus,
+    responses={200: {"content": {"text/html": {}}}},
+)
+async def get_task_status(
+    task_id: str, current_user: models.User = Depends(get_current_active_user)
+):
     task = tasks.get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")

@@ -3,12 +3,15 @@ from typing import Dict, Any, List
 
 logger = logging.getLogger(__name__)
 
+
 class ExplanationEngine:
     """
     A service to post-process analysis findings, adding explanations and context.
     """
 
-    def add_explanations(self, analysis_result: Dict[str, Any], full_document_text: str) -> Dict[str, Any]:
+    def add_explanations(
+        self, analysis_result: Dict[str, Any], full_document_text: str
+    ) -> Dict[str, Any]:
         """
         Adds explanations and context snippets to each finding.
 
@@ -26,11 +29,15 @@ class ExplanationEngine:
             problematic_text = finding.get("text")
             if problematic_text:
                 # Add a context snippet to help with precise highlighting
-                finding['context_snippet'] = self._get_context_snippet(problematic_text, full_document_text)
+                finding["context_snippet"] = self._get_context_snippet(
+                    problematic_text, full_document_text
+                )
 
         return analysis_result
 
-    def _get_context_snippet(self, text_to_find: str, full_text: str, window: int = 20) -> str:
+    def _get_context_snippet(
+        self, text_to_find: str, full_text: str, window: int = 20
+    ) -> str:
         """
         Finds a snippet of text and returns it with a surrounding context window.
 
@@ -45,7 +52,7 @@ class ExplanationEngine:
         try:
             start_index = full_text.find(text_to_find)
             if start_index == -1:
-                return text_to_find # Return the original text if not found
+                return text_to_find  # Return the original text if not found
 
             # Define the window boundaries
             context_start = max(0, start_index - window)

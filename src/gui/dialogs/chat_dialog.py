@@ -1,15 +1,23 @@
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QTextEdit, QLineEdit, QPushButton, QHBoxLayout, QDialogButtonBox
+    QDialog,
+    QVBoxLayout,
+    QTextEdit,
+    QLineEdit,
+    QPushButton,
+    QHBoxLayout,
+    QDialogButtonBox,
 )
 from PyQt6.QtCore import QThread
 from typing import List, Dict
 
 from ..workers.chat_worker import ChatWorker
 
+
 class ChatDialog(QDialog):
     """
     A dialog window for a conversational chat session with the AI about a specific topic.
     """
+
     def __init__(self, initial_context: str, token: str, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Discuss with AI")

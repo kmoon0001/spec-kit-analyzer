@@ -9,11 +9,16 @@ from ...database import get_db
 
 router = APIRouter()
 
+
 @router.post("/token", response_model=schemas.Token)
-def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+):
     # 1. Verify username and password
     user = crud.get_user_by_username(db, username=form_data.username)
-    if not user or not auth_service.verify_password(form_data.password, user.hashed_password):
+    if not user or not auth_service.verify_password(
+        form_data.password, user.hashed_password
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -23,8 +28,8 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
     # 2. NEW: Check if the user's license is active
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Account is inactive or license has expired. Please contact support."
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is inactive or license has expired. Please contact support.",
         )
 
     # 3. Create and return the access token
@@ -34,16 +39,24 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+
 @router.post("/users/change-password")
 def change_password(
-    password_data: schemas.UserPasswordChange, 
-    db: Session = Depends(get_db), 
-    current_user: models.User = Depends(get_current_active_user)
+    password_data: schemas.UserPasswordChange,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user),
 ):
-    if not auth_service.verify_password(password_data.current_password, current_user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password.")
+    if not auth_service.verify_password(
+        password_data.current_password, current_user.hashed_password
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password.",
+        )
 
     new_hashed_password = auth_service.get_password_hash(password_data.new_password)
-    crud.change_user_password(db=db, user=current_user, new_hashed_password=new_hashed_password)
+    crud.change_user_password(
+        db=db, user=current_user, new_hashed_password=new_hashed_password
+    )
 
     return {"message": "Password changed successfully."}
