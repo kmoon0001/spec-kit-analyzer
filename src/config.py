@@ -3,16 +3,16 @@ from pydantic import BaseModel, Field
 import yaml
 
 class DatabaseConfig(BaseModel):
-    url: str = Field("sqlite:///./test.db", env="DATABASE_URL")
+    url: str = Field(default="sqlite:///./test.db")
 
 class AuthConfig(BaseModel):
-    secret_key: str = Field("a_very_secret_key", env="SECRET_KEY")
-    algorithm: str = Field("HS256", env="ALGORITHM")
-    access_token_expire_minutes: int = Field(30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
+    secret_key: str = Field(default="a_very_secret_key")
+    algorithm: str = Field(default="HS256")
+    access_token_expire_minutes: int = Field(default=30)
 
 class AppConfig(BaseModel):
-    database: DatabaseConfig = DatabaseConfig()
-    auth: AuthConfig = AuthConfig()
+    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    auth: AuthConfig = Field(default_factory=AuthConfig)
 
 def load_config_from_yaml(path: str = "config.yaml") -> dict:
     if os.path.exists(path):
@@ -22,6 +22,6 @@ def load_config_from_yaml(path: str = "config.yaml") -> dict:
 
 def get_config() -> AppConfig:
     config_data = load_config_from_yaml()
-    return AppConfig.parse_obj(config_data)
+    return AppConfig.model_validate(config_data)
 
 config = get_config()

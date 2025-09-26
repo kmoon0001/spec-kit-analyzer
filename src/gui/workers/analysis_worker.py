@@ -1,14 +1,14 @@
 import time
 import requests
-from PySide6.QtCore import QObject, Signal
+from PyQt6.QtCore import QObject, pyqtSignal as Signal
 
 API_URL = "http://127.0.0.1:8000"
 
 class AnalysisWorker(QObject):
-    finished = Signal()
-    error = Signal(str)
-    success = Signal(str)
-    progress = Signal(int)
+    finished = Signal()  # type: ignore[attr-defined]
+    error = Signal(str)  # type: ignore[attr-defined]
+    success = Signal(str)  # type: ignore[attr-defined]
+    progress = Signal(int)  # type: ignore[attr-defined]
 
     def __init__(self, file_path, data, task_id):
         super().__init__()
