@@ -7,9 +7,7 @@ requests
 
 # GUI
 PyQt6
-PyQt6-WebEngine
 matplotlib
-pytesseract
 
 # Data & Parsing
 pdfplumber
@@ -48,4 +46,5 @@ scipy
 # Testing
 pytest
 pytest-mock
-pytest-qt
+httpx
+pytesseract

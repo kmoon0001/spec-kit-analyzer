@@ -1,12 +1,16 @@
+from spellchecker import SpellChecker
+
 class PreprocessingService:
     """
-    A service for preprocessing text before analysis.
+    A service for cleaning and correcting text before analysis.
     """
+    def __init__(self):
+        self.spell = SpellChecker()
+
     def correct_text(self, text: str) -> str:
         """
-        Corrects spelling and grammar in the input text.
-
-        This is a placeholder implementation. A more sophisticated text
-        correction model will be used in a future update.
+        Corrects spelling mistakes in the given text.
         """
-        return text
+        words = text.split()
+        corrected_words = [self.spell.correction(word) if self.spell.correction(word) is not None else word for word in words]
+        return " ".join(corrected_words)
