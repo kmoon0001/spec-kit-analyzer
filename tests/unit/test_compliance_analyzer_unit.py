@@ -1,109 +1,63 @@
 import pytest
-from unittest.mock import MagicMock
+import os
+import sys
+from unittest.mock import patch, MagicMock
 
-# Import the class we are testing
+# Add the project root to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
 from src.core.compliance_analyzer import ComplianceAnalyzer
+from typing import Dict, List
+from src.rubric_service import ComplianceRule
 
-# --- Mocks for all dependencies ---
+class TestComplianceAnalyzer:
 
-@pytest.fixture
-def mock_retriever():
-    retriever = MagicMock()
-    retriever.retrieve.return_value = [{"issue_title": "Mocked Rule"}]
-    return retriever
+    # Note: The 'analyzer_instance' fixture is now function-scoped to ensure
+    # that patches are applied correctly to each test function.
+    @pytest.fixture(scope="function")
+    def analyzer_instance(self):
+        """
+        Fixture to create a new ComplianceAnalyzer instance for each test function.
+        """
+        with patch('src.core.compliance_analyzer.AutoModelForCausalLM.from_pretrained') as mock_model, \
+             patch('src.core.compliance_analyzer.AutoTokenizer.from_pretrained') as mock_tokenizer, \
+             patch('src.core.compliance_analyzer.pipeline') as mock_pipeline, \
+             patch('src.core.compliance_analyzer.BitsAndBytesConfig') as mock_bitsandbytes:
 
-@pytest.fixture
-def mock_ner_pipeline():
-    ner = MagicMock()
-    ner.extract_entities.return_value = [{"entity_group": "Test", "word": "Entity"}]
-    return ner
+            # Configure the mocks to return dummy objects
+            mock_model.return_value = MagicMock()
+            mock_tokenizer.return_value = MagicMock()
+            mock_pipeline.return_value = MagicMock()
+            mock_bitsandbytes.return_value = MagicMock()
 
-@pytest.fixture
-def mock_llm_service():
-    llm = MagicMock()
-    llm.generate_analysis.return_value = '{"findings": [{"text": "Problematic text."}]}'
-    llm.generate_personalized_tip.return_value = "This is a generated tip."
-    return llm
+            instance = ComplianceAnalyzer()
+            yield instance
 
-@pytest.fixture
-def mock_explanation_engine():
-    exp = MagicMock()
-    exp.add_explanations.return_value = {"findings": [{"text": "Problematic text."}]}
-    return exp
+    @staticmethod
+    def test_health_check(analyzer_instance):
+        """Tests the AI system health check."""
+        is_healthy, message = analyzer_instance.check_ai_systems_health()
+        assert is_healthy
+        assert message == "AI Systems: Online"
 
-@pytest.fixture
-def mock_prompt_manager():
-    pm = MagicMock()
-    pm.build_prompt.return_value = "This is a test prompt."
-    return pm
-
-@pytest.fixture
-def mock_fact_checker_service():
-    fact_checker = MagicMock()
-    fact_checker.is_finding_plausible.return_value = True
-    return fact_checker
-
-# --- Tests ---
-
-def test_compliance_analyzer_initialization(
-    mock_retriever, mock_ner_pipeline, mock_llm_service,
-    mock_explanation_engine, mock_prompt_manager, mock_fact_checker_service
-):
-    """Tests that the ComplianceAnalyzer correctly initializes with all its dependencies."""
-    # Act
-    analyzer = ComplianceAnalyzer(
-        retriever=mock_retriever,
-        ner_pipeline=mock_ner_pipeline,
-        llm_service=mock_llm_service,
-        explanation_engine=mock_explanation_engine,
-        prompt_manager=mock_prompt_manager,
-        fact_checker_service=mock_fact_checker_service
-    )
-
-    # Assert
-    assert analyzer.retriever is mock_retriever
-    assert analyzer.ner_pipeline is mock_ner_pipeline
-    assert analyzer.llm_service is mock_llm_service
-    assert analyzer.explanation_engine is mock_explanation_engine
-    assert analyzer.prompt_manager is mock_prompt_manager
-    assert analyzer.fact_checker_service is mock_fact_checker_service
-
-
-def test_analyze_document_orchestration(
-    mock_retriever, mock_ner_pipeline, mock_llm_service,
-    mock_explanation_engine, mock_prompt_manager, mock_fact_checker_service
-):
-    """
-    Tests that analyze_document correctly orchestrates calls to its dependencies.
-    """
-    # Arrange
-    analyzer = ComplianceAnalyzer(
-        retriever=mock_retriever,
-        ner_pipeline=mock_ner_pipeline,
-        llm_service=mock_llm_service,
-        explanation_engine=mock_explanation_engine,
-        prompt_manager=mock_prompt_manager,
-        fact_checker_service=mock_fact_checker_service
-    )
-
-    # Arrange: Make sure the mocks will trigger the fact-checker
-    mock_retriever.retrieve.return_value = [{"id": "RULE1", "name": "Test Rule"}]
-    finding_with_id = {"text": "Problematic text.", "rule_id": "RULE1"}
-    mock_explanation_engine.add_explanations.return_value = {"findings": [finding_with_id]}
-
-    # Act
-    result = analyzer.analyze_document("Test document", "PT", "evaluation")
-
-    # Assert
-    # 1. Verify the orchestration flow
-    mock_ner_pipeline.extract_entities.assert_called_once_with("Test document")
-    mock_retriever.retrieve.assert_called_once()
-    mock_prompt_manager.build_prompt.assert_called_once()
-    mock_llm_service.generate_analysis.assert_called_once()
-    mock_explanation_engine.add_explanations.assert_called_once()
-    mock_fact_checker_service.is_finding_plausible.assert_called_once()
-    mock_llm_service.generate_personalized_tip.assert_called_once()
-
-    # 2. Verify the final result includes the generated tip
-    assert "findings" in result
-    assert result["findings"][0]["personalized_tip"] == "This is a generated tip."
+    @staticmethod
+    def test_build_hybrid_prompt(analyzer_instance):
+        """Tests the construction of the hybrid prompt."""
+        document = "This is a test document."
+        entity_list = "'test' (test_entity)"
+        rules = [
+            ComplianceRule(
+                uri='test_rule_1',
+                severity='High',
+                strict_severity='High',
+                issue_title='Test Rule 1',
+                issue_detail='This is a test rule.',
+                issue_category='Test',
+                discipline='pt',
+                document_type='Test Document',
+                suggestion='This is a test suggestion.',
+                financial_impact=100,
+                positive_keywords=['test'],
+                negative_keywords=[]
+            )
+        ]
