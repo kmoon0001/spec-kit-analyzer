@@ -10,10 +10,8 @@ class AnalysisWorker(QObject):
     success = Signal(str)  # type: ignore[attr-defined]
     progress = Signal(int)  # type: ignore[attr-defined]
 
-    def __init__(self, file_path, data, task_id):
+    def __init__(self, task_id: str):
         super().__init__()
-        self.file_path = file_path
-        self.data = data
         self.task_id = task_id
 
     def run(self):

@@ -124,8 +124,9 @@ class GuidelineService:
                 embeddings_np = embeddings_np.astype(np.float32)
 
             embedding_dim = embeddings_np.shape[1]
-            self.faiss_index = faiss.IndexFlatL2(embedding_dim)
-            self.faiss_index.add(embeddings_np)
+            new_index = faiss.IndexFlatL2(embedding_dim)
+            new_index.add(embeddings_np)
+            self.faiss_index = new_index
 
         self.is_index_ready = True
         logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks using FAISS.")
@@ -191,7 +192,7 @@ class GuidelineService:
             raise
         return chunks
 
-    def search(self, query: str, top_k: int = None) -> List[dict]:
+    def search(self, query: str, top_k: int | None = None) -> List[dict]:
         """
         Performs a FAISS similarity search through the loaded guidelines.
         """

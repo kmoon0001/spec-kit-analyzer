@@ -88,12 +88,14 @@ async def analyze_document(
     analysis_service: AnalysisService = Depends(get_analysis_service),
 ):
     task_id = str(uuid.uuid4())
-    temp_file_path = f"temp_{task_id}_{file.filename}"
+    # Ensure filename is not None, providing a default if it is.
+    filename = file.filename if file.filename else "uploaded_document.tmp"
+    temp_file_path = f"temp_{task_id}_{filename}"
     with open(temp_file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     background_tasks.add_task(
-        run_analysis_and_save, temp_file_path, task_id, file.filename, discipline, analysis_mode, analysis_service
+        run_analysis_and_save, temp_file_path, task_id, filename, discipline, analysis_mode, analysis_service
     )
     tasks[task_id] = {"status": "processing"}
 

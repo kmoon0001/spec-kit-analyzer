@@ -38,7 +38,7 @@ class LLMService:
         """
         Generates a response by running the prompt through the loaded LLM.
         """
-        if not self.is_ready():
+        if self.llm is None:
             logger.error("LLM is not available. Cannot generate analysis.")
             return '{"error": "LLM not available"}'
 
@@ -56,7 +56,7 @@ class LLMService:
         """
         Generates a personalized tip for a specific compliance finding.
         """
-        if not self.is_ready():
+        if self.llm is None:
             logger.error("LLM is not available. Cannot generate tip.")
             return "LLM not available."
 

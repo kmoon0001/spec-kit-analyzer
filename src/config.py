@@ -1,6 +1,7 @@
 import os
 from pydantic import BaseModel, Field
 import yaml
+from functools import lru_cache
 
 class DatabaseConfig(BaseModel):
     url: str = Field(default="sqlite:///./test.db")
@@ -20,8 +21,7 @@ def load_config_from_yaml(path: str = "config.yaml") -> dict:
             return yaml.safe_load(f)
     return {}
 
+@lru_cache()
 def get_config() -> AppConfig:
     config_data = load_config_from_yaml()
     return AppConfig.model_validate(config_data)
-
-config = get_config()

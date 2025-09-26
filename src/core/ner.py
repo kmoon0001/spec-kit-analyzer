@@ -24,7 +24,7 @@ class NERPipeline:
                 tokenizer = AutoTokenizer.from_pretrained(model_name)
                 model = AutoModelForTokenClassification.from_pretrained(model_name)
                 # Create a pipeline for this model
-                self.pipelines.append(pipeline("ner", model=model, tokenizer=tokenizer, aggregation_strategy="simple"))
+                self.pipelines.append(pipeline("ner", model=model, tokenizer=tokenizer, aggregation_strategy="simple"))  # type: ignore[call-overload]
                 logger.info(f"Successfully loaded NER model: {model_name}")
             except Exception as e:
                 logger.error(f"Failed to load NER model {model_name}: {e}", exc_info=True)
