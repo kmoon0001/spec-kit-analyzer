@@ -34,7 +34,7 @@ pyspellchecker
 
 # Database
 SQLAlchemy
-
+ 
 # Security & Auth
 passlib[bcrypt]
 python-multipart
