@@ -2,7 +2,6 @@ import os
 import requests
 import urllib.parse
 import webbrowser
-import jwt
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QMessageBox, QMainWindow, QStatusBar, QMenuBar, 
     QFileDialog, QSplitter, QTextEdit, QHBoxLayout, QLabel, QGroupBox, QProgressBar, QPushButton, QTabWidget
