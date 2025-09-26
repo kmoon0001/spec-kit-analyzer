@@ -6,20 +6,18 @@ auth:
   algorithm: "HS256"
   access_token_expire_minutes: 30
 
+# This section is now superseded by the one at the bottom, but kept for reference
 maintenance:
-  purge_retention_days: 30
+  purge_retention_days: 60
 
 models:
-  # Generator from main branch for consistency
+  # Using the more complete model configuration from the bugfix branch
   generator: "mistralai/Magistral-Small-2509-GGUF"
   generator_filename: "Magistral-Small-2509-Q4_K_M.gguf"
-  # Retriever is common to both
   retriever: "pritamdeka/S-PubMedBert-MS-MARCO"
-  # Fact checker and NER from bugfix branch
   fact_checker: "hamish-haggerty/t5-base-e2e-qg"
   ner_ensemble:
     - "d4data/biomedical-ner-all"
-  # Prompt templates from bugfix branch
   doc_classifier_prompt: "src/resources/prompts/doc_classifier_prompt.txt"
   analysis_prompt_template: "src/resources/prompts/analysis_prompt_template.txt"
   nlg_prompt_template: "src/resources/prompts/nlg_prompt_template.txt"
@@ -32,4 +30,7 @@ llm_settings:
     max_new_tokens: 8192
 
 retrieval_settings:
-  similarity_top_k: 5
+  similarity_top_k: 3
+
+# Database Maintenance
+purge_retention_days: 60

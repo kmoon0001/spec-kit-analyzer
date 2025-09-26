@@ -1,63 +1,65 @@
 import pytest
-import os
-import sys
-from unittest.mock import patch, MagicMock
-
-# Add the project root to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from unittest.mock import MagicMock
 
 from src.core.compliance_analyzer import ComplianceAnalyzer
-from typing import Dict, List
-from src.rubric_service import ComplianceRule
 
-class TestComplianceAnalyzer:
+@pytest.fixture
+def compliance_analyzer() -> ComplianceAnalyzer:
+    """Provides a ComplianceAnalyzer instance with all dependencies mocked."""
+    return ComplianceAnalyzer(
+        retriever=MagicMock(),
+        ner_pipeline=MagicMock(),
+        llm_service=MagicMock(),
+        explanation_engine=MagicMock(),
+        prompt_manager=MagicMock(),
+        fact_checker_service=MagicMock()
+    )
 
-    # Note: The 'analyzer_instance' fixture is now function-scoped to ensure
-    # that patches are applied correctly to each test function.
-    @pytest.fixture(scope="function")
-    def analyzer_instance(self):
-        """
-        Fixture to create a new ComplianceAnalyzer instance for each test function.
-        """
-        with patch('src.core.compliance_analyzer.AutoModelForCausalLM.from_pretrained') as mock_model, \
-             patch('src.core.compliance_analyzer.AutoTokenizer.from_pretrained') as mock_tokenizer, \
-             patch('src.core.compliance_analyzer.pipeline') as mock_pipeline, \
-             patch('src.core.compliance_analyzer.BitsAndBytesConfig') as mock_bitsandbytes:
+def test_analyze_document_orchestration(compliance_analyzer: ComplianceAnalyzer):
+    """
+    Tests that the ComplianceAnalyzer correctly orchestrates its components.
+    """
+    # Arrange
+    document_text = "Patient requires assistance with transfers."
+    discipline = "PT"
+    doc_type = "Progress Note"
 
-            # Configure the mocks to return dummy objects
-            mock_model.return_value = MagicMock()
-            mock_tokenizer.return_value = MagicMock()
-            mock_pipeline.return_value = MagicMock()
-            mock_bitsandbytes.return_value = MagicMock()
+    # Mock the return values of the dependencies
+    compliance_analyzer.retriever.retrieve_rules.return_value = []
+    compliance_analyzer.ner_pipeline.extract_entities.return_value = ["transfers"]
+    compliance_analyzer.prompt_manager.build_prompt.return_value = "Test Prompt"
+    compliance_analyzer.llm_service.generate_text.return_value = '{"findings": []}'
+    compliance_analyzer.llm_service.parse_json_output.return_value = {"findings": []}
+    compliance_analyzer.explanation_engine.explain_findings.return_value = {"findings": []}
 
-            instance = ComplianceAnalyzer()
-            yield instance
+    # Act
+    result = compliance_analyzer.analyze_document(document_text, discipline, doc_type)
 
-    @staticmethod
-    def test_health_check(analyzer_instance):
-        """Tests the AI system health check."""
-        is_healthy, message = analyzer_instance.check_ai_systems_health()
-        assert is_healthy
-        assert message == "AI Systems: Online"
+    # Assert
+    # Check that the main components were called in the correct sequence
+    compliance_analyzer.retriever.retrieve_rules.assert_called_once_with(document_text, discipline=discipline, doc_type=doc_type)
+    compliance_analyzer.ner_pipeline.extract_entities.assert_called_once_with(document_text)
+    compliance_analyzer.prompt_manager.build_prompt.assert_called_once()
+    compliance_analyzer.llm_service.generate_text.assert_called_once_with("Test Prompt")
+    compliance_analyzer.explanation_engine.explain_findings.assert_called_once()
+    # Check that the post-processing step was called by checking one of its sub-components
+    compliance_analyzer.fact_checker_service.is_finding_plausible.assert_not_called() # No findings in this case
 
-    @staticmethod
-    def test_build_hybrid_prompt(analyzer_instance):
-        """Tests the construction of the hybrid prompt."""
-        document = "This is a test document."
-        entity_list = "'test' (test_entity)"
-        rules = [
-            ComplianceRule(
-                uri='test_rule_1',
-                severity='High',
-                strict_severity='High',
-                issue_title='Test Rule 1',
-                issue_detail='This is a test rule.',
-                issue_category='Test',
-                discipline='pt',
-                document_type='Test Document',
-                suggestion='This is a test suggestion.',
-                financial_impact=100,
-                positive_keywords=['test'],
-                negative_keywords=[]
-            )
-        ]
+
+def test_format_rules_for_prompt():
+    """Tests the static method for formatting rules into a prompt string."""
+    # Arrange
+    rules = [
+        {'issue_title': 'Rule 1', 'issue_detail': 'Detail 1', 'suggestion': 'Suggestion 1'},
+        {'issue_title': 'Rule 2', 'issue_detail': 'Detail 2', 'suggestion': 'Suggestion 2'}
+    ]
+
+    # Act
+    # Access the static method directly from the class
+    context = ComplianceAnalyzer._format_rules_for_prompt(rules)
+
+    # Assert
+    assert "- **Rule:** Rule 1" in context
+    assert "  **Detail:** Detail 1" in context
+    assert "  **Suggestion:** Suggestion 1" in context
+    assert "- **Rule:** Rule 2" in context

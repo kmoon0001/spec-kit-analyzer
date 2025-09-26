@@ -2,50 +2,75 @@ import pytest
 from unittest.mock import patch, MagicMock
 import numpy as np
 
-# Mock heavy dependencies at the module level before they are imported by any service.
-# The patch targets are now pointing to where the objects are *used*, not where they are defined.
-@pytest.fixture(autouse=True, scope="module")
+# Import the service *after* the mocks will be set up
+from src.guideline_service import GuidelineService
+
+@pytest.fixture
 def mock_heavy_dependencies():
+<<<<<<< HEAD
     with patch('src.core.guideline_service.SentenceTransformer') as mock_st, \
          patch('src.core.guideline_service.faiss') as mock_faiss, \
          patch('src.core.guideline_service.parse_guideline_file') as mock_parse:
+||||||| 604b275
+    with patch('src.guideline_service.SentenceTransformer') as mock_st, \
+         patch('src.guideline_service.faiss') as mock_faiss, \
+         patch('src.guideline_service.parse_guideline_file') as mock_parse:
+=======
+    """Mocks the heavy SentenceTransformer and FAISS dependencies."""
+    with patch('src.guideline_service.SentenceTransformer') as mock_st_class, \
+         patch('src.guideline_service.faiss') as mock_faiss_module:
+        
+        mock_st_instance = MagicMock()
+        mock_st_instance.encode.return_value = np.random.rand(1, 384).astype('float32')
+        mock_st_class.return_value = mock_st_instance
+>>>>>>> origin/main
 
-        # Configure mock instances and their methods
-        mock_model_instance = MagicMock()
-        mock_model_instance.encode.return_value = np.random.rand(1, 384).astype('float32')
-        mock_st.return_value = mock_model_instance
-
-        mock_faiss_index_instance = MagicMock()
-        mock_faiss_index_instance.search.return_value = (np.array([[0.1]]), np.array([[0]]))
-        mock_faiss.IndexFlatL2.return_value = mock_faiss_index_instance
-
-        mock_parse.return_value = [{'text': 'Test sentence 1 about Medicare.', 'source': 'dummy_source.txt'}]
+        mock_faiss_index = MagicMock()
+        mock_faiss_index.search.return_value = (np.array([[0.1]]), np.array([[0]]))
+        mock_faiss_module.IndexFlatL2.return_value = mock_faiss_index
 
         yield {
-            "st_mock": mock_st,
-            "faiss_mock": mock_faiss,
-            "parse_mock": mock_parse
+            "st_class": mock_st_class,
+            "faiss_module": mock_faiss_module
         }
 
-# We only import the service after the mocks are in place.
 @pytest.fixture
-def guideline_service():
+def guideline_service(mock_heavy_dependencies):
     """Provides a GuidelineService instance for testing with mocked dependencies."""
+<<<<<<< HEAD
     from src.core.guideline_service import GuidelineService
+||||||| 604b275
+    from src.guideline_service import GuidelineService
+=======
+    with patch.object(GuidelineService, '_load_or_build_index', return_value=None):
+        service = GuidelineService(sources=["dummy_source.txt"])
+>>>>>>> origin/main
 
-    service = GuidelineService(sources=["dummy_source.txt"])
-    # Manually set the index as ready since _load_or_build_index is effectively mocked
+    # Manually set the state that _load_or_build_index would have set
     service.is_index_ready = True
-    # The test expects a list of tuples, so we mock the chunks attribute
-    service.guideline_chunks = [("medicare test", "dummy_source.txt")]
-    # Manually create a mock for the faiss_index, as it's not created when chunks are empty.
-    service.faiss_index = MagicMock()
-    # Configure the search method to return the correct tuple structure
-    service.faiss_index.search.return_value = (np.array([[0.1]]), np.array([[0]]))
+    service.guideline_chunks = [
+        ('Test sentence 1 about Medicare.', 'dummy_source.txt'),
+        ('This is another sentence.', 'dummy_source.txt'),
+    ]
+    # The model instance is already mocked via the class mock
+    # Set the faiss_index to the mocked instance
+    service.faiss_index = mock_heavy_dependencies["faiss_module"].IndexFlatL2()
     return service
 
+<<<<<<< HEAD
+def test_search_successful_orchestration(guideline_service: GuidelineService):
+    """
+    Tests that the search method correctly orchestrates the search.
+    """
+||||||| 4db3b6b
+def test_search_successful_orchestration(guideline_service: 'GuidelineService'):
+    """
+    Tests that the search method correctly orchestrates the search process.
+    """
+=======
 def test_search_successful_orchestration(guideline_service: 'GuidelineService'):
     """Tests that the search method correctly orchestrates the search process."""
+>>>>>>> origin/main
     # Arrange
     query = "test query"
 
@@ -53,24 +78,37 @@ def test_search_successful_orchestration(guideline_service: 'GuidelineService'):
     results = guideline_service.search(query)
 
     # Assert
-    # 1. Check that the query was encoded by the mocked model
+    # 1. Check that the query was encoded
     guideline_service.model.encode.assert_called_with([query], convert_to_tensor=True)
 
-    # 2. Check that the FAISS index was searched
+    # 2. Check that the main index search was performed
     guideline_service.faiss_index.search.assert_called_once()
 
     # 3. Check that the results are correctly formatted
     assert len(results) > 0
-    assert "medicare" in results[0]['text'].lower()
+    # The mock search returns index 0, so we expect the first chunk
+    assert "Test sentence 1 about Medicare." in results[0]['text']
     assert results[0]['source'] == 'dummy_source.txt'
 
+<<<<<<< HEAD
+def test_search_returns_empty_if_index_not_ready(guideline_service: GuidelineService):
+    """
+    Tests that search returns an empty list if the index is not ready.
+    """
+||||||| 4db3b6b
+def test_search_returns_empty_if_index_not_ready(guideline_service: 'GuidelineService'):
+    """
+    Tests that search returns an empty list if the index is not ready.
+    """
+=======
 def test_search_returns_empty_if_index_not_ready(guideline_service: 'GuidelineService'):
     """Tests that search returns an empty list if the index is not ready."""
+>>>>>>> origin/main
     # Arrange
     guideline_service.is_index_ready = False
-
+    
     # Act
     results = guideline_service.search("another query")
-
+    
     # Assert
     assert results == []

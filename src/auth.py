@@ -55,15 +55,32 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
+<<<<<<< HEAD
         payload = jwt.decode(token, auth_service.secret_key, algorithms=[auth_service.algorithm])
         username: Optional[str] = payload.get("sub")
         if username is None:
+||||||| 604b275
+        payload = jwt.decode(token, auth_service.secret_key, algorithms=[auth_service.algorithm])
+        username: str = payload.get("sub")
+        if username is None:
+=======
+        payload = jwt.decode(
+            token, auth_service.secret_key, algorithms=[auth_service.algorithm]
+        )
+        username = payload.get("sub")
+        if not isinstance(username, str):
+>>>>>>> origin/main
             raise credentials_exception
-        token_data = schemas.TokenData(username=username)
     except JWTError:
         raise credentials_exception
 
+<<<<<<< HEAD
+    user = await crud.get_user_by_username(db, username=username)
+||||||| 24e8eb0
+    user = crud.get_user_by_username(db, username=token_data.username)
+=======
     user = await crud.get_user_by_username(db, username=token_data.username)
+>>>>>>> origin/main
     if user is None:
         raise credentials_exception
     return user

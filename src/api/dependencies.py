@@ -1,6 +1,26 @@
+<<<<<<< HEAD
+import logging
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+||||||| 4db3b6b
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+=======
+>>>>>>> origin/main
 
 from ..core.analysis_service import AnalysisService
+<<<<<<< HEAD
+from ..core.retriever import HybridRetriever # Assuming this is the new location
+from ..database import get_async_db, AsyncSessionLocal
+||||||| 4db3b6b
 from ..core.retriever import HybridRetriever
+from ..database import get_async_db, AsyncSessionLocal
+=======
+from ..core.retriever import HybridRetriever
+>>>>>>> origin/main
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 # This dictionary will hold our singleton instances
 app_state = {}
@@ -41,8 +61,18 @@ async def shutdown_event():
     """Application shutdown event handler."""
     logger.info("Application shutting down...")
     # Clean up resources if needed
+<<<<<<< HEAD
+    pass
+||||||| 4db3b6b
     pass
 
 # Add a logger to this file
 import logging
 logger = logging.getLogger(__name__)
+=======
+    pass
+
+# Add a logger to this file
+import logging
+logger = logging.getLogger(__name__)
+>>>>>>> origin/main
