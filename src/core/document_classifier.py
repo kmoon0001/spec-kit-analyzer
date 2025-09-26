@@ -48,9 +48,8 @@ class DocumentClassifier:
             if classification in self.possible_types:
                 logger.info(f"Document classified as: {classification}")
                 return classification
-            else:
-                logger.warning(f"LLM returned an unexpected document type: '{classification}'. Defaulting to 'Unknown'.")
-                return "Unknown"
+            logger.warning(f"LLM returned an unexpected document type: '{classification}'. Defaulting to 'Unknown'.")
+            return "Unknown"
 
         except Exception as e:
             logger.error(f"Error during document classification: {e}")
