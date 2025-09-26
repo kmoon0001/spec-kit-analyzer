@@ -4,6 +4,7 @@ from PyQt6.QtCore import QObject, pyqtSignal as Signal
 
 API_URL = "http://127.0.0.1:8000"
 
+
 class AnalysisWorker(QObject):
     finished = Signal()
     error = Signal(str)
@@ -21,11 +22,11 @@ class AnalysisWorker(QObject):
                 response.raise_for_status()
                 task = response.json()
 
-                if task['status'] == 'completed':
-                    self.success.emit(task['result'])
+                if task["status"] == "completed":
+                    self.success.emit(task["result"])
                     break
-                elif task['status'] == 'failed':
-                    self.error.emit(task['error'])
+                elif task["status"] == "failed":
+                    self.error.emit(task["error"])
                     break
                 else:
                     self.progress.emit(50)  # Update with a more meaningful progress

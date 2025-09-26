@@ -1,7 +1,12 @@
 import requests
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QTextEdit, QPushButton,
-    QDialogButtonBox
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLineEdit,
+    QTextEdit,
+    QPushButton,
+    QDialogButtonBox,
 )
 from PyQt6.QtCore import QThread, pyqtSignal as Signal
 from typing import List, Dict
@@ -10,6 +15,7 @@ from ..workers.chat_worker import ChatWorker
 
 API_URL = "http://127.0.0.1:8000"
 
+
 class ChatDialog(QDialog):
     def __init__(self, initial_context: str, token: str, parent=None):
         super().__init__(parent)
@@ -17,8 +23,11 @@ class ChatDialog(QDialog):
         self.setMinimumSize(500, 400)
         self.token = token
         self.history: List[Dict[str, str]] = [
-            {"role": "system", "content": "You are a helpful assistant for clinical compliance."},
-            {"role": "user", "content": initial_context}
+            {
+                "role": "system",
+                "content": "You are a helpful assistant for clinical compliance.",
+            },
+            {"role": "user", "content": initial_context},
         ]
 
         # --- UI Setup ---
@@ -87,7 +96,9 @@ class ChatDialog(QDialog):
 
     def on_chat_error(self, error_message: str):
         self.chat_display.undo()
-        self.update_chat_display("system", f"<font color='red'>Error: {error_message}</font>")
+        self.update_chat_display(
+            "system", f"<font color='red'>Error: {error_message}</font>"
+        )
         self.send_button.setEnabled(True)
         self.message_input.setEnabled(True)
 
@@ -96,6 +107,6 @@ class ChatDialog(QDialog):
             self.chat_display.append(f"<b>You:</b> {text}")
         elif role == "assistant":
             self.chat_display.append(f"<b>Assistant:</b> {text}")
-        else: # system
+        else:  # system
             self.chat_display.append(f"<i>{text}</i>")
-        self.chat_display.append("") # Add a blank line for spacing
+        self.chat_display.append("")  # Add a blank line for spacing

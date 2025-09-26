@@ -6,6 +6,7 @@ from src.utils import load_config
 
 logger = logging.getLogger(__name__)
 
+
 class DocumentAnalysisService:
     """
     Manages the analysis of a single document by creating an in-memory FAISS index
@@ -21,7 +22,7 @@ class DocumentAnalysisService:
                                  Each chunk is a dict with 'sentence', 'window', and 'metadata'.
         """
         self.config = load_config()
-        model_name = self.config['models']['retriever']
+        model_name = self.config["models"]["retriever"]
 
         self.chunks = chunks
         self.is_index_ready = False
@@ -41,9 +42,11 @@ class DocumentAnalysisService:
 
         logger.info("Encoding document chunks into vectors...")
         # We search based on the core sentence, not the whole window
-        texts_to_encode = [chunk['sentence'] for chunk in self.chunks]
+        texts_to_encode = [chunk["sentence"] for chunk in self.chunks]
 
-        embeddings = self.model.encode(texts_to_encode, convert_to_tensor=False, show_progress_bar=False)
+        embeddings = self.model.encode(
+            texts_to_encode, convert_to_tensor=False, show_progress_bar=False
+        )
 
         if embeddings.dtype != np.float32:
             embeddings = embeddings.astype(np.float32)
@@ -55,7 +58,9 @@ class DocumentAnalysisService:
         self.is_index_ready = True
         logger.info(f"Successfully indexed {len(self.chunks)} document chunks.")
 
-    def search(self, query: str, top_k: int = 5, metadata_filter: dict | None = None) -> list[dict]:
+    def search(
+        self, query: str, top_k: int = 5, metadata_filter: dict | None = None
+    ) -> list[dict]:
         """
         Performs a FAISS similarity search through the document chunks.
 
@@ -75,11 +80,15 @@ class DocumentAnalysisService:
         candidate_chunks = self.chunks
         if metadata_filter:
             candidate_chunks = [
-                chunk for chunk in self.chunks
-                if all(item in chunk['metadata'].items() for item in metadata_filter.items())
+                chunk
+                for chunk in self.chunks
+                if all(
+                    item in chunk["metadata"].items()
+                    for item in metadata_filter.items()
+                )
             ]
             if not candidate_chunks:
-                return [] # No chunks matched the filter
+                return []  # No chunks matched the filter
 
         # 2. Embedding and Searching
         # For now, we search on all chunks and filter later. A more advanced implementation
@@ -95,7 +104,9 @@ class DocumentAnalysisService:
         # 3. Post-filtering and result assembly
         results = []
         # Get the indices of the candidate chunks for quick lookup
-        candidate_indices = {i for i, chunk in enumerate(self.chunks) if chunk in candidate_chunks}
+        candidate_indices = {
+            i for i, chunk in enumerate(self.chunks) if chunk in candidate_chunks
+        }
 
         for i in indices[0]:
             if i != -1 and i in candidate_indices:

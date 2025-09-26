@@ -12,13 +12,16 @@ from src.core.analysis_service import AnalysisService
 
 # --- Async In-Memory Database Fixture ---
 
+
 @pytest_asyncio.fixture(scope="module")
 async def seeded_db_session() -> AsyncSession:
     """
     Creates and seeds an isolated, in-memory async SQLite database for E2E testing.
     """
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-    TestingSessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+    TestingSessionLocal = sessionmaker(
+        bind=engine, class_=AsyncSession, expire_on_commit=False
+    )
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -27,7 +30,10 @@ async def seeded_db_session() -> AsyncSession:
     try:
         # Seed the database with test rubrics
         test_rubrics = [
-            Rubric(name="Goal Specificity", content="Goals must be measurable and specific."),
+            Rubric(
+                name="Goal Specificity",
+                content="Goals must be measurable and specific.",
+            ),
             Rubric(name="Signature Missing", content="All documents must be signed."),
         ]
         session.add_all(test_rubrics)
@@ -38,7 +44,9 @@ async def seeded_db_session() -> AsyncSession:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
 
+
 # --- E2E Test ---
+
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
@@ -51,7 +59,9 @@ async def test_e2e_analysis_on_bad_note(seeded_db_session: AsyncSession):
     #    This uses the real services, not mocks, for a true E2E test.
     try:
         # The retriever needs the async db session to load guidelines
-        retriever = await HybridRetriever.create(db_session=seeded_db_session, guideline_sources=[])
+        retriever = await HybridRetriever.create(
+            db_session=seeded_db_session, guideline_sources=[]
+        )
         # The analysis service needs the retriever
         service = AnalysisService(retriever=retriever)
     except Exception as e:
@@ -70,11 +80,15 @@ async def test_e2e_analysis_on_bad_note(seeded_db_session: AsyncSession):
 
     # 4. Assert that the analysis produced a valid, non-empty result
     assert results is not None, "The analysis service returned None."
-    assert "findings" in results, f"The 'findings' key is missing from the analysis results. Got: {results}"
+    assert "findings" in results, (
+        f"The 'findings' key is missing from the analysis results. Got: {results}"
+    )
 
     findings = results["findings"]
     assert isinstance(findings, list), "The 'findings' should be a list."
-    assert len(findings) > 0, "No compliance findings were returned for a document known to have issues."
+    assert len(findings) > 0, (
+        "No compliance findings were returned for a document known to have issues."
+    )
 
     # 5. Assert the structure of the findings
     first_finding = findings[0]

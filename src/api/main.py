@@ -7,16 +7,8 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from apscheduler.schedulers.background import BackgroundScheduler
 
-<<<<<<< HEAD
 from .dependencies import get_analysis_service, startup_event as api_startup, shutdown_event as api_shutdown
-from .routers import auth, analysis, dashboard, admin, health, chat
-||||||| 278fb88
-# Import all the modular routers
-from .routers import auth, analysis, dashboard, admin, health, chat
-=======
-# Import all the modular routers
 from .routers import auth, analysis, dashboard, admin, health, chat, compliance
->>>>>>> origin/main
 from ..core.database_maintenance_service import DatabaseMaintenanceService
 
 # --- Configuration ---

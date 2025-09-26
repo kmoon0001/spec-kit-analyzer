@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from .database import Base
 import datetime
+from pydantic import BaseModel
 
 class User(Base):
     __tablename__ = "users"
@@ -13,6 +14,8 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     license_key = Column(String, unique=True, index=True, nullable=True)
 
+from pydantic import BaseModel
+
 class Rubric(Base):
     __tablename__ = "rubrics"
 
@@ -20,21 +23,6 @@ class Rubric(Base):
     name = Column(String, unique=True, index=True, nullable=False)
     content = Column(Text, nullable=False)
     category = Column(String, index=True, nullable=True)
-
-<<<<<<< HEAD
-||||||| c46cdd8
-
-class RubricCreate(BaseModel):
-    name: str
-    content: str
-
-class Rubric(RubricCreate):
-    id: int
-
-    class Config:
-        orm_mode = True
-
-=======
 
 class RubricCreate(BaseModel):
     name: str
@@ -46,30 +34,13 @@ class RubricSchema(RubricCreate):
 
     class Config:
         from_attributes = True
-
-<<<<<<< HEAD
->>>>>>> origin/main
-||||||| 604b275
-=======
-
-class RubricCreate(BaseModel):
-    name: str
-    content: str
-
-class RubricSchema(RubricCreate):
-    id: int
-
-    class Config:
-        orm_mode = True
-
->>>>>>> origin/main
 class Report(Base):
     __tablename__ = "reports"
 
     id = Column(Integer, primary_key=True, index=True)
     document_name = Column(String, index=True)
     analysis_date = Column(DateTime, default=datetime.datetime.utcnow)
-    compliance_score = Column(Integer)
+    compliance_score = Column(Float) # Stored as float
     analysis_result = Column(JSON)
     document_embedding = Column(LargeBinary, nullable=True) # New column for semantic caching
 

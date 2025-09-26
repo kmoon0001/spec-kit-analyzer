@@ -2,30 +2,36 @@ import pytest
 from unittest.mock import patch, MagicMock
 import numpy as np
 
+
 # Mock heavy dependencies at the module level before they are imported by any service.
 # The patch targets are now pointing to where the objects are *used*, not where they are defined.
 @pytest.fixture(autouse=True, scope="module")
 def mock_heavy_dependencies():
-    with patch('src.guideline_service.SentenceTransformer') as mock_st, \
-         patch('src.guideline_service.faiss') as mock_faiss, \
-         patch('src.guideline_service.parse_guideline_file') as mock_parse:
-
+    with (
+        patch("src.guideline_service.SentenceTransformer") as mock_st,
+        patch("src.guideline_service.faiss") as mock_faiss,
+        patch("src.guideline_service.parse_guideline_file") as mock_parse,
+    ):
         # Configure mock instances and their methods
         mock_model_instance = MagicMock()
-        mock_model_instance.encode.return_value = np.random.rand(1, 384).astype('float32')
+        mock_model_instance.encode.return_value = np.random.rand(1, 384).astype(
+            "float32"
+        )
         mock_st.return_value = mock_model_instance
 
         mock_faiss_index_instance = MagicMock()
-        mock_faiss_index_instance.search.return_value = (np.array([[0.1]]), np.array([[0]]))
+        mock_faiss_index_instance.search.return_value = (
+            np.array([[0.1]]),
+            np.array([[0]]),
+        )
         mock_faiss.IndexFlatL2.return_value = mock_faiss_index_instance
 
-        mock_parse.return_value = [{'text': 'Test sentence 1 about Medicare.', 'source': 'dummy_source.txt'}]
+        mock_parse.return_value = [
+            {"text": "Test sentence 1 about Medicare.", "source": "dummy_source.txt"}
+        ]
 
-        yield {
-            "st_mock": mock_st,
-            "faiss_mock": mock_faiss,
-            "parse_mock": mock_parse
-        }
+        yield {"st_mock": mock_st, "faiss_mock": mock_faiss, "parse_mock": mock_parse}
+
 
 # We only import the service after the mocks are in place.
 @pytest.fixture
@@ -44,7 +50,8 @@ def guideline_service():
     service.faiss_index.search.return_value = (np.array([[0.1]]), np.array([[0]]))
     return service
 
-def test_search_successful_orchestration(guideline_service: 'GuidelineService'):
+
+def test_search_successful_orchestration(guideline_service: "GuidelineService"):
     """
     Tests that the search method correctly orchestrates the search process.
     """
@@ -63,10 +70,11 @@ def test_search_successful_orchestration(guideline_service: 'GuidelineService'):
 
     # 3. Check that the results are correctly formatted
     assert len(results) > 0
-    assert "medicare" in results[0]['text'].lower()
-    assert results[0]['source'] == 'dummy_source.txt'
+    assert "medicare" in results[0]["text"].lower()
+    assert results[0]["source"] == "dummy_source.txt"
 
-def test_search_returns_empty_if_index_not_ready(guideline_service: 'GuidelineService'):
+
+def test_search_returns_empty_if_index_not_ready(guideline_service: "GuidelineService"):
     """
     Tests that search returns an empty list if the index is not ready.
     """

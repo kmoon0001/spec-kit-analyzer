@@ -9,28 +9,41 @@ from fastapi.responses import HTMLResponse
 from ... import schemas, models
 from ...auth import get_current_active_user
 from ...core.analysis_service import AnalysisService
-<<<<<<< HEAD
 from ...database import get_async_db
-||||||| 278fb88
-from ...database import SessionLocal
-=======
-from ...database import AsyncSessionLocal
->>>>>>> origin/main
-from ..dependencies import get_analysis_service
+from ...core.analysis_service import AnalysisService
 from ... import crud
+from ...config import settings # Import settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 tasks = {}
 
-<<<<<<< HEAD
-async def run_analysis_and_save_async(
-||||||| 278fb88
-def run_analysis_and_save(
-=======
+def _calculate_compliance_score(analysis_result: Dict[str, Any]) -> str:
+    base_score = 100
+    if "findings" not in analysis_result or not analysis_result["findings"]:
+        return str(base_score)
+
+    score_deductions = {
+        "High": 10,
+        "Medium": 5,
+        "Low": 2
+    }
+
+    current_score = base_score
+    for finding in analysis_result["findings"]:
+        risk = finding.get("risk", "Low") # Default to Low if not specified
+        current_score -= score_deductions.get(risk, 0)
+
+        if finding.get("is_disputed", False):
+            current_score -= 3
+        if finding.get("is_low_confidence", False):
+            current_score -= 1
+
+    return str(max(0, current_score))
+
+
 async def run_analysis_and_save(
->>>>>>> origin/main
     file_path: str,
     task_id: str,
     doc_name: str,
@@ -38,114 +51,56 @@ async def run_analysis_and_save(
     analysis_mode: str,
     analysis_service: AnalysisService,
 ):
-<<<<<<< HEAD
-    """Async version of the analysis task."""
+    """Runs the analysis with semantic caching, saves the data, and generates the report."""
     async for db in get_async_db():
         try:
-            analysis_result = analysis_service.analyze_document(
-                file_path=file_path,
-                discipline=discipline
-||||||| 278fb88
-    """Runs the analysis with semantic caching, saves the data, and generates the report."""
-    db = SessionLocal()
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            document_text = f.read()
-
-        # 1. Generate embedding for the new document
-        embedding_bytes = analysis_service.get_document_embedding(document_text)
-        new_embedding = pickle.loads(embedding_bytes)
-
-        # 2. Check for a semantically similar report in the cache (database)
-        cached_report = crud.find_similar_report(db, new_embedding)
-
-        if cached_report:
-            # --- CACHE HIT ---
-            logger.info(f"Semantic cache hit for document: {doc_name}. Using cached report ID: {cached_report.id}")
-            analysis_result = cached_report.analysis_result
-        else:
-            # --- CACHE MISS ---
-            logger.info(f"Semantic cache miss for document: {doc_name}. Performing full analysis.")
-            # Perform the full analysis to get the structured data
-            analysis_result = analysis_service.analyzer.analyze_document(
-                document_text=document_text,
-                discipline=discipline,
-                doc_type="Unknown" # This will be replaced by the classifier
-=======
-    """Runs the analysis with semantic caching, saves the data, and generates the report."""
-    db = AsyncSessionLocal()
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            document_text = f.read()
-
-        # NOTE: The get_document_embedding method seems to be missing from AnalysisService.
-        # This will likely cause an error, but fixing the DB access first.
-        embedding_bytes = analysis_service.get_document_embedding(document_text)
-        new_embedding = pickle.loads(embedding_bytes)
-
-        # 2. Check for a semantically similar report in the cache (database)
-        cached_report = await crud.find_similar_report(db, new_embedding)
-
-        if cached_report:
-            # --- CACHE HIT ---
-            logger.info(f"Semantic cache hit for document: {doc_name}. Using cached report ID: {cached_report.id}")
-            analysis_result = cached_report.analysis_result
-        else:
-            # --- CACHE MISS ---
-            logger.info(f"Semantic cache miss for document: {doc_name}. Performing full analysis.")
-            # Perform the full analysis to get the structured data
-            analysis_result = analysis_service.analyzer.analyze_document(
-                document_text=document_text,
-                discipline=discipline,
-                doc_type="Unknown" # This will be replaced by the classifier
->>>>>>> origin/main
-            )
-
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, 'r', encoding='utf-8') as f:
                 document_text = f.read()
 
+            # 1. Generate embedding for the new document
             embedding_bytes = analysis_service.get_document_embedding(document_text)
 
-            report_html = analysis_service.report_generator.generate_html_report(analysis_result, doc_name, analysis_mode)
+            # 2. Check for a semantically similar report in the cache (database)
+            cached_report = await crud.find_similar_report(db, embedding_bytes)
 
-            report_data = {
-                "document_name": doc_name,
-                "compliance_score": "N/A",
-                "analysis_result": analysis_result,
-                "document_embedding": embedding_bytes
-            }
-            await crud.create_report_and_findings(db, report_data, analysis_result.get("findings", []))
+            if cached_report:
+                # --- CACHE HIT ---
+                logger.info(f"Semantic cache hit for document: {doc_name}. Using cached report ID: {cached_report.id}")
+                analysis_result = cached_report.analysis_result
+            else:
+                # --- CACHE MISS ---
+                logger.info(f"Semantic cache miss for document: {doc_name}. Performing full analysis.")
+                # Perform the full analysis to get the structured data
+                analysis_result = analysis_service.analyzer.analyze_document(
+                    document_text=document_text,
+                    discipline=discipline,
+                    doc_type="Unknown" # This will be replaced by the classifier
+                )
 
-            tasks[task_id] = {"status": "completed", "result": report_html}
+                report_html = analysis_service.report_generator.generate_html_report(analysis_result, doc_name, analysis_mode)
+
+                compliance_score = _calculate_compliance_score(analysis_result)
+                report_data = {
+                    "document_name": doc_name,
+                    "compliance_score": compliance_score,
+                    "analysis_result": analysis_result,
+                    "document_embedding": embedding_bytes
+                }
+                await crud.create_report_and_findings(db, report_data, analysis_result.get("findings", []))
+
+                tasks[task_id] = {"status": "completed", "result": report_html, "compliance_score": compliance_score}
 
         except Exception as e:
             logger.error(f"Error during analysis for task {task_id}: {e}", exc_info=True)
             tasks[task_id] = {"status": "failed", "error": str(e)}
         finally:
+            await db.close()
             if os.path.exists(file_path):
                 os.remove(file_path)
 
-<<<<<<< HEAD
 def analysis_task_wrapper(*args, **kwargs):
     """Sync wrapper to run the async analysis task in a background thread."""
-    asyncio.run(run_analysis_and_save_async(*args, **kwargs))
-||||||| 278fb88
-    except Exception as e:
-        logger.error(f"Error in analysis background task: {e}", exc_info=True)
-        tasks[task_id] = {"status": "failed", "error": str(e)}
-    finally:
-        db.close()
-        if os.path.exists(file_path):
-            os.remove(file_path)
-=======
-    except Exception as e:
-        logger.error(f"Error in analysis background task: {e}", exc_info=True)
-        tasks[task_id] = {"status": "failed", "error": str(e)}
-    finally:
-        await db.close()
-        if os.path.exists(file_path):
-            os.remove(file_path)
->>>>>>> origin/main
+    asyncio.run(run_analysis_and_save(*args, **kwargs))
 
 @router.post("/analyze", status_code=202)
 async def analyze_document(
@@ -157,7 +112,7 @@ async def analyze_document(
     analysis_service: AnalysisService = Depends(get_analysis_service),
 ):
     task_id = str(uuid.uuid4())
-    upload_dir = "tmp/uploads"
+    upload_dir = settings.temp_upload_dir # Use settings.temp_upload_dir
     os.makedirs(upload_dir, exist_ok=True)
     temp_file_path = os.path.join(upload_dir, f"temp_{task_id}_{file.filename}")
     with open(temp_file_path, "wb") as buffer:
@@ -177,12 +132,6 @@ async def get_task_status(task_id: str):
         raise HTTPException(status_code=404, detail="Task not found")
     
     if task["status"] == "completed":
-        return HTMLResponse(content=task["result"])
-<<<<<<< HEAD
+        return {"status": "completed", "compliance_score": task.get("compliance_score", "N/A"), "report_url": f"/reports/{task_id}"}
     
     return task
-||||||| 278fb88
-    return task
-=======
-    return task
->>>>>>> origin/main

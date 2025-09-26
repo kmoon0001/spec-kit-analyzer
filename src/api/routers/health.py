@@ -6,6 +6,7 @@ from ...database import get_async_db as get_db
 
 router = APIRouter()
 
+
 @router.get("/health", status_code=status.HTTP_200_OK)
 async def health_check(db: AsyncSession = Depends(get_db)):
     """
@@ -15,10 +16,10 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     """
     try:
         # Perform a simple, fast query to check the database connection
-        await db.execute(text('SELECT 1'))
+        await db.execute(text("SELECT 1"))
         return {"status": "ok", "database": "connected"}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"status": "error", "database": "disconnected", "reason": str(e)}
+            detail={"status": "error", "database": "disconnected", "reason": str(e)},
         )

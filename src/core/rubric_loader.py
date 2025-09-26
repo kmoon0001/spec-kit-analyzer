@@ -10,10 +10,13 @@ from ..database import engine as async_engine, AsyncSessionLocal, Base
 from ..models import Rubric
 
 # --- Configuration ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 # Define the namespace from the TTL files
 NS = Namespace("http://example.com/speckit/ontology#")
+
 
 async def parse_and_load_rubrics(db_session: AsyncSession, rubric_files: list[Path]):
     """
@@ -64,7 +67,7 @@ async def parse_and_load_rubrics(db_session: AsyncSession, rubric_files: list[Pa
         new_rubric = Rubric(
             name=name,
             content=str(content_node),
-            category=str(category_node) if category_node else None
+            category=str(category_node) if category_node else None,
         )
         rules_to_add.append(new_rubric)
         names_to_add.add(name)
@@ -73,9 +76,12 @@ async def parse_and_load_rubrics(db_session: AsyncSession, rubric_files: list[Pa
     if rules_to_add:
         db_session.add_all(rules_to_add)
         await db_session.commit()
-        logger.info(f"Successfully added {len(rules_to_add)} new rubrics to the database.")
+        logger.info(
+            f"Successfully added {len(rules_to_add)} new rubrics to the database."
+        )
     else:
         logger.info("No new rubrics to add. Database is up-to-date.")
+
 
 async def main():
     """Main function to initialize the database schema and run the loading process."""
@@ -97,6 +103,7 @@ async def main():
     # Create a new session and run the loader
     async with AsyncSessionLocal() as session:
         await parse_and_load_rubrics(session, ttl_files)
+
 
 if __name__ == "__main__":
     logger.info("Running rubric loader script...")

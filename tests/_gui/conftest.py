@@ -6,6 +6,7 @@ import sys
 # It ensures that a single QApplication instance is created for the entire test session,
 # which is much more efficient than creating one for every test.
 
+
 @pytest.fixture(scope="session")
 def qapp(request):
     """Session-scoped fixture to manage the QApplication instance."""

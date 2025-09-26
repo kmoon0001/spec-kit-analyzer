@@ -12,8 +12,11 @@ from .. import crud
 from ..config import get_settings, Settings
 
 # Enhanced logging setup
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 class HybridRetriever:
     """
@@ -23,6 +26,7 @@ class HybridRetriever:
     This version is designed for production with asynchronous loading, caching,
     and proper dependency injection.
     """
+
     _instance = None
     _is_initialized = False
 
@@ -31,7 +35,9 @@ class HybridRetriever:
             cls._instance = super(HybridRetriever, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, settings: Optional[Settings] = None, db: Optional[Session] = None):
+    def __init__(
+        self, settings: Optional[Settings] = None, db: Optional[Session] = None
+    ):
         if self._is_initialized and self.settings == settings:
             return
 
@@ -44,7 +50,9 @@ class HybridRetriever:
         self.corpus_embeddings: Optional[np.ndarray] = None
         self._is_initialized = False
 
-        logger.info("HybridRetriever instance created. Call `initialize` to load models and data.")
+        logger.info(
+            "HybridRetriever instance created. Call `initialize` to load models and data."
+        )
 
     @retry(
         stop=stop_after_attempt(3),
@@ -52,7 +60,7 @@ class HybridRetriever:
         retry=retry_if_exception_type(Exception),
         before_sleep=lambda retry_state: logger.warning(
             f"Retrying model/data loading... Attempt #{retry_state.attempt_number}"
-        )
+        ),
     )
     async def initialize(self):
         """
@@ -68,7 +76,9 @@ class HybridRetriever:
         # 1. Load rules from the database
         await self._load_rules_from_db_async()
         if not self.rules:
-            logger.warning("No rules loaded from the database. Retriever will be non-functional.")
+            logger.warning(
+                "No rules loaded from the database. Retriever will be non-functional."
+            )
             self._is_initialized = True
             return
 
@@ -87,9 +97,7 @@ class HybridRetriever:
 
         logger.info("Encoding corpus... This may take a moment.")
         self.corpus_embeddings = self.dense_retriever.encode(
-            self.corpus,
-            convert_to_tensor=True,
-            show_progress_bar=True
+            self.corpus, convert_to_tensor=True, show_progress_bar=True
         )
 
         self._is_initialized = True
@@ -104,6 +112,7 @@ class HybridRetriever:
             close_session = False
         else:
             from ..database import AsyncSessionLocal
+
             session = AsyncSessionLocal()
             close_session = True
 
@@ -111,7 +120,12 @@ class HybridRetriever:
             logger.info("Loading rules from the database asynchronously...")
             rubric_models = await crud.get_rubrics(session, limit=1000)
             self.rules = [
-                {"id": r.id, "name": r.name, "content": r.content, "category": r.category}
+                {
+                    "id": r.id,
+                    "name": r.name,
+                    "content": r.content,
+                    "category": r.category,
+                }
                 for r in rubric_models
             ]
             logger.info(f"Successfully loaded {len(self.rules)} rules.")
@@ -122,7 +136,9 @@ class HybridRetriever:
             if close_session:
                 await session.close()
 
-    def _perform_sync_retrieval(self, query: str, indices_to_search: List[int]) -> List[int]:
+    def _perform_sync_retrieval(
+        self, query: str, indices_to_search: List[int]
+    ) -> List[int]:
         """
         Synchronous part of the retrieval logic. This is run in a thread pool to avoid
         blocking the asyncio event loop.
@@ -133,7 +149,7 @@ class HybridRetriever:
         tokenized_filtered_corpus = [doc.lower().split() for doc in filtered_corpus]
 
         if not tokenized_filtered_corpus:
-             return []
+            return []
 
         temp_bm25 = BM25Okapi(tokenized_filtered_corpus)
         bm25_scores = temp_bm25.get_scores(tokenized_query)
@@ -159,8 +175,13 @@ class HybridRetriever:
 
         # Get the rank of each document for both BM25 and dense retrieval results.
         # The rank is its position in the sorted list (e.g., the best item has rank 1).
-        bm25_ranks = {idx_map[i]: rank + 1 for rank, i in enumerate(np.argsort(bm25_scores)[::-1])}
-        dense_ranks = {idx_map[i]: rank + 1 for rank, i in enumerate(np.argsort(cosine_scores)[::-1])}
+        bm25_ranks = {
+            idx_map[i]: rank + 1 for rank, i in enumerate(np.argsort(bm25_scores)[::-1])
+        }
+        dense_ranks = {
+            idx_map[i]: rank + 1
+            for rank, i in enumerate(np.argsort(cosine_scores)[::-1])
+        }
 
         rrf_scores = {}
         # Consider all unique documents returned by either retriever
@@ -176,21 +197,31 @@ class HybridRetriever:
             rrf_scores[idx] = rrf_score
 
         # Sort by RRF score and return the sorted indices
-        sorted_fused_indices = sorted(rrf_scores.keys(), key=lambda x: rrf_scores[x], reverse=True)
+        sorted_fused_indices = sorted(
+            rrf_scores.keys(), key=lambda x: rrf_scores[x], reverse=True
+        )
         return sorted_fused_indices
 
-    async def retrieve(self, query: str, top_k: int = 5, category_filter: Optional[str] = None) -> List[Dict]:
+    async def retrieve(
+        self, query: str, top_k: int = 5, category_filter: Optional[str] = None
+    ) -> List[Dict]:
         """
         Performs a hybrid search by offloading the CPU-bound work to a thread pool,
         making the operation non-blocking for the asyncio event loop.
         """
         if not self._is_initialized or not self.rules:
-            logger.warning("Retriever is not initialized or has no rules. Returning empty list.")
+            logger.warning(
+                "Retriever is not initialized or has no rules. Returning empty list."
+            )
             return []
 
         # Filter rules by category if a filter is provided (this is fast)
         if category_filter:
-            indices_to_search = [i for i, rule in enumerate(self.rules) if rule.get('category') == category_filter]
+            indices_to_search = [
+                i
+                for i, rule in enumerate(self.rules)
+                if rule.get("category") == category_filter
+            ]
             if not indices_to_search:
                 logger.info(f"No rules found for category: {category_filter}")
                 return []
@@ -205,6 +236,7 @@ class HybridRetriever:
         # Return the top_k rule dictionaries based on the sorted indices
         top_k_results = [self.rules[i] for i in sorted_fused_indices[:top_k]]
         return top_k_results
+
 
 # No singleton instance here. The instance is managed by the dependency
 # injection system in `api/dependencies.py` to improve testability and

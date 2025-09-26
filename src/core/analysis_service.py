@@ -17,7 +17,8 @@ from ..config import get_config
 
 logger = logging.getLogger(__name__)
 
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
 
 class AnalysisService:
     def __init__(self, retriever: HybridRetriever):
@@ -28,18 +29,24 @@ class AnalysisService:
             llm_service = LLMService(
                 model_repo_id=config.models.generator,
                 model_filename=config.models.generator_filename,
-                llm_settings=config.llm_settings
+                llm_settings=config.llm_settings,
             )
-            fact_checker_service = FactCheckerService(model_name=config.models.fact_checker)
+            fact_checker_service = FactCheckerService(
+                model_name=config.models.fact_checker
+            )
             ner_pipeline = NERPipeline(model_names=config.models.ner_ensemble)
             self.report_generator = ReportGenerator()
             explanation_engine = ExplanationEngine()
             self.document_classifier = DocumentClassifier(
                 llm_service=llm_service,
-                prompt_template_path=os.path.join(ROOT_DIR, config.models.doc_classifier_prompt)
+                prompt_template_path=os.path.join(
+                    ROOT_DIR, config.models.doc_classifier_prompt
+                ),
             )
             analysis_prompt_manager = PromptManager(
-                template_path=os.path.join(ROOT_DIR, config.models.analysis_prompt_template)
+                template_path=os.path.join(
+                    ROOT_DIR, config.models.analysis_prompt_template
+                )
             )
             self.analyzer = ComplianceAnalyzer(
                 retriever=self.retriever,
@@ -47,11 +54,13 @@ class AnalysisService:
                 llm_service=llm_service,
                 explanation_engine=explanation_engine,
                 prompt_manager=analysis_prompt_manager,
-                fact_checker_service=fact_checker_service
+                fact_checker_service=fact_checker_service,
             )
             logger.info("AnalysisService initialized successfully.")
         except Exception as e:
-            logger.error(f"FATAL: Failed to initialize AnalysisService: {e}", exc_info=True)
+            logger.error(
+                f"FATAL: Failed to initialize AnalysisService: {e}", exc_info=True
+            )
             raise e
 
     def get_document_embedding(self, text: str) -> bytes:
@@ -60,15 +69,17 @@ class AnalysisService:
         embedding = self.retriever.dense_retriever.encode(text)
         return pickle.dumps(embedding)
 
-    def analyze_document(self, file_path: str, discipline: str, analysis_mode: str = 'rubric') -> dict:
+    def analyze_document(
+        self, file_path: str, discipline: str, analysis_mode: str = "rubric"
+    ) -> dict:
         doc_name = os.path.basename(file_path)
         logger.info(f"Starting analysis for document: {doc_name}")
-        document_text = " ".join([chunk['sentence'] for chunk in parse_document_content(file_path)])
+        document_text = " ".join(
+            [chunk["sentence"] for chunk in parse_document_content(file_path)]
+        )
         doc_type = self.document_classifier.classify_document(document_text)
         logger.info(f"Document classified as: {doc_type}")
         analysis_result = self.analyzer.analyze_document(
-            document_text=document_text,
-            discipline=discipline,
-            doc_type=doc_type
+            document_text=document_text, discipline=discipline, doc_type=doc_type
         )
         return analysis_result

@@ -3,11 +3,13 @@ from unittest.mock import patch, mock_open
 
 from src.utils import chunk_text
 
+
 def test_chunk_text_with_short_text():
     text = "This is a short text."
     chunks = chunk_text(text, max_chars=100)
     assert len(chunks) == 1
     assert chunks[0] == text
+
 
 def test_chunk_text_with_long_text():
     text = "a" * 250

@@ -1,31 +1,52 @@
-database:
-  url: "sqlite:///./compliance.db"
+import yaml
+from functools import lru_cache
+from pydantic import BaseModel
+from typing import List, Dict, Any
 
-auth:
-  secret_key: "a_very_secret_key"
-  algorithm: "HS256"
-  access_token_expire_minutes: 30
+class DatabaseSettings(BaseModel):
+    url: str
 
-maintenance:
-  purge_retention_days: 60
+class AuthSettings(BaseModel):
+    secret_key: str
+    algorithm: str
+    access_token_expire_minutes: int
 
-models:
-  generator: "mistralai/Magistral-Small-2509-GGUF"
-  generator_filename: "Magistral-Small-2509-Q4_K_M.gguf"
-  retriever: "pritamdeka/S-PubMedBert-MS-MARCO"
-  fact_checker: "hamish-haggerty/t5-base-e2e-qg"
-  ner_ensemble:
-    - "d4data/biomedical-ner-all"
-  doc_classifier_prompt: "src/resources/prompts/doc_classifier_prompt.txt"
-  analysis_prompt_template: "src/resources/prompts/analysis_prompt_template.txt"
-  nlg_prompt_template: "src/resources/prompts/nlg_prompt_template.txt"
+class MaintenanceSettings(BaseModel):
+    purge_retention_days: int
 
-llm_settings:
-  model_type: "mistral"
-  context_length: 4096
-  generation_params:
-    temperature: 0.1
-    max_new_tokens: 8192
+class ModelsSettings(BaseModel):
+    generator: str
+    generator_filename: str
+    retriever: str
+    fact_checker: str
+    ner_ensemble: List[str]
+    doc_classifier_prompt: str
+    analysis_prompt_template: str
+    nlg_prompt_template: str
 
-retrieval_settings:
-  similarity_top_k: 3
+class LLMSettings(BaseModel):
+    model_type: str
+    context_length: int
+    generation_params: Dict[str, Any]
+
+class RetrievalSettings(BaseModel):
+    similarity_top_k: int
+    dense_model_name: str
+    rrf_k: int
+
+class Settings(BaseModel):
+    database: DatabaseSettings
+    auth: AuthSettings
+    maintenance: MaintenanceSettings
+    models: ModelsSettings
+    llm_settings: LLMSettings
+    retrieval_settings: RetrievalSettings
+    temp_upload_dir: str
+    api_url: str
+    rule_dir: str
+
+@lru_cache()
+def get_settings() -> Settings:
+    with open("src/config.yaml", "r") as f:
+        config_data = yaml.safe_load(f)
+    return Settings(**config_data)

@@ -1,26 +1,39 @@
 import os
+import logging
 from typing import List
 from rdflib import Graph, URIRef, Literal
 from rdflib.namespace import RDF, RDFS
 from src.core.models import ComplianceRule
 
-class RuleLoader:
-    """
-    A class to load compliance rules from RDF files.
-    """
+from src.config import get_settings
 
-    def __init__(self, rules_directory: str):
-        self.rules_directory = rules_directory
+logger = logging.getLogger(__name__)
+
+
+class RuleLoader:
+    def __init__(self):
+        settings = get_settings()
+        self.rule_dir = settings.rule_dir
+        self.rules: List[Dict[str, Any]] = []
+        self._load_rules()
 
     def load_rules(self) -> List[ComplianceRule]:
         """
         Loads all compliance rules from the .ttl files in the specified directory.
         """
         all_rules = []
+        if not os.path.isdir(self.rules_directory):
+            logger.warning(f"Rules directory not found: {self.rules_directory}")
+            return all_rules
+
         for filename in os.listdir(self.rules_directory):
             if filename.endswith(".ttl"):
                 filepath = os.path.join(self.rules_directory, filename)
-                all_rules.extend(self._parse_rule_file(filepath))
+                try:
+                    all_rules.extend(self._parse_rule_file(filepath))
+                    logger.info(f"Successfully loaded rules from: {filepath}")
+                except Exception as e:
+                    logger.error(f"Failed to parse rule file: {filepath}. Error: {e}")
         return all_rules
 
     def _parse_rule_file(self, filepath: str) -> List[ComplianceRule]:
@@ -33,12 +46,15 @@ class RuleLoader:
 
         # Find all subjects that are of type :ComplianceRule
         ns = dict(g.namespace_manager.namespaces())
-        rule_class_uri = URIRef(ns[""] + "ComplianceRule")
+        rule_class_uri = URIRef(ns.get("", "") + "ComplianceRule")
 
         for rule_uri in g.subjects(RDF.type, rule_class_uri):
-            rule = self._create_rule_from_graph(g, rule_uri, ns)
-            if rule:
-                rules.append(rule)
+            try:
+                rule = self._create_rule_from_graph(g, rule_uri, ns)
+                if rule:
+                    rules.append(rule)
+            except Exception as e:
+                logger.error(f"Failed to create rule from graph for URI: {rule_uri} in file: {filepath}. Error: {e}")
         return rules
 
     def _get_literal(self, g, subject, predicate_uri):
@@ -56,7 +72,9 @@ class RuleLoader:
                 keywords.append(keyword.toPython())
         return keywords
 
-    def _create_rule_from_graph(self, g: Graph, rule_uri: URIRef, ns: dict) -> ComplianceRule:
+    def _create_rule_from_graph(
+        self, g: Graph, rule_uri: URIRef, ns: dict
+    ) -> ComplianceRule:
         """
         Creates a ComplianceRule object from the RDF graph data.
         """
@@ -100,5 +118,5 @@ class RuleLoader:
             suggestion=suggestion,
             financial_impact=financial_impact,
             positive_keywords=positive_keywords,
-            negative_keywords=negative_keywords
+            negative_keywords=negative_keywords,
         )

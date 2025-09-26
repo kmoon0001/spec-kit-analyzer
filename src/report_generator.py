@@ -4,8 +4,10 @@ from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
+
 class ReportGenerator:
     """A class to generate HTML reports from analysis results."""
+
     def __init__(self, template_path: str):
         """Initializes the ReportGenerator with the path to the template directory."""
         self.env = Environment(loader=FileSystemLoader(template_path))

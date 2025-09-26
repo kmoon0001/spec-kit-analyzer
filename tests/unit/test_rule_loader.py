@@ -3,8 +3,8 @@ import os
 from src.core.rule_loader import RuleLoader
 from src.core.models import ComplianceRule
 
-class TestRuleLoader(unittest.TestCase):
 
+class TestRuleLoader(unittest.TestCase):
     def setUp(self):
         # Use the test .ttl files provided in the tests directory
         self.rules_directory = "tests"
@@ -28,7 +28,9 @@ class TestRuleLoader(unittest.TestCase):
         signature_rule = next((r for r in rules if "SignatureRule" in r.uri), None)
 
         self.assertIsNotNone(signature_rule, "SignatureRule not found in loaded rules.")
-        self.assertEqual(signature_rule.issue_title, "Provider signature/date possibly missing")
+        self.assertEqual(
+            signature_rule.issue_title, "Provider signature/date possibly missing"
+        )
         self.assertEqual(signature_rule.discipline, "pt")
         self.assertEqual(signature_rule.severity, "finding")
         self.assertIn("signature", signature_rule.negative_keywords)
@@ -42,5 +44,6 @@ class TestRuleLoader(unittest.TestCase):
             loader = RuleLoader("non_existent_dir")
             loader.load_rules()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

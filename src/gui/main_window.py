@@ -11,12 +11,6 @@ from PyQt6.QtGui import QTextDocument
 
 # Corrected: Use absolute imports from the src root
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
-<<<<<<< HEAD
-from src.gui.dialogs.login_dialog import LoginDialog
-||||||| c46cdd8
-# from src.gui.dialogs.login_dialog import LoginDialog # Obsolete
-=======
->>>>>>> origin/main
 from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
@@ -25,7 +19,12 @@ from src.gui.workers.ai_loader_worker import AILoaderWorker
 from src.gui.workers.dashboard_worker import DashboardWorker
 from src.gui.widgets.dashboard_widget import DashboardWidget
 
-API_URL = "http://127.0.0.1:8000"
+import jwt
+
+from src.config import get_settings
+
+settings = get_settings()
+API_URL = settings.api_url
 
 class MainApplicationWindow(QMainWindow):
     def __init__(self):
@@ -35,7 +34,7 @@ class MainApplicationWindow(QMainWindow):
         self.is_admin = False
         self._current_file_path = None
         self._current_folder_path = None
-        self.analyzer_service = None
+        self.compliance_service = None
         self.worker_thread = None
         self.worker = None
 
@@ -48,16 +47,8 @@ class MainApplicationWindow(QMainWindow):
         which makes the main window testable.
         """
         self.load_ai_models()
-<<<<<<< HEAD
-        self.show_login_dialog()
-||||||| c46cdd8
-        # self.show_login_dialog() # Obsolete login flow
         self.load_main_ui() # Load main UI directly
         self.show()
-=======
-        self.load_main_ui() # Load main UI directly
-        self.show()
->>>>>>> origin/main
 
     def init_base_ui(self):
         self.setWindowTitle('Therapy Compliance Analyzer')
@@ -89,35 +80,6 @@ class MainApplicationWindow(QMainWindow):
         self.status_bar.addPermanentWidget(self.progress_bar)
         self.progress_bar.hide()
 
-<<<<<<< HEAD
-    def show_login_dialog(self):
-        self.hide()
-        dialog = LoginDialog(self)
-        if dialog.exec():
-            username, password = dialog.get_credentials()
-            try:
-                response = requests.post(f"{API_URL}/auth/token", data={"username": username, "password": password})
-                response.raise_for_status()
-                token_data = response.json()
-                self.access_token = token_data['access_token']
-                self.username = username
-
-                decoded_token = jwt.decode(self.access_token, options={"verify_signature": False})
-                self.is_admin = decoded_token.get('is_admin', False)
-
-                self.user_status_label.setText(f"Logged in as: {self.username}")
-                self.status_bar.showMessage("Login successful.")
-                self.load_main_ui()
-                self.show()
-            except (requests.exceptions.RequestException, jwt.exceptions.DecodeError) as e:
-                QMessageBox.critical(self, "Login Failed", f"Failed to authenticate: {e}")
-                self.close()
-        else:
-            self.close()
-||||||| c46cdd8
-    # def show_login_dialog(self): ... # Obsolete login flow
-=======
->>>>>>> origin/main
 
     def logout(self):
         self.access_token = None
@@ -125,18 +87,9 @@ class MainApplicationWindow(QMainWindow):
         self.is_admin = False
         self.user_status_label.setText("")
         self.setCentralWidget(None)
-<<<<<<< HEAD
-        self.show_login_dialog()
-||||||| c46cdd8
-        # self.show_login_dialog() # Obsolete login flow
         QMessageBox.information(self, "Logged Out", "You have been logged out.")
         # Since login is removed, we can just close or show a message.
         # For now, let's just clear the UI. A real implementation might close the app.
-=======
-        QMessageBox.information(self, "Logged Out", "You have been logged out.")
-        # Since login is removed, we can just close or show a message.
-        # For now, let's just clear the UI. A real implementation might close the app.
->>>>>>> origin/main
 
     def load_main_ui(self):
         self.tabs = QTabWidget()
@@ -180,6 +133,16 @@ class MainApplicationWindow(QMainWindow):
         self.clear_button = QPushButton('Clear Display')
         self.clear_button.clicked.connect(self.clear_display)
         controls_layout.addWidget(self.clear_button)
+
+        # New: Rubric Selection
+        self.rubric_selector = QComboBox()
+        self.rubric_selector.setPlaceholderText("Select a Rubric")
+        self.rubric_selector.currentIndexChanged.connect(self._on_rubric_selected)
+        controls_layout.addWidget(self.rubric_selector)
+
+        self.rubric_description_label = QLabel("Description of selected rubric will appear here.")
+        self.rubric_description_label.setWordWrap(True)
+        controls_layout.addWidget(self.rubric_description_label)
 
         controls_layout.addStretch()
 
@@ -298,13 +261,23 @@ class MainApplicationWindow(QMainWindow):
         if not self._current_file_path:
             return
 
+        selected_rubric = self.rubric_selector.currentData()
+        if not selected_rubric:
+            QMessageBox.warning(self, "No Rubric Selected", "Please select a rubric before running analysis.")
+            self.run_analysis_button.setEnabled(True)
+            return
+
+        discipline = selected_rubric.get("discipline", "Unknown") # Assuming rubric has a discipline
+        rubric_id = selected_rubric.get("id")
+
         self.progress_bar.setRange(0, 0)
         self.progress_bar.show()
         self.run_analysis_button.setEnabled(False)
         self.status_bar.showMessage("Starting analysis...")
 
         self.worker_thread = QThread()
-        self.worker = AnalysisStarterWorker(self._current_file_path, {}, self.access_token)
+        # The AnalysisStarterWorker will now call compliance_service.run_compliance_analysis
+        self.worker = AnalysisStarterWorker(self._current_file_path, {"discipline": discipline, "rubric_id": rubric_id}, self.access_token)
         self.worker.moveToThread(self.worker_thread)
         self.worker.success.connect(self.handle_analysis_started)
         self.worker.error.connect(self.on_analysis_error)
@@ -375,10 +348,28 @@ class MainApplicationWindow(QMainWindow):
         self.worker_thread.finished.connect(self.worker_thread.deleteLater)
         self.worker_thread.start()
 
-    def on_ai_loaded(self, analyzer_service, is_healthy, status_message):
-        self.analyzer_service = analyzer_service
+    def on_ai_loaded(self, compliance_service, is_healthy, status_message):
+        self.compliance_service = compliance_service
         self.ai_status_label.setText(status_message)
         self.ai_status_label.setStyleSheet("color: green;" if is_healthy else "color: red;")
+        self._populate_rubric_selector() # Populate rubrics after AI is loaded
+
+    def _populate_rubric_selector(self):
+        if self.compliance_service:
+            rubrics = self.compliance_service.get_available_rubrics()
+            self.rubric_selector.clear()
+            self.rubric_selector.addItem("Select a Rubric", None) # Add a default empty item
+            for rubric in rubrics:
+                self.rubric_selector.addItem(rubric["name"], rubric)
+
+    def _on_rubric_selected(self, index):
+        selected_rubric = self.rubric_selector.itemData(index)
+        if selected_rubric:
+            self.rubric_description_label.setText(selected_rubric.get("description", "No description available."))
+            self.run_analysis_button.setEnabled(True)
+        else:
+            self.rubric_description_label.setText("Description of selected rubric will appear here.")
+            self.run_analysis_button.setEnabled(False)
 
     def apply_stylesheet(self, theme="dark"):
         if theme == "light":
