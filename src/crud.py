@@ -1,17 +1,20 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, delete
 from . import models
 import datetime
 import pickle
+from typing import List, Dict, Optional
 import numpy as np
 from scipy.spatial.distance import cosine
 
 # Define a threshold for semantic similarity. 1.0 is identical.
 SIMILARITY_THRESHOLD = 0.98
 
-def get_user_by_username(db: Session, username: str):
-    return db.query(models.User).filter(models.User.username == username).first()
+async def get_user_by_username(db: AsyncSession, username: str) -> Optional[models.User]:
+    result = await db.execute(select(models.User).filter(models.User.username == username))
+    return result.scalars().first()
 
-def create_report_and_findings(db: Session, report_data: dict, findings_data: list):
+async def create_report_and_findings(db: AsyncSession, report_data: dict, findings_data: list) -> models.Report:
     db_report = models.Report(
         document_name=report_data['document_name'],
         compliance_score=report_data['compliance_score'],
@@ -19,23 +22,15 @@ def create_report_and_findings(db: Session, report_data: dict, findings_data: li
         document_embedding=report_data.get('document_embedding')
     )
     db.add(db_report)
-    db.commit()
-    db.refresh(db_report)
+    await db.commit()
+    await db.refresh(db_report)
     return db_report
 
-def find_similar_report(db: Session, new_embedding: np.ndarray) -> models.Report | None:
-    """
-    Finds a report in the database with a semantically similar document embedding.
-
-    Args:
-        db: The SQLAlchemy database session.
-        new_embedding: The numpy array of the new document's embedding.
-
-    Returns:
-        The most similar Report object if it meets the threshold, otherwise None.
-    """
-    # Fetch all existing reports that have an embedding
-    cached_reports = db.query(models.Report).filter(models.Report.document_embedding.isnot(None)).all()
+async def find_similar_report(db: AsyncSession, new_embedding: np.ndarray) -> Optional[models.Report]:
+    stmt = select(models.Report).filter(models.Report.document_embedding.isnot(None))
+    result = await db.execute(stmt)
+    cached_reports = result.scalars().all()
+    
     if not cached_reports:
         return None
 
@@ -43,11 +38,8 @@ def find_similar_report(db: Session, new_embedding: np.ndarray) -> models.Report
     highest_similarity = 0.0
 
     for report in cached_reports:
-        # Deserialize the stored embedding
         cached_embedding = pickle.loads(report.document_embedding)
-
-# Calculate cosine similarity (1 - cosine distance)
-        similarity = 1 - cosine(new_embedding, cached_embedding)
+        similarity = 1 - cosine(new_embedding.flatten(), cached_embedding.flatten())
 
         if similarity > highest_similarity:
             highest_similarity = similarity
@@ -55,23 +47,29 @@ def find_similar_report(db: Session, new_embedding: np.ndarray) -> models.Report
 
     if highest_similarity >= SIMILARITY_THRESHOLD:
         return best_match
-    else:
-        return None
+    return None
 
-def get_reports(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Report).order_by(models.Report.analysis_date.desc()).offset(skip).limit(limit).all()
+async def get_reports(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[models.Report]:
+    stmt = select(models.Report).order_by(models.Report.analysis_date.desc()).offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    return result.scalars().all()
 
-def get_report(db: Session, report_id: int):
-    return db.query(models.Report).filter(models.Report.id == report_id).first()
+async def get_report(db: AsyncSession, report_id: int) -> Optional[models.Report]:
+    stmt = select(models.Report).filter(models.Report.id == report_id)
+    result = await db.execute(stmt)
+    return result.scalars().first()
 
-def change_user_password(db: Session, user: models.User, new_hashed_password: str):
+async def change_user_password(db: AsyncSession, user: models.User, new_hashed_password: str) -> models.User:
     user.hashed_password = new_hashed_password
-    db.commit()
-    db.refresh(user)
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
     return user
 
-def get_findings_summary(db: Session, limit: int = 5):
-    reports = db.query(models.Report).all()
+async def get_findings_summary(db: AsyncSession, limit: int = 5) -> List[Dict]:
+    stmt = select(models.Report)
+    result = await db.execute(stmt)
+    reports = result.scalars().all()
     summary = {}
     for report in reports:
         if report.analysis_result and 'findings' in report.analysis_result:
@@ -82,17 +80,16 @@ def get_findings_summary(db: Session, limit: int = 5):
     sorted_summary = sorted(summary.items(), key=lambda item: item[1], reverse=True)
     return [{"rule_id": rule_id, "count": count} for rule_id, count in sorted_summary[:limit]]
 
-def delete_reports_older_than(db: Session, days: int) -> int:
+async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
     if days <= 0:
         return 0
     cutoff_date = datetime.datetime.utcnow() - datetime.timedelta(days=days)
-    reports_to_delete = db.query(models.Report).filter(models.Report.analysis_date < cutoff_date)
-    num_deleted = reports_to_delete.count()
-    if num_deleted > 0:
-        reports_to_delete.delete(synchronize_session=False)
-        db.commit()
-    return num_deleted
+    stmt = delete(models.Report).where(models.Report.analysis_date < cutoff_date)
+    result = await db.execute(stmt)
+    await db.commit()
+    return result.rowcount
 
-def get_rubrics(db: Session, limit: int = 1000):
-    """Mock function to get rubrics. Returns an empty list."""
-    return []
+async def get_rubrics(db: AsyncSession, limit: int = 1000) -> list[models.Rubric]:
+    """Asynchronously retrieves all rubrics from the database."""
+    result = await db.execute(select(models.Rubric).limit(limit))
+    return result.scalars().all()

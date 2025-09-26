@@ -57,8 +57,7 @@ class FactCheckerService:
             # Check the response from the fact-checker
             if 'yes' in response.lower():
                 return True
-            else:
-                return False
+            return False
 
         except Exception as e:
             logger.error(f"Error during fact-checking: {e}", exc_info=True)

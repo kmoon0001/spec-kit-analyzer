@@ -170,8 +170,7 @@ class GuidelineService:
         source_name = os.path.basename(file_path)
         if file_path.lower().endswith('.json'):
             return self._extract_text_from_json(file_path, source_name)
-        else:
-            return self._extract_text_from_pdf(file_path, source_name)
+        return self._extract_text_from_pdf(file_path, source_name)
 
     @staticmethod
     def _extract_text_from_json(file_path: str, source_name: str) -> List[Tuple[str, str]]:

@@ -6,8 +6,7 @@ from types import SimpleNamespace
 # Ensure the src directory is in the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.main import run_analyzer, LocalRAG, GuidelineService, RubricService, _generate_suggested_questions, nlp
-from src.llm_analyzer import run_llm_analysis
+from src.main import run_analyzer, LocalRAG, GuidelineService
 
 @pytest.mark.timeout(600)
 def test_analyzer_logic_e2e():
