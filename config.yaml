@@ -12,22 +12,22 @@ ocr:
 
 # Configuration for AI Models and Services (Optimized for Performance)
 models:
- # NER Ensemble: A list of models for comprehensive entity recognition
+  # NER Ensemble: A list of models for comprehensive entity recognition
   ner_ensemble:
-    - "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M" # The Specialist
-    - "GanjinZero/bio-distilbert-ner" # The Efficient Generalist
-
- # Best-in-class sentence transformer for medical semantic search
+    - "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"  # The Specialist
+    - "GanjinZero/bio-distilbert-ner"                       # The Efficient Generalist
+  
+  # Best-in-class sentence transformer for medical semantic search
   retriever: "pritamdeka/S-PubMedBert-MS-MARCO"
+  
+  # Quantized, locally-deployable medical text generator
+  generator: "mistralai/Magistral-Small-2509-GGUF"
+  generator_filename: "Magistral-Small-2509-Q4_K_M.gguf" # A popular quantized version
 
- # Quantized, locally-deployable medical text generator
-  generator: "TheBloke/medicine-chat-GGUF"
-  generator_filename: "medicine-chat.Q4_K_M.gguf" # A public replacement model
-
- # Small, fast model for fact-checking and validation
+  # Small, fast model for fact-checking and validation
   fact_checker: "google/flan-t5-small"
 
- # Prompt Templates
+  # Prompt Templates
   analysis_prompt_template: "src/core/prompt_template.txt"
   nlg_prompt_template: "src/core/nlg_prompt_template.txt"
   doc_classifier_prompt: "src/core/doc_classifier_prompt.txt"

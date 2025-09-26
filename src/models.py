@@ -26,7 +26,7 @@ class RubricCreate(BaseModel):
     name: str
     content: str
 
-class RubricSchema(RubricCreate):
+class Rubric(RubricCreate):
     id: int
 
     class Config:

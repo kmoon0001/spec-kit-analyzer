@@ -3,7 +3,6 @@ import json
 from typing import Dict, Any, List
 
 from .llm_service import LLMService
-from .nlg_service import NLGService
 from .ner import NERPipeline
 from .explanation import ExplanationEngine
 from .prompt_manager import PromptManager
@@ -19,11 +18,10 @@ class ComplianceAnalyzer:
     It receives pre-initialized components and does not load models itself.
     """
 
-    def __init__(self, retriever: Any, ner_pipeline: NERPipeline, llm_service: LLMService, nlg_service: NLGService, explanation_engine: ExplanationEngine, prompt_manager: PromptManager, fact_checker_service: FactCheckerService):
+    def __init__(self, retriever: Any, ner_pipeline: NERPipeline, llm_service: LLMService, explanation_engine: ExplanationEngine, prompt_manager: PromptManager, fact_checker_service: FactCheckerService):
         self.retriever = retriever
         self.ner_pipeline = ner_pipeline
         self.llm_service = llm_service
-        self.nlg_service = nlg_service
         self.explanation_engine = explanation_engine
         self.prompt_manager = prompt_manager
         self.fact_checker_service = fact_checker_service
@@ -60,16 +58,14 @@ class ComplianceAnalyzer:
                 if isinstance(confidence, (int, float)) and confidence < CONFIDENCE_THRESHOLD:
                     finding['is_low_confidence'] = True
 
-                # c. Conditionally generate personalized tip
-                if finding.get('is_disputed') or finding.get('is_low_confidence'):
-                    finding['personalized_tip'] = "No tip is available for this finding because it was identified as low-confidence or potentially inaccurate."
-                else:
-                    tip = self.nlg_service.generate_personalized_tip(finding)
-                    finding['personalized_tip'] = tip
+                # c. Generate personalized tip
+                tip = self.llm_service.generate_personalized_tip(finding)
+                finding['personalized_tip'] = tip
 
         return explained_analysis
 
-    def _format_rules_for_prompt(self, rules: List[Dict[str, Any]]) -> str:
+    @staticmethod
+    def _format_rules_for_prompt(rules: List[Dict[str, Any]]) -> str:
         if not rules:
             return "No specific compliance rules were retrieved. Analyze based on general Medicare principles."
         return "\n".join([f"- Title: {r.get('name', '')}, Content: {r.get('content', '')}" for r in rules])
