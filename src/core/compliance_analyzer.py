@@ -60,9 +60,12 @@ class ComplianceAnalyzer:
                 if isinstance(confidence, (int, float)) and confidence < CONFIDENCE_THRESHOLD:
                     finding['is_low_confidence'] = True
 
-                # c. Generate personalized tip
-                tip = self.nlg_service.generate_personalized_tip(finding)
-                finding['personalized_tip'] = tip
+                # c. Conditionally generate personalized tip
+                if finding.get('is_disputed') or finding.get('is_low_confidence'):
+                    finding['personalized_tip'] = "No tip is available for this finding because it was identified as low-confidence or potentially inaccurate."
+                else:
+                    tip = self.nlg_service.generate_personalized_tip(finding)
+                    finding['personalized_tip'] = tip
 
         return explained_analysis
 
