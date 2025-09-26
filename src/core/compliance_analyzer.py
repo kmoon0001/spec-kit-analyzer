@@ -78,8 +78,7 @@ class ComplianceAnalyzer:
             if start != -1 and end != -1:
                 json_str = raw_output[start:end+1]
                 return json.loads(json_str)
-            else:
-                raise json.JSONDecodeError("No JSON object found in the output.", raw_output, 0)
+            raise json.JSONDecodeError("No JSON object found in the output.", raw_output, 0)
         except json.JSONDecodeError:
             logger.error("Failed to decode LLM output into JSON.")
             return {"error": "Invalid JSON output from LLM", "raw_output": raw_output}

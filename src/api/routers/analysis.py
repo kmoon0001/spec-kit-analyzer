@@ -109,5 +109,4 @@ async def get_task_status(task_id: str, current_user: models.User = Depends(get_
 
     if task["status"] == "completed":
         return HTMLResponse(content=task["result"])
-    else:
-        return task
+    return task
