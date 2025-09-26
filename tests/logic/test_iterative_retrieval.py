@@ -4,12 +4,14 @@ from unittest.mock import MagicMock
 # This test file validates the logic of an iterative retrieval process.
 # It uses a hypothetical orchestrator to test the flow in isolation.
 
+
 @pytest.fixture
 def mock_retriever():
     """Mocks the HybridRetriever."""
     retriever = MagicMock()
     retriever.retrieve.return_value = [{"text": "Initial retrieved context."}]
     return retriever
+
 
 @pytest.fixture
 def mock_llm_service():
@@ -18,8 +20,10 @@ def mock_llm_service():
     llm.generate_analysis.return_value = "Transformed Query"
     return llm
 
+
 class IterativeOrchestrator:
     """A hypothetical class to test the iterative retrieval loop."""
+
     def __init__(self, retriever, llm_service):
         self.retriever = retriever
         self.llm_service = llm_service
@@ -33,6 +37,7 @@ class IterativeOrchestrator:
             prompt = f"Based on this context: {context}, transform the query: {current_query}"
             current_query = self.llm_service.generate_analysis(prompt)
         return all_context, current_query
+
 
 def test_iterative_retrieval_orchestration(mock_retriever, mock_llm_service):
     """
@@ -49,13 +54,14 @@ def test_iterative_retrieval_orchestration(mock_retriever, mock_llm_service):
     assert mock_retriever.retrieve.call_count == iterations
     assert mock_llm_service.generate_analysis.call_count == iterations
 
+
 def test_iterative_retrieval_data_aggregation(mock_retriever, mock_llm_service):
     """
     Tests that context is correctly aggregated through the loops.
     """
     # Arrange
     orchestrator = IterativeOrchestrator(mock_retriever, mock_llm_service)
-    
+
     # Act
     final_context, final_query = orchestrator.run_loop("Test Query", iterations=2)
 

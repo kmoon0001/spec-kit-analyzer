@@ -4,11 +4,12 @@ import sys
 from unittest.mock import patch, MagicMock
 
 # Add the project root to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from src.core.compliance_analyzer import ComplianceAnalyzer
 from typing import Dict, List
 from src.rubric_service import ComplianceRule
+
 
 class TestComplianceAnalyzer:
 
@@ -19,10 +20,15 @@ class TestComplianceAnalyzer:
         """
         Fixture to create a new ComplianceAnalyzer instance for each test function.
         """
-        with patch('src.core.compliance_analyzer.AutoModelForCausalLM.from_pretrained') as mock_model, \
-             patch('src.core.compliance_analyzer.AutoTokenizer.from_pretrained') as mock_tokenizer, \
-             patch('src.core.compliance_analyzer.pipeline') as mock_pipeline, \
-             patch('src.core.compliance_analyzer.BitsAndBytesConfig') as mock_bitsandbytes:
+        with patch(
+            "src.core.compliance_analyzer.AutoModelForCausalLM.from_pretrained"
+        ) as mock_model, patch(
+            "src.core.compliance_analyzer.AutoTokenizer.from_pretrained"
+        ) as mock_tokenizer, patch(
+            "src.core.compliance_analyzer.pipeline"
+        ) as mock_pipeline, patch(
+            "src.core.compliance_analyzer.BitsAndBytesConfig"
+        ) as mock_bitsandbytes:
 
             # Configure the mocks to return dummy objects
             mock_model.return_value = MagicMock()
@@ -47,17 +53,17 @@ class TestComplianceAnalyzer:
         entity_list = "'test' (test_entity)"
         rules = [
             ComplianceRule(
-                uri='test_rule_1',
-                severity='High',
-                strict_severity='High',
-                issue_title='Test Rule 1',
-                issue_detail='This is a test rule.',
-                issue_category='Test',
-                discipline='pt',
-                document_type='Test Document',
-                suggestion='This is a test suggestion.',
+                uri="test_rule_1",
+                severity="High",
+                strict_severity="High",
+                issue_title="Test Rule 1",
+                issue_detail="This is a test rule.",
+                issue_category="Test",
+                discipline="pt",
+                document_type="Test Document",
+                suggestion="This is a test suggestion.",
                 financial_impact=100,
-                positive_keywords=['test'],
-                negative_keywords=[]
+                positive_keywords=["test"],
+                negative_keywords=[],
             )
         ]

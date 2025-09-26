@@ -6,11 +6,13 @@ from src.core.compliance_analyzer import ComplianceAnalyzer
 
 # --- Mocks for all dependencies ---
 
+
 @pytest.fixture
 def mock_retriever():
     retriever = MagicMock()
     retriever.retrieve.return_value = [{"issue_title": "Mocked Rule"}]
     return retriever
+
 
 @pytest.fixture
 def mock_ner_pipeline():
@@ -18,11 +20,13 @@ def mock_ner_pipeline():
     ner.extract_entities.return_value = [{"entity_group": "Test", "word": "Entity"}]
     return ner
 
+
 @pytest.fixture
 def mock_llm_service():
     llm = MagicMock()
     llm.generate_analysis.return_value = '{"findings": [{"text": "Problematic text."}]}'
     return llm
+
 
 @pytest.fixture
 def mock_nlg_service():
@@ -30,11 +34,13 @@ def mock_nlg_service():
     nlg.generate_personalized_tip.return_value = "This is a generated tip."
     return nlg
 
+
 @pytest.fixture
 def mock_explanation_engine():
     exp = MagicMock()
     exp.add_explanations.return_value = {"findings": [{"text": "Problematic text."}]}
     return exp
+
 
 @pytest.fixture
 def mock_prompt_manager():
@@ -42,11 +48,17 @@ def mock_prompt_manager():
     pm.build_prompt.return_value = "This is a test prompt."
     return pm
 
+
 # --- Tests ---
 
+
 def test_compliance_analyzer_initialization(
-    mock_retriever, mock_ner_pipeline, mock_llm_service, 
-    mock_nlg_service, mock_explanation_engine, mock_prompt_manager
+    mock_retriever,
+    mock_ner_pipeline,
+    mock_llm_service,
+    mock_nlg_service,
+    mock_explanation_engine,
+    mock_prompt_manager,
 ):
     """Tests that the ComplianceAnalyzer correctly initializes with all its dependencies."""
     # Act
@@ -56,9 +68,9 @@ def test_compliance_analyzer_initialization(
         llm_service=mock_llm_service,
         nlg_service=mock_nlg_service,
         explanation_engine=mock_explanation_engine,
-        prompt_manager=mock_prompt_manager
+        prompt_manager=mock_prompt_manager,
     )
-    
+
     # Assert
     assert analyzer.retriever is mock_retriever
     assert analyzer.ner_pipeline is mock_ner_pipeline
@@ -67,8 +79,12 @@ def test_compliance_analyzer_initialization(
 
 
 def test_analyze_document_orchestration(
-    mock_retriever, mock_ner_pipeline, mock_llm_service, 
-    mock_nlg_service, mock_explanation_engine, mock_prompt_manager
+    mock_retriever,
+    mock_ner_pipeline,
+    mock_llm_service,
+    mock_nlg_service,
+    mock_explanation_engine,
+    mock_prompt_manager,
 ):
     """
     Tests that analyze_document correctly orchestrates calls to its dependencies.
@@ -80,9 +96,9 @@ def test_analyze_document_orchestration(
         llm_service=mock_llm_service,
         nlg_service=mock_nlg_service,
         explanation_engine=mock_explanation_engine,
-        prompt_manager=mock_prompt_manager
+        prompt_manager=mock_prompt_manager,
     )
-    
+
     # Act
     result = analyzer.analyze_document("Test document", "PT", "evaluation")
 
