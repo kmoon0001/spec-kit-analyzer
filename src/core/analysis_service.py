@@ -6,7 +6,7 @@ from src.parsing import parse_document_content
 
 # Import all the necessary services
 from .compliance_analyzer import ComplianceAnalyzer
-from .hybrid_retriever import HybridRetriever
+from .retriever import HybridRetriever
 from .report_generator import ReportGenerator
 from .document_classifier import DocumentClassifier
 from .llm_service import LLMService
@@ -24,8 +24,9 @@ class AnalysisService:
     The central orchestrator for the entire analysis pipeline.
     Initializes and holds all AI-related services.
     """
-    def __init__(self):
-        logger.info("Initializing AnalysisService and all sub-components...")
+    def __init__(self, retriever: HybridRetriever):
+        logger.info("Initializing AnalysisService with injected retriever...")
+        self.retriever = retriever
         try:
             config_path = os.path.join(ROOT_DIR, "config.yaml")
             with open(config_path, "r") as f:
@@ -39,7 +40,6 @@ class AnalysisService:
             )
             fact_checker_service = FactCheckerService(model_name=config['models']['fact_checker'])
             ner_pipeline = NERPipeline(model_names=config['models']['ner_ensemble'])
-            self.retriever = HybridRetriever()
             self.report_generator = ReportGenerator()
             explanation_engine = ExplanationEngine()
 
@@ -59,7 +59,7 @@ class AnalysisService:
                 llm_service=llm_service,
                 explanation_engine=explanation_engine,
                 prompt_manager=analysis_prompt_manager,
-                fact_checker_service=fact_checker_service # Pass the new service
+                fact_checker_service=fact_checker_service
             )
             logger.info("AnalysisService initialized successfully.")
 

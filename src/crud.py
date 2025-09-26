@@ -1,4 +1,6 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from . import models
 import datetime
 import pickle
@@ -8,8 +10,9 @@ from scipy.spatial.distance import cosine
 # Define a threshold for semantic similarity. 1.0 is identical.
 SIMILARITY_THRESHOLD = 0.98
 
-def get_user_by_username(db: Session, username: str):
-    return db.query(models.User).filter(models.User.username == username).first()
+async def get_user_by_username(db: AsyncSession, username: str):
+    result = await db.execute(select(models.User).filter(models.User.username == username))
+    return result.scalars().first()
 
 def create_report_and_findings(db: Session, report_data: dict, findings_data: list):
     db_report = models.Report(
@@ -82,19 +85,28 @@ def get_findings_summary(db: Session, limit: int = 5):
     sorted_summary = sorted(summary.items(), key=lambda item: item[1], reverse=True)
     return [{"rule_id": rule_id, "count": count} for rule_id, count in sorted_summary[:limit]]
 
-def delete_reports_older_than(db: Session, days: int) -> int:
+async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
     if days <= 0:
         return 0
     cutoff_date = datetime.datetime.utcnow() - datetime.timedelta(days=days)
-    reports_to_delete = db.query(models.Report).filter(models.Report.analysis_date < cutoff_date)
-    num_deleted = reports_to_delete.count()
+
+    # First, select the reports to be deleted
+    result = await db.execute(
+        select(models.Report).filter(models.Report.analysis_date < cutoff_date)
+    )
+    reports_to_delete = result.scalars().all()
+
+    num_deleted = len(reports_to_delete)
     if num_deleted > 0:
-        reports_to_delete.delete(synchronize_session=False)
-        db.commit()
+        for report in reports_to_delete:
+            await db.delete(report)
+        await db.commit()
+
     return num_deleted
 
-def get_rubrics(db: Session, limit: int = 1000):
+async def get_rubrics(db: AsyncSession, limit: int = 1000) -> list[models.Rubric]:
     """
-    Mock function to get rubrics. Returns an empty list.
+    Asynchronously retrieves all rubrics from the database.
     """
-    return []
+    result = await db.execute(select(models.Rubric).limit(limit))
+    return result.scalars().all()

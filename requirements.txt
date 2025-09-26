@@ -34,6 +34,8 @@ pyspellchecker
 
 # Database
 SQLAlchemy
+rdflib
+aiosqlite
  
 # Security & Auth
 passlib[bcrypt]
@@ -47,8 +49,10 @@ scipy
 
 # Scheduling
 apscheduler
+tenacity
 
 # Testing
 pytest
 pytest-mock
 pytest-qt
+pytest-asyncio
