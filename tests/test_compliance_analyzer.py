@@ -24,16 +24,12 @@ def mock_llm_service():
     llm.generate_analysis.return_value = '{"findings": [{"text": "Problematic text."}]}'
     return llm
 
-@pytest.fixture
-def mock_nlg_service():
-    nlg = MagicMock()
-    nlg.generate_personalized_tip.return_value = "This is a generated tip."
-    return nlg
 
 @pytest.fixture
 def mock_explanation_engine():
     exp = MagicMock()
-    exp.add_explanations.return_value = {"findings": [{"text": "Problematic text."}]}
+    # The explanation engine now returns the finding with the tip already added.
+    exp.add_explanations.return_value = {"findings": [{"text": "Problematic text.", "personalized_tip": "Consider reviewing this finding for compliance."}]}
     return exp
 
 @pytest.fixture
@@ -42,11 +38,17 @@ def mock_prompt_manager():
     pm.build_prompt.return_value = "This is a test prompt."
     return pm
 
+@pytest.fixture
+def mock_fact_checker_service():
+    fact_checker = MagicMock()
+    fact_checker.is_finding_plausible.return_value = True
+    return fact_checker
+
 # --- Tests ---
 
 def test_compliance_analyzer_initialization(
     mock_retriever, mock_ner_pipeline, mock_llm_service, 
-    mock_nlg_service, mock_explanation_engine, mock_prompt_manager
+    mock_explanation_engine, mock_prompt_manager, mock_fact_checker_service
 ):
     """Tests that the ComplianceAnalyzer correctly initializes with all its dependencies."""
     # Act
@@ -54,21 +56,20 @@ def test_compliance_analyzer_initialization(
         retriever=mock_retriever,
         ner_pipeline=mock_ner_pipeline,
         llm_service=mock_llm_service,
-        nlg_service=mock_nlg_service,
         explanation_engine=mock_explanation_engine,
-        prompt_manager=mock_prompt_manager
+        prompt_manager=mock_prompt_manager,
+        fact_checker_service=mock_fact_checker_service
     )
     
     # Assert
     assert analyzer.retriever is mock_retriever
     assert analyzer.ner_pipeline is mock_ner_pipeline
     assert analyzer.llm_service is mock_llm_service
-    assert analyzer.nlg_service is mock_nlg_service
 
 
 def test_analyze_document_orchestration(
     mock_retriever, mock_ner_pipeline, mock_llm_service, 
-    mock_nlg_service, mock_explanation_engine, mock_prompt_manager
+    mock_explanation_engine, mock_prompt_manager, mock_fact_checker_service
 ):
     """
     Tests that analyze_document correctly orchestrates calls to its dependencies.
@@ -78,9 +79,9 @@ def test_analyze_document_orchestration(
         retriever=mock_retriever,
         ner_pipeline=mock_ner_pipeline,
         llm_service=mock_llm_service,
-        nlg_service=mock_nlg_service,
         explanation_engine=mock_explanation_engine,
-        prompt_manager=mock_prompt_manager
+        prompt_manager=mock_prompt_manager,
+        fact_checker_service=mock_fact_checker_service
     )
     
     # Act
@@ -93,8 +94,9 @@ def test_analyze_document_orchestration(
     mock_prompt_manager.build_prompt.assert_called_once()
     mock_llm_service.generate_analysis.assert_called_once()
     mock_explanation_engine.add_explanations.assert_called_once()
-    mock_nlg_service.generate_personalized_tip.assert_called_once()
+    mock_fact_checker_service.is_finding_plausible.assert_called_once()
+
 
     # 2. Verify the final result includes the generated tip
     assert "findings" in result
-    assert result["findings"][0]["personalized_tip"] == "This is a generated tip."
+    assert result["findings"][0]["personalized_tip"] == "Consider reviewing this finding for compliance."
