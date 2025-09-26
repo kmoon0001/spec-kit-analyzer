@@ -32,9 +32,7 @@ def guideline_service():
     return service
 
 def test_search_successful_orchestration(guideline_service: GuidelineService):
-    """
-    Tests that the search method correctly orchestrates the hierarchical search.
-    """
+    """Tests that the search method correctly orchestrates the hierarchical search."""
     # Arrange
     query = "test query"
 
@@ -55,9 +53,7 @@ def test_search_successful_orchestration(guideline_service: GuidelineService):
     assert results[0]['source'] == 'dummy_source.txt'
 
 def test_search_returns_empty_if_index_not_ready(guideline_service: GuidelineService):
-    """
-    Tests that search returns an empty list if the index is not ready.
-    """
+    """Tests that search returns an empty list if the index is not ready."""
     # Arrange
     guideline_service.is_index_ready = False
 

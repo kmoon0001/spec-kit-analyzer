@@ -57,9 +57,7 @@ class ReportDialog(QDialog):
             logger.warning(f"Clicked on an unhandled link scheme: {url.scheme()}")
 
     def print_to_pdf(self):
-        """
-        Opens a file dialog to save the report content as a PDF.
-        """
+        """Opens a file dialog to save the report content as a PDF."""
         file_path, _ = QFileDialog.getSaveFileName(self, "Save Report as PDF", "", "PDF Files (*.pdf)")
         if file_path:
             try:

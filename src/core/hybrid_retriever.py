@@ -64,9 +64,7 @@ class HybridRetriever:
                 db.close()
 
     def retrieve(self, query: str, top_k: int = 5, **kwargs) -> List[Dict]:
-        """
-        Performs a hybrid search and returns the top_k relevant rules.
-        """
+        """Performs a hybrid search and returns the top_k relevant rules."""
         if not self.rules:
             return []
 

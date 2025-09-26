@@ -85,9 +85,7 @@ def test_analyze_document_orchestration(
     mock_nlg_service, mock_explanation_engine, mock_prompt_manager,
     mock_fact_checker_service # Add the new fixture
 ):
-    """
-    Tests that analyze_document correctly orchestrates calls to its dependencies.
-    """
+    """Tests that analyze_document correctly orchestrates calls to its dependencies."""
     # Arrange
     analyzer = ComplianceAnalyzer(
         retriever=mock_retriever,

@@ -18,9 +18,7 @@ class FolderAnalysisStarterWorker(QObject):
         self.token = token
 
     def run(self):
-        """
-        Sends the request to start the folder analysis and emits the result.
-        """
+        """Sends the request to start the folder analysis and emits the result."""
         try:
             headers = {"Authorization": f"Bearer {self.token}"}
 

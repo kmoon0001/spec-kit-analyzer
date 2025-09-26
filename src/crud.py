@@ -94,7 +94,5 @@ def delete_reports_older_than(db: Session, days: int) -> int:
     return num_deleted
 
 def get_rubrics(db: Session, limit: int = 1000):
-    """
-    Mock function to get rubrics. Returns an empty list.
-    """
+    """Mock function to get rubrics. Returns an empty list."""
     return []

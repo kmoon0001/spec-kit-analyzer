@@ -22,9 +22,7 @@ class MockRetriever:
                     self.guidelines.extend(json.load(f))
 
     def retrieve(self, query):
-        """
-        Returns the list of guideline dictionaries.
-        """
+        """Returns the list of guideline dictionaries."""
         return self.guidelines
 
 @pytest.fixture(scope="module")
@@ -59,9 +57,7 @@ def setup_test_files(test_data_path):
 
 @pytest.mark.timeout(600)
 def test_full_analysis_pipeline(config, test_data_path, setup_test_files):
-    """
-    Tests the full analysis pipeline from document to HTML report.
-    """
+    """Tests the full analysis pipeline from document to HTML report."""
     # 1. Initialize services
     guideline_service = GuidelineService(sources=[os.path.join(test_data_path, "test_guidelines.json")])
     retriever = MockRetriever(guideline_service)

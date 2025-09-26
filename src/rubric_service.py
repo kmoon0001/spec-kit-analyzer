@@ -1,9 +1,7 @@
 from typing import List
 
 class ComplianceRule:
-    """
-    A mock class to represent a compliance rule.
-    """
+    """A mock class to represent a compliance rule."""
     def __init__(self,
                  uri: str,
                  severity: str,
