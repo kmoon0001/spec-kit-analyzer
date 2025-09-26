@@ -3,7 +3,7 @@ from sqlalchemy import select, delete
 from . import models, schemas
 import datetime
 import pickle
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import numpy as np
 from scipy.spatial.distance import cosine
 
@@ -104,25 +104,9 @@ async def get_rubric(db: AsyncSession, rubric_id: int) -> Optional[models.Rubric
     result = await db.execute(stmt)
     return result.scalars().first()
 
-<<<<<<< HEAD
-async def get_rubrics(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[models.Rubric]:
-    stmt = select(models.Rubric).order_by(models.Rubric.name).offset(skip).limit(limit)
-    result = await db.execute(stmt)
-||||||| 4db3b6b
-    return num_deleted
-
-async def get_rubrics(db: AsyncSession, limit: int = 1000) -> list[models.Rubric]:
-    """
-    Asynchronously retrieves all rubrics from the database.
-    """
-    result = await db.execute(select(models.Rubric).limit(limit))
-=======
-    return num_deleted
-
 async def get_rubrics(db: AsyncSession, limit: int = 1000) -> list[models.Rubric]:
     """Asynchronously retrieves all rubrics from the database."""
     result = await db.execute(select(models.Rubric).limit(limit))
->>>>>>> origin/main
     return result.scalars().all()
 
 async def create_rubric(db: AsyncSession, rubric: schemas.RubricCreate) -> models.Rubric:
