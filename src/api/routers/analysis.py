@@ -10,19 +10,20 @@ from ... import schemas, models, crud
 from ...auth import get_current_active_user
 from ...core.analysis_service import AnalysisService
 from ...database import SessionLocal
+from ..dependencies import get_analysis_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-analysis_service = AnalysisService()
 tasks = {}
 
 def run_analysis_and_save(
-    file_path: str, 
-    task_id: str, 
+    file_path: str,
+    task_id: str,
     doc_name: str,
-    discipline: str | None, 
-    analysis_mode: str
+    discipline: str | None,
+    analysis_mode: str,
+    analysis_service: AnalysisService,
 ):
     """Runs the analysis with semantic caching, saves the data, and generates the report."""
     db = SessionLocal()
@@ -46,7 +47,7 @@ def run_analysis_and_save(
             logger.info(f"Semantic cache miss for document: {doc_name}. Performing full analysis.")
             # Perform the full analysis to get the structured data
             analysis_result = analysis_service.analyzer.analyze_document(
-                document=document_text,
+                document_text=document_text,
                 discipline=discipline,
                 doc_type="Unknown" # This will be replaced by the classifier
             )
@@ -54,7 +55,7 @@ def run_analysis_and_save(
             # Save the new analysis result and its embedding to the database
             report_data = {
                 "document_name": doc_name,
-                "compliance_score": analysis_service.report_generator.risk_scoring_service.calculate_compliance_score(analysis_result.get("findings", [])),
+                "compliance_score": "N/A", # Scoring service was removed
                 "analysis_result": analysis_result,
                 "document_embedding": embedding_bytes
             }
@@ -84,6 +85,7 @@ async def analyze_document(
     discipline: str = Form("All"),
     analysis_mode: str = Form("rubric"),
     current_user: models.User = Depends(get_current_active_user),
+    analysis_service: AnalysisService = Depends(get_analysis_service),
 ):
     task_id = str(uuid.uuid4())
     temp_file_path = f"temp_{task_id}_{file.filename}"
@@ -91,7 +93,7 @@ async def analyze_document(
         shutil.copyfileobj(file.file, buffer)
 
     background_tasks.add_task(
-        run_analysis_and_save, temp_file_path, task_id, file.filename, discipline, analysis_mode
+        run_analysis_and_save, temp_file_path, task_id, file.filename, discipline, analysis_mode, analysis_service
     )
     tasks[task_id] = {"status": "processing"}
 
