@@ -219,9 +219,3 @@ class GuidelineService:
                 results.append({"text": chunk[0], "source": chunk[1], "score": dist})
 
         return results
-
-def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
-    """
-    Mock function to parse a guideline file. Returns an empty list.
-    """
-    return []

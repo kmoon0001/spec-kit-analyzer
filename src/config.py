@@ -17,7 +17,7 @@ class AppConfig(BaseModel):
 def load_config_from_yaml(path: str = "config.yaml") -> dict:
     if os.path.exists(path):
         with open(path, "r") as f:
-            return yaml.safe_load(f)
+            return yaml.safe_load(f) or {}
     return {}
 
 def get_config() -> AppConfig:

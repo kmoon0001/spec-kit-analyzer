@@ -1,13 +1,16 @@
+from spellchecker import SpellChecker
+
 class PreprocessingService:
     """
-    A placeholder for the missing PreprocessingService.
-    This class is intended to resolve an ImportError and allow the test suite to run.
+    A service for cleaning and correcting text before analysis.
     """
-    def __init__(self, *args, **kwargs):
-        pass
+    def __init__(self):
+        self.spell = SpellChecker()
 
-    def correct_text(self, text):
+    def correct_text(self, text: str) -> str:
         """
-        A placeholder method that returns the text as-is.
+        Corrects spelling mistakes in the given text.
         """
-        return text
+        words = text.split()
+        corrected_words = [self.spell.correction(word) if self.spell.correction(word) is not None else word for word in words]
+        return " ".join(corrected_words)

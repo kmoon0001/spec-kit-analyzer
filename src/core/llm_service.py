@@ -66,3 +66,36 @@ class LLMService:
         except Exception as e:
             logger.error(f"Error during LLM generation: {e}", exc_info=True)
             return f'{{"error": "Failed to generate analysis: {e}"}}'
+
+    def generate_personalized_tip(self, finding: Dict[str, Any]) -> str:
+        """
+        Generates a personalized tip for a specific compliance finding.
+        """
+        if not self.is_ready():
+            logger.error("LLM is not available. Cannot generate tip.")
+            return "LLM not available."
+
+        prompt_template = """
+        Given the following compliance issue found in a clinical document, provide a concise, actionable tip for the therapist to improve their documentation.
+        The user is a Physical, Occupational, or Speech Therapist. The tip should be professional, helpful, and directly related to the finding.
+
+        Finding Title: "{title}"
+        Finding Description: "{description}"
+        Relevant quote from document: "{text}"
+
+        Personalized Tip:
+        """
+        prompt = prompt_template.format(
+            title=finding.get('title', 'N/A'),
+            description=finding.get('description', 'N/A'),
+            text=finding.get('text', 'N/A')
+        )
+
+        logger.info(f"Generating personalized tip for finding: {finding.get('title')}")
+        try:
+            tip = self.llm(prompt, **self.generation_params)
+            logger.info("Personalized tip generated successfully.")
+            return tip.strip()
+        except Exception as e:
+            logger.error(f"Error during tip generation: {e}", exc_info=True)
+            return "Could not generate a tip due to an internal error."

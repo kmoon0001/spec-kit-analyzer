@@ -12,7 +12,7 @@ from PyQt6.QtGui import QTextDocument
 
 # Corrected: Use absolute imports from the src root
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
-# from src.gui.dialogs.login_dialog import LoginDialog # Obsolete
+from src.gui.dialogs.login_dialog import LoginDialog
 from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
@@ -44,9 +44,7 @@ class MainApplicationWindow(QMainWindow):
         which makes the main window testable.
         """
         self.load_ai_models()
-        # self.show_login_dialog() # Obsolete login flow
-        self.load_main_ui() # Load main UI directly
-        self.show()
+        self.show_login_dialog()
 
     def init_base_ui(self):
         self.setWindowTitle('Therapy Compliance Analyzer')
@@ -78,7 +76,30 @@ class MainApplicationWindow(QMainWindow):
         self.status_bar.addPermanentWidget(self.progress_bar)
         self.progress_bar.hide()
 
-    # def show_login_dialog(self): ... # Obsolete login flow
+    def show_login_dialog(self):
+        self.hide()
+        dialog = LoginDialog(self)
+        if dialog.exec():
+            username, password = dialog.get_credentials()
+            try:
+                response = requests.post(f"{API_URL}/auth/token", data={"username": username, "password": password})
+                response.raise_for_status()
+                token_data = response.json()
+                self.access_token = token_data['access_token']
+                self.username = username
+
+                decoded_token = jwt.decode(self.access_token, options={"verify_signature": False})
+                self.is_admin = decoded_token.get('is_admin', False)
+
+                self.user_status_label.setText(f"Logged in as: {self.username}")
+                self.status_bar.showMessage("Login successful.")
+                self.load_main_ui()
+                self.show()
+            except (requests.exceptions.RequestException, jwt.exceptions.DecodeError) as e:
+                QMessageBox.critical(self, "Login Failed", f"Failed to authenticate: {e}")
+                self.close()
+        else:
+            self.close()
 
     def logout(self):
         self.access_token = None
@@ -86,10 +107,7 @@ class MainApplicationWindow(QMainWindow):
         self.is_admin = False
         self.user_status_label.setText("")
         self.setCentralWidget(None)
-        # self.show_login_dialog() # Obsolete login flow
-        QMessageBox.information(self, "Logged Out", "You have been logged out.")
-        # Since login is removed, we can just close or show a message.
-        # For now, let's just clear the UI. A real implementation might close the app.
+        self.show_login_dialog()
 
     def load_main_ui(self):
         self.tabs = QTabWidget()

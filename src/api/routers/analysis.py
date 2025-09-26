@@ -1,10 +1,9 @@
-from fastapi import APIRouter, Depends, UploadFile, File, BackgroundTasks, HTTPException, Form
-from fastapi.responses import HTMLResponse
+import logging
+import uuid
 import shutil
 import os
-import uuid
-import logging
-import pickle
+from fastapi import APIRouter, Depends, UploadFile, File, Form, BackgroundTasks, HTTPException, status
+from sqlalchemy.orm import Session
 
 from ... import schemas, models, crud
 from ...auth import get_current_active_user
@@ -25,60 +24,41 @@ def run_analysis_and_save(
     analysis_mode: str,
     analysis_service: AnalysisService,
 ):
-    """Runs the analysis with semantic caching, saves the data, and generates the report."""
+    """Runs the analysis, saves the data, and generates the report."""
     db = SessionLocal()
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            document_text = f.read()
-
-        # 1. Generate embedding for the new document
-        embedding_bytes = analysis_service.get_document_embedding(document_text)
-        new_embedding = pickle.loads(embedding_bytes)
-
-        # 2. Check for a semantically similar report in the cache (database)
-        cached_report = crud.find_similar_report(db, new_embedding)
-
-        if cached_report:
-            # --- CACHE HIT ---
-            logger.info(f"Semantic cache hit for document: {doc_name}. Using cached report ID: {cached_report.id}")
-            analysis_result = cached_report.analysis_result
-        else:
-            # --- CACHE MISS ---
-            logger.info(f"Semantic cache miss for document: {doc_name}. Performing full analysis.")
-            # Perform the full analysis to get the structured data
-            analysis_result = analysis_service.analyzer.analyze_document(
-                document_text=document_text,
-                discipline=discipline,
-                doc_type="Unknown" # This will be replaced by the classifier
-            )
-
-            # Save the new analysis result and its embedding to the database
-            report_data = {
-                "document_name": doc_name,
-                "compliance_score": "N/A", # Scoring service was removed
-                "analysis_result": analysis_result,
-                "document_embedding": embedding_bytes
-            }
-            crud.create_report_and_findings(db, report_data, analysis_result.get("findings", []))
-
-        # 3. Generate the HTML report (either from cached or new data)
-        report_html = analysis_service.report_generator.generate_html_report(
-            analysis_result=analysis_result,
-            doc_name=doc_name,
-            analysis_mode=analysis_mode
+        analysis_result = analysis_service.analyze_document(
+            file_path=file_path,
+            discipline=discipline
         )
 
-        tasks[task_id] = {"status": "completed", "result": report_html}
+        with open(file_path, "r", encoding="utf-8") as f:
+            document_text = f.read()
+
+        embedding_bytes = analysis_service.get_document_embedding(document_text)
+
+        report_html = analysis_service.report_generator.generate_html_report(analysis_result, doc_name, analysis_mode)
+
+        report_data = {
+            "document_name": doc_name,
+            "compliance_score": "N/A", # Scoring service was removed
+            "analysis_result": analysis_result,
+            "document_embedding": embedding_bytes
+        }
+        crud.create_report(db, report_data, report_html)
+
+        tasks[task_id] = {"status": "complete", "result": report_html}
 
     except Exception as e:
-        logger.error(f"Error in analysis background task: {e}", exc_info=True)
+        logger.error(f"Error during analysis for task {task_id}: {e}", exc_info=True)
         tasks[task_id] = {"status": "failed", "error": str(e)}
     finally:
-        db.close()
+        # Correctly remove the temporary file.
         if os.path.exists(file_path):
             os.remove(file_path)
+        db.close()
 
-@router.post("/analyze", response_model=schemas.AnalysisResult, status_code=202)
+@router.post("/analyze", status_code=202)
 async def analyze_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
@@ -101,13 +81,10 @@ async def analyze_document(
 
     return {"task_id": task_id, "status": "processing"}
 
-@router.get("/tasks/{task_id}", response_model=schemas.TaskStatus, responses={200: {"content": {"text/html": {}}}})
-async def get_task_status(task_id: str, current_user: models.User = Depends(get_current_active_user)):
+
+@router.get("/results/{task_id}", response_model=schemas.AnalysisResult)
+def get_analysis_results(task_id: str):
     task = tasks.get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-
-    if task["status"] == "completed":
-        return HTMLResponse(content=task["result"])
-    else:
-        return task
+    return task

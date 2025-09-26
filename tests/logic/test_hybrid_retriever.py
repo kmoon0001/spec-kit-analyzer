@@ -1,18 +1,15 @@
 import pytest
-from unittest.mock import patch, MagicMock
 import numpy as np
+from unittest.mock import patch, MagicMock
 
 # Import the class to be tested
 from src.core.hybrid_retriever import HybridRetriever
 
 # --- Mocks ---
 
-@pytest.fixture(scope="function") # Changed scope from "module" to "function"
+@pytest.fixture(scope="function")
 def mock_sentence_transformer():
-    """
-    Mocks the SentenceTransformer. By using "function" scope, each test gets a
-    fresh mock, so call counts are isolated between tests.
-    """
+    """Mocks the SentenceTransformer to avoid downloading models during tests."""
     with patch('src.core.hybrid_retriever.SentenceTransformer') as mock_st:
         mock_model = MagicMock()
         mock_model.encode.return_value = np.random.rand(2, 384).astype('float32')
@@ -37,11 +34,10 @@ def retriever(mock_sentence_transformer):
 
 def test_retriever_initialization(retriever):
     """
-    Tests that the HybridRetriever initializes correctly with mocked data.
+    Tests that the HybridRetriever initializes correctly.
     """
     assert retriever is not None
     assert len(retriever.rules) == 2
-    # encode is called once during __init__
     retriever.dense_retriever.encode.assert_called_once()
 
 def test_retriever_search_logic(retriever):
@@ -62,6 +58,5 @@ def test_retriever_search_logic(retriever):
     # Assert
     assert results is not None
     assert len(results) > 0
-    # With function-scoped mocks, this test is now isolated.
-    # encode is called once on init, and once again in retrieve.
     assert retriever.dense_retriever.encode.call_count == 2
+    assert results[0]['name'] in ['Goal Specificity', 'Signature Missing']

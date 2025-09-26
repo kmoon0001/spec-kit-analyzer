@@ -8,6 +8,7 @@ httpx
 
 # GUI
 PyQt6
+PyQt6-WebEngine
 matplotlib
 
 # Data & Parsing
@@ -19,10 +20,9 @@ pandas
 openpyxl
 pyyaml
 markdown
-pytesseract
 
 # AI & Machine Learning
-torch 
+torch
 transformers
 sentence-transformers
 ctransformers
@@ -35,7 +35,7 @@ pyspellchecker
 
 # Database
 SQLAlchemy
- 
+
 # Security & Auth
 passlib[bcrypt]
 python-multipart
@@ -53,3 +53,4 @@ apscheduler
 pytest
 pytest-mock
 httpx
+pytesseract

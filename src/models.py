@@ -2,7 +2,6 @@ from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from .database import Base
 import datetime
-from pydantic import BaseModel
 
 class User(Base):
     __tablename__ = "users"
@@ -20,17 +19,6 @@ class Rubric(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
     content = Column(Text)
-
-
-class RubricCreate(BaseModel):
-    name: str
-    content: str
-
-class Rubric(RubricCreate):
-    id: int
-
-    class Config:
-        orm_mode = True
 
 class Report(Base):
     __tablename__ = "reports"

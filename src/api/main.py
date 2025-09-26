@@ -1,18 +1,19 @@
 import os
 import shutil
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from apscheduler.schedulers.background import BackgroundScheduler
 
-# Import all the modular routers
+from .dependencies import app_state, get_analysis_service
+from ..core.analysis_service import AnalysisService
 from .routers import auth, analysis, dashboard, admin, health, chat
 from ..core.database_maintenance_service import DatabaseMaintenanceService
 
 # --- Configuration ---
-DATABASE_PURGE_RETENTION_DAYS = 7  # Days to keep old reports
+DATABASE_PURGE_RETENTION_DAYS = 7
 TEMP_UPLOAD_DIR = "tmp/uploads"
 
 # --- Logging ---
@@ -54,26 +55,37 @@ def startup_event():
     Actions to perform on application startup.
     - Clears the temporary upload directory.
     - Schedules the database maintenance job.
+    - Loads the AI models into a singleton.
     """
-    # 1. Clean up any orphaned temporary files from previous runs
     logger.info("Running startup tasks...")
+
+    # 1. Clean up any orphaned temporary files
     clear_temp_uploads()
 
     # 2. Initialize and start the background scheduler
     scheduler = BackgroundScheduler(daemon=True)
     scheduler.add_job(run_database_maintenance, 'interval', days=1)
     scheduler.start()
-    logger.info("Scheduler started. Database maintenance job is scheduled to run daily.")
+    logger.info("Scheduler started for daily database maintenance.")
 
-# Add middleware and exception handlers
+    # 3. Load the heavy AI model and store it in the app_state
+    app_state['analysis_service'] = AnalysisService()
+    logger.info("AI Analysis Service initialized.")
+
+# --- Middleware and Exception Handlers ---
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Include all the routers
+# --- Routers ---
 app.include_router(health.router, tags=["Health"])
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
-app.include_router(analysis.router, prefix="/analysis", tags=["Analysis"])
+app.include_router(
+    analysis.router,
+    prefix="/analysis",
+    tags=["Analysis"],
+    dependencies=[Depends(get_analysis_service)]
+)
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 
