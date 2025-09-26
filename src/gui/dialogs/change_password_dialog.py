@@ -8,9 +8,7 @@ from PyQt6.QtWidgets import (
 )
 
 class ChangePasswordDialog(QDialog):
-    """
-    A dialog for changing the user's password.
-    """
+    """A dialog for changing the user's password."""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Change Password")

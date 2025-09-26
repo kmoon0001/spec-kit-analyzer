@@ -5,9 +5,7 @@ from .prompt_manager import PromptManager
 logger = logging.getLogger(__name__)
 
 class DocumentClassifier:
-    """
-    A service to classify a document into a predefined category.
-    """
+    """A service to classify a document into a predefined category."""
     def __init__(self, llm_service: LLMService, prompt_template_path: str):
         """
         Initializes the DocumentClassifier.

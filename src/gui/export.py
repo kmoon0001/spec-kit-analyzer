@@ -5,9 +5,7 @@ from jinja2 import Template
 import json
 
 def generate_pdf_report(analysis_results_str, parent=None):
-    """
-    Generates a PDF report from the analysis results.
-    """
+    """Generates a PDF report from the analysis results."""
     try:
         analysis_results = json.loads(analysis_results_str)
     except json.JSONDecodeError:

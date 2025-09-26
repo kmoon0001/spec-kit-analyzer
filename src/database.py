@@ -23,16 +23,12 @@ AsyncSessionLocal = sessionmaker(
 Base = declarative_base()
 
 async def get_async_db() -> AsyncSession:
-    """
-    Dependency that provides an async database session.
-    """
+    """Dependency that provides an async database session."""
     async with AsyncSessionLocal() as session:
         yield session
 
 async def init_db():
-    """
-    Initializes the database, creating all tables defined by Base's metadata.
-    """
+    """Initializes the database, creating all tables defined by Base's metadata."""
     async with engine.begin() as conn:
         # For SQLite, metadata.create_all is a blocking operation.
         # To run it in an async context, we use run_sync.

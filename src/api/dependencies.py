@@ -29,9 +29,7 @@ async def get_retriever() -> HybridRetriever:
     return app_state["retriever"]
 
 async def startup_event():
-    """
-    Application startup event handler. Initializes singleton services.
-    """
+    """Application startup event handler. Initializes singleton services."""
     logger.info("Application starting up...")
     # 1. Initialize the retriever, which is a dependency for other services.
     retriever = await get_retriever()
@@ -43,9 +41,7 @@ async def startup_event():
     logger.info("Application startup complete. Services are initialized.")
 
 async def shutdown_event():
-    """
-    Application shutdown event handler.
-    """
+    """Application shutdown event handler."""
     logger.info("Application shutting down...")
     # Clean up resources if needed
     pass

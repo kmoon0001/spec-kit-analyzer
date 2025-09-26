@@ -78,9 +78,7 @@ async def parse_and_load_rubrics(db_session: AsyncSession, rubric_files: list[Pa
         logger.info("No new rubrics to add. Database is up-to-date.")
 
 async def main():
-    """
-    Main function to initialize the database schema and run the loading process.
-    """
+    """Main function to initialize the database schema and run the loading process."""
     logger.info("Initializing database schema...")
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
