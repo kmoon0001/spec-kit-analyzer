@@ -51,5 +51,3 @@ apscheduler
 # Testing
 pytest
 pytest-mock
-httpx
-pytesseract
