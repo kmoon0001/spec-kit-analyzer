@@ -5,4 +5,3 @@ class DocumentView(QTextEdit):
         super().__init__()
         self.setPlaceholderText("Upload a document to see its content here.")
         self.setReadOnly(True)
-

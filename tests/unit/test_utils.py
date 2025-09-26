@@ -1,26 +1,29 @@
-import os
+import pytest
 from unittest.mock import patch, mock_open
+import os
 
 # Import the functions to be tested
 from src.utils import chunk_text, load_config
 
+
 # --- Tests for chunk_text --- #
 
-def test_chunk_text_with_short_text():
-    """Tests that text shorter than the max_chars is not chunked."""
-    text = "This is a short text."
-    chunks = chunk_text(text, max_chars=100)
-    assert len(chunks) == 1
-    assert chunks[0] == text
+def test_chunk_text_simple():
+    """Tests basic chunking functionality."""
+    text = "a" * 100
+    chunks = chunk_text(text, max_chars=50)
+    assert len(chunks) == 2
+    assert chunks[0] == "a" * 50
+    assert chunks[1] == "a" * 50
 
-def test_chunk_text_with_long_text():
-    """Tests that long text is correctly split into multiple chunks."""
-    text = "a" * 250
-    chunks = chunk_text(text, max_chars=100)
+def test_chunk_text_uneven():
+    """Tests chunking with a final chunk smaller than max_chars."""
+    text = "a" * 120
+    chunks = chunk_text(text, max_chars=50)
     assert len(chunks) == 3
-    assert chunks[0] == "a" * 100
-    assert chunks[1] == "a" * 100
-    assert chunks[2] == "a" * 50
+    assert chunks[0] == "a" * 50
+    assert chunks[1] == "a" * 50
+    assert chunks[2] == "a" * 20
 
 def test_chunk_text_respects_newlines():
     """Tests that chunking tries to split on newlines for cleaner breaks."""
@@ -36,20 +39,20 @@ def test_chunk_text_respects_newlines():
 
 # --- Tests for load_config --- #
 
-@patch("builtins.open", new_callable=mock_open, read_data="key: value")
 @patch("src.utils.yaml.safe_load")
+@patch("builtins.open", new_callable=mock_open, read_data="key: value")
 def test_load_config_successfully(mock_safe_load, mock_file):
     """Tests that load_config correctly opens and parses the YAML file."""
     # Arrange
     mock_safe_load.return_value = {"key": "value"}
+    # The utils file is in 'src/', so we go up one level.
+    expected_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'config.yaml'))
     
     # Act
     config = load_config()
     
     # Assert
-    # Construct the expected path to the root config.yaml
-    # The utils file is in 'src/', so we go up one level.
-    expected_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'config.yaml'))
+    # Check that the function opened the correct file path
     mock_file.assert_called_once_with(expected_path, 'r')
 
     # Check that the yaml parser was called

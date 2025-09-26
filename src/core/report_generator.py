@@ -54,7 +54,7 @@ class ReportGenerator:
                 elif finding.get('is_low_confidence'):
                     row_class = 'class="low-confidence"'
 
-# Create the risk/confidence display string
+                # Create the risk/confidence display string
                 risk_display = finding.get('risk', 'N/A')
                 if finding.get('is_disputed'):
                     risk_display += " <b>(Disputed by Fact-Checker)</b>"

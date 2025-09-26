@@ -4,18 +4,58 @@ from typing import Dict, Any, List
 logger = logging.getLogger(__name__)
 
 class ExplanationEngine:
+<<<<<<< HEAD
+    """
+    A service to post-process analysis findings, adding explanations and context.
+    """
+||||||| c46cdd8
+    """
+    A placeholder for the Explanation Engine.
+
+    In a real implementation, this service would link analysis findings
+    back to the specific text in the source document that triggered them.
+    """
+    def __init__(self, **kwargs):
+        """
+        Initializes the Explanation Engine.
+        """
+        logger.info("Initializing ExplanationEngine.")
+        # No model loading needed for this placeholder.
+=======
     """A service to post-process analysis findings, adding explanations and context."""
 
     def add_explanations(self, analysis_result: Dict[str, Any], full_document_text: str) -> Dict[str, Any]:
         """
         Adds explanations and context snippets to each finding.
+>>>>>>> origin/main
 
+<<<<<<< HEAD
+    def add_explanations(self, analysis_result: Dict[str, Any], full_document_text: str) -> Dict[str, Any]:
+        """
+        Adds explanations and context snippets to each finding.
+||||||| c46cdd8
+    def add_explanations(self, analysis_result: Dict[str, Any], document_text: str) -> Dict[str, Any]:
+        """
+        Adds explanations to the analysis result.
+=======
+        Args:
+            analysis_result: The raw analysis result from the LLM.
+            full_document_text: The complete text of the document that was analyzed.
+>>>>>>> origin/main
+
+<<<<<<< HEAD
         Args:
             analysis_result: The raw analysis result from the LLM.
             full_document_text: The complete text of the document that was analyzed.
 
         Returns:
             The analysis result with added context.
+||||||| c46cdd8
+        This placeholder implementation simply passes the analysis through.
+=======
+        Returns:
+            The analysis result with added context.
+>>>>>>> origin/main
         """
         if "findings" not in analysis_result:
             return analysis_result

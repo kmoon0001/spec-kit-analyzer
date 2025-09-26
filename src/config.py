@@ -23,8 +23,14 @@ class Settings(BaseModel):
 def load_config_from_yaml(path: str = "config.yaml") -> dict:
     if os.path.exists(path):
         with open(path, "r") as f:
+<<<<<<< HEAD
+            return yaml.safe_load(f) or {}
+||||||| c46cdd8
+            return yaml.safe_load(f)
+=======
             # Return an empty dict if the file is empty to prevent errors
             return yaml.safe_load(f) or {}
+>>>>>>> origin/main
     return {}
 
 @lru_cache()
