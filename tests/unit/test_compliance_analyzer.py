@@ -22,14 +22,13 @@ def mock_ner_pipeline():
 def mock_llm_service():
     llm = MagicMock()
     llm.generate_analysis.return_value = '{"findings": [{"text": "Problematic text."}]}'
+    llm.generate_personalized_tip.return_value = "This is a generated tip."
     return llm
-
 
 @pytest.fixture
 def mock_explanation_engine():
     exp = MagicMock()
-    # The explanation engine now returns the finding with the tip already added.
-    exp.add_explanations.return_value = {"findings": [{"text": "Problematic text.", "personalized_tip": "Consider reviewing this finding for compliance."}]}
+    exp.add_explanations.return_value = {"findings": [{"text": "Problematic text."}]}
     return exp
 
 @pytest.fixture
@@ -47,7 +46,7 @@ def mock_fact_checker_service():
 # --- Tests ---
 
 def test_compliance_analyzer_initialization(
-    mock_retriever, mock_ner_pipeline, mock_llm_service, 
+    mock_retriever, mock_ner_pipeline, mock_llm_service,
     mock_explanation_engine, mock_prompt_manager, mock_fact_checker_service
 ):
     """Tests that the ComplianceAnalyzer correctly initializes with all its dependencies."""
@@ -60,15 +59,18 @@ def test_compliance_analyzer_initialization(
         prompt_manager=mock_prompt_manager,
         fact_checker_service=mock_fact_checker_service
     )
-    
+
     # Assert
     assert analyzer.retriever is mock_retriever
     assert analyzer.ner_pipeline is mock_ner_pipeline
     assert analyzer.llm_service is mock_llm_service
+    assert analyzer.explanation_engine is mock_explanation_engine
+    assert analyzer.prompt_manager is mock_prompt_manager
+    assert analyzer.fact_checker_service is mock_fact_checker_service
 
 
 def test_analyze_document_orchestration(
-    mock_retriever, mock_ner_pipeline, mock_llm_service, 
+    mock_retriever, mock_ner_pipeline, mock_llm_service,
     mock_explanation_engine, mock_prompt_manager, mock_fact_checker_service
 ):
     """
@@ -83,7 +85,12 @@ def test_analyze_document_orchestration(
         prompt_manager=mock_prompt_manager,
         fact_checker_service=mock_fact_checker_service
     )
-    
+
+    # Arrange: Make sure the mocks will trigger the fact-checker
+    mock_retriever.retrieve.return_value = [{"id": "RULE1", "name": "Test Rule"}]
+    finding_with_id = {"text": "Problematic text.", "rule_id": "RULE1"}
+    mock_explanation_engine.add_explanations.return_value = {"findings": [finding_with_id]}
+
     # Act
     result = analyzer.analyze_document("Test document", "PT", "evaluation")
 
@@ -95,8 +102,8 @@ def test_analyze_document_orchestration(
     mock_llm_service.generate_analysis.assert_called_once()
     mock_explanation_engine.add_explanations.assert_called_once()
     mock_fact_checker_service.is_finding_plausible.assert_called_once()
-
+    mock_llm_service.generate_personalized_tip.assert_called_once()
 
     # 2. Verify the final result includes the generated tip
     assert "findings" in result
-    assert result["findings"][0]["personalized_tip"] == "Consider reviewing this finding for compliance."
+    assert result["findings"][0]["personalized_tip"] == "This is a generated tip."

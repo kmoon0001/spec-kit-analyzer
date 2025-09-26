@@ -59,8 +59,8 @@ class ComplianceAnalyzer:
                     finding['is_low_confidence'] = True
 
                 # c. Generate personalized tip
-                # The NLGService has been removed, so we'll just add a placeholder.
-                finding['personalized_tip'] = "Consider reviewing this finding for compliance."
+                tip = self.llm_service.generate_personalized_tip(finding)
+                finding['personalized_tip'] = tip
 
         return explained_analysis
 
