@@ -100,10 +100,10 @@ class ComplianceAnalyzer:
             rule_name = rule.get('name') or rule.get('issue_title', 'N/A')
             rule_detail = rule.get('content') or rule.get('issue_detail', 'N/A')
             rule_suggestion = rule.get('suggestion', '')
-            
+
             rule_text = f"- **Rule:** {rule_name}\n  **Detail:** {rule_detail}"
             if rule_suggestion:
                 rule_text += f"\n  **Suggestion:** {rule_suggestion}"
-            
+
             formatted_rules.append(rule_text)
         return "\n".join(formatted_rules)
