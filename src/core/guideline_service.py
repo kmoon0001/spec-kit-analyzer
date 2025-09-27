@@ -48,7 +48,7 @@ class GuidelineService:
         """Checks if the cached index is still valid."""
         if not os.path.exists(self.index_path) or not os.path.exists(self.chunks_path):
             return False
-            
+
         # Check if source files are newer than cache
         try:
             cache_time = os.path.getmtime(self.index_path)
@@ -92,7 +92,7 @@ class GuidelineService:
         if not all_texts:
             logger.error("No valid text chunks found in sources")
             return
-            
+
         # Generate embeddings
         logger.info("Generating embeddings...")
         embeddings = self.model.encode(all_texts, show_progress_bar=True)
@@ -101,7 +101,7 @@ class GuidelineService:
         dimension = embeddings.shape[1]
         self.faiss_index = faiss.IndexFlatIP(dimension)
         
-        # Normalize embeddings for cosine similarity
+# Normalize embeddings for cosine similarity
         faiss.normalize_L2(embeddings.astype('float32'))
         self.faiss_index.add(embeddings.astype('float32'))
         
@@ -140,11 +140,11 @@ class GuidelineService:
             
     def search(self, query: str, k: int = 5) -> List[Tuple[str, str, float]]:
         """Searches for relevant guidelines.
-        
+
         Args:
             query: Search query
             k: Number of results to return
-            
+
         Returns:
             List of tuples (source, text, score)
         """
@@ -167,11 +167,11 @@ class GuidelineService:
                     results.append((source, text, float(score)))
                     
             return results
-            
+
         except Exception as e:
             logger.error(f"Search failed: {e}")
             return []
-            
+
     def get_stats(self) -> dict:
         """Returns statistics about the loaded guidelines."""
         return {

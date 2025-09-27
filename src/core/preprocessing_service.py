@@ -56,6 +56,6 @@ class PreprocessingService:
                 corrected_text.append(corrected_word)
             else:
                 corrected_text.append(word)
-        
+
         logger.info(f"Corrected {len(misspelled)} misspelled words.")
         return " ".join(corrected_text)
