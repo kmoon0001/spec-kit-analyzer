@@ -4,24 +4,28 @@ from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
+
 class LLMService:
     """
     A service class for interacting with a local, GGUF-quantized Large Language Model.
     """
-    def __init__(self, model_repo_id: str, model_filename: str, llm_settings: Dict[str, Any]):
+
+    def __init__(
+        self, model_repo_id: str, model_filename: str, llm_settings: Dict[str, Any]
+    ):
         """
         Initializes the LLMService by loading the specified GGUF model with ctransformers.
         """
         self.llm = None
-        self.generation_params = llm_settings.get('generation_params', {})
+        self.generation_params = llm_settings.get("generation_params", {})
         logger.info(f"Loading GGUF model: {model_repo_id}/{model_filename}...")
         try:
             self.llm = AutoModelForCausalLM.from_pretrained(
                 model_repo_id,
                 model_file=model_filename,
-                model_type=llm_settings.get('model_type', 'llama'),
-                gpu_layers=llm_settings.get('gpu_layers', 0),
-                context_length=llm_settings.get('context_length', 2048)
+                model_type=llm_settings.get("model_type", "llama"),
+                gpu_layers=llm_settings.get("gpu_layers", 0),
+                context_length=llm_settings.get("context_length", 2048),
             )
             logger.info("GGUF Model loaded successfully.")
         except Exception as e:

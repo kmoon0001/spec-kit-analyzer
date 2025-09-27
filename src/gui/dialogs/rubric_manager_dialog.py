@@ -20,6 +20,7 @@ settings = get_settings()
 API_URL = settings.api_url
 
 
+
 class RubricEditorDialog(QDialog):
     def __init__(self, rubric_name, rubric_content, parent=None):
         super().__init__(parent)

@@ -24,6 +24,7 @@ class FindingCreate(FindingBase):
     pass
 
 
+
 class ReportBase(BaseModel):
     document_name: str
     compliance_score: float
@@ -35,6 +36,7 @@ class ReportCreate(ReportBase):
     pass
 
 
+
 class Report(ReportBase):
     id: int
     analysis_date: datetime.datetime
@@ -42,6 +44,7 @@ class Report(ReportBase):
 
     class Config:
         from_attributes = True
+
 
 
 class FindingSummary(BaseModel):
@@ -58,6 +61,7 @@ class RubricBase(BaseModel):
     category: str | None = None
 
 
+
 class RubricCreate(RubricBase):
     pass
 
@@ -67,6 +71,7 @@ class Rubric(RubricBase):
 
     class Config:
         from_attributes = True
+
 
 
 # --- Schemas for Users and Auth ---
@@ -87,6 +92,7 @@ class User(UserBase):
 
     class Config:
         from_attributes = True
+
 
 
 class UserPasswordChange(BaseModel):

@@ -10,6 +10,7 @@ from PyQt6.QtCore import QObject, pyqtSignal as Signal
 
 API_URL = "http://127.0.0.1:8000"
 
+
 class FolderAnalysisWorker(QObject):
 <<<<<<< HEAD
     finished = Signal()
@@ -45,7 +46,7 @@ class FolderAnalysisWorker(QObject):
                 response = requests.get(f"{API_URL}/tasks/{self.task_id}")
                 response.raise_for_status()
 
-                if response.headers.get('Content-Type') == 'text/html; charset=utf-8':
+                if response.headers.get("Content-Type") == "text/html; charset=utf-8":
                     self.success.emit(response.text)
                     self.finished.emit()
                     return
@@ -56,7 +57,9 @@ class FolderAnalysisWorker(QObject):
                 if status == "processing":
                     self.progress.emit((attempts * 100) // max_attempts)
                 elif status == "failed":
-                    error_msg = status_data.get("error", "Unknown error during analysis.")
+                    error_msg = status_data.get(
+                        "error", "Unknown error during analysis."
+                    )
                     self.error.emit(error_msg)
                     self.finished.emit()
                     return

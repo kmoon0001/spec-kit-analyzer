@@ -8,6 +8,7 @@ settings = get_settings()
 API_URL = settings.api_url
 
 
+
 class AnalysisWorker(QObject):
     finished = Signal()
     error = Signal(str)

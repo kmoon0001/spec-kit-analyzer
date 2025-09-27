@@ -6,6 +6,7 @@ import matplotlib.dates as mdates
 from typing import List, Dict, Any
 
 
+
 class DashboardWidget(QWidget):
     """A widget to display compliance trends and other visualizations."""
 

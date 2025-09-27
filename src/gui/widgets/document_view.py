@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import QTextEdit
 
 
+
 class DocumentView(QTextEdit):
     def __init__(self):
         super().__init__()
