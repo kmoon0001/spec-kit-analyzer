@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from typing import Dict, Any, List
 
 from .llm_service import LLMService
@@ -6,6 +7,7 @@ from .ner import NERPipeline
 from .explanation import ExplanationEngine
 from .prompt_manager import PromptManager
 from .fact_checker_service import FactCheckerService
+from .retriever import HybridRetriever
 
 logger = logging.getLogger(__name__)
 CONFIDENCE_THRESHOLD = 0.7  # Confidence score below which a finding is flagged
@@ -16,8 +18,8 @@ class ComplianceAnalyzer:
     It receives pre-initialized components and does not load models itself.
     """
 
-    def __init__(self, retriever: Any, ner_pipeline: NERPipeline, llm_service: LLMService, 
-                 explanation_engine: ExplanationEngine, prompt_manager: PromptManager, 
+    def __init__(self, retriever: HybridRetriever, ner_pipeline: NERPipeline, llm_service: LLMService,
+                 explanation_engine: ExplanationEngine, prompt_manager: PromptManager,
                  fact_checker_service: FactCheckerService):
         self.retriever = retriever
         self.ner_pipeline = ner_pipeline
@@ -27,7 +29,7 @@ class ComplianceAnalyzer:
         self.fact_checker_service = fact_checker_service
         logger.info("ComplianceAnalyzer initialized with all services.")
 
-    def analyze_document(self, document_text: str, discipline: str, doc_type: str) -> Dict[str, Any]:
+    async def analyze_document(self, document_text: str, discipline: str, doc_type: str) -> Dict[str, Any]:
         """Analyzes a document for compliance risks using a multi-step pipeline."""
         logger.info(f"Starting compliance analysis for document type: {doc_type}")
 
@@ -37,7 +39,7 @@ class ComplianceAnalyzer:
 
         # 2. Build a search query and retrieve relevant rules
         search_query = f"{discipline} {doc_type} {entity_list_str}"
-        retrieved_rules = self.retriever.retrieve(search_query)
+        retrieved_rules = await self.retriever.retrieve(search_query, category_filter=discipline)
         logger.info(f"Retrieved {len(retrieved_rules)} rules for analysis.")
 
         # 3. Build the prompt for the LLM
@@ -49,19 +51,19 @@ class ComplianceAnalyzer:
         )
 
         # 4. Get initial analysis from the LLM
-        raw_analysis_result = self.llm_service.generate_analysis(prompt)
+        raw_analysis_result = await asyncio.to_thread(self.llm_service.generate_analysis, prompt)
         initial_analysis = self.llm_service.parse_json_output(raw_analysis_result)
 
         # 5. Add explanations to the findings
         explained_analysis = self.explanation_engine.add_explanations(initial_analysis, document_text)
 
         # 6. Post-process findings (fact-checking, confidence, tips)
-        final_analysis = self._post_process_findings(explained_analysis, retrieved_rules)
+        final_analysis = await self._post_process_findings(explained_analysis, retrieved_rules)
         logger.info("Compliance analysis complete.")
 
         return final_analysis
 
-    def _post_process_findings(self, explained_analysis: Dict[str, Any], retrieved_rules: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _post_process_findings(self, explained_analysis: Dict[str, Any], retrieved_rules: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Adds flags for disputed findings, low confidence, and generates personalized tips."""
         if "findings" in explained_analysis:
             for finding in explained_analysis["findings"]:
@@ -77,12 +79,12 @@ class ComplianceAnalyzer:
                 if isinstance(confidence, (float, int)) and confidence < CONFIDENCE_THRESHOLD:
                     finding['is_low_confidence'] = True
 
-                # Generate a personalized tip (assuming llm_service has this method as per the merge)
+                # Generate a personalized tip
                 try:
-                    tip = self.llm_service.generate_personalized_tip(finding)
+                    tip = await asyncio.to_thread(self.llm_service.generate_personalized_tip, finding)
                     finding['personalized_tip'] = tip
                 except AttributeError:
-                     finding['personalized_tip'] = "Tip generation is currently unavailable."
+                    finding['personalized_tip'] = "Tip generation is currently unavailable."
 
         return explained_analysis
 
@@ -94,9 +96,14 @@ class ComplianceAnalyzer:
 
         formatted_rules = []
         for rule in rules:
-            formatted_rules.append(
-                f"- **Rule:** {rule.get('issue_title', 'N/A')}\n"
-                f"  **Detail:** {rule.get('issue_detail', 'N/A')}\n"
-                f"  **Suggestion:** {rule.get('suggestion', 'N/A')}"
-            )
+            # Handle both rule formats by trying both sets of keys
+            rule_name = rule.get('name') or rule.get('issue_title', 'N/A')
+            rule_detail = rule.get('content') or rule.get('issue_detail', 'N/A')
+            rule_suggestion = rule.get('suggestion', '')
+            
+            rule_text = f"- **Rule:** {rule_name}\n  **Detail:** {rule_detail}"
+            if rule_suggestion:
+                rule_text += f"\n  **Suggestion:** {rule_suggestion}"
+            
+            formatted_rules.append(rule_text)
         return "\n".join(formatted_rules)

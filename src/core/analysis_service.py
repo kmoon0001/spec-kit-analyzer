@@ -28,7 +28,7 @@ class AnalysisService:
             llm_service = LLMService(
                 model_repo_id=config.models.generator,
                 model_filename=config.models.generator_filename,
-                llm_settings=config.llm_settings,
+                llm_settings=config.llm_settings.dict(),  # Use .dict() for pydantic models
             )
             fact_checker_service = FactCheckerService(
                 model_name=config.models.fact_checker
@@ -68,17 +68,19 @@ class AnalysisService:
         embedding = self.retriever.dense_retriever.encode(text)
         return pickle.dumps(embedding)
 
-    def analyze_document(
+    async def analyze_document(
         self, file_path: str, discipline: str, analysis_mode: str = "rubric"
     ) -> dict:
         doc_name = os.path.basename(file_path)
         logger.info(f"Starting analysis for document: {doc_name}")
-        document_text = " ".join(
-            [chunk["sentence"] for chunk in parse_document_content(file_path)]
-        )
-        doc_type = self.document_classifier.classify_document(document_text)
+        
+        # Use the more robust parsing from the router
+        with open(file_path, 'rb') as f:
+            document_text = parse_document_content(f, doc_name)
+        
+        doc_type = await self.document_classifier.classify_document(document_text)
         logger.info(f"Document classified as: {doc_type}")
-        analysis_result = self.analyzer.analyze_document(
+        analysis_result = await self.analyzer.analyze_document(
             document_text=document_text, discipline=discipline, doc_type=doc_type
         )
         return analysis_result

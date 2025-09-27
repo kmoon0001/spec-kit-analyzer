@@ -29,13 +29,13 @@ class FactCheckerService:
 
         try:
             prompt = f"""
-            Rule: {rule.get('name', '')} - {rule.get('content', '')}
-            Problematic Text: "{finding.get('text', '')}"
+Rule: {rule.get('name', '')} - {rule.get('content', '')}
+Problematic Text: "{finding.get('text', '')}"
 
-            Question: Based on the rule, is it plausible that the problematic text represents a compliance issue? Answer only with 'Yes' or 'No'.
+Question: Based on the rule, is it plausible that the problematic text represents a compliance issue? Answer only with 'Yes' or 'No'.
 
-            Answer:
-            """
+Answer:
+"""
 
             response = self.pipeline(prompt, max_length=10)[0]['generated_text']
 

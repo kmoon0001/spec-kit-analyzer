@@ -47,6 +47,7 @@ class Settings(BaseModel):
 
 @lru_cache()
 def get_settings() -> Settings:
-    with open("src/config.yaml", "r") as f:
-        config_data = yaml.safe_load(f)
-    return Settings(**config_data)
+    # Using a relative path from the project root is safer.
+    with open("config.yaml", "r") as f:
+        config = yaml.safe_load(f)
+        return Settings(**config)
