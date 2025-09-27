@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
-from src.database import crud, models, schemas
+from src.database import crud, schemas
 from src.database.database import get_db
 from src.api.routers.auth import get_current_admin_user
 
