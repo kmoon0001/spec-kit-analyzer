@@ -14,8 +14,6 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     license_key = Column(String, unique=True, index=True, nullable=True)
 
-from pydantic import BaseModel
-
 class Rubric(Base):
     __tablename__ = "rubrics"
 
