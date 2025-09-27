@@ -22,9 +22,7 @@ class PromptManager:
         self.template_string = self._load_template()
 
     def _load_template(self) -> str:
-        """
-        Loads the prompt template from the file system.
-        """
+        """Loads the prompt template from the file system."""
         if not os.path.exists(self.template_path):
             logger.error(f"Prompt template not found at: {self.template_path}")
             raise FileNotFoundError(f"Prompt template not found: {self.template_path}")

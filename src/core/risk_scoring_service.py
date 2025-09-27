@@ -1,7 +1,5 @@
 class RiskScoringService:
-    """
-    A service to calculate a compliance score based on the severity of findings.
-    """
+    """A service to calculate a compliance score based on the severity of findings."""
     @staticmethod
     def calculate_compliance_score(findings: list) -> int:
         """
