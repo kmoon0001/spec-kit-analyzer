@@ -28,9 +28,21 @@ class GuidelineService:
     """
 
     def __init__(self, sources: List[str]):
+<<<<<<< HEAD:src/guideline_service.py
+        """Initializes the GuidelineService."""
+        self.config = load_config()
+        model_name = self.config['models']['retriever']
+||||||| e2d13ea:src/guideline_service.py
+        """
+        Initializes the GuidelineService.
+        """
+        self.config = load_config()
+        model_name = self.config['models']['retriever']
+=======
         """Initializes the GuidelineService."""
         self.config = get_config()
         model_name = self.config.models.retriever
+>>>>>>> main:src/core/guideline_service.py
 
         self.guideline_chunks: List[Tuple[str, str]] = []
         self.is_index_ready = False
@@ -229,6 +241,13 @@ class GuidelineService:
                 results.append({"text": chunk[0], "source": chunk[1], "score": dist})
 
         return results
+<<<<<<< HEAD:src/guideline_service.py
+
+def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
+    """Mock function to parse a guideline file. Returns an empty list."""
+    return []
+||||||| e2d13ea:src/guideline_service.py
+=======
 <<<<<<< HEAD
 ||||||| c46cdd8
 
@@ -249,3 +268,4 @@ def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
     return []
 >>>>>>> origin/main
 >>>>>>> origin/main:src/guideline_service.py
+>>>>>>> main:src/core/guideline_service.py
