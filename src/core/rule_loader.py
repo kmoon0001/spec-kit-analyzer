@@ -14,19 +14,17 @@ class RuleLoader:
     def __init__(self):
         settings = get_settings()
         self.rule_dir = settings.rule_dir
-        self.rules: List[Dict[str, Any]] = []
-        self._load_rules()
 
     def load_rules(self) -> List[ComplianceRule]:
         """Loads all compliance rules from the .ttl files in the specified directory."""
         all_rules = []
-        if not os.path.isdir(self.rules_directory):
-            logger.warning(f"Rules directory not found: {self.rules_directory}")
+        if not os.path.isdir(self.rule_dir):
+            logger.warning(f"Rules directory not found: {self.rule_dir}")
             return all_rules
 
-        for filename in os.listdir(self.rules_directory):
+        for filename in os.listdir(self.rule_dir):
             if filename.endswith(".ttl"):
-                filepath = os.path.join(self.rules_directory, filename)
+                filepath = os.path.join(self.rule_dir, filename)
                 try:
                     all_rules.extend(self._parse_rule_file(filepath))
                     logger.info(f"Successfully loaded rules from: {filepath}")

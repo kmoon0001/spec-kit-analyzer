@@ -6,7 +6,7 @@ from typing import List
 import uuid
 import os
 
-from ... import crud, schemas, models
+from ...database import crud, schemas, models
 from ...database import get_async_db as get_db
 from ...auth import get_current_admin_user, get_auth_service, AuthService
 

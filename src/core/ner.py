@@ -53,3 +53,4 @@ class NERPipeline:
     def extract_entities(self, text: str) -> List[Dict[str, Any]]:
         """
         Extracts entities from the text using the ensemble of models and merges the results.
+        """

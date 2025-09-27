@@ -3,8 +3,8 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
-from ... import crud, schemas, models
-from ...database import get_async_db
+from ...database import crud, schemas, models
+from ...database import get_async_db as get_db
 from ...auth import get_current_active_user
 from ...core.report_generator import ReportGenerator
 
@@ -51,8 +51,3 @@ async def read_report(
 @router.get("/findings-summary", response_model=List[schemas.FindingSummary])
 async def read_findings_summary(
     db: AsyncSession = Depends(get_async_db),
-    current_user: models.User = Depends(get_current_active_user),
-):
-    """Retrieves a summary of the most common compliance findings."""
-    summary = await crud.get_findings_summary(db)
-    return summary

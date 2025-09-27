@@ -8,8 +8,8 @@ from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from functools import lru_cache
 
-from . import crud, models, schemas
-from .config import settings
+from .database import crud, models, schemas
+from .config import get_settings
 from .database import get_async_db as get_db
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -19,6 +19,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 class AuthService:
     def __init__(self):
+        settings = get_settings()
         self.secret_key = settings.auth.secret_key
         self.algorithm = settings.auth.algorithm
         self.access_token_expire_minutes = settings.auth.access_token_expire_minutes

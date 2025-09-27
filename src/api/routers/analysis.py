@@ -1,24 +1,16 @@
 import logging
 import os
-import shutil
-import uuid
-from typing import Dict, Any, AsyncGenerator
+import asyncio
+from typing import Dict, Any
+from fastapi import APIRouter, Depends, UploadFile, File, Form, BackgroundTasks, HTTPException
 
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    Depends,
-    File,
-    Form,
-    HTTPException,
-    UploadFile,
-)
-from fastapi.responses import HTMLResponse
-
-from ... import crud, models, schemas
+from ...database import models
 from ...auth import get_current_active_user
 from ...core.analysis_service import AnalysisService
+from ..dependencies import get_analysis_service
 from ...database import get_async_db
+from ...database import crud
+from ...config import get_settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -42,111 +34,3 @@ def _calculate_compliance_score(analysis_result: Dict[str, Any]) -> str:
     return str(max(0, current_score))
 
 async def anext(gen: AsyncGenerator):
-    return await gen.__anext__()
-
-async def run_analysis_and_save(
-    file_path: str,
-    task_id: str,
-    doc_name: str,
-    user_id: int,
-    analysis_service: AnalysisService,
-):
-    """
-    A background task that runs the analysis, saves the report, and cleans up.
-    """
-    db_session_gen = get_async_db()
-    db = await anext(db_session_gen)
-    try:
-        logger.info(f"Starting analysis for task {task_id} on file {doc_name}")
-        with open(file_path, 'r', encoding='utf-8') as f:
-            document_text = f.read()
-
-        analysis_result = analysis_service.analyzer.analyze_document(
-            document_text=document_text,
-            discipline="PT",
-            doc_type="Unknown",
-        )
-
-        report_html = analysis_service.report_generator.generate_html_report(
-            analysis_result, doc_name, "rubric"
-        )
-        compliance_score = _calculate_compliance_score(analysis_result)
-        
-        embedding_bytes = analysis_service.get_document_embedding(document_text)
-
-        report_data = schemas.ReportCreate(
-            document_name=doc_name,
-            compliance_score=compliance_score,
-            analysis_result=analysis_result,
-            document_embedding=embedding_bytes,
-            owner_id=user_id,
-        )
-        await crud.create_report_and_findings(
-            db=db,
-            report_data=report_data,
-            findings_data=analysis_result.get("findings", []),
-        )
-
-        logger.info(f"Analysis for task {task_id} completed successfully.")
-        tasks[task_id] = {
-            "status": "completed",
-            "result": report_html,
-            "compliance_score": compliance_score,
-        }
-
-    except Exception as e:
-        logger.error(f"Error during analysis for task {task_id}: {e}", exc_info=True)
-        tasks[task_id] = {"status": "failed", "error": str(e)}
-    finally:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        await db.close()
-
-
-@router.post("/analyze", status_code=202, response_model=schemas.TaskStatus)
-async def analyze_document(
-    background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-    discipline: str = Form("All"),
-    analysis_mode: str = Form("rubric"),
-    current_user: models.User = Depends(get_current_active_user),
-    analysis_service: AnalysisService = Depends(get_analysis_service),
-):
-    task_id = str(uuid.uuid4())
-    upload_dir = "temp_uploads"
-    os.makedirs(upload_dir, exist_ok=True)
-    temp_file_path = os.path.join(upload_dir, f"temp_{task_id}_{file.filename}")
-
-    try:
-        with open(temp_file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-    except Exception as e:
-        logger.error(f"Failed to save uploaded file: {e}")
-        raise HTTPException(status_code=500, detail="Failed to process uploaded file.")
-
-    background_tasks.add_task(
-        run_analysis_and_save,
-        file_path=temp_file_path,
-        task_id=task_id,
-        doc_name=file.filename,
-        user_id=current_user.id,
-        analysis_service=analysis_service,
-    )
-
-    tasks[task_id] = {"status": "processing"}
-    return {"task_id": task_id, "status": "processing"}
-
-
-@router.get("/tasks/{task_id}", response_model=schemas.TaskStatus)
-async def get_task_status(task_id: str):
-    task = tasks.get(task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return task
-
-@router.get("/reports/{task_id}", response_class=HTMLResponse)
-async def get_report(task_id: str):
-    task = tasks.get(task_id)
-    if not task or task.get("status") != "completed":
-        raise HTTPException(status_code=404, detail="Report not found or not ready.")
-    return HTMLResponse(content=task["result"])
