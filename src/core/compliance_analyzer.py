@@ -76,7 +76,7 @@ class ComplianceAnalyzer:
                 confidence = finding.get("confidence", 1.0)
                 if isinstance(confidence, (float, int)) and confidence < CONFIDENCE_THRESHOLD:
                     finding['is_low_confidence'] = True
-                
+
                 # Generate a personalized tip (assuming llm_service has this method as per the merge)
                 try:
                     tip = self.llm_service.generate_personalized_tip(finding)
@@ -91,7 +91,7 @@ class ComplianceAnalyzer:
         """Formats a list of rule dictionaries into a string for the LLM prompt."""
         if not rules:
             return "No specific compliance rules were retrieved. Analyze based on general Medicare principles."
-        
+
         formatted_rules = []
         for rule in rules:
             formatted_rules.append(
