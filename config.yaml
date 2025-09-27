@@ -1,51 +1,51 @@
-# config.yaml
-APP_NAME: Therapy Compliance Analyzer
-ENVIRONMENT: production
-DB_PATH: ./data/compliance.db
-ENCRYPTION_KEY: "" # Replace with your generated key
+# Correctly structured configuration for the Therapy Compliance Analyzer
 
-# OCR settings
-ocr:
-  preprocessing: true
-  deskew: true
-  resolution: 300
+database:
+  url: "sqlite:///./compliance.db"
 
-# Configuration for AI Models and Services (Optimized for Performance)
+auth:
+  # IMPORTANT: Replace "a_very_secret_key" with the real key you generated.
+  secret_key: "a_very_secret_key"
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
+
+maintenance:
+  purge_retention_days: 60
+
 models:
-  # NER Ensemble: A list of models for comprehensive entity recognition
-  ner_ensemble:
-    - "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"  # The Specialist
-    - "GanjinZero/bio-distilbert-ner"                       # The Efficient Generalist
-  
-  # Best-in-class sentence transformer for medical semantic search
-  retriever: "pritamdeka/S-PubMedBert-MS-MARCO"
-  
-  # Quantized, locally-deployable medical text generator
-  generator: "TheBloke/medicine-chat-GGUF"
-  generator_filename: "medicine-chat.Q4_K_M.gguf" # A popular quantized version for medical chat
+  # Main Generator: Small, fast, with strong reasoning for its size.
+  generator: "TheBloke/phi-2-GGUF"
+  generator_filename: "phi-2.Q4_K_M.gguf"
 
-  # Small, fast model for fact-checking and validation
+  # Fact-Checker: Tiny, fast model for simple Yes/No validation.
   fact_checker: "google/flan-t5-small"
 
-  # Prompt Templates
-  analysis_prompt_template: "src/core/prompt_template.txt"
-  nlg_prompt_template: "src/core/nlg_prompt_template.txt"
-  doc_classifier_prompt: "src/core/doc_classifier_prompt.txt"
+  # NER Ensemble: A specialist and a generalist for comprehensive entity extraction.
+  ner_ensemble:
+    - "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
+    - "GanjinZero/bio-distilbert-ner"
 
-# Settings for the generator model
+  # Prompt template paths
+  doc_classifier_prompt: "src/resources/prompts/doc_classifier_prompt.txt"
+  analysis_prompt_template: "src/resources/prompts/analysis_prompt_template.txt"
+  nlg_prompt_template: "src/resources/prompts/nlg_prompt_template.txt"
+
 llm_settings:
-  gpu_layers: 50  # Offload all possible layers to GPU for GGUF models
+  # The model_type for phi-2 in ctransformers is often inferred, but 'llama' is a safe fallback.
   model_type: "llama"
-  context_length: 2048
+  context_length: 2048 # Correct context length for Phi-2
   generation_params:
-    max_new_tokens: 1024
-    temperature: 0.3
-    top_p: 0.95
-    repetition_penalty: 1.1
+    temperature: 0.1
+    max_new_tokens: 2048 # A sensible limit for Phi-2
 
-# Retrieval settings
 retrieval_settings:
+  # The sentence transformer model for semantic search.
+  dense_model_name: "pritamdeka/S-PubMedBert-MS-MARCO"
   similarity_top_k: 3
+  # Reciprocal Rank Fusion constant.
+  rrf_k: 60
 
-# Database Maintenance
-purge_retention_days: 60
+# Default application settings
+temp_upload_dir: "/tmp/uploads"
+api_url: "http://127.0.0.1:8000"
+rule_dir: "src/resources/rules"

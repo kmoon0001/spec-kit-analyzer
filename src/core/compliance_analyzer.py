@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from typing import Dict, Any, List
 
 from .llm_service import LLMService
@@ -6,6 +7,7 @@ from .ner import NERPipeline
 from .explanation import ExplanationEngine
 from .prompt_manager import PromptManager
 from .fact_checker_service import FactCheckerService
+from .retriever import HybridRetriever
 
 logger = logging.getLogger(__name__)
 CONFIDENCE_THRESHOLD = 0.7  # Confidence score below which a finding is flagged
@@ -16,7 +18,7 @@ class ComplianceAnalyzer:
     It receives pre-initialized components and does not load models itself.
     """
 
-    def __init__(self, retriever: Any, ner_pipeline: NERPipeline, llm_service: LLMService, 
+    def __init__(self, retriever: HybridRetriever, ner_pipeline: NERPipeline, llm_service: LLMService, 
                  explanation_engine: ExplanationEngine, prompt_manager: PromptManager, 
                  fact_checker_service: FactCheckerService):
         self.retriever = retriever
@@ -27,17 +29,18 @@ class ComplianceAnalyzer:
         self.fact_checker_service = fact_checker_service
         logger.info("ComplianceAnalyzer initialized with all services.")
 
-    def analyze_document(self, document_text: str, discipline: str, doc_type: str) -> Dict[str, Any]:
+    async def analyze_document(self, document_text: str, discipline: str, doc_type: str) -> Dict[str, Any]:
         """Analyzes a document for compliance risks using a multi-step pipeline."""
         logger.info(f"Starting compliance analysis for document type: {doc_type}")
 
-        # 1. Retrieve relevant compliance rules
-        retrieved_rules = self.retriever.retrieve_rules(document_text, discipline=discipline, doc_type=doc_type)
-        logger.info(f"Retrieved {len(retrieved_rules)} rules for analysis.")
-
-        # 2. Extract clinical entities
+        # 1. Use NER to find key terms
         entities = self.ner_pipeline.extract_entities(document_text)
-        entity_list_str = ", ".join(entities) if entities else "No specific entities extracted."
+        entity_list_str = ", ".join([f"{entity['entity_group']}: {entity['word']}" for entity in entities]) if entities else "No specific entities extracted."
+
+        # 2. Build a search query and retrieve relevant rules
+        search_query = f"{discipline} {doc_type} {entity_list_str}"
+        retrieved_rules = await self.retriever.retrieve(search_query, category_filter=discipline)
+        logger.info(f"Retrieved {len(retrieved_rules)} rules for analysis.")
 
         # 3. Build the prompt for the LLM
         formatted_rules = self._format_rules_for_prompt(retrieved_rules)
@@ -48,19 +51,19 @@ class ComplianceAnalyzer:
         )
 
         # 4. Get initial analysis from the LLM
-        raw_analysis_result = self.llm_service.generate_text(prompt)
+        raw_analysis_result = await asyncio.to_thread(self.llm_service.generate_analysis, prompt)
         initial_analysis = self.llm_service.parse_json_output(raw_analysis_result)
 
         # 5. Add explanations to the findings
-        explained_analysis = self.explanation_engine.explain_findings(initial_analysis, retrieved_rules)
+        explained_analysis = self.explanation_engine.add_explanations(initial_analysis, document_text)
 
         # 6. Post-process findings (fact-checking, confidence, tips)
-        final_analysis = self._post_process_findings(explained_analysis, retrieved_rules)
+        final_analysis = await self._post_process_findings(explained_analysis, retrieved_rules)
         logger.info("Compliance analysis complete.")
 
         return final_analysis
 
-    def _post_process_findings(self, explained_analysis: Dict[str, Any], retrieved_rules: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _post_process_findings(self, explained_analysis: Dict[str, Any], retrieved_rules: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Adds flags for disputed findings, low confidence, and generates personalized tips."""
         if "findings" in explained_analysis:
             for finding in explained_analysis["findings"]:
@@ -75,10 +78,10 @@ class ComplianceAnalyzer:
                 confidence = finding.get("confidence", 1.0)
                 if isinstance(confidence, (float, int)) and confidence < CONFIDENCE_THRESHOLD:
                     finding['is_low_confidence'] = True
-                
-                # Generate a personalized tip (assuming llm_service has this method as per the merge)
+
+                # Generate a personalized tip
                 try:
-                    tip = self.llm_service.generate_personalized_tip(finding)
+                    tip = await asyncio.to_thread(self.llm_service.generate_personalized_tip, finding)
                     finding['personalized_tip'] = tip
                 except AttributeError:
                      finding['personalized_tip'] = "Tip generation is currently unavailable."
@@ -90,47 +93,12 @@ class ComplianceAnalyzer:
         """Formats a list of rule dictionaries into a string for the LLM prompt."""
         if not rules:
             return "No specific compliance rules were retrieved. Analyze based on general Medicare principles."
-<<<<<<< HEAD
-        
+
         formatted_rules = []
         for rule in rules:
+            # Corrected keys to match the data from HybridRetriever
             formatted_rules.append(
-                f"- **Rule:** {rule.get('issue_title', 'N/A')}
-"
-                f"  **Detail:** {rule.get('issue_detail', 'N/A')}
-"
-                f"  **Suggestion:** {rule.get('suggestion', 'N/A')}"
+                f"- **Rule:** {rule.get('name', 'N/A')}\n"
+                f"  **Detail:** {rule.get('content', 'N/A')}"
             )
         return "\n".join(formatted_rules)
-||||||| 4db3b6b
-        return "\n".join([f"- Title: {r.get('name', '')}, Content: {r.get('content', '')}" for r in rules])
-
-    def _generate_analysis(self, prompt: str) -> Dict[str, Any]:
-        raw_output = self.llm_service.generate_analysis(prompt)
-        try:
-            start = raw_output.find('{')
-            end = raw_output.rfind('}')
-            if start != -1 and end != -1:
-                json_str = raw_output[start:end+1]
-                return json.loads(json_str)
-            else:
-                raise json.JSONDecodeError("No JSON object found in the output.", raw_output, 0)
-        except json.JSONDecodeError:
-            logger.error("Failed to decode LLM output into JSON.")
-            return {"error": "Invalid JSON output from LLM", "raw_output": raw_output}
-=======
-        return "\n".join([f"- Title: {r.get('name', '')}, Content: {r.get('content', '')}" for r in rules])
-
-    def _generate_analysis(self, prompt: str) -> Dict[str, Any]:
-        raw_output = self.llm_service.generate_analysis(prompt)
-        try:
-            start = raw_output.find('{')
-            end = raw_output.rfind('}')
-            if start != -1 and end != -1:
-                json_str = raw_output[start:end+1]
-                return json.loads(json_str)
-            raise json.JSONDecodeError("No JSON object found in the output.", raw_output, 0)
-        except json.JSONDecodeError:
-            logger.error("Failed to decode LLM output into JSON.")
-            return {"error": "Invalid JSON output from LLM", "raw_output": raw_output}
->>>>>>> origin/main
