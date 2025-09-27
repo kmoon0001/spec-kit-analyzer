@@ -1,3 +1,8 @@
+
+
+
+
+
 # OCR Configuration
 # Instructions for a Workaround
 
