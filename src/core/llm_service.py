@@ -47,12 +47,65 @@ class LLMService:
             return raw_text
         except Exception as e:
             logger.error(f"Error during LLM generation: {e}", exc_info=True)
+import logging
+from ctransformers import AutoModelForCausalLM  # type: ignore
+from typing import Dict, Any
+
+logger = logging.getLogger(__name__)
+
+class LLMService:
+    """
+    A service class for interacting with a local, GGUF-quantized Large Language Model.
+    """
+    def __init__(self, model_repo_id: str, model_filename: str, llm_settings: Dict[str, Any]):
+        """
+        Initializes the LLMService by loading the specified GGUF model with ctransformers.
+        """
+        self.llm = None
+        self.generation_params = llm_settings.get('generation_params', {})
+        logger.info(f"Loading GGUF model: {model_repo_id}/{model_filename}...")
+        try:
+            self.llm = AutoModelForCausalLM.from_pretrained(
+                model_repo_id,
+                model_file=model_filename,
+                model_type=llm_settings.get('model_type', 'llama'),
+                gpu_layers=llm_settings.get('gpu_layers', 0),
+                context_length=llm_settings.get('context_length', 2048)
+            )
+            logger.info("GGUF Model loaded successfully.")
+        except Exception as e:
+            logger.error(f"FATAL: Failed to load GGUF model: {e}", exc_info=True)
+            raise RuntimeError(f"Could not load LLM model: {e}") from e
+
+    def is_ready(self) -> bool:
+        """Checks if the model was loaded successfully."""
+        return self.llm is not None
+
+    def generate_analysis(self, prompt: str) -> str:
+        """
+        Generates a response by running the prompt through the loaded LLM.
+        """
+        if not self.is_ready():
+            logger.error("LLM is not available. Cannot generate analysis.")
+            return '{"error": "LLM not available"}'
+
+        assert self.llm is not None
+        logger.info("Generating response with the LLM...")
+        try:
+            # Pass the generation parameters directly to the model call
+            raw_text = self.llm(prompt, **self.generation_params)
+            logger.info("LLM response generated successfully.")
+            return raw_text
+        except Exception as e:
+            logger.error(f"Error during LLM generation: {e}", exc_info=True)
             return f'{{"error": "Failed to generate analysis: {e}"}}'
-||||||| 604b275
-            return f'{{"error": "Failed to generate analysis: {e}"}}'
-=======
-<<<<<<< HEAD
-            return f'{{"error": "Failed to generate analysis: {e}"}}'
+
+    def parse_json_output(self, raw_text: str) -> Dict[str, Any]:
+        try:
+            return json.loads(raw_text)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON from LLM output: {e}. Raw text: {raw_text}", exc_info=True)
+            return {"error": f"Failed to parse LLM output: {e}"}
 
     def generate_personalized_tip(self, finding: Dict[str, Any]) -> str:
         """
@@ -85,21 +138,4 @@ class LLMService:
             return tip.strip()
         except Exception as e:
             logger.error(f"Error during tip generation: {e}", exc_info=True)
-<<<<<<< HEAD
             return "Could not generate a tip due to an internal error."
-||||||| 4db3b6b
-            return f'{{"error": "Failed to generate analysis: {e}"}}'
-=======
-            return f'{{"error": "Failed to generate analysis: {e}"}}'
->>>>>>> origin/main
->>>>>>> origin/main
-||||||| 278fb88
-            return "Could not generate a tip due to an internal error."
-||||||| 4db3b6b
-            return f'{{"error": "Failed to generate analysis: {e}"}}'
-=======
-            return f'{{"error": "Failed to generate analysis: {e}"}}'
->>>>>>> origin/main
-=======
-            return "Could not generate a tip due to an internal error."
->>>>>>> origin/main

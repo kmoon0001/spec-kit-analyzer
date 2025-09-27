@@ -14,7 +14,10 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 
-API_URL = "http://127.0.0.1:8000"
+from src.config import get_settings
+
+settings = get_settings()
+API_URL = settings.api_url
 
 
 class RubricEditorDialog(QDialog):

@@ -7,6 +7,7 @@ from src.config import get_config
 from src.core.analysis_service import AnalysisService
 from src.core.database_maintenance_service import DatabaseMaintenanceService
 from src.core.retriever import HybridRetriever
+from src.core.compliance_service import ComplianceService
 
 logger = logging.getLogger(__name__)
 

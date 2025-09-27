@@ -11,9 +11,13 @@ from .dependencies import get_analysis_service, startup_event as api_startup, sh
 from .routers import auth, analysis, dashboard, admin, health, chat, compliance
 from ..core.database_maintenance_service import DatabaseMaintenanceService
 
+from ..config import get_settings
+
+settings = get_settings()
+
 # --- Configuration ---
-DATABASE_PURGE_RETENTION_DAYS = 7
-TEMP_UPLOAD_DIR = "tmp/uploads"
+DATABASE_PURGE_RETENTION_DAYS = settings.maintenance.purge_retention_days
+TEMP_UPLOAD_DIR = settings.temp_upload_dir
 
 # --- Logging ---
 logger = logging.getLogger(__name__)
