@@ -28,12 +28,11 @@ class AnalysisWorker(QObject):
                 if task["status"] == "completed":
                     self.success.emit(task["result"])
                     break
-                elif task["status"] == "failed":
+                if task["status"] == "failed":
                     self.error.emit(task["error"])
                     break
-                else:
-                    self.progress.emit(50)  # Update with a more meaningful progress
-                    time.sleep(1)
+                self.progress.emit(50)  # Update with a more meaningful progress
+                time.sleep(1)
         except Exception as e:
             self.error.emit(f"Failed to connect to backend or perform analysis:\n{e}")
         finally:
