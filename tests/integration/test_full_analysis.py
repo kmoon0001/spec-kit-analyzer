@@ -3,56 +3,8 @@ import pytest
 import json
 from unittest.mock import patch, MagicMock
 
-<<<<<<< HEAD
 from src.core.analysis_service import AnalysisService
 from src.core.retriever import HybridRetriever
-||||||| 4db3b6b
-# Ensure the src directory is in the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from src.main import ComplianceAnalyzer
-from src.guideline_service import GuidelineService
-from src.report_generator import ReportGenerator
-from src.utils import load_config
-
-class MockRetriever:
-    def __init__(self, guideline_service):
-        self.guidelines = []
-        # This mock retriever will directly load the content from the JSON source files
-        # to ensure the analyzer gets the dictionary format it expects.
-        for path in guideline_service.source_paths:
-            if path.lower().endswith('.json'):
-                with open(path, 'r') as f:
-                    self.guidelines.extend(json.load(f))
-
-    def retrieve(self, query):
-        """
-        Returns the list of guideline dictionaries.
-        """
-        return self.guidelines
-=======
-# Ensure the src directory is in the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from src.main import ComplianceAnalyzer
-from src.guideline_service import GuidelineService
-from src.report_generator import ReportGenerator
-from src.utils import load_config
-
-class MockRetriever:
-    def __init__(self, guideline_service):
-        self.guidelines = []
-        # This mock retriever will directly load the content from the JSON source files
-        # to ensure the analyzer gets the dictionary format it expects.
-        for path in guideline_service.source_paths:
-            if path.lower().endswith('.json'):
-                with open(path, 'r') as f:
-                    self.guidelines.extend(json.load(f))
-
-    def retrieve(self, query):
-        """Returns the list of guideline dictionaries."""
-        return self.guidelines
->>>>>>> origin/main
 
 # A fixture to create a dummy config.yaml for testing
 @pytest.fixture(scope="module")
@@ -92,7 +44,6 @@ def dummy_document(tmpdir):
         f.write(doc_content)
     return str(doc_file)
 
-<<<<<<< HEAD
 @pytest.mark.slow
 @patch('src.core.analysis_service.LLMService')
 @patch('src.core.analysis_service.HybridRetriever')
@@ -126,37 +77,6 @@ def test_full_analysis_pipeline(MockHybridRetriever, MockLLMService, dummy_docum
             }
         ]
     }
-||||||| 4db3b6b
-    # Create a dummy document
-    document_content = "The patient reports feeling better. Progress towards goals is good."
-    with open(os.path.join(test_data_path, "test_document.txt"), "w") as f:
-        f.write(document_content)
-
-@pytest.mark.timeout(600)
-def test_full_analysis_pipeline(config, test_data_path, setup_test_files):
-    """
-    Tests the full analysis pipeline from document to HTML report.
-    """
-    # 1. Initialize services
-    guideline_service = GuidelineService(sources=[os.path.join(test_data_path, "test_guidelines.json")])
-    retriever = MockRetriever(guideline_service)
-    analyzer = ComplianceAnalyzer(config, guideline_service, retriever)
-    report_generator = ReportGenerator(template_path="src")
-=======
-    # Create a dummy document
-    document_content = "The patient reports feeling better. Progress towards goals is good."
-    with open(os.path.join(test_data_path, "test_document.txt"), "w") as f:
-        f.write(document_content)
-
-@pytest.mark.timeout(600)
-def test_full_analysis_pipeline(config, test_data_path, setup_test_files):
-    """Tests the full analysis pipeline from document to HTML report."""
-    # 1. Initialize services
-    guideline_service = GuidelineService(sources=[os.path.join(test_data_path, "test_guidelines.json")])
-    retriever = MockRetriever(guideline_service)
-    analyzer = ComplianceAnalyzer(config, guideline_service, retriever)
-    report_generator = ReportGenerator(template_path="src")
->>>>>>> origin/main
 
     # Mock the retriever to return a predictable rule
     mock_retriever_instance = MockHybridRetriever.return_value
