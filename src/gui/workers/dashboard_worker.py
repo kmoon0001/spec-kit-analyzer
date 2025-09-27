@@ -5,23 +5,11 @@ from typing import Dict
 API_URL = "http://127.0.0.1:8000"
 
 class DashboardWorker(QObject):
-<<<<<<< HEAD
     """
     A worker to fetch all necessary dashboard data from the API.
     """
     success = Signal(dict)  # Emits a dictionary with 'reports' and 'summary'
     error = Signal(str)
-||||||| c46cdd8
-    """
-    A worker to fetch all necessary dashboard data from the API.
-    """
-    success = pyqtSignal(dict)  # Emits a dictionary with 'reports' and 'summary'
-    error = pyqtSignal(str)
-=======
-    """A worker to fetch all necessary dashboard data from the API."""
-    success = pyqtSignal(dict)  # Emits a dictionary with 'reports' and 'summary'
-    error = pyqtSignal(str)
->>>>>>> origin/main
 
     def __init__(self, token: str):
         super().__init__()

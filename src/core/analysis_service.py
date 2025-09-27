@@ -12,8 +12,8 @@ from .llm_service import LLMService
 from .ner import NERPipeline
 from .explanation import ExplanationEngine
 from .prompt_manager import PromptManager
-from .fact_checker import FactCheckerService
-from ..config import get_config
+from .fact_checker_service import FactCheckerService
+from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class AnalysisService:
         logger.info("Initializing AnalysisService with injected retriever...")
         self.retriever = retriever
         try:
-            config = get_config()
+            config = get_settings()
             llm_service = LLMService(
                 model_repo_id=config.models.generator,
                 model_filename=config.models.generator_filename,

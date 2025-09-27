@@ -48,11 +48,6 @@ class LLMService:
         except Exception as e:
             logger.error(f"Error during LLM generation: {e}", exc_info=True)
             return f'{{"error": "Failed to generate analysis: {e}"}}'
-||||||| 604b275
-            return f'{{"error": "Failed to generate analysis: {e}"}}'
-=======
-<<<<<<< HEAD
-            return f'{{"error": "Failed to generate analysis: {e}"}}'
 
     def generate_personalized_tip(self, finding: Dict[str, Any]) -> str:
         """
@@ -85,21 +80,4 @@ class LLMService:
             return tip.strip()
         except Exception as e:
             logger.error(f"Error during tip generation: {e}", exc_info=True)
-<<<<<<< HEAD
             return "Could not generate a tip due to an internal error."
-||||||| 4db3b6b
-            return f'{{"error": "Failed to generate analysis: {e}"}}'
-=======
-            return f'{{"error": "Failed to generate analysis: {e}"}}'
->>>>>>> origin/main
->>>>>>> origin/main
-||||||| 278fb88
-            return "Could not generate a tip due to an internal error."
-||||||| 4db3b6b
-            return f'{{"error": "Failed to generate analysis: {e}"}}'
-=======
-            return f'{{"error": "Failed to generate analysis: {e}"}}'
->>>>>>> origin/main
-=======
-            return "Could not generate a tip due to an internal error."
->>>>>>> origin/main
