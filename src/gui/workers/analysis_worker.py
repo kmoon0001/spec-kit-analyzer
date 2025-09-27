@@ -1,30 +1,39 @@
-import os
+import time
 import requests
-from PySide6.QtCore import QObject, Signal
+from PyQt6.QtCore import QObject, pyqtSignal as Signal
 
-API_URL = "http://127.0.0.1:8000"
+from src.config import get_settings
+
+settings = get_settings()
+API_URL = settings.api_url
+
+
 
 class AnalysisWorker(QObject):
     finished = Signal()
     error = Signal(str)
-    success = Signal(str) 
+    success = Signal(str)
+    progress = Signal(int)
 
-    def __init__(self, file_path, data):
+    def __init__(self, task_id: str):
         super().__init__()
-        self.file_path = file_path
-        self.data = data
+        self.task_id = task_id
 
     def run(self):
         try:
-            with open(self.file_path, 'rb') as f:
-                files = {'file': (os.path.basename(self.file_path), f)}
-                response = requests.post(f"{API_URL}/analyze", files=files, data=self.data)
+            while True:
+                response = requests.get(f"{API_URL}/tasks/{self.task_id}")
+                response.raise_for_status()
+                task = response.json()
 
-            if response.status_code == 200:
-                self.success.emit(response.text)
-            else:
-                error_text = f"Error from backend: {response.status_code}\n\n{response.text}"
-                self.error.emit(error_text)
+                if task["status"] == "completed":
+                    self.success.emit(task["result"])
+                    break
+                if task["status"] == "failed":
+                    self.error.emit(task["error"])
+                    break
+                self.progress.emit(50)  # Update with a more meaningful progress
+                time.sleep(1)
         except Exception as e:
             self.error.emit(f"Failed to connect to backend or perform analysis:\n{e}")
         finally:

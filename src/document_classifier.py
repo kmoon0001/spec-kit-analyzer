@@ -1,15 +1,17 @@
 from enum import Enum, auto
 
+
 class DocumentType(Enum):
     EVALUATION = auto()
     PROGRESS_NOTE = auto()
     UNKNOWN = auto()
 
+
 class DocumentClassifier:
-    """
-    A simple classifier to determine the type of a clinical document.
-    """
-    def classify(self, text: str) -> DocumentType:
+    """A simple classifier to determine the type of a clinical document."""
+
+    @staticmethod
+    def classify(text: str) -> DocumentType:
         """
         Classifies the document text based on keywords.
 

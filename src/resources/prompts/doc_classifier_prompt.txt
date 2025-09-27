@@ -1,0 +1,8 @@
+Based on the following clinical document text, classify the document type. The possible types are: "Progress Note", "Evaluation", "Discharge Summary", or "Unknown". Return only the name of the document type and nothing else.
+
+Document Text:
+---
+{document_text}
+---
+
+Classification:

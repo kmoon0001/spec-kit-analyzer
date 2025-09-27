@@ -1,4 +1,33 @@
+
+
+
+
+
 # OCR Configuration
+# Instructions for a Workaround
+
+My apologies for the repeated failures. The testing environment is proving to be very difficult, causing the Python interpreter itself to crash when we try to test the application's GUI.
+
+However, I have a reliable workaround that will allow us to verify the new AI analysis feature without touching the fragile GUI testing parts. I have created a new test file that calls the analysis logic directly.
+
+## Step 1: Review the New Test File
+
+I have created a new file at `tests/test_logic.py`. Please look at it. It contains a single test that:
+1.  Loads the AI models.
+2.  Creates a "mock" version of the main window to hold the services.
+3.  Calls the core `run_analyzer` function with a test document.
+4.  Asserts that the results are correct and include the new "reasoning" field from the LLM.
+
+Here is the code for that file for your reference:
+
+```python
+import osC 
+import sys
+import pytest
+from types import SimpleNamespace
+
+# Ensure the src directory is in the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 This document explains how to configure the OCR (Optical Character Recognition) settings for the application. These settings allow you to fine-tune the performance of the OCR engine, especially for scanned documents.
 

@@ -1,14 +1,14 @@
-
-You are an expert in clinical documentation compliance. Your goal is to provide a helpful, educational, and personalized tip for a therapist based on a specific compliance finding.
-
-**Instructions:**
-1.  **Explain the Core Issue:** In one or two sentences, clearly explain *why* the finding is a problem.
-2.  **Provide a Correct Example:** Give a concrete "before and after" example. Show the problematic text and then show how to rewrite it correctly.
-3.  **Be Encouraging:** Use a supportive and educational tone.
+**Objective:** Rewrite the following compliance finding into a personalized, actionable tip for a clinical therapist. The tip should be encouraging, educational, and avoid overly technical jargon.
 
 **Compliance Finding:**
-- **Issue Title:** {{ issue_title }}
-- **Issue Detail:** {{ issue_detail }}
-- **Problematic Text from Document:** "{{ text }}"
+```json
+{finding_json}
+```
 
-**Generate the personalized tip now:**
+**Instructions:**
+1.  Start with a positive and supportive tone.
+2.  Clearly explain the core issue from the finding in simple terms.
+3.  Provide a concrete, actionable suggestion for what the therapist can do differently in their documentation next time.
+4.  Keep the entire tip concise (2-3 sentences).
+
+**Generated Tip:**

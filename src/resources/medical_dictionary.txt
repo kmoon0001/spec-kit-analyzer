@@ -1,14 +1,204 @@
-# A list of common medical terms and abbreviations to improve spell-checking accuracy.
+# A comprehensive list of common medical terms and acronyms to improve spell-checking accuracy.
 # Each term should be on a new line.
 
-SOAP
-subluxation
+# A
+abduction
+adduction
+ankylosis
+aphasia
+apraxia
+arteriosclerosis
+arthritis
+arthroplasty
+arthroscopy
+ataxia
+athetosis
+atrophy
+avascular
+
+# B
+BKA (Below-Knee Amputation)
+balance
+biomechanics
 hemiparesis
 hemiplegia
-nystagmus
-dysphagia
-prognosis
-comorbidity
-ventriculoperitoneal
 kyphosis
 scoliosis
+
+# C
+CAD (Coronary Artery Disease)
+CHF (Congestive Heart Failure)
+CVA (Cerebrovascular Accident)
+calcaneus
+carpal
+cervical
+chondromalacia
+clonus
+cognition
+comorbidity
+contracture
+contusion
+crepitation
+
+# D
+degenerative
+dermatome
+diplopia
+dorsiflexion
+dysarthria
+dysphagia
+dysphasia
+dystonia
+
+# E
+ecchymosis
+edema
+effusion
+electromyography
+eversion
+exacerbation
+extension
+
+# F
+fascia
+fasciitis
+femur
+fibromyalgia
+flexion
+
+# G
+gait
+gastrocnemius
+glenohumeral
+
+# H
+hamatoma
+hemarthrosis
+hemiparesis
+hemiplegia
+humerus
+hypertonia
+hypotonia
+
+# I
+incontinence
+innervation
+inversion
+ischemia
+
+# J
+joint
+jugular
+
+# K
+kyphosis
+kinesiology
+
+# L
+labyrinthitis
+lacertus
+lateral
+ligament
+lordosis
+lumbar
+lymph
+lymphedema
+
+# M
+malleolus
+meniscus
+metacarpal
+metatarsal
+modality
+myofascial
+myotome
+
+# N
+necrosis
+neoplasm
+neuralgia
+neuritis
+neuropathy
+nystagmus
+
+# O
+occupational
+olecranon
+orthosis
+osteoarthritis
+osteophyte
+osteoporosis
+
+# P
+PMH (Past Medical History)
+patella
+pathology
+phalanx
+physiatrist
+plantar
+plegia
+proprioception
+prosthesis
+
+# Q
+quadriceps
+quadriplegia
+
+# R
+radiculopathy
+rehabilitation
+retinaculum
+rheumatoid
+rotation
+
+# S
+SLP (Speech-Language Pathologist)
+SOAP (Subjective, Objective, Assessment, Plan)
+sacrum
+sagittal
+scapula
+sciatica
+scoliosis
+somatization
+spasticity
+spondylosis
+spondylolisthesis
+stenosis
+sternocleidomastoid
+subluxation
+supination
+syndesmosis
+synovitis
+
+# T
+tarsal
+tendon
+tendonitis
+tenodesis
+tenosynovitis
+thoracic
+tinnitus
+torticollis
+tracheostomy
+transverse
+
+# U
+ulna
+ultrasound
+umbilicus
+
+# V
+valgus
+varus
+vasculitis
+ventriculoperitoneal
+vertigo
+vestibular
+
+# W
+whiplash
+
+# XYZ
+xiphoid
+yaws
+zygoma

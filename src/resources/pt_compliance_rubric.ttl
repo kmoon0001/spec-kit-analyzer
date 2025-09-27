@@ -4,7 +4,7 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
 # Ontology Information
-: a owl:Ontology . 
+: a owl:Ontology .
 
 # --- Classes ---
 :ComplianceRule a owl:Class ;
@@ -58,6 +58,16 @@
     rdfs:domain :ComplianceRule ;
     rdfs:range rdfs:Literal .
 
+:hasDocumentType a owl:DatatypeProperty ;
+    rdfs:comment "The type of document this rule applies to (e.g., 'Evaluation', 'Progress Note'). If absent, the rule is considered universal." ;
+    rdfs:domain :ComplianceRule ;
+    rdfs:range rdfs:Literal .
+
+:hasSuggestion a owl:DatatypeProperty ;
+    rdfs:comment "A detailed suggestion for how to remediate the finding." ;
+    rdfs:domain :ComplianceRule ;
+    rdfs:range rdfs:Literal .
+
 # --- Individuals (Rules) ---
 
 # Rule 1: Signature/Date check
@@ -72,11 +82,10 @@
     :hasNegativeKeywords :SignatureKeywords .
 
 :SignatureKeywords a :KeywordSet ;
-    :hasKeyword "signature" ;
-    :hasKeyword "signed" ;
-    :hasKeyword "dated" .
+    :hasKeyword "signature" , "signed" , "dated" .
 
 # Rule 2: Goals check
+# This rule triggers if 'goal' is present, but measurable/time-bound keywords are NOT found.
 :GoalsRule a :ComplianceRule ;
     :hasSeverity "finding" ;
     :hasStrictSeverity "flag" ;
@@ -85,14 +94,14 @@
     :hasIssueCategory "Goals" ;
     :hasFinancialImpact "50" ;
     :hasDiscipline "pt" ;
+    :hasDocumentType "Progress Note" ;
+    :hasSuggestion "To improve, ensure each goal is SMART (Specific, Measurable, Achievable, Relevant, Time-bound). For example, instead of 'improve strength', write 'Patient will increase right knee extension strength from 3/5 to 4/5 within 2 weeks to improve ambulation'." ;
     :hasPositiveKeywords :GoalsKeywordsPresent ;
     :hasNegativeKeywords :GoalsKeywordsMissing .
 
+
 :GoalsKeywordsPresent a :KeywordSet ; :hasKeyword "goal" .
-:GoalsKeywordsMissing a :KeywordSet ;
-    :hasKeyword "measurable" ;
-    :hasKeyword "time" ;
-    :hasKeyword "timed" .
+:GoalsKeywordsMissing a :KeywordSet ; :hasKeyword "measurable", "time", "timed" .
 
 # Rule 3: Medical Necessity check
 :MedicalNecessityRule a :ComplianceRule ;
@@ -101,14 +110,12 @@
     :hasIssueTitle "Medical necessity not explicitly supported" ;
     :hasIssueDetail "Ensure documentation ties interventions to functional limitations and outcomes aligned with Medicare Part B." ;
     :hasIssueCategory "Medical Necessity" ;
-    :hasFinancialImpact "50" ;
+    :hasFinancialImpact 50 ;
     :hasDiscipline "pt" ;
     :hasNegativeKeywords :MedicalNecessityKeywords .
 
 :MedicalNecessityKeywords a :KeywordSet ;
-    :hasKeyword "medical necessity" ;
-    :hasKeyword "reasonable and necessary" ;
-    :hasKeyword "necessity" .
+    :hasKeyword "medical necessity", "reasonable and necessary", "necessity" .
 
 # Rule 4: Assistant Supervision check
 :AssistantSupervisionRule a :ComplianceRule ;
@@ -117,7 +124,7 @@
     :hasIssueTitle "Assistant supervision context unclear" ;
     :hasIssueDetail "When assistants are involved, document supervision/oversight per Medicare/state requirements." ;
     :hasIssueCategory "Assistant Supervision" ;
-    :hasFinancialImpact "25" ;
+    :hasFinancialImpact 25 ;
     :hasDiscipline "pt" ;
     :hasPositiveKeywords :AssistantKeywordsPresent ;
     :hasNegativeKeywords :AssistantKeywordsMissing .
@@ -132,12 +139,9 @@
     :hasIssueTitle "Plan/Certification not clearly referenced" ;
     :hasIssueDetail "Explicitly reference plan of care/certification dates and responsible signatures." ;
     :hasIssueCategory "Plan/Certification" ;
-    :hasFinancialImpact "50" ;
+    :hasFinancialImpact 50 ;
     :hasDiscipline "pt" ;
     :hasNegativeKeywords :PlanOfCareKeywords .
 
 :PlanOfCareKeywords a :KeywordSet ;
-    :hasKeyword "plan of care" ;
-    :hasKeyword "poc" ;
-    :hasKeyword "certification" ;
-    :hasKeyword "recert" .
+    :hasKeyword "plan of care", "poc", "certification", "recert" .

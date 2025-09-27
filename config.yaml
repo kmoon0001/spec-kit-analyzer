@@ -1,50 +1,51 @@
-# config.yaml
-APP_NAME: Therapy Compliance Analyzer
-ENVIRONMENT: production
-DB_PATH: ./data/compliance.db
-ENCRYPTION_KEY: "{{GENERATE_YOUR_OWN_KEY}}"  # Replace with generated key
-OCR_ENGINE: Tesseract
-NLP_MODELS:
-  - ClinicalBERT
-  - BioBERT
-  - AraG
-RUBRIC_PATH: ./data/rubrics/
-REPORT_PATH: ./data/reports/
-REPORT_RETENTION_HOURS: 24
-AUTO_UPDATE: true 
-ANALYTICS_PATH: ./data/analytics/
-PHI_SCRUBBER: enabled
-UI_MODE: responsive
+# Correctly structured configuration for the Therapy Compliance Analyzer
 
-# Section headers for parsing clinical notes
-section_headers:
-  - Subjective
-  - Objective
-  - Assessment
-  - Plan
+database:
+  url: "sqlite:///./compliance.db"
 
-# OCR settings
-ocr:
-  preprocessing: true
-  deskew: true
-  resolution: 300
+auth:
+  # IMPORTANT: Replace "a_very_secret_key" with the real key you generated.
+  secret_key: "a_very_secret_key"
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
 
-# Configuration for the RAG Pipeline
+maintenance:
+  purge_retention_days: 60
+
 models:
-  ner_model: "d4data/biomedical-ner-all"
-  retriever: "pritamdeka/S-PubMedBert-MS-MARCO"
-  llm_repo_id: "TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
-  llm_filename: "mistral-7b-instruct-v0.2.Q4_K_M.gguf"
-  prompt_template: "src/core/prompt_template.txt"
-  quantization: "none"
-  nlg_prompt_template: "src/core/nlg_prompt_template.txt" # Path to the new prompt
+  # Main Generator: Small, fast, with strong reasoning for its size.
+  generator: "TheBloke/phi-2-GGUF"
+  generator_filename: "phi-2.Q4_K_M.gguf"
+
+  # Fact-Checker: Tiny, fast model for simple Yes/No validation.
+  fact_checker: "google/flan-t5-small"
+
+  # NER Ensemble: A specialist and a generalist for comprehensive entity extraction.
+  ner_ensemble:
+    - "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
+    - "GanjinZero/bio-distilbert-ner"
+
+  # Prompt template paths
+  doc_classifier_prompt: "src/resources/prompts/doc_classifier_prompt.txt"
+  analysis_prompt_template: "src/resources/prompts/analysis_prompt_template.txt"
+  nlg_prompt_template: "src/resources/prompts/nlg_prompt_template.txt"
+
+llm_settings:
+  # The model_type for phi-2 in ctransformers is often inferred, but 'llama' is a safe fallback.
+  model_type: "llama"
+  context_length: 2048 # Correct context length for Phi-2
+  generation_params:
+    temperature: 0.1
+    max_new_tokens: 2048 # A sensible limit for Phi-2
 
 retrieval_settings:
+  # The sentence transformer model for semantic search.
+  dense_model_name: "pritamdeka/S-PubMedBert-MS-MARCO"
   similarity_top_k: 3
+  # Reciprocal Rank Fusion constant.
+  rrf_k: 60
 
-iterative_retrieval:
-  max_iterations: 3
-
-paths:
-  index_dir: "sentence_index"
-  docs_dir: "data"
+# Default application settings
+temp_upload_dir: "/tmp/uploads"
+api_url: "http://127.0.0.1:8000"
+rule_dir: "src/resources/rules"

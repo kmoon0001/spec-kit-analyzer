@@ -1,29 +1,60 @@
+# Core Web & API
+fastapi
+uvicorn 
+gunicorn
+slowapi
+requests
+httpx
+
+# GUI
+PyQt6
+PyQt6-WebEngine
+matplotlib
+pytesseract
+
+# Data & Parsing
 pdfplumber
 pypdfium2
-requests
-pytest
-pytest-mock
-matplotlib
-pyyaml
-rdflib
-PyQt6
-fastapi
-uvicorn
-python-multipart
 python-docx
-pytesseract
-Pillow
 pandas
 openpyxl
+pyyaml
+markdown
+
+# AI & Machine Learning
 torch
 transformers
 sentence-transformers
-gunicorn
+ctransformers
 faiss-cpu
 bitsandbytes
 rank_bm25
 accelerate
 nltk
-ctransformers
-markdown
 pyspellchecker
+
+# Database
+SQLAlchemy
+rdflib
+aiosqlite
+
+# Security & Auth
+passlib[bcrypt]
+python-multipart
+PyJWT
+python-jose[cryptography]
+
+# Numeric & Science
+numpy
+scipy
+
+# Scheduling
+apscheduler
+tenacity
+
+# Testing
+pytest
+pytest-mock
+pytest-qt
+pytest-asyncio
+ruff
