@@ -22,7 +22,7 @@ def create_report_and_findings(db: Session, report_data: dict, findings_data: li
             problematic_text=finding.get("text", "")
         )
         db.add(db_finding)
-    
+
     db.commit()
     return db_report
 
