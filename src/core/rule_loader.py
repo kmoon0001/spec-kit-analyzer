@@ -18,9 +18,7 @@ class RuleLoader:
         self._load_rules()
 
     def load_rules(self) -> List[ComplianceRule]:
-        """
-        Loads all compliance rules from the .ttl files in the specified directory.
-        """
+        """Loads all compliance rules from the .ttl files in the specified directory."""
         all_rules = []
         if not os.path.isdir(self.rules_directory):
             logger.warning(f"Rules directory not found: {self.rules_directory}")
@@ -37,9 +35,7 @@ class RuleLoader:
         return all_rules
 
     def _parse_rule_file(self, filepath: str) -> List[ComplianceRule]:
-        """
-        Parses a single .ttl file and returns a list of ComplianceRule objects.
-        """
+        """Parses a single .ttl file and returns a list of ComplianceRule objects."""
         g = Graph()
         g.parse(filepath, format="turtle")
         rules = []
@@ -77,9 +73,7 @@ class RuleLoader:
     def _create_rule_from_graph(
         self, g: Graph, rule_uri: URIRef, ns: dict
     ) -> ComplianceRule:
-        """
-        Creates a ComplianceRule object from the RDF graph data.
-        """
+        """Creates a ComplianceRule object from the RDF graph data."""
         # Define predicate URIs
         has_severity = URIRef(ns[""] + "hasSeverity")
         has_strict_severity = URIRef(ns[""] + "hasStrictSeverity")

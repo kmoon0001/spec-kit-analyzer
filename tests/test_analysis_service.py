@@ -72,9 +72,7 @@ def mock_dependencies():
 
 
 def test_analysis_service_orchestration(mock_dependencies):
-    """
-    Tests that the new AnalysisService correctly orchestrates its dependencies.
-    """
+    """Tests that the new AnalysisService correctly orchestrates its dependencies."""
     # Arrange: The new AnalysisService requires a retriever instance at initialization.
     mock_retriever = MagicMock()
 

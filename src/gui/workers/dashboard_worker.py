@@ -8,9 +8,7 @@ settings = get_settings()
 API_URL = settings.api_url
 
 class DashboardWorker(QObject):
-    """
-    A worker to fetch all necessary dashboard data from the API.
-    """
+    """A worker to fetch all necessary dashboard data from the API."""
     success = Signal(dict)  # Emits a dictionary with 'reports' and 'summary'
     error = Signal(str)
 

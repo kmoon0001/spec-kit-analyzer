@@ -42,9 +42,7 @@ def test_main_window_initialization(main_app_window: MainApplicationWindow):
 
 
 def test_login_and_main_ui_loads(main_app_window: MainApplicationWindow, qtbot):
-    """
-    Tests the critical path: successful login leads to the main UI loading.
-    """
+    """Tests the critical path: successful login leads to the main UI loading."""
     # Arrange: Mock the LoginDialog to automatically accept
     with patch("src.gui.main_window.LoginDialog") as mock_login_dialog:
         mock_login_dialog.return_value.exec.return_value = QDialog.DialogCode.Accepted

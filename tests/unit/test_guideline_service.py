@@ -38,9 +38,7 @@ def guideline_service(tmp_path, mock_sentence_transformer):
 def test_guideline_service_initialization_and_caching(
     guideline_service: GuidelineService, tmp_path: str
 ):
-    """
-    Tests that the GuidelineService initializes correctly and creates cache files.
-    """
+    """Tests that the GuidelineService initializes correctly and creates cache files."""
     assert guideline_service.is_index_ready
     assert os.path.exists(guideline_service.index_path)
     assert os.path.exists(guideline_service.chunks_path)

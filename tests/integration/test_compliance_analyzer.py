@@ -51,9 +51,7 @@ def test_llm_compliance_analyzer_initialization(mock_llm_service, mock_prompt_ma
 
 
 def test_analyze_document_orchestration(mock_llm_service, mock_prompt_manager):
-    """
-    Tests that analyze_document correctly orchestrates calls to its dependencies.
-    """
+    """Tests that analyze_document correctly orchestrates calls to its dependencies."""
     # Arrange
     analyzer = LLMComplianceAnalyzer(
         llm_service=mock_llm_service, prompt_manager=mock_prompt_manager

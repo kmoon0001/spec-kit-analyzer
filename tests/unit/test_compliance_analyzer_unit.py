@@ -18,9 +18,7 @@ def compliance_analyzer() -> ComplianceAnalyzer:
 
 
 def test_analyze_document_orchestration(compliance_analyzer: ComplianceAnalyzer):
-    """
-    Tests that the ComplianceAnalyzer correctly orchestrates its components.
-    """
+    """Tests that the ComplianceAnalyzer correctly orchestrates its components."""
     # Arrange
     document_text = "Patient requires assistance with transfers."
     discipline = "PT"
