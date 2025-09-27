@@ -57,3 +57,4 @@ pytest
 pytest-mock
 pytest-qt
 pytest-asyncio
+ruff

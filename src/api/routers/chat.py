@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ... import schemas, models
-from ...database import get_db
+from ...database import get_async_db as get_db
 from ...auth import get_current_active_user
 from ...core.chat_service import ChatService
 from ...core.analysis_service import AnalysisService
@@ -11,9 +11,9 @@ from ..dependencies import get_analysis_service
 router = APIRouter()
 
 @router.post("/", response_model=schemas.ChatResponse)
-def chat_with_ai(
+async def chat_with_ai(
     chat_request: schemas.ChatRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
     analysis_service: AnalysisService = Depends(get_analysis_service),
 ):
@@ -22,18 +22,16 @@ def chat_with_ai(
     if not llm_service.is_ready():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The AI model is not available. Please try again later."
+            detail="The AI model is not available. Please try again later.",
         )
 
-    try:
-        # The client sends the full history, so we create a new chat service for each turn.
-        # The initial "system" message in the history provides the context.
-        chat_service = ChatService(llm_service=llm_service, initial_context="")
-        chat_service.history = [message.dict() for message in chat_request.history]
+    chat_service = ChatService(db=db, user=current_user, llm_service=llm_service)
 
-        # The last message in the history is the new user message
-        user_message = chat_service.history[-1]['content']
+    response_text = chat_service.process_message(chat_request.message, chat_request.history)
 
+<<<<<<< HEAD
+    return schemas.ChatResponse(response=response_text)
+||||||| 278fb88
         ai_response = chat_service.get_response(user_message)
 
         return schemas.ChatResponse(response=ai_response)
@@ -43,3 +41,14 @@ def chat_with_ai(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred during the chat session: {e}"
         )
+=======
+        ai_response = chat_service.get_response(user_message)
+
+        return schemas.ChatResponse(response=ai_response)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred during the chat session: {e}"
+        )
+>>>>>>> origin/main

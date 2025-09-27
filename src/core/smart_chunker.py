@@ -6,15 +6,18 @@ logger = logging.getLogger(__name__)
 
 # --- NLTK Setup ---
 try:
-    nltk.data.find('tokenizers/punkt')
-    nltk.data.find('tokenizers/punkt_tab')
+    nltk.data.find("tokenizers/punkt")
+    nltk.data.find("tokenizers/punkt_tab")
 except LookupError:
     logger.info("NLTK 'punkt' tokenizer not found. Downloading...")
-    nltk.download('punkt', quiet=True)
-    nltk.download('punkt_tab', quiet=True)
+    nltk.download("punkt", quiet=True)
+    nltk.download("punkt_tab", quiet=True)
     logger.info("'punkt' tokenizer downloaded successfully.")
 
-def sentence_window_chunker(text: str, window_size: int = 1, metadata: dict | None = None):
+
+def sentence_window_chunker(
+    text: str, window_size: int = 1, metadata: dict | None = None
+):
     """
     Splits text into sentences and creates chunks with a sliding window of context.
 
@@ -50,7 +53,7 @@ def sentence_window_chunker(text: str, window_size: int = 1, metadata: dict | No
         chunk = {
             "sentence": sentence,
             "window": window_text,
-            "metadata": chunk_metadata
+            "metadata": chunk_metadata,
         }
         chunks.append(chunk)
 

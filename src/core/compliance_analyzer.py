@@ -18,8 +18,8 @@ class ComplianceAnalyzer:
     It receives pre-initialized components and does not load models itself.
     """
 
-    def __init__(self, retriever: HybridRetriever, ner_pipeline: NERPipeline, llm_service: LLMService, 
-                 explanation_engine: ExplanationEngine, prompt_manager: PromptManager, 
+    def __init__(self, retriever: HybridRetriever, ner_pipeline: NERPipeline, llm_service: LLMService,
+                 explanation_engine: ExplanationEngine, prompt_manager: PromptManager,
                  fact_checker_service: FactCheckerService):
         self.retriever = retriever
         self.ner_pipeline = ner_pipeline
@@ -84,7 +84,7 @@ class ComplianceAnalyzer:
                     tip = await asyncio.to_thread(self.llm_service.generate_personalized_tip, finding)
                     finding['personalized_tip'] = tip
                 except AttributeError:
-                     finding['personalized_tip'] = "Tip generation is currently unavailable."
+                    finding['personalized_tip'] = "Tip generation is currently unavailable."
 
         return explained_analysis
 
@@ -96,9 +96,14 @@ class ComplianceAnalyzer:
 
         formatted_rules = []
         for rule in rules:
-            # Corrected keys to match the data from HybridRetriever
-            formatted_rules.append(
-                f"- **Rule:** {rule.get('name', 'N/A')}\n"
-                f"  **Detail:** {rule.get('content', 'N/A')}"
-            )
+            # Handle both rule formats by trying both sets of keys
+            rule_name = rule.get('name') or rule.get('issue_title', 'N/A')
+            rule_detail = rule.get('content') or rule.get('issue_detail', 'N/A')
+            rule_suggestion = rule.get('suggestion', '')
+            
+            rule_text = f"- **Rule:** {rule_name}\n  **Detail:** {rule_detail}"
+            if rule_suggestion:
+                rule_text += f"\n  **Suggestion:** {rule_suggestion}"
+            
+            formatted_rules.append(rule_text)
         return "\n".join(formatted_rules)

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, ForeignKey, JSON, LargeBinary
+from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, ForeignKey, JSON, LargeBinary, Float
 from sqlalchemy.orm import relationship
 from .database import Base
 import datetime
@@ -22,7 +22,6 @@ class Rubric(Base):
     content = Column(Text, nullable=False)
     category = Column(String, index=True, nullable=True)
 
-
 class RubricCreate(BaseModel):
     name: str
     content: str
@@ -33,25 +32,13 @@ class RubricSchema(RubricCreate):
 
     class Config:
         from_attributes = True
-
-
-class RubricCreate(BaseModel):
-    name: str
-    content: str
-
-class RubricSchema(RubricCreate):
-    id: int
-
-    class Config:
-        orm_mode = True
-
 class Report(Base):
     __tablename__ = "reports"
 
     id = Column(Integer, primary_key=True, index=True)
     document_name = Column(String, index=True)
     analysis_date = Column(DateTime, default=datetime.datetime.utcnow)
-    compliance_score = Column(Integer)
+    compliance_score = Column(Float) # Stored as float
     analysis_result = Column(JSON)
     document_embedding = Column(LargeBinary, nullable=True) # New column for semantic caching
 

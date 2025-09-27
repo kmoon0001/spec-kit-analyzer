@@ -1,18 +1,19 @@
 import pytest
 import os
-import pickle
 from unittest.mock import patch, MagicMock
 
 from src.core.guideline_service import GuidelineService
 
+
 @pytest.fixture
 def mock_sentence_transformer():
     """Mocks the SentenceTransformer to avoid downloading models during tests."""
-    with patch('sentence_transformers.SentenceTransformer') as mock_st:
+    with patch("sentence_transformers.SentenceTransformer") as mock_st:
         mock_model = MagicMock()
         mock_model.encode.return_value = MagicMock()
         mock_st.return_value = mock_model
         yield mock_st
+
 
 @pytest.fixture
 def guideline_service(tmp_path, mock_sentence_transformer):
@@ -33,13 +34,15 @@ def guideline_service(tmp_path, mock_sentence_transformer):
 
     return service
 
-def test_guideline_service_initialization_and_caching(guideline_service: GuidelineService, tmp_path: str):
-    """
-    Tests that the GuidelineService initializes correctly and creates cache files.
-    """
+
+def test_guideline_service_initialization_and_caching(
+    guideline_service: GuidelineService, tmp_path: str
+):
+    """Tests that the GuidelineService initializes correctly and creates cache files."""
     assert guideline_service.is_index_ready
     assert os.path.exists(guideline_service.index_path)
     assert os.path.exists(guideline_service.chunks_path)
+
 
 def test_guideline_service_search(guideline_service: GuidelineService):
     """

@@ -17,6 +17,7 @@ class MaintenanceSettings(BaseModel):
 class ModelsSettings(BaseModel):
     generator: str
     generator_filename: str
+    retriever: str
     fact_checker: str
     ner_ensemble: List[str]
     doc_classifier_prompt: str
@@ -48,5 +49,5 @@ class Settings(BaseModel):
 def get_settings() -> Settings:
     # Using a relative path from the project root is safer.
     with open("config.yaml", "r") as f:
-        config_data = yaml.safe_load(f)
-    return Settings(**config_data)
+        config = yaml.safe_load(f)
+        return Settings(**config)

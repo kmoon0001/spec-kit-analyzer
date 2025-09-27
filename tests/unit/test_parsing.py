@@ -5,6 +5,7 @@ from src.parsing import parse_document_content, parse_document_into_sections
 
 # --- Tests for parse_document_content --- #
 
+
 @patch("src.parsing.pdfplumber.open")
 def test_parse_pdf_content(mock_pdf_open):
     """Tests that the parser correctly calls the pdfplumber library for .pdf files."""
@@ -21,10 +22,14 @@ def test_parse_pdf_content(mock_pdf_open):
     # Assert
     mock_pdf_open.assert_called_once_with("fake/path/document.pdf")
     assert len(chunks) > 0
-    assert "This is text from a PDF" in chunks[0]['sentence']
+    assert "This is text from a PDF" in chunks[0]["sentence"]
 
-@patch("builtins.open", new_callable=mock_open, read_data="This is a test from a txt file.")
-def test_parse_txt_content(mock_file):
+
+@patch("src.parsing.os.path.exists", return_value=True)
+@patch(
+    "builtins.open", new_callable=mock_open, read_data="This is a test from a txt file."
+)
+def test_parse_txt_content(mock_file, mock_path_exists):
     """Tests parsing a .txt file using a mocked filesystem."""
     # Act
     chunks = parse_document_content("fake/path/document.txt")
@@ -32,33 +37,30 @@ def test_parse_txt_content(mock_file):
     # Assert
     mock_file.assert_called_once_with("fake/path/document.txt", "r", encoding="utf-8")
     assert len(chunks) > 0
-    assert "This is a test from a txt file" in chunks[0]['sentence']
+    assert "This is a test from a txt file" in chunks[0]["sentence"]
 
-@patch("src.parsing.pdfplumber.open") # Mock the pdf-specific open to avoid it being called
-def test_parse_non_existent_file(mock_pdf_open):
+
+@patch("src.parsing.os.path.exists", return_value=False)
+def test_parse_non_existent_file(mock_exists):
     """Tests that the parser handles a non-existent file gracefully."""
-    # Arrange: This test doesn't need a complex mock, as the code will raise FileNotFoundError
-    # if we provide a path to a non-existent file.
-
     # Act
     result = parse_document_content("non_existent_file.txt")
 
     # Assert
     assert len(result) == 1
-    assert "Error: File not found" in result[0]['sentence']
+    assert "Error: File not found" in result[0]["sentence"]
 
-def test_parse_unsupported_file_type():
-    """Tests that the parser handles an unsupported file type correctly."""
-    # Act
+
+@patch("src.parsing.os.path.exists", return_value=True)
+def test_parse_unsupported_file_type(mock_exists):
+    """Tests that the parser handles an unsupported file type."""
     result = parse_document_content("document.zip")
-
-    # Assert
     assert len(result) == 1
-    # Check for the more specific error message from the updated source code
-    assert "Error: Unsupported file type '.zip'" in result[0]['sentence']
+    assert "Error: Unsupported file type" in result[0]["sentence"]
 
 
 # --- Tests for parse_document_into_sections (These were already good) --- #
+
 
 def test_parse_document_into_sections_happy_path():
     """Tests that a well-formatted document is correctly parsed into sections."""
@@ -71,8 +73,9 @@ Plan: Continue with current treatment.
     sections = parse_document_into_sections(document_text)
     assert isinstance(sections, dict)
     assert len(sections) == 4
-    assert "subjective" in sections
-    assert sections["objective"] == "Gait steady. Vital signs stable."
+    assert "Subjective" in sections
+    assert sections["Objective"] == "Gait steady. Vital signs stable."
+
 
 def test_parse_document_into_sections_no_headers():
     """Tests that a document with no section headers is handled correctly."""

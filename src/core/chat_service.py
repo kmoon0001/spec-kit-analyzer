@@ -5,8 +5,10 @@ from .llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
+
 class ChatService:
     """Manages a conversational session with the AI, maintaining history and context."""
+
     def __init__(self, llm_service: LLMService, initial_context: str):
         """
         Initializes the ChatService with a starting context.

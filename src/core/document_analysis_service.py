@@ -87,8 +87,8 @@ class DocumentAnalysisService:
                     for item in metadata_filter.items()
                 )
             ]
-            if not candidate_chunks:
-                return []  # No chunks matched the filter
+        if not candidate_chunks:
+            return []  # No chunks matched the filter
 
         # 2. Embedding and Searching
         query_embedding = self.model.encode([query])
@@ -100,6 +100,7 @@ class DocumentAnalysisService:
 
         # 3. Post-filtering and result assembly
         results = []
+        # Get the indices of the candidate chunks for quick lookup
         candidate_indices = {
             i for i, chunk in enumerate(self.chunks) if chunk in candidate_chunks
         }
@@ -107,7 +108,7 @@ class DocumentAnalysisService:
         for i in indices[0]:
             if i != -1 and i in candidate_indices:
                 results.append(self.chunks[i])
-            if len(results) == top_k:
-                break
+                if len(results) == top_k:
+                    break
 
         return results

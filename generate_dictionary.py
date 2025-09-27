@@ -6,6 +6,7 @@ from src.core.llm_service import LLMService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def generate_medical_dictionary():
     """
     Uses the configured LLM to generate a large list of medical terms and save it to a file.
@@ -19,9 +20,9 @@ def generate_medical_dictionary():
 
         # 2. Initialize the LLM Service
         llm_service = LLMService(
-            model_repo_id=config['models']['generator'],
-            model_filename=config['models'].get('generator_filename'),
-            llm_settings=config.get('llm_settings', {})
+            model_repo_id=config["models"]["generator"],
+            model_filename=config["models"].get("generator_filename"),
+            llm_settings=config.get("llm_settings", {}),
         )
 
         if not llm_service.is_ready():
@@ -29,9 +30,9 @@ def generate_medical_dictionary():
             return
 
         # 3. Create a detailed prompt
-        prompt = ("""
+        prompt = """
             You are an expert in medical terminology. Your task is to generate a comprehensive list of common medical terms, abbreviations, and their likely misspellings.
-            
+
             Instructions:
             - The list should be as extensive as possible, covering multiple medical specialties (e.g., physical therapy, occupational therapy, cardiology, neurology).
             - Include common acronyms and their full names (e.g., "CHF (Congestive Heart Failure)").
@@ -41,21 +42,27 @@ def generate_medical_dictionary():
 
             Generate the list now.
         """
-        )
 
         # 4. Generate the dictionary content
-        logger.info("Generating medical dictionary content with the LLM... This may take a few minutes.")
+        logger.info(
+            "Generating medical dictionary content with the LLM... This may take a few minutes."
+        )
         dictionary_content = llm_service.generate_analysis(prompt)
 
         # 5. Save the content to the file
         output_path = "src/resources/medical_dictionary.txt"
         with open(output_path, "w") as f:
             f.write(dictionary_content)
-        
-        logger.info(f"Successfully generated and saved the expanded medical dictionary to {output_path}")
+
+        logger.info(
+            f"Successfully generated and saved the expanded medical dictionary to {output_path}"
+        )
 
     except Exception as e:
-        logger.error(f"An error occurred during dictionary generation: {e}", exc_info=True)
+        logger.error(
+            f"An error occurred during dictionary generation: {e}", exc_info=True
+        )
+
 
 if __name__ == "__main__":
     generate_medical_dictionary()

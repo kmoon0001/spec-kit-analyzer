@@ -16,7 +16,8 @@ import requests
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
-from src.utils import load_config
+from ..config import get_config
+from ..parsing import parse_guideline_file
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +29,8 @@ class GuidelineService:
 
     def __init__(self, sources: List[str]):
         """Initializes the GuidelineService."""
-        self.config = load_config()
-        model_name = self.config['models']['retriever']
+        self.config = get_config()
+        model_name = self.config.models.retriever
 
         self.guideline_chunks: List[Tuple[str, str]] = []
         self.is_index_ready = False
@@ -68,7 +69,6 @@ class GuidelineService:
         if not os.path.exists(self.index_path) or not os.path.exists(self.chunks_path):
             return False
 
-        # Check if the sources have changed
         with open(self.chunks_path, 'rb') as f:
 <<<<<<< HEAD
             cached_chunks = joblib.load(f)
@@ -89,7 +89,7 @@ class GuidelineService:
         cache_mod_time = os.path.getmtime(self.index_path)
         for src_path in self.source_paths:
             if not os.path.exists(src_path) or os.path.getmtime(src_path) > cache_mod_time:
-                return False # Source file is newer than cache
+                return False
         return True
 
     def _load_index_from_cache(self):
@@ -140,8 +140,17 @@ class GuidelineService:
         self.is_index_ready = True
         logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks using FAISS.")
 
+<<<<<<< HEAD:src/core/guideline_service.py
+    @staticmethod
+    def _extract_text_from_pdf(file_path: str, source_name: str) -> List[Tuple[str, str]]:
+||||||| 604b275:src/guideline_service.py
+    @staticmethod
+    def _extract_text_from_pdf(file_path: str, source_name: str) -> List[Tuple[str, str]]:
+        # ... (rest of the file is unchanged)
+=======
     def _extract_text_from_pdf(self, file_path: str, source_name: str) -> List[Tuple[str, str]]:
         # ... (rest of the file is unchanged)
+>>>>>>> origin/main:src/guideline_service.py
         """Extracts text from a file, chunking it by paragraph."""
         chunks = []
         try:
@@ -163,9 +172,7 @@ class GuidelineService:
                         for para in paragraphs:
                             cleaned_para = para.replace('\n', ' ').strip()
                             if cleaned_para:
-                                chunks.append(
-                                    (cleaned_para, f"{source_name} (Page {i+1})")
-                                )
+                                chunks.append((cleaned_para, f"{source_name} (Page {i+1})"))
         except Exception as e:
             logger.error(f"Failed to extract text from '{file_path}': {e}")
             raise
@@ -190,7 +197,6 @@ class GuidelineService:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             for item in data:
-                # Combine the relevant fields into a single string for embedding
                 text = f"Title: {item.get('issue_title', '')}. Detail: {item.get('issue_detail', '')}"
                 chunks.append((text, source_name))
         except Exception as e:
@@ -201,14 +207,13 @@ class GuidelineService:
     def search(self, query: str, top_k: int = None) -> List[dict]:
         """Performs a FAISS similarity search through the loaded guidelines."""
         if top_k is None:
-            top_k = self.config['retrieval_settings']['similarity_top_k']
+            top_k = self.config.retrieval_settings.similarity_top_k
 
         if not self.is_index_ready or not self.faiss_index:
             logger.warning("Search called before guidelines were loaded and indexed.")
             return []
 
         query_embedding = self.model.encode([query], convert_to_tensor=True)
-        # Ensure it's a numpy array before continuing
         if not isinstance(query_embedding, np.ndarray):
             query_embedding = query_embedding.cpu().numpy()
 
@@ -224,7 +229,23 @@ class GuidelineService:
                 results.append({"text": chunk[0], "source": chunk[1], "score": dist})
 
         return results
+<<<<<<< HEAD
+||||||| c46cdd8
+
+def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
+    """
+    Mock function to parse a guideline file. Returns an empty list.
+    """
+    return []
+=======
 
 def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
     """Mock function to parse a guideline file. Returns an empty list."""
+<<<<<<< HEAD:src/core/guideline_service.py
     return []
+||||||| 3810719:src/guideline_service.py
+    return []
+=======
+    return []
+>>>>>>> origin/main
+>>>>>>> origin/main:src/guideline_service.py

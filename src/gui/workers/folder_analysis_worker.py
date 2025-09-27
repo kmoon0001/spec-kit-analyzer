@@ -1,14 +1,33 @@
 import time
 import requests
+<<<<<<< HEAD
+from PyQt6.QtCore import QObject, Signal
+||||||| c46cdd8
+from PyQt6.QtCore import QObject, pyqtSignal
+=======
 from PyQt6.QtCore import QObject, pyqtSignal as Signal
+>>>>>>> origin/main
 
 API_URL = "http://127.0.0.1:8000"
 
+
 class FolderAnalysisWorker(QObject):
+<<<<<<< HEAD
+    finished = Signal()
+    error = Signal(str)
+    success = Signal(str)
+    progress = Signal(int)
+||||||| c46cdd8
+    finished = pyqtSignal()
+    error = pyqtSignal(str)
+    success = pyqtSignal(str)
+    progress = pyqtSignal(int)
+=======
     finished = Signal()  # type: ignore[attr-defined]
     error = Signal(str)  # type: ignore[attr-defined]
     success = Signal(str)  # type: ignore[attr-defined]
     progress = Signal(int)  # type: ignore[attr-defined]
+>>>>>>> origin/main
 
     def __init__(self, task_id: str):
         super().__init__()
@@ -27,7 +46,7 @@ class FolderAnalysisWorker(QObject):
                 response = requests.get(f"{API_URL}/tasks/{self.task_id}")
                 response.raise_for_status()
 
-                if response.headers.get('Content-Type') == 'text/html; charset=utf-8':
+                if response.headers.get("Content-Type") == "text/html; charset=utf-8":
                     self.success.emit(response.text)
                     self.finished.emit()
                     return
@@ -38,7 +57,9 @@ class FolderAnalysisWorker(QObject):
                 if status == "processing":
                     self.progress.emit((attempts * 100) // max_attempts)
                 elif status == "failed":
-                    error_msg = status_data.get("error", "Unknown error during analysis.")
+                    error_msg = status_data.get(
+                        "error", "Unknown error during analysis."
+                    )
                     self.error.emit(error_msg)
                     self.finished.emit()
                     return

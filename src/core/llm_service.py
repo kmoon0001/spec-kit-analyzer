@@ -4,24 +4,28 @@ from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
+
 class LLMService:
     """
     A service class for interacting with a local, GGUF-quantized Large Language Model.
     """
-    def __init__(self, model_repo_id: str, model_filename: str, llm_settings: Dict[str, Any]):
+
+    def __init__(
+        self, model_repo_id: str, model_filename: str, llm_settings: Dict[str, Any]
+    ):
         """
         Initializes the LLMService by loading the specified GGUF model with ctransformers.
         """
         self.llm = None
-        self.generation_params = llm_settings.get('generation_params', {})
+        self.generation_params = llm_settings.get("generation_params", {})
         logger.info(f"Loading GGUF model: {model_repo_id}/{model_filename}...")
         try:
             self.llm = AutoModelForCausalLM.from_pretrained(
                 model_repo_id,
                 model_file=model_filename,
-                model_type=llm_settings.get('model_type', 'llama'),
-                gpu_layers=llm_settings.get('gpu_layers', 0),
-                context_length=llm_settings.get('context_length', 2048)
+                model_type=llm_settings.get("model_type", "llama"),
+                gpu_layers=llm_settings.get("gpu_layers", 0),
+                context_length=llm_settings.get("context_length", 2048),
             )
             logger.info("GGUF Model loaded successfully.")
         except Exception as e:
@@ -33,20 +37,8 @@ class LLMService:
         return self.llm is not None
 
     def generate_analysis(self, prompt: str) -> str:
-<<<<<<< HEAD
-        """
-        Generates a response by running the prompt through the loaded LLM.
-        """
-        if self.llm is None:
-||||||| 4db3b6b
-        """
-        Generates a response by running the prompt through the loaded LLM.
-        """
-        if not self.is_ready():
-=======
         """Generates a response by running the prompt through the loaded LLM."""
         if not self.is_ready():
->>>>>>> origin/main
             logger.error("LLM is not available. Cannot generate analysis.")
             return '{"error": "LLM not available"}'
 
@@ -59,43 +51,4 @@ class LLMService:
             return raw_text
         except Exception as e:
             logger.error(f"Error during LLM generation: {e}", exc_info=True)
-<<<<<<< HEAD
-            return f'{{"error": "Failed to generate analysis: {e}"}}'
-
-    def generate_personalized_tip(self, finding: Dict[str, Any]) -> str:
-        """
-        Generates a personalized tip for a specific compliance finding.
-        """
-        if self.llm is None:
-            logger.error("LLM is not available. Cannot generate tip.")
-            return "LLM not available."
-
-        prompt_template = """
-        Given the following compliance issue found in a clinical document, provide a concise, actionable tip for the therapist to improve their documentation.
-        The user is a Physical, Occupational, or Speech Therapist. The tip should be professional, helpful, and directly related to the finding.
-
-        Finding Title: "{title}"
-        Finding Description: "{description}"
-        Relevant quote from document: "{text}"
-
-        Personalized Tip:
-        """
-        prompt = prompt_template.format(
-            title=finding.get('title', 'N/A'),
-            description=finding.get('description', 'N/A'),
-            text=finding.get('text', 'N/A')
-        )
-
-        logger.info(f"Generating personalized tip for finding: {finding.get('title')}")
-        try:
-            tip = self.llm(prompt, **self.generation_params)
-            logger.info("Personalized tip generated successfully.")
-            return tip.strip()
-        except Exception as e:
-            logger.error(f"Error during tip generation: {e}", exc_info=True)
-            return "Could not generate a tip due to an internal error."
-||||||| 4db3b6b
-            return f'{{"error": "Failed to generate analysis: {e}"}}'
-=======
-            return f'{{"error": "Failed to generate analysis: {e}"}}'
->>>>>>> origin/main
+            return '{"error": "Generation failed"}'
