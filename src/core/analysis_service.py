@@ -1,5 +1,4 @@
 import os
-import yaml
 import logging
 from src.parsing import parse_document_content
 import pickle

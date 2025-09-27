@@ -23,9 +23,15 @@ class NERPipeline:
         # Check for pytest environment to mock the model loading
         if os.environ.get("PYTEST_RUNNING") == "1":
             logger.info("NERPipeline initialized with a mock pipeline for testing.")
+            # Create a mock pipeline that returns a predefined entity structure
             mock_pipeline = MagicMock()
             mock_pipeline.return_value = [
-                {'entity_group': 'test_entity', 'word': 'test', 'start': 10, 'end': 14}
+                {
+                    'entity_group': 'test_entity',
+                    'word': 'test',
+                    'start': 10,
+                    'end': 14
+                }
             ]
             self.pipelines.append(mock_pipeline)
             return
@@ -43,42 +49,3 @@ class NERPipeline:
     def extract_entities(self, text: str) -> List[Dict[str, Any]]:
         """
         Extracts entities from the text using the ensemble of models and merges the results.
-
-        Args:
-            text: The input text to analyze.
-
-        Returns:
-            A list of unique entities found by the ensemble.
-        """
-        if not self.pipelines:
-            logger.warning("No NER models loaded. Cannot extract entities.")
-            return []
-
-        all_entities = set()
-
-        for ner_pipeline in self.pipelines:
-            try:
-                entities = ner_pipeline(text)
-                for entity in entities:
-                    entity_tuple = (
-                        entity.get('entity_group'),
-                        entity.get('word'),
-                        entity.get('start'),
-                        entity.get('end')
-                    )
-                    all_entities.add(entity_tuple)
-            except Exception as e:
-                logger.error(f"Error during entity extraction with one of the models: {e}", exc_info=True)
-
-        unique_entity_list = [
-            {
-                "entity_group": group,
-                "word": word,
-                "start": start,
-                "end": end
-            }
-            for group, word, start, end in all_entities
-        ]
-
-        logger.info(f"Extracted {len(unique_entity_list)} unique entities from ensemble.")
-        return unique_entity_list

@@ -51,7 +51,7 @@ class ReportGenerator:
 
         findings = analysis_result.get("findings", [])
 
-        compliance_score = "N/A (Scoring service removed)"
+        compliance_score = analysis_result.get("compliance_score", "N/A")
 
         report_html = report_html.replace(
             "<!-- Placeholder for compliance score -->", str(compliance_score)

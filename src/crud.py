@@ -1,5 +1,6 @@
 from . import models, schemas
 import datetime
+import datetime
 from typing import List, Dict, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, func
@@ -99,8 +100,26 @@ async def get_reports(db: AsyncSession, skip: int = 0, limit: int = 100) -> List
 
 
 async def delete_report(db: AsyncSession, report_id: int) -> None:
+    await db.execute(delete(models.Finding).where(models.Finding.report_id == report_id))
     await db.execute(delete(models.Report).where(models.Report.id == report_id))
     await db.commit()
+
+async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
+    cutoff_date = datetime.utcnow() - datetime.timedelta(days=days)
+    # Delete associated findings first due to foreign key constraints
+    # Find report IDs to delete
+    reports_to_delete_query = select(models.Report.id).filter(models.Report.created_at < cutoff_date)
+    reports_to_delete_result = await db.execute(reports_to_delete_query)
+    report_ids_to_delete = reports_to_delete_result.scalars().all()
+
+    if report_ids_to_delete:
+        # Delete findings associated with these reports
+        await db.execute(delete(models.Finding).where(models.Finding.report_id.in_(report_ids_to_delete)))
+        # Then delete the reports
+        result = await db.execute(delete(models.Report).filter(models.Report.created_at < cutoff_date))
+        await db.commit()
+        return result.rowcount
+    return 0
 
 
 async def find_similar_report(db: AsyncSession, embedding: bytes, threshold: float = 0.9) -> Optional[models.Report]:
