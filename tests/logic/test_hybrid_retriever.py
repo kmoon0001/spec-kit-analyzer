@@ -20,9 +20,7 @@ def mock_sentence_transformer():
 
 @pytest.fixture
 def retriever(mock_sentence_transformer):
-    """
-    Provides a HybridRetriever instance with mocked rules and dependencies.
-    """
+    """Provides a HybridRetriever instance with mocked rules and dependencies."""
     mock_rules = [
         {
             "id": 1,
@@ -45,18 +43,14 @@ def retriever(mock_sentence_transformer):
 
 
 def test_retriever_initialization(retriever):
-    """
-    Tests that the HybridRetriever initializes correctly.
-    """
+    """Tests that the HybridRetriever initializes correctly."""
     assert retriever is not None
     assert len(retriever.rules) == 2
     retriever.dense_retriever.encode.assert_called_once()
 
 
 def test_retriever_search_logic(retriever):
-    """
-    Tests the core search logic of the retriever.
-    """
+    """Tests the core search logic of the retriever."""
     # Arrange
     query = "signed patient goals"
     retriever.bm25.get_scores = MagicMock(return_value=np.array([0.1, 0.9]))

@@ -55,9 +55,7 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup_event():
-    """
-    Actions to perform on application startup.
-    """
+    """Actions to perform on application startup."""
     # 1. Run API-level startup logic (e.g., model loading)
     await api_startup()
 

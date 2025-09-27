@@ -16,9 +16,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 def parse_document_content(file_path: str) -> List[dict]:
-    """
-    Parses the content of a document and splits it into chunks.
-    """
+    """Parses the content of a document and splits it into chunks."""
     logger.info(f"Parsing document: {file_path}")
     if not os.path.exists(file_path):
         return [{'sentence': f"Error: File not found at {file_path}", 'window': '', 'metadata': {'source': 'File System'}}]

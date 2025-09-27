@@ -77,9 +77,7 @@ class TestComplianceAPI(unittest.TestCase):
         )
 
     def test_evaluate_endpoint_bad_request(self):
-        """
-        Test the /evaluate endpoint with an invalid payload.
-        """
+        """Test the /evaluate endpoint with an invalid payload."""
         payload = {
             "id": "doc4",
             "text": "This is a test.",

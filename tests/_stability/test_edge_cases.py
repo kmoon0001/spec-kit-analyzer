@@ -35,9 +35,7 @@ def main_app_window(qtbot):
 
 @pytest.mark.stability
 def test_large_file_upload(main_app_window: MainApplicationWindow, qtbot, tmp_path):
-    """
-    Tests the GUI's ability to handle a very large text file without crashing.
-    """
+    """Tests the GUI's ability to handle a very large text file without crashing."""
     # Arrange: Create a large temporary file
     large_file_content = "This is a test sentence. " * 5 * 1024 * 1024  # Approx 50MB
     large_file = tmp_path / "large_file.txt"
@@ -63,9 +61,7 @@ def test_large_file_upload(main_app_window: MainApplicationWindow, qtbot, tmp_pa
 def test_corrupted_file_upload(
     main_app_window: MainApplicationWindow, qtbot, mock_backend_services
 ):
-    """
-    Tests that the application handles a corrupted or unreadable file gracefully.
-    """
+    """Tests that the application handles a corrupted or unreadable file gracefully."""
     # Arrange: Simulate the file dialog returning a path to a fake corrupted file
     # and simulate the open() call failing with a UnicodeDecodeError.
     with (

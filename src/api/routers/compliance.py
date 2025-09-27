@@ -23,9 +23,7 @@ async def evaluate_document(
     document: TherapyDocument,
     compliance_service: ComplianceService = Depends(get_compliance_service),
 ):
-    """
-    Evaluates a therapy document for compliance against a set of rules.
-    """
+    """Evaluates a therapy document for compliance against a set of rules."""
     if not document.text or not document.discipline or not document.document_type:
         raise HTTPException(
             status_code=400, detail="Document text, discipline, and type are required."
