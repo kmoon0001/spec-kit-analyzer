@@ -1,5 +1,3 @@
-import os
-from unittest.mock import patch, mock_open
 
 from src.utils import chunk_text
 

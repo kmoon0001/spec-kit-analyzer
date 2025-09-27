@@ -1,5 +1,4 @@
 import unittest
-from unittest.mock import MagicMock
 from src.core.compliance_service import ComplianceService
 from src.core.models import TherapyDocument, ComplianceRule
 

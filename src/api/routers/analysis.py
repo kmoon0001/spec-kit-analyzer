@@ -4,9 +4,8 @@ import shutil
 import os
 import asyncio
 from fastapi import APIRouter, Depends, UploadFile, File, Form, BackgroundTasks, HTTPException
-from fastapi.responses import HTMLResponse
 
-from ... import schemas, models
+from ... import models
 from ...auth import get_current_active_user
 from ...core.analysis_service import AnalysisService
 from ...database import get_async_db

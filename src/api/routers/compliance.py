@@ -5,9 +5,7 @@ from src.core.compliance_service import ComplianceService
 from src.core.models import (
     TherapyDocument,
     ComplianceResult,
-    ComplianceRule,
-    ComplianceFinding,
-)
+    )
 
 router = APIRouter()
 

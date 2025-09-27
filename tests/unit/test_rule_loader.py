@@ -1,5 +1,4 @@
 import unittest
-import os
 from src.core.rule_loader import RuleLoader
 from src.core.models import ComplianceRule
 
