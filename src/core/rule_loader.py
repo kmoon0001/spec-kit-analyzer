@@ -57,12 +57,14 @@ class RuleLoader:
                 logger.error(f"Failed to create rule from graph for URI: {rule_uri} in file: {filepath}. Error: {e}")
         return rules
 
-    def _get_literal(self, g, subject, predicate_uri):
+    @staticmethod
+    def _get_literal(g, subject, predicate_uri):
         """Helper to get a single literal value."""
         value = g.value(subject, predicate_uri)
         return value.toPython() if value else None
 
-    def _get_keywords(self, g, subject, predicate_uri, ns):
+    @staticmethod
+    def _get_keywords(g, subject, predicate_uri, ns):
         """Helper to get a list of keywords."""
         keywords = []
         keyword_set_uri = g.value(subject, predicate_uri)
