@@ -1,38 +1,51 @@
+# Correctly structured configuration for the Therapy Compliance Analyzer
+
 database:
   url: "sqlite:///./compliance.db"
 
 auth:
+  # IMPORTANT: Replace "a_very_secret_key" with the real key you generated.
   secret_key: "a_very_secret_key"
   algorithm: "HS256"
   access_token_expire_minutes: 30
 
-# This section is now superseded by the one at the bottom, but kept for reference
 maintenance:
   purge_retention_days: 60
 
 models:
-  # Using the more complete model configuration from the bugfix branch
-  generator: "mistralai/Magistral-Small-2509-GGUF"
-  generator_filename: "Magistral-Small-2509-Q4_K_M.gguf"
-  retriever: "pritamdeka/S-PubMedBert-MS-MARCO"
-  fact_checker: "hamish-haggerty/t5-base-e2e-qg"
+  # Main Generator: Small, fast, with strong reasoning for its size.
+  generator: "TheBloke/phi-2-GGUF"
+  generator_filename: "phi-2.Q4_K_M.gguf"
+
+  # Fact-Checker: Tiny, fast model for simple Yes/No validation.
+  fact_checker: "google/flan-t5-small"
+
+  # NER Ensemble: A specialist and a generalist for comprehensive entity extraction.
   ner_ensemble:
-    - "d4data/biomedical-ner-all"
+    - "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
+    - "GanjinZero/bio-distilbert-ner"
+
+  # Prompt template paths
   doc_classifier_prompt: "src/resources/prompts/doc_classifier_prompt.txt"
   analysis_prompt_template: "src/resources/prompts/analysis_prompt_template.txt"
   nlg_prompt_template: "src/resources/prompts/nlg_prompt_template.txt"
 
 llm_settings:
-  model_type: "mistral"
-  context_length: 4096
+  # The model_type for phi-2 in ctransformers is often inferred, but 'llama' is a safe fallback.
+  model_type: "llama"
+  context_length: 2048 # Correct context length for Phi-2
   generation_params:
     temperature: 0.1
-    max_new_tokens: 8192
+    max_new_tokens: 2048 # A sensible limit for Phi-2
 
 retrieval_settings:
+  # The sentence transformer model for semantic search.
+  dense_model_name: "pritamdeka/S-PubMedBert-MS-MARCO"
   similarity_top_k: 3
+  # Reciprocal Rank Fusion constant.
+  rrf_k: 60
 
-# Database Maintenance
-purge_retention_days: 60
-
-Your new encryption key is: ea19d32fe9968a03f80a0234f2774f03ca6e1d1b5f58f5b7b27e2d6e28fe91af
+# Default application settings
+temp_upload_dir: "/tmp/uploads"
+api_url: "http://127.0.0.1:8000"
+rule_dir: "src/resources/rules"

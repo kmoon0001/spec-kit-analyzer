@@ -12,21 +12,6 @@ class FactCheckerService:
         """
         Initializes the Fact-Checking Service.
         """
-<<<<<<< HEAD
-import logging
-from typing import Dict, Any
-from transformers import pipeline
-
-logger = logging.getLogger(__name__)
-
-class FactCheckerService:
-    """
-    A service to validate the plausibility of LLM findings using a smaller, specialized model.
-    """
-    def __init__(self, model_name: str, **kwargs):
-        """
-        Initializes the Fact-Checking Service.
-        """
         self.model_name = model_name
         self.pipeline = None
         try:
