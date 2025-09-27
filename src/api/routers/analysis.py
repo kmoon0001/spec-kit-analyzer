@@ -1,177 +1,183 @@
-from fastapi import APIRouter, Depends, UploadFile, File, BackgroundTasks, HTTPException, Form
-from fastapi.responses import HTMLResponse
-import logging
-import uuid
-import shutil
-import os
+`python
 import asyncio
-from fastapi import APIRouter, Depends, UploadFile, File, Form, BackgroundTasks, HTTPException
+import logging
+import os
+import shutil
 import uuid
+from typing import Dict, Any
 
-from ... import models
-from ... import schemas, models, crud
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+)
+from fastapi.responses import HTMLResponse
+
+from ... import crud, models, schemas
 from ...auth import get_current_active_user
 from ...core.analysis_service import AnalysisService
 from ...database import get_async_db
-from ... import crud
-from ...config import settings # Import settings
-from ...database import SessionLocal
 
-router = APIRouter()
 logger = logging.getLogger(__name__)
+router = APIRouter()
 
-analysis_service = AnalysisService()
+# In-memory store for task statuses. In a production scenario, this would be a more persistent store like Redis.
 tasks = {}
 
-def run_analysis_and_save(
-    file_path: str,
-    task_id: str, 
+
+# Dependency to get a singleton instance of the analysis service
+def get_analysis_service():
+    return AnalysisService()
+
+
 def _calculate_compliance_score(analysis_result: Dict[str, Any]) -> str:
+    """Calculates a numeric compliance score from analysis findings."""
     base_score = 100
     if "findings" not in analysis_result or not analysis_result["findings"]:
         return str(base_score)
 
-    score_deductions = {
-        "High": 10,
-        "Medium": 5,
-        "Low": 2
-    }
-
+    score_deductions = {"High": 10, "Medium": 5, "Low": 2}
     current_score = base_score
     for finding in analysis_result["findings"]:
-        risk = finding.get("risk", "Low") # Default to Low if not specified
+        risk = finding.get("risk", "Low")
         current_score -= score_deductions.get(risk, 0)
-
-        if finding.get("is_disputed", False):
-            current_score -= 3
-        if finding.get("is_low_confidence", False):
-            current_score -= 1
-
     return str(max(0, current_score))
 
 
 async def run_analysis_and_save(
-    file_path: str,
-    task_id: str,
-    doc_name: str,
-    rubric_id: int | None,
-    discipline: str | None,
-    analysis_mode: str
-    discipline: str | None,
-    analysis_mode: str,
-    analysis_service: AnalysisService,
+        file_path: str,
+        task_id: str,
+        doc_name: str,
+        user_id: int,
+        analysis_service: AnalysisService,
 ):
-    """Runs the analysis with semantic caching, saves the data, and generates the report."""
-    async for db in get_async_db():
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                document_text = f.read()
-
-            # 1. Generate embedding for the new document
-            embedding_bytes = analysis_service.get_document_embedding(document_text)
-
-            # 2. Check for a semantically similar report in the cache (database)
-            cached_report = await crud.find_similar_report(db, embedding_bytes)
-
-            if cached_report:
-                # --- CACHE HIT ---
-                logger.info(f"Semantic cache hit for document: {doc_name}. Using cached report ID: {cached_report.id}")
-                analysis_result = cached_report.analysis_result
-            else:
-                # --- CACHE MISS ---
-                logger.info(f"Semantic cache miss for document: {doc_name}. Performing full analysis.")
-                # Perform the full analysis to get the structured data
-                analysis_result = analysis_service.analyzer.analyze_document(
-                    document_text=document_text,
-                    discipline=discipline,
-                    doc_type="Unknown" # This will be replaced by the classifier
-                )
-    """Runs the analysis and saves the report and findings to the database."""
-    db = SessionLocal()
+    """
+    A background task that runs the analysis, saves the report, and cleans up.
+    """
+    db_session_gen = get_async_db()
+    db = await anext(db_session_gen)
     try:
+        logger.info(f"Starting analysis for task {task_id} on file {doc_name}")
+        with open(file_path, 'r', encoding='utf-8') as f:
+            document_text = f.read()
+
         # Perform the analysis
         analysis_result = analysis_service.analyzer.analyze_document(
-            document=open(file_path, 'r', encoding='utf-8').read(),
-            discipline=discipline,
-            doc_type="Unknown"
+            document_text=document_text,
+            discipline="PT",  # Placeholder, consider passing from request
+            doc_type="Unknown",  # Placeholder, to be replaced by classifier
         )
 
-        # Generate the HTML report
+        # Generate report and score
         report_html = analysis_service.report_generator.generate_html_report(
-            analysis_result=analysis_result,
-            doc_name=doc_name,
-            analysis_mode=analysis_mode
+            analysis_result, doc_name, "rubric"
         )
-                report_html = analysis_service.report_generator.generate_html_report(analysis_result, doc_name, analysis_mode)
+        compliance_score = _calculate_compliance_score(analysis_result)
 
-                compliance_score = _calculate_compliance_score(analysis_result)
-                report_data = {
-                    "document_name": doc_name,
-                    "compliance_score": compliance_score,
-                    "analysis_result": analysis_result,
-                    "document_embedding": embedding_bytes
-                }
-                await crud.create_report_and_findings(db, report_data, analysis_result.get("findings", []))
-        # Save the report and findings to the database
-        report_data = {
-            "document_name": doc_name,
-            "compliance_score": analysis_service.report_generator.risk_scoring_service.calculate_compliance_score(analysis_result.get("findings", []))
+        # Get document embedding for semantic caching
+        embedding_bytes = analysis_service.get_document_embedding(document_text)
+
+        # Create report record in the database
+        report_data = schemas.ReportCreate(
+            document_name=doc_name,
+            compliance_score=compliance_score,
+            analysis_result=analysis_result,
+            document_embedding=embedding_bytes,
+            owner_id=user_id,
+        )
+        await crud.create_report_and_findings(
+            db=db,
+            report_data=report_data,
+            findings_data=analysis_result.get("findings", []),
+        )
+
+        logger.info(f"Analysis for task {task_id} completed successfully.")
+        tasks[task_id] = {
+            "status": "completed",
+            "result": report_html,
+            "compliance_score": compliance_score,
         }
-        crud.create_report_and_findings(db, report_data, analysis_result.get("findings", []))
 
-        tasks[task_id] = {"status": "completed", "result": report_html}
-                tasks[task_id] = {"status": "completed", "result": report_html, "compliance_score": compliance_score}
-
-        except Exception as e:
-            logger.error(f"Error during analysis for task {task_id}: {e}", exc_info=True)
-            tasks[task_id] = {"status": "failed", "error": str(e)}
-        finally:
-            await db.close()
-            db.close()
+    except Exception as e:
+        logger.error(f"Error during analysis for task {task_id}: {e}", exc_info=True)
+        tasks[task_id] = {"status": "failed", "error": str(e)}
+    finally:
         # Clean up the temporary file
         if os.path.exists(file_path):
             os.remove(file_path)
+        # Close the database session
+        await db.close()
 
-def analysis_task_wrapper(*args, **kwargs):
-    """Sync wrapper to run the async analysis task in a background thread."""
-    asyncio.run(run_analysis_and_save(*args, **kwargs))
 
-@router.post("/analyze", status_code=202)
+@router.post("/analyze", status_code=202, response_model=schemas.TaskStatus)
 async def analyze_document(
-    background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-    discipline: str = Form("All"),
-    rubric_id: int = Form(None),
-    analysis_mode: str = Form("rubric"),
-    current_user: models.User = Depends(get_current_active_user),
-    analysis_service: AnalysisService = Depends(get_analysis_service),
+        background_tasks: BackgroundTasks,
+        file: UploadFile = File(...),
+        discipline: str = Form("All"),
+        analysis_mode: str = Form("rubric"),
+        current_user: models.User = Depends(get_current_active_user),
+        analysis_service: AnalysisService = Depends(get_analysis_service),
 ):
+    """
+    Accepts a document, saves it temporarily, and starts a background task for analysis.
+    """
     task_id = str(uuid.uuid4())
-    temp_file_path = f"temp_{task_id}_{file.filename}"
-    upload_dir = settings.temp_upload_dir # Use settings.temp_upload_dir
+    upload_dir = "temp_uploads"
     os.makedirs(upload_dir, exist_ok=True)
     temp_file_path = os.path.join(upload_dir, f"temp_{task_id}_{file.filename}")
-    with open(temp_file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+
+    try:
+        with open(temp_file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        logger.error(f"Failed to save uploaded file: {e}")
+        raise HTTPException(status_code=500, detail="Failed to process uploaded file.")
 
     background_tasks.add_task(
-        run_analysis_and_save, temp_file_path, task_id, file.filename, rubric_id, discipline, analysis_mode
-        analysis_task_wrapper, temp_file_path, task_id, file.filename, discipline, analysis_mode, analysis_service
+        run_analysis_and_save,
+        file_path=temp_file_path,
+        task_id=task_id,
+        doc_name=file.filename,
+        user_id=current_user.id,
+        analysis_service=analysis_service,
     )
-    tasks[task_id] = {"status": "processing"}
 
+    tasks[task_id] = {"status": "processing"}
     return {"task_id": task_id, "status": "processing"}
 
-@router.get("/tasks/{task_id}")
+
+@router.get("/tasks/{task_id}", response_model=schemas.TaskStatus)
 async def get_task_status(task_id: str):
+    """
+    Retrieves the status of an analysis task.
+    """
     task = tasks.get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-
-    if task["status"] == "completed":
-        return {"status": "completed", "compliance_score": task.get("compliance_score", "N/A"), "report_url": f"/reports/{task_id}"}
-
     return task
-        return HTMLResponse(content=task["result"])
-    else:
-        return task
+
+
+@router.get("/reports/{task_id}", response_class=HTMLResponse)
+async def get_report(task_id: str):
+    """
+    Retrieves the HTML report for a completed task.
+    """
+    task = tasks.get(task_id)
+    if not task or task.get("status") != "completed":
+        raise HTTPException(status_code=404, detail="Report not found or not ready.")
+    return HTMLResponse(content=task["result"])
+
+
+# Helper for async generator dependency
+from typing import AsyncGenerator
+
+
+async def anext(gen: AsyncGenerator):
+    return await gen.__anext__()
+
+
+`
