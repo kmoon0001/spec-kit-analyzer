@@ -1,13 +1,14 @@
 from PyQt6.QtWidgets import (
-    QPushButton, 
+    QPushButton,
     QVBoxLayout,
     QHBoxLayout,
     QListWidget,
     QComboBox,
     QLabel,
-    QGroupBox
+    QGroupBox,
 )
 from PyQt6.QtCore import Qt
+
 
 class ControlPanel(QGroupBox):
     def __init__(self, main_window):
@@ -20,11 +21,11 @@ class ControlPanel(QGroupBox):
 
         # File operations
         file_ops_layout = QHBoxLayout()
-        self.upload_button = QPushButton('Upload Document')
+        self.upload_button = QPushButton("Upload Document")
         self.upload_button.setToolTip("Upload a document for analysis.")
         self.upload_button.clicked.connect(self.main_window.open_file_dialog)
         file_ops_layout.addWidget(self.upload_button)
-        self.clear_button = QPushButton('Clear Display')
+        self.clear_button = QPushButton("Clear Display")
         self.clear_button.setToolTip("Clear the document and analysis results.")
         self.clear_button.clicked.connect(self.main_window.clear_display)
         file_ops_layout.addWidget(self.clear_button)

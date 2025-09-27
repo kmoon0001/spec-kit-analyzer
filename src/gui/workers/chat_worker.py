@@ -5,11 +5,9 @@ from typing import List, Dict
 API_URL = "http://127.0.0.1:8000"
 
 class ChatWorker(QObject):
-    """
-    A worker to handle a single turn in a a chat conversation with the backend.
-    """
-    success = Signal(str)  # Emits the AI's response message # type: ignore
-    error = Signal(str)  # type: ignore
+    """A worker to handle a single turn in a chat conversation with the backend."""
+    success = Signal(str)  # Emits the AI's response message
+    error = Signal(str)
 
     def __init__(self, history: List[Dict[str, str]], token: str):
         super().__init__()

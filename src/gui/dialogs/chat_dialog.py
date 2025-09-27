@@ -1,23 +1,35 @@
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QTextEdit, QLineEdit, QPushButton, QHBoxLayout, QDialogButtonBox
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLineEdit,
+    QTextEdit,
+    QPushButton,
+    QDialogButtonBox,
 )
 from PyQt6.QtCore import QThread
 from typing import List, Dict
 
 from ..workers.chat_worker import ChatWorker
 
+from src.config import get_settings
+
+settings = get_settings()
+API_URL = settings.api_url
+
+
 class ChatDialog(QDialog):
-    """
-    A dialog window for a conversational chat session with the AI about a specific topic.
-    """
     def __init__(self, initial_context: str, token: str, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Discuss with AI")
-        self.setGeometry(200, 200, 500, 600)
-
+        self.setWindowTitle("Chat with AI Assistant")
+        self.setMinimumSize(500, 400)
         self.token = token
         self.history: List[Dict[str, str]] = [
-            {"role": "system", "content": initial_context}
+            {
+                "role": "system",
+                "content": "You are a helpful assistant for clinical compliance.",
+            },
+            {"role": "user", "content": initial_context},
         ]
 
         # --- UI Setup ---
@@ -29,7 +41,7 @@ class ChatDialog(QDialog):
 
         input_layout = QHBoxLayout()
         self.message_input = QLineEdit()
-        self.message_input.setPlaceholderText("Ask a follow-up question...")
+        self.message_input.setPlaceholderText("Type your message...")
         self.send_button = QPushButton("Send")
 
         input_layout.addWidget(self.message_input)
@@ -41,39 +53,62 @@ class ChatDialog(QDialog):
 
         # --- Connections ---
         self.send_button.clicked.connect(self.send_message)
-        self.message_input.returnPressed.connect(self.send_message)
         self.close_button.rejected.connect(self.reject)
 
-    def send_message(self):
-        user_message = self.message_input.text().strip()
-        if not user_message:
-            return
+        self.thread = None
+        self.worker = None
 
-        # Add user message to history and display
-        self.history.append({"role": "user", "content": user_message})
-        self.chat_display.append(f"<b>You:</b> {user_message}")
-        self.message_input.clear()
+        self.send_initial_message()
+
+    def send_initial_message(self):
+        self.update_chat_display("user", self.history[-1]["content"])
+        self.send_message(is_initial=True)
+
+    def send_message(self, is_initial=False):
+        if not is_initial:
+            user_message = self.message_input.text().strip()
+            if not user_message:
+                return
+            self.history.append({"role": "user", "content": user_message})
+            self.update_chat_display("user", user_message)
+            self.message_input.clear()
+
         self.send_button.setEnabled(False)
+        self.message_input.setEnabled(False)
+        self.update_chat_display("assistant", "<i>...thinking...</i>")
 
-        # Run the worker to get the AI's response
         self.thread = QThread()
         self.worker = ChatWorker(self.history, self.token)
         self.worker.moveToThread(self.thread)
-
-        self.worker.success.connect(self.on_ai_response)
+        self.worker.success.connect(self.on_chat_success)
         self.worker.error.connect(self.on_chat_error)
-
-        self.thread.started.connect(self.worker.run)
-        self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
         self.thread.start()
 
-    def on_ai_response(self, ai_message: str):
-        self.history.append({"role": "assistant", "content": ai_message})
-        self.chat_display.append(f"<b>AI:</b> {ai_message}")
+    def on_chat_success(self, ai_response: str):
+        self.history.append({"role": "assistant", "content": ai_response})
+        # Remove the "...thinking..." message before adding the real one
+        self.chat_display.undo()
+        self.update_chat_display("assistant", ai_response)
         self.send_button.setEnabled(True)
+        self.message_input.setEnabled(True)
         self.message_input.setFocus()
 
     def on_chat_error(self, error_message: str):
-        self.chat_display.append(f'<i style="color: red;">Error: {error_message}</i>')
+        self.chat_display.undo()
+        self.update_chat_display(
+            "system", f"<font color='red'>Error: {error_message}</font>"
+        )
         self.send_button.setEnabled(True)
+        self.message_input.setEnabled(True)
+
+    def update_chat_display(self, role: str, text: str):
+        if role == "user":
+            self.chat_display.append(f"<b>You:</b> {text}")
+        elif role == "assistant":
+            self.chat_display.append(f"<b>Assistant:</b> {text}")
+        else:  # system
+            self.chat_display.append(f"<i>{text}</i>")
+        self.chat_display.append("")  # Add a blank line for spacing

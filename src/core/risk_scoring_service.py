@@ -1,29 +1,25 @@
-from typing import List, Dict, Any
-
 class RiskScoringService:
     """
-    Calculates a compliance score based on a list of findings.
+    A service to calculate a compliance score based on the severity of findings.
     """
-    def __init__(self):
-        self.risk_weights = {
-            "High": 15,
-            "Medium": 5,
-            "Low": 1,
-        }
-        self.base_score = 100
-
-    def calculate_compliance_score(self, findings: List[Dict[str, Any]]) -> int:
+    @staticmethod
+    def calculate_compliance_score(findings: list) -> int:
         """
-        Calculates a compliance score by subtracting points for each finding
-        based on its risk level.
+        Calculates a compliance score from 1 to 100.
+        A higher score means better compliance.
         """
         if not findings:
-            return self.base_score
+            return 100
 
-        total_deduction = 0
-        for finding in findings:
-            risk_level = finding.get("risk", "Low")
-            total_deduction += self.risk_weights.get(risk_level, 1)
+        risk_weights = {"High": 10, "Medium": 5, "Low": 2}
+        max_possible_risk = 50  # An arbitrary ceiling for risk score
 
-        final_score = self.base_score - total_deduction
-        return max(0, final_score)
+        total_risk_score = sum(risk_weights.get(finding.get("risk", "Low"), 1) for finding in findings)
+
+        # Normalize the risk score to a 0-1 scale and then map to 0-100
+        normalized_risk = min(total_risk_score / max_possible_risk, 1.0)
+
+        # Invert so that high risk -> low compliance score
+        compliance_score = 100 - (normalized_risk * 100)
+
+        return int(compliance_score)

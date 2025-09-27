@@ -5,10 +5,10 @@ from .llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
+
 class ChatService:
-    """
-    Manages a conversational session with the AI, maintaining history and context.
-    """
+    """Manages a conversational session with the AI, maintaining history and context."""
+
     def __init__(self, llm_service: LLMService, initial_context: str):
         """
         Initializes the ChatService with a starting context.
@@ -44,9 +44,7 @@ class ChatService:
             return f"I encountered an error and cannot continue this conversation: {e}"
 
     def _build_prompt_from_history(self) -> str:
-        """
-        Constructs a single prompt string from the conversation history.
-        """
+        """Constructs a single prompt string from the conversation history."""
         prompt = ""
         for message in self.history:
             prompt += f"**{message['role'].capitalize()}**: {message['content']}\n\n"
