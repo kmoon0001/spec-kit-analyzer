@@ -19,6 +19,14 @@
   from sentence_transformers import SentenceTransformer
   from ..config import get_config
   from ..parsing import parse_guideline_file
+import os
+import logging
+from typing import List, Tuple
+import faiss
+import joblib
+import pdfplumber
+from sentence_transformers import SentenceTransformer
+from src.core.config import Config
 
   logger = logging.getLogger(__name__)
 

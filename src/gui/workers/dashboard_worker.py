@@ -1,6 +1,5 @@
 import requests
 from PyQt6.QtCore import QObject, pyqtSignal as Signal
-from typing import Dict
 
 from src.config import get_settings
 

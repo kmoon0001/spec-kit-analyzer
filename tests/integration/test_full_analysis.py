@@ -1,11 +1,9 @@
 `python
   import os
   import pytest
-  import json
-  from unittest.mock import patch, MagicMock
+  from unittest.mock import patch
 
-  from src.core.analysis_service import AnalysisService
-  from src.core.retriever import HybridRetriever
+from src.core.analysis_service import AnalysisService
 
   # A fixture to create a dummy config.yaml for testing
   @pytest.fixture(scope="module")
