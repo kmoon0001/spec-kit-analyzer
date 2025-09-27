@@ -15,7 +15,6 @@ from src.core.nlg_service import NLGService
 from src.core.ner import NERPipeline
 from src.core.retriever import HybridRetriever
 from src.core.compliance_analyzer import ComplianceAnalyzer
-from src.core.report_generator import ReportGenerator
 from src.core.fact_checker_service import FactCheckerService
 from src.core.prompt_manager import PromptManager
 from src.core.explanation import ExplanationEngine

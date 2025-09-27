@@ -1,7 +1,5 @@
 import os
-import json
 import logging
-import numpy as np
 from typing import List, Tuple
 import faiss
 import joblib

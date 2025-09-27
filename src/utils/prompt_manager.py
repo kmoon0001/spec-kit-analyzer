@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import Dict, Any
+from typing import Any
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

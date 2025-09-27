@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from ... import crud, schemas, models
+from ... import models
 from ...database import get_db
 from ...auth import auth_service, get_current_active_user
 
