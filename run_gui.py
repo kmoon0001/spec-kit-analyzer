@@ -11,9 +11,9 @@ project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, project_root)
 
 # 3. Now that the path is correct, we can import and run the application.
-from PyQt6.QtWidgets import QApplication
-from src.gui.main_window import MainApplicationWindow
-from src.database import init_db
+from PyQt6.QtWidgets import QApplication  # noqa: E402
+from src.gui.main_window import MainApplicationWindow  # noqa: E402
+from src.database import init_db  # noqa: E402
 
 if __name__ == "__main__":
     print("Initializing database...")

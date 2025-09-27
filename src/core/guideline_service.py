@@ -16,6 +16,15 @@ import requests
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
+from ..config import get_config
+from ..parsing import parse_guideline_file
+import os
+import logging
+from typing import List, Tuple
+import faiss
+import joblib
+import pdfplumber
+from sentence_transformers import SentenceTransformer
 from ..config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -46,113 +55,140 @@ class GuidelineService:
         self._load_or_build_index()
         logger.info("GuidelineService initialized.")
 
-    def classify_document(self, document_text: str) -> str:
-        """
-        Classifies the document based on its content.
-        Placeholder implementation.
-        """
-        return "Unknown"
-
     def _load_or_build_index(self):
-        """Loads the index from cache if valid, otherwise builds it from source."""
-        if self._is_cache_valid():
-            logger.info("Loading guidelines index from cache...")
-            self._load_index_from_cache()
+        """Loads an existing index if available, otherwise builds a new one."""
+        if self._cache_exists() and self._cache_valid():
+            logger.info("Loading guidelines from cache...")
+            self._load_from_cache()
         else:
-            logger.info("Cache not found or is invalid. Building index from source...")
-            self._build_index_from_sources()
-            self._save_index_to_cache()
+            logger.info("Cache miss or invalid. Building new index...")
+            self._build_index()
+            self._save_to_cache()
 
-    def _is_cache_valid(self) -> bool:
-        """Checks if the cached index and chunks exist and are up-to-date."""
-        if not os.path.exists(self.index_path) or not os.path.exists(self.chunks_path):
+    def _cache_exists(self) -> bool:
+        """Checks if both index and chunks cache files exist."""
+        return os.path.exists(self.index_path) and os.path.exists(self.chunks_path)
+
+    def _cache_valid(self) -> bool:
+        """Validates cache by checking if source files are newer than cache."""
+        if not self._cache_exists():
             return False
-
-        with open(self.chunks_path, 'rb') as f:
-            cached_chunks = joblib.load(f)
-        cached_sources = {chunk[1] for chunk in cached_chunks}
-        current_sources = {os.path.basename(path) for path in self.source_paths}
-        if cached_sources != current_sources:
-            return False
-
-        cache_mod_time = os.path.getmtime(self.index_path)
-        for src_path in self.source_paths:
-            if not os.path.exists(src_path) or os.path.getmtime(src_path) > cache_mod_time:
+        
+        cache_time = min(os.path.getmtime(self.index_path), os.path.getmtime(self.chunks_path))
+        
+        for source_path in self.source_paths:
+            if os.path.exists(source_path) and os.path.getmtime(source_path) > cache_time:
+                logger.info(f"Source file {source_path} is newer than cache")
                 return False
         return True
 
-    def _load_index_from_cache(self):
-        """Loads the FAISS index and guideline chunks from disk."""
+    def _load_from_cache(self):
+        """Loads the FAISS index and guideline chunks from cache."""
         try:
             self.faiss_index = faiss.read_index(self.index_path)
-            with open(self.chunks_path, 'rb') as f:
-                self.guideline_chunks = joblib.load(f)
+            self.guideline_chunks = joblib.load(self.chunks_path)
             self.is_index_ready = True
-            logger.info(f"Successfully loaded {len(self.guideline_chunks)} chunks and FAISS index from cache.")
+            logger.info(f"Loaded {len(self.guideline_chunks)} guideline chunks from cache")
         except Exception as e:
-            logger.error(f"Failed to load index from cache: {e}")
-            self.is_index_ready = False
+            logger.error(f"Failed to load from cache: {e}")
+            self._build_index()
+            self._save_to_cache()
 
-    def _save_index_to_cache(self):
-        """Saves the FAISS index and guideline chunks to disk."""
-        if not self.faiss_index or not self.guideline_chunks:
-            logger.warning("Attempted to save cache, but index or chunks are missing.")
-            return
-
+    def _save_to_cache(self):
+        """Saves the current FAISS index and chunks to cache."""
+        if not os.path.exists(self.cache_dir):
+            os.makedirs(self.cache_dir)
+        
         try:
             faiss.write_index(self.faiss_index, self.index_path)
-            with open(self.chunks_path, 'wb') as f:
-                joblib.dump(self.guideline_chunks, f)
-            logger.info(f"Successfully saved index and chunks to '{self.cache_dir}'.")
+            joblib.dump(self.guideline_chunks, self.chunks_path)
+            logger.info("Saved guidelines to cache")
         except Exception as e:
-            logger.error(f"Failed to save index to cache: {e}")
+            logger.error(f"Failed to save to cache: {e}")
 
-    def _build_index_from_sources(self) -> None:
-        """Loads guidelines from a list of local file paths and builds a FAISS index."""
-        self.guideline_chunks = []
+    def _build_index(self):
+        """Builds the FAISS index from scratch by loading and processing source files."""
+        all_chunks = []
+        
         for source_path in self.source_paths:
-            self.guideline_chunks.extend(self._load_from_local_path(source_path))
-
-        if self.guideline_chunks:
-            logger.info("Encoding guidelines into vectors...")
-            texts_to_encode = [chunk[0] for chunk in self.guideline_chunks]
-            embeddings = self.model.encode(texts_to_encode, convert_to_tensor=True, show_progress_bar=True)
-            embeddings_np = embeddings.cpu().numpy()
-
-            if embeddings_np.dtype != np.float32:
-                embeddings_np = embeddings_np.astype(np.float32)
-
-            embedding_dim = embeddings_np.shape[1]
-            self.faiss_index = faiss.IndexFlatL2(embedding_dim)
-            self.faiss_index.add(embeddings_np)
-
+            if source_path.startswith(('http://', 'https://')):
+                chunks = self._load_from_url(source_path)
+            else:
+                chunks = self._load_from_local_path(source_path)
+            all_chunks.extend(chunks)
+        
+        if not all_chunks:
+            logger.warning("No guideline chunks loaded. Index will be empty.")
+            self.guideline_chunks = []
+            self.is_index_ready = False
+            return
+        
+        self.guideline_chunks = all_chunks
+        
+        # Generate embeddings
+        logger.info(f"Generating embeddings for {len(all_chunks)} chunks...")
+        texts = [chunk[0] for chunk in all_chunks]
+        embeddings = self.model.encode(texts, convert_to_tensor=True, show_progress_bar=True)
+        
+        # Convert to numpy if needed
+        if not isinstance(embeddings, np.ndarray):
+            embeddings = embeddings.cpu().numpy()
+        
+        # Ensure float32 for FAISS
+        if embeddings.dtype != np.float32:
+            embeddings = embeddings.astype(np.float32)
+        
+        # Build FAISS index
+        dimension = embeddings.shape[1]
+        self.faiss_index = faiss.IndexFlatIP(dimension)  # Inner product similarity
+        faiss.normalize_L2(embeddings)  # Normalize for cosine similarity
+        self.faiss_index.add(embeddings)
+        
         self.is_index_ready = True
-        logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks using FAISS.")
+        logger.info(f"Built FAISS index with {self.faiss_index.ntotal} vectors")
 
-    @staticmethod
-    def _extract_text_from_pdf(file_path: str, source_name: str) -> List[Tuple[str, str]]:
-        """Extracts text from a file, chunking it by paragraph."""
+    def _load_from_url(self, url: str) -> List[Tuple[str, str]]:
+        """Downloads and extracts text chunks from a URL."""
+        logger.info(f"Downloading guidelines from URL: {url}...")
+        
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            
+            # Create temporary file
+            with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_file:
+                temp_file.write(response.content)
+                temp_path = temp_file.name
+            
+            try:
+                source_name = url.split('/')[-1] or 'downloaded_guidelines.pdf'
+                chunks = self._extract_text_from_pdf(temp_path, source_name)
+                return chunks
+            finally:
+                # Clean up temporary file
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+                    
+        except Exception as e:
+            logger.error(f"Failed to download from '{url}': {e}")
+            raise
+
+    def _extract_text_from_pdf(self, file_path: str, source_name: str) -> List[Tuple[str, str]]:
+        """Extracts text from a PDF file and returns chunks with source information."""
         chunks = []
         try:
-            if file_path.lower().endswith('.txt'):
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    text = f.read()
-                paragraphs = text.split('\n\n')
-                for para in paragraphs:
-                    cleaned_para = para.replace('\n', ' ').strip()
-                    if cleaned_para:
-                        chunks.append((cleaned_para, source_name))
-                return chunks
-
             with pdfplumber.open(file_path) as pdf:
                 for i, page in enumerate(pdf.pages):
                     text = page.extract_text()
-                    if text:
-                        paragraphs = text.split('\n\n')
-                        for para in paragraphs:
-                            cleaned_para = para.replace('\n', ' ').strip()
-                            if cleaned_para:
-                                chunks.append((cleaned_para, f"{source_name} (Page {i+1})"))
+                    if not text:
+                        continue
+                    
+                    # Split into paragraphs and clean
+                    paragraphs = re.split(r'\n\s*\n', text)
+                    for para in paragraphs:
+                        cleaned_para = para.replace('\n', ' ').strip()
+                        if cleaned_para:
+                            chunks.append((cleaned_para, f"{source_name} (Page {i+1})"))
         except Exception as e:
             logger.error(f"Failed to extract text from '{file_path}': {e}")
             raise
@@ -209,3 +245,7 @@ class GuidelineService:
                 results.append({"text": chunk[0], "source": chunk[1], "score": dist})
 
         return results
+
+    def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
+        """Mock function to parse a guideline file. Returns an empty list."""
+        return []
