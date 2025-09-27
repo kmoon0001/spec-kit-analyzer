@@ -1,72 +1,152 @@
-`python
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import timedelta
+import logging
+import os
+import shutil
+import uuid
+from typing import Dict, Any, AsyncGenerator
 
-from ... import crud, schemas, models
-from ...auth import AuthService, get_auth_service, get_current_active_user
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+)
+from fastapi.responses import HTMLResponse
+
+from ... import crud, models, schemas
+from ...auth import get_current_active_user
+from ...core.analysis_service import AnalysisService
 from ...database import get_async_db
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
+tasks = {}
 
-@router.post("/token", response_model=schemas.Token)
-async def login_for_access_token(
-        form_data: OAuth2PasswordRequestForm = Depends(),
-        db: AsyncSession = Depends(get_async_db),
-        auth_service: AuthService = Depends(get_auth_service),
+def get_analysis_service():
+    return AnalysisService()
+
+def _calculate_compliance_score(analysis_result: Dict[str, Any]) -> str:
+    """Calculates a numeric compliance score from analysis findings."""
+    base_score = 100
+    if "findings" not in analysis_result or not analysis_result["findings"]:
+        return str(base_score)
+
+    score_deductions = {"High": 10, "Medium": 5, "Low": 2}
+    current_score = base_score
+    for finding in analysis_result["findings"]:
+        risk = finding.get("risk", "Low")
+        current_score -= score_deductions.get(risk, 0)
+    return str(max(0, current_score))
+
+async def anext(gen: AsyncGenerator):
+    return await gen.__anext__()
+
+async def run_analysis_and_save(
+    file_path: str,
+    task_id: str,
+    doc_name: str,
+    user_id: int,
+    analysis_service: AnalysisService,
 ):
     """
-    Logs in a user and returns an access token.
+    A background task that runs the analysis, saves the report, and cleans up.
     """
-    user = await crud.get_user_by_username(db, username=form_data.username)
-    if not user or not auth_service.verify_password(
-            form_data.password, user.hashed_password
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+    db_session_gen = get_async_db()
+    db = await anext(db_session_gen)
+    try:
+        logger.info(f"Starting analysis for task {task_id} on file {doc_name}")
+        with open(file_path, 'r', encoding='utf-8') as f:
+            document_text = f.read()
+
+        analysis_result = analysis_service.analyzer.analyze_document(
+            document_text=document_text,
+            discipline="PT",
+            doc_type="Unknown",
         )
 
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is inactive or license has expired. Please contact support.",
+        report_html = analysis_service.report_generator.generate_html_report(
+            analysis_result, doc_name, "rubric"
+        )
+        compliance_score = _calculate_compliance_score(analysis_result)
+        
+        embedding_bytes = analysis_service.get_document_embedding(document_text)
+
+        report_data = schemas.ReportCreate(
+            document_name=doc_name,
+            compliance_score=compliance_score,
+            analysis_result=analysis_result,
+            document_embedding=embedding_bytes,
+            owner_id=user_id,
+        )
+        await crud.create_report_and_findings(
+            db=db,
+            report_data=report_data,
+            findings_data=analysis_result.get("findings", []),
         )
 
-    access_token_expires = timedelta(minutes=auth_service.access_token_expire_minutes)
-    access_token = auth_service.create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
+        logger.info(f"Analysis for task {task_id} completed successfully.")
+        tasks[task_id] = {
+            "status": "completed",
+            "result": report_html,
+            "compliance_score": compliance_score,
+        }
+
+    except Exception as e:
+        logger.error(f"Error during analysis for task {task_id}: {e}", exc_info=True)
+        tasks[task_id] = {"status": "failed", "error": str(e)}
+    finally:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        await db.close()
 
 
-@router.post("/users/change-password", response_model=schemas.Msg)
-async def change_password(
-        password_data: schemas.UserPasswordChange,
-        db: AsyncSession = Depends(get_async_db),
-        current_user: models.User = Depends(get_current_active_user),
-        auth_service: AuthService = Depends(get_auth_service),
+@router.post("/analyze", status_code=202, response_model=schemas.TaskStatus)
+async def analyze_document(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    discipline: str = Form("All"),
+    analysis_mode: str = Form("rubric"),
+    current_user: models.User = Depends(get_current_active_user),
+    analysis_service: AnalysisService = Depends(get_analysis_service),
 ):
-    """
-    Changes the current user's password.
-    """
-    if not auth_service.verify_password(
-            password_data.current_password, current_user.hashed_password
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Incorrect current password.",
-        )
+    task_id = str(uuid.uuid4())
+    upload_dir = "temp_uploads"
+    os.makedirs(upload_dir, exist_ok=True)
+    temp_file_path = os.path.join(upload_dir, f"temp_{task_id}_{file.filename}")
 
-    new_hashed_password = auth_service.get_password_hash(password_data.new_password)
-    await crud.change_user_password(
-        db=db, user_id=current_user.id, new_hashed_password=new_hashed_password
+    try:
+        with open(temp_file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        logger.error(f"Failed to save uploaded file: {e}")
+        raise HTTPException(status_code=500, detail="Failed to process uploaded file.")
+
+    background_tasks.add_task(
+        run_analysis_and_save,
+        file_path=temp_file_path,
+        task_id=task_id,
+        doc_name=file.filename,
+        user_id=current_user.id,
+        analysis_service=analysis_service,
     )
 
-    return {"message": "Password changed successfully."}
+    tasks[task_id] = {"status": "processing"}
+    return {"task_id": task_id, "status": "processing"}
 
 
-`
+@router.get("/tasks/{task_id}", response_model=schemas.TaskStatus)
+async def get_task_status(task_id: str):
+    task = tasks.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+@router.get("/reports/{task_id}", response_class=HTMLResponse)
+async def get_report(task_id: str):
+    task = tasks.get(task_id)
+    if not task or task.get("status") != "completed":
+        raise HTTPException(status_code=404, detail="Report not found or not ready.")
+    return HTMLResponse(content=task["result"])

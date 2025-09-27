@@ -1,4 +1,3 @@
-`python
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,13 +10,12 @@ from ..dependencies import get_analysis_service
 
 router = APIRouter()
 
-
 @router.post("/", response_model=schemas.ChatResponse)
 async def chat_with_ai(
-        chat_request: schemas.ChatRequest,
-        db: AsyncSession = Depends(get_db),
-        current_user: models.User = Depends(get_current_active_user),
-        analysis_service: AnalysisService = Depends(get_analysis_service),
+    chat_request: schemas.ChatRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user),
+    analysis_service: AnalysisService = Depends(get_analysis_service),
 ):
     """Handles a conversational chat request with the AI."""
     llm_service = analysis_service.analyzer.llm_service
@@ -37,5 +35,3 @@ async def chat_with_ai(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred during the chat session: {e}"
         )
-
-
