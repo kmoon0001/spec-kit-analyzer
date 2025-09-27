@@ -1,6 +1,5 @@
 from . import models, schemas
 import datetime
-import datetime
 from typing import List, Dict, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
