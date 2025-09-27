@@ -40,9 +40,7 @@ class IterativeOrchestrator:
 
 
 def test_iterative_retrieval_orchestration(mock_retriever, mock_llm_service):
-    """
-    Tests that the iterative loop correctly calls the retriever and llm service.
-    """
+    """Tests that the iterative loop correctly calls the retriever and llm service."""
     # Arrange
     orchestrator = IterativeOrchestrator(mock_retriever, mock_llm_service)
     iterations = 3
@@ -56,9 +54,7 @@ def test_iterative_retrieval_orchestration(mock_retriever, mock_llm_service):
 
 
 def test_iterative_retrieval_data_aggregation(mock_retriever, mock_llm_service):
-    """
-    Tests that context is correctly aggregated through the loops.
-    """
+    """Tests that context is correctly aggregated through the loops."""
     # Arrange
     orchestrator = IterativeOrchestrator(mock_retriever, mock_llm_service)
 

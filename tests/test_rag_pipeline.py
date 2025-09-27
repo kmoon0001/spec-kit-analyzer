@@ -45,9 +45,7 @@ def mock_dependencies():
 
 
 def test_full_analysis_pipeline_orchestration(mock_dependencies):
-    """
-    Tests that the AnalysisService correctly orchestrates the entire pipeline.
-    """
+    """Tests that the AnalysisService correctly orchestrates the entire pipeline."""
     # Arrange
     # Initializing the service will use all the mocked components from the fixture
     service = AnalysisService()

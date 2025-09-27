@@ -71,11 +71,13 @@ class ComplianceAnalyzer:
                 )
 
                 # a. Fact-check the finding if a rule was found
-                if associated_rule:
-                    if not self.fact_checker_service.is_finding_plausible(
-                        finding, associated_rule
-                    ):
-                        finding["is_disputed"] = True
+                if (
+                    associated_rule
+                    and not self.fact_checker_service.is_finding_plausible(
+                    finding, associated_rule
+                )
+                ):
+                    finding["is_disputed"] = True
 
                 # b. Check for low confidence
                 confidence = finding.get("confidence", 1.0)
@@ -91,7 +93,8 @@ class ComplianceAnalyzer:
 
         return explained_analysis
 
-    def _format_rules_for_prompt(self, rules: List[Dict[str, Any]]) -> str:
+    @staticmethod
+    def _format_rules_for_prompt(rules: List[Dict[str, Any]]) -> str:
         if not rules:
             return "No specific compliance rules were retrieved. Analyze based on general Medicare principles."
         return "\n".join(
@@ -109,10 +112,9 @@ class ComplianceAnalyzer:
             if start != -1 and end != -1:
                 json_str = raw_output[start : end + 1]
                 return json.loads(json_str)
-            else:
-                raise json.JSONDecodeError(
-                    "No JSON object found in the output.", raw_output, 0
-                )
+            raise json.JSONDecodeError(
+                "No JSON object found in the output.", raw_output, 0
+            )
         except json.JSONDecodeError:
             logger.error("Failed to decode LLM output into JSON.")
             return {"error": "Invalid JSON output from LLM", "raw_output": raw_output}

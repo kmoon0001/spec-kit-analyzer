@@ -25,9 +25,7 @@ class GuidelineService:
     """
 
     def __init__(self, sources: List[str]):
-        """
-        Initializes the GuidelineService.
-        """
+        """Initializes the GuidelineService."""
         self.config = load_config()
         model_name = self.config["models"]["retriever"]
 
@@ -72,8 +70,8 @@ class GuidelineService:
         # Check if the sources have changed
         with open(self.chunks_path, "rb") as f:
             cached_chunks = pickle.load(f)
-        cached_sources = set(chunk[1] for chunk in cached_chunks)
-        current_sources = set(os.path.basename(path) for path in self.source_paths)
+        cached_sources = {chunk[1] for chunk in cached_chunks}
+        current_sources = {os.path.basename(path) for path in self.source_paths}
         if cached_sources != current_sources:
             return False
 
@@ -184,8 +182,7 @@ class GuidelineService:
         source_name = os.path.basename(file_path)
         if file_path.lower().endswith(".json"):
             return self._extract_text_from_json(file_path, source_name)
-        else:
-            return self._extract_text_from_pdf(file_path, source_name)
+        return self._extract_text_from_pdf(file_path, source_name)
 
     @staticmethod
     def _extract_text_from_json(
@@ -206,9 +203,7 @@ class GuidelineService:
         return chunks
 
     def search(self, query: str, top_k: int = None) -> List[dict]:
-        """
-        Performs a FAISS similarity search through the loaded guidelines.
-        """
+        """Performs a FAISS similarity search through the loaded guidelines."""
         if top_k is None:
             top_k = self.config["retrieval_settings"]["similarity_top_k"]
 

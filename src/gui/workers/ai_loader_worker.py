@@ -21,9 +21,7 @@ class AILoaderWorker(QObject):
     finished = Signal(object, bool, str)  # analyzer, is_healthy, status_message
 
     def run(self):
-        """
-        Runs startup tasks: database purge, then AI model loading.
-        """
+        """Runs startup tasks: database purge, then AI model loading."""
         try:
             # 1. Load configuration
             config_path = os.path.join(ROOT_DIR, "config.yaml")

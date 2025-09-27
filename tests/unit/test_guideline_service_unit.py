@@ -73,9 +73,7 @@ def guideline_service(mock_sentence_transformer, mock_faiss):
 
 
 def test_search_successful(guideline_service: GuidelineService):
-    """
-    Tests a successful hierarchical search call.
-    """
+    """Tests a successful hierarchical search call."""
     query = "test query"
     with patch.object(
         guideline_service,
@@ -90,9 +88,7 @@ def test_search_successful(guideline_service: GuidelineService):
 
 
 def test_search_with_no_index(guideline_service: GuidelineService):
-    """
-    Tests that search returns an empty list if the index is not ready.
-    """
+    """Tests that search returns an empty list if the index is not ready."""
     guideline_service.is_index_ready = False
     results = guideline_service.search("another query")
     assert results == []

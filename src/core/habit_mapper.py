@@ -15,12 +15,12 @@ def get_habit_for_finding(finding: Dict) -> Dict:
             "name": "Habit 3: Put First Things First",
             "explanation": "This finding relates to prioritizing and executing on critical, time-sensitive tasks. Ensure all documentation is signed and dated promptly.",
         }
-    elif "goal" in issue_title or "plan of care" in issue_title:
+    if "goal" in issue_title or "plan of care" in issue_title:
         return {
             "name": "Habit 2: Begin with the End in Mind",
             "explanation": "This finding relates to having a clear vision. Ensure all goals are patient-centered, functional, and clearly defined in the initial plan of care.",
         }
-    elif (
+    if (
         "skilled" in issue_title
         or "medical necessity" in issue_title
         or "justify" in issue_title
@@ -29,7 +29,7 @@ def get_habit_for_finding(finding: Dict) -> Dict:
             "name": "Habit 5: Seek First to Understand, Then to Be Understood",
             "explanation": "This finding relates to clear communication. First, understand the patient's unique needs, then document them in a way that makes the medical necessity of your skilled service clear to an external reviewer.",
         }
-    elif (
+    if (
         "collaboration" in issue_title
         or "interdisciplinary" in issue_title
         or "billing" in issue_title
@@ -38,8 +38,7 @@ def get_habit_for_finding(finding: Dict) -> Dict:
             "name": "Habit 6: Synergize",
             "explanation": "This finding relates to creative cooperation. Ensure that documentation and communication between therapy, nursing, and billing are aligned to prevent errors.",
         }
-    else:
-        return {
-            "name": "Habit 1: Be Proactive",
-            "explanation": "This finding highlights an opportunity to take initiative. Proactively reviewing your documentation for completeness and accuracy can prevent most common compliance issues.",
-        }
+    return {
+        "name": "Habit 1: Be Proactive",
+        "explanation": "This finding highlights an opportunity to take initiative. Proactively reviewing your documentation for completeness and accuracy can prevent most common compliance issues.",
+    }

@@ -62,8 +62,7 @@ def find_similar_report(db: Session, new_embedding: np.ndarray) -> models.Report
 
     if highest_similarity >= SIMILARITY_THRESHOLD:
         return best_match
-    else:
-        return None
+    return None
 
 
 def get_reports(db: Session, skip: int = 0, limit: int = 100):

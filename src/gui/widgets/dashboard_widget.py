@@ -6,9 +6,7 @@ import matplotlib.dates as mdates
 
 
 class DashboardWidget(QWidget):
-    """
-    A widget to display compliance trends and other visualizations.
-    """
+    """A widget to display compliance trends and other visualizations."""
 
     # Add the custom signal
     refresh_requested = pyqtSignal()

@@ -86,9 +86,7 @@ def test_analyze_document_orchestration(
     mock_explanation_engine,
     mock_prompt_manager,
 ):
-    """
-    Tests that analyze_document correctly orchestrates calls to its dependencies.
-    """
+    """Tests that analyze_document correctly orchestrates calls to its dependencies."""
     # Arrange
     analyzer = ComplianceAnalyzer(
         retriever=mock_retriever,

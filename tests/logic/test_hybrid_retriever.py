@@ -21,9 +21,7 @@ def mock_sentence_transformer():
 
 @pytest.fixture
 def retriever(mock_sentence_transformer):
-    """
-    Provides a HybridRetriever instance with mocked rules and dependencies.
-    """
+    """Provides a HybridRetriever instance with mocked rules and dependencies."""
     # Mock the rules that the retriever would normally load from a file
     mock_rules = [
         {
@@ -47,9 +45,7 @@ def retriever(mock_sentence_transformer):
 
 
 def test_retriever_initialization(retriever):
-    """
-    Tests that the HybridRetriever initializes correctly with mocked data.
-    """
+    """Tests that the HybridRetriever initializes correctly with mocked data."""
     assert retriever is not None
     assert len(retriever.rules) == 2
     assert retriever.corpus is not None

@@ -6,20 +6,14 @@ logger = logging.getLogger(__name__)
 
 
 class ReportGenerator:
-    """
-    A class to generate HTML reports from analysis results.
-    """
+    """A class to generate HTML reports from analysis results."""
 
     def __init__(self, template_path: str):
-        """
-        Initializes the ReportGenerator with the path to the template directory.
-        """
+        """Initializes the ReportGenerator with the path to the template directory."""
         self.env = Environment(loader=FileSystemLoader(template_path))
 
     def generate_html_report(self, analysis_result: Dict[str, Any], output_path: str):
-        """
-        Generates an HTML report from the analysis result.
-        """
+        """Generates an HTML report from the analysis result."""
         try:
             template = self.env.get_template("report_template.html")
             html_content = template.render(analysis=analysis_result)

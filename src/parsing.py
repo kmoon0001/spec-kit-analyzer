@@ -1,6 +1,6 @@
 import os
 import re
-from typing import List, Tuple, Dict
+from typing import Dict, Dict, List, Tuple
 
 import pdfplumber
 from docx import Document
@@ -16,9 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def parse_document_content(file_path: str) -> List[dict]:
-    """
-    Parses the content of a document and splits it into chunks.
-    """
+    """Parses the content of a document and splits it into chunks."""
     logger.info(f"Parsing document: {file_path}")
     if not os.path.exists(file_path):
         return [
@@ -148,8 +146,6 @@ def parse_document_content(file_path: str) -> List[dict]:
 
 
 import yaml
-import re
-from typing import Dict
 
 # Default headers if config is missing or invalid
 DEFAULT_SECTION_HEADERS = [

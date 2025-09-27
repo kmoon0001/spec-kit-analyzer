@@ -21,9 +21,7 @@ def read_reports(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
 ):
-    """
-    Retrieves a list of historical analysis reports for the dashboard.
-    """
+    """Retrieves a list of historical analysis reports for the dashboard."""
     reports = crud.get_reports(db, skip=skip, limit=limit)
     return reports
 
@@ -34,9 +32,7 @@ def read_report(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
 ):
-    """
-    Retrieves a single report by ID and generates its HTML view on the fly.
-    """
+    """Retrieves a single report by ID and generates its HTML view on the fly."""
     db_report = crud.get_report(db, report_id=report_id)
     if db_report is None:
         raise HTTPException(
@@ -57,8 +53,6 @@ def read_findings_summary(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
 ):
-    """
-    Retrieves a summary of the most common compliance findings.
-    """
+    """Retrieves a summary of the most common compliance findings."""
     summary = crud.get_findings_summary(db)
     return summary

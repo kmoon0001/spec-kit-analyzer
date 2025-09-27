@@ -5,9 +5,7 @@ logger = logging.getLogger(__name__)
 
 
 class ExplanationEngine:
-    """
-    A service to post-process analysis findings, adding explanations and context.
-    """
+    """A service to post-process analysis findings, adding explanations and context."""
 
     def add_explanations(
         self, analysis_result: Dict[str, Any], full_document_text: str
@@ -35,8 +33,9 @@ class ExplanationEngine:
 
         return analysis_result
 
+    @staticmethod
     def _get_context_snippet(
-        self, text_to_find: str, full_text: str, window: int = 20
+        text_to_find: str, full_text: str, window: int = 20
     ) -> str:
         """
         Finds a snippet of text and returns it with a surrounding context window.

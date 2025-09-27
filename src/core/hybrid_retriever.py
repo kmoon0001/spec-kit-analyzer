@@ -53,7 +53,8 @@ class HybridRetriever:
         )
         logging.info("Hybrid Retriever initialized successfully.")
 
-    def _load_rules_from_db(self) -> List[Dict]:
+    @staticmethod
+    def _load_rules_from_db() -> List[Dict]:
         """Fetches all rubrics from the database on startup."""
         db = None
         try:
@@ -73,9 +74,7 @@ class HybridRetriever:
                 db.close()
 
     def retrieve(self, query: str, top_k: int = 5, **kwargs) -> List[Dict]:
-        """
-        Performs a hybrid search and returns the top_k relevant rules.
-        """
+        """Performs a hybrid search and returns the top_k relevant rules."""
         if not self.rules:
             return []
 

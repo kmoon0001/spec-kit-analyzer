@@ -75,7 +75,7 @@ def test_repeated_analysis_start(main_app_window: MainApplicationWindow, qtbot):
 
         # Simulate the analysis finishing or failing
         main_app_window.on_analysis_error("Simulated failure")
-        qtbot.waitUntil(lambda: main_app_window.run_analysis_button.isEnabled())
+        qtbot.waitUntil(main_app_window.run_analysis_button.isEnabled)
         qtbot.wait(10)
     # The test passes if no crashes or memory leaks occur.
 

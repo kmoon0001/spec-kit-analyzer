@@ -61,10 +61,7 @@ class FactCheckerService:
             response = self.pipeline(prompt, max_length=10)[0]["generated_text"]
 
             # Check the response from the fact-checker
-            if "yes" in response.lower():
-                return True
-            else:
-                return False
+            return "yes" in response.lower()
 
         except Exception as e:
             logger.error(f"Error during fact-checking: {e}", exc_info=True)

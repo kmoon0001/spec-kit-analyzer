@@ -20,9 +20,7 @@ def chat_with_ai(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
 ):
-    """
-    Handles a conversational chat request with the AI.
-    """
+    """Handles a conversational chat request with the AI."""
     if not llm_service.is_ready():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

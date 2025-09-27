@@ -135,5 +135,4 @@ async def get_task_status(
 
     if task["status"] == "completed":
         return HTMLResponse(content=task["result"])
-    else:
-        return task
+    return task

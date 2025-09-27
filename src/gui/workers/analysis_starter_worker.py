@@ -19,9 +19,7 @@ class AnalysisStarterWorker(QObject):
         self.token = token
 
     def run(self):
-        """
-        Sends the request to start the analysis and emits the result.
-        """
+        """Sends the request to start the analysis and emits the result."""
         try:
             headers = {"Authorization": f"Bearer {self.token}"}
             with open(self.file_path, "rb") as f:
