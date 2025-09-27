@@ -6,6 +6,9 @@ from datetime import timedelta
 from ... import crud, schemas, models
 from ...auth import AuthService, get_auth_service, get_current_active_user
 from ...database import get_async_db as get_db
+from ... import crud, schemas
+from ...auth import auth_service
+from ...database import get_db
 
 router = APIRouter()
 
@@ -20,6 +23,9 @@ async def login_for_access_token(
     if not user or not auth_service.verify_password(
         form_data.password, user.hashed_password
     ):
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = crud.get_user_by_username(db, username=form_data.username)
+    if not user or not auth_service.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",

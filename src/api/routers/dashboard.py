@@ -5,6 +5,7 @@ from typing import List
 
 from ... import crud, schemas, models
 from ...database import get_async_db as get_db
+from ...database import get_db
 from ...auth import get_current_active_user
 from ...core.report_generator import ReportGenerator  # Import the generator
 
@@ -20,9 +21,18 @@ async def read_reports(
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
+def read_reports(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
 ):
     """Retrieves a list of historical analysis reports for the dashboard."""
     reports = await crud.get_reports(db, skip=skip, limit=limit)
+    """
+    Retrieves a list of historical analysis reports for the dashboard.
+    """
+    reports = crud.get_reports(db, skip=skip, limit=limit)
     return reports
 
 
