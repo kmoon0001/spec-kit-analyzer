@@ -1,6 +1,7 @@
 import pytest
 import os
 import sys
+import logging
 from unittest.mock import MagicMock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -19,13 +20,9 @@ from src.core.fact_checker_service import FactCheckerService
 from src.core.prompt_manager import PromptManager
 from src.core.explanation import ExplanationEngine
 
-<<<<<<< HEAD
 def pytest_configure(config):
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-||||||| 604b275
-def pytest_configure(config):
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-=======
+
 # --- Mock Fixtures for AI Services ---
 
 @pytest.fixture(scope="session")
@@ -108,4 +105,3 @@ def compliance_analyzer(
         prompt_manager=MagicMock(spec=PromptManager),
         fact_checker_service=mock_fact_checker_service,
     )
->>>>>>> origin/main

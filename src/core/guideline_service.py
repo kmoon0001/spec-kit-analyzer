@@ -28,21 +28,9 @@ class GuidelineService:
     """
 
     def __init__(self, sources: List[str]):
-<<<<<<< HEAD:src/guideline_service.py
-        """Initializes the GuidelineService."""
-        self.config = load_config()
-        model_name = self.config['models']['retriever']
-||||||| e2d13ea:src/guideline_service.py
-        """
-        Initializes the GuidelineService.
-        """
-        self.config = load_config()
-        model_name = self.config['models']['retriever']
-=======
         """Initializes the GuidelineService."""
         self.config = get_config()
         model_name = self.config.models.retriever
->>>>>>> main:src/core/guideline_service.py
 
         self.guideline_chunks: List[Tuple[str, str]] = []
         self.is_index_ready = False
@@ -82,19 +70,9 @@ class GuidelineService:
             return False
 
         with open(self.chunks_path, 'rb') as f:
-<<<<<<< HEAD
             cached_chunks = joblib.load(f)
         cached_sources = {chunk[1] for chunk in cached_chunks}
         current_sources = {os.path.basename(path) for path in self.source_paths}
-||||||| 24e8eb0
-            cached_chunks = pickle.load(f)
-        cached_sources = set(chunk[1] for chunk in cached_chunks)
-        current_sources = set(os.path.basename(path) for path in self.source_paths)
-=======
-            cached_chunks = pickle.load(f)
-        cached_sources = {chunk[1] for chunk in cached_chunks}
-        current_sources = {os.path.basename(path) for path in self.source_paths}
->>>>>>> origin/main
         if cached_sources != current_sources:
             return False
 
@@ -152,17 +130,7 @@ class GuidelineService:
         self.is_index_ready = True
         logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks using FAISS.")
 
-<<<<<<< HEAD:src/core/guideline_service.py
-    @staticmethod
-    def _extract_text_from_pdf(file_path: str, source_name: str) -> List[Tuple[str, str]]:
-||||||| 604b275:src/guideline_service.py
-    @staticmethod
-    def _extract_text_from_pdf(file_path: str, source_name: str) -> List[Tuple[str, str]]:
-        # ... (rest of the file is unchanged)
-=======
     def _extract_text_from_pdf(self, file_path: str, source_name: str) -> List[Tuple[str, str]]:
-        # ... (rest of the file is unchanged)
->>>>>>> origin/main:src/guideline_service.py
         """Extracts text from a file, chunking it by paragraph."""
         chunks = []
         try:
@@ -241,31 +209,7 @@ class GuidelineService:
                 results.append({"text": chunk[0], "source": chunk[1], "score": dist})
 
         return results
-<<<<<<< HEAD:src/guideline_service.py
 
 def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
     """Mock function to parse a guideline file. Returns an empty list."""
     return []
-||||||| e2d13ea:src/guideline_service.py
-=======
-<<<<<<< HEAD
-||||||| c46cdd8
-
-def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
-    """
-    Mock function to parse a guideline file. Returns an empty list.
-    """
-    return []
-=======
-
-def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
-    """Mock function to parse a guideline file. Returns an empty list."""
-<<<<<<< HEAD:src/core/guideline_service.py
-    return []
-||||||| 3810719:src/guideline_service.py
-    return []
-=======
-    return []
->>>>>>> origin/main
->>>>>>> origin/main:src/guideline_service.py
->>>>>>> main:src/core/guideline_service.py

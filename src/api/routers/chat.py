@@ -27,28 +27,11 @@ async def chat_with_ai(
 
     chat_service = ChatService(db=db, user=current_user, llm_service=llm_service)
 
-    response_text = chat_service.process_message(chat_request.message, chat_request.history)
-
-<<<<<<< HEAD
-    return schemas.ChatResponse(response=response_text)
-||||||| 278fb88
-        ai_response = chat_service.get_response(user_message)
-
-        return schemas.ChatResponse(response=ai_response)
-
+    try:
+        response_text = chat_service.process_message(chat_request.message, chat_request.history)
+        return schemas.ChatResponse(response=response_text)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred during the chat session: {e}"
         )
-=======
-        ai_response = chat_service.get_response(user_message)
-
-        return schemas.ChatResponse(response=ai_response)
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred during the chat session: {e}"
-        )
->>>>>>> origin/main
