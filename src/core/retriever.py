@@ -8,7 +8,7 @@ from typing import List, Dict, Optional, Any
 from sqlalchemy.orm import Session
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 
-from .. import crud
+from ..database import crud
 from ..config import get_settings, Settings
 
 # Enhanced logging setup

@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import timedelta
 
-from ... import crud, schemas, models
+from ...database import crud, schemas, models
 from ...auth import AuthService, get_auth_service, get_current_active_user
 from ...database import get_async_db as get_db
 

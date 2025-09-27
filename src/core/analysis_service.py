@@ -1,6 +1,6 @@
 import os
 import logging
-from src.parsing import parse_document_content
+from .parsing import parse_document_content
 import pickle
 
 from .compliance_analyzer import ComplianceAnalyzer
@@ -75,8 +75,8 @@ class AnalysisService:
         logger.info(f"Starting analysis for document: {doc_name}")
 
         # Use the more robust parsing from the router
-        with open(file_path, 'rb') as f:
-            document_text = parse_document_content(f, doc_name)
+        chunks = parse_document_content(file_path)
+        document_text = " ".join(chunk.get('sentence', '') for chunk in chunks)
 
         doc_type = await self.document_classifier.classify_document(document_text)
         logger.info(f"Document classified as: {doc_type}")

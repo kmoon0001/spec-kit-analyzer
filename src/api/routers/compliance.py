@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
+import tempfile
+import os
 
 from src.core.compliance_service import ComplianceService
+from src.core.analysis_service import AnalysisService
 from src.core.models import (
     TherapyDocument,
     ComplianceResult,
@@ -10,12 +13,12 @@ from src.core.models import (
 router = APIRouter()
 
 
+from ..dependencies import get_analysis_service
+
 # This is a placeholder for a dependency injection system.
 # In a real application, this would be handled by a proper DI framework.
-def get_compliance_service():
-    # The rules_directory should point to where your .ttl files are.
-    # Based on the project structure, they are in the 'src' directory.
-    return ComplianceService(rules_directory="src")
+def get_compliance_service(analysis_service: AnalysisService = Depends(get_analysis_service)):
+    return ComplianceService(analysis_service=analysis_service)
 
 
 @router.post("/evaluate", response_model=ComplianceResult)
@@ -29,13 +32,27 @@ async def evaluate_document(
             status_code=400, detail="Document text, discipline, and type are required."
         )
 
+    temp_file_path = None
     try:
-        result = compliance_service.evaluate_document(document)
+        # Create a temporary file to hold the document text
+        with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".txt", encoding='utf-8') as temp_file:
+            temp_file.write(document.text)
+            temp_file_path = temp_file.name
+
+        result = await compliance_service.run_compliance_analysis(
+            document_path=temp_file_path,
+            discipline=document.discipline,
+            rubric_id=0  # Placeholder
+        )
+        # This part needs to be adapted based on the actual return type of run_compliance_analysis
         return result
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"An error occurred during evaluation: {str(e)}"
         )
+    finally:
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
 
 
 # Pydantic models for the response. `dataclasses` are not directly compatible with FastAPI's response models.

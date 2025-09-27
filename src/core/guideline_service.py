@@ -16,8 +16,7 @@ import requests
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
-from ..config import get_config
-from ..parsing import parse_guideline_file
+from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -27,34 +26,22 @@ class GuidelineService:
     Implements caching for the FAISS index and guideline chunks to improve startup time.
     """
 
-    def __init__(self, sources: List[str]):
-<<<<<<< HEAD:src/guideline_service.py
+    def __init__(self, sources: List[str], cache_dir: str = "data"):
         """Initializes the GuidelineService."""
-        self.config = load_config()
-        model_name = self.config['models']['retriever']
-||||||| e2d13ea:src/guideline_service.py
-        """
-        Initializes the GuidelineService.
-        """
-        self.config = load_config()
-        model_name = self.config['models']['retriever']
-=======
-        """Initializes the GuidelineService."""
-        self.config = get_config()
+        self.config = get_settings()
         model_name = self.config.models.retriever
->>>>>>> main:src/core/guideline_service.py
 
         self.guideline_chunks: List[Tuple[str, str]] = []
         self.is_index_ready = False
         self.faiss_index = None
 
-        self.cache_dir = "data"
+        self.cache_dir = cache_dir
         self.index_path = os.path.join(self.cache_dir, "guidelines.index")
         self.chunks_path = os.path.join(self.cache_dir, "guidelines.joblib")
         self.source_paths = sources
 
         logger.info(f"Loading Sentence Transformer model: {model_name}")
-        self.model = SentenceTransformer(model_name, model_kwargs={'revision': '96786c7'})
+        self.model = SentenceTransformer(model_name)
 
         self._load_or_build_index()
         logger.info("GuidelineService initialized.")
@@ -82,19 +69,9 @@ class GuidelineService:
             return False
 
         with open(self.chunks_path, 'rb') as f:
-<<<<<<< HEAD
             cached_chunks = joblib.load(f)
         cached_sources = {chunk[1] for chunk in cached_chunks}
         current_sources = {os.path.basename(path) for path in self.source_paths}
-||||||| 24e8eb0
-            cached_chunks = pickle.load(f)
-        cached_sources = set(chunk[1] for chunk in cached_chunks)
-        current_sources = set(os.path.basename(path) for path in self.source_paths)
-=======
-            cached_chunks = pickle.load(f)
-        cached_sources = {chunk[1] for chunk in cached_chunks}
-        current_sources = {os.path.basename(path) for path in self.source_paths}
->>>>>>> origin/main
         if cached_sources != current_sources:
             return False
 
@@ -152,17 +129,8 @@ class GuidelineService:
         self.is_index_ready = True
         logger.info(f"Loaded and indexed {len(self.guideline_chunks)} guideline chunks using FAISS.")
 
-<<<<<<< HEAD:src/core/guideline_service.py
     @staticmethod
     def _extract_text_from_pdf(file_path: str, source_name: str) -> List[Tuple[str, str]]:
-||||||| 604b275:src/guideline_service.py
-    @staticmethod
-    def _extract_text_from_pdf(file_path: str, source_name: str) -> List[Tuple[str, str]]:
-        # ... (rest of the file is unchanged)
-=======
-    def _extract_text_from_pdf(self, file_path: str, source_name: str) -> List[Tuple[str, str]]:
-        # ... (rest of the file is unchanged)
->>>>>>> origin/main:src/guideline_service.py
         """Extracts text from a file, chunking it by paragraph."""
         chunks = []
         try:
@@ -241,31 +209,3 @@ class GuidelineService:
                 results.append({"text": chunk[0], "source": chunk[1], "score": dist})
 
         return results
-<<<<<<< HEAD:src/guideline_service.py
-
-def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
-    """Mock function to parse a guideline file. Returns an empty list."""
-    return []
-||||||| e2d13ea:src/guideline_service.py
-=======
-<<<<<<< HEAD
-||||||| c46cdd8
-
-def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
-    """
-    Mock function to parse a guideline file. Returns an empty list.
-    """
-    return []
-=======
-
-def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
-    """Mock function to parse a guideline file. Returns an empty list."""
-<<<<<<< HEAD:src/core/guideline_service.py
-    return []
-||||||| 3810719:src/guideline_service.py
-    return []
-=======
-    return []
->>>>>>> origin/main
->>>>>>> origin/main:src/guideline_service.py
->>>>>>> main:src/core/guideline_service.py

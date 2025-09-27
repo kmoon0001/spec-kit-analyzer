@@ -17,6 +17,9 @@ models:
   generator: "TheBloke/phi-2-GGUF"
   generator_filename: "phi-2.Q4_K_M.gguf"
 
+  # Retriever model for semantic search.
+  retriever: "sentence-transformers/all-MiniLM-L6-v2"
+
   # Fact-Checker: Tiny, fast model for simple Yes/No validation.
   fact_checker: "google/flan-t5-small"
 

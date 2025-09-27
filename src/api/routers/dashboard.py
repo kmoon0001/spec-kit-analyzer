@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
-from ... import crud, schemas, models
+from ...database import crud, schemas, models
 from ...database import get_async_db as get_db
 from ...auth import get_current_active_user
 from ...core.report_generator import ReportGenerator  # Import the generator

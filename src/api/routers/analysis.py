@@ -3,14 +3,16 @@ import uuid
 import shutil
 import os
 import asyncio
+from typing import Dict, Any
 from fastapi import APIRouter, Depends, UploadFile, File, Form, BackgroundTasks, HTTPException
 
-from ... import models
+from ...database import models
 from ...auth import get_current_active_user
 from ...core.analysis_service import AnalysisService
+from ..dependencies import get_analysis_service
 from ...database import get_async_db
-from ... import crud
-from ...config import settings # Import settings
+from ...database import crud
+from ...config import get_settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -109,8 +111,9 @@ async def analyze_document(
     current_user: models.User = Depends(get_current_active_user),
     analysis_service: AnalysisService = Depends(get_analysis_service),
 ):
+    settings = get_settings()
     task_id = str(uuid.uuid4())
-    upload_dir = settings.temp_upload_dir # Use settings.temp_upload_dir
+    upload_dir = settings.temp_upload_dir
     os.makedirs(upload_dir, exist_ok=True)
     temp_file_path = os.path.join(upload_dir, f"temp_{task_id}_{file.filename}")
     with open(temp_file_path, "wb") as buffer:
