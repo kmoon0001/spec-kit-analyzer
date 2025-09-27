@@ -13,7 +13,8 @@ class ComplianceService:
         self.analysis_service = analysis_service
         logger.info("ComplianceService initialized.")
 
-    def get_available_rubrics(self) -> List[Dict[str, Any]]:
+    @staticmethod
+    def get_available_rubrics() -> List[Dict[str, Any]]:
         logger.info("Fetching available rubrics.")
         with get_db() as db:
             rubrics = get_rubrics(db)
