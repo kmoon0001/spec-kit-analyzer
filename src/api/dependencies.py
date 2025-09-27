@@ -48,5 +48,3 @@ async def startup_event():
 async def shutdown_event():
     """Application shutdown event handler."""
     logger.info("Application shutting down...")
-    # Clean up resources if needed
-    pass
