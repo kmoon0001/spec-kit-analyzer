@@ -249,3 +249,7 @@ def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
     return []
 >>>>>>> origin/main
 >>>>>>> origin/main:src/guideline_service.py
+
+def parse_guideline_file(file_path: str) -> List[Tuple[str, str]]:
+    """Mock function to parse a guideline file. Returns an empty list."""
+    return []

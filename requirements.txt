@@ -1,6 +1,6 @@
 # Core Web & API
 fastapi
-uvicorn
+uvicorn 
 gunicorn
 slowapi
 requests
