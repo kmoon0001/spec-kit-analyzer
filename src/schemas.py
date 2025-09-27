@@ -17,12 +17,24 @@ class Finding(FindingBase):
     report_id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+
+class FindingCreate(FindingBase):
+    pass
+
 
 
 class ReportBase(BaseModel):
     document_name: str
-    compliance_score: int
+    compliance_score: float
+    analysis_result: dict
+    document_embedding: Optional[bytes] = None
+
+
+class ReportCreate(ReportBase):
+    pass
+
 
 
 class Report(ReportBase):
@@ -31,7 +43,8 @@ class Report(ReportBase):
     findings: List[Finding] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
 
 
 class FindingSummary(BaseModel):
@@ -45,6 +58,8 @@ class FindingSummary(BaseModel):
 class RubricBase(BaseModel):
     name: str
     content: str
+    category: str | None = None
+
 
 
 class RubricCreate(RubricBase):
@@ -55,7 +70,8 @@ class Rubric(RubricBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
 
 
 # --- Schemas for Users and Auth ---
@@ -75,7 +91,8 @@ class User(UserBase):
     is_admin: bool = False
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
 
 
 class UserPasswordChange(BaseModel):

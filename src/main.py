@@ -1,4 +1,5 @@
 import sys
+import asyncio
 from PyQt6.QtWidgets import QApplication
 
 # Import the main window and the database initializer
@@ -7,7 +8,7 @@ from src.database import init_db
 
 if __name__ == "__main__":
     # Initialize the database first to ensure tables are created
-    init_db()
+    asyncio.run(init_db())
 
     # Create and run the application
     app = QApplication(sys.argv)

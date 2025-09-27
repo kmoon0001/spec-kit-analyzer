@@ -3,7 +3,6 @@ from datetime import datetime
 import markdown
 import urllib.parse
 
-from .risk_scoring_service import RiskScoringService
 from .habit_mapper import get_habit_for_finding
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -17,7 +16,6 @@ class ReportGenerator:
         self.model_limitations_html = self._load_and_convert_markdown(
             os.path.join(ROOT_DIR, "src", "resources", "model_limitations.md")
         )
-        self.risk_scoring_service = RiskScoringService()
 
     @staticmethod
     def _load_template(template_path: str) -> str:
@@ -53,9 +51,7 @@ class ReportGenerator:
 
         findings = analysis_result.get("findings", [])
 
-        compliance_score = self.risk_scoring_service.calculate_compliance_score(
-            findings
-        )
+        compliance_score = analysis_result.get("compliance_score", "N/A")
 
         report_html = report_html.replace(
             "<!-- Placeholder for compliance score -->", str(compliance_score)

@@ -1,8 +1,12 @@
 import time
 import requests
-from PySide6.QtCore import QObject, Signal
+from PyQt6.QtCore import QObject, pyqtSignal as Signal
 
-API_URL = "http://127.0.0.1:8000"
+from src.config import get_settings
+
+settings = get_settings()
+API_URL = settings.api_url
+
 
 
 class AnalysisWorker(QObject):
@@ -11,10 +15,8 @@ class AnalysisWorker(QObject):
     success = Signal(str)
     progress = Signal(int)
 
-    def __init__(self, file_path, data, task_id):
+    def __init__(self, task_id: str):
         super().__init__()
-        self.file_path = file_path
-        self.data = data
         self.task_id = task_id
 
     def run(self):

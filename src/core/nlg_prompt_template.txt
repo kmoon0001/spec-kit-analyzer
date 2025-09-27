@@ -1,0 +1,14 @@
+**Objective:** Rewrite the following compliance finding into a personalized, actionable tip for a clinical therapist. The tip should be encouraging, educational, and avoid overly technical jargon.
+
+**Compliance Finding:**
+```json
+{finding_json}
+```
+
+**Instructions:**
+1.  Start with a positive and supportive tone.
+2.  Clearly explain the core issue from the finding in simple terms.
+3.  Provide a concrete, actionable suggestion for what the therapist can do differently in their documentation next time.
+4.  Keep the entire tip concise (2-3 sentences).
+
+**Generated Tip:**

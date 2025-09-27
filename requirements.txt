@@ -4,10 +4,13 @@ uvicorn
 gunicorn
 slowapi
 requests
+httpx
 
 # GUI
 PyQt6
+PyQt6-WebEngine
 matplotlib
+pytesseract
 
 # Data & Parsing
 pdfplumber
@@ -32,6 +35,8 @@ pyspellchecker
 
 # Database
 SQLAlchemy
+rdflib
+aiosqlite
 
 # Security & Auth
 passlib[bcrypt]
@@ -43,6 +48,13 @@ python-jose[cryptography]
 numpy
 scipy
 
+# Scheduling
+apscheduler
+tenacity
+
 # Testing
 pytest
 pytest-mock
+pytest-qt
+pytest-asyncio
+ruff

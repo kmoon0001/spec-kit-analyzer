@@ -1,15 +1,15 @@
-import os
-import yaml
 import logging
-from PyQt6.QtCore import QObject, Signal
+from PyQt6.QtCore import QObject, pyqtSignal as Signal
+import asyncio
 
 # Import the services this worker needs to run
+from src.config import get_settings
 from src.core.analysis_service import AnalysisService
 from src.core.database_maintenance_service import DatabaseMaintenanceService
+from src.core.retriever import HybridRetriever
+from src.core.compliance_service import ComplianceService
 
 logger = logging.getLogger(__name__)
-
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 
 class AILoaderWorker(QObject):
@@ -23,22 +23,22 @@ class AILoaderWorker(QObject):
     def run(self):
         """Runs startup tasks: database purge, then AI model loading."""
         try:
-            # 1. Load configuration
-            config_path = os.path.join(ROOT_DIR, "config.yaml")
-            with open(config_path, "r") as f:
-                config = yaml.safe_load(f)
+            # 1. Load configuration using the centralized function
+            config = get_settings()
 
-            # 2. Run Database Maintenance (New Step)
+            # 2. Run Database Maintenance
             maintenance_service = DatabaseMaintenanceService()
-            retention_days = config.get("purge_retention_days", 0)
+            retention_days = config.maintenance.purge_retention_days
             maintenance_service.purge_old_reports(retention_days)
 
-            # 3. Initialize the main AnalysisService (which loads all AI models)
-            # This is the heavy step.
-            analyzer_service = AnalysisService()
+            # 3. Initialize HybridRetriever and AnalysisService
+            retriever = HybridRetriever(settings=config.retrieval_settings)
+            asyncio.run(retriever.initialize())
+            analyzer_service = AnalysisService(retriever=retriever)
+            compliance_service = ComplianceService(analysis_service=analyzer_service)
 
             # 4. Emit the success signal with the initialized service
-            self.finished.emit(analyzer_service, True, "AI Systems: Online")
+            self.finished.emit(compliance_service, True, "AI Systems: Online")
 
         except Exception as e:
             # If any part of the startup fails, emit a failure signal

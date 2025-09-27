@@ -1,5 +1,5 @@
 import logging
-from ctransformers import AutoModelForCausalLM
+from ctransformers import AutoModelForCausalLM  # type: ignore
 from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -42,6 +42,7 @@ class LLMService:
             logger.error("LLM is not available. Cannot generate analysis.")
             return '{"error": "LLM not available"}'
 
+        assert self.llm is not None
         logger.info("Generating response with the LLM...")
         try:
             # Pass the generation parameters directly to the model call
@@ -50,4 +51,4 @@ class LLMService:
             return raw_text
         except Exception as e:
             logger.error(f"Error during LLM generation: {e}", exc_info=True)
-            return f'{{"error": "Failed to generate analysis: {e}"}}'
+            return '{"error": "Generation failed"}'

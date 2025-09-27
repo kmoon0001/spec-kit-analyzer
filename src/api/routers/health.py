@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...database import get_db
+from ...database import get_async_db as get_db
 
 router = APIRouter()
 
 
 @router.get("/health", status_code=status.HTTP_200_OK)
-def health_check(db: Session = Depends(get_db)):
+async def health_check(db: AsyncSession = Depends(get_db)):
     """
     Performs a health check of the API.
     This endpoint can be called by a monitoring service to verify that the
@@ -15,7 +16,7 @@ def health_check(db: Session = Depends(get_db)):
     """
     try:
         # Perform a simple, fast query to check the database connection
-        db.execute("SELECT 1")
+        await db.execute(text("SELECT 1"))
         return {"status": "ok", "database": "connected"}
     except Exception as e:
         raise HTTPException(

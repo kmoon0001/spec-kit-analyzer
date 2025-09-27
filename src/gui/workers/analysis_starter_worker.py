@@ -1,7 +1,12 @@
 import requests
-from PyQt6.QtCore import QObject, Signal
+import os
+from PyQt6.QtCore import QObject, pyqtSignal as Signal
 
-API_URL = "http://127.0.0.1:8000"
+from src.config import get_settings
+
+settings = get_settings()
+API_URL = settings.api_url
+
 
 
 class AnalysisStarterWorker(QObject):

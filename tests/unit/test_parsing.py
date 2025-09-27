@@ -1,4 +1,4 @@
-from unittest.mock import patch, mock_open
+from unittest.mock import patch, mock_open, MagicMock
 
 # Import the functions to be tested
 from src.parsing import parse_document_content, parse_document_into_sections
@@ -25,10 +25,11 @@ def test_parse_pdf_content(mock_pdf_open):
     assert "This is text from a PDF" in chunks[0]["sentence"]
 
 
+@patch("src.parsing.os.path.exists", return_value=True)
 @patch(
     "builtins.open", new_callable=mock_open, read_data="This is a test from a txt file."
 )
-def test_parse_txt_content(mock_file):
+def test_parse_txt_content(mock_file, mock_path_exists):
     """Tests parsing a .txt file using a mocked filesystem."""
     # Act
     chunks = parse_document_content("fake/path/document.txt")
@@ -39,25 +40,23 @@ def test_parse_txt_content(mock_file):
     assert "This is a test from a txt file" in chunks[0]["sentence"]
 
 
-@patch("builtins.open")
-def test_parse_non_existent_file(mock_open):
+@patch("src.parsing.os.path.exists", return_value=False)
+def test_parse_non_existent_file(mock_exists):
     """Tests that the parser handles a non-existent file gracefully."""
-    # Arrange: Configure the mock to raise a FileNotFoundError
-    mock_open.side_effect = FileNotFoundError
-
     # Act
     result = parse_document_content("non_existent_file.txt")
 
     # Assert
     assert len(result) == 1
-    assert result[0]["sentence"].startswith("Error: File not found")
+    assert "Error: File not found" in result[0]["sentence"]
 
 
-def test_parse_unsupported_file_type():
+@patch("src.parsing.os.path.exists", return_value=True)
+def test_parse_unsupported_file_type(mock_exists):
     """Tests that the parser handles an unsupported file type."""
     result = parse_document_content("document.zip")
     assert len(result) == 1
-    assert result[0]["sentence"].startswith("Error: Unsupported file type")
+    assert "Error: Unsupported file type" in result[0]["sentence"]
 
 
 # --- Tests for parse_document_into_sections (These were already good) --- #

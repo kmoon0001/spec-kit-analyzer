@@ -1,6 +1,7 @@
 import re
 import pickle
-from rank_bm25 import BM25Okapi
+from rank_bm25 import BM25Okapi  # type: ignore
+
 
 
 def preprocess_text(text):

@@ -1,91 +1,52 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 from typing import List
-import sqlite3
 
-from src.models import Rubric, RubricCreate
-from src.database import DATABASE_PATH
+from . import crud, schemas
+from .database import get_db
 
 router = APIRouter()
 
 
-def get_db_connection():
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-@router.post("/rubrics/", response_model=Rubric)
-def create_rubric(rubric: RubricCreate):
-    try:
-        with get_db_connection() as conn:
-            cur = conn.cursor()
-            cur.execute(
-                "INSERT INTO rubrics (name, content) VALUES (?, ?)",
-                (rubric.name, rubric.content),
-            )
-            conn.commit()
-            new_rubric_id = cur.lastrowid
-            return Rubric(id=new_rubric_id, name=rubric.name, content=rubric.content)
-    except sqlite3.IntegrityError:
+@router.post("/rubrics/", response_model=schemas.Rubric)
+def create_rubric_endpoint(rubric: schemas.RubricCreate, db: Session = Depends(get_db)):
+    db_rubric = crud.get_rubric_by_name(db, name=rubric.name)
+    if db_rubric:
         raise HTTPException(
             status_code=400, detail="A rubric with this name already exists."
         )
-    except sqlite3.Error as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+    return crud.create_rubric(db=db, rubric=rubric)
 
 
-@router.get("/rubrics/", response_model=List[Rubric])
-def get_rubrics():
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT id, name, content FROM rubrics ORDER BY name ASC")
-        rows = cur.fetchall()
-        return [
-            Rubric(id=row["id"], name=row["name"], content=row["content"])
-            for row in rows
-        ]
+@router.get("/rubrics/", response_model=List[schemas.Rubric])
+def read_rubrics_endpoint(
+    skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
+):
+    rubrics = crud.get_rubrics(db, skip=skip, limit=limit)
+    return rubrics
 
 
-@router.get("/rubrics/{rubric_id}", response_model=Rubric)
-def get_rubric(rubric_id: int):
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT id, name, content FROM rubrics WHERE id = ?", (rubric_id,))
-        row = cur.fetchone()
-        if row is None:
-            raise HTTPException(status_code=404, detail="Rubric not found")
-        return Rubric(id=row["id"], name=row["name"], content=row["content"])
+@router.get("/rubrics/{rubric_id}", response_model=schemas.Rubric)
+def read_rubric_endpoint(rubric_id: int, db: Session = Depends(get_db)):
+    db_rubric = crud.get_rubric(db, rubric_id=rubric_id)
+    if db_rubric is None:
+        raise HTTPException(status_code=404, detail="Rubric not found")
+    return db_rubric
 
 
-@router.put("/rubrics/{rubric_id}", response_model=Rubric)
-def update_rubric(rubric_id: int, rubric: RubricCreate):
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "UPDATE rubrics SET name = ?, content = ? WHERE id = ?",
-            (rubric.name, rubric.content, rubric_id),
-        )
-        conn.commit()
-        if cur.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Rubric not found")
-        return Rubric(id=rubric_id, name=rubric.name, content=rubric.content)
+@router.put("/rubrics/{rubric_id}", response_model=schemas.Rubric)
+def update_rubric_endpoint(
+    rubric_id: int, rubric: schemas.RubricCreate, db: Session = Depends(get_db)
+):
+    db_rubric = crud.update_rubric(db, rubric_id=rubric_id, rubric_update=rubric)
+    if db_rubric is None:
+        raise HTTPException(status_code=404, detail="Rubric not found to update")
+    return db_rubric
 
 
-@router.delete("/rubrics/{rubric_id}", response_model=Rubric)
-def delete_rubric(rubric_id: int):
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        # First, get the rubric to return it after deletion
-        cur.execute("SELECT id, name, content FROM rubrics WHERE id = ?", (rubric_id,))
-        row = cur.fetchone()
-        if row is None:
-            raise HTTPException(status_code=404, detail="Rubric not found")
-
-        rubric_to_delete = Rubric(
-            id=row["id"], name=row["name"], content=row["content"]
-        )
-
-        cur.execute("DELETE FROM rubrics WHERE id = ?", (rubric_id,))
-        conn.commit()
-
-        return rubric_to_delete
+@router.delete("/rubrics/{rubric_id}", response_model=schemas.Rubric)
+def delete_rubric_endpoint(rubric_id: int, db: Session = Depends(get_db)):
+    db_rubric = crud.delete_rubric(db, rubric_id=rubric_id)
+    if db_rubric is None:
+        raise HTTPException(status_code=404, detail="Rubric not found to delete")
+    return db_rubric

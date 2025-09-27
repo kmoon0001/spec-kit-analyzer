@@ -59,7 +59,7 @@ class DocumentAnalysisService:
         logger.info(f"Successfully indexed {len(self.chunks)} document chunks.")
 
     def search(
-        self, query: str, top_k: int = 5, metadata_filter: dict = None
+        self, query: str, top_k: int = 5, metadata_filter: dict | None = None
     ) -> list[dict]:
         """
         Performs a FAISS similarity search through the document chunks.
