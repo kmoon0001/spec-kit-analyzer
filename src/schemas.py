@@ -20,14 +20,26 @@ class Finding(FindingBase):
         from_attributes = True
 
 
+class FindingCreate(FindingBase):
+    pass
+
+
 class ReportBase(BaseModel):
     document_name: str
     compliance_score: float
+    analysis_result: dict
+    document_embedding: Optional[bytes] = None
+
+
+class ReportCreate(ReportBase):
+    pass
 
 
 class Report(ReportBase):
     id: int
     analysis_date: datetime.datetime
+    findings: List[Finding] = []
+
     class Config:
         from_attributes = True
 

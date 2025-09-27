@@ -3,7 +3,7 @@ from PyQt6.QtCore import QObject, pyqtSignal as Signal
 import asyncio
 
 # Import the services this worker needs to run
-from src.config import get_config
+from src.config import get_settings
 from src.core.analysis_service import AnalysisService
 from src.core.database_maintenance_service import DatabaseMaintenanceService
 from src.core.retriever import HybridRetriever
@@ -24,7 +24,7 @@ class AILoaderWorker(QObject):
         """Runs startup tasks: database purge, then AI model loading."""
         try:
             # 1. Load configuration using the centralized function
-            config = get_config()
+            config = get_settings()
 
             # 2. Run Database Maintenance
             maintenance_service = DatabaseMaintenanceService()

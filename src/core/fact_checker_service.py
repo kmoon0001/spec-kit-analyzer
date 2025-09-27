@@ -27,15 +27,15 @@ class FactCheckerService:
         """
         if not self.pipeline:
             logger.warning("Fact-Checker model not loaded. Skipping validation.")
-            return True # Default to plausible if the checker is not available
+            return True  # Default to plausible if the checker is not available
 
         try:
             prompt = f"""
             Rule: {rule.get('name', '')} - {rule.get('content', '')}
             Problematic Text: "{finding.get('text', '')}"
-            
+
             Question: Based on the rule, is it plausible that the problematic text represents a compliance issue? Answer only with 'Yes' or 'No'.
-            
+
             Answer:
             """
 
@@ -47,4 +47,4 @@ class FactCheckerService:
 
         except Exception as e:
             logger.error(f"Error during fact-checking: {e}", exc_info=True)
-            return True # Default to plausible in case of an error
+            return True  # Default to plausible in case of an error
