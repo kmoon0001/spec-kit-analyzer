@@ -1,6 +1,5 @@
 import pytest
 import os
-import pickle
 from unittest.mock import patch, MagicMock
 
 from src.core.guideline_service import GuidelineService

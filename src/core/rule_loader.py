@@ -1,8 +1,8 @@
 import os
 import logging
 from typing import List
-from rdflib import Graph, URIRef, Literal
-from rdflib.namespace import RDF, RDFS
+from rdflib import Graph, URIRef
+from rdflib.namespace import RDF
 from src.core.models import ComplianceRule
 
 from src.config import get_settings

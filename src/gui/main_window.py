@@ -19,8 +19,6 @@ from src.gui.workers.ai_loader_worker import AILoaderWorker
 from src.gui.workers.dashboard_worker import DashboardWorker
 from src.gui.widgets.dashboard_widget import DashboardWidget
 
-import jwt
-
 from src.config import get_settings
 
 settings = get_settings()

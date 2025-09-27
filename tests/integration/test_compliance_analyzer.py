@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # Import the class we are testing
 from src.core.llm_analyzer import LLMComplianceAnalyzer

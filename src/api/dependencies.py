@@ -1,10 +1,7 @@
 import logging
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.analysis_service import AnalysisService
 from ..core.retriever import HybridRetriever
-from ..database import get_async_db, AsyncSessionLocal
 
 # Configure logger
 logger = logging.getLogger(__name__)
