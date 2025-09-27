@@ -32,7 +32,7 @@ def generate_medical_dictionary():
         # 3. Create a detailed prompt
         prompt = """
             You are an expert in medical terminology. Your task is to generate a comprehensive list of common medical terms, abbreviations, and their likely misspellings.
-            
+
             Instructions:
             - The list should be as extensive as possible, covering multiple medical specialties (e.g., physical therapy, occupational therapy, cardiology, neurology).
             - Include common acronyms and their full names (e.g., "CHF (Congestive Heart Failure)").

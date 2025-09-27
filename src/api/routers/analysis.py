@@ -129,8 +129,8 @@ async def get_task_status(task_id: str):
     task = tasks.get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     if task["status"] == "completed":
         return {"status": "completed", "compliance_score": task.get("compliance_score", "N/A"), "report_url": f"/reports/{task_id}"}
-    
+
     return task
