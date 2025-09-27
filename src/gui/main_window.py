@@ -2,17 +2,15 @@ import os
 import requests
 import urllib.parse
 import webbrowser
-import jwt
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QMessageBox, QMainWindow, QStatusBar, QMenuBar, 
-    QFileDialog, QSplitter, QTextEdit, QHBoxLayout, QLabel, QGroupBox, QProgressBar, QPushButton, QTabWidget
+    QWidget, QVBoxLayout, QMessageBox, QMainWindow, QStatusBar, QMenuBar,
+    QFileDialog, QSplitter, QTextEdit, QHBoxLayout, QLabel, QGroupBox, QProgressBar, QPushButton, QTabWidget, QTextBrowser
 )
 from PyQt6.QtCore import Qt, QThread, QUrl
 from PyQt6.QtGui import QTextDocument
 
 # Corrected: Use absolute imports from the src root
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
-from src.gui.dialogs.login_dialog import LoginDialog
 from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
@@ -21,7 +19,10 @@ from src.gui.workers.ai_loader_worker import AILoaderWorker
 from src.gui.workers.dashboard_worker import DashboardWorker
 from src.gui.widgets.dashboard_widget import DashboardWidget
 
-API_URL = "http://127.0.0.1:8000"
+from src.config import get_settings
+
+settings = get_settings()
+API_URL = settings.api_url
 
 class MainApplicationWindow(QMainWindow):
     def __init__(self):
@@ -31,13 +32,21 @@ class MainApplicationWindow(QMainWindow):
         self.is_admin = False
         self._current_file_path = None
         self._current_folder_path = None
-        self.analyzer_service = None
-        self.thread = None
+        self.compliance_service = None
+        self.worker_thread = None
         self.worker = None
 
         self.init_base_ui()
+
+    def start(self):
+        """
+        Starts the application's main logic, including loading models and showing the login dialog.
+        This is called after the window is created to avoid blocking the constructor,
+        which makes the main window testable.
+        """
         self.load_ai_models()
-        self.show_login_dialog()
+        self.load_main_ui() # Load main UI directly
+        self.show()
 
     def init_base_ui(self):
         self.setWindowTitle('Therapy Compliance Analyzer')
@@ -69,30 +78,6 @@ class MainApplicationWindow(QMainWindow):
         self.status_bar.addPermanentWidget(self.progress_bar)
         self.progress_bar.hide()
 
-    def show_login_dialog(self):
-        self.hide()
-        dialog = LoginDialog(self)
-        if dialog.exec():
-            username, password = dialog.get_credentials()
-            try:
-                response = requests.post(f"{API_URL}/auth/token", data={"username": username, "password": password})
-                response.raise_for_status()
-                token_data = response.json()
-                self.access_token = token_data['access_token']
-                self.username = username
-
-                decoded_token = jwt.decode(self.access_token, options={"verify_signature": False})
-                self.is_admin = decoded_token.get('is_admin', False)
-
-                self.user_status_label.setText(f"Logged in as: {self.username}")
-                self.status_bar.showMessage("Login successful.")
-                self.load_main_ui()
-                self.show()
-            except (requests.exceptions.RequestException, jwt.exceptions.DecodeError) as e:
-                QMessageBox.critical(self, "Login Failed", f"Failed to authenticate: {e}")
-                self.close()
-        else:
-            self.close()
 
     def logout(self):
         self.access_token = None
@@ -100,7 +85,9 @@ class MainApplicationWindow(QMainWindow):
         self.is_admin = False
         self.user_status_label.setText("")
         self.setCentralWidget(None)
-        self.show_login_dialog()
+        QMessageBox.information(self, "Logged Out", "You have been logged out.")
+        # Since login is removed, we can just close or show a message.
+        # For now, let's just clear the UI. A real implementation might close the app.
 
     def load_main_ui(self):
         self.tabs = QTabWidget()
@@ -145,6 +132,16 @@ class MainApplicationWindow(QMainWindow):
         self.clear_button.clicked.connect(self.clear_display)
         controls_layout.addWidget(self.clear_button)
 
+        # New: Rubric Selection
+        self.rubric_selector = QComboBox()
+        self.rubric_selector.setPlaceholderText("Select a Rubric")
+        self.rubric_selector.currentIndexChanged.connect(self._on_rubric_selected)
+        controls_layout.addWidget(self.rubric_selector)
+
+        self.rubric_description_label = QLabel("Description of selected rubric will appear here.")
+        self.rubric_description_label.setWordWrap(True)
+        controls_layout.addWidget(self.rubric_description_label)
+
         controls_layout.addStretch()
 
         self.run_analysis_button = QPushButton("Run Analysis")
@@ -167,10 +164,10 @@ class MainApplicationWindow(QMainWindow):
         results_group = QGroupBox("Analysis Results")
         results_layout = QVBoxLayout()
         results_group.setLayout(results_layout)
-        self.analysis_results_area = QTextEdit()
+        self.analysis_results_area = QTextBrowser()
         self.analysis_results_area.setPlaceholderText("Analysis results will appear here.")
         self.analysis_results_area.setReadOnly(True)
-        self.analysis_results_area.setOpenExternalLinks(False)
+        self.analysis_results_area.setOpenExternalLinks(True)
         self.analysis_results_area.anchorClicked.connect(self.handle_anchor_click)
         results_layout.addWidget(self.analysis_results_area)
         splitter.addWidget(results_group)
@@ -190,15 +187,25 @@ class MainApplicationWindow(QMainWindow):
         text_to_highlight = parts[1] if len(parts) > 1 else context_snippet
 
         doc = self.document_display_area.document()
-        context_cursor = doc.find(context_snippet, 0, QTextDocument.FindFlag.FindCaseSensitively)
+        if doc:
+            context_cursor = doc.find(
+                context_snippet, 0, QTextDocument.FindFlag.FindCaseSensitively
+            )
 
-        if not context_cursor.isNull():
-            inner_cursor = doc.find(text_to_highlight, context_cursor.selectionStart(), QTextDocument.FindFlag.FindCaseSensitively)
-            if not inner_cursor.isNull() and inner_cursor.selectionEnd() <= context_cursor.selectionEnd():
-                self.document_display_area.setTextCursor(inner_cursor)
-                self.tabs.setCurrentIndex(0)
-                self.document_display_area.setFocus()
-                return
+            if not context_cursor.isNull():
+                inner_cursor = doc.find(
+                    text_to_highlight,
+                    context_cursor.selectionStart(),
+                    QTextDocument.FindFlag.FindCaseSensitively,
+                )
+                if (
+                    not inner_cursor.isNull()
+                    and inner_cursor.selectionEnd() <= context_cursor.selectionEnd()
+                ):
+                    self.document_display_area.setTextCursor(inner_cursor)
+                    self.tabs.setCurrentIndex(0)
+                    self.document_display_area.setFocus()
+                    return
 
         cursor = self.document_display_area.textCursor()
         cursor.movePosition(cursor.MoveOperation.Start)
@@ -234,15 +241,15 @@ class MainApplicationWindow(QMainWindow):
 
     def load_dashboard_data(self):
         self.status_bar.showMessage("Refreshing dashboard data...")
-        self.thread = QThread()
+        self.worker_thread = QThread()
         self.worker = DashboardWorker(self.access_token)
-        self.worker.moveToThread(self.thread)
+        self.worker.moveToThread(self.worker_thread)
         self.worker.success.connect(self.on_dashboard_data_loaded)
         self.worker.error.connect(lambda msg: self.status_bar.showMessage(f"Dashboard Error: {msg}"))
-        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker_thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.start()
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        self.worker_thread.start()
 
     def on_dashboard_data_loaded(self, data):
         self.dashboard_widget.update_dashboard(data)
@@ -252,37 +259,47 @@ class MainApplicationWindow(QMainWindow):
         if not self._current_file_path:
             return
 
+        selected_rubric = self.rubric_selector.currentData()
+        if not selected_rubric:
+            QMessageBox.warning(self, "No Rubric Selected", "Please select a rubric before running analysis.")
+            self.run_analysis_button.setEnabled(True)
+            return
+
+        discipline = selected_rubric.get("discipline", "Unknown") # Assuming rubric has a discipline
+        rubric_id = selected_rubric.get("id")
+
         self.progress_bar.setRange(0, 0)
         self.progress_bar.show()
         self.run_analysis_button.setEnabled(False)
         self.status_bar.showMessage("Starting analysis...")
 
-        self.thread = QThread()
-        self.worker = AnalysisStarterWorker(self._current_file_path, {}, self.access_token)
-        self.worker.moveToThread(self.thread)
+        self.worker_thread = QThread()
+        # The AnalysisStarterWorker will now call compliance_service.run_compliance_analysis
+        self.worker = AnalysisStarterWorker(self._current_file_path, {"discipline": discipline, "rubric_id": rubric_id}, self.access_token)
+        self.worker.moveToThread(self.worker_thread)
         self.worker.success.connect(self.handle_analysis_started)
         self.worker.error.connect(self.on_analysis_error)
-        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker_thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.start()
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        self.worker_thread.start()
 
     def handle_analysis_started(self, task_id: str):
         self.status_bar.showMessage(f"Analysis in progress... (Task ID: {task_id})")
         self.run_analysis_threaded(task_id)
 
     def run_analysis_threaded(self, task_id: str):
-        self.thread = QThread()
+        self.worker_thread = QThread()
         self.worker = AnalysisWorker(task_id)
-        self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.run)
+        self.worker.moveToThread(self.worker_thread)
+        self.worker_thread.started.connect(self.worker.run)
         self.worker.success.connect(self.on_analysis_success)
         self.worker.error.connect(self.on_analysis_error)
         self.worker.progress.connect(self.on_analysis_progress)
-        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker_thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.start()
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        self.worker_thread.start()
 
     def on_analysis_progress(self, progress):
         self.progress_bar.setValue(progress)
@@ -319,20 +336,38 @@ class MainApplicationWindow(QMainWindow):
         self.status_bar.showMessage("Display cleared.")
 
     def load_ai_models(self):
-        self.thread = QThread()
+        self.worker_thread = QThread()
         self.worker = AILoaderWorker()
-        self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.run)
+        self.worker.moveToThread(self.worker_thread)
+        self.worker_thread.started.connect(self.worker.run)
         self.worker.finished.connect(self.on_ai_loaded)
-        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker_thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.start()
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        self.worker_thread.start()
 
-    def on_ai_loaded(self, analyzer_service, is_healthy, status_message):
-        self.analyzer_service = analyzer_service
+    def on_ai_loaded(self, compliance_service, is_healthy, status_message):
+        self.compliance_service = compliance_service
         self.ai_status_label.setText(status_message)
         self.ai_status_label.setStyleSheet("color: green;" if is_healthy else "color: red;")
+        self._populate_rubric_selector() # Populate rubrics after AI is loaded
+
+    def _populate_rubric_selector(self):
+        if self.compliance_service:
+            rubrics = self.compliance_service.get_available_rubrics()
+            self.rubric_selector.clear()
+            self.rubric_selector.addItem("Select a Rubric", None) # Add a default empty item
+            for rubric in rubrics:
+                self.rubric_selector.addItem(rubric["name"], rubric)
+
+    def _on_rubric_selected(self, index):
+        selected_rubric = self.rubric_selector.itemData(index)
+        if selected_rubric:
+            self.rubric_description_label.setText(selected_rubric.get("description", "No description available."))
+            self.run_analysis_button.setEnabled(True)
+        else:
+            self.rubric_description_label.setText("Description of selected rubric will appear here.")
+            self.run_analysis_button.setEnabled(False)
 
     def apply_stylesheet(self, theme="dark"):
         if theme == "light":
@@ -340,11 +375,13 @@ class MainApplicationWindow(QMainWindow):
         else:
             self.setStyleSheet(self.get_dark_theme_stylesheet())
 
-    def save_theme_setting(self, theme):
+    @staticmethod
+    def save_theme_setting(theme):
         with open("theme.cfg", "w") as f:
             f.write(theme)
 
-    def load_theme_setting(self):
+    @staticmethod
+    def load_theme_setting():
         try:
             with open("theme.cfg", "r") as f:
                 return f.read().strip()

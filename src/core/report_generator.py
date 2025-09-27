@@ -1,57 +1,125 @@
-import logging
-from typing import Dict, Any, Tuple, List
+import os
+from datetime import datetime
+import markdown
+import urllib.parse
 
-from src.core.risk_scoring_service import RiskScoringService
+from .habit_mapper import get_habit_for_finding
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
 
 class ReportGenerator:
-    """
-    This class is responsible for generating the final report data structure
-    and calculating the compliance score.
-    """
     def __init__(self):
-        """
-        Initializes the ReportGenerator with a scoring service.
-        """
-        self.scoring_service = RiskScoringService()
-        logger.info("ReportGenerator initialized.")
+        self.rubric_template_str = self._load_template(
+            os.path.join(ROOT_DIR, "src", "resources", "report_template.html")
+        )
+        self.model_limitations_html = self._load_and_convert_markdown(
+            os.path.join(ROOT_DIR, "src", "resources", "model_limitations.md")
+        )
 
-    def generate_report(self, doc_name: str, analysis_result: Dict) -> Tuple[Dict, List]:
-        """
-        Generates the final report data and calculates the compliance score.
+    @staticmethod
+    def _load_template(template_path: str) -> str:
+        try:
+            with open(template_path, "r") as f:
+                return f.read()
+        except FileNotFoundError:
+            return "<h1>Report</h1><p>Template not found.</p><div>{findings}</div>"
 
-        Args:
-            doc_name: The name of the document.
-            analysis_result: The raw analysis from the LLM.
+    @staticmethod
+    def _load_and_convert_markdown(file_path: str) -> str:
+        try:
+            with open(file_path, "r") as f:
+                md_text = f.read()
+            return markdown.markdown(md_text, extensions=["tables"])
+        except (ImportError, FileNotFoundError):
+            return "<p>Could not load model limitations document.</p>"
 
-        Returns:
-            A tuple containing the report data dictionary and a list of findings.
-        """
+    def generate_html_report(
+        self, analysis_result: dict, doc_name: str, analysis_mode: str
+    ) -> str:
+        return self._generate_rubric_report(analysis_result, doc_name)
+
+    def _generate_rubric_report(self, analysis_result: dict, doc_name: str) -> str:
+        template_str = self.rubric_template_str
+        report_html = template_str.replace(
+            "<!-- Placeholder for document name -->", doc_name
+        )
+        report_html = report_html.replace(
+            "<!-- Placeholder for analysis date -->",
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
         findings = analysis_result.get("findings", [])
 
-        # Calculate the compliance score based on the findings
-        compliance_score = self.scoring_service.calculate_compliance_score(findings)
+        compliance_score = analysis_result.get("compliance_score", "N/A")
 
-        # Prepare the report data for database storage
-        report_data = {
-            "document_name": doc_name,
-            "compliance_score": compliance_score,
-            "analysis_result": analysis_result,
-        }
+        report_html = report_html.replace(
+            "<!-- Placeholder for compliance score -->", str(compliance_score)
+        )
+        report_html = report_html.replace(
+            "<!-- Placeholder for total findings -->", str(len(findings))
+        )
 
-        # Prepare the findings data for database storage
-        findings_data = [
-            {
-                "rule_id": finding.get("rule_id", "N/A"),
-                "problematic_text": finding.get("text", ""),
-                "risk": finding.get("risk", "Unknown"),
-                "personalized_tip": finding.get("suggestion", "")
-            }
-            for finding in findings
-        ]
+        findings_rows_html = ""
+        if findings:
+            for finding in findings:
+                # Determine the row class based on flags
+                row_class = ""
+                if finding.get("is_disputed"):
+                    row_class = 'class="disputed"'
+                elif finding.get("is_low_confidence"):
+                    row_class = 'class="low-confidence"'
 
-        logger.info(f"Generated report for {doc_name} with score: {compliance_score}")
-        return report_data, findings_data
+                # Create the risk/confidence display string
+                risk_display = finding.get("risk", "N/A")
+                if finding.get("is_disputed"):
+                    risk_display += " <b>(Disputed by Fact-Checker)</b>"
+                else:
+                    confidence = finding.get("confidence")
+                    if isinstance(confidence, (int, float)):
+                        risk_display += f" ({confidence:.0%} confidence)"
+                    elif finding.get("is_low_confidence"):
+                        risk_display += " (Low Confidence)"
+
+                tip_to_display = finding.get(
+                    "personalized_tip", finding.get("suggestion", "N/A")
+                )
+
+                problematic_text = finding.get("text", "N/A")
+                context_snippet = finding.get("context_snippet", problematic_text)
+
+                combined_payload = f"{context_snippet}|||{problematic_text}"
+                encoded_payload = urllib.parse.quote(combined_payload)
+                clickable_text = (
+                    f'<a href="highlight://{encoded_payload}">{problematic_text}</a>'
+                )
+
+                chat_context = f"Regarding the finding titled '{finding.get('issue_title', 'N/A')}', which you identified with the text '{problematic_text}', please explain further."
+                encoded_chat_context = urllib.parse.quote(chat_context)
+                chat_link = (
+                    f'<a href="chat://{encoded_chat_context}">Discuss with AI</a>'
+                )
+
+                habit = get_habit_for_finding(finding)
+                habit_html = f'<div class="habit-name">{habit["name"]}</div><div class="habit-explanation">{habit["explanation"]}</div>'
+
+                findings_rows_html += f"""
+                <tr {row_class}>
+                    <td>{risk_display}</td>
+                    <td>{clickable_text}</td>
+                    <td>{tip_to_display}</td>
+                    <td>{habit_html}</td>
+                    <td>{chat_link}</td>
+                </tr>
+                """
+        else:
+            findings_rows_html = "<tr><td colspan='5'>No findings.</td></tr>"
+        report_html = report_html.replace(
+            "<!-- Placeholder for findings rows -->", findings_rows_html
+        )
+
+        report_html = report_html.replace(
+            "<!-- Placeholder for model limitations -->", self.model_limitations_html
+        )
+
+        return report_html

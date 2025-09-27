@@ -1,13 +1,11 @@
 import requests
-from PyQt6.QtCore import QObject, Signal
+from PyQt6.QtCore import QObject, pyqtSignal as Signal
 from typing import List, Dict
 
 API_URL = "http://127.0.0.1:8000"
 
 class ChatWorker(QObject):
-    """
-    A worker to handle a single turn in a chat conversation with the backend.
-    """
+    """A worker to handle a single turn in a chat conversation with the backend."""
     success = Signal(str)  # Emits the AI's response message
     error = Signal(str)
 

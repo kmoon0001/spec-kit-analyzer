@@ -1,51 +1,54 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database import schemas, models, get_db
-from src.core.chat_service import ChatService, ChatHistory
-from src.api.routers.auth import get_current_active_user
+from ... import schemas, models
+from ...database import get_async_db as get_db
+from ...auth import get_current_active_user
+from ...core.chat_service import ChatService
+from ...core.analysis_service import AnalysisService
+from ..dependencies import get_analysis_service
 
 router = APIRouter()
 
-# In-memory storage for chat histories.
-# In a real-world application, this would be a database or a more persistent store.
-chat_histories = {}
-
-def get_chat_history(session_id: str) -> ChatHistory:
-    """
-    Retrieves or creates a chat history for a given session ID.
-    """
-    if session_id not in chat_histories:
-        chat_histories[session_id] = ChatHistory()
-    return chat_histories[session_id]
-
-@router.post("/chat", response_model=schemas.ChatMessage)
-def post_chat_message(
-    chat_input: schemas.ChatInput,
-    current_user: models.User = Depends(get_current_active_user)
+@router.post("/", response_model=schemas.ChatResponse)
+async def chat_with_ai(
+    chat_request: schemas.ChatRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user),
+    analysis_service: AnalysisService = Depends(get_analysis_service),
 ):
-    """
-    Receives a user's message, gets a response from the AI, and returns it.
-    """
-    session_id = chat_input.session_id
-    history = get_chat_history(session_id)
+    """Handles a conversational chat request with the AI."""
+    llm_service = analysis_service.analyzer.llm_service
+    if not llm_service.is_ready():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The AI model is not available. Please try again later.",
+        )
 
-    # Initialize the chat service with the session's history
-    chat_service = ChatService(history=history)
+    chat_service = ChatService(db=db, user=current_user, llm_service=llm_service)
 
-    # Get the AI's response
-    response_text = chat_service.get_response(chat_input.message)
+    response_text = chat_service.process_message(chat_request.message, chat_request.history)
 
-    return {"session_id": session_id, "message": response_text, "is_user": False}
+<<<<<<< HEAD
+    return schemas.ChatResponse(response=response_text)
+||||||| 278fb88
+        ai_response = chat_service.get_response(user_message)
 
-@router.get("/chat/history/{session_id}", response_model=List[schemas.ChatMessage])
-def get_session_history(
-    session_id: str,
-    current_user: models.User = Depends(get_current_active_user)
-):
-    """
-    Retrieves the full chat history for a given session ID.
-    """
-    history = get_chat_history(session_id)
-    return history.get_messages_as_dicts(session_id)
+        return schemas.ChatResponse(response=ai_response)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred during the chat session: {e}"
+        )
+=======
+        ai_response = chat_service.get_response(user_message)
+
+        return schemas.ChatResponse(response=ai_response)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred during the chat session: {e}"
+        )
+>>>>>>> origin/main

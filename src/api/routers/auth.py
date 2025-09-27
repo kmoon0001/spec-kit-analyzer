@@ -1,91 +1,62 @@
-from datetime import datetime, timedelta
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-from sqlalchemy.orm import Session
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import timedelta
 
-from src.database import crud, models, schemas
-from src.config import config
-from src.database.database import get_db
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
-
-class AuthService:
-    def __init__(self):
-        self.secret_key = config.auth.secret_key
-        self.algorithm = config.auth.algorithm
-        self.access_token_expire_minutes = config.auth.access_token_expire_minutes
-
-    def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None):
-        to_encode = data.copy()
-        if expires_delta:
-            expire = datetime.utcnow() + expires_delta
-        else:
-            expire = datetime.utcnow() + timedelta(minutes=self.access_token_expire_minutes)
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
-        return encoded_jwt
-
-    def verify_password(self, plain_password, hashed_password):
-        return pwd_context.verify(plain_password, hashed_password)
-
-    def get_password_hash(self, password):
-        return pwd_context.hash(password)
-
-auth_service = AuthService()
-
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> models.User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, auth_service.secret_key, algorithms=[auth_service.algorithm])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-        token_data = schemas.TokenData(username=username)
-    except JWTError:
-        raise credentials_exception
-
-    user = crud.get_user_by_username(db, username=token_data.username)
-    if user is None:
-        raise credentials_exception
-    return user
-
-def get_current_active_user(current_user: models.User = Depends(get_current_user)) -> models.User:
-    if not current_user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
-    return current_user
-
-def get_current_admin_user(current_user: models.User = Depends(get_current_active_user)) -> models.User:
-    """Security dependency to ensure the current user is an administrator."""
-    if not current_user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="The user does not have administrative privileges.")
-    return current_user
+from ... import crud, schemas, models
+from ...auth import AuthService, get_auth_service, get_current_active_user
+from ...database import get_async_db as get_db
 
 router = APIRouter()
 
+
 @router.post("/token", response_model=schemas.Token)
-def login_for_access_token(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
-    user = crud.get_user_by_username(db, username=form_data.username)
-    if not user or not auth_service.verify_password(form_data.password, user.hashed_password):
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db),
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    user = await crud.get_user_by_username(db, username=form_data.username)
+    if not user or not auth_service.verify_password(
+        form_data.password, user.hashed_password
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is inactive or license has expired. Please contact support.",
+        )
+
+    access_token_expires = timedelta(minutes=auth_service.access_token_expire_minutes)
     access_token = auth_service.create_access_token(
-        data={"sub": user.username}
+        data={"sub": user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-@router.get("/users/me/", response_model=schemas.User)
-def read_users_me(current_user: models.User = Depends(get_current_active_user)):
-    return current_user
+
+@router.post("/users/change-password")
+async def change_password(
+    password_data: schemas.UserPasswordChange,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user),
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    if not auth_service.verify_password(
+        password_data.current_password, current_user.hashed_password
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password.",
+        )
+
+    new_hashed_password = auth_service.get_password_hash(password_data.new_password)
+    await crud.change_user_password(
+        db=db, user=current_user, new_hashed_password=new_hashed_password
+    )
+
+    return {"message": "Password changed successfully."}

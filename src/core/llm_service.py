@@ -1,71 +1,54 @@
 import logging
-import pickle
-from ctransformers import AutoModelForCausalLM
-from sentence_transformers import SentenceTransformer
-import torch
+from ctransformers import AutoModelForCausalLM  # type: ignore
+from typing import Dict, Any
 
-from src.config import config
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 class LLMService:
     """
-    A service class to handle interactions with the local Large Language Model (LLM)
-    and the sentence embedding model.
+    A service class for interacting with a local, GGUF-quantized Large Language Model.
     """
-    _instance = None
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(LLMService, cls).__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-
-    def __init__(self):
+    def __init__(
+        self, model_repo_id: str, model_filename: str, llm_settings: Dict[str, Any]
+    ):
         """
-        Initializes the LLM and embedding models based on the application config.
-        This is a Singleton pattern to ensure models are loaded only once.
+        Initializes the LLMService by loading the specified GGUF model with ctransformers.
         """
-        if self._initialized:
-            return
+        self.llm = None
+        self.generation_params = llm_settings.get("generation_params", {})
+        logger.info(f"Loading GGUF model: {model_repo_id}/{model_filename}...")
+        try:
+            self.llm = AutoModelForCausalLM.from_pretrained(
+                model_repo_id,
+                model_file=model_filename,
+                model_type=llm_settings.get("model_type", "llama"),
+                gpu_layers=llm_settings.get("gpu_layers", 0),
+                context_length=llm_settings.get("context_length", 2048),
+            )
+            logger.info("GGUF Model loaded successfully.")
+        except Exception as e:
+            logger.error(f"FATAL: Failed to load GGUF model: {e}", exc_info=True)
+            raise RuntimeError(f"Could not load LLM model: {e}") from e
 
-        logger.info("Initializing LLMService...")
+    def is_ready(self) -> bool:
+        """Checks if the model was loaded successfully."""
+        return self.llm is not None
 
-        # Load LLM for text generation
-        self.llm = AutoModelForCausalLM.from_pretrained(
-            config.llm.model_path,
-            model_type=config.llm.model_type,
-            lib=config.llm.lib,
-            gpu_layers=config.llm.gpu_layers,
-            temperature=config.llm.temperature,
-            top_p=config.llm.top_p,
-            top_k=config.llm.top_k,
-            repetition_penalty=config.llm.repetition_penalty
-        )
+    def generate_analysis(self, prompt: str) -> str:
+        """Generates a response by running the prompt through the loaded LLM."""
+        if not self.is_ready():
+            logger.error("LLM is not available. Cannot generate analysis.")
+            return '{"error": "LLM not available"}'
 
-        # Load model for generating semantic embeddings
-        self.embedding_model = SentenceTransformer(config.embedding.model_name)
-
-        logger.info("LLMService initialized successfully.")
-        self._initialized = True
-
-    def make_request(self, prompt: str) -> str:
-        """
-        Sends a prompt to the LLM and returns the generated text.
-        """
-        logger.info("Sending prompt to LLM...")
-        response = self.llm(prompt, max_new_tokens=config.llm.max_new_tokens, stream=False)
-        logger.info("Received response from LLM.")
-        return response
-
-    def get_embedding(self, text: str) -> bytes:
-        """
-        Generates a semantic embedding for the given text.
-        """
-        logger.info("Generating embedding...")
-        embedding = self.embedding_model.encode(text, convert_to_numpy=True)
-        logger.info("Embedding generated.")
-        # Serialize the numpy array for storage
-        return pickle.dumps(embedding)
+        assert self.llm is not None
+        logger.info("Generating response with the LLM...")
+        try:
+            # Pass the generation parameters directly to the model call
+            raw_text = self.llm(prompt, **self.generation_params)
+            logger.info("LLM response generated successfully.")
+            return raw_text
+        except Exception as e:
+            logger.error(f"Error during LLM generation: {e}", exc_info=True)
+            return '{"error": "Generation failed"}'

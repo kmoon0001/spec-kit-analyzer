@@ -1,10 +1,11 @@
-from PySide6.QtWidgets import (
+from PyQt6.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QLabel,
     QPushButton,
     QDialogButtonBox,
 )
+
 
 class AddRubricSourceDialog(QDialog):
     def __init__(self, parent=None):
@@ -24,9 +25,9 @@ class AddRubricSourceDialog(QDialog):
         layout.addWidget(button_box)
 
     def select_library(self):
-        self.source = 'library'
+        self.source = "library"
         self.accept()
 
     def select_file(self):
-        self.source = 'file'
+        self.source = "file"
         self.accept()

@@ -1,111 +1,135 @@
-from fastapi import APIRouter, File, UploadFile, Form, Depends, HTTPException, BackgroundTasks
-from sqlalchemy.orm import Session
-from typing import List
 import logging
-import traceback
+import uuid
+import shutil
+import os
+import asyncio
+from fastapi import APIRouter, Depends, UploadFile, File, Form, BackgroundTasks, HTTPException
 
-from src.database import schemas, crud, models
-from src.database.database import get_db
-from src.core.document_analysis_service import DocumentAnalysisService
-from src.api.routers.auth import get_current_active_user
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from ... import models
+from ...auth import get_current_active_user
+from ...core.analysis_service import AnalysisService
+from ...database import get_async_db
+from ... import crud
+from ...config import settings # Import settings
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
-# Initialize the analysis service
-# This service holds the AI models and can be reused across requests
-analysis_service = DocumentAnalysisService()
+tasks = {}
+
+def _calculate_compliance_score(analysis_result: Dict[str, Any]) -> str:
+    base_score = 100
+    if "findings" not in analysis_result or not analysis_result["findings"]:
+        return str(base_score)
+
+    score_deductions = {
+        "High": 10,
+        "Medium": 5,
+        "Low": 2
+    }
+
+    current_score = base_score
+    for finding in analysis_result["findings"]:
+        risk = finding.get("risk", "Low") # Default to Low if not specified
+        current_score -= score_deductions.get(risk, 0)
+
+        if finding.get("is_disputed", False):
+            current_score -= 3
+        if finding.get("is_low_confidence", False):
+            current_score -= 1
+
+    return str(max(0, current_score))
 
 
-def analyze_and_save_task(db: Session, doc_content: str, doc_name: str):
-    """
-    A background task to run the analysis and save the report.
-    This prevents the API from timing out on long analyses.
-    """
-    try:
-        logger.info(f"Starting background analysis for document: {doc_name}")
-        # 1. Run the full analysis pipeline
-        report_data, findings_data = analysis_service.analyze_document(doc_content, doc_name)
-
-        # 2. Save the report and findings to the database
-        crud.create_report_and_findings(db, report_data=report_data, findings_data=findings_data)
-        logger.info(f"Successfully saved analysis report for: {doc_name}")
-
-    except Exception as e:
-        # Log the full error traceback for debugging
-        tb_str = traceback.format_exc()
-        logger.error(f"Error during background analysis for {doc_name}: {e}\n{tb_str}")
-
-
-@router.post("/analyze/text", status_code=202)
-def analyze_text(
-    background_tasks: BackgroundTasks,
-    text_input: schemas.TextInput,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+async def run_analysis_and_save(
+    file_path: str,
+    task_id: str,
+    doc_name: str,
+    discipline: str | None,
+    analysis_mode: str,
+    analysis_service: AnalysisService,
 ):
-    """
-    Accepts plain text, runs analysis in the background,
-    and returns immediately with a confirmation.
-    """
-    doc_name = f"text_input_{text_input.title[:20]}.txt"
-    # Add the analysis task to be run in the background
-    background_tasks.add_task(analyze_and_save_task, db, text_input.content, doc_name)
+    """Runs the analysis with semantic caching, saves the data, and generates the report."""
+    async for db in get_async_db():
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                document_text = f.read()
 
-    return {"message": "Analysis has been started in the background."}
+            # 1. Generate embedding for the new document
+            embedding_bytes = analysis_service.get_document_embedding(document_text)
 
+            # 2. Check for a semantically similar report in the cache (database)
+            cached_report = await crud.find_similar_report(db, embedding_bytes)
 
-@router.post("/analyze/file", status_code=202)
-async def analyze_file(
+            if cached_report:
+                # --- CACHE HIT ---
+                logger.info(f"Semantic cache hit for document: {doc_name}. Using cached report ID: {cached_report.id}")
+                analysis_result = cached_report.analysis_result
+            else:
+                # --- CACHE MISS ---
+                logger.info(f"Semantic cache miss for document: {doc_name}. Performing full analysis.")
+                # Perform the full analysis to get the structured data
+                analysis_result = analysis_service.analyzer.analyze_document(
+                    document_text=document_text,
+                    discipline=discipline,
+                    doc_type="Unknown" # This will be replaced by the classifier
+                )
+
+                report_html = analysis_service.report_generator.generate_html_report(analysis_result, doc_name, analysis_mode)
+
+                compliance_score = _calculate_compliance_score(analysis_result)
+                report_data = {
+                    "document_name": doc_name,
+                    "compliance_score": compliance_score,
+                    "analysis_result": analysis_result,
+                    "document_embedding": embedding_bytes
+                }
+                await crud.create_report_and_findings(db, report_data, analysis_result.get("findings", []))
+
+                tasks[task_id] = {"status": "completed", "result": report_html, "compliance_score": compliance_score}
+
+        except Exception as e:
+            logger.error(f"Error during analysis for task {task_id}: {e}", exc_info=True)
+            tasks[task_id] = {"status": "failed", "error": str(e)}
+        finally:
+            await db.close()
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+def analysis_task_wrapper(*args, **kwargs):
+    """Sync wrapper to run the async analysis task in a background thread."""
+    asyncio.run(run_analysis_and_save(*args, **kwargs))
+
+@router.post("/analyze", status_code=202)
+async def analyze_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    discipline: str = Form("All"),
+    analysis_mode: str = Form("rubric"),
+    current_user: models.User = Depends(get_current_active_user),
+    analysis_service: AnalysisService = Depends(get_analysis_service),
 ):
-    """
-    Accepts a file upload, runs analysis in the background,
-    and returns immediately.
-    """
-    try:
-        content = await file.read()
-        doc_name = file.filename
-        # Add the analysis task to be run in the background
-        background_tasks.add_task(analyze_and_save_task, db, content.decode('utf-8', errors='ignore'), doc_name)
+    task_id = str(uuid.uuid4())
+    upload_dir = settings.temp_upload_dir # Use settings.temp_upload_dir
+    os.makedirs(upload_dir, exist_ok=True)
+    temp_file_path = os.path.join(upload_dir, f"temp_{task_id}_{file.filename}")
+    with open(temp_file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
 
-        return {"message": "File analysis has been started in the background."}
+    background_tasks.add_task(
+        analysis_task_wrapper, temp_file_path, task_id, file.filename, discipline, analysis_mode, analysis_service
+    )
+    tasks[task_id] = {"status": "processing"}
 
-    except Exception as e:
-        logger.error(f"Error processing file upload: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to process file: {e}")
+    return {"task_id": task_id, "status": "processing"}
 
+@router.get("/tasks/{task_id}")
+async def get_task_status(task_id: str):
+    task = tasks.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
 
-@router.get("/reports", response_model=List[schemas.Report])
-def get_reports(
-    skip: int = 0,
-    limit: int = 20,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
-):
-    """
-    Retrieves a list of the most recent analysis reports.
-    """
-    reports = crud.get_reports(db, skip=skip, limit=limit)
-    return reports
+    if task["status"] == "completed":
+        return {"status": "completed", "compliance_score": task.get("compliance_score", "N/A"), "report_url": f"/reports/{task_id}"}
 
-
-@router.get("/reports/{report_id}", response_model=schemas.Report)
-def get_report_details(
-    report_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
-):
-    """
-    Retrieves the full details of a specific analysis report.
-    """
-    report = crud.get_report(db, report_id=report_id)
-    if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
-    return report
+    return task

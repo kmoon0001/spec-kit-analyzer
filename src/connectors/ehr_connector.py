@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 
+
 class EHRConnector(ABC):
     """
     An abstract base class defining the interface for connecting to an

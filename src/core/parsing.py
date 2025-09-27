@@ -1,12 +1,13 @@
 import os
 import re
-from typing import List, Tuple, Dict
+from typing import List, Dict
 
 import pdfplumber
 from docx import Document
 import pytesseract
 from PIL import Image
 import pandas as pd
+import yaml
 
 from src.core.smart_chunker import sentence_window_chunker
 
@@ -15,9 +16,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 def parse_document_content(file_path: str) -> List[dict]:
-    """
-    Parses the content of a document and splits it into chunks.
-    """
+    """Parses the content of a document and splits it into chunks."""
     logger.info(f"Parsing document: {file_path}")
     if not os.path.exists(file_path):
         return [{'sentence': f"Error: File not found at {file_path}", 'window': '', 'metadata': {'source': 'File System'}}]
@@ -27,7 +26,6 @@ def parse_document_content(file_path: str) -> List[dict]:
     try:
         chunks: list[dict] = []
 
-        # --- Step 1: Extract text from the document based on its type ---
         if ext == ".pdf":
             if not pdfplumber:
                 return [{'sentence': "Error: pdfplumber not available.", 'window': '', 'metadata': {'source': 'PDF Parser'}}]
@@ -87,11 +85,6 @@ def parse_document_content(file_path: str) -> List[dict]:
     except Exception as e:
         return [{'sentence': f"Error: An unexpected error occurred: {e}", 'window': '', 'metadata': {'source': 'System'}}]
 
-import yaml
-import re
-from typing import Dict
-
-# Default headers if config is missing or invalid
 DEFAULT_SECTION_HEADERS = [
     "Subjective", "Objective", "Assessment", "Plan",
     "History of Present Illness", "Past Medical History",
@@ -120,7 +113,6 @@ def parse_text_into_sections(text: str) -> Dict[str, str]:
     if not section_headers:
         return {"full_text": text}
 
-    # Assemble regex pattern for section headers
     pattern = r"^\s*(" + "|".join(re.escape(header) for header in section_headers) + r")\s*:"
     matches = list(re.finditer(pattern, text, re.MULTILINE | re.IGNORECASE))
 
@@ -128,13 +120,11 @@ def parse_text_into_sections(text: str) -> Dict[str, str]:
         return {"unclassified": text}
 
     sections = {}
-    # Find text before first header for completeness
     if matches[0].start() > 0:
         pre_content = text[:matches[0].start()].strip()
         if pre_content:
             sections["Header"] = pre_content
 
-    # Iterate through matches to extract content
     for i, match in enumerate(matches):
         section_header = match.group(1).strip()
         start_index = match.end()
@@ -145,5 +135,4 @@ def parse_text_into_sections(text: str) -> Dict[str, str]:
 
     return sections
 
-# For compatibility: expose both parse_text_into_sections and parse_document_into_sections
 parse_document_into_sections = parse_text_into_sections

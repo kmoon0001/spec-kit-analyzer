@@ -1,13 +1,14 @@
 import requests
-from PyQt6.QtCore import QObject, Signal
+from PyQt6.QtCore import QObject, pyqtSignal as Signal
 from typing import Dict
 
-API_URL = "http://127.0.0.1:8000"
+from src.config import get_settings
+
+settings = get_settings()
+API_URL = settings.api_url
 
 class DashboardWorker(QObject):
-    """
-    A worker to fetch all necessary dashboard data from the API.
-    """
+    """A worker to fetch all necessary dashboard data from the API."""
     success = Signal(dict)  # Emits a dictionary with 'reports' and 'summary'
     error = Signal(str)
 
@@ -16,9 +17,7 @@ class DashboardWorker(QObject):
         self.token = token
 
     def run(self):
-        """
-        Fetches all dashboard data and emits the result.
-        """
+        """Fetches all dashboard data and emits the result."""
         if not self.token:
             self.error.emit("Authentication token not provided.")
             return
