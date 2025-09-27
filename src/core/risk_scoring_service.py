@@ -2,7 +2,8 @@ class RiskScoringService:
     """
     A service to calculate a compliance score based on the severity of findings.
     """
-    def calculate_compliance_score(self, findings: list) -> int:
+    @staticmethod
+    def calculate_compliance_score(findings: list) -> int:
         """
         Calculates a compliance score from 1 to 100.
         A higher score means better compliance.
