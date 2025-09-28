@@ -26,10 +26,10 @@ async def safe_database_init():
         logger.info("Initializing database...")
         from src.database import init_db
         await init_db()
-        logger.info("✅ Database initialized successfully")
+        logger.info("[OK] Database initialized successfully")
         return True
     except Exception as e:
-        logger.warning(f"⚠️ Database initialization issue: {e}")
+        logger.warning(f"[WARN] Database initialization issue: {e}")
         logger.info("Continuing without database (some features may be limited)")
         return False
 
@@ -37,27 +37,27 @@ def check_dependencies():
     """Check critical dependencies."""
     try:
         import PyQt6
-        logger.info("✅ PyQt6 available")
+        logger.info("[OK] PyQt6 available")
         
         from src.gui.main_window import MainApplicationWindow
-        logger.info("✅ Main window imports OK")
+        logger.info("[OK] Main window imports OK")
         
         from src.core.performance_manager import performance_manager
-        logger.info("✅ Performance manager OK")
+        logger.info("[OK] Performance manager OK")
         
         return True
     except Exception as e:
-        logger.error(f"❌ Critical dependency missing: {e}")
+        logger.error(f"[ERROR] Critical dependency missing: {e}")
         return False
 
 def main():
     """Main application entry point with error handling."""
     try:
-        logger.info("🚀 Starting Therapy Compliance Analyzer...")
+        logger.info("[START] Starting Therapy Compliance Analyzer...")
         
         # Check dependencies
         if not check_dependencies():
-            logger.error("❌ Cannot start - missing critical dependencies")
+            logger.error("[ERROR] Cannot start - missing critical dependencies")
             return 1
         
         # Initialize database
@@ -89,17 +89,17 @@ def main():
         # Start the application logic
         main_win.start()
         
-        logger.info("✅ Application started successfully")
+        logger.info("[OK] Application started successfully")
         logger.info(f"Window visible: {main_win.isVisible()}")
         logger.info(f"Window size: {main_win.size().width()}x{main_win.size().height()}")
         
         return app.exec()
         
     except KeyboardInterrupt:
-        logger.info("👋 Application stopped by user")
+        logger.info("[STOP] Application stopped by user")
         return 0
     except Exception as e:
-        logger.error(f"❌ Unexpected error: {e}")
+        logger.error(f"[ERROR] Unexpected error: {e}")
         logger.error("Full traceback:")
         traceback.print_exc()
         return 1

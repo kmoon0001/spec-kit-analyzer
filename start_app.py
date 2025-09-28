@@ -18,57 +18,57 @@ def check_dependencies():
         import PyQt6
         import fastapi
         import sqlalchemy
-        print("✅ Core dependencies found")
+        print("[OK] Core dependencies found")
         return True
     except ImportError as e:
-        print(f"❌ Missing dependency: {e}")
+        print(f"[ERROR] Missing dependency: {e}")
         return False
 
 def main():
     """Main startup function."""
-    print("🚀 Starting Therapy Compliance Analyzer...")
+    print("[START] Starting Therapy Compliance Analyzer...")
     print("=" * 50)
     
     # Check virtual environment
     if not check_virtual_environment():
-        print("⚠️  Warning: Not running in a virtual environment")
+        print("[WARN]  Warning: Not running in a virtual environment")
         print("   Consider activating .venv first:")
         print("   .venv\\Scripts\\activate")
         print()
     
     # Check dependencies
     if not check_dependencies():
-        print("\n📦 Installing dependencies...")
+        print("\n[SETUP] Installing dependencies...")
         try:
             subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], check=True)
-            print("✅ Dependencies installed successfully")
+            print("[OK] Dependencies installed successfully")
         except subprocess.CalledProcessError:
-            print("❌ Failed to install dependencies")
+            print("[ERROR] Failed to install dependencies")
             print("   Please run: pip install -r requirements.txt")
             return 1
     
     # Check if startup files exist
     startup_file = "run_gui_safe.py" if Path("run_gui_safe.py").exists() else "run_gui.py"
     if not Path(startup_file).exists():
-        print(f"❌ {startup_file} not found in current directory")
+        print(f"[ERROR] {startup_file} not found in current directory")
         print("   Make sure you're in the project root directory")
         return 1
     
     # Launch the application
-    print(f"\n🎯 Launching GUI application using {startup_file}...")
+    print(f"\n[INFO] Launching GUI application using {startup_file}...")
     print("   (First startup may take 30-60 seconds to load AI models)")
     try:
         result = subprocess.run([sys.executable, startup_file], check=False)
         if result.returncode != 0:
-            print(f"⚠️  Application exited with code {result.returncode}")
+            print(f"[WARN]  Application exited with code {result.returncode}")
             if result.returncode == 3221226505:
                 print("   This appears to be a Windows access violation - try running as administrator")
             else:
                 print("   This might be normal if you closed the application")
         else:
-            print("✅ Application closed normally")
+            print("[OK] Application closed normally")
     except KeyboardInterrupt:
-        print("\n👋 Application stopped by user")
+        print("\n[STOP] Application stopped by user")
         return 0
     
     return 0
