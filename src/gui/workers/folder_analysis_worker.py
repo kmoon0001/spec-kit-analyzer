@@ -1,14 +1,19 @@
 import time
+from typing import Any, Dict
+
 import requests
 from PyQt6.QtCore import QObject, pyqtSignal as Signal
 
-API_URL = "http://127.0.0.1:8000"
+from src.config import get_settings
+
+settings = get_settings()
+API_URL = settings.api_url
 
 
 class FolderAnalysisWorker(QObject):
     finished = Signal()  # type: ignore[attr-defined]
     error = Signal(str)  # type: ignore[attr-defined]
-    success = Signal(str)  # type: ignore[attr-defined]
+    success = Signal(object)  # type: ignore[attr-defined]
     progress = Signal(int)  # type: ignore[attr-defined]
 
     def __init__(self, task_id: str):
@@ -16,42 +21,50 @@ class FolderAnalysisWorker(QObject):
         self.task_id = task_id
         self.is_running = True
 
+    def stop(self) -> None:
+        self.is_running = False
+
     def run(self):
-        """Polls the API for the result of the folder analysis task."""
+        """Poll the API for the result of the folder analysis task."""
         poll_interval = 2  # seconds
         max_attempts = 150  # 5 minutes
         attempts = 0
 
         while self.is_running and attempts < max_attempts:
             try:
-                # This worker polls the same task status endpoint
-                response = requests.get(f"{API_URL}/tasks/{self.task_id}")
+                response = requests.get(
+                    f"{API_URL}/tasks/{self.task_id}",
+                    timeout=15,
+                )
                 response.raise_for_status()
 
-                if response.headers.get("Content-Type") == "text/html; charset=utf-8":
+                if response.headers.get("Content-Type", "").startswith("text/html"):
                     self.success.emit(response.text)
                     self.finished.emit()
                     return
 
-                status_data = response.json()
+                status_data: Dict[str, Any] = response.json()
                 status = status_data.get("status")
 
                 if status == "processing":
-                    self.progress.emit((attempts * 100) // max_attempts)
+                    reported_progress = int(status_data.get("progress", attempts * 100 // max_attempts))
+                    self.progress.emit(max(0, min(100, reported_progress)))
                 elif status == "failed":
-                    error_msg = status_data.get(
-                        "error", "Unknown error during analysis."
-                    )
+                    error_msg = status_data.get("error", "Unknown error during analysis.")
                     self.error.emit(error_msg)
                     self.finished.emit()
                     return
+                elif status == "completed":
+                    self.success.emit(status_data.get("result"))
+                    self.finished.emit()
+                    return
 
-            except requests.exceptions.RequestException as e:
-                self.error.emit(f"Failed to connect to backend: {e}")
+            except requests.RequestException as exc:
+                self.error.emit(f"Failed to connect to backend: {exc}")
                 self.finished.emit()
                 return
-            except Exception as e:
-                self.error.emit(f"An unexpected error occurred: {e}")
+            except Exception as exc:  # pragma: no cover - defensive
+                self.error.emit(f"An unexpected error occurred: {exc}")
                 self.finished.emit()
                 return
 
@@ -62,6 +75,3 @@ class FolderAnalysisWorker(QObject):
             self.error.emit("Analysis timed out.")
 
         self.finished.emit()
-
-    def stop(self):
-        self.is_running = False
