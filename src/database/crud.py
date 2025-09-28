@@ -127,7 +127,7 @@ async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
     # Delete associated findings first due to foreign key constraints
     # Find report IDs to delete
     reports_to_delete_query = select(models.Report.id).filter(
-        models.Report.created_at < cutoff_date
+        models.Report.analysis_date < cutoff_date
     )
     reports_to_delete_result = await db.execute(reports_to_delete_query)
     report_ids_to_delete = reports_to_delete_result.scalars().all()
@@ -141,7 +141,7 @@ async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
         )
         # Then delete the reports
         result = await db.execute(
-            delete(models.Report).filter(models.Report.created_at < cutoff_date)
+            delete(models.Report).filter(models.Report.analysis_date < cutoff_date)
         )
         await db.commit()
         return result.rowcount

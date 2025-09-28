@@ -32,7 +32,7 @@ class AILoaderWorker(QObject):
             maintenance_service.purge_old_reports(retention_days)
 
             # 3. Initialize HybridRetriever and AnalysisService
-            retriever = HybridRetriever(settings=config.retrieval_settings)
+            retriever = HybridRetriever()
             asyncio.run(retriever.initialize())
             analyzer_service = AnalysisService(retriever=retriever)
             compliance_service = ComplianceService(analysis_service=analyzer_service)

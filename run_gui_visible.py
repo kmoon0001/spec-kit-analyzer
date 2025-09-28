@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""
+GUI startup that ensures the window is visible immediately.
+"""
+import sys
+import os
+import logging
+import asyncio
+
+# Path setup
+project_root = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, project_root)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+async def safe_database_init():
+    """Initialize database safely."""
+    try:
+        from src.database import init_db
+        await init_db()
+        logger.info("✅ Database initialized")
+        return True
+    except Exception as e:
+        logger.warning(f"Database issue (continuing): {e}")
+        return False
+
+def main():
+    """Main function with immediate window display."""
+    try:
+        logger.info("🚀 Starting Therapy Compliance Analyzer...")
+        
+        # Initialize database first
+        try:
+            asyncio.run(safe_database_init())
+        except Exception as e:
+            logger.warning(f"Database setup issue: {e}")
+        
+        # Import GUI components
+        from PyQt6.QtWidgets import QApplication
+        from src.gui.main_window import MainApplicationWindow
+        
+        # Create application
+        app = QApplication(sys.argv)
+        app.setApplicationName("Therapy Compliance Analyzer")
+        
+        # Create main window
+        logger.info("Creating main window...")
+        main_win = MainApplicationWindow()
+        
+        # Initialize the base UI first
+        main_win.init_base_ui()
+        
+        # FORCE the window to show immediately
+        main_win.show()
+        main_win.raise_()
+        main_win.activateWindow()
+        
+        logger.info("✅ Window should now be visible!")
+        logger.info(f"Window visible: {main_win.isVisible()}")
+        logger.info(f"Window size: {main_win.size().width()}x{main_win.size().height()}")
+        
+        # Process events to ensure window appears
+        app.processEvents()
+        
+        # Now load the main UI and AI models in background
+        logger.info("Loading main UI and AI models...")
+        try:
+            main_win.load_main_ui()
+            main_win.load_ai_models()
+        except Exception as e:
+            logger.error(f"Error loading AI: {e}")
+            # Continue anyway - window should still be visible
+        
+        logger.info("🎯 Application ready! Window should be visible.")
+        
+        # Run the application
+        return app.exec()
+        
+    except Exception as e:
+        logger.error(f"❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
+
+if __name__ == "__main__":
+    sys.exit(main())

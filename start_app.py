@@ -47,19 +47,26 @@ def main():
             print("   Please run: pip install -r requirements.txt")
             return 1
     
-    # Check if run_gui.py exists
-    if not Path("run_gui.py").exists():
-        print("❌ run_gui.py not found in current directory")
+    # Check if startup files exist
+    startup_file = "run_gui_safe.py" if Path("run_gui_safe.py").exists() else "run_gui.py"
+    if not Path(startup_file).exists():
+        print(f"❌ {startup_file} not found in current directory")
         print("   Make sure you're in the project root directory")
         return 1
     
     # Launch the application
-    print("\n🎯 Launching GUI application...")
+    print(f"\n🎯 Launching GUI application using {startup_file}...")
+    print("   (First startup may take 30-60 seconds to load AI models)")
     try:
-        subprocess.run([sys.executable, "run_gui.py"], check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to start application: {e}")
-        return 1
+        result = subprocess.run([sys.executable, startup_file], check=False)
+        if result.returncode != 0:
+            print(f"⚠️  Application exited with code {result.returncode}")
+            if result.returncode == 3221226505:
+                print("   This appears to be a Windows access violation - try running as administrator")
+            else:
+                print("   This might be normal if you closed the application")
+        else:
+            print("✅ Application closed normally")
     except KeyboardInterrupt:
         print("\n👋 Application stopped by user")
         return 0

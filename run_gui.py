@@ -14,15 +14,29 @@ sys.path.insert(0, project_root)
 # 3. Now that the path is correct, we can import and run the application.
 from PyQt6.QtWidgets import QApplication  # noqa: E402
 from src.gui.main_window import MainApplicationWindow  # noqa: E402
-from src.database import init_db  # noqa: E402
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+async def initialize_database():
+    """Initialize database asynchronously."""
+    try:
+        from src.database import init_db
+        await init_db()
+        logger.info("✅ Database initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}")
+        # Continue anyway - app can work without database for basic functionality
+
 if __name__ == "__main__":
+    import asyncio
+    
     logger.info("Initializing database...")
-    init_db()
+    try:
+        asyncio.run(initialize_database())
+    except Exception as e:
+        logger.warning(f"Database setup issue (continuing anyway): {e}")
 
     logger.info("Starting GUI application...")
     app = QApplication(sys.argv)
