@@ -55,6 +55,7 @@ optimum  # Model optimization
 
 # Enhanced Features (Optional)
 reportlab  # PDF export functionality
+xhtml2pdf  # HTML-to-PDF export
 openpyxl  # Excel export support
 
 # Scheduling
