@@ -95,7 +95,10 @@ class ComplianceAnalyzer:
                 finding["is_disputed"] = True
 
             confidence = finding.get("confidence", 1.0)
-            if isinstance(confidence, (float, int)) and confidence < CONFIDENCE_THRESHOLD:
+            if (
+                isinstance(confidence, (float, int))
+                and confidence < CONFIDENCE_THRESHOLD
+            ):
                 finding["is_low_confidence"] = True
 
             if self.nlg_service:

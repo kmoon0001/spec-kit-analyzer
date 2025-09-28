@@ -158,9 +158,7 @@ class GuidelineService:
         if path.suffix.lower() == ".txt":
             text = path.read_text(encoding="utf-8")
             return [
-                (line.strip(), path.name)
-                for line in text.splitlines()
-                if line.strip()
+                (line.strip(), path.name) for line in text.splitlines() if line.strip()
             ]
 
         logger.warning("Unsupported guideline format for %s", path)

@@ -66,9 +66,7 @@ class AnalysisService:
         self.fact_checker = FactCheckerService(
             model_name=models_cfg.get("fact_checker", "")
         )
-        self.ner_pipeline = NERPipeline(
-            model_names=models_cfg.get("ner_ensemble", [])
-        )
+        self.ner_pipeline = NERPipeline(model_names=models_cfg.get("ner_ensemble", []))
         self.prompt_manager = PromptManager(
             template_path=str(ROOT_DIR / models_cfg.get("analysis_prompt_template", ""))
         )
@@ -81,7 +79,9 @@ class AnalysisService:
         )
         self.nlg_service = NLGService(
             llm_service=self.llm_service,
-            prompt_template_path=str(ROOT_DIR / models_cfg.get("nlg_prompt_template", "")),
+            prompt_template_path=str(
+                ROOT_DIR / models_cfg.get("nlg_prompt_template", "")
+            ),
         )
         self.compliance_analyzer = ComplianceAnalyzer(
             retriever=self.retriever,
@@ -103,7 +103,9 @@ class AnalysisService:
         async def _run() -> Dict[str, Any]:
             logger.info("Starting analysis for document: %s", file_path)
             chunks = parse_document_content(file_path)
-            document_text = " ".join(chunk.get("sentence", "") for chunk in chunks).strip()
+            document_text = " ".join(
+                chunk.get("sentence", "") for chunk in chunks
+            ).strip()
 
             await self._maybe_await(self.preprocessing.correct_text(document_text))
 

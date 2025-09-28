@@ -84,7 +84,11 @@ class ComplianceService:
 
     @staticmethod
     def _rule_matches_context(rule: ComplianceRule, document: TherapyDocument) -> bool:
-        discipline_ok = rule.discipline.lower() in {"any", "*", document.discipline.lower()}
+        discipline_ok = rule.discipline.lower() in {
+            "any",
+            "*",
+            document.discipline.lower(),
+        }
 
         document_type = document.document_type.lower()
         rule_doc_type = rule.document_type.lower()
@@ -99,7 +103,9 @@ class ComplianceService:
     def _violates_rule(self, rule: ComplianceRule, normalized_text: str) -> bool:
         has_positive_context = True
         if rule.positive_keywords:
-            has_positive_context = self._contains_any(rule.positive_keywords, normalized_text)
+            has_positive_context = self._contains_any(
+                rule.positive_keywords, normalized_text
+            )
 
         if not has_positive_context:
             return False
@@ -113,14 +119,12 @@ class ComplianceService:
     @staticmethod
     def _build_snippet(rule: ComplianceRule) -> str:
         if rule.negative_keywords:
-            return (
-                "Required documentation terms were not detected: "
-                + ", ".join(rule.negative_keywords)
+            return "Required documentation terms were not detected: " + ", ".join(
+                rule.negative_keywords
             )
         if rule.positive_keywords:
-            return (
-                "Expected keywords were missing: "
-                + ", ".join(rule.positive_keywords)
+            return "Expected keywords were missing: " + ", ".join(
+                rule.positive_keywords
             )
         return "Rule conditions not met by the document content."
 

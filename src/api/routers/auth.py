@@ -33,9 +33,7 @@ async def login_for_access_token(
             detail="Account is inactive or license has expired. Please contact support.",
         )
 
-    access_token_expires = timedelta(
-        minutes=auth_service.access_token_expire_minutes
-    )
+    access_token_expires = timedelta(minutes=auth_service.access_token_expire_minutes)
     access_token = auth_service.create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )

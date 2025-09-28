@@ -11,7 +11,7 @@ router = APIRouter()
 @router.post(
     "/rubrics/",
     response_model=schemas.Rubric,
-    dependencies=[Depends(get_current_admin_user)]
+    dependencies=[Depends(get_current_admin_user)],
 )
 def create_rubric(rubric: schemas.RubricCreate, db: Session = Depends(get_db)):
     return crud.create_rubric(db=db, rubric=rubric)
@@ -20,7 +20,7 @@ def create_rubric(rubric: schemas.RubricCreate, db: Session = Depends(get_db)):
 @router.get(
     "/rubrics/",
     response_model=List[schemas.Rubric],
-    dependencies=[Depends(get_current_admin_user)]
+    dependencies=[Depends(get_current_admin_user)],
 )
 def read_rubrics(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     rubrics = crud.get_rubrics(db, skip=skip, limit=limit)
@@ -30,7 +30,7 @@ def read_rubrics(skip: int = 0, limit: int = 100, db: Session = Depends(get_db))
 @router.get(
     "/rubrics/{rubric_id}",
     response_model=schemas.Rubric,
-    dependencies=[Depends(get_current_admin_user)]
+    dependencies=[Depends(get_current_admin_user)],
 )
 def read_rubric(rubric_id: int, db: Session = Depends(get_db)):
     db_rubric = crud.get_rubric(db, rubric_id=rubric_id)
@@ -42,7 +42,7 @@ def read_rubric(rubric_id: int, db: Session = Depends(get_db)):
 @router.put(
     "/rubrics/{rubric_id}",
     response_model=schemas.Rubric,
-    dependencies=[Depends(get_current_admin_user)]
+    dependencies=[Depends(get_current_admin_user)],
 )
 def update_rubric(
     rubric_id: int, rubric: schemas.RubricCreate, db: Session = Depends(get_db)
@@ -56,7 +56,7 @@ def update_rubric(
 @router.delete(
     "/rubrics/{rubric_id}",
     response_model=schemas.Rubric,
-    dependencies=[Depends(get_current_admin_user)]
+    dependencies=[Depends(get_current_admin_user)],
 )
 def delete_rubric(rubric_id: int, db: Session = Depends(get_db)):
     db_rubric = crud.delete_rubric(db, rubric_id=rubric_id)

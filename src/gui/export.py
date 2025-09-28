@@ -7,9 +7,7 @@ from PyQt6.QtWidgets import QFileDialog
 from xhtml2pdf import pisa
 
 
-DEFAULT_LIMITATIONS_TEXT = (
-    "This AI-generated report should be reviewed by a clinical compliance expert before use."
-)
+DEFAULT_LIMITATIONS_TEXT = "This AI-generated report should be reviewed by a clinical compliance expert before use."
 
 
 def _load_template(template_path: str) -> Template:
@@ -58,7 +56,9 @@ def _build_analysis_context(payload: Dict[str, Any]) -> Dict[str, Any]:
             "compliance_score": payload.get("compliance_score", 0),
             "total_findings": payload.get("total_findings"),
             "findings": payload.get("findings", []),
-            "limitations_text": payload.get("limitations_text", DEFAULT_LIMITATIONS_TEXT),
+            "limitations_text": payload.get(
+                "limitations_text", DEFAULT_LIMITATIONS_TEXT
+            ),
         }
 
     findings: List[Dict[str, Any]] = []

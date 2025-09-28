@@ -78,17 +78,13 @@ def _parse_pdf(file_path: str) -> List[Dict[str, str]]:
 def _parse_txt(file_path: str) -> List[Dict[str, str]]:
     with open(file_path, "r", encoding="utf-8") as handle:
         text = handle.read().strip()
-    return (
-        [{"sentence": text, "source": os.path.basename(file_path)}] if text else []
-    )
+    return [{"sentence": text, "source": os.path.basename(file_path)}] if text else []
 
 
 def _parse_docx(file_path: str) -> List[Dict[str, str]]:
     document = Document(file_path)
     text = "\n".join(paragraph.text for paragraph in document.paragraphs).strip()
-    return (
-        [{"sentence": text, "source": os.path.basename(file_path)}] if text else []
-    )
+    return [{"sentence": text, "source": os.path.basename(file_path)}] if text else []
 
 
 DEFAULT_SECTION_HEADERS = [
@@ -137,7 +133,9 @@ def parse_document_into_sections(text: str) -> Dict[str, str]:
 
     for index, match in enumerate(matches):
         header = match.group(1)
-        next_start = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        next_start = (
+            matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        )
         content = text[match.end() : next_start].strip()
         normalized_header = next(
             (item for item in headers if item.lower() == header.lower()), header

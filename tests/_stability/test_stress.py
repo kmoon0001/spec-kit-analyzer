@@ -2,6 +2,8 @@ import pytest
 from unittest.mock import patch
 from PyQt6.QtWidgets import QDialog
 from src.gui.main_window import MainApplicationWindow
+
+
 # --- Fixtures ---
 @pytest.fixture(autouse=True)
 def mock_all_backend_services():
@@ -17,6 +19,8 @@ def mock_all_backend_services():
         mock_post.return_value.json.return_value = {"access_token": "fake-token"}
         mock_open_file.return_value = ("/fake/path/document.txt", "All Files (*.*)")
         yield
+
+
 @pytest.fixture
 def main_app_window(qtbot):
     """Fixture to create the main window and get it into a logged-in state."""
@@ -28,6 +32,8 @@ def main_app_window(qtbot):
         mock_login_dialog.return_value.get_credentials.return_value = ("user", "pass")
         window.show_login_dialog()
     return window
+
+
 # --- Stability Tests ---
 @pytest.mark.stability
 def test_rapid_tab_switching(main_app_window: MainApplicationWindow, qtbot):
@@ -42,6 +48,8 @@ def test_rapid_tab_switching(main_app_window: MainApplicationWindow, qtbot):
         )  # Switch to Analysis
         qtbot.wait(10)
     # The test passes if no crashes or hangs occur.
+
+
 @pytest.mark.stability
 def test_repeated_analysis_start(main_app_window: MainApplicationWindow, qtbot):
     """Simulates a user repeatedly starting and stopping an analysis."""
@@ -58,6 +66,8 @@ def test_repeated_analysis_start(main_app_window: MainApplicationWindow, qtbot):
         qtbot.waitUntil(main_app_window.run_analysis_button.isEnabled)
         qtbot.wait(10)
     # The test passes if no crashes or memory leaks occur.
+
+
 @pytest.mark.stability
 def test_rapid_dialog_opening(main_app_window: MainApplicationWindow, qtbot):
     """Simulates rapidly opening and closing a dialog."""

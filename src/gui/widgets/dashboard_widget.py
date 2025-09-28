@@ -5,7 +5,6 @@ from matplotlib.figure import Figure
 import matplotlib.dates as mdates
 
 
-
 class DashboardWidget(QWidget):
     """A widget to display compliance trends and other visualizations."""
 

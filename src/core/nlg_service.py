@@ -6,10 +6,12 @@ from .prompt_manager import PromptManager
 
 logger = logging.getLogger(__name__)
 
+
 class NLGService:
     """
     A service for generating Natural Language content, such as personalized tips.
     """
+
     def __init__(self, llm_service: LLMService, prompt_template_path: str):
         """
         Initializes the NLGService.
@@ -38,9 +40,9 @@ class NLGService:
         try:
             # Build the prompt with the details of the finding
             prompt = self.prompt_manager.build_prompt(
-                issue_title=finding.get('issue_title', 'N/A'),
-                issue_detail=finding.get('issue_detail', 'N/A'),
-                text=finding.get('text', 'N/A')
+                issue_title=finding.get("issue_title", "N/A"),
+                issue_detail=finding.get("issue_detail", "N/A"),
+                text=finding.get("text", "N/A"),
             )
 
             # Generate the tip using the LLM

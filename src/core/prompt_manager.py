@@ -3,12 +3,13 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 class PromptManager:
     def __init__(self, template_path: str):
         self.template_path = template_path
         self.template = ""
         try:
-            with open(template_path, 'r', encoding='utf-8') as f:
+            with open(template_path, "r", encoding="utf-8") as f:
                 self.template = f.read()
             logger.info(f"Successfully loaded prompt template from {template_path}")
         except FileNotFoundError:
@@ -18,7 +19,9 @@ class PromptManager:
 
     def build_prompt(self, **kwargs: Any) -> str:
         if not self.template:
-            logger.error(f"Cannot build prompt; template from {self.template_path} is empty or was not loaded.")
+            logger.error(
+                f"Cannot build prompt; template from {self.template_path} is empty or was not loaded."
+            )
             return ""
         try:
             return self.template.format(**kwargs)

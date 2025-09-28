@@ -1,8 +1,11 @@
 import pytest
 from unittest.mock import patch
 from PyQt6.QtWidgets import QDialog
+
 # Import the main window we want to test
 from src.gui.main_window import MainApplicationWindow
+
+
 # This fixture ensures that all backend services and workers are mocked
 # for all tests in this file, so no real models are loaded or APIs called.
 @pytest.fixture(autouse=True)
@@ -18,6 +21,8 @@ def mock_backend_services():
         mock_post.return_value.json.return_value = {"access_token": "fake-token"}
         mock_open_file.return_value = ("/fake/path/document.txt", "All Files (*.*)")
         yield
+
+
 @pytest.fixture
 def main_app_window(qtbot):
     """Fixture to create and show the main application window."""
@@ -26,11 +31,15 @@ def main_app_window(qtbot):
     window = MainApplicationWindow()
     qtbot.addWidget(window)
     return window
+
+
 def test_main_window_initialization(main_app_window: MainApplicationWindow):
     """Tests that the main window initializes without crashing."""
     assert main_app_window.windowTitle() == "Therapy Compliance Analyzer"
     # The main UI should not be loaded yet because login has not happened
     assert main_app_window.centralWidget() is None
+
+
 def test_login_and_main_ui_loads(main_app_window: MainApplicationWindow, qtbot):
     """Tests the critical path: successful login leads to the main UI loading."""
     # Arrange: Mock the LoginDialog to automatically accept
@@ -46,6 +55,8 @@ def test_login_and_main_ui_loads(main_app_window: MainApplicationWindow, qtbot):
     assert main_app_window.tabs is not None
     assert main_app_window.tabs.count() == 2  # Analysis and Dashboard tabs
     assert main_app_window.tabs.tabText(1) == "Dashboard"
+
+
 def test_run_analysis_button_triggers_worker(
     main_app_window: MainApplicationWindow, qtbot
 ):

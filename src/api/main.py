@@ -1,6 +1,7 @@
 import os
 import shutil
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -22,6 +23,7 @@ TEMP_UPLOAD_DIR = settings.temp_upload_dir
 # --- Logging ---
 logger = logging.getLogger(__name__)
 
+
 # --- Helper Functions ---
 def clear_temp_uploads():
     """Clears all files from the temporary upload directory."""
@@ -37,6 +39,7 @@ def clear_temp_uploads():
             except Exception as e:
                 logger.error(f"Failed to delete {file_path}. Reason: {e}")
 
+
 def run_database_maintenance():
     """Instantiates and runs the database maintenance service."""
     logger.info("Scheduler triggered: Starting database maintenance job.")
@@ -44,18 +47,14 @@ def run_database_maintenance():
     maintenance_service.purge_old_reports(retention_days=DATABASE_PURGE_RETENTION_DAYS)
     logger.info("Scheduler job: Database maintenance finished.")
 
+
 # --- FastAPI App Setup ---
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
 
-app = FastAPI(
-    title="Clinical Compliance Analyzer API",
-    description="API for analyzing clinical documents for compliance.",
-    version="1.0.0",
-)
-
-@app.on_event("startup")
-async def startup_event():
-    """Actions to perform on application startup."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    # Startup
     # 1. Run API-level startup logic (e.g., model loading)
     await api_startup()
 
@@ -65,14 +64,22 @@ async def startup_event():
 
     # 3. Initialize and start the background scheduler
     scheduler = BackgroundScheduler(daemon=True)
-    scheduler.add_job(run_database_maintenance, 'interval', days=1)
+    scheduler.add_job(run_database_maintenance, "interval", days=1)
     scheduler.start()
     logger.info("Scheduler started for daily database maintenance.")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Actions to perform on application shutdown."""
+    
+    yield
+    
+    # Shutdown
     await api_shutdown()
+
+app = FastAPI(
+    title="Clinical Compliance Analyzer API",
+    description="API for analyzing clinical documents for compliance.",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
 
 # --- Middleware and Exception Handlers ---
 app.state.limiter = limiter
@@ -86,6 +93,7 @@ app.include_router(analysis.router, tags=["Analysis"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 app.include_router(compliance.router, tags=["Compliance"])
+
 
 @app.get("/")
 def read_root():

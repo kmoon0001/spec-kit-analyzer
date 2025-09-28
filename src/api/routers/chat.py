@@ -10,6 +10,7 @@ from ..dependencies import get_analysis_service
 
 router = APIRouter()
 
+
 @router.post("/", response_model=schemas.ChatResponse)
 async def chat_with_ai(
     chat_request: schemas.ChatRequest,
@@ -28,10 +29,12 @@ async def chat_with_ai(
     chat_service = ChatService(db=db, user=current_user, llm_service=llm_service)
 
     try:
-        response_text = chat_service.process_message(chat_request.message, chat_request.history)
+        response_text = chat_service.process_message(
+            chat_request.message, chat_request.history
+        )
         return schemas.ChatResponse(response=response_text)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred during the chat session: {e}"
+            detail=f"An error occurred during the chat session: {e}",
         )

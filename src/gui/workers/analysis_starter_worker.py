@@ -8,7 +8,6 @@ settings = get_settings()
 API_URL = settings.api_url
 
 
-
 class AnalysisStarterWorker(QObject):
     """
     A one-shot worker to start the analysis on the backend without freezing the UI.

@@ -26,7 +26,7 @@ models:
   # NER Ensemble: A specialist and a generalist for comprehensive entity extraction.
   ner_ensemble:
     - "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
-    - "GanjinZero/bio-distilbert-ner"
+    - "d4data/biomedical-ner-all"
 
   # Prompt template paths
   doc_classifier_prompt: "src/resources/prompts/doc_classifier_prompt.txt"

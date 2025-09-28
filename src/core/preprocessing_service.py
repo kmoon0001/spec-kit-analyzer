@@ -5,12 +5,14 @@ from spellchecker import SpellChecker
 logger = logging.getLogger(__name__)
 
 # Get the absolute path to the project's root directory
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
 
 class PreprocessingService:
     """
     A service for cleaning and preparing text before analysis.
     """
+
     def __init__(self):
         """
         Initializes the service and loads the medical spell-checker.
@@ -23,9 +25,13 @@ class PreprocessingService:
         Loads a custom medical dictionary to improve spell-checking accuracy.
         """
         try:
-            dict_path = os.path.join(ROOT_DIR, "src", "resources", "medical_dictionary.txt")
+            dict_path = os.path.join(
+                ROOT_DIR, "src", "resources", "medical_dictionary.txt"
+            )
             self.spell.word_frequency.load_text_file(dict_path)
-            logger.info(f"Successfully loaded custom medical dictionary from {dict_path}")
+            logger.info(
+                f"Successfully loaded custom medical dictionary from {dict_path}"
+            )
         except Exception as e:
             logger.error(f"Failed to load custom medical dictionary: {e}")
 

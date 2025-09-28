@@ -39,7 +39,9 @@ class RuleLoader:
             try:
                 rules.append(self._create_rule_from_graph(graph, subject, default_ns))
             except Exception as exc:  # pragma: no cover - defensive
-                logger.error("Failed to parse rule %s in %s: %s", subject, filepath, exc)
+                logger.error(
+                    "Failed to parse rule %s in %s: %s", subject, filepath, exc
+                )
         return rules
 
     def _create_rule_from_graph(

@@ -5,7 +5,8 @@ import asyncio
 # Ensure the src directory is in the Python path
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.core.analysis_service import AnalysisService
 
@@ -35,12 +36,14 @@ def mock_dependencies():
         patch("src.core.analysis_service.parse_document_content") as mock_parse,
     ):
         # Setup mock return values
-        mock_parse.return_value = [{'sentence': "This is a test."}]
+        mock_parse.return_value = [{"sentence": "This is a test."}]
 
         # Use asyncio.Future for async mock return values
         classify_future = asyncio.Future()
         classify_future.set_result("Test Note")
-        mock_doc_classifier.return_value.classify_document.return_value = classify_future
+        mock_doc_classifier.return_value.classify_document.return_value = (
+            classify_future
+        )
 
         analyze_future = asyncio.Future()
         analyze_future.set_result({"findings": ["Test Finding"]})
@@ -51,6 +54,7 @@ def mock_dependencies():
             "mock_doc_classifier": mock_doc_classifier.return_value,
             "mock_analyzer": mock_analyzer.return_value,
         }
+
 
 @pytest.mark.asyncio
 async def test_analysis_service_orchestration(mock_dependencies):
@@ -63,7 +67,9 @@ async def test_analysis_service_orchestration(mock_dependencies):
 
     # Mock the open call to avoid FileNotFoundError
     with patch("builtins.open", MagicMock()):
-        result = await service.analyze_document(file_path="fake/doc.txt", discipline="PT")
+        result = await service.analyze_document(
+            file_path="fake/doc.txt", discipline="PT"
+        )
 
     # Assert: Verify that the orchestration logic calls the correct methods in sequence.
     mock_dependencies["mock_parse"].assert_called_once()

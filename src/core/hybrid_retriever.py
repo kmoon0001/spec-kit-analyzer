@@ -20,7 +20,9 @@ class HybridRetriever:
 
     def __init__(self, rules: Optional[List[Dict[str, str]]] = None) -> None:
         self.rules = rules or self._load_rules_from_db()
-        self.dense_retriever = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+        self.dense_retriever = SentenceTransformer(
+            "sentence-transformers/all-MiniLM-L6-v2"
+        )
         self._build_indices()
 
     def _build_indices(self) -> None:
@@ -66,7 +68,9 @@ class HybridRetriever:
 
         tokenized_query = query.lower().split()
         bm25_scores = (
-            self.bm25.get_scores(tokenized_query) if self.bm25 is not None else np.zeros(len(self.rules))
+            self.bm25.get_scores(tokenized_query)
+            if self.bm25 is not None
+            else np.zeros(len(self.rules))
         )
 
         query_embedding = self.dense_retriever.encode(query, convert_to_tensor=True)
@@ -82,7 +86,9 @@ class HybridRetriever:
         combined = []
         for index, rule in enumerate(self.rules):
             bm25_value = float(bm25_scores[index]) if len(bm25_scores) > index else 0.0
-            dense_value = float(dense_scores[index]) if len(dense_scores) > index else 0.0
+            dense_value = (
+                float(dense_scores[index]) if len(dense_scores) > index else 0.0
+            )
             combined.append((index, bm25_value + dense_value))
 
         combined.sort(key=lambda item: item[1], reverse=True)
