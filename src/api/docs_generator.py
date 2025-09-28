@@ -12,18 +12,18 @@ def create_enhanced_openapi(app: FastAPI) -> Dict[str, Any]:
     """Create enhanced OpenAPI documentation with examples."""
     if app.openapi_schema:
         return app.openapi_schema
-    
+
     openapi_schema = get_openapi(
         title="Therapy Compliance Analyzer API",
         version="1.0.0",
         description="API for clinical documentation compliance analysis",
         routes=app.routes,
     )
-    
+
     # Add security schemes
     if "components" not in openapi_schema:
         openapi_schema["components"] = {}
-    
+
     openapi_schema["components"]["securitySchemes"] = {
         "BearerAuth": {
             "type": "http",
@@ -31,7 +31,7 @@ def create_enhanced_openapi(app: FastAPI) -> Dict[str, Any]:
             "bearerFormat": "JWT"
         }
     }
-    
+
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 

@@ -14,12 +14,12 @@ class FeatureConfig:
     Manages configuration for optional features in the application.
     Provides safe defaults and graceful fallbacks.
     """
-    
+
     def __init__(self, config_file: str = "features.json"):
         self.config_file = config_file
         self.features = self._load_default_config()
         self._load_user_config()
-        
+
     def _load_default_config(self) -> Dict[str, Any]:
         """Load default feature configuration."""
         return {
@@ -30,14 +30,14 @@ class FeatureConfig:
                 "swagger_ui": True,
                 "redoc": True
             },
-            
+
             # Export Features
             "pdf_export": {
                 "enabled": True,
                 "include_branding": True,
                 "max_file_size_mb": 50
             },
-            
+
             "data_export": {
                 "enabled": True,
                 "excel_support": True,
@@ -45,7 +45,7 @@ class FeatureConfig:
                 "json_support": True,
                 "max_file_size_mb": 100
             },
-            
+
             # Analytics Features
             "advanced_analytics": {
                 "enabled": True,
@@ -53,7 +53,7 @@ class FeatureConfig:
                 "predictive_insights": True,
                 "performance_metrics": True
             },
-            
+
             # UI Enhancements
             "help_system": {
                 "enabled": True,
@@ -61,13 +61,13 @@ class FeatureConfig:
                 "help_bubbles": True,
                 "compliance_guide": True
             },
-            
+
             "interactive_tutorials": {
                 "enabled": False,  # Disabled by default (would need intro.js)
                 "auto_start": False,
                 "show_on_first_run": False
             },
-            
+
             # Performance Features
             "performance_optimization": {
                 "enabled": True,
@@ -75,7 +75,7 @@ class FeatureConfig:
                 "model_quantization": True,
                 "adaptive_caching": True
             },
-            
+
             # Advanced Report Features
             "enhanced_reports": {
                 "enabled": True,
@@ -84,7 +84,7 @@ class FeatureConfig:
                 "advanced_formatting": True
             }
         }
-    
+
     def _load_user_config(self):
         """Load user-specific configuration if available."""
         try:
@@ -92,16 +92,16 @@ class FeatureConfig:
             if config_path.exists():
                 with open(config_path, 'r') as f:
                     user_config = json.load(f)
-                
+
                 # Merge user config with defaults
                 self._merge_config(self.features, user_config)
                 logger.info(f"Loaded user feature configuration from {self.config_file}")
             else:
                 logger.info("No user feature configuration found, using defaults")
-                
+
         except Exception as e:
             logger.warning(f"Could not load user config: {e}, using defaults")
-    
+
     def _merge_config(self, default: Dict[str, Any], user: Dict[str, Any]):
         """Recursively merge user configuration with defaults."""
         for key, value in user.items():
@@ -110,7 +110,7 @@ class FeatureConfig:
                     self._merge_config(default[key], value)
                 else:
                     default[key] = value
-    
+
     def save_config(self):
         """Save current configuration to file."""
         try:
@@ -119,50 +119,50 @@ class FeatureConfig:
             logger.info(f"Feature configuration saved to {self.config_file}")
         except Exception as e:
             logger.error(f"Could not save feature configuration: {e}")
-    
+
     def is_feature_enabled(self, feature_path: str) -> bool:
         """
         Check if a feature is enabled using dot notation.
-        
+
         Args:
             feature_path: Feature path like 'pdf_export.enabled' or 'help_system.tooltips'
-            
+
         Returns:
             True if feature is enabled, False otherwise
         """
         try:
             parts = feature_path.split('.')
             current = self.features
-            
+
             for part in parts:
                 if isinstance(current, dict) and part in current:
                     current = current[part]
                 else:
                     logger.warning(f"Feature path not found: {feature_path}")
                     return False
-            
+
             return bool(current)
-            
+
         except Exception as e:
             logger.error(f"Error checking feature {feature_path}: {e}")
             return False
-    
+
     def get_feature_config(self, feature_name: str) -> Dict[str, Any]:
         """
         Get configuration for a specific feature.
-        
+
         Args:
             feature_name: Name of the feature (e.g., 'pdf_export')
-            
+
         Returns:
             Feature configuration dictionary
         """
         return self.features.get(feature_name, {})
-    
+
     def set_feature_enabled(self, feature_path: str, enabled: bool):
         """
         Enable or disable a feature.
-        
+
         Args:
             feature_path: Feature path like 'pdf_export.enabled'
             enabled: Whether to enable the feature
@@ -170,47 +170,47 @@ class FeatureConfig:
         try:
             parts = feature_path.split('.')
             current = self.features
-            
+
             # Navigate to parent
             for part in parts[:-1]:
                 if part not in current:
                     current[part] = {}
                 current = current[part]
-            
+
             # Set the value
             current[parts[-1]] = enabled
             logger.info(f"Feature {feature_path} set to {enabled}")
-            
+
         except Exception as e:
             logger.error(f"Error setting feature {feature_path}: {e}")
-    
+
     def get_enabled_features(self) -> list[str]:
         """Get list of all enabled features."""
         enabled = []
-        
+
         def check_features(config: Dict[str, Any], prefix: str = ""):
             for key, value in config.items():
                 current_path = f"{prefix}.{key}" if prefix else key
-                
+
                 if isinstance(value, dict):
                     if value.get('enabled', False):
                         enabled.append(current_path)
                     check_features(value, current_path)
                 elif key == 'enabled' and value:
                     enabled.append(prefix)
-        
+
         check_features(self.features)
         return enabled
-    
+
     def validate_dependencies(self) -> Dict[str, str]:
         """
         Validate that required dependencies are available for enabled features.
-        
+
         Returns:
             Dictionary of feature -> error message for missing dependencies
         """
         issues = {}
-        
+
         # Check PDF export dependencies
         if self.is_feature_enabled('pdf_export.enabled'):
             try:
@@ -219,17 +219,17 @@ class FeatureConfig:
                     raise ImportError("ReportLab not found")
             except ImportError:
                 issues['pdf_export'] = "ReportLab library not installed"
-        
+
         # Check Excel export dependencies
         if self.is_feature_enabled('data_export.excel_support'):
             try:
                 import importlib.util
-                if (importlib.util.find_spec("pandas") is None or 
+                if (importlib.util.find_spec("pandas") is None or
                     importlib.util.find_spec("openpyxl") is None):
                     raise ImportError("Required libraries not found")
             except ImportError:
                 issues['excel_export'] = "Pandas or OpenPyXL library not installed"
-        
+
         # Check GPU acceleration dependencies
         if self.is_feature_enabled('performance_optimization.gpu_acceleration'):
             try:
@@ -238,14 +238,14 @@ class FeatureConfig:
                     issues['gpu_acceleration'] = "CUDA not available"
             except ImportError:
                 issues['gpu_acceleration'] = "PyTorch not installed"
-        
+
         return issues
-    
+
     def get_feature_summary(self) -> Dict[str, Any]:
         """Get summary of feature status and configuration."""
         enabled_features = self.get_enabled_features()
         dependency_issues = self.validate_dependencies()
-        
+
         return {
             'total_features': len(enabled_features),
             'enabled_features': enabled_features,
