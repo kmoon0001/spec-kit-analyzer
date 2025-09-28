@@ -118,12 +118,12 @@ class CacheIntegrationService:
         cached_classification = DocumentCache.get_document_classification(doc_hash)
         if cached_classification is not None:
             self.cache_hits += 1
-            logger.debug(f"Cache hit for document classification")
+            logger.debug("Cache hit for document classification")
             return cached_classification
         
         # Compute and cache
         self.cache_misses += 1
-        logger.debug(f"Cache miss for document classification, computing")
+        logger.debug("Cache miss for document classification, computing")
         classification = classify_func(text)
         DocumentCache.set_document_classification(doc_hash, classification)
         return classification

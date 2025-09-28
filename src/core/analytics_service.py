@@ -3,7 +3,7 @@ Enhanced Analytics Service for compliance trend analysis and insights.
 Provides safe, stable analytics features with optional advanced capabilities.
 """
 import logging
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 import statistics

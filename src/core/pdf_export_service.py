@@ -5,19 +5,17 @@ Can be enabled/disabled via configuration.
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-import os
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 # Optional dependency - graceful fallback if not available
 try:
-    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib.pagesizes import letter
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import inch
     from reportlab.lib import colors
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
     PDF_AVAILABLE = True
 except ImportError:
     logger.warning("ReportLab not available - PDF export disabled")

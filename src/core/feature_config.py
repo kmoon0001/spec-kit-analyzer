@@ -3,7 +3,7 @@ Feature Configuration Service - Manages optional features and their settings.
 Allows safe enabling/disabling of enhanced features without affecting core functionality.
 """
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 import json
 from pathlib import Path
 
@@ -184,7 +184,7 @@ class FeatureConfig:
         except Exception as e:
             logger.error(f"Error setting feature {feature_path}: {e}")
     
-    def get_enabled_features(self) -> List[str]:
+    def get_enabled_features(self) -> list[str]:
         """Get list of all enabled features."""
         enabled = []
         
@@ -214,15 +214,19 @@ class FeatureConfig:
         # Check PDF export dependencies
         if self.is_feature_enabled('pdf_export.enabled'):
             try:
-                import reportlab
+                import importlib.util
+                if importlib.util.find_spec("reportlab") is None:
+                    raise ImportError("ReportLab not found")
             except ImportError:
                 issues['pdf_export'] = "ReportLab library not installed"
         
         # Check Excel export dependencies
         if self.is_feature_enabled('data_export.excel_support'):
             try:
-                import pandas
-                import openpyxl
+                import importlib.util
+                if (importlib.util.find_spec("pandas") is None or 
+                    importlib.util.find_spec("openpyxl") is None):
+                    raise ImportError("Required libraries not found")
             except ImportError:
                 issues['excel_export'] = "Pandas or OpenPyXL library not installed"
         

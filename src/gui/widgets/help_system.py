@@ -3,13 +3,13 @@ Contextual Help System - Provides tooltips and help bubbles throughout the UI.
 Safe, optional feature that enhances user experience without affecting core functionality.
 """
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Optional
 from PyQt6.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, 
-    QTextEdit, QDialog, QScrollArea, QFrame
+    QTextEdit, QDialog, QFrame
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint
-from PyQt6.QtGui import QFont, QPalette, QPixmap, QIcon
+from PyQt6.QtGui import QFont
 
 logger = logging.getLogger(__name__)
 

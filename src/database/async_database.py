@@ -2,14 +2,13 @@
 Async database operations for improved I/O performance.
 Uses connection pooling and non-blocking operations.
 """
-import asyncio
 import logging
 from typing import List, Dict, Any, Optional, AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
-from sqlalchemy import select, update, delete, func
+from sqlalchemy import select
 from contextlib import asynccontextmanager
-from .models import Report, Finding, User, Rubric
+from .models import Report
 
 logger = logging.getLogger(__name__)
 

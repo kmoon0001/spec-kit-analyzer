@@ -96,6 +96,12 @@ class PerformanceManager:
         self.current_profile = PerformanceProfile.BALANCED
         self.config = self._load_or_create_config()
         
+        # Save config after initialization is complete
+        try:
+            self.save_config()
+        except Exception as e:
+            logger.warning(f"Could not save initial config: {e}")
+        
         logger.info("System detected: %s", self.system_info)
         logger.info("Performance profile: %s", self.current_profile.value)
     
@@ -114,7 +120,7 @@ class PerformanceManager:
         recommended_profile = SystemProfiler.recommend_profile(self.system_info)
         self.current_profile = recommended_profile
         config = self._create_config_for_profile(recommended_profile)
-        self.save_config()
+        # Save config after it's created and assigned
         return config
     
     def _create_config_for_profile(self, profile: PerformanceProfile) -> PerformanceConfig:

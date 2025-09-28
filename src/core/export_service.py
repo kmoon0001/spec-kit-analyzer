@@ -5,10 +5,9 @@ Supports multiple formats with optional features that can be enabled/disabled.
 import logging
 import json
 import csv
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List
 from datetime import datetime
 from pathlib import Path
-import io
 
 logger = logging.getLogger(__name__)
 

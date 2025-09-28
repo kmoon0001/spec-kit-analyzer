@@ -7,10 +7,9 @@ from typing import Dict, Any, Optional
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
     QLabel, QComboBox, QSpinBox, QCheckBox, QPushButton, QProgressBar,
-    QTextEdit, QTabWidget, QWidget, QSlider, QFrame, QMessageBox
+    QTextEdit, QTabWidget, QWidget, QMessageBox
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread
-from PyQt6.QtGui import QFont, QPixmap, QIcon
+from PyQt6.QtCore import QTimer, pyqtSignal, QThread
 
 logger = logging.getLogger(__name__)
 

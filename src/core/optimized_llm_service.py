@@ -8,8 +8,7 @@ from typing import List, Dict, Any, Optional, Union
 from transformers import (
     AutoTokenizer, 
     AutoModelForCausalLM, 
-    BitsAndBytesConfig,
-    pipeline
+    BitsAndBytesConfig
 )
 from sentence_transformers import SentenceTransformer
 import asyncio
@@ -111,7 +110,6 @@ class OptimizedLLMService:
     
     def _chunk_text(self, text: str) -> List[str]:
         """Intelligently chunk text based on performance settings."""
-        max_length = self.config.max_sequence_length
         chunk_size = self.config.chunk_size
         
         # Simple sentence-aware chunking
@@ -147,7 +145,7 @@ class OptimizedLLMService:
         
         try:
             # Adaptive batch size based on current memory usage
-            batch_size = performance_manager.get_optimal_batch_size()
+            _ = performance_manager.get_optimal_batch_size()  # For future use
             
             # Tokenize input
             inputs = self.tokenizer.encode(

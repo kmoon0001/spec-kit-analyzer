@@ -1,350 +1,254 @@
-)e, Falseet(featurION_CONFIG.gUMENTATturn DOC"
-    renabled.""is eeature n fmentatio docuf a"Check i
-    ""ol:) -> boture: str_enabled(feamentationdef is_docurue
+"""
+API Documentation configuration and setup.
+Provides comprehensive API documentation with examples and security schemes.
+"""
+import logging
+from typing import Dict, Any
+from fastapi import FastAPI
+from fastapi.openapi.utils import get_openapi
+
+logger = logging.getLogger(__name__)
+
+# Configuration for documentation features
+DOCUMENTATION_CONFIG = {
+    "enable_swagger": True,
+    "enable_redoc": True,
+    "enable_custom_docs": True,
+    "include_examples": True,
+    "include_security_info": True,
 }
 
-nfo": Tty_iude_securi"incl True,
-    mples":de_exa   "inclu": True,
- tom_docsenable_cus  "  ue,
-_redoc": Tr"enableue,
-    r": Traggenable_sw    "e {
-FIG =_CONCUMENTATIONres
-DOtation featuor documenn fnfiguratio
-# Coted")
- compleuption setmentaI docu"APer.info( logg    
- 
-  tion_html()ntacumei_doate_apurn gener    ret"
-    TML.""tion as HmentaPI docuive Aomprehens"Get c"     ":
-   tion()ocumentaet_api_dasync def g  lse)
-  a=Facheminclude_in_si", "/docs/apapp.get(oint
-    @tation endpdocumenAdd custom     
-    # api(app)
-enm_opte_custombda: creaenapi = la.opappma
-     schenAPIom Ope Set cust
+def setup_api_documentation(app: FastAPI) -> None:
+    """
+    Setup comprehensive API documentation for the application.
     
-    #   """ance
- n inst applicatiopp: FastAPI  a:
-      rgs    
-    Ation.
-icaappl FastAPI for thetion I documentave APomprehensietup c""
-    S"   e:
- PI) -> Non(app: FastAionmentat_docutup_api
-
-def se_templateeturn html 
-    r"
-   
-    ""tml>   </h
- body>/ul>
-    </  <  i>
-    ute</ls per minequesttion: 5 ri>Authentica  <l        li>
-  inute</r m requests pe60nts: ard endpoi>Dashbo  <li          inute</li>
-er mts p: 10 requess endpointslysi   <li>Ana     l>
+    Args:
+        app: FastAPI application instance
+    """
+    # Set custom OpenAPI schema
+    app.openapi = lambda: create_custom_openapi(app)
     
-        <uted:</p>e-limi are ratI endpoints<p>AP      2>
-  imiting</hRate L   <h2> 
-     
-       div>   </    
-      }      
- CODE"OR_ "ERR":"error_code            
-    rmation",foor ind errle"Detaiil":  "deta              ",
- scriptionr der": "Erro   "erro            {
-       ">
-      ass="code  <div cl      ses:</p>
-esponred error rurn structu retints>All endpo  <p  g</h2>
-    inError Handlh2> 
-        <     
-   </div>   
-    >/div         <
-      }         2048
-    : memory_mb"che_     "ca      ,
-         : truee_gpu"     "us            ced",
-   ": "balanrofile        "p               {
-   
-          ode">"css=   <div cla       p>
-  settings</e erformancte p     <p>Updah3>
-       formance<//system/perpan> /apiPOST</sod">lass="methspan c      <h3><">
-      ="endpoint <div class          
-   v>
-          </dip>
-atus</system stn and configuratioce manrent perforur c>Get         <pce</h3>
-   ormantem/perf/api/sysGET</span> method">lass="pan c    <h3><s">
-        ints="endpo<div clas      h2>
-  ngs</ Settianceform <h2>Per        
-       </div>
-        nal)</p>
-(optioe document_typoptional), days (> :</strongetersong>Paramstr       <p><    </p>
- datalytics d ana trends aniancemplco<p>Get       3>
-      ends</hrd/tr/dashboa /apin>spaod">GET</="methclass <h3><span 
-           ">="endpointlassiv c   <d>
-     alytics</h2Anhboard & >Das     <h2  
- v>
-            </di>
-      </div     1"
-     iance_vcompl"pt_d: bric_i     ru
-           file]t [documen    file:                 
-     ata
-       part/form-dype: multit-T    Conten        ">
-    ="codeclass     <div        oken}</p>
-Bearer {tization: thorrong> Auers:</stng>Headro  <p><st         >
- mpliance</pnt for cocumeical doa clinyze d analload an      <p>Up     h3>
- </zenaly/analysis/a/span> /apiOST<">Podass="meth><span cl      <h3
-      oint">ss="endp cla       <div2>
- /his<nt Analysh2>Docume 
-        <  
-     div>  </>
-          </div
-             }       "
-    earer": "ben_type     "tok             ",
-  .CJ9..IkpXVcCI6UzI1NiIsInR5GciOiJI"eyJhb": tokenss_ "acce                    {
-            
-   e:</strong>nssporong>Re       <st
-         ample">lass="ex<div c             </div>
-               }
-         word"
-   "pass":  "password                   com",
-le.mp@exaerame": "us "usern              {
-                    >
- ass="code"<div cl         </p>
-   in JWT tokenobta and sericate uthent      <p>Auh3>
-      /login</authST</span> /"method">POspan class=       <h3><nt">
-     ndpoi="ess    <div cla</h2>
-    cationthenti     <h2>Au  
-   div>
-           </>
-   sis</pnce analycomplian entatiodocumr clinical e API fohensivCompre<p>      
-      zer API</h1>ance Analy Compliapy    <h1>Ther
-        ">s="headeras     <div clbody>
-   
-    <</head>le>
-    ty     </s}
-   ; 10px 0px; margin: : 3dius; border-rapx: 10dding; pa8f5e8ckground: #ele { baamp         .ex
-   ospace; } monily: font-fam 3px;r-radius:x; borde0p padding: 1d: #f9f9f9;groun.code { back       ; }
-     lor: #007cbad; cot: bolont-weigh{ f    .method   
-      #007cba; }d solit: 4px -lefder; borpx 15 0; padding:n: 20pxoint { margiendp       .     px; }
-r-radius: 5; bordeadding: 20pxf4f4; pound: #f4backgr{ header   .        .6; }
-  ne-height: 1n: 40px; liargiif; m, sans-serrially: Aamiody { font-f   b        <style>
-  >
-       leon</titocumentatier API DAnalyzliance erapy Comple>Th  <tit      head>
-
-    <>
-    <htmlml>OCTYPE ht <!D"
-   " = "templatehtml_
-    ""
-    on
-    "umentatiocve API dcomprehensing with stri  HTML 
-         Returns:
- e API.
-     thntation forocumeHTML drate   Gene    """
-
-  () -> str:ion_htmli_documentatnerate_ap
-def ge      }
-
-  : example   "value"   ,
-      e {name}"ampl"Exummary": f   "s        name] = {
- xamples"][ts"]["ea["componenschem     
-   :s.items() in exampleame, example    for n{}
+    # Add custom documentation endpoint
+    @app.get("/docs/api", include_in_schema=False)
+    async def get_api_documentation():
+        """Get comprehensive API documentation as HTML."""
+        return generate_api_documentation_html()
     
-"] = ["examplests"]"componenma[  sche]:
-      nts"["componeschemain mples" not  "exa
-    ifnts"] = {}["componeema  sch
-      in schema:ts" not enonomp "c
-    ifiontat documendpointuse in enamples for ore ex# St  
-     }
-  
-       } ]
-          "
-     tesanning norge plcha "Add dis            ment",
-   to treatponse ient resument pat     "Doc
-           utcomes",unctional ocific fclude spe    "In         : [
-   ions"datrecommen"      
-               },
-    12"Low":             ": 5,
-   m "Mediu       ,
-        : 2 "High"            : {
-   n"tributiosk_disri          "
-  ": 87.5,liance_score     "comp      
- 0:00Z",-15T10:324-01ate": "20ysis_danal    "
-        5.pdf",1_1ote_2024_0gress_n "pro_name":ntocume "d           ort": {
-plianceRep"Com             },
-00
-   _in": 36pires     "ex   rer",
-    "beatype": n_  "toke  ,
-        J9..."5cCI6IkpXVCzI1NiIsInROiJIUhbGcieyJen": "tok"access_        {
-    esponse": inR      "Log    },
-  d"
-    passworure_: "secpassword"  "     ",
-     omclinic.cherapist@name": "t "user           
- {st":eque   "LoginR     = {
- esampl  
-    ex
-  les."""nse examp/respouest common req""Add
-    "e:-> Non, Any]) a: Dict[strs(schemxamplemmon_ecoadd_def _ses)
+    logger.info("API documentation setup completed")
 
-pones(common_r].updates""]["schemaentsompon schema["c
+def create_custom_openapi(app: FastAPI) -> Dict[str, Any]:
+    """Generate enhanced OpenAPI schema with examples and security."""
+    if app.openapi_schema:
+        return app.openapi_schema
     
-   {}"] = "]["schemasponentsma["com      sche]:
-  ponents"ema["com in sch" nothemas if "sc] = {}
-   omponents""c  schema[
-      ma: scheinnts" not "compone 
-    if    }
-       }
-      }
-     T"}
-      ALID_FORMA"INVe": , "exampl"string"": "typede": {r_corro "e           
-    }, format"pported filee": "Unsu", "exampl: "string"type""detail": {           ,
-     iled"}sing faesroct pDocumenle": "g", "examptrin": "s"type"error": {          {
-       s":tie"proper            t",
-"objece":  "typ           {
- se":esponrRro  "Er},
-      
-              }.92}
-      e": 0", "examplmberype": "nucore": {"tce_s "confiden              ,
- ": 2.3}ampler", "exnumbe": "typetime": {"ng_"processi            
-         },           }
-            
-        }                       e used"}
- ive devicfic assiste specinclude": "Iexamplstring", ""type": "ndation": {mme"reco                    },
-        0 feet" ambulated 5tient"Paexample": ing", "": "str {"typetic_text":oblema  "pr                        
-  ium"},": "Medle", "examp: "stringpe"sk": {"ty"ri                         
-   ,N_001"}UMENTATIO"PT_DOC": ple", "exam": "string {"type":_id     "rule                     ies": {
-  opert   "pr              ",
-       object": "  "type                    {
-  ": ems"it                   rray",
- "atype":          "           ngs": {
-    "findi            
-5}, 85.ample":"ex"number", : pe"ore": {"ty_sccompliance"           23},
-     ": 1 "exampleer",ntegtype": "i {"id":   "report_       
-      ties": {"proper      ",
-       "object   "type":
-          {":sisResult    "Analy
-     = {eson_respons   commhemas
- e scresponsommon    # C
- """
-    .xamplesse ensive responprehe"Add com""None:
-    Any]) ->  Dict[str, a:mples(schemse_exad_responef _ad []}]
-
-dearerAuth":{"B"] = [ecurityperation["s      o                 t):
- tion, dicnce(operaisinsta  if                   .items():
-empath_ition in od, operat    for meth            ed_paths):
-rotectd in pteec for protin path_urly(protected an      if      items():
- aths"].a["pin schemh_item pat_url, for path
-             min/"]
-   "/api/add/", pi/dashboar"/a, /analysis/"hs = ["/apiat protected_p
-       ema:in sch"paths" 
-    if  endpointsected to protequirementsurity rec s
-    # Add }
-          }
-     t"
-gin endpointh/lo from /auained token obtJWTion": "cript"des           "JWT",
- ": matFor"bearer       r",
-     e": "beareschem    "    
-    : "http",  "type"     {
-      th":earerAu"B   = {
-     mes"] hecurityScents"]["se["componschema
-    
-    "] = {}omponentsema["c  sch      a:
-em in schnents" not"compo
-    if s."""onitifiny scheme derit""Add secu    "None:
-y]) -> ict[str, Ana: Dchems(srity_schemed_secuad
-
-def _les(schema)xampd_common_e_aderns
-    esponse patt request/rmonples for comAdd exam    # }
-    
-         }
-                        }
-                   }
-             }
-                                   }
-                             
-   "mpliance_v1pt_cod": "c_ibri    "ru                               {
-  ":"value                              ",
-  ss note PT progreof alysis  anample"Exa": onpti "descri                         
-      ",ogress Noterapy PrPhysical Themmary": ""su                              te": {
-  ogress_no    "pr                       {
-  mples":    "exa                    ,
-  }                
-             }                              }
-                     
-  pliance_v1" "pt_com":ple     "exam                               ",
-bric to usee ruancD of compli": "Iscription    "de                              ng",
-  "stripe":         "ty                       ": {
-     id "rubric_                    
-                    },               
-        , or TXT)"F, DOCX(PDlyze e to anaent filn": "Docum"descriptio                                    nary",
-at": "bi  "form                              ng",
-    : "stri  "type"                                 {
-  file":  "                            
-  es": {tierop "pr                         
-  ject",": "obype   "t                       {
-   schema":          "           : {
-   m-data"ultipart/for "m                t": {
-   nten       "co         = {
-dy"] estBoequpost"]["r"path[ analyze_      
-     _path:alyze an "post" inif       ]
- alyze"analysis/ani/s"]["/ap["pathth = schemayze_paal    an"]:
-    thsa["pahemscalyze" in /analysis/anapid "/hema an" in scths if "pa
-   dpointnalysis encument ale for do Examp
-    #
-    ."""PI endpointso As t exampledd detailed"A ""  
-  -> None:[str, Any])ctma: Dichemples(sed_exa_add_enhancema
-
-def api_sch.openeturn app r   hema
-openapi_schema = scpenapi_  app.o   
-  a)
- enapi_schemamples(opnse_ex_respoa)
-    _addenapi_schem_schemes(opsecurity    _add_i_schema)
-napexamples(opeanced__add_enhion
-     documentatd enhanced examples an custom Add  
-    #
+    schema = get_openapi(
+        title="Therapy Compliance Analyzer API",
+        version="1.0.0",
+        description="Comprehensive API for clinical documentation compliance analysis",
+        routes=app.routes,
     )
-        ]er"},
-  t servvelopmen decal "Loption":scri0", "delhost:800ca://lo": "httprl      {"urs=[
-             serve
- es,app.rout   routes=
-       """,s.
-      ssage med errornd detailees a status codriate HTTP with appropor responsesured errructrn stretunts oi All endpg
-        Handlin# Error  ##       
-    mits.
-   for liion umentatint docal endpo individuability. Seeystem stto ensure simited re rate-loints aPI endp        A Limiting
-# Rate ##
-                endpoint.
-in`uth/loge `/aia thoken va ton. Obtain atiuthenticWT aire Jequndpoints r     Most ecation
-   uthenti# A##   
-             ntication
-autheJWT ion and PHI protecth g wital processinty**: Loccuri      - **Segement
-  esource manand re caching aaptivAdmization**: ptirformance O*Pe       - * checking
- ompliancent clligeor integ finocessLocal LLM pr**: nsightsred I**AI-Powe    - issues
-    liance ts for compcumen clinical dod analyzepload anis**: UlysAna**Document      - es
-   Key Featur       ###   
-       elines.
-uidatory gulreg and  Medicarence withon compliaentatial documiclyzing clinnaor asive API f A comprehen   
-            API
- Analyzerpliance  Therapy Com  ##""
-      ion="cript    des
-    .0",1.0  version=",
-      yzer API"iance Analapy ComplTher    title="    (
-get_openapii_schema = ap  
-    opena
-  i_schem.openapn app       retur:
- _schemap.openapi
-    if ap""ion
-    "documentatanced enhnary with chema dictioOpenAPI s    ns:
-    Retur    
-        ance
-n instcatiopliap: FastAPI  app
-       Args:
     
-     examples. detailedithion wentatdocum OpenAPI ensiveeate compreh"
-    Cr
-    ""str, Any]:ict[ DFastAPI) ->pp: m_openapi(acreate_custo
-def )
-__me__nagetLogger(ging.gger = loging
+    # Add security schemes
+    _add_security_schemes(schema)
+    
+    # Add common examples
+    _add_common_examples(schema)
+    
+    # Add response examples
+    _add_response_examples(schema)
+    
+    app.openapi_schema = schema
+    return schema
 
-loimport loggt json
+def _add_security_schemes(schema: Dict[str, Any]) -> None:
+    """Add security scheme definitions."""
+    if "components" not in schema:
+        schema["components"] = {}
+    
+    schema["components"]["securitySchemes"] = {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "JWT token obtained from /auth/login endpoint"
+        }
+    }
+    
+    # Add security requirements to protected endpoints
+    protected_paths = ["/api/analysis/", "/api/dashboard/", "/api/admin/"]
+    
+    if "paths" in schema:
+        for path_url, path_item in schema["paths"].items():
+            if any(protected in path_url for protected in protected_paths):
+                for method, operation in path_item.items():
+                    if isinstance(operation, dict):
+                        operation["security"] = [{"BearerAuth": []}]
 
-imporalny, Option Dict, Aping importm ty
-fropenapit get_opor imtilsi.openapi.um fastapPI
-fromport FastApi ita
-from fas"""ples.
-n with examntatioAPI documeive comprehensides on.
-Provati integrggerAPI/Swah Openerator witn gentioDocumentaAPI """
+def _add_common_examples(schema: Dict[str, Any]) -> None:
+    """Add common request/response examples for API endpoints."""
+    if "components" not in schema:
+        schema["components"] = {}
+    
+    if "examples" not in schema["components"]:
+        schema["components"]["examples"] = {}
+    
+    # Common examples
+    common_examples = {
+        "LoginRequest": {
+            "summary": "Example login request",
+            "description": "Standard user authentication",
+            "value": {
+                "username": "therapist@clinic.com",
+                "password": "secure_password"
+            }
+        },
+        "LoginResponse": {
+            "summary": "Successful login response",
+            "description": "JWT token obtained for authentication",
+            "value": {
+                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "token_type": "bearer",
+                "expires_in": 3600
+            }
+        },
+        "ComplianceReport": {
+            "summary": "Example compliance analysis report",
+            "description": "Document analysis results with findings",
+            "value": {
+                "document_name": "progress_note_2024_01_15.pdf",
+                "analysis_date": "2024-01-15T10:30:00Z",
+                "compliance_score": 87.5,
+                "risk_distribution": {
+                    "High": 2,
+                    "Medium": 5,
+                    "Low": 12
+                }
+            }
+        }
+    }
+    
+    schema["components"]["examples"].update(common_examples)
+
+def _add_response_examples(schema: Dict[str, Any]) -> None:
+    """Add detailed response examples for API endpoints."""
+    # Add examples for specific endpoints
+    if "paths" not in schema:
+        return
+    
+    # Example for analysis endpoint
+    analyze_path = "/api/analysis/analyze"
+    if analyze_path in schema["paths"]:
+        if "post" in schema["paths"][analyze_path]:
+            schema["paths"][analyze_path]["post"]["requestBody"] = {
+                "content": {
+                    "multipart/form-data": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "file": {
+                                    "type": "string",
+                                    "format": "binary",
+                                    "description": "Document file to analyze (PDF, DOCX, or TXT)"
+                                },
+                                "rubric_id": {
+                                    "type": "string",
+                                    "description": "ID of compliance rubric to use",
+                                    "example": "pt_compliance_v1"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+def generate_api_documentation_html() -> str:
+    """Generate comprehensive API documentation as HTML string."""
+    html_template = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Therapy Compliance Analyzer API Documentation</title>
+        <style>
+        body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+        .header { background: #f4f4f4; padding: 20px; margin: 20px 0; border-radius: 5px; }
+        .endpoint { margin: 20px 0; padding: 15px; border-left: 4px solid #007cba; }
+        .method { font-weight: bold; color: #007cba; }
+        .code { background: #f9f9f9; padding: 10px; border-radius: 3px; font-family: monospace; }
+        .example { background: #e8f5e8; padding: 10px; margin: 10px 0; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Therapy Compliance Analyzer API</h1>
+            <p>Comprehensive API for clinical documentation compliance analysis with Medicare and regulatory guidelines.</p>
+        </div>
+        
+        <h2>Authentication</h2>
+        <div class="endpoint">
+            <h3><span class="method">POST</span> /auth/login</h3>
+            <p>Authenticate user and obtain JWT token for API access.</p>
+            <div class="code">
+                {
+                    "username": "therapist@example.com",
+                    "password": "password"
+                }
+            </div>
+        </div>
+        
+        <h2>Document Analysis</h2>
+        <div class="endpoint">
+            <h3><span class="method">POST</span> /api/analysis/analyze</h3>
+            <p>Upload and analyze a clinical document for compliance issues.</p>
+            <p><strong>Headers:</strong> Authorization: Bearer {token}</p>
+            <p><strong>Content-Type:</strong> multipart/form-data</p>
+            <div class="code">
+                file: [document file]<br>
+                rubric_id: "pt_compliance_v1"
+            </div>
+        </div>
+        
+        <h2>Dashboard & Analytics</h2>
+        <div class="endpoint">
+            <h3><span class="method">GET</span> /api/dashboard/trends</h3>
+            <p>Get compliance trends and analytics data.</p>
+            <p><strong>Parameters:</strong> days (optional), document_type (optional)</p>
+        </div>
+        
+        <h2>Performance Settings</h2>
+        <div class="endpoint">
+            <h3><span class="method">GET</span> /api/system/performance</h3>
+            <p>Get current performance configuration and system status.</p>
+        </div>
+        
+        <div class="endpoint">
+            <h3><span class="method">POST</span> /api/system/performance</h3>
+            <p>Update performance settings based on hardware capabilities.</p>
+            <div class="code">
+                {
+                    "profile": "balanced",
+                    "use_gpu": true,
+                    "cache_memory_mb": 2048
+                }
+            </div>
+        </div>
+        
+        <h2>Rate Limiting</h2>
+        <p>API endpoints are rate-limited to ensure system stability. See individual endpoint documentation for specific limits.</p>
+        
+        <h2>Error Handling</h2>
+        <p>All endpoints return structured error responses with appropriate HTTP status codes and detailed error information.</p>
+        <div class="code">
+            {
+                "error": "ERROR_CODE",
+                "detail": "Detailed error information",
+            }
+        </div>
+    </body>
+    </html>
+    """
+    
+    return html_template
+
+def is_documentation_feature_enabled(feature: str) -> bool:
+    """Check if a documentation feature is enabled."""
+    return DOCUMENTATION_CONFIG.get(feature, False)
