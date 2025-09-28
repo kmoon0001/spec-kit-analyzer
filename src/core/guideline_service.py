@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import logging
+import sys
 from pathlib import Path
 from typing import Iterable, List, Sequence, Tuple
 
@@ -25,6 +26,12 @@ def get_settings():
 
 
 def _get_sentence_transformer_cls():
+    public_module = sys.modules.get("src.guideline_service")
+    if public_module is not None:
+        patched = getattr(public_module, "SentenceTransformer", None)
+        if patched is not None and patched is not _DEFAULT_SENTENCE_TRANSFORMER:
+            return patched
+
     if _SentenceTransformer_override is not None:
         return _SentenceTransformer_override
 

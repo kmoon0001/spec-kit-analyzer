@@ -20,17 +20,24 @@ class HybridRetriever:
 
     def __init__(self, rules: Optional[List[Dict[str, str]]] = None) -> None:
         self.rules = rules or self._load_rules_from_db()
-        self.corpus = [f"{rule['name']}. {rule['content']}" for rule in self.rules]
+        self.dense_retriever = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+        self._build_indices()
 
+    def _build_indices(self) -> None:
+        self.corpus = [f"{rule['name']}. {rule['content']}" for rule in self.rules]
         tokenized_corpus = [document.lower().split() for document in self.corpus]
         self.bm25 = BM25Okapi(tokenized_corpus) if tokenized_corpus else None
-
-        self.dense_retriever = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
         self.corpus_embeddings = (
             self.dense_retriever.encode(self.corpus, convert_to_tensor=True)
             if self.corpus
             else None
         )
+
+    async def initialize(self) -> None:
+        if self.rules:
+            return
+        self.rules = self._load_rules_from_db()
+        self._build_indices()
 
     @staticmethod
     def _load_rules_from_db() -> List[Dict[str, str]]:
@@ -63,6 +70,8 @@ class HybridRetriever:
         )
 
         query_embedding = self.dense_retriever.encode(query, convert_to_tensor=True)
+        if self.corpus_embeddings is None:
+            return []
         dense_scores_tensor = cos_sim(query_embedding, self.corpus_embeddings)[0]
         dense_scores = (
             dense_scores_tensor.cpu().numpy()
