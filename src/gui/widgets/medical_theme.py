@@ -52,7 +52,7 @@ class MedicalTheme(QObject):
                 # Primary medical colors (adjusted for dark theme)
                 'primary_blue': '#3b82f6',      # Brighter medical blue
                 'primary_green': '#10b981',     # Brighter medical green
-                'kiro_block': '#60a5fa',        # Lighter Kiro brand blue
+                'kiro_black': '#374151',        # Lighter Kiro brand black
                 'medical_gray': '#94a3b8',      # Lighter professional gray
                 
                 # Background colors
@@ -179,7 +179,7 @@ class MedicalTheme(QObject):
                     min-width: 80px;
                 }}
                 QPushButton:hover {{
-                    background-color: {colors['kiro_block']};
+                    background-color: {colors['kiro_black']};
                 }}
                 QPushButton:pressed {{
                     background-color: {colors['medical_gray']};

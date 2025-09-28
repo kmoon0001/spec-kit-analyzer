@@ -39,7 +39,7 @@ def main():
         
         # Import GUI components
         from PyQt6.QtWidgets import QApplication
-        from src.gui.main_window_modern import ModernMainWindow
+        from src.gui.main_window_working import ModernMainWindow
         
         # Create application
         app = QApplication(sys.argv)
