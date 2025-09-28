@@ -7,11 +7,13 @@ Includes executive summary, detailed findings, AI transparency, and regulatory c
 import os
 import urllib.parse
 from datetime import UTC, datetime
-from typing import Any, Dict
+from collections import Counter
+from typing import Any, Dict, List
 
 import markdown
 
 from .habit_mapper import get_habit_for_finding
+from .text_utils import sanitize_human_text
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -93,6 +95,15 @@ class ReportGenerator:
             "<!-- Placeholder for findings rows -->", findings_rows_html
         )
 
+        report_html = self._inject_summary_sections(report_html, analysis_result)
+        report_html = self._inject_checklist(
+            report_html, analysis_result.get("deterministic_checks", [])
+        )
+        report_html = report_html.replace(
+            "<!-- Placeholder for pattern analysis -->",
+            self._build_pattern_analysis(analysis_result),
+        )
+
         # Add AI transparency section
         report_html = report_html.replace(
             "<!-- Placeholder for model limitations -->", self.model_limitations_html
@@ -112,6 +123,18 @@ class ReportGenerator:
 
         findings_count = len(analysis_result.get("findings", []))
         report_html = report_html.replace("<!-- Placeholder for total findings -->", str(findings_count))
+
+        doc_type = sanitize_human_text(analysis_result.get("document_type", "Unknown"))
+        discipline = sanitize_human_text(analysis_result.get("discipline", "Unknown"))
+        report_html = report_html.replace("<!-- Placeholder for document type -->", doc_type)
+        report_html = report_html.replace("<!-- Placeholder for discipline -->", discipline)
+
+        overall_confidence = analysis_result.get("overall_confidence")
+        if isinstance(overall_confidence, (int, float)):
+            confidence_text = f"{overall_confidence:.0%}"
+        else:
+            confidence_text = "Not reported"
+        report_html = report_html.replace("<!-- Placeholder for overall confidence -->", confidence_text)
 
         return report_html
 
@@ -167,7 +190,7 @@ class ReportGenerator:
 
     def _generate_risk_cell(self, finding: dict) -> str:
         """Generate risk level cell with appropriate styling."""
-        risk = finding.get("risk", "Unknown").upper()
+        risk = sanitize_human_text(finding.get("risk", "Unknown").upper())
         risk_class = f"risk-{risk.lower()}" if risk in ["HIGH", "MEDIUM", "LOW"] else ""
 
         risk_html = f'<span class="{risk_class}">{risk}</span>'
@@ -181,8 +204,10 @@ class ReportGenerator:
 
     def _generate_text_cell(self, finding: dict) -> str:
         """Generate problematic text cell with highlighting link."""
-        problematic_text = finding.get("text", "N/A")
-        context_snippet = finding.get("context_snippet", problematic_text)
+        problematic_text = sanitize_human_text(finding.get("text", "N/A"))
+        context_snippet = sanitize_human_text(
+            finding.get("context_snippet", problematic_text)
+        )
 
         # Create highlight link for source document navigation
         combined_payload = f"{context_snippet}|||{problematic_text}"
@@ -192,8 +217,8 @@ class ReportGenerator:
 
     def _generate_issue_cell(self, finding: dict) -> str:
         """Generate compliance issue cell with regulatory citations."""
-        issue_title = finding.get("issue_title", "Compliance Issue")
-        regulation = finding.get("regulation", "")
+        issue_title = sanitize_human_text(finding.get("issue_title", "Compliance Issue"))
+        regulation = sanitize_human_text(finding.get("regulation", ""))
 
         issue_html = f"<strong>{issue_title}</strong>"
 
@@ -201,7 +226,8 @@ class ReportGenerator:
             issue_html += f"<br><small><em>Citation: {regulation}</em></small>"
 
         # Add severity justification if available
-        severity_reason = finding.get("severity_reason")
+        raw_severity = finding.get("severity_reason")
+        severity_reason = sanitize_human_text(raw_severity) if raw_severity else None
         if severity_reason:
             issue_html += f"<br><small>{severity_reason}</small>"
 
@@ -209,22 +235,27 @@ class ReportGenerator:
 
     def _generate_recommendation_cell(self, finding: dict) -> str:
         """Generate actionable recommendations cell."""
-        recommendation = finding.get("personalized_tip") or finding.get("suggestion", "Review and update documentation")
+        recommendation = sanitize_human_text(
+            finding.get("personalized_tip")
+            or finding.get("suggestion", "Review and update documentation")
+        )
 
         # Add priority indicator if available
         priority = finding.get("priority")
         if priority:
-            recommendation = f"<strong>Priority {priority}:</strong> {recommendation}"
+            recommendation = f"<strong>Priority {sanitize_human_text(str(priority))}:</strong> {recommendation}"
 
         return recommendation
 
     def _generate_prevention_cell(self, finding: dict) -> str:
         """Generate prevention strategies cell using habit mapper."""
         habit = get_habit_for_finding(finding)
+        habit_name = sanitize_human_text(habit["name"])
+        habit_explanation = sanitize_human_text(habit["explanation"])
 
         return (
-            f'<div class="habit-name">{habit["name"]}</div>'
-            f'<div class="habit-explanation">{habit["explanation"]}</div>'
+            f'<div class="habit-name">{habit_name}</div>'
+            f'<div class="habit-explanation">{habit_explanation}</div>'
         )
 
     def _generate_confidence_cell(self, finding: dict) -> str:
@@ -238,8 +269,8 @@ class ReportGenerator:
             confidence_html = '<div class="confidence-indicator">Confidence: Unknown</div>'
 
         # Chat link for clarification
-        problematic_text = finding.get("text", "N/A")
-        issue_title = finding.get("issue_title", "N/A")
+        problematic_text = sanitize_human_text(finding.get("text", "N/A"))
+        issue_title = sanitize_human_text(finding.get("issue_title", "N/A"))
 
         chat_context = (
             f"Regarding the finding '{issue_title}' with text '{problematic_text}', "
@@ -252,3 +283,50 @@ class ReportGenerator:
         dispute_link = '<a href="dispute://finding" class="chat-link">Dispute Finding</a>'
 
         return f"{confidence_html}<br>{chat_link}<br>{dispute_link}"
+    def _inject_summary_sections(self, report_html: str, analysis_result: Dict[str, Any]) -> str:
+        narrative = sanitize_human_text(analysis_result.get("narrative_summary", ""))
+        if not narrative:
+            narrative = "No narrative summary generated."
+        report_html = report_html.replace("<!-- Placeholder for narrative summary -->", narrative)
+
+        bullet_items = analysis_result.get("bullet_highlights") or []
+        if bullet_items:
+            bullets_html = "".join(
+                f"<li>{sanitize_human_text(item)}</li>" for item in bullet_items
+            )
+        else:
+            bullets_html = "<li>No key highlights available.</li>"
+        report_html = report_html.replace("<!-- Placeholder for bullet highlights -->", bullets_html)
+        return report_html
+
+    def _inject_checklist(self, report_html: str, checklist: List[Dict[str, Any]]) -> str:
+        if not checklist:
+            rows_html = '<tr><td colspan="4">Checklist data was not captured for this analysis.</td></tr>'
+        else:
+            rows = []
+            for item in checklist:
+                status = (item.get("status") or "review").lower()
+                status_class = "checklist-status-pass" if status == "pass" else "checklist-status-review"
+                status_label = "Pass" if status == "pass" else "Review"
+                evidence = sanitize_human_text(item.get("evidence", "")) or "Not located in document."
+                recommendation = sanitize_human_text(item.get("recommendation", ""))
+                title = sanitize_human_text(item.get("title", item.get("id", "Checklist item")))
+                rows.append(
+                    f"<tr><td>{title}</td><td><span class='{status_class}'>{status_label}</span></td><td>{evidence}</td><td>{recommendation}</td></tr>"
+                )
+            rows_html = "".join(rows)
+        return report_html.replace("<!-- Placeholder for checklist rows -->", rows_html)
+
+    def _build_pattern_analysis(self, analysis_result: Dict[str, Any]) -> str:
+        findings = analysis_result.get("findings") or []
+        if not findings:
+            return "<p>No recurring compliance patterns were detected in this document.</p>"
+        categories = Counter(
+            sanitize_human_text(finding.get("issue_category", "General")) or "General"
+            for finding in findings
+        )
+        top_categories = categories.most_common(3)
+        list_items = "".join(
+            f"<li>{category}: {count} finding(s)</li>" for category, count in top_categories
+        )
+        return f"<ul>{list_items}</ul>"

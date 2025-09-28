@@ -1,6 +1,6 @@
 import logging
 from dataclasses import asdict
-from typing import Iterable, List, Optional
+from typing import Any, Iterable, List, Optional
 
 from .models import (
     ComplianceFinding,
@@ -16,9 +16,18 @@ logger = logging.getLogger(__name__)
 class ComplianceService:
     """Keyword-driven compliance evaluation with injectable rule sets."""
 
-    def __init__(self, rules: Optional[Iterable[ComplianceRule]] = None) -> None:
+    def __init__(self, rules: Optional[Iterable[ComplianceRule]] = None, analysis_service: Optional[Any] = None, **_unused: Any) -> None:
         provided_rules = list(rules or [])
         self.rules: List[ComplianceRule] = provided_rules or self._default_rules()
+        self.analysis_service = analysis_service
+
+def get_available_rubrics(self) -> List[dict]:
+    """Return available rules/rubrics for UI consumption."""
+    return [asdict(rule) for rule in self.rules]
+
+def get_analysis_service(self) -> Optional[Any]:
+    """Expose the underlying analysis service when available."""
+    return self.analysis_service
 
     def evaluate_document(self, document: TherapyDocument) -> ComplianceResult:
         logger.info("Evaluating compliance for document %s", document.id)

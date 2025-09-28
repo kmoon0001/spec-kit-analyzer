@@ -26,6 +26,7 @@ class ComplianceAnalyzer:
         prompt_manager: PromptManager,
         fact_checker_service: FactCheckerService,
         nlg_service: Optional[NLGService] = None,
+        deterministic_focus: Optional[str] = None,
     ) -> None:
         self.retriever = retriever
         self.ner_pipeline = ner_pipeline
@@ -34,6 +35,14 @@ class ComplianceAnalyzer:
         self.prompt_manager = prompt_manager
         self.fact_checker_service = fact_checker_service
         self.nlg_service = nlg_service
+        default_focus = "\n".join(
+            [
+                "- Treatment frequency documented",
+                "- Goals reviewed or adjusted",
+                "- Medical necessity justified",
+            ]
+        )
+        self.deterministic_focus = deterministic_focus or default_focus
         logger.info("ComplianceAnalyzer initialized with all services.")
 
     async def analyze_document(
@@ -58,7 +67,12 @@ class ComplianceAnalyzer:
 
         formatted_rules = self._format_rules_for_prompt(retrieved_rules)
         prompt = self.prompt_manager.build_prompt(
-            document=document_text, entity_list=entity_list_str, context=formatted_rules
+            document_text=document_text,
+            entity_list=entity_list_str,
+            context=formatted_rules,
+            discipline=discipline,
+            doc_type=doc_type,
+            deterministic_focus=self.deterministic_focus,
         )
 
         raw_analysis_result = await asyncio.to_thread(
@@ -123,7 +137,7 @@ class ComplianceAnalyzer:
             )
 
         formatted_rules = []
-        for rule in rules:
+        for rule in rules[:8]:
             rule_name = rule.get("name") or rule.get("issue_title", "N/A")
             rule_detail = rule.get("content") or rule.get("issue_detail", "N/A")
             rule_suggestion = rule.get("suggestion", "")

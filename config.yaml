@@ -4,7 +4,6 @@ database:
   url: "sqlite:///./compliance.db"
 
 auth:
-  # IMPORTANT: Replace "a_very_secret_key" with the real key you generated.
   secret_key: "a_very_secret_key"
   algorithm: "HS256"
   access_token_expire_minutes: 30
@@ -13,42 +12,41 @@ maintenance:
   purge_retention_days: 60
 
 models:
-  # Main Generator: Small, fast, with strong reasoning for its size.
-  generator: "TheBloke/phi-2-GGUF"
-  generator_filename: "phi-2.Q4_K_M.gguf"
-
-  # Retriever model for semantic search.
+  generator_profiles:
+    standard:
+      repo: "microsoft/Phi-3-mini-4k-instruct-gguf"
+      filename: "Phi-3-mini-4k-instruct.Q4_K_M.gguf"
+      max_system_gb: 11.0
+    enhanced:
+      repo: "meta-llama/Meta-Llama-3-8B-Instruct-GGUF"
+      filename: "Meta-Llama-3-8B-Instruct.Q4_K_M.gguf"
+      min_system_gb: 11.0
+  chat:
+    repo: "TheBloke/ClinicalCamel-5B-GGUF"
+    filename: "clinical-camel-5b.Q4_K_M.gguf"
+    model_type: "llama"
+    context_length: 2048
   retriever: "sentence-transformers/all-MiniLM-L6-v2"
-
-  # Fact-Checker: Tiny, fast model for simple Yes/No validation.
-  fact_checker: "google/flan-t5-small"
-
-  # NER Ensemble: A specialist and a generalist for comprehensive entity extraction.
+  fact_checker: "google/flan-t5-base"
   ner_ensemble:
     - "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
     - "d4data/biomedical-ner-all"
-
-  # Prompt template paths
   doc_classifier_prompt: "src/resources/prompts/doc_classifier_prompt.txt"
   analysis_prompt_template: "src/resources/prompts/analysis_prompt_template.txt"
   nlg_prompt_template: "src/resources/prompts/nlg_prompt_template.txt"
 
 llm_settings:
-  # The model_type for phi-2 in ctransformers is often inferred, but 'llama' is a safe fallback.
   model_type: "llama"
-  context_length: 2048 # Correct context length for Phi-2
+  context_length: 2048
   generation_params:
     temperature: 0.1
-    max_new_tokens: 2048 # A sensible limit for Phi-2
+    max_new_tokens: 2048
 
 retrieval_settings:
-  # The sentence transformer model for semantic search.
   dense_model_name: "pritamdeka/S-PubMedBert-MS-MARCO"
   similarity_top_k: 3
-  # Reciprocal Rank Fusion constant.
   rrf_k: 60
 
-# Default application settings
 temp_upload_dir: "/tmp/uploads"
 api_url: "http://127.0.0.1:8000"
 rule_dir: "src/resources/rules"

@@ -18,7 +18,7 @@ class AILoaderWorker(QObject):
     including database maintenance and loading AI models.
     """
 
-    finished = Signal(object, bool, str)  # analyzer, is_healthy, status_message
+    finished = Signal(object, bool, str, dict)  # analyzer, is_healthy, status_message
 
     def run(self):
         """Runs startup tasks: database purge, then AI model loading."""
@@ -37,10 +37,22 @@ class AILoaderWorker(QObject):
             analyzer_service = AnalysisService(retriever=retriever)
             compliance_service = ComplianceService(analysis_service=analyzer_service)
 
+            chat_llm = getattr(analyzer_service, "chat_llm_service", None)
+            chat_ready = bool(getattr(chat_llm, "is_ready", lambda: False)()) if chat_llm else False
+
+            health_map = {
+                "Generator": bool(getattr(analyzer_service.llm_service, "is_ready", lambda: False)()),
+                "Retriever": True,
+                "Fact Checker": bool(getattr(analyzer_service.fact_checker, "pipeline", None)),
+                "NER": bool(getattr(analyzer_service.ner_pipeline, "pipelines", [])),
+                "Checklist": True,
+                "Chat": chat_ready,
+            }
+
             # 4. Emit the success signal with the initialized service
-            self.finished.emit(compliance_service, True, "AI Systems: Online")
+            self.finished.emit(compliance_service, True, "AI Systems: Online", health_map)
 
         except Exception as e:
             # If any part of the startup fails, emit a failure signal
             logger.error(f"Error during AI loader worker execution: {e}", exc_info=True)
-            self.finished.emit(None, False, f"AI Systems: Offline - {e}")
+            self.finished.emit(None, False, f"AI Systems: Offline - {e}", {})
