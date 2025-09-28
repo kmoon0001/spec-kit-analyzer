@@ -33,6 +33,8 @@ from src.gui.workers.analysis_worker import AnalysisWorker
 from src.gui.workers.ai_loader_worker import AILoaderWorker
 from src.gui.workers.dashboard_worker import DashboardWorker
 from src.gui.widgets.dashboard_widget import DashboardWidget
+from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
+from src.gui.dialogs.performance_settings_dialog import PerformanceSettingsDialog
 from src.config import get_settings
 
 settings = get_settings()
@@ -73,6 +75,7 @@ class MainApplicationWindow(QMainWindow):
         self.file_menu.addAction("Exit", self.close)
         self.tools_menu = self.menu_bar.addMenu("Tools")
         self.tools_menu.addAction("Manage Rubrics", self.manage_rubrics)
+        self.tools_menu.addAction("Performance Settings", self.show_performance_settings)
         self.tools_menu.addAction("Change Password", self.show_change_password_dialog)
         self.theme_menu = self.menu_bar.addMenu("Theme")
         self.theme_menu.addAction("Light", self.set_light_theme)
@@ -84,6 +87,12 @@ class MainApplicationWindow(QMainWindow):
         self.status_bar.addPermanentWidget(self.ai_status_label)
         self.user_status_label = QLabel("")
         self.status_bar.addPermanentWidget(self.user_status_label)
+        
+        # Add performance status widget to status bar
+        self.performance_status = PerformanceStatusWidget()
+        self.performance_status.settings_requested.connect(self.show_performance_settings)
+        self.status_bar.addPermanentWidget(self.performance_status)
+        
         self.progress_bar = QProgressBar(self.status_bar)
         self.status_bar.addPermanentWidget(self.progress_bar)
         self.progress_bar.hide()
@@ -251,6 +260,37 @@ class MainApplicationWindow(QMainWindow):
                     self, "Error", f"Failed to change password: {detail}"
                 )
 
+    def show_performance_settings(self):
+        """Show the performance settings dialog."""
+        try:
+            dialog = PerformanceSettingsDialog(self)
+            dialog.settings_changed.connect(self.on_performance_settings_changed)
+            dialog.exec()
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Error", f"Failed to open performance settings: {e}"
+            )
+    
+    def on_performance_settings_changed(self, settings):
+        """Handle performance settings changes."""
+        try:
+            # Update status bar to reflect new settings
+            self.status_bar.showMessage("Performance settings updated", 3000)
+            
+            # Optionally trigger performance optimization
+            from src.core.performance_integration import optimize_for_analysis
+            optimization_results = optimize_for_analysis()
+            
+            if optimization_results.get('cache_cleanup'):
+                memory_freed = optimization_results.get('memory_freed_mb', 0)
+                if memory_freed > 0:
+                    self.status_bar.showMessage(
+                        f"Performance optimized - {memory_freed:.1f} MB freed", 5000
+                    )
+            
+        except Exception as e:
+            print(f"Error handling performance settings change: {e}")
+
     def load_dashboard_data(self):
         self.status_bar.showMessage("Refreshing dashboard data...")
         self.worker_thread = QThread()
@@ -285,6 +325,24 @@ class MainApplicationWindow(QMainWindow):
             "discipline", "Unknown"
         )  # Assuming rubric has a discipline
         rubric_id = selected_rubric.get("id")
+        # Optimize performance before analysis
+        self.status_bar.showMessage("Optimizing performance...")
+        try:
+            from src.core.performance_integration import optimize_for_analysis
+            optimization_results = optimize_for_analysis()
+            
+            if optimization_results.get('recommendations'):
+                # Show performance recommendations if any
+                recommendations = '\n'.join(optimization_results['recommendations'])
+                QMessageBox.information(
+                    self, 
+                    "Performance Recommendations", 
+                    f"Performance optimization completed:\n\n{recommendations}"
+                )
+        except Exception as e:
+            print(f"Performance optimization failed: {e}")
+            # Continue with analysis even if optimization fails
+        
         self.progress_bar.setRange(0, 0)
         self.progress_bar.show()
         self.run_analysis_button.setEnabled(False)
@@ -454,3 +512,29 @@ class MainApplicationWindow(QMainWindow):
             "QPushButton { background-color: #3a3d41; border: 1px solid #4c4c4c; padding: 6px 12px; }\n"
             "QPushButton:hover { background-color: #4d5156; }\n"
         )
+    
+    def closeEvent(self, event):
+        """Handle application close event with proper cleanup."""
+        try:
+            # Clean up performance status widget
+            if hasattr(self, 'performance_status'):
+                self.performance_status.cleanup()
+            
+            # Clean up performance integration service
+            try:
+                from src.core.performance_integration import performance_integration
+                performance_integration.cleanup()
+            except ImportError:
+                pass
+            
+            # Clean up any running worker threads
+            if hasattr(self, 'worker_thread') and self.worker_thread and self.worker_thread.isRunning():
+                self.worker_thread.quit()
+                self.worker_thread.wait(3000)  # Wait up to 3 seconds
+            
+            # Accept the close event
+            event.accept()
+            
+        except Exception as e:
+            print(f"Error during application cleanup: {e}")
+            event.accept()  # Still close even if cleanup fails

@@ -48,6 +48,15 @@ python-jose[cryptography]
 numpy
 scipy
 
+# Performance & Monitoring
+psutil
+onnxruntime-gpu  # Optional GPU acceleration
+optimum  # Model optimization
+
+# Enhanced Features (Optional)
+reportlab  # PDF export functionality
+openpyxl  # Excel export support
+
 # Scheduling
 apscheduler
 tenacity

@@ -1,7 +1,14 @@
+"""
+Clinical Compliance Analyzer API
+
+FastAPI backend for the Therapy Compliance Analyzer desktop application.
+Provides endpoints for document analysis, user management, and compliance reporting.
+"""
 import os
 import shutil
 import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -11,7 +18,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from .dependencies import startup_event as api_startup, shutdown_event as api_shutdown
 from .routers import auth, analysis, dashboard, admin, health, chat, compliance
 from ..core.database_maintenance_service import DatabaseMaintenanceService
-
 from ..config import get_settings
 
 settings = get_settings()
@@ -52,7 +58,7 @@ def run_database_maintenance():
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
 
 @asynccontextmanager
-async def lifespan(fastapi_app: FastAPI):
+async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
     # Startup
     # 1. Run API-level startup logic (e.g., model loading)
@@ -67,9 +73,9 @@ async def lifespan(fastapi_app: FastAPI):
     scheduler.add_job(run_database_maintenance, "interval", days=1)
     scheduler.start()
     logger.info("Scheduler started for daily database maintenance.")
-    
+
     yield
-    
+
     # Shutdown
     await api_shutdown()
 
@@ -97,4 +103,5 @@ app.include_router(compliance.router, tags=["Compliance"])
 
 @app.get("/")
 def read_root():
+    """Root endpoint providing API welcome message."""
     return {"message": "Welcome to the Clinical Compliance Analyzer API"}
