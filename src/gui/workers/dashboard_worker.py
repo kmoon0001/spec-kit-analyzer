@@ -12,6 +12,7 @@ class DashboardWorker(QObject):
 
     success = Signal(dict)  # Emits a dictionary with 'reports' and 'summary'
     error = Signal(str)
+    finished = Signal()
 
     def __init__(self, token: str):
         super().__init__()
@@ -19,11 +20,11 @@ class DashboardWorker(QObject):
 
     def run(self):
         """Fetches all dashboard data and emits the result."""
-        if not self.token:
-            self.error.emit("Authentication token not provided.")
-            return
-
         try:
+            if not self.token:
+                self.error.emit("Authentication token not provided.")
+                return
+
             headers = {"Authorization": f"Bearer {self.token}"}
 
             # 1. Fetch historical reports
@@ -53,3 +54,5 @@ class DashboardWorker(QObject):
             self.error.emit(f"Failed to fetch dashboard data: {error_detail}")
         except Exception as e:
             self.error.emit(f"An unexpected error occurred: {e}")
+        finally:
+            self.finished.emit()

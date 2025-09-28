@@ -85,6 +85,10 @@ class MainApplicationWindow(QMainWindow):
         self.compliance_service = None
         self.worker_thread = None
         self.worker = None
+        self.ai_loader_thread = None
+        self.ai_loader_worker = None
+        self.dashboard_thread = None
+        self.dashboard_worker = None
         self.report_generator = ReportGenerator()
         self.init_base_ui()
 
@@ -495,17 +499,27 @@ class MainApplicationWindow(QMainWindow):
 
     def load_dashboard_data(self):
         self.status_bar.showMessage("Refreshing dashboard data...")
-        self.worker_thread = QThread()
-        self.worker = DashboardWorker(self.access_token)
-        self.worker.moveToThread(self.worker_thread)
-        self.worker.success.connect(self.on_dashboard_data_loaded)
-        self.worker.error.connect(
+        if self.dashboard_thread and self.dashboard_thread.isRunning():
+            self.dashboard_thread.requestInterruption()
+            self.dashboard_thread.quit()
+            self.dashboard_thread.wait(2000)
+
+        self.dashboard_thread = QThread()
+        self.dashboard_worker = DashboardWorker(self.access_token)
+        self.dashboard_worker.moveToThread(self.dashboard_thread)
+        self.dashboard_thread.started.connect(self.dashboard_worker.run)
+        self.dashboard_worker.success.connect(self.on_dashboard_data_loaded)
+        self.dashboard_worker.error.connect(
             lambda msg: self.status_bar.showMessage(f"Dashboard Error: {msg}")
         )
-        self.worker.finished.connect(self.worker_thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
-        self.worker_thread.start()
+        self.dashboard_worker.finished.connect(self.dashboard_thread.quit)
+        self.dashboard_thread.finished.connect(self.dashboard_worker.deleteLater)
+        self.dashboard_thread.finished.connect(self._clear_dashboard_worker)
+        self.dashboard_thread.start()
+
+    def _clear_dashboard_worker(self):
+        self.dashboard_worker = None
+        self.dashboard_thread = None
 
     def on_dashboard_data_loaded(self, data):
         self.dashboard_widget.update_dashboard(data)
@@ -834,15 +848,22 @@ class MainApplicationWindow(QMainWindow):
             QMessageBox.warning(self, "Export Failed", message)
 
     def load_ai_models(self):
-        self.worker_thread = QThread()
-        self.worker = AILoaderWorker()
-        self.worker.moveToThread(self.worker_thread)
-        self.worker_thread.started.connect(self.worker.run)
-        self.worker.finished.connect(self.on_ai_loaded)
-        self.worker.finished.connect(self.worker_thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
-        self.worker_thread.start()
+        if self.ai_loader_thread and self.ai_loader_thread.isRunning():
+            return
+
+        self.ai_loader_thread = QThread()
+        self.ai_loader_worker = AILoaderWorker()
+        self.ai_loader_worker.moveToThread(self.ai_loader_thread)
+        self.ai_loader_thread.started.connect(self.ai_loader_worker.run)
+        self.ai_loader_worker.finished.connect(self.on_ai_loaded)
+        self.ai_loader_worker.finished.connect(self.ai_loader_thread.quit)
+        self.ai_loader_thread.finished.connect(self.ai_loader_worker.deleteLater)
+        self.ai_loader_thread.finished.connect(self._clear_ai_loader_worker)
+        self.ai_loader_thread.start()
+
+    def _clear_ai_loader_worker(self):
+        self.ai_loader_worker = None
+        self.ai_loader_thread = None
 
     def on_ai_loaded(self, compliance_service, is_healthy, status_message):
         self.compliance_service = compliance_service
@@ -957,9 +978,17 @@ class MainApplicationWindow(QMainWindow):
                 pass
 
             # Clean up any running worker threads
-            if hasattr(self, 'worker_thread') and self.worker_thread and self.worker_thread.isRunning():
+            if self.worker_thread and self.worker_thread.isRunning():
                 self.worker_thread.quit()
-                self.worker_thread.wait(3000)  # Wait up to 3 seconds
+                self.worker_thread.wait(3000)
+
+            if self.ai_loader_thread and self.ai_loader_thread.isRunning():
+                self.ai_loader_thread.quit()
+                self.ai_loader_thread.wait(3000)
+
+            if self.dashboard_thread and self.dashboard_thread.isRunning():
+                self.dashboard_thread.quit()
+                self.dashboard_thread.wait(3000)
 
             # Accept the close event
             event.accept()
