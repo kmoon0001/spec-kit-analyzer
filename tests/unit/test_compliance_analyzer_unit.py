@@ -1,50 +1,68 @@
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock
+
 from src.core.compliance_analyzer import ComplianceAnalyzer
+
+
 @pytest.fixture
 def compliance_analyzer() -> ComplianceAnalyzer:
-    """Provides a ComplianceAnalyzer instance with all dependencies mocked."""
+    retriever = MagicMock()
+    retriever.retrieve = AsyncMock(return_value=[])
+
+    ner_pipeline = MagicMock()
+    ner_pipeline.extract_entities.return_value = [
+        {"entity_group": "ISSUE", "word": "transfers"}
+    ]
+
+    llm_service = MagicMock()
+    llm_service.generate_analysis.return_value = '{"findings": []}'
+    llm_service.parse_json_output.return_value = {"findings": []}
+
+    explanation_engine = MagicMock()
+    explanation_engine.add_explanations.return_value = {"findings": []}
+
+    prompt_manager = MagicMock()
+    prompt_manager.build_prompt.return_value = "Prompt"
+
+    fact_checker_service = MagicMock()
+    fact_checker_service.is_finding_plausible.return_value = True
+
+    nlg_service = MagicMock()
+    nlg_service.generate_personalized_tip.return_value = "Tip"
+
     return ComplianceAnalyzer(
-        retriever=MagicMock(),
-        ner_pipeline=MagicMock(),
-        llm_service=MagicMock(),
-        explanation_engine=MagicMock(),
-        prompt_manager=MagicMock(),
-        fact_checker_service=MagicMock(),
+        retriever=retriever,
+        ner_pipeline=ner_pipeline,
+        llm_service=llm_service,
+        explanation_engine=explanation_engine,
+        prompt_manager=prompt_manager,
+        fact_checker_service=fact_checker_service,
+        nlg_service=nlg_service,
     )
-def test_analyze_document_orchestration(compliance_analyzer: ComplianceAnalyzer):
-    """Tests that the ComplianceAnalyzer correctly orchestrates its components."""
-    # Arrange
+
+
+@pytest.mark.asyncio
+async def test_analyze_document_orchestration(compliance_analyzer: ComplianceAnalyzer):
     document_text = "Patient requires assistance with transfers."
     discipline = "PT"
     doc_type = "Progress Note"
-    # Mock the return values of the dependencies
-    compliance_analyzer.retriever.retrieve_rules.return_value = []
-    compliance_analyzer.ner_pipeline.extract_entities.return_value = ["transfers"]
-    compliance_analyzer.prompt_manager.build_prompt.return_value = "Test Prompt"
-    compliance_analyzer.llm_service.generate_text.return_value = '{"findings": []}'
-    compliance_analyzer.llm_service.parse_json_output.return_value = {"findings": []}
-    compliance_analyzer.explanation_engine.explain_findings.return_value = {
-        "findings": []
-    }
-    # Act
-    compliance_analyzer.analyze_document(document_text, discipline, doc_type)
-    # Assert
-    # Check that the main components were called in the correct sequence
-    compliance_analyzer.retriever.retrieve_rules.assert_called_once_with(
-        document_text, discipline=discipline, doc_type=doc_type
+
+    result = await compliance_analyzer.analyze_document(
+        document_text=document_text, discipline=discipline, doc_type=doc_type
     )
+
+    compliance_analyzer.retriever.retrieve.assert_awaited_once()
     compliance_analyzer.ner_pipeline.extract_entities.assert_called_once_with(
         document_text
     )
     compliance_analyzer.prompt_manager.build_prompt.assert_called_once()
-    compliance_analyzer.llm_service.generate_text.assert_called_once_with("Test Prompt")
-    compliance_analyzer.explanation_engine.explain_findings.assert_called_once()
-    # Check that the post-processing step was called by checking one of its sub-components
-    compliance_analyzer.fact_checker_service.is_finding_plausible.assert_not_called()  # No findings in this case
+    compliance_analyzer.llm_service.generate_analysis.assert_called_once()
+    compliance_analyzer.explanation_engine.add_explanations.assert_called_once()
+    assert result == {"findings": []}
+
+
 def test_format_rules_for_prompt():
-    """Tests the static method for formatting rules into a prompt string."""
-    # Arrange
     rules = [
         {
             "issue_title": "Rule 1",
@@ -57,10 +75,9 @@ def test_format_rules_for_prompt():
             "suggestion": "Suggestion 2",
         },
     ]
-    # Act
-    # Access the static method directly from the class
+
     context = ComplianceAnalyzer._format_rules_for_prompt(rules)
-    # Assert
+
     assert "- **Rule:** Rule 1" in context
     assert "  **Detail:** Detail 1" in context
     assert "  **Suggestion:** Suggestion 1" in context

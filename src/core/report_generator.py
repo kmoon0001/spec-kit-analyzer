@@ -1,7 +1,8 @@
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 import markdown
 import urllib.parse
+from typing import Any, Dict
 
 from .habit_mapper import get_habit_for_finding
 
@@ -20,19 +21,42 @@ class ReportGenerator:
     @staticmethod
     def _load_template(template_path: str) -> str:
         try:
-            with open(template_path, "r") as f:
-                return f.read()
+            with open(template_path, "r", encoding="utf-8") as handle:
+                return handle.read()
         except FileNotFoundError:
             return "<h1>Report</h1><p>Template not found.</p><div>{findings}</div>"
 
     @staticmethod
     def _load_and_convert_markdown(file_path: str) -> str:
         try:
-            with open(file_path, "r") as f:
-                md_text = f.read()
+            with open(file_path, "r", encoding="utf-8") as handle:
+                md_text = handle.read()
             return markdown.markdown(md_text, extensions=["tables"])
         except (ImportError, FileNotFoundError):
             return "<p>Could not load model limitations document.</p>"
+
+    def generate_report(
+        self,
+        analysis_result: Dict[str, Any],
+        *,
+        document_name: str | None = None,
+        analysis_mode: str = "rubric",
+    ) -> Dict[str, Any]:
+        """Build a normalized payload consumed by higher-level services."""
+        doc_name = document_name or analysis_result.get("document_name", "Document")
+        report_html = self.generate_html_report(
+            analysis_result=analysis_result,
+            doc_name=doc_name,
+            analysis_mode=analysis_mode,
+        )
+        findings = analysis_result.get("findings", [])
+        return {
+            "analysis": analysis_result,
+            "findings": findings,
+            "summary": analysis_result.get("summary", ""),
+            "report_html": report_html,
+            "generated_at": datetime.now(tz=UTC).isoformat(),
+        }
 
     def generate_html_report(
         self, analysis_result: dict, doc_name: str, analysis_mode: str
@@ -63,14 +87,12 @@ class ReportGenerator:
         findings_rows_html = ""
         if findings:
             for finding in findings:
-                # Determine the row class based on flags
                 row_class = ""
                 if finding.get("is_disputed"):
                     row_class = 'class="disputed"'
                 elif finding.get("is_low_confidence"):
                     row_class = 'class="low-confidence"'
 
-                # Create the risk/confidence display string
                 risk_display = finding.get("risk", "N/A")
                 if finding.get("is_disputed"):
                     risk_display += " <b>(Disputed by Fact-Checker)</b>"
@@ -94,14 +116,20 @@ class ReportGenerator:
                     f'<a href="highlight://{encoded_payload}">{problematic_text}</a>'
                 )
 
-                chat_context = f"Regarding the finding titled '{finding.get('issue_title', 'N/A')}', which you identified with the text '{problematic_text}', please explain further."
+                chat_context = (
+                    f"Regarding the finding titled '{finding.get('issue_title', 'N/A')}', "
+                    f"which you identified with the text '{problematic_text}', please explain further."
+                )
                 encoded_chat_context = urllib.parse.quote(chat_context)
                 chat_link = (
                     f'<a href="chat://{encoded_chat_context}">Discuss with AI</a>'
                 )
 
                 habit = get_habit_for_finding(finding)
-                habit_html = f'<div class="habit-name">{habit["name"]}</div><div class="habit-explanation">{habit["explanation"]}</div>'
+                habit_html = (
+                    f'<div class="habit-name">{habit["name"]}</div>'
+                    f'<div class="habit-explanation">{habit["explanation"]}</div>'
+                )
 
                 findings_rows_html += f"""
                 <tr {row_class}>

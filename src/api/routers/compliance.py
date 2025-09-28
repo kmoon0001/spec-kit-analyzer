@@ -1,63 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException
 from typing import List
-import tempfile
-import os
 
-from src.core.compliance_service import ComplianceService
-from src.core.analysis_service import AnalysisService
-from src.core.models import (
-    TherapyDocument,
-    ComplianceResult,
-    )
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
-router = APIRouter()
+from ...core.compliance_service import ComplianceService
+from ...core.models import TherapyDocument
+
+router = APIRouter(prefix="/compliance", tags=["Compliance"])
+service = ComplianceService()
 
 
-from ..dependencies import get_analysis_service
-
-# This is a placeholder for a dependency injection system.
-# In a real application, this would be handled by a proper DI framework.
-def get_compliance_service(analysis_service: AnalysisService = Depends(get_analysis_service)):
-    return ComplianceService(analysis_service=analysis_service)
-
-
-@router.post("/evaluate", response_model=ComplianceResult)
-async def evaluate_document(
-    document: TherapyDocument,
-    compliance_service: ComplianceService = Depends(get_compliance_service),
-):
-    """Evaluates a therapy document for compliance against a set of rules."""
-    if not document.text or not document.discipline or not document.document_type:
-        raise HTTPException(
-            status_code=400, detail="Document text, discipline, and type are required."
-        )
-
-    temp_file_path = None
-    try:
-        # Create a temporary file to hold the document text
-        with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".txt", encoding='utf-8') as temp_file:
-            temp_file.write(document.text)
-            temp_file_path = temp_file.name
-
-        result = await compliance_service.run_compliance_analysis(
-            document_path=temp_file_path,
-            discipline=document.discipline,
-            rubric_id=0  # Placeholder
-        )
-        # This part needs to be adapted based on the actual return type of run_compliance_analysis
-        return result
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"An error occurred during evaluation: {str(e)}"
-        )
-    finally:
-        if temp_file_path and os.path.exists(temp_file_path):
-            os.unlink(temp_file_path)
-
-
-# Pydantic models for the response. `dataclasses` are not directly compatible with FastAPI's response models.
-# We need to redefine them as Pydantic models for the API layer.
-from pydantic import BaseModel, Field
+class TherapyDocumentRequest(BaseModel):
+    id: str
+    text: str
+    discipline: str
+    document_type: str
 
 
 class ComplianceRuleModel(BaseModel):
@@ -71,8 +28,8 @@ class ComplianceRuleModel(BaseModel):
     document_type: str
     suggestion: str
     financial_impact: int
-    positive_keywords: List[str] = Field(default_factory=list)
-    negative_keywords: List[str] = Field(default_factory=list)
+    positive_keywords: List[str]
+    negative_keywords: List[str]
 
 
 class ComplianceFindingModel(BaseModel):
@@ -81,18 +38,26 @@ class ComplianceFindingModel(BaseModel):
     risk_level: str
 
 
-class TherapyDocumentModel(BaseModel):
-    id: str
-    text: str
-    discipline: str
-    document_type: str
-
-
 class ComplianceResultModel(BaseModel):
-    document: TherapyDocumentModel
+    document: TherapyDocumentRequest
     findings: List[ComplianceFindingModel]
     is_compliant: bool
 
 
-# We need to override the response model for the endpoint to use the Pydantic model
-router.post("/evaluate", response_model=ComplianceResultModel)(evaluate_document)
+@router.post("/evaluate", response_model=ComplianceResultModel)
+async def evaluate_document(payload: TherapyDocumentRequest) -> ComplianceResultModel:
+    if not payload.text or not payload.discipline or not payload.document_type:
+        raise HTTPException(
+            status_code=400,
+            detail="Document text, discipline, and document_type are required.",
+        )
+
+    result = service.evaluate_document(
+        TherapyDocument(
+            id=payload.id,
+            text=payload.text,
+            discipline=payload.discipline,
+            document_type=payload.document_type,
+        )
+    )
+    return ComplianceResultModel(**ComplianceService.to_dict(result))

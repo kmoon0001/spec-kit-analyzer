@@ -1,16 +1,14 @@
+from datetime import timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import timedelta
 
-from ...database import crud, schemas, models
 from ...auth import AuthService, get_auth_service, get_current_active_user
+from ...database import crud, models, schemas
 from ...database import get_async_db as get_db
-from ... import crud, schemas
-from ...auth import auth_service
-from ...database import get_db
 
-router = APIRouter()
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/token", response_model=schemas.Token)
@@ -23,9 +21,6 @@ async def login_for_access_token(
     if not user or not auth_service.verify_password(
         form_data.password, user.hashed_password
     ):
-def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = crud.get_user_by_username(db, username=form_data.username)
-    if not user or not auth_service.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -38,7 +33,9 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
             detail="Account is inactive or license has expired. Please contact support.",
         )
 
-    access_token_expires = timedelta(minutes=auth_service.access_token_expire_minutes)
+    access_token_expires = timedelta(
+        minutes=auth_service.access_token_expire_minutes
+    )
     access_token = auth_service.create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )

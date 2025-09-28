@@ -18,6 +18,9 @@ This project is an advanced, AI-powered desktop application designed to help cli
 - **Database-Backed Rubric Manager**: A full GUI for adding, editing, and deleting compliance rubrics, with all changes immediately reflected in the analysis engine.
 - **Automated Database Maintenance**: The application automatically purges old reports to manage disk space usage.
 
+
+
+3
 ## 📂 Project Architecture
 
 The application is composed of a Python backend API and a desktop GUI.

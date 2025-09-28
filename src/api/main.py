@@ -82,15 +82,10 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(health.router, tags=["Health"])
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
-app.include_router(
-    analysis.router,
-    prefix="/analysis",
-    tags=["Analysis"],
-    dependencies=[Depends(get_analysis_service)]
-)
+app.include_router(analysis.router, tags=["Analysis"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
-app.include_router(compliance.router, prefix="/compliance", tags=["Compliance"])
+app.include_router(compliance.router, tags=["Compliance"])
 
 @app.get("/")
 def read_root():

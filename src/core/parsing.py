@@ -1,118 +1,147 @@
+import logging
 import os
 import re
-from typing import List, Dict
+from typing import Dict, List
 
 import pdfplumber
-from docx import Document
-import pytesseract
-from PIL import Image
-import pandas as pd
 import yaml
-import logging
+from docx import Document
 
-from src.core.smart_chunker import sentence_window_chunker
 
 logger = logging.getLogger(__name__)
 
+SUPPORTED_EXTENSIONS = {".pdf", ".txt", ".docx"}
+
+
 def parse_document_content(file_path: str) -> List[Dict[str, str]]:
-    """Parses the content of a document (PDF, TXT, DOCX) into text chunks.
+    """Parse supported documents into sentence chunks."""
+    extension = os.path.splitext(file_path)[1].lower()
 
-    Args:
-        file_path: The full path to the document file.
+    if extension not in SUPPORTED_EXTENSIONS:
+        return [
+            {
+                "sentence": f"Error: Unsupported file type '{extension}'. Only PDF, TXT, and DOCX are supported.",
+                "source": "parser",
+            }
+        ]
 
-    Returns:
-        A list of dictionaries, where each dictionary represents a chunk of text.
-        Returns an error message in the same format if parsing fails.
-    """
-    logger.info(f"Parsing document: {file_path}")
-
-    supported_extensions = ['.pdf', '.txt', '.docx']
-    file_ext = os.path.splitext(file_path)[1].lower()
-
-    if file_ext not in supported_extensions:
-        error_message = f"Error: Unsupported file type '{file_ext}'. Only PDF, TXT, and DOCX are supported."
-        logger.warning(error_message)
-        return [{'sentence': error_message, 'source': 'parser'}]
+    file_exists = os.path.exists(file_path)
+    if extension in {".txt", ".docx"} and not file_exists:
+        return [
+            {
+                "sentence": f"Error: File not found at {file_path}",
+                "source": "parser",
+            }
+        ]
 
     try:
-        chunks = []
-        if file_ext == '.pdf':
-            with pdfplumber.open(file_path) as pdf:
-                for i, page in enumerate(pdf.pages):
-                    text = page.extract_text() or ""
-                    if text.strip():
-                        chunks.append({'sentence': text, 'source': f'{os.path.basename(file_path)} (Page {i+1})'})
-
-        elif file_ext == '.txt':
-            with open(file_path, 'r', encoding='utf-8') as f:
-                text = f.read()
-            if text.strip():
-                chunks.append({'sentence': text, 'source': os.path.basename(file_path)})
-
-        elif file_ext == '.docx':
-            doc = Document(file_path)
-            full_text = "\n".join([para.text for para in doc.paragraphs])
-            if full_text.strip():
-                chunks.append({'sentence': full_text, 'source': os.path.basename(file_path)})
-
-        return chunks
-
+        if extension == ".pdf":
+            return _parse_pdf(file_path)
+        if extension == ".txt":
+            return _parse_txt(file_path)
+        if extension == ".docx":
+            return _parse_docx(file_path)
     except FileNotFoundError:
-        error_message = f"Error: File not found at {file_path}"
-        logger.error(error_message)
-        return [{'sentence': error_message, 'source': 'parser'}]
-    except Exception as e:
-        error_message = f"Error parsing document '{os.path.basename(file_path)}': {e}"
-        logger.error(error_message, exc_info=True)
-        return [{'sentence': error_message, 'source': 'parser'}]
+        return [
+            {
+                "sentence": f"Error: File not found at {file_path}",
+                "source": "parser",
+            }
+        ]
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.exception("Failed to parse %s", file_path)
+        return [
+            {
+                "sentence": f"Error parsing document '{os.path.basename(file_path)}': {exc}",
+                "source": "parser",
+            }
+        ]
+
+    return []
+
+
+def _parse_pdf(file_path: str) -> List[Dict[str, str]]:
+    chunks: List[Dict[str, str]] = []
+    with pdfplumber.open(file_path) as pdf:
+        for index, page in enumerate(pdf.pages, start=1):
+            text = page.extract_text() or ""
+            if text.strip():
+                chunks.append(
+                    {
+                        "sentence": text,
+                        "source": f"{os.path.basename(file_path)} (Page {index})",
+                    }
+                )
+    return chunks
+
+
+def _parse_txt(file_path: str) -> List[Dict[str, str]]:
+    with open(file_path, "r", encoding="utf-8") as handle:
+        text = handle.read().strip()
+    return (
+        [{"sentence": text, "source": os.path.basename(file_path)}] if text else []
+    )
+
+
+def _parse_docx(file_path: str) -> List[Dict[str, str]]:
+    document = Document(file_path)
+    text = "\n".join(paragraph.text for paragraph in document.paragraphs).strip()
+    return (
+        [{"sentence": text, "source": os.path.basename(file_path)}] if text else []
+    )
 
 
 DEFAULT_SECTION_HEADERS = [
-    "Subjective", "Objective", "Assessment", "Plan",
-    "History of Present Illness", "Past Medical History",
-    "Medications", "Allergies", "Review of Systems",
-    "Physical Examination", "Diagnosis", "Treatment Plan"
+    "Subjective",
+    "Objective",
+    "Assessment",
+    "Plan",
+    "History of Present Illness",
+    "Past Medical History",
+    "Medications",
+    "Allergies",
+    "Review of Systems",
+    "Physical Examination",
+    "Diagnosis",
+    "Treatment Plan",
 ]
 
-def load_section_headers() -> list:
-    """Load section headers from config.yaml, fallback to defaults on error."""
+
+def load_section_headers() -> List[str]:
     try:
-        with open('config.yaml', 'r') as f:
-            config = yaml.safe_load(f)
-        headers = config.get('section_headers', [])
-        if headers:
-            return headers
+        with open("config.yaml", "r", encoding="utf-8") as handle:
+            config = yaml.safe_load(handle) or {}
     except (FileNotFoundError, yaml.YAMLError):
-        pass
-    return DEFAULT_SECTION_HEADERS
+        return DEFAULT_SECTION_HEADERS
+
+    headers = config.get("section_headers") or []
+    return headers or DEFAULT_SECTION_HEADERS
+
 
 def parse_document_into_sections(text: str) -> Dict[str, str]:
-    """
-    Parses a clinical note into sections based on headers from config.yaml or defaults.
-    Uses regex to find headers followed by colons (case-insensitive).
-    """
-    section_headers = load_section_headers()
-    if not section_headers:
+    headers = load_section_headers()
+    if not headers:
         return {"full_text": text}
 
-    pattern = r"^\s*(" + "|".join(re.escape(header) for header in section_headers) + r")\s*:"
-    matches = list(re.finditer(pattern, text, re.MULTILINE | re.IGNORECASE))
+    pattern = r"^\s*(" + "|".join(re.escape(header) for header in headers) + r")\s*:"
+    matches = list(re.finditer(pattern, text, re.IGNORECASE | re.MULTILINE))
 
     if not matches:
         return {"unclassified": text}
 
-    sections = {}
+    sections: Dict[str, str] = {}
     if matches[0].start() > 0:
-        pre_content = text[:matches[0].start()].strip()
-        if pre_content:
-            sections["Header"] = pre_content
+        intro = text[: matches[0].start()].strip()
+        if intro:
+            sections["Header"] = intro
 
-    for i, match in enumerate(matches):
-        section_header = match.group(1).strip()
-        start_index = match.end()
-        end_index = matches[i + 1].start() if i + 1 < len(matches) else len(text)
-        section_content = text[start_index:end_index].strip()
-        canonical_header = next((h for h in section_headers if h.lower() == section_header.lower()), section_header)
-        sections[canonical_header] = section_content
+    for index, match in enumerate(matches):
+        header = match.group(1)
+        next_start = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        content = text[match.end() : next_start].strip()
+        normalized_header = next(
+            (item for item in headers if item.lower() == header.lower()), header
+        )
+        sections[normalized_header] = content
 
     return sections

@@ -1,50 +1,106 @@
+import json
 import os
+from typing import Any, Dict, List
+
+from jinja2 import Template
 from PyQt6.QtWidgets import QFileDialog
 from xhtml2pdf import pisa
-from jinja2 import Template
-import json
 
 
-def generate_pdf_report(analysis_results_str, parent=None):
-    """Generates a PDF report from the analysis results."""
+DEFAULT_LIMITATIONS_TEXT = (
+    "This AI-generated report should be reviewed by a clinical compliance expert before use."
+)
+
+
+def _load_template(template_path: str) -> Template:
+    with open(template_path, "r", encoding="utf-8") as handle:
+        return Template(handle.read())
+
+
+def _normalize_finding(raw_finding: Dict[str, Any]) -> Dict[str, Any]:
+    habit = raw_finding.get("habit") or {}
+    return {
+        "risk_level": raw_finding.get("risk")
+        or raw_finding.get("risk_level")
+        or "Unknown",
+        "problematic_text": raw_finding.get("problematic_text")
+        or raw_finding.get("text")
+        or "",
+        "personalized_tip": raw_finding.get("personalized_tip")
+        or raw_finding.get("suggestion")
+        or "",
+        "habit": {
+            "name": habit.get("name")
+            or raw_finding.get("habit_name")
+            or "General Habit",
+            "explanation": habit.get("explanation")
+            or raw_finding.get("habit_explanation")
+            or "",
+        },
+        "low_confidence": bool(raw_finding.get("low_confidence", False)),
+        "disputed": bool(raw_finding.get("disputed", False)),
+        "disputable": bool(raw_finding.get("disputable", False)),
+    }
+
+
+def _build_analysis_context(payload: Dict[str, Any]) -> Dict[str, Any]:
+    if "analysis" in payload and isinstance(payload["analysis"], dict):
+        analysis_ctx = dict(payload["analysis"])
+    else:
+        analysis_ctx = {
+            "document_name": payload.get("document_name", "Unknown Document"),
+            "analysis_date": payload.get("analysis_date")
+            or payload.get("generated_at")
+            or "",
+            "generation_date": payload.get("generation_date")
+            or payload.get("analysis_date")
+            or "",
+            "compliance_score": payload.get("compliance_score", 0),
+            "total_findings": payload.get("total_findings"),
+            "findings": payload.get("findings", []),
+            "limitations_text": payload.get("limitations_text", DEFAULT_LIMITATIONS_TEXT),
+        }
+
+    findings: List[Dict[str, Any]] = []
+    for finding in analysis_ctx.get("findings", []):
+        if isinstance(finding, dict):
+            findings.append(_normalize_finding(finding))
+
+    analysis_ctx["findings"] = findings
+    analysis_ctx.setdefault("document_name", "Unknown Document")
+    analysis_ctx.setdefault("analysis_date", "")
+    analysis_ctx.setdefault("generation_date", analysis_ctx.get("analysis_date", ""))
+    analysis_ctx.setdefault("compliance_score", 0)
+    analysis_ctx.setdefault("limitations_text", DEFAULT_LIMITATIONS_TEXT)
+    analysis_ctx["total_findings"] = analysis_ctx.get("total_findings", len(findings))
+
+    return analysis_ctx
+
+
+def generate_pdf_report(analysis_results_str: str, parent=None):
+    """Generates a PDF report from serialized analysis results."""
     try:
         analysis_results = json.loads(analysis_results_str)
     except json.JSONDecodeError:
         return False, "Failed to decode analysis results."
 
-    # Define the path for the template
-    template_path = os.path.join(
-        os.path.dirname(__file__), "..", "report_template.html"
+    template_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "..", "resources", "report_template.html"
+        )
     )
 
-    # Read the template file
-    try:
-        with open(template_path, "r") as f:
-            template_content = f.read()
-    except FileNotFoundError:
+    if not os.path.exists(template_path):
         return False, f"Report template not found at {template_path}"
 
-    # Create a Jinja2 template object
-    template = Template(template_content)
+    template = _load_template(template_path)
+    analysis_ctx = _build_analysis_context(analysis_results)
 
-    # Transform the analysis results to match the template's expectations
-    findings = []
-    for finding in analysis_results.get("findings", []):
-        findings.append(
-            {
-                "title": finding.get("rule_id", "N/A"),
-                "category": finding.get("risk", "N/A"),
-                "justification": finding.get("text", "N/A"),
-                "observation": finding.get("suggestion", "N/A"),
-            }
-        )
-
-    # Render the template with the analysis results
     html_content = template.render(
-        findings=findings, guidelines=analysis_results.get("guidelines", [])
+        analysis=analysis_ctx,
+        guidelines=analysis_results.get("guidelines", []),
     )
 
-    # Prompt the user to select a file path
     file_path, _ = QFileDialog.getSaveFileName(
         parent, "Save Report as PDF", "", "PDF Files (*.pdf)"
     )
@@ -52,12 +108,12 @@ def generate_pdf_report(analysis_results_str, parent=None):
     if not file_path:
         return False, "File save cancelled."
 
-    # Generate the PDF
     try:
-        with open(file_path, "w+b") as f:
-            pisa_status = pisa.CreatePDF(html_content, dest=f)
-        if pisa_status.err:
+        with open(file_path, "w+b") as handle:
+            pisa_status = pisa.CreatePDF(html_content, dest=handle)
+        if getattr(pisa_status, "err", 0):
             return False, f"PDF generation failed: {pisa_status.err}"
-        return True, file_path
-    except Exception as e:
-        return False, f"An error occurred while saving the PDF: {e}"
+    except Exception as exc:  # pragma: no cover - defensive
+        return False, f"An error occurred while saving the PDF: {exc}"
+
+    return True, file_path
