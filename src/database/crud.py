@@ -123,7 +123,7 @@ async def delete_report(db: AsyncSession, report_id: int) -> None:
 
 
 async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
-    cutoff_date = datetime.utcnow() - datetime.timedelta(days=days)
+    cutoff_date = datetime.datetime.utcnow() - datetime.timedelta(days=days)
     # Delete associated findings first due to foreign key constraints
     # Find report IDs to delete
     reports_to_delete_query = select(models.Report.id).filter(

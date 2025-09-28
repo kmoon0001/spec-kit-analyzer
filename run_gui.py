@@ -1,5 +1,6 @@
 import sys
 import os
+import logging
 
 # --- The Definitive Path Solution ---
 # 1. Get the absolute path of the directory where this script is located.
@@ -15,11 +16,15 @@ from PyQt6.QtWidgets import QApplication  # noqa: E402
 from src.gui.main_window import MainApplicationWindow  # noqa: E402
 from src.database import init_db  # noqa: E402
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 if __name__ == "__main__":
-    print("Initializing database...")
+    logger.info("Initializing database...")
     init_db()
 
-    print("Starting GUI application...")
+    logger.info("Starting GUI application...")
     app = QApplication(sys.argv)
     main_win = MainApplicationWindow()
     # Start the application logic (loading models, showing login) after the window is created.

@@ -55,12 +55,12 @@ def generate_medical_dictionary():
             f.write(dictionary_content)
 
         logger.info(
-            f"Successfully generated and saved the expanded medical dictionary to {output_path}"
+            "Successfully generated and saved the expanded medical dictionary to %s", output_path
         )
 
-    except Exception as e:
+    except (OSError, IOError, RuntimeError) as e:
         logger.error(
-            f"An error occurred during dictionary generation: {e}", exc_info=True
+            "An error occurred during dictionary generation: %s", e, exc_info=True
         )
 
 

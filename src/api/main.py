@@ -36,7 +36,7 @@ def clear_temp_uploads():
                 elif os.path.isdir(file_path):
                     shutil.rmtree(file_path)
                 logger.info("Successfully cleaned up temporary file: %s", file_path)
-            except Exception as e:
+            except (OSError, PermissionError) as e:
                 logger.error("Failed to delete %s. Reason: %s", file_path, e)
 
 
@@ -52,7 +52,7 @@ def run_database_maintenance():
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(fastapi_app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
     # Startup
     # 1. Run API-level startup logic (e.g., model loading)
