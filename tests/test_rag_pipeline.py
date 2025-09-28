@@ -11,16 +11,16 @@ def mock_dependencies():
     without any real model loading, file I/O, or database access.
     """
     with (
-        patch("src.core.analysis_service.LLMService") as mock_llm,
-        patch("src.core.analysis_service.FactCheckerService") as mock_fc,
-        patch("src.core.analysis_service.NERPipeline") as mock_ner,
-        patch("src.core.analysis_service.HybridRetriever") as mock_retriever,
+        patch("src.core.analysis_service.LLMService") as _,
+        patch("src.core.analysis_service.FactCheckerService") as _,
+        patch("src.core.analysis_service.NERPipeline") as _,
+        patch("src.core.analysis_service.HybridRetriever") as _,
         patch("src.core.analysis_service.PreprocessingService") as mock_preproc,
         patch("src.core.analysis_service.ReportGenerator") as mock_reporter,
         patch("src.core.analysis_service.DocumentClassifier") as mock_classifier,
-        patch("src.core.analysis_service.NLGService") as mock_nlg,
-        patch("src.core.analysis_service.PromptManager") as mock_pm,
-        patch("src.core.analysis_service.ExplanationEngine") as mock_ee,
+        patch("src.core.analysis_service.NLGService") as _,
+        patch("src.core.analysis_service.PromptManager") as _,
+        patch("src.core.analysis_service.ExplanationEngine") as _,
         patch("src.core.analysis_service.ComplianceAnalyzer") as mock_analyzer,
         patch("src.core.analysis_service.parse_document_content") as mock_parser,
         patch("src.core.analysis_service.yaml.safe_load") as mock_yaml,

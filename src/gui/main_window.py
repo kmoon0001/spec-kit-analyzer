@@ -4,7 +4,7 @@ import urllib.parse
 import webbrowser
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QMessageBox, QMainWindow, QStatusBar, QMenuBar,
-    QFileDialog, QSplitter, QTextEdit, QHBoxLayout, QLabel, QGroupBox, QProgressBar, QPushButton, QTabWidget, QTextBrowser
+    QFileDialog, QSplitter, QTextEdit, QHBoxLayout, QLabel, QGroupBox, QProgressBar, QPushButton, QTabWidget, QTextBrowser, QComboBox
 )
 from PyQt6.QtCore import Qt, QThread, QUrl
 from PyQt6.QtGui import QTextDocument
@@ -309,31 +309,52 @@ class MainApplicationWindow(QMainWindow):
         else:
             self.rubric_description_label.setText("Description of selected rubric will appear here.")
             self.run_analysis_button.setEnabled(False)
-    def apply_stylesheet(self, theme="dark"):
-        if theme == "light":
-            self.setStyleSheet(self.get_light_theme_stylesheet())
-        else:
-            self.setStyleSheet(self.get_dark_theme_stylesheet())
+    def apply_stylesheet(self, theme: str = "dark") -> None:
+        """Apply the requested theme to the main window."""
+        stylesheet_getter = (
+            self.get_light_theme_stylesheet if theme == "light" else self.get_dark_theme_stylesheet
+        )
+        self.setStyleSheet(stylesheet_getter())
+
     @staticmethod
-    def save_theme_setting(theme):
-        with open("theme.cfg", "w") as f:
-            f.write(theme)
+    def save_theme_setting(theme: str) -> None:
+        with open("theme.cfg", "w", encoding="utf-8") as handle:
+            handle.write(theme)
+
     @staticmethod
-    def load_theme_setting():
+    def load_theme_setting() -> str:
         try:
-            with open("theme.cfg", "r") as f:
-                return f.read().strip()
+            with open("theme.cfg", "r", encoding="utf-8") as handle:
+                return handle.read().strip()
         except FileNotFoundError:
             return "dark"
-    def set_light_theme(self):
+
+    def set_light_theme(self) -> None:
         self.apply_stylesheet("light")
         self.save_theme_setting("light")
-    def set_dark_theme(self):
+
+    def set_dark_theme(self) -> None:
         self.apply_stylesheet("dark")
         self.save_theme_setting("dark")
+
     @staticmethod
-    def get_light_theme_stylesheet():
-        return """
-            QMainWindow { background-color: #f0f0f0; color: #000000; }
-            QGroupBox { background-color: #ffffff; color: #000000; border: 1px solid #d0d0d0; border-radius: 5px; margin-top: 10px; font-weight: bold; }
-            QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top center; padding: 0 3px; background-color:
+    def get_light_theme_stylesheet() -> str:
+        return (
+            "QMainWindow { background-color: #f0f0f0; color: #000000; }\n"
+            "QGroupBox { background-color: #ffffff; color: #000000; border: 1px solid #d0d0d0; border-radius: 5px; margin-top: 10px; font-weight: bold; }\n"
+            "QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top center; padding: 0 3px; background-color: #ffffff; }\n"
+            "QTextEdit, QTextBrowser { background-color: #ffffff; color: #000000; border: 1px solid #d0d0d0; }\n"
+            "QPushButton { background-color: #e0e0e0; border: 1px solid #c0c0c0; padding: 6px 12px; }\n"
+            "QPushButton:hover { background-color: #d0d0d0; }\n"
+        )
+
+    @staticmethod
+    def get_dark_theme_stylesheet() -> str:
+        return (
+            "QMainWindow { background-color: #1e1e1e; color: #f0f0f0; }\n"
+            "QGroupBox { background-color: #2c2c2c; color: #f0f0f0; border: 1px solid #3c3c3c; border-radius: 5px; margin-top: 10px; font-weight: bold; }\n"
+            "QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top center; padding: 0 3px; background-color: #2c2c2c; }\n"
+            "QTextEdit, QTextBrowser { background-color: #252526; color: #f0f0f0; border: 1px solid #3c3c3c; }\n"
+            "QPushButton { background-color: #3a3d41; border: 1px solid #4c4c4c; padding: 6px 12px; }\n"
+            "QPushButton:hover { background-color: #4d5156; }\n"
+        )

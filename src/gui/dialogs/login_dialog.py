@@ -21,7 +21,7 @@ class LoginDialog(QDialog):
         self.layout.addRow(QLabel("Username:"), self.username_input)
         self.layout.addRow(QLabel("Password:"), self.password_input)
 
-        self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButton.StandardButton.Cancel)
+        self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
 

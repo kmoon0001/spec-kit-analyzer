@@ -1,13 +1,13 @@
 import os
 import shutil
 import logging
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from .dependencies import get_analysis_service, startup_event as api_startup, shutdown_event as api_shutdown
+from .dependencies import startup_event as api_startup, shutdown_event as api_shutdown
 from .routers import auth, analysis, dashboard, admin, health, chat, compliance
 from ..core.database_maintenance_service import DatabaseMaintenanceService
 

@@ -7,12 +7,12 @@ from src.gui.main_window import MainApplicationWindow
 def mock_all_backend_services():
     """Mocks all backend services to isolate the GUI for stability testing."""
     with (
-        patch("src.gui.main_window.AILoaderWorker") as mock_ai_loader,
-        patch("src.gui.main_window.DashboardWorker") as mock_dash_worker,
-        patch("src.gui.main_window.AnalysisStarterWorker") as mock_starter,
+        patch("src.gui.main_window.AILoaderWorker") as _,
+        patch("src.gui.main_window.DashboardWorker") as _,
+        patch("src.gui.main_window.AnalysisStarterWorker") as _,
         patch("src.gui.main_window.requests.post") as mock_post,
         patch("src.gui.main_window.QFileDialog.getOpenFileName") as mock_open_file,
-        patch("src.gui.main_window.ChatDialog") as mock_chat_dialog,
+        patch("src.gui.main_window.ChatDialog") as _,
     ):
         mock_post.return_value.json.return_value = {"access_token": "fake-token"}
         mock_open_file.return_value = ("/fake/path/document.txt", "All Files (*.*)")
