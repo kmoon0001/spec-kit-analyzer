@@ -1,0 +1,26 @@
+{
+  "enabled": true,
+  "name": "Kiro Response Optimizer",
+  "description": "Monitors all file changes to provide optimized, beneficial responses to Kiro's questions and choices, focusing on app improvement, advanced features, usability, and actionable solutions using best practices",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "src/**/*.py",
+      "backend/**/*.py",
+      "tests/**/*.py",
+      "*.py",
+      "*.md",
+      "*.yaml",
+      "*.yml",
+      "*.txt",
+      "*.json",
+      "config.yaml",
+      "requirements.txt"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "When Kiro asks questions or presents choices, analyze the current codebase context and respond with the most optimized, beneficial solution that: 1) Improves the app's functionality and architecture, 2) Makes it more advanced and easier to use, 3) Provides actionable recommendations, 4) Follows best practices from the tech stack (FastAPI, PyQt6, SQLAlchemy, local AI/ML), 5) Adheres to the modular architecture patterns, 6) Maintains privacy-first principles for medical data, 7) Enhances clinical workflow integration. If the question has no direct code impact, choose the best option using established best practices. Ask clarifying questions only when truly ambiguous."
+  }
+}

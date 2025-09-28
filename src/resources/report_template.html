@@ -5,79 +5,114 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clinical Compliance Report</title>
     <style>
-        body { font-family: sans-serif; margin: 20px; background-color: #f9f9f9; }
-        .container { max-width: 1200px; margin: auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .header, .footer { text-align: center; padding: 10px; color: #555; }
-        .header { border-bottom: 1px solid #eee; }
-        .footer { border-top: 1px solid #eee; font-size: 0.8em; }
-        .summary, .findings, .limitations { margin-bottom: 20px; border: 1px solid #eee; padding: 15px; border-radius: 5px; }
-        .findings table { width: 100%; border-collapse: collapse; }
-        .findings th, .findings td { border: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: top; }
-        .findings th { background-color: #f2f2f2; }
-        .low-confidence { background-color: #fffbe6; }
-        .low-confidence td { color: #8a6d3b; }
-        .disputed { background-color: #f2dede; }
-        .disputed td { color: #a94442; border-color: #ebccd1; }
-        h1, h2 { color: #333; }
-        .habit-name { font-weight: bold; }
-        .habit-explanation { font-size: 0.9em; color: #555; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f8f9fa; line-height: 1.6; }
+        .container { max-width: 1200px; margin: auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header { text-align: center; padding: 20px 0; border-bottom: 2px solid #007bff; margin-bottom: 30px; }
+        .header h1 { color: #007bff; margin: 0; font-size: 2.2em; }
+        .header .subtitle { color: #6c757d; font-size: 1.1em; margin-top: 5px; }
+        .executive-summary { background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; padding: 25px; border-radius: 8px; margin-bottom: 30px; }
+        .executive-summary h2 { margin-top: 0; color: white; }
+        .score-dashboard { display: flex; justify-content: space-around; margin: 20px 0; }
+        .score-item { text-align: center; }
+        .score-value { font-size: 2.5em; font-weight: bold; display: block; }
+        .score-label { font-size: 0.9em; opacity: 0.9; }
+        .findings-section { margin-bottom: 30px; }
+        .findings table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .findings th, .findings td { border: 1px solid #dee2e6; padding: 12px; text-align: left; vertical-align: top; }
+        .findings th { background-color: #f8f9fa; font-weight: 600; color: #495057; }
+        .low-confidence { background-color: #fff3cd; border-left: 4px solid #ffc107; }
+        .disputed { background-color: #f8d7da; border-left: 4px solid #dc3545; }
+        .confidence-indicator { font-size: 0.85em; color: #6c757d; }
+        .ai-transparency { background-color: #e9ecef; padding: 20px; border-radius: 8px; margin: 30px 0; }
+        .regulatory-citations { background-color: #f8f9fa; padding: 20px; border-left: 4px solid #28a745; margin: 20px 0; }
+        .action-planning { background-color: #fff; border: 2px solid #007bff; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .footer { text-align: center; padding: 20px 0; border-top: 1px solid #dee2e6; color: #6c757d; font-size: 0.9em; margin-top: 40px; }
+        h2 { color: #495057; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
+        .habit-name { font-weight: 600; color: #007bff; }
+        .habit-explanation { font-size: 0.9em; color: #6c757d; margin-top: 5px; }
+        .chat-link, .highlight-link { color: #007bff; text-decoration: none; font-weight: 500; }
+        .chat-link:hover, .highlight-link:hover { text-decoration: underline; }
+        @media print { body { background: white; } .container { box-shadow: none; } }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <h1>Clinical Compliance Report</h1>
+        <h1>Clinical Compliance Analysis Report</h1>
+        <div class="subtitle">Medicare & Regulatory Compliance Assessment</div>
     </div>
 
-    <div class="summary">
-        <h2>Analysis Summary</h2>
-        <p><strong>Document:</strong> {{ analysis.document_name }}</p>
-        <p><strong>Analysis Date:</strong> {{ analysis.analysis_date }}</p>
-        <p><strong>Overall Compliance Score:</strong> {{ analysis.compliance_score }}%</p>
-        <p><strong>Total Findings:</strong> {{ analysis.total_findings }}</p>
+    <div class="executive-summary">
+        <h2>Executive Summary Dashboard</h2>
+        <div class="score-dashboard">
+            <div class="score-item">
+                <span class="score-value"><!-- Placeholder for compliance score --></span>
+                <span class="score-label">Overall Compliance Score</span>
+            </div>
+            <div class="score-item">
+                <span class="score-value"><!-- Placeholder for total findings --></span>
+                <span class="score-label">Total Findings</span>
+            </div>
+            <div class="score-item">
+                <span class="score-value"><!-- Placeholder for document name --></span>
+                <span class="score-label">Document Analyzed</span>
+            </div>
+        </div>
+        <p><strong>Analysis Date:</strong> <!-- Placeholder for analysis date --></p>
     </div>
 
-    <div class="findings">
-        <h2>Findings</h2>
-        <table>
+    <div class="findings-section">
+        <h2>Detailed Findings Analysis</h2>
+        <table class="findings">
             <thead>
                 <tr>
-                    <th>Risk/Severity</th>
-                    <th>Problematic Text</th>
-                    <th>Personalized Tip</th>
-                    <th>Habit for Improvement</th>
-                    <th>Actions</th>
+                    <th>Risk Level & Confidence</th>
+                    <th>Evidence from Document</th>
+                    <th>Regulatory Citation</th>
+                    <th>Recommendation</th>
+                    <th>Interactive Actions</th>
                 </tr>
             </thead>
             <tbody>
-                {% for finding in analysis.findings %}
-                <tr class="{{ 'low-confidence' if finding.low_confidence }} {{ 'disputed' if finding.disputed }}">
-                    <td>{{ finding.risk_level }}</td>
-                    <td>{{ finding.problematic_text }}</td>
-                    <td>{{ finding.personalized_tip }}</td>
-                    <td>
-                        <span class="habit-name">{{ finding.habit.name }}</span><br>
-                        <span class="habit-explanation">{{ finding.habit.explanation }}</span>
-                    </td>
-                    <td>
-                        {% if finding.disputable %}
-                        <button>Dispute</button>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
+                <!-- Placeholder for findings rows -->
             </tbody>
         </table>
     </div>
 
-    <div class="limitations">
-        <h2>AI Model Limitations</h2>
-        <p>{{ analysis.limitations_text }}</p>
+    <div class="regulatory-citations">
+        <h2>Regulatory Framework References</h2>
+        <p>This analysis is based on current Medicare guidelines, CMS requirements, and professional therapy standards. All findings reference specific regulatory citations for transparency and verification.</p>
+    </div>
+
+    <div class="action-planning">
+        <h2>Action Planning & Recommendations</h2>
+        <h3>Immediate Actions Required</h3>
+        <ul>
+            <li>Review all high-risk findings marked in red</li>
+            <li>Implement suggested documentation improvements</li>
+            <li>Verify compliance with cited regulations</li>
+        </ul>
+        <h3>Long-term Improvement Strategies</h3>
+        <ul>
+            <li>Establish regular compliance monitoring procedures</li>
+            <li>Provide staff training on identified documentation gaps</li>
+            <li>Implement quality assurance protocols</li>
+        </ul>
+    </div>
+
+    <div class="ai-transparency">
+        <h2>AI Transparency & Ethical Considerations</h2>
+        <!-- Placeholder for model limitations -->
+        <h3>Confidence Indicators</h3>
+        <p>Findings marked with uncertainty indicators should receive additional human review. The AI system flags areas where it has lower confidence in its analysis.</p>
+        <h3>Dispute Mechanism</h3>
+        <p>Users can flag incorrect findings to help improve the AI model. All disputed findings are reviewed and used for continuous model improvement.</p>
     </div>
 
     <div class="footer">
-        <p>Generated on: {{ analysis.generation_date }}</p>
-        <p>This report is auto-generated and should be used for informational purposes only. It is not a substitute for professional clinical or legal judgment.</p>
+        <p><strong>Generated:</strong> <!-- Placeholder for analysis date --></p>
+        <p><strong>Disclaimer:</strong> This AI-generated report is for informational purposes only and does not constitute professional medical, legal, or compliance advice. All findings should be reviewed by qualified healthcare professionals before making clinical or administrative decisions.</p>
+        <p><strong>Privacy Notice:</strong> All patient health information has been automatically redacted using [REDACTED] placeholders to protect privacy.</p>
     </div>
 </div>
 </body>

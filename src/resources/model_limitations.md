@@ -1,16 +1,32 @@
-### AI Model Limitations and Important Disclaimers
+### AI Model Limitations and Clinical Disclaimers
 
-**1. Not a Substitute for Professional Judgment:**
-This tool is designed to assist, not replace, the expertise of a qualified healthcare professional. All findings and suggestions should be critically reviewed by a human expert before any clinical decisions are made.
+**1. Professional Judgment Required:**
+This AI system is designed as a clinical decision support tool, not a replacement for professional healthcare expertise. All findings must be validated by qualified healthcare professionals before implementation. The system cannot account for patient-specific clinical context, provider judgment, or real-time clinical situations.
 
-**2. Potential for Inaccuracies:**
-The AI models used in this application, like all language models, can produce inaccurate, incomplete, or nonsensical information (a phenomenon known as "hallucination"). The analysis should be treated as a preliminary screening, not as a definitive compliance audit.
+**2. Accuracy and Reliability Limitations:**
+AI language models can produce inaccurate, incomplete, or contextually inappropriate information (AI "hallucinations"). This analysis represents a preliminary screening tool and should never be considered a definitive compliance audit. All findings require human verification and clinical correlation.
 
-**3. Inherent Biases:**
-The models were trained on large datasets of text from the internet and specific medical corpora. They may have inherent biases from this training data, which could affect the analysis of documentation related to certain demographics or conditions.
+**3. Training Data Biases:**
+The AI models were trained on large healthcare datasets that may contain inherent biases related to demographics, geographic regions, practice patterns, or historical documentation standards. Users should be aware that analysis may reflect these biases and should apply additional scrutiny to findings involving diverse patient populations.
 
-**4. Scope of Knowledge:**
-The analysis is limited to the specific compliance rules and guidelines that the system has been configured with. It is not aware of all possible local, state, or federal regulations, nor of specific private payer policies.
+**4. Regulatory Scope Limitations:**
+This system is configured with specific Medicare/CMS guidelines and professional therapy standards current as of the training date. It may not reflect:
+- Recent regulatory updates or changes
+- State-specific requirements or local regulations
+- Private payer policies or requirements
+- Facility-specific protocols or standards
+- Emerging best practices or clinical guidelines
 
-**5. Uncertainty:**
-The system does not currently provide a confidence score for its findings. All findings should be treated with the same level of scrutiny, regardless of how they are worded.
+**5. Confidence and Uncertainty Indicators:**
+The system provides confidence indicators for its findings, but these should be interpreted cautiously. Low-confidence findings require additional review, while high-confidence findings still require professional validation. The absence of a confidence indicator does not guarantee accuracy.
+
+**6. Privacy and Security Considerations:**
+While the system includes PHI scrubbing capabilities, users must ensure compliance with HIPAA and other privacy regulations. This tool processes data locally to maintain privacy, but users remain responsible for appropriate data handling and security measures.
+
+**7. Clinical Context Limitations:**
+The AI cannot access or interpret:
+- Patient medical history or comorbidities
+- Clinical reasoning behind documentation decisions
+- Verbal communications or non-documented care
+- Patient-specific circumstances affecting care delivery
+- Provider expertise and clinical judgment factors
