@@ -39,38 +39,34 @@ def main():
         
         # Import GUI components
         from PyQt6.QtWidgets import QApplication
-        from src.gui.main_window import MainApplicationWindow
+        from src.gui.main_window_modern import ModernMainWindow
         
         # Create application
         app = QApplication(sys.argv)
         app.setApplicationName("Therapy Compliance Analyzer")
         
         # Create main window
-        logger.info("Creating main window...")
-        main_win = MainApplicationWindow()
-        
-        # Initialize the base UI first
-        main_win.init_base_ui()
+        logger.info("Creating modern main window...")
+        main_win = ModernMainWindow()
         
         # FORCE the window to show immediately
         main_win.show()
         main_win.raise_()
         main_win.activateWindow()
         
-        logger.info("✅ Window should now be visible!")
+        logger.info("✅ Modern window should now be visible!")
         logger.info(f"Window visible: {main_win.isVisible()}")
         logger.info(f"Window size: {main_win.size().width()}x{main_win.size().height()}")
         
         # Process events to ensure window appears
         app.processEvents()
         
-        # Now load the main UI and AI models in background
-        logger.info("Loading main UI and AI models...")
+        # Start the application with modern loading
+        logger.info("Starting modern application...")
         try:
-            main_win.load_main_ui()
-            main_win.load_ai_models()
+            main_win.start()
         except Exception as e:
-            logger.error(f"Error loading AI: {e}")
+            logger.error(f"Error starting application: {e}")
             # Continue anyway - window should still be visible
         
         logger.info("🎯 Application ready! Window should be visible.")
