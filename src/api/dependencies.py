@@ -1,4 +1,5 @@
 import logging
+from typing import Dict, Any
 
 from ..core.analysis_service import AnalysisService
 from ..core.retriever import HybridRetriever
@@ -7,7 +8,7 @@ from ..core.retriever import HybridRetriever
 logger = logging.getLogger(__name__)
 
 # This dictionary will hold our singleton instances
-app_state = {}
+app_state: Dict[str, Any] = {}
 
 
 def get_analysis_service() -> AnalysisService:

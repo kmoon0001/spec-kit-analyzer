@@ -49,8 +49,8 @@ class PerformanceSettingsDialog(QDialog):
             self.PerformanceProfile = PerformanceProfile
         except ImportError:
             logger.error("Performance manager not available")
-            self.performance_manager = None
-            self.PerformanceProfile = None
+            self.performance_manager = None  # type: ignore
+            self.PerformanceProfile = None  # type: ignore
         
         # Initialize help system
         try:
@@ -58,10 +58,10 @@ class PerformanceSettingsDialog(QDialog):
             self.help_system = help_system
         except ImportError:
             logger.warning("Help system not available")
-            self.help_system = None
+            self.help_system = None  # type: ignore
         
-        self.system_info = {}
-        self.current_settings = {}
+        self.system_info: Dict[str, Any] = {}
+        self.current_settings: Dict[str, Any] = {}
         
         self.setup_ui()
         self.load_current_settings()
@@ -636,7 +636,7 @@ class PerformanceSettingsDialog(QDialog):
             memory_stats = self.performance_manager.get_memory_usage() if self.performance_manager else {}
             
             return {
-                'current_profile': self.current_profile.value if self.current_profile else 'Unknown',
+                'current_profile': self.performance_manager.current_profile.value if self.performance_manager else 'Unknown',
                 'system_memory_percent': memory_stats.get('system_used_percent', 0),
                 'process_memory_mb': memory_stats.get('process_memory_mb', 0),
                 'gpu_available': self.system_info.get('cuda_available', False),

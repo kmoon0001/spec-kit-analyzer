@@ -99,7 +99,7 @@ class PerformanceIntegrationService(QObject):
             'cache_cleanup': False,
             'memory_freed_mb': 0,
             'profile_adjusted': False,
-            'recommendations': []
+            'recommendations': []  # type: ignore
         }
         
         try:

@@ -73,7 +73,7 @@ class AsyncDatabaseService:
             await session.refresh(report)
             
             logger.info(f"Created report {report.id} for document: {document_name}")
-            return report.id
+            return int(report.id)
     
     async def get_reports_with_pagination(self, skip: int = 0, limit: int = 100,
                                         document_type: Optional[str] = None,
@@ -92,7 +92,7 @@ class AsyncDatabaseService:
             result = await session.execute(query)
             reports = result.scalars().all()
             
-            return reports
+            return list(reports)
     
     async def close(self):
         """Close database connections."""
