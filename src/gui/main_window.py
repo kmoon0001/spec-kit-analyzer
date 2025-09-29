@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 import requests
 import urllib.parse
 import webbrowser
@@ -1100,39 +1101,49 @@ QMessageBox QPushButton { min-width: 90px; }
 
 
     def closeEvent(self, event):
-        """Handle application close event with proper cleanup."""
+        """Handle application close event with proper, robust cleanup."""
+        logging.info("Application close event triggered. Starting cleanup...")
+
+        def _cleanup_thread(thread: QThread | None, name: str):
+            """Safely stop a QThread."""
+            if thread and thread.isRunning():
+                logging.info("Stopping thread: %s", name)
+                try:
+                    thread.quit()
+                    if not thread.wait(2000):  # Wait 2 seconds
+                        logging.warning(
+                            "Thread '%s' did not stop gracefully. Terminating.", name
+                        )
+                        thread.terminate()
+                except Exception as e:
+                    logging.error(
+                        "Error while stopping thread %s: %s", name, e, exc_info=True
+                    )
+
+        # --- Cleanup individual components ---
         try:
-            # Clean up performance status widget
-            if hasattr(self, 'performance_status'):
+            if hasattr(self, "performance_status"):
                 self.performance_status.cleanup()
-
-            # Clean up performance integration service
-            try:
-                from src.core.performance_integration import performance_integration
-                performance_integration.cleanup()
-            except ImportError:
-                pass
-
-            # Clean up any running worker threads
-            if self.worker_thread and self.worker_thread.isRunning():
-                self.worker_thread.quit()
-                self.worker_thread.wait(3000)
-
-            if self.ai_loader_thread and self.ai_loader_thread.isRunning():
-                self.ai_loader_thread.quit()
-                self.ai_loader_thread.wait(3000)
-
-            if self.dashboard_thread and self.dashboard_thread.isRunning():
-                self.dashboard_thread.quit()
-                self.dashboard_thread.wait(3000)
-
-            if self.password_worker_thread and self.password_worker_thread.isRunning():
-                self.password_worker_thread.quit()
-                self.password_worker_thread.wait(3000)
-
-            # Accept the close event
-            event.accept()
-
         except Exception as e:
-            print(f"Error during application cleanup: {e}")
-            event.accept()  # Still close even if cleanup fails
+            logging.error(
+                "Error cleaning up performance status widget: %s", e, exc_info=True
+            )
+
+        try:
+            from src.core.performance_integration import performance_integration
+            performance_integration.cleanup()
+        except ImportError:
+            logging.warning("Performance integration module not found, skipping cleanup.")
+        except Exception as e:
+            logging.error(
+                "Error cleaning up performance integration service: %s", e, exc_info=True
+            )
+
+        # --- Cleanup all worker threads ---
+        _cleanup_thread(self.worker_thread, "Analysis")
+        _cleanup_thread(self.ai_loader_thread, "AI Loader")
+        _cleanup_thread(self.dashboard_thread, "Dashboard")
+        _cleanup_thread(self.password_worker_thread, "Password Change")
+
+        logging.info("Cleanup complete. Accepting close event.")
+        event.accept()
