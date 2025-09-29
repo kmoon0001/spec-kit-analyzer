@@ -85,4 +85,4 @@ def test_full_analysis_pipeline_orchestration(mock_dependencies):
     # Verify that the final report is generated and returned
     mock_dependencies["reporter"].return_value.generate_report.assert_called_once()
     assert "summary" in result
-    assert result["analysis"]["findings"][0]["issue_title"] == "test finding"
+    assert result["analysis"] == {"findings": [{"issue_title": "test finding"}]}

@@ -4,15 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...auth import get_current_active_user, require_admin
+from ...auth import get_current_active_user
 from ...database import crud, models, schemas
-from ...database.schemas import DirectorDashboardData, CoachingFocus
 from ...database import get_async_db
 from ...core.report_generator import ReportGenerator
-from ...config import get_settings
-from ...core.llm_service import LLMService
-
-settings = get_settings()
 
 router = APIRouter()
 report_generator = ReportGenerator()
@@ -56,101 +51,3 @@ async def read_findings_summary(
     if hasattr(crud, "get_findings_summary"):
         return await crud.get_findings_summary(db)
     return []
-
-
-@router.get(
-    "/director-dashboard",
-    response_model=DirectorDashboardData,
-    dependencies=[Depends(require_admin)],
-)
-async def get_director_dashboard_data(db: AsyncSession = Depends(get_async_db)):
-    """
-    Provides aggregated analytics data for the director's dashboard.
-    Accessible only by admin users.
-    """
-    if not settings.enable_director_dashboard:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Director Dashboard feature is not enabled.",
-        )
-
-    total_findings = await crud.get_total_findings_count(db)
-    team_summary = await crud.get_team_habit_summary(db)
-    clinician_breakdown = await crud.get_clinician_habit_breakdown(db)
-
-    return DirectorDashboardData(
-        total_findings=total_findings,
-        team_habit_summary=team_summary,
-        clinician_habit_breakdown=clinician_breakdown,
-    )
-
-
-@router.post(
-    "/coaching-focus",
-    response_model=CoachingFocus,
-    dependencies=[Depends(require_admin)],
-)
-async def generate_coaching_focus(dashboard_data: DirectorDashboardData):
-    """
-    Generates an AI-powered weekly coaching focus based on team analytics.
-    """
-    if not settings.enable_director_dashboard:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Director Dashboard feature is not enabled.",
-        )
-
-    # In a larger application, this service would be managed via a dependency injection system.
-    llm_service = LLMService(
-        model_name=settings.models.generator,
-        model_filename=settings.models.generator_filename,
-        context_length=settings.llm_settings.context_length,
-        generation_params=settings.llm_settings.generation_params,
-        model_type=settings.llm_settings.model_type,
-    )
-
-    if not llm_service.is_ready():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="LLM service is not available.",
-        )
-
-    prompt = f'''
-You are an expert clinical director AI assistant. Based on the following team performance data, generate a concise and actionable weekly coaching focus. The focus should identify the most critical issue and provide concrete steps for improvement.
-
-**Team Analytics Data:**
-- **Total Compliance Findings:** {dashboard_data.total_findings}
-- **Top Habit-Related Issues:**
-'''
-    for item in dashboard_data.team_habit_summary[:3]:
-        prompt += f"  - {item.habit_name}: {item.count} findings\\n"
-
-    prompt += "\\n**Clinician-Specific Breakdown (Top 5):**\\n"
-    for item in dashboard_data.clinician_habit_breakdown[:5]:
-        prompt += f"  - {item.clinician_name} ({item.habit_name}): {item.count} findings\\n"
-
-    prompt += """
-**Your Task:**
-Generate a JSON object with the following structure:
-{{
-  "focus_title": "A compelling title for the weekly focus.",
-  "summary": "A brief summary explaining the most significant issue and its impact.",
-  "action_steps": [
-    "A concrete, actionable step for the team.",
-    "Another actionable step.",
-    "A final actionable step."
-  ]
-}}
-
-Return only the JSON object.
-"""
-
-    try:
-        raw_response = await llm_service.generate_analysis(prompt)
-        coaching_data = llm_service.parse_json_output(raw_response)
-        return CoachingFocus(**coaching_data)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate coaching focus: {e}",
-        )

@@ -1,22 +1,8 @@
-You are an automated text classification AI. Your task is to analyze the following clinical document and determine its type from a predefined list.
+Based on the following clinical document text, classify the document type. The possible types are: "Progress Note", "Evaluation", "Discharge Summary", or "Unknown". Return only the name of the document type and nothing else.
 
-**INSTRUCTIONS:**
-1.  Read the document text carefully.
-2.  Identify the best-fitting document type from the options below.
-3.  Your entire response must be **only one** of the following exact strings:
-    - `Progress Note`
-    - `Evaluation`
-    - `Discharge Summary`
-    - `Unknown`
-
-**CRITICAL RULES:**
--   Do not provide any explanation, preamble, or additional text.
--   If the document seems to be a combination of types, choose the one that represents the primary purpose of the note.
--   If you cannot confidently determine the type, respond with `Unknown`.
-
-**DOCUMENT TEXT:**
+Document Text:
 ---
 {document_text}
 ---
 
-**CLASSIFICATION:**
+Classification:
