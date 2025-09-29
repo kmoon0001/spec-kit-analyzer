@@ -1,8 +1,9 @@
 
 import yaml
 from functools import lru_cache
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import List, Dict, Any, Optional
+from pathlib import Path
 
 
 class DatabaseSettings(BaseModel):
@@ -45,6 +46,16 @@ class ModelsSettings(BaseModel):
     doc_classifier_prompt: str
     analysis_prompt_template: str
     nlg_prompt_template: str
+
+    @field_validator(
+        "doc_classifier_prompt", "analysis_prompt_template", "nlg_prompt_template"
+    )
+    @classmethod
+    def check_template_file_exists(cls, v: str) -> str:
+        """Validate that the prompt template file exists."""
+        if not Path(v).is_file():
+            raise ValueError(f"Prompt template file not found at path: {v}")
+        return v
 
 
 class LLMSettings(BaseModel):

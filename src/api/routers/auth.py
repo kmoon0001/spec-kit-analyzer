@@ -34,10 +34,8 @@ async def login_for_access_token(
         )
 
     access_token_expires = timedelta(minutes=auth_service.access_token_expire_minutes)
-    # Add user's role to the token payload
     access_token = auth_service.create_access_token(
-        data={"sub": user.username, "role": user.role},
-        expires_delta=access_token_expires,
+        data={"sub": user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 

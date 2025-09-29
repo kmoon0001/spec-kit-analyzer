@@ -1,4 +1,5 @@
-from typing import List
+from typing import List, Optional
+import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
@@ -63,10 +64,15 @@ async def read_findings_summary(
     response_model=DirectorDashboardData,
     dependencies=[Depends(require_admin)],
 )
-async def get_director_dashboard_data(db: AsyncSession = Depends(get_async_db)):
+async def get_director_dashboard_data(
+    db: AsyncSession = Depends(get_async_db),
+    start_date: Optional[datetime.date] = None,
+    end_date: Optional[datetime.date] = None,
+    discipline: Optional[str] = None,
+):
     """
     Provides aggregated analytics data for the director's dashboard.
-    Accessible only by admin users.
+    Accessible only by admin users and filterable by date and discipline.
     """
     if not settings.enable_director_dashboard:
         raise HTTPException(
@@ -74,9 +80,15 @@ async def get_director_dashboard_data(db: AsyncSession = Depends(get_async_db)):
             detail="Director Dashboard feature is not enabled.",
         )
 
-    total_findings = await crud.get_total_findings_count(db)
-    team_summary = await crud.get_team_habit_summary(db)
-    clinician_breakdown = await crud.get_clinician_habit_breakdown(db)
+    total_findings = await crud.get_total_findings_count(
+        db, start_date=start_date, end_date=end_date, discipline=discipline
+    )
+    team_summary = await crud.get_team_habit_summary(
+        db, start_date=start_date, end_date=end_date, discipline=discipline
+    )
+    clinician_breakdown = await crud.get_clinician_habit_breakdown(
+        db, start_date=start_date, end_date=end_date, discipline=discipline
+    )
 
     return DirectorDashboardData(
         total_findings=total_findings,
@@ -131,12 +143,13 @@ You are an expert clinical director AI assistant. Based on the following team pe
 
     prompt += """
 **Your Task:**
-Generate a JSON object with the following structure:
+Generate a JSON object with the following structure. Infer a likely root cause for the primary issue based on the data.
 {{
   "focus_title": "A compelling title for the weekly focus.",
   "summary": "A brief summary explaining the most significant issue and its impact.",
+  "root_cause": "The inferred root cause of the issue (e.g., 'Lack of familiarity with new guidelines', 'Time management during patient care').",
   "action_steps": [
-    "A concrete, actionable step for the team.",
+    "A concrete, actionable step for the team related to the root cause.",
     "Another actionable step.",
     "A final actionable step."
   ]
@@ -154,3 +167,26 @@ Return only the JSON object.
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate coaching focus: {e}",
         )
+
+
+@router.get(
+    "/habit-trends",
+    response_model=List[schemas.HabitTrendPoint],
+    dependencies=[Depends(require_admin)],
+)
+async def get_habit_trends(
+    db: AsyncSession = Depends(get_async_db),
+    start_date: Optional[datetime.date] = None,
+    end_date: Optional[datetime.date] = None,
+):
+    """
+    Provides data for habit trend analysis over time.
+    """
+    if not settings.enable_director_dashboard:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Director Dashboard feature is not enabled.",
+        )
+    return await crud.get_habit_trend_data(
+        db, start_date=start_date, end_date=end_date
+    )
