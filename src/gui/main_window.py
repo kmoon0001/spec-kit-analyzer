@@ -32,16 +32,17 @@ from PyQt6.QtGui import QTextDocument
 
 # Corrected: Use absolute imports from the src root
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
+from src.gui.dialogs.settings_dialog import SettingsDialog
 from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
-from src.gui.workers.analysis_worker import AnalysisWorker
 from src.gui.workers.folder_analysis_starter_worker import FolderAnalysisStarterWorker
-from src.gui.workers.folder_analysis_worker import FolderAnalysisWorker
 from src.gui.workers.ai_loader_worker import AILoaderWorker
 from src.gui.workers.dashboard_worker import DashboardWorker
 from src.gui.workers.password_change_worker import PasswordChangeWorker
+from src.gui.workers.task_status_worker import TaskStatusWorker
 from src.gui.widgets.dashboard_widget import DashboardWidget
+from src.gui.widgets.director_dashboard_widget import DirectorDashboardWidget
 from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
 from src.gui.dialogs.performance_settings_dialog import PerformanceSettingsDialog
 from src.core.report_generator import ReportGenerator
@@ -127,6 +128,9 @@ class MainApplicationWindow(QMainWindow):
         self.tools_menu = self.menu_bar.addMenu("Tools")
         self.tools_menu.addAction("Manage Rubrics", self.manage_rubrics)
         self.tools_menu.addAction("Performance Settings", self.show_performance_settings)
+        self.tools_menu.addSeparator()
+        self.tools_menu.addAction("Application Settings", self.show_settings_dialog)
+        self.tools_menu.addSeparator()
         self.tools_menu.addAction("Change Password", self.show_change_password_dialog)
         self.theme_menu = self.menu_bar.addMenu("Theme")
         self.theme_menu.addAction("Light", self.set_light_theme)
@@ -183,6 +187,17 @@ class MainApplicationWindow(QMainWindow):
         self.dashboard_widget = DashboardWidget()
         self.tabs.addTab(self.dashboard_widget, "Dashboard")
         self.dashboard_widget.refresh_requested.connect(self.load_dashboard_data)
+
+        if self.is_admin and settings.enable_director_dashboard:
+            self.director_dashboard_widget = DirectorDashboardWidget(
+                self.access_token or ""
+            )
+            self.tabs.addTab(self.director_dashboard_widget, "Director Dashboard")
+            # Connect a signal to load data when the tab is focused or a button is clicked
+            self.director_dashboard_widget.refresh_requested.connect(
+                self.director_dashboard_widget.load_data
+            )
+
         if self.is_admin:
             self.admin_menu = self.menu_bar.addMenu("Admin")
             self.admin_menu.addAction("Open Admin Dashboard", self.open_admin_dashboard)
@@ -475,6 +490,11 @@ class MainApplicationWindow(QMainWindow):
         dialog = RubricManagerDialog(self.access_token, self)
         dialog.exec()
 
+    def show_settings_dialog(self):
+        """Show the general application settings dialog."""
+        dialog = SettingsDialog(self)
+        dialog.exec()
+
     def show_change_password_dialog(self):
         """Handle the password change dialog and process asynchronously."""
         dialog = ChangePasswordDialog(self)
@@ -702,19 +722,19 @@ class MainApplicationWindow(QMainWindow):
         self.worker_thread.finished.connect(self.worker_thread.deleteLater)
         self.worker_thread.start()
 
-    def _start_polling_worker(self, task_id: str) -> None:
+    def _start_status_listener(self, task_id: str) -> None:
+        """Starts a worker to listen for real-time task updates via WebSocket."""
         self._dispose_worker_thread()
         self.worker_thread = QThread()
-        if self._current_folder_path:
-            self.worker = FolderAnalysisWorker(task_id)
-        else:
-            self.worker = AnalysisWorker(task_id)
+        self.worker = TaskStatusWorker(task_id)
         self.worker.moveToThread(self.worker_thread)
-        self.worker_thread.started.connect(self.worker.run)
+
+        self.worker.progress.connect(self.on_analysis_progress)
         self.worker.success.connect(self.on_analysis_success)
         self.worker.error.connect(self.on_analysis_error)
-        self.worker.progress.connect(self.on_analysis_progress)
         self.worker.finished.connect(self._on_analysis_finished)
+
+        self.worker_thread.started.connect(self.worker.run)
         self.worker_thread.finished.connect(self.worker.deleteLater)
         self.worker_thread.finished.connect(self.worker_thread.deleteLater)
         self.worker_thread.start()
@@ -734,7 +754,7 @@ class MainApplicationWindow(QMainWindow):
     def handle_analysis_started(self, task_id: str):
         self._current_task_id = task_id
         self.status_bar.showMessage(f"Analysis in progress... (Task ID: {task_id})")
-        self._start_polling_worker(task_id)
+        self._start_status_listener(task_id)
 
     def on_analysis_progress(self, progress):
         if self.progress_bar.maximum() == 0:
