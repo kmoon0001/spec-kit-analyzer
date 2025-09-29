@@ -6,7 +6,7 @@ from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassificatio
 
 # Conditionally import transformers only when not testing
 if os.environ.get("PYTEST_RUNNING") != "1":
-    from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
+    pass
 
 logger = logging.getLogger(__name__)
 
