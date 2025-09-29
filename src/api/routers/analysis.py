@@ -21,9 +21,12 @@ from ...config import get_settings
 from ...core.services import AnalysisService
 from ..dependencies import get_analysis_service
 from ..task_manager import task_manager, Task
+from ...database import crud, schemas
+from ...database.database import get_async_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analysis", tags=["analysis"])
+
 
 async def run_analysis_in_background(
     task: Task,
@@ -31,10 +34,15 @@ async def run_analysis_in_background(
     discipline: str,
     analysis_mode: str,
     analysis_service: AnalysisService,
+    user_id: int,
+    original_filename: str,
 ):
     """
     Runs the document analysis in a background asyncio task, updating the Task object.
+    Also saves the report to the database.
     """
+    db_session_generator = get_async_db()
+    db = await db_session_generator.__anext__()
     try:
         await task.update_progress(10, "Starting analysis...")
         # The actual analysis call, which might be long-running
@@ -43,13 +51,27 @@ async def run_analysis_in_background(
             discipline=discipline,
             analysis_mode=analysis_mode,
         )
-        await task.set_completed(result)
+        
+        # Save the report to the database
+        report_create = schemas.ReportCreate(
+            document_name=original_filename,
+            # Extract score from analysis, default to 0 if not found
+            compliance_score=result.get("analysis", {}).get("overall_confidence", 0.0) * 100,
+            analysis_result=result.get("analysis", {}),
+        )
+        db_report = await crud.create_report(db=db, report=report_create)
+        logger.info(f"Saved analysis report with ID: {db_report.id}")
+        
+        # Add report_id to the result
+        result_with_report = {**result, "report_id": db_report.id}
+        await task.set_completed(result_with_report)
         logger.info("Analysis task %s completed successfully.", task.task_id)
 
     except Exception as e:
         logger.exception("Analysis task %s failed.", task.task_id)
         await task.set_failed(str(e))
     finally:
+        await db.close()
         # Clean up the temporary file
         Path(file_path).unlink(missing_ok=True)
 
@@ -91,6 +113,8 @@ async def analyze_document(
             discipline=discipline,
             analysis_mode=analysis_mode,
             analysis_service=analysis_service,
+            user_id=current_user.id,
+            original_filename=file.filename,
         )
     )
 

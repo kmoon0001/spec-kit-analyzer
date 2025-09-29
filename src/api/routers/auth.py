@@ -8,7 +8,7 @@ from ...auth import AuthService, get_auth_service, get_current_active_user
 from ...database import crud, models, schemas
 from ...database import get_async_db as get_db
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(tags=["auth"])
 
 
 @router.post("/token", response_model=schemas.Token)
@@ -34,8 +34,10 @@ async def login_for_access_token(
         )
 
     access_token_expires = timedelta(minutes=auth_service.access_token_expire_minutes)
+    # Add user's role to the token payload
     access_token = auth_service.create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": user.username, "role": user.role},
+        expires_delta=access_token_expires,
     )
     return {"access_token": access_token, "token_type": "bearer"}
 

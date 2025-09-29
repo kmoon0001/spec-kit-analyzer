@@ -2,6 +2,7 @@ import logging
 import asyncio
 from typing import Any, Dict, List, Optional
 
+from src.config import get_settings
 from .llm_service import LLMService
 from .nlg_service import NLGService
 from .ner import NERPipeline
@@ -9,9 +10,11 @@ from .explanation import ExplanationEngine
 from .prompt_manager import PromptManager
 from .fact_checker_service import FactCheckerService
 from .hybrid_retriever import HybridRetriever
+from .habit_mapper import get_habit_for_finding
 
 logger = logging.getLogger(__name__)
 CONFIDENCE_THRESHOLD = 0.7
+settings = get_settings()
 
 
 class ComplianceAnalyzer:
@@ -59,6 +62,13 @@ class ComplianceAnalyzer:
             else "No specific entities extracted."
         )
 
+        # Extract the clinician name from the entities
+        clinician_name = "Unknown"
+        for entity in entities:
+            if entity.get("entity_group") == "CLINICIAN":
+                clinician_name = entity.get("word", "Unknown")
+                break  # Use the first clinician found
+
         search_query = f"{discipline} {doc_type} {entity_list_str}"
         retrieved_rules = await self.retriever.retrieve(
             search_query, category_filter=discipline
@@ -85,24 +95,73 @@ class ComplianceAnalyzer:
         )
 
         final_analysis = await self._post_process_findings(
-            explained_analysis, retrieved_rules
+            explained_analysis, retrieved_rules, clinician_name
         )
+        final_analysis["clinician_name"] = clinician_name
         logger.info("Compliance analysis complete.")
         return final_analysis
 
+    @staticmethod
+    def _categorize_finding_into_quadrant(finding: Dict[str, Any], rule: Optional[Dict[str, Any]]) -> str:
+        """
+        Categorizes a finding into an Eisenhower Matrix quadrant based on heuristics.
+        Q1: Urgent & Important (Do)
+        Q2: Not Urgent & Important (Plan)
+        Q3: Urgent & Not Important (Delegate)
+        Q4: Not Urgent & Not Important (Eliminate)
+        """
+        if not rule:
+            return "Q4"
+
+        # Heuristics based on rule content and finding properties
+        rule_text = (rule.get("name", "") + " " + rule.get("content", "")).lower()
+
+        # Importance: derived from severity and critical keywords
+        is_important = False
+        important_keywords = ["billing", "signature", "fraud", "medical necessity", "plan of care", "goals", "safety", "supervision"]
+        if any(kw in rule_text for kw in important_keywords):
+            is_important = True
+        if rule.get("severity", "low").lower() in ["high", "critical"]:
+            is_important = True
+
+        # Urgency: derived from keywords suggesting immediate action is needed
+        is_urgent = False
+        urgent_keywords = ["billing", "signature", "deadline", "date", "timely", "missing"]
+        if any(kw in rule_text for kw in urgent_keywords):
+            is_urgent = True
+
+        # Low-confidence findings are demoted to Q4 as they are less reliable
+        if finding.get("is_low_confidence"):
+            return "Q4"
+
+        # Assign to quadrant based on flags
+        if is_important and is_urgent:
+            return "Q1"
+        if is_important and not is_urgent:
+            return "Q2"
+        if not is_important and is_urgent:
+            return "Q3"
+        # if not is_important and not is_urgent:
+        return "Q4"
+
     async def _post_process_findings(
-        self, explained_analysis: Dict[str, Any], retrieved_rules: List[Dict[str, Any]]
+        self,
+        explained_analysis: Dict[str, Any],
+        retrieved_rules: List[Dict[str, Any]],
+        clinician_name: str,
     ) -> Dict[str, Any]:
         findings = explained_analysis.get("findings")
         if not isinstance(findings, list):
             return explained_analysis
 
         for finding in findings:
+            finding["clinician_name"] = clinician_name
             rule_id = finding.get("rule_id")
             associated_rule = next(
                 (r for r in retrieved_rules if r.get("id") == rule_id), None
             )
 
+            # --- Fact-checking and confidence scoring ---
             if associated_rule and not self.fact_checker_service.is_finding_plausible(
                 finding, associated_rule
             ):
@@ -115,6 +174,13 @@ class ComplianceAnalyzer:
             ):
                 finding["is_low_confidence"] = True
 
+            # --- Add our new quadrant categorization ---
+            finding["quadrant"] = self._categorize_finding_into_quadrant(finding, associated_rule)
+
+            # --- Map finding to a 7 Habits principle ---
+            finding["habit"] = get_habit_for_finding(finding)
+
+            # --- Tip generation ---
             if self.nlg_service:
                 tip = await asyncio.to_thread(
                     self.nlg_service.generate_personalized_tip, finding
@@ -125,6 +191,11 @@ class ComplianceAnalyzer:
                     "personalized_tip",
                     finding.get("suggestion", "Tip generation unavailable."),
                 )
+
+            if settings.enable_habit_coaching:
+                habit = get_habit_for_finding(finding)
+                finding["habit_coaching"] = habit
+                finding["habit_name"] = habit.get("name")
 
         return explained_analysis
 

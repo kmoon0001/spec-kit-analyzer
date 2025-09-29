@@ -59,7 +59,7 @@ async def test_analyze_document_orchestration(compliance_analyzer: ComplianceAna
     compliance_analyzer.prompt_manager.build_prompt.assert_called_once()
     compliance_analyzer.llm_service.generate_analysis.assert_called_once()
     compliance_analyzer.explanation_engine.add_explanations.assert_called_once()
-    assert result == {"findings": []}
+    assert result == {"clinician_name": "Unknown", "findings": []}
 
 
 def test_format_rules_for_prompt():
