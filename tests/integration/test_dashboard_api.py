@@ -83,11 +83,12 @@ async def test_generate_coaching_focus_as_admin(
     mock_llm_service_instance = MagicMock()
     mock_llm_service_instance.is_ready.return_value = True
     mock_llm_service_instance.generate_analysis = AsyncMock(
-        return_value='{"focus_title": "Test Focus", "summary": "Test Summary", "action_steps": ["Step 1"]}'
+            return_value='{"focus_title": "Test Focus", "summary": "Test Summary", "root_cause": "Test Cause", "action_steps": ["Step 1"]}'
     )
     mock_llm_service_instance.parse_json_output.return_value = {
         "focus_title": "Test Focus",
         "summary": "Test Summary",
+            "root_cause": "Test Cause",
         "action_steps": ["Step 1"],
     }
 

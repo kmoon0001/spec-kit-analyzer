@@ -98,49 +98,79 @@ async def create_report(
     return db_report
 
 
-from typing import List, Optional
-from sqlalchemy import select, func, desc
-from sqlalchemy.ext.asyncio import AsyncSession
-import models
-import schemas
-
-# --- Habit Analytics ---
-
-async def get_total_findings_count(db: AsyncSession) -> int:
-    """Returns the total number of findings in the database."""
-    result = await db.execute(select(func.count(models.Finding.id)))
+async def get_total_findings_count(
+    db: AsyncSession,
+    start_date: Optional[datetime.datetime] = None,
+    end_date: Optional[datetime.datetime] = None,
+    discipline: Optional[str] = None,
+) -> int:
+    """Returns the total number of findings in the database within a date range, optionally filtered by discipline."""
+    query = select(func.count(models.Finding.id)).join(models.Report)
+    if start_date:
+        query = query.filter(models.Report.analysis_date >= start_date)
+    if end_date:
+        query = query.filter(models.Report.analysis_date <= end_date)
+    if discipline:
+        query = query.filter(models.Report.analysis_result["discipline"].astext == discipline)
+    result = await db.execute(query)
     return result.scalar_one_or_none() or 0
 
-async def get_team_habit_summary(db: AsyncSession) -> List[schemas.TeamHabitAnalytics]:
-    """Returns a summary of findings per habit for the entire team."""
+
+async def get_team_habit_summary(
+    db: AsyncSession,
+    start_date: Optional[datetime.datetime] = None,
+    end_date: Optional[datetime.datetime] = None,
+    discipline: Optional[str] = None,
+) -> List[schemas.TeamHabitAnalytics]:
+    """Returns a summary of findings per habit for the entire team within a date range."""
     query = (
         select(
             models.Finding.habit_name,
             func.count(models.Finding.id).label("count"),
         )
+        .join(models.Report)
         .group_by(models.Finding.habit_name)
         .order_by(desc("count"))
         .filter(models.Finding.habit_name.isnot(None))
     )
+    if start_date:
+        query = query.filter(models.Report.analysis_date >= start_date)
+    if end_date:
+        query = query.filter(models.Report.analysis_date <= end_date)
+    if discipline:
+        query = query.filter(models.Report.analysis_result["discipline"].astext == discipline)
     result = await db.execute(query)
     return [
         schemas.TeamHabitAnalytics(habit_name=row.habit_name, count=row.count)
         for row in result.all()
     ]
 
-async def get_clinician_habit_breakdown(db: AsyncSession) -> List[schemas.ClinicianHabitAnalytics]:
-    """Returns a detailed breakdown of findings per habit for each clinician."""
+
+async def get_clinician_habit_breakdown(
+    db: AsyncSession,
+    start_date: Optional[datetime.datetime] = None,
+    end_date: Optional[datetime.datetime] = None,
+    discipline: Optional[str] = None,
+) -> List[schemas.ClinicianHabitAnalytics]:
+    """Returns a detailed breakdown of findings per habit for each clinician within a date range."""
     query = (
         select(
             models.Finding.clinician_name,
             models.Finding.habit_name,
             func.count(models.Finding.id).label("count"),
         )
+        .join(models.Report)
         .group_by(models.Finding.clinician_name, models.Finding.habit_name)
         .order_by(models.Finding.clinician_name, desc("count"))
         .filter(models.Finding.clinician_name.isnot(None))
         .filter(models.Finding.habit_name.isnot(None))
     )
+    if start_date:
+        query = query.filter(models.Report.analysis_date >= start_date)
+    if end_date:
+        query = query.filter(models.Report.analysis_date <= end_date)
+    if discipline:
+        query = query.filter(models.Report.analysis_result["discipline"].astext == discipline)
     result = await db.execute(query)
     return [
         schemas.ClinicianHabitAnalytics(
@@ -152,55 +182,36 @@ async def get_clinician_habit_breakdown(db: AsyncSession) -> List[schemas.Clinic
     ]
 
 
-# --- CRUD for Collaborative Review Mode ---
-
-async def create_review(db: AsyncSession, report_id: int, author_id: int) -> models.Review:
-    """Creates a new review request for a report."""
-    db_review = models.Review(report_id=report_id, author_id=author_id, status="pending")
-    db.add(db_review)
-    await db.commit()
-    await db.refresh(db_review)
-    return db_review
-
-async def get_review(db: AsyncSession, review_id: int) -> Optional[models.Review]:
-    """Gets a single review by its ID."""
-    result = await db.execute(
-        select(models.Review).filter(models.Review.id == review_id)
+async def get_habit_trend_data(
+    db: AsyncSession,
+    start_date: Optional[datetime.datetime] = None,
+    end_date: Optional[datetime.datetime] = None,
+) -> List[schemas.HabitTrendPoint]:
+    """Returns data points for habit trends over time."""
+    query = (
+        select(
+            func.date(models.Report.analysis_date).label("date"),
+            models.Finding.habit_name,
+            func.count(models.Finding.id).label("count"),
+        )
+        .join(models.Report)
+        .group_by("date", models.Finding.habit_name)
+        .order_by("date")
+        .filter(models.Finding.habit_name.isnot(None))
     )
-    return result.scalars().first()
+    if start_date:
+        query = query.filter(models.Report.analysis_date >= start_date)
+    if end_date:
+        query = query.filter(models.Report.analysis_date <= end_date)
 
-async def get_pending_reviews(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[models.Review]:
-    """Gets a list of all reviews with a 'pending' status."""
-    result = await db.execute(
-        select(models.Review)
-        .filter(models.Review.status == "pending")
-        .order_by(models.Review.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-    )
-    return result.scalars().all()
+    result = await db.execute(query)
+    return [
+        schemas.HabitTrendPoint(
+            date=row.date, habit_name=row.habit_name, count=row.count
+        )
+        for row in result.all()
+    ]
 
-async def add_comment_to_review(db: AsyncSession, review_id: int, commenter_id: int, content: str) -> models.Comment:
-    """Adds a new comment to a review."""
-    db_comment = models.Comment(
-        review_id=review_id,
-        commenter_id=commenter_id,
-        content=content,
-    )
-    db.add(db_comment)
-    await db.commit()
-    await db.refresh(db_comment)
-    return db_comment
-
-async def update_review_status(db: AsyncSession, review_id: int, new_status: str, reviewer_id: int) -> Optional[models.Review]:
-    """Updates the status of a review and assigns the reviewer."""
-    db_review = await get_review(db, review_id)
-    if db_review:
-        db_review.status = new_status
-        db_review.reviewer_id = reviewer_id
-        await db.commit()
-        await db.refresh(db_review)
-    return db_review
 
 async def get_report(db: AsyncSession, report_id: int) -> Optional[models.Report]:
     result = await db.execute(
