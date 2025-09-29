@@ -12,8 +12,9 @@ project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, project_root)
 
 # 3. Now that the path is correct, we can import and run the application.
-from PyQt6.QtWidgets import QApplication  # noqa: E402
-from src.gui.main_window import MainApplicationWindow  # noqa: E402
+from PyQt6.QtWidgets import QApplication
+from src.gui.main_window import MainApplicationWindow
+from src.gui.exception_hook import install_exception_hook
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +40,7 @@ if __name__ == "__main__":
         logger.warning(f"Database setup issue (continuing anyway): {e}")
 
     logger.info("Starting GUI application...")
+    install_exception_hook()
     app = QApplication(sys.argv)
     main_win = MainApplicationWindow()
     # Start the application logic (loading models, showing login) after the window is created.

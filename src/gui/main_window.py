@@ -34,12 +34,11 @@ from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
 from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
-from src.gui.workers.analysis_worker import AnalysisWorker
 from src.gui.workers.folder_analysis_starter_worker import FolderAnalysisStarterWorker
-from src.gui.workers.folder_analysis_worker import FolderAnalysisWorker
 from src.gui.workers.ai_loader_worker import AILoaderWorker
 from src.gui.workers.dashboard_worker import DashboardWorker
 from src.gui.workers.password_change_worker import PasswordChangeWorker
+from src.gui.workers.task_status_worker import TaskStatusWorker
 from src.gui.widgets.dashboard_widget import DashboardWidget
 from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
 from src.gui.dialogs.performance_settings_dialog import PerformanceSettingsDialog
@@ -707,19 +706,19 @@ class MainApplicationWindow(QMainWindow):
         self.worker_thread.finished.connect(self.worker_thread.deleteLater)
         self.worker_thread.start()
 
-    def _start_polling_worker(self, task_id: str) -> None:
+    def _start_status_listener(self, task_id: str) -> None:
+        """Starts a worker to listen for real-time task updates via WebSocket."""
         self._dispose_worker_thread()
         self.worker_thread = QThread()
-        if self._current_folder_path:
-            self.worker = FolderAnalysisWorker(task_id)
-        else:
-            self.worker = AnalysisWorker(task_id)
+        self.worker = TaskStatusWorker(task_id)
         self.worker.moveToThread(self.worker_thread)
-        self.worker_thread.started.connect(self.worker.run)
+
+        self.worker.progress.connect(self.on_analysis_progress)
         self.worker.success.connect(self.on_analysis_success)
         self.worker.error.connect(self.on_analysis_error)
-        self.worker.progress.connect(self.on_analysis_progress)
         self.worker.finished.connect(self._on_analysis_finished)
+
+        self.worker_thread.started.connect(self.worker.run)
         self.worker_thread.finished.connect(self.worker.deleteLater)
         self.worker_thread.finished.connect(self.worker_thread.deleteLater)
         self.worker_thread.start()
@@ -739,7 +738,7 @@ class MainApplicationWindow(QMainWindow):
     def handle_analysis_started(self, task_id: str):
         self._current_task_id = task_id
         self.status_bar.showMessage(f"Analysis in progress... (Task ID: {task_id})")
-        self._start_polling_worker(task_id)
+        self._start_status_listener(task_id)
 
     def on_analysis_progress(self, progress):
         if self.progress_bar.maximum() == 0:

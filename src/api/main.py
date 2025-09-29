@@ -9,7 +9,7 @@ import shutil
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -17,6 +17,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from .dependencies import startup_event as api_startup, shutdown_event as api_shutdown
 from .routers import auth, analysis, dashboard, admin, health, chat, compliance
+from .error_handling import http_exception_handler
 from ..core.database_maintenance_service import DatabaseMaintenanceService
 from ..config import get_settings
 
@@ -90,6 +91,7 @@ app = FastAPI(
 # --- Middleware and Exception Handlers ---
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
 
 # --- Routers ---
 app.include_router(health.router, tags=["Health"])
