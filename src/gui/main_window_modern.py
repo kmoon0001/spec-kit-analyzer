@@ -2,35 +2,18 @@
 Modern Main Window - Redesigned with medical theme and your exact layout specifications.
 """
 import os
-import requests
-import urllib.parse
-import webbrowser
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QMainWindow, QStatusBar,
-    QMenuBar, QFileDialog, QSplitter, QTextEdit, QLabel, QGroupBox,
-    QProgressBar, QPushButton, QTabWidget, QTextBrowser, QComboBox,
-    QListWidget, QListWidgetItem, QFrame, QScrollArea, QGridLayout,
-    QSizePolicy, QSpacerItem
+    QMenuBar, QFileDialog, QTextEdit, QLabel, QProgressBar, QTextBrowser, QComboBox
 )
-from PyQt6.QtCore import Qt, QThread, QUrl, QTimer, pyqtSignal
-from PyQt6.QtGui import QTextDocument, QFont, QIcon, QPixmap
+from PyQt6.QtCore import QThread
 
 # Import our new modern components
-from .widgets.modern_card import ModernCard, ComplianceCard
+from .widgets.modern_card import ModernCard
 from .widgets.medical_theme import medical_theme
-from .widgets.responsive_layout import ResponsiveWidget, VirtualScrollArea
+from .widgets.responsive_layout import ResponsiveWidget
 from .widgets.micro_interactions import AnimatedButton, FadeInWidget, LoadingSpinner
-
-# Import existing components
-from .dialogs.rubric_manager_dialog import RubricManagerDialog
-from .dialogs.change_password_dialog import ChangePasswordDialog
-from .dialogs.chat_dialog import ChatDialog
-from .dialogs.performance_settings_dialog import PerformanceSettingsDialog
 from .workers.analysis_starter_worker import AnalysisStarterWorker
-from .workers.analysis_worker import AnalysisWorker
-from .workers.ai_loader_worker import AILoaderWorker
-from .workers.dashboard_worker import DashboardWorker
-from .widgets.dashboard_widget import DashboardWidget
 from .widgets.performance_status_widget import PerformanceStatusWidget
 from ..config import get_settings
 
@@ -416,7 +399,8 @@ class ModernMainWindow(QMainWindow):
         chat_widget.add_content(chat_content)
         return chat_widget
 
-    def adapt_layout(self, breakpoint: str):
+    @staticmethod
+    def adapt_layout(breakpoint: str):
         """Adapt layout based on screen size."""
         if breakpoint == 'mobile':
             # Stack elements vertically on mobile
@@ -545,14 +529,14 @@ class ModernMainWindow(QMainWindow):
         """)
 
     # Placeholder methods for existing functionality
-    def logout(self): pass
-    def manage_rubrics(self): pass
-    def show_performance_settings(self): pass
-    def show_change_password_dialog(self): pass
-    def show_compliance_guide(self): pass
-    def clear_display(self): pass
-    def handle_anchor_click(self, url): pass
-    def handle_analysis_started(self, task_id): pass
-    def on_analysis_error(self, error): pass
-    def load_ai_models(self): pass
-    def load_dashboard_data(self): pass
+    def logout(self): raise NotImplementedError()
+    def manage_rubrics(self): raise NotImplementedError()
+    def show_performance_settings(self): raise NotImplementedError()
+    def show_change_password_dialog(self): raise NotImplementedError()
+    def show_compliance_guide(self): raise NotImplementedError()
+    def clear_display(self): raise NotImplementedError()
+    def handle_anchor_click(self, url): raise NotImplementedError()
+    def handle_analysis_started(self, task_id): raise NotImplementedError()
+    def on_analysis_error(self, error): raise NotImplementedError()
+    def load_ai_models(self): raise NotImplementedError()
+    def load_dashboard_data(self): raise NotImplementedError()
