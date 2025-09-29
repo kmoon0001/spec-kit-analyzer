@@ -15,6 +15,7 @@ from .workers.analysis_worker import AnalysisWorker
 from .dialogs.rubric_manager_dialog import RubricManagerDialog
 from .dialogs.performance_settings_dialog import PerformanceSettingsDialog
 from .dialogs.help_dialog import HelpDialog
+from .dialogs.info_dialogs import SystemInfoDialog, FeaturesDialog, RequirementsDialog
 
 # Add project root to path for imports
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -253,7 +254,7 @@ class ModernMainWindow(QMainWindow):
         # Apply PyCharm gray with medical accents
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #2d3748; /* Dark Slate Gray */
+                background-color: #3c3f41; /* Jules Gray */
                 color: #bbbbbb;
             }
             QFrame#SectionFrame {
@@ -329,13 +330,17 @@ class ModernMainWindow(QMainWindow):
 
         # Help menu
         help_menu = menubar.addMenu("❓ Help")
-        help_action = QAction("📖 View Help", self)
+        help_action = QAction("📖 Tutorial", self)
         help_action.setShortcut(QKeySequence("F1"))
         help_action.triggered.connect(self.show_help_dialog)
         help_menu.addAction(help_action)
 
         # Info Menu
         info_menu = menubar.addMenu("ℹ️ Info")
+        info_menu.addAction("💻 System Information", self.show_system_info)
+        info_menu.addAction("🚀 Technology & Features", self.show_features)
+        info_menu.addAction("📋 System Requirements", self.show_requirements)
+        info_menu.addSeparator()
         moonie_action = QAction("Moonie 🫶", self)
         moonie_action.triggered.connect(self.show_moonie_egg)
         info_menu.addAction(moonie_action)
@@ -1208,6 +1213,21 @@ class ModernMainWindow(QMainWindow):
     def show_help_dialog(self):
         """Show the help dialog."""
         dialog = HelpDialog(self)
+        dialog.exec()
+
+    def show_system_info(self):
+        """Show the system info dialog."""
+        dialog = SystemInfoDialog(self)
+        dialog.exec()
+
+    def show_features(self):
+        """Show the features dialog."""
+        dialog = FeaturesDialog(self)
+        dialog.exec()
+
+    def show_requirements(self):
+        """Show the requirements dialog."""
+        dialog = RequirementsDialog(self)
         dialog.exec()
 
     def show_moonie_egg(self):

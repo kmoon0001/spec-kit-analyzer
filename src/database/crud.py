@@ -98,57 +98,6 @@ async def create_report(
     return db_report
 
 
-# --- CRUD for Collaborative Review Mode ---
-
-async def create_review(db: AsyncSession, report_id: int, author_id: int) -> models.Review:
-    """Creates a new review request for a report."""
-    db_review = models.Review(report_id=report_id, author_id=author_id, status="pending")
-    db.add(db_review)
-    await db.commit()
-    await db.refresh(db_review)
-    return db_review
-
-async def get_review(db: AsyncSession, review_id: int) -> Optional[models.Review]:
-    """Gets a single review by its ID."""
-    result = await db.execute(
-        select(models.Review).filter(models.Review.id == review_id)
-    )
-    return result.scalars().first()
-
-async def get_pending_reviews(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[models.Review]:
-    """Gets a list of all reviews with a 'pending' status."""
-    result = await db.execute(
-        select(models.Review)
-        .filter(models.Review.status == "pending")
-        .order_by(models.Review.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-    )
-    return result.scalars().all()
-
-async def add_comment_to_review(db: AsyncSession, review_id: int, commenter_id: int, content: str) -> models.Comment:
-    """Adds a new comment to a review."""
-    db_comment = models.Comment(
-        review_id=review_id,
-        commenter_id=commenter_id,
-        content=content,
-    )
-    db.add(db_comment)
-    await db.commit()
-    await db.refresh(db_comment)
-    return db_comment
-
-async def update_review_status(db: AsyncSession, review_id: int, new_status: str, reviewer_id: int) -> Optional[models.Review]:
-    """Updates the status of a review and assigns the reviewer."""
-    db_review = await get_review(db, review_id)
-    if db_review:
-        db_review.status = new_status
-        db_review.reviewer_id = reviewer_id
-        await db.commit()
-        await db.refresh(db_review)
-    return db_review
-
-
 async def get_report(db: AsyncSession, report_id: int) -> Optional[models.Report]:
     result = await db.execute(
         select(models.Report).filter(models.Report.id == report_id)

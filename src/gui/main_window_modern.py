@@ -3,58 +3,37 @@ Polished Modern Main Window - Your exact layout specification with all enhanceme
 """
 import os
 import sys
-import requests
-import urllib.parse
-import webbrowser
-import jwt
-
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QMainWindow, QStatusBar,
     QMenuBar, QFileDialog, QTextEdit, QLabel, QPushButton, QComboBox,
     QFrame, QProgressBar, QMessageBox, QSplitter, QDialog, QTextBrowser
 )
-import os
-import sys
-import requests
-import urllib.parse
-import webbrowser
-import jwt
-
-from PyQt6.QtCore import Qt, QThread, QUrl, QTimer, pyqtSignal
-from PyQt6.QtGui import QTextDocument, QFont, QKeySequence, QAction, QIcon, QPixmap
-
-# Import new modern components
-from .widgets.modern_card import ModernCard, ComplianceCard
-from .widgets.medical_theme import medical_theme
-from .widgets.quadrant_widget import QuadrantWidget
-from .widgets.responsive_layout import ResponsiveWidget, VirtualScrollArea
-from .widgets.micro_interactions import AnimatedButton, FadeInWidget, LoadingSpinner
-
-# Import existing components
+from PyQt6.QtCore import Qt, QThread
+from PyQt6.QtGui import QFont, QKeySequence, QAction
 from .widgets.chat_input import ChatInput
-
+from .workers.analysis_worker import AnalysisWorker
 from .dialogs.rubric_manager_dialog import RubricManagerDialog
 from .dialogs.performance_settings_dialog import PerformanceSettingsDialog
 from .dialogs.help_dialog import HelpDialog
-from .dialogs.synergy_session_dialog import SynergySessionDialog
-from .dialogs.review_dashboard_dialog import ReviewDashboardDialog
-
-from .workers.analysis_starter_worker import AnalysisStarterWorker
-from .workers.analysis_worker import AnalysisWorker
-from .workers.ai_loader_worker import AILoaderWorker
-from .workers.dashboard_worker import DashboardWorker
-from .workers.review_worker import ReviewRequestWorker
-
-from .widgets.dashboard_widget import DashboardWidget
-from .widgets.performance_status_widget import PerformanceStatusWidget
-
-from ..config import get_settings
 
 # Add project root to path for imports
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+class DocumentPreviewDialog(QDialog):
+    """Popup dialog for document preview."""
+
+    def __init__(self, document_content: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("📖 Document Preview")
+        self.setGeometry(200, 200, 800, 600)
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #f0f8ff;
+                color: black;
+            }
+        """)
 
         layout = QVBoxLayout(self)
 
@@ -127,53 +106,6 @@ class ReportViewDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
-import os
-import sys
-import requests
-import urllib.parse
-import webbrowser
-import jwt
-
-from PyQt6.QtCore import Qt, QThread, QUrl, QTimer, pyqtSignal
-from PyQt6.QtGui import QTextDocument, QFont, QKeySequence, QAction, QIcon, QPixmap
-from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QTextBrowser, QDialog
-)
-
-# Example Main Window Class
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.access_token = None
-        self.username = None
-        self.user_role = "therapist"  # Default role
-        self.is_admin = False
-        self._current_file_path = None
-        self._current_folder_path = None
-        self._current_report_id = None  # To store the ID of the latest report
-        self.compliance_service = None
-        self.worker_thread = None
-        self.worker = None
-
-        self.setWindowTitle("Therapy Compliance Analyzer")
-        self.setGeometry(100, 100, 1000, 700)
-
-        # Main UI setup can go here...
-
-    def show_report(self, report_content: str):
-        dialog = ReportViewDialog(report_content, parent=self)
-        dialog.exec()
-
-# Dialog class for Detailed Compliance Report Display
-class ReportViewDialog(QDialog):
-    def __init__(self, report_content: str, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("📋 Detailed Compliance Analysis Report")
-        self.setGeometry(200, 200, 800, 600)
-
-        layout = QVBoxLayout()
-
         # Header
         header = QLabel("📋 Detailed Compliance Analysis Report")
         header.setStyleSheet("""
@@ -226,30 +158,6 @@ class ReportViewDialog(QDialog):
                 border: 2px solid #63a4ff;
             }
         """)
-        button_layout.addWidget(export_btn)
-
-        # Close button
-        close_btn = QPushButton("Close")
-        close_btn.clicked.connect(self.close)
-        button_layout.addWidget(close_btn)
-
-        layout.addLayout(button_layout)
-
-        self.setLayout(layout)
-
-    def export_report(self):
-        # Example export functionality (save html report to file)
-        from PyQt6.QtWidgets import QFileDialog, QMessageBox
-
-        filename, _ = QFileDialog.getSaveFileName(self, "Save Report", "", "HTML Files (*.html);;All Files (*)")
-        if filename:
-            try:
-                with open(filename, "w", encoding="utf-8") as f:
-                    f.write(self.report_display.toHtml())
-                QMessageBox.information(self, "Export Successful", f"Report saved to {filename}")
-            except Exception as e:
-                QMessageBox.warning(self, "Export Failed", f"Could not save report: {str(e)}")
-
 
         # Close button
         close_btn = QPushButton("✖️ Close Report")
@@ -285,18 +193,6 @@ class ReportViewDialog(QDialog):
             "HTML Files (*.html);;PDF Files (*.pdf);;All Files (*)"
         )
 
-from PyQt6.QtWidgets import (
-    QFrame, QLabel, QVBoxLayout, QHBoxLayout, QWidget,
-    QMessageBox, QFileDialog, QMainWindow
-)
-from PyQt6.QtGui import QFont
-import jwt
-
-class ReportViewDialog(QDialog):
-    # ... existing __init__ and other methods ...
-
-    def export_report(self):
-        file_name, _ = QFileDialog.getSaveFileName(self, "Save Report", "", "HTML Files (*.html);;All Files (*)")
         if file_name:
             try:
                 with open(file_name, 'w', encoding='utf-8') as f:
@@ -324,7 +220,7 @@ class SectionFrame(QFrame):
             layout.addWidget(title_label)
 
         self.content_layout = QVBoxLayout()
-        self.content_layout.setContentsMargins(0, 0, 0, 0)
+        self.content_layout.setContentsMargins(0,0,0,0)
         layout.addLayout(self.content_layout)
 
     def add_content(self, widget: QWidget):
@@ -333,28 +229,6 @@ class SectionFrame(QFrame):
 
     def add_layout(self, layout: QHBoxLayout):
         self.content_layout.addLayout(layout)
-
-class MainWindow(QMainWindow):
-    # ... existing __init__ and other methods ...
-
-    def set_user_session(self, access_token: str):
-        """Sets the user's session token and decodes it to get role information."""
-        self.access_token = access_token
-        try:
-            decoded_token = jwt.decode(access_token, options={"verify_signature": False})
-            self.user_role = decoded_token.get("role", "therapist")
-            self.username = decoded_token.get("sub", "Unknown User")
-        except jwt.PyJWTError:
-            self.user_role = "therapist"  # Default on error
-            self.username = "Unknown User"
-
-        self.setup_menu_bar()
-
-    def start(self):
-        """Start the application with modern loading experience."""
-        self.load_ai_models()
-        self.load_main_ui()
-        self.show()
 
 
 class ModernMainWindow(QMainWindow):
@@ -422,77 +296,32 @@ class ModernMainWindow(QMainWindow):
         print("✅ Working UI created successfully!")
 
     def setup_menu_bar(self):
-from PyQt6.QtWidgets import (
-    QFrame, QLabel, QVBoxLayout, QHBoxLayout, QWidget,
-    QMessageBox, QFileDialog, QMainWindow
-)
-from PyQt6.QtGui import QFont
-import jwt
+        """Setup menu bar with keyboard shortcuts."""
+        menubar = self.menuBar()
 
-class ReportViewDialog(QDialog):
-    # ... existing __init__ and other methods ...
+        # File menu
+        file_menu = menubar.addMenu("📁 File")
 
-    def export_report(self):
-        file_name, _ = QFileDialog.getSaveFileName(self, "Save Report", "", "HTML Files (*.html);;All Files (*)")
-        if file_name:
-            try:
-                with open(file_name, 'w', encoding='utf-8') as f:
-                    f.write(self.report_display.toHtml())
-                QMessageBox.information(self, "Export Success", f"✅ Report exported to:\n{file_name}")
-            except Exception as e:
-                QMessageBox.warning(self, "Export Error", f"❌ Could not export report:\n{e}")
+        upload_action = QAction("📤 Upload Document", self)
+        upload_action.setShortcut(QKeySequence("Ctrl+O"))
+        upload_action.triggered.connect(self.open_file_dialog)
+        file_menu.addAction(upload_action)
 
-class SectionFrame(QFrame):
-    """A QFrame with a subtle border for a sophisticated look."""
-    def __init__(self, title: str = "", parent=None):
-        super().__init__(parent)
-        self.setObjectName("SectionFrame")
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(6)
+        file_menu.addSeparator()
 
-        if title:
-            title_label = QLabel(title)
-            title_font = QFont()
-            title_font.setPointSize(11)
-            title_font.setBold(True)
-            title_label.setFont(title_font)
-            title_label.setStyleSheet("color: #4a90e2; margin-bottom: 4px; border: none;")
-            layout.addWidget(title_label)
+        logout_action = QAction("🚪 Logout", self)
+        logout_action.triggered.connect(self.logout)
+        file_menu.addAction(logout_action)
 
-        self.content_layout = QVBoxLayout()
-        self.content_layout.setContentsMargins(0, 0, 0, 0)
-        layout.addLayout(self.content_layout)
+        exit_action = QAction("❌ Exit", self)
+        exit_action.setShortcut(QKeySequence("Ctrl+Q"))
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
 
-    def add_content(self, widget: QWidget):
-        """Adds a widget to the content area of the frame."""
-        self.content_layout.addWidget(widget)
-
-    def add_layout(self, layout: QHBoxLayout):
-        self.content_layout.addLayout(layout)
-
-class MainWindow(QMainWindow):
-    # ... existing __init__ and other methods ...
-
-    def set_user_session(self, access_token: str):
-        """Sets the user's session token and decodes it to get role information."""
-        self.access_token = access_token
-        try:
-            decoded_token = jwt.decode(access_token, options={"verify_signature": False})
-            self.user_role = decoded_token.get("role", "therapist")
-            self.username = decoded_token.get("sub", "Unknown User")
-        except jwt.PyJWTError:
-            self.user_role = "therapist"  # Default on error
-            self.username = "Unknown User"
-
-        self.setup_menu_bar()
-
-    def start(self):
-        """Start the application with modern loading experience."""
-        self.load_ai_models()
-        self.load_main_ui()
-        self.show()
-
+        # Tools menu
+        tools_menu = menubar.addMenu("🔧 Tools")
+        tools_menu.addAction("📋 Manage Rubrics", self.manage_rubrics)
+        tools_menu.addAction("⚡ Performance Settings", self.show_performance_settings)
 
         # View menu
         view_menu = menubar.addMenu("👁️ View")
@@ -544,20 +373,9 @@ class MainWindow(QMainWindow):
         top_section = self.create_top_section()
         main_layout.addWidget(top_section)
 
-# In your main window's UI setup method, e.g. init_ui or similar
-
-# PROGRESS BAR SECTION
-self.progress_section = self.create_progress_section()
-main_layout.addWidget(self.progress_section)
-
-# LANGUAGE SCORE SECTION
-self.language_score_section = self.create_language_score_section()
-main_layout.addWidget(self.language_score_section)
-
-# MAIN CONTENT SECTION (AI Chat/Results)
-main_content = self.create_main_content_section()
-main_layout.addWidget(main_content, 1)  # Give stretch factor 1 for growability
-
+        # PROGRESS SECTION: Thin static progress bar
+        progress_section = self.create_progress_section()
+        main_layout.addWidget(progress_section)
 
         # CONTROL BUTTONS: Run Analysis, Document Preview, Stop, Analytics
         control_buttons = self.create_control_buttons()
@@ -717,56 +535,22 @@ main_layout.addWidget(main_content, 1)  # Give stretch factor 1 for growability
             }
         """)
 
-from PyQt6.QtWidgets import (
-    QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel, QTextEdit,
-    QProgressBar, QMessageBox
-)
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+        layout.addWidget(self.progress_label)
+        layout.addWidget(self.main_progress_bar)
 
-class ComplianceAnalyzerMainWindow(QMainWindow):
-    def create_progress_section(self) -> QWidget:
-        """Create a progress bar section with label, loading spinner, and control buttons."""
-        progress_widget = QWidget()
-        progress_layout = QHBoxLayout(progress_widget)
-        progress_layout.setContentsMargins(0, 6, 0, 6)
-        progress_layout.setSpacing(12)
+        return container
 
-        # Progress bar container with label and thin progress bar
-        progress_container = QWidget()
-        progress_container_layout = QVBoxLayout(progress_container)
-        progress_container_layout.setContentsMargins(0, 0, 0, 0)
-        progress_container_layout.setSpacing(4)
+    def create_control_buttons(self) -> QWidget:
+        """Create control buttons section under progress bar."""
+        container = QWidget()
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(0, 8, 0, 8)
+        layout.setSpacing(12)
 
-        self.progress_label = QLabel("Ready to analyze")
-        self.progress_label.setStyleSheet("color: #bbbbbb; font-size: 11px;")
-        self.main_progress_bar = QProgressBar()
-        self.main_progress_bar.setFixedHeight(8)
-        self.main_progress_bar.setValue(0)
-        self.main_progress_bar.setStyleSheet("""
-            QProgressBar {
-                border: 1px solid #4a90e2;
-                border-radius: 4px;
-                text-align: center;
-                background-color: #2b2b2b;
-            }
-            QProgressBar::chunk {
-                background-color: #28a745;
-                border-radius: 3px;
-            }
-        """)
-
-        progress_container_layout.addWidget(self.progress_label)
-        progress_container_layout.addWidget(self.main_progress_bar)
-
-        # Loading spinner (custom widget, assume implemented elsewhere)
-        self.loading_spinner = LoadingSpinner(24)
-        self.loading_spinner.setVisible(False)
-
-        # Control buttons
+        # Run Analysis button
         self.run_analysis_button = QPushButton("🚀 Run Analysis")
         self.run_analysis_button.clicked.connect(self.run_analysis)
-        self.run_analysis_button.setEnabled(False)  # Initially disabled until document uploaded or settings valid
+        self.run_analysis_button.setEnabled(False)
         self.run_analysis_button.setStyleSheet("""
             QPushButton {
                 background-color: #28a745;
@@ -787,95 +571,6 @@ class ComplianceAnalyzerMainWindow(QMainWindow):
             QPushButton:focus {
                 border: 1px solid #3cff5a;
             }
-        """)
-
-        self.request_review_button = AnimatedButton("🧑‍🏫 Request Review")
-        self.request_review_button.clicked.connect(self.request_review)
-        self.request_review_button.setVisible(False)  # Only visible after analysis completes
-        self.request_review_button.setStyleSheet(medical_theme.get_button_stylesheet('info'))
-
-        # Assemble progress layout
-        progress_layout.addWidget(self.run_analysis_button)
-        progress_layout.addWidget(self.request_review_button)
-        progress_layout.addWidget(progress_container, 1)  # stretch for progress container
-        progress_layout.addWidget(self.loading_spinner)
-
-        return progress_widget
-
-    def create_main_content_section(self) -> QWidget:
-        """Create the main content area with document preview and analysis results."""
-        content_widget = QWidget()
-        content_layout = QHBoxLayout(content_widget)
-        content_layout.setSpacing(12)
-
-        # Document preview section inside modern styled card
-        document_card = ModernCard("📖 Document Preview")
-        document_content = QWidget()
-        document_layout = QVBoxLayout(document_content)
-
-        self.document_display_area = QTextEdit()
-        self.document_display_area.setPlaceholderText("📄 Upload a document to see its content here...")
-        self.document_display_area.setReadOnly(True)
-        self.document_display_area.setStyleSheet(f"""
-            QTextEdit {{
-                background-color: {medical_theme.get_color('bg_secondary')};
-                border: 1px solid {medical_theme.get_color('border_light')};
-                border-radius: 6px;
-                padding: 12px;
-                font-family: 'Consolas', 'Monaco', monospace;
-                font-size: 11px;
-                line-height: 1.4;
-            }}
-        """)
-
-        document_layout.addWidget(self.document_display_area)
-        document_card.add_content(document_content)
-
-        # Analysis result section (e.g. AI chat/results pane)
-        results_card = ModernCard("🧠 AI Analysis Results")
-        results_content = QWidget()
-        results_layout = QVBoxLayout(results_content)
-
-        self.analysis_results = QTextEdit()
-        self.analysis_results.setPlaceholderText(
-            "AI Analysis Chat Interface\nUpload a clinical document and click Document Preview to see content.\n"
-            "Select compliance rubric, then Run Analysis to begin.\n"
-            "Use Stop Analysis to halt processing if needed.\n"
-            "View Analytics Dashboard for insights.\nClick Full Report to see details."
-        )
-        self.analysis_results.setReadOnly(True)
-        self.analysis_results.setStyleSheet("""
-            QTextEdit {
-                background-color: #2b2b2b;
-                color: #bbbbbb;
-                border: 1px solid #4a4a4a;
-                border-radius: 8px;
-                padding: 16px;
-                font-size: 12px;
-                line-height: 1.6;
-            }
-        """)
-        results_layout.addWidget(self.analysis_results)
-        results_card.add_content(results_content)
-
-        # Add document preview and analysis results to the horizontal layout
-        content_layout.addWidget(document_card, 1)
-        content_layout.addWidget(results_card, 2)
-
-        return content_widget
-
-
-    # Placeholder implementations for methods referenced above
-    def run_analysis(self):
-        # Starts the analysis task in background
-        print("Running analysis... (to be implemented)")
-
-    def request_review(self):
-        # Handles request review button logic
-        print("Requesting review... (to be implemented)")
-
-# Assume LoadingSpinner, AnimatedButton, ModernCard, medical_theme etc are custom components imported elsewhere
-
         """)
 
         # Stop Analysis button
@@ -930,98 +625,7 @@ class ComplianceAnalyzerMainWindow(QMainWindow):
             }
         """)
 
-from PyQt6.QtWidgets import (
-    QWidget, QPushButton, QVBoxLayout, QTextEdit
-)
-from PyQt6.QtGui import QFont
-
-class ComplianceAnalyzerMainWindow(QMainWindow):
-    def create_bottom_controls_section(self) -> QWidget:
-        """Create bottom control buttons including Run Analysis, Stop, Document Preview, Analytics, Full Report."""
-        container = QWidget()
-        layout = QHBoxLayout(container)
-        layout.setContentsMargins(0, 8, 0, 8)
-        layout.setSpacing(12)
-
-        # Run Analysis button
-        self.run_analysis_button = QPushButton("🚀 Run Analysis")
-        self.run_analysis_button.clicked.connect(self.run_analysis)
-        self.run_analysis_button.setEnabled(False)
-        self.run_analysis_button.setStyleSheet("""
-            QPushButton {
-                background-color: #28a745;
-                color: white;
-                border: none;
-                padding: 12px 24px;
-                border-radius: 8px;
-                font-weight: 600;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #218838;
-            }
-            QPushButton:disabled {
-                background-color: #555555;
-                color: #888888;
-            }
-            QPushButton:focus {
-                border: 1px solid #3cff5a;
-            }
-        """)
-
-        # Stop Analysis button
-        self.stop_analysis_button = QPushButton("⏹ Stop Analysis")
-        self.stop_analysis_button.clicked.connect(self.stop_analysis)
-        self.stop_analysis_button.setEnabled(False)
-        self.stop_analysis_button.setStyleSheet("""
-            QPushButton {
-                background-color: #dc3545;
-                color: white;
-                border: none;
-                padding: 12px 24px;
-                border-radius: 8px;
-                font-weight: 600;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #b02a37;
-            }
-            QPushButton:disabled {
-                background-color: #555555;
-                color: #888888;
-            }
-            QPushButton:focus {
-                border: 1px solid #ff6a6a;
-            }
-        """)
-
-        # Document Preview button
-        self.doc_preview_btn = QPushButton("📄 Document Preview")
-        self.doc_preview_btn.clicked.connect(self.show_document_preview)
-        self.doc_preview_btn.setEnabled(False)
-        self.doc_preview_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #007bff;
-                color: white;
-                border: none;
-                padding: 12px 24px;
-                border-radius: 8px;
-                font-weight: 600;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #0056b3;
-            }
-            QPushButton:disabled {
-                background-color: #555555;
-                color: #888888;
-            }
-            QPushButton:focus {
-                border: 1px solid #66b0ff;
-            }
-        """)
-
-        # Analytics Dashboard button
+        # Analytics button
         self.analytics_button = QPushButton("📊 Analytics Dashboard")
         self.analytics_button.clicked.connect(self.show_analytics)
         self.analytics_button.setStyleSheet("""
@@ -1042,7 +646,7 @@ class ComplianceAnalyzerMainWindow(QMainWindow):
             }
         """)
 
-        # Full Report button
+        # Report View button
         self.report_view_btn = QPushButton("📋 Full Report")
         self.report_view_btn.clicked.connect(self.toggle_report_view)
         self.report_view_btn.setEnabled(False)
@@ -1073,31 +677,45 @@ class ComplianceAnalyzerMainWindow(QMainWindow):
         layout.addWidget(self.doc_preview_btn)
         layout.addWidget(self.analytics_button)
         layout.addWidget(self.report_view_btn)
-        layout.addStretch()
+        layout.addStretch()  # Push buttons to left
 
         return container
 
     def create_main_content(self) -> QWidget:
-        """Create main AI chat/results area (full width) with quadrant widget for results."""
+        """Create main AI chat/results area (full width)."""
+        # Main AI chat/results area
         results_section = SectionFrame("🤖 AI Analysis & Chat Interface")
         results_content = QWidget()
         results_layout = QVBoxLayout(results_content)
 
-        # Use QuadrantWidget as the results display
-        self.analysis_results_area = QuadrantWidget()
-        results_layout.addWidget(self.analysis_results_area)
+        self.analysis_results = QTextEdit()
+        self.analysis_results.setPlaceholderText(
+"""🎯 AI Analysis & Chat Interface
+
+• Upload a clinical document and click 'Document Preview' to see content
+• Select compliance rubric (including All Disciplines for comprehensive analysis)
+• Click 'Run Analysis' to begin AI compliance analysis
+• Use 'Stop Analysis' to halt processing if needed
+• View 'Analytics Dashboard' for historical trends and insights
+• Click 'Full Report' to see detailed compliance report in popup window
+• Use the chat below to interact with AI for clarifications and guidance
+"""
+        )
+        self.analysis_results.setReadOnly(True)
+        self.analysis_results.setStyleSheet("""
+            QTextEdit {
+                background-color: #2b2b2b;
+                color: #bbbbbb;
+                border: 1px solid #4a4a4a;
+                border-radius: 8px;
+                padding: 16px;
+                font-size: 12px;
+                line-height: 1.6;
+            }
+        """)
+
+        results_layout.addWidget(self.analysis_results)
         results_section.add_content(results_content)
-
-        # Use Responsive Splitter for layout of document preview and results
-        from .widgets.responsive_layout import ResponsiveSplitter
-
-        splitter = ResponsiveSplitter()
-        splitter.addWidget(document_card)  # Assuming document_card defined globally or pass as arg
-        splitter.addWidget(results_section)
-        splitter.setSizes([400, 600])  # Allocate more space to results
-
-        return splitter
-
 
         return results_section
 
@@ -1148,23 +766,10 @@ class ComplianceAnalyzerMainWindow(QMainWindow):
         self.send_button.setFixedWidth(80)
 
         chat_layout.addWidget(self.chat_input, 1)
-class ComplianceAnalyzerMainWindow(QMainWindow):
+        chat_layout.addWidget(self.send_button)
 
-    def create_chat_section(self) -> QWidget:
-        """Create the chat input section."""
-        chat_widget = SectionFrame("💬 AI Chat & Input")
-        chat_content = QWidget()
-        chat_layout = QHBoxLayout(chat_content)
-
-        # Placeholders for voice input and send buttons
-        self.voice_button = QPushButton("🎤 Voice")
-        self.send_chat_button = QPushButton("📩 Send")
-
-        chat_layout.addWidget(self.voice_button)
-        chat_layout.addWidget(self.send_chat_button)
-
-        chat_widget.add_content(chat_content)
-        return chat_widget
+        chat_section.add_layout(chat_layout)
+        return chat_section
 
     def start(self):
         """Start the application."""
@@ -1181,20 +786,6 @@ class ComplianceAnalyzerMainWindow(QMainWindow):
             "SLP Compliance Rubric": "Speech-language pathology compliance guidelines and regulatory requirements"
         }
         self.rubric_description.setText(descriptions.get(text, "Select a rubric to see description"))
-
-    def _on_rubric_selected(self, index):
-        """Handle rubric selection with detailed enabling and description."""
-        selected_rubric = self.rubric_selector.itemData(index)
-        if selected_rubric:
-            self.rubric_description_label.setText(
-                selected_rubric.get("description", "No description available.")
-            )
-            self.run_analysis_button.setEnabled(True)
-            self.run_analysis_button.setText("🚀 Run Analysis")
-        else:
-            self.rubric_description_label.setText("Select a rubric to see description")
-            self.run_analysis_button.setEnabled(False)
-
 
     def open_file_dialog(self):
         """Open file dialog for document upload."""
@@ -1356,10 +947,8 @@ class ComplianceAnalyzerMainWindow(QMainWindow):
 
         self.status_bar.showMessage("✅ Analysis completed successfully!", 5000)
 
-def send_chat_message(self):
-    """Send a chat message to the AI assistant, opening a new chat dialog with the user's message as initial context."""
-    # Implementation for sending chat message here
-
+    def send_chat(self):
+        """Send chat message to AI assistant."""
         message = self.chat_input.toPlainText().strip()
         if message:
             # Add to results area
@@ -1409,147 +998,199 @@ def send_chat_message(self):
             QMessageBox.warning(self, "No Report", "Please run analysis first to generate a report.")
             return
 
-def toggle_report_view(self):
-    if self.report_view_dialog is None or not self.report_view_dialog.isVisible():
-        self.report_view_dialog = ReportViewDialog(
-            self._current_report_content,
-            self
-        )
-        self.report_view_dialog.show()
-        self.report_view_btn.setText("📊 Hide Full Report")
-    else:
-        self.report_view_dialog.close()
-        self.report_view_btn.setText("📋 Full Report")
+        if self.report_view_dialog is None or not self.report_view_dialog.isVisible():
+            self.report_view_dialog = ReportViewDialog(
+                self._current_report_content,
+                self
+            )
+            self.report_view_dialog.show()
+            self.report_view_btn.setText("📊 Hide Full Report")
+        else:
+            self.report_view_dialog.close()
+            self.report_view_btn.setText("📋 Full Report")
 
-def stop_analysis(self):
-    """Stop the current analysis."""
-    if hasattr(self, 'analysis_worker'):
-        self.analysis_worker.stop()
+    def stop_analysis(self):
+        """Stop the current analysis."""
+        if hasattr(self, 'analysis_worker'):
+            self.analysis_worker.stop()
 
-    self.main_progress_bar.setValue(0)
-    self.run_analysis_button.setEnabled(True)
-    self.run_analysis_button.setText("🚀 Run Analysis")
-    self.stop_analysis_button.setEnabled(False)
-    self.progress_label.setText("Analysis stopped by user")
+        self.main_progress_bar.setValue(0)
+        self.run_analysis_button.setEnabled(True)
+        self.run_analysis_button.setText("🚀 Run Analysis")
+        self.stop_analysis_button.setEnabled(False)
+        self.progress_label.setText("Analysis stopped by user")
 
-    # Show stopped message
-    self.analysis_results.append("""
-    <div style="background-color: #7f1d1d; color: white; padding: 10px; border-radius: 6px; margin: 4px 0;">
-        <strong>⏹️ Analysis Stopped:</strong> Processing halted by user request<br>
-        <small style="color: #fca5a5;">You can restart analysis at any time</small>
-    </div>
-    """)
+        # Show stopped message
+        self.analysis_results.append("""
+        <div style="background-color: #7f1d1d; color: white; padding: 10px; border-radius: 6px; margin: 4px 0;">
+            <strong>⏹️ Analysis Stopped:</strong> Processing halted by user request<br>
+            <small style="color: #fca5a5;">You can restart analysis at any time</small>
+        </div>
+        """)
 
-    self.status_bar.showMessage("⏹️ Analysis stopped", 3000)
+        self.status_bar.showMessage("⏹️ Analysis stopped", 3000)
 
-def show_analytics(self):
-    """Show analytics dashboard."""
-    analytics_dialog = QDialog(self)
-    analytics_dialog.setWindowTitle("📊 Analytics Dashboard")
-    analytics_dialog.setGeometry(200, 200, 900, 600)
-    analytics_dialog.setStyleSheet("""
-        QDialog {
-            background-color: #3c3f41;
-            color: #bbbbbb;
-        }
-    """)
-
-    layout = QVBoxLayout(analytics_dialog)
-
-    # Header
-    header = QLabel("📊 Compliance Analytics & Trends")
-    header.setStyleSheet("""
-        QLabel {
-            color: #6f42c1;
-            font-size: 18px;
-            font-weight: bold;
-            padding: 12px;
-            background-color: #2b2b2b;
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-    """)
-    layout.addWidget(header)
-
-    analytics_content = QTextBrowser()
-    analytics_content.setHtml("""
-    <!-- (Detailed analytics HTML content as in your snippet) -->
-    """)
-    analytics_content.setStyleSheet("""
-        QTextBrowser {
-            background-color: #2b2b2b;
-            color: #bbbbbb;
-            border: 2px solid #6f42c1;
-            border-radius: 8px;
-            padding: 15px;
-            font-size: 12px;
-        }
-    """)
-    layout.addWidget(analytics_content)
-
-    close_btn = QPushButton("✖️ Close Analytics")
-    close_btn.clicked.connect(analytics_dialog.close)
-    close_btn.setStyleSheet("""
-        QPushButton {
-            background-color: #666666;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            font-weight: 600;
-        }
-        QPushButton:hover {
-            background-color: #555555;
-        }
-        QPushButton:focus {
-            border: 2px solid #888888;
-        }
-    """)
-    layout.addWidget(close_btn)
-
-    analytics_dialog.exec()
-
-def set_theme(self, theme):
-    """Set application theme."""
-    if theme == "dark":
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #1e293b;
-                color: #f1f5f9;
-            }
-            QFrame {
-                background-color: #334155 !important;
-                border: 1px solid #475569 !important;
-            }
-            QTextEdit {
-                background-color: #334155 !important;
-                color: #f1f5f9 !important;
-                border: 1px solid #475569 !important;
-            }
-            QLabel {
-                color: #f1f5f9;
+    def show_analytics(self):
+        """Show analytics dashboard."""
+        # Create analytics dialog
+        analytics_dialog = QDialog(self)
+        analytics_dialog.setWindowTitle("📊 Analytics Dashboard")
+        analytics_dialog.setGeometry(200, 200, 900, 600)
+        analytics_dialog.setStyleSheet("""
+            QDialog {
+                background-color: #3c3f41;  /* PyCharm gray */
+                color: #bbbbbb;
             }
         """)
-        self.status_bar.showMessage("🌙 Dark theme activated", 2000)
-    else:
-        # Reset to light theme or call init_ui() to reload styles
-        self.init_ui()
-        self.status_bar.showMessage("🌞 Light theme activated", 2000)
 
-# Placeholder methods to be implemented as relevant
-def logout(self):
-    reply = QMessageBox.question(self, "Logout", "Are you sure you want to logout?")
-    if reply == QMessageBox.StandardButton.Yes:
-        self.close()
+        layout = QVBoxLayout(analytics_dialog)
 
-def manage_rubrics(self):
-    dialog = RubricManagerDialog(access_token="dummy_token_for_testing", parent=self)
-    dialog.exec()
+        # Header
+        header = QLabel("📊 Compliance Analytics & Trends")
+        header.setStyleSheet("""
+            QLabel {
+                color: #6f42c1;  /* Purple */
+                font-size: 18px;
+                font-weight: bold;
+                padding: 12px;
+                background-color: #2b2b2b;
+                border-radius: 8px;
+                margin-bottom: 10px;
+            }
+        """)
+        layout.addWidget(header)
 
-def show_performance_settings(self):
-    dialog = PerformanceSettingsDialog(parent=self)
-    dialog.exec()
+        # Analytics content
+        analytics_content = QTextBrowser()
+        analytics_content.setHtml("""
+        <div style="background-color: #1e3a8a; color: white; padding: 15px; border-radius: 8px; margin-bottom: 12px;">
+            <h3 style="color: white; margin: 0 0 10px 0;">📈 Historical Performance</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <p><strong>Average Compliance Score:</strong> 84.2%</p>
+                    <p><strong>Total Documents Analyzed:</strong> 247</p>
+                    <p><strong>High Risk Findings:</strong> 18.3% (↓ 5.2%)</p>
+                </div>
+                <div>
+                    <p><strong>Most Common Issues:</strong></p>
+                    <p>• Missing G-codes (34%)</p>
+                    <p>• Insufficient skilled justification (28%)</p>
+                    <p>• Missing outcome measures (22%)</p>
+                </div>
+            </div>
+        </div>
 
-def show_help_dialog(self):
-    dialog = HelpDialog(self)
-    dialog.exec()
+        <div style="background-color: #065f46; color: white; padding: 12px; border-radius: 6px; margin-bottom: 8px;">
+            <h4 style="color: white; margin: 0 0 8px 0;">📊 Discipline Breakdown</h4>
+            <p><strong>Physical Therapy:</strong> 89.1% avg compliance (142 docs)</p>
+            <p><strong>Occupational Therapy:</strong> 81.7% avg compliance (67 docs)</p>
+            <p><strong>Speech-Language Pathology:</strong> 86.4% avg compliance (38 docs)</p>
+        </div>
+
+        <div style="background-color: #7c2d12; color: white; padding: 12px; border-radius: 6px; margin-bottom: 8px;">
+            <h4 style="color: white; margin: 0 0 8px 0;">🎯 Improvement Trends</h4>
+            <p><strong>Last 30 Days:</strong> +7.3% improvement in compliance scores</p>
+            <p><strong>G-code Documentation:</strong> Improved from 52% to 78%</p>
+            <p><strong>Outcome Measures:</strong> Increased usage by 23%</p>
+            <p><strong>Audit Risk Reduction:</strong> 31% decrease in high-risk findings</p>
+        </div>
+
+        <div style="background-color: #92400e; color: white; padding: 12px; border-radius: 6px; margin-bottom: 8px;">
+            <h4 style="color: white; margin: 0 0 8px 0;">⚠️ Areas Needing Attention</h4>
+            <p><strong>Skilled Therapy Justification:</strong> Still needs improvement (68% compliance)</p>
+            <p><strong>Discharge Planning:</strong> Documentation gaps identified</p>
+            <p><strong>Progress Note Frequency:</strong> Some gaps in required intervals</p>
+        </div>
+
+        <div style="background-color: #374151; color: #d1d5db; padding: 12px; border-radius: 6px;">
+            <h4 style="color: #d1d5db; margin: 0 0 8px 0;">📅 Upcoming Features</h4>
+            <p>• Real-time compliance scoring</p>
+            <p>• Predictive analytics for audit risk</p>
+            <p>• Custom dashboard widgets</p>
+            <p>• Export analytics to Excel/PDF</p>
+        </div>
+        """)
+        analytics_content.setStyleSheet("""
+            QTextBrowser {
+                background-color: #2b2b2b;
+                color: #bbbbbb;
+                border: 2px solid #6f42c1;
+                border-radius: 8px;
+                padding: 15px;
+                font-size: 12px;
+            }
+        """)
+        layout.addWidget(analytics_content)
+
+        # Close button
+        close_btn = QPushButton("✖️ Close Analytics")
+        close_btn.clicked.connect(analytics_dialog.close)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #666666;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #555555;
+            }
+            QPushButton:focus {
+                border: 2px solid #888888;
+            }
+        """)
+        layout.addWidget(close_btn)
+
+        analytics_dialog.exec()
+
+    def set_theme(self, theme):
+        """Set application theme."""
+        if theme == "dark":
+            self.setStyleSheet("""
+                QMainWindow {
+                    background-color: #1e293b;
+                    color: #f1f5f9;
+                }
+                QFrame {
+                    background-color: #334155 !important;
+                    border: 1px solid #475569 !important;
+                }
+                QTextEdit {
+                    background-color: #334155 !important;
+                    color: #f1f5f9 !important;
+                    border: 1px solid #475569 !important;
+                }
+                QLabel {
+                    color: #f1f5f9;
+                }
+            """)
+            self.status_bar.showMessage("🌙 Dark theme activated", 2000)
+        else:
+            # Reset to light theme
+            self.init_ui()
+            self.status_bar.showMessage("🌞 Light theme activated", 2000)
+
+    # Placeholder methods
+    def logout(self):
+        """Handle logout."""
+        reply = QMessageBox.question(self, "Logout", "Are you sure you want to logout?")
+        if reply == QMessageBox.StandardButton.Yes:
+            self.close()
+
+    def manage_rubrics(self):
+        """Open the rubric management dialog."""
+        # NOTE: In a real implementation, a valid access token would be passed.
+        dialog = RubricManagerDialog(access_token="dummy_token_for_testing", parent=self)
+        dialog.exec()
+
+    def show_performance_settings(self):
+        """Open the performance settings dialog."""
+        dialog = PerformanceSettingsDialog(parent=self)
+        dialog.exec()
+
+    def show_help_dialog(self):
+        """Show the help dialog."""
+        dialog = HelpDialog(self)
+        dialog.exec()
