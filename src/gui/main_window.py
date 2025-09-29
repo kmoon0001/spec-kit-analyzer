@@ -1,7 +1,6 @@
 import os
 import json
 import logging
-import requests
 import urllib.parse
 import webbrowser
 from typing import Dict

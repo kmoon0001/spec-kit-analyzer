@@ -5,10 +5,10 @@ import os
 import sys
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QMainWindow, QStatusBar,
-    QMenuBar, QFileDialog, QTextEdit, QLabel, QPushButton, QComboBox,
-    QFrame, QProgressBar, QMessageBox, QSplitter, QDialog, QTextBrowser
+    QFileDialog, QTextEdit, QLabel, QPushButton, QComboBox,
+    QFrame, QProgressBar, QMessageBox, QDialog, QTextBrowser
 )
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QFont
 
 # Add project root to path for imports

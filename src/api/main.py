@@ -9,8 +9,8 @@ import shutil
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from fastapi import FastAPI
+from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -59,7 +59,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from .dependencies import startup_event as api_startup, shutdown_event as api_shutdown
-from .routers import auth, analysis, dashboard, admin, health, chat, compliance, users, synergy, review
+from .routers import auth, analysis, dashboard, admin, health, chat, compliance, users
 from .error_handling import http_exception_handler
 
 logger = logging.getLogger(__name__)

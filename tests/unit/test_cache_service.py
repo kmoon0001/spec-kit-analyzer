@@ -1,7 +1,6 @@
 """
 Unit tests for the cache service and integration.
 """
-import pytest
 from unittest.mock import patch, MagicMock
 from src.core.cache_service import (
     MemoryAwareLRUCache,
