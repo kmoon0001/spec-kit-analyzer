@@ -1,22 +1,15 @@
 import pytest
 from unittest.mock import patch, MagicMock
 import numpy as np
-import sys
-import os
 
-# Add the src directory to the Python path
-sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src"))
-)
-
-from core.guideline_service import GuidelineService
+from src.core.guideline_service import GuidelineService
 
 
 @pytest.fixture
 def mock_heavy_dependencies():
     with (
-        patch("core.guideline_service.SentenceTransformer") as mock_st_class,
-        patch("core.guideline_service.faiss") as mock_faiss_module,
+        patch("src.core.guideline_service.SentenceTransformer") as mock_st_class,
+        patch("src.core.guideline_service.faiss") as mock_faiss_module,
     ):
         mock_st_instance = MagicMock()
         mock_st_instance.encode.return_value = np.random.rand(1, 384).astype("float32")

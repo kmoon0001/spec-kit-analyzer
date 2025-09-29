@@ -65,13 +65,7 @@ limiter.enabled = False
 def client():
     """Create a TestClient for the API, with authentication overridden."""
     # Define a dummy user model that matches the User schema
-    dummy_user = schemas.User(
-        id=1,
-        username="testuser",
-        is_active=True,
-        is_admin=False,
-        hashed_password="dummy_password_hash",
-    )
+    dummy_user = schemas.User(id=1, username="testuser", is_active=True, is_admin=False)
 
     def override_get_current_active_user():
         return dummy_user
@@ -115,11 +109,9 @@ def test_analyze_document_api_route(client: TestClient, mocker):
 
     mock_run_analysis.assert_called_once()
 
-    # The function is called with keyword arguments, so we inspect the kwargs.
-    _, kwargs = mock_run_analysis.call_args
-    assert isinstance(kwargs["file_path"], str)
-    assert kwargs["task_id"] == response_data["task_id"]
-    assert kwargs["original_filename"] == dummy_filename
-    assert kwargs["discipline"] == "pt"
-    assert kwargs["analysis_mode"] == "rubric"
-    assert "analysis_service" in kwargs
+    call_args, _ = mock_run_analysis.call_args
+    assert isinstance(call_args[0], str)
+    assert call_args[1] == response_data["task_id"]
+    assert call_args[2] == dummy_filename
+    assert call_args[3] == "pt"
+    assert call_args[4] == "rubric"

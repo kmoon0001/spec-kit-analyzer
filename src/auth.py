@@ -98,14 +98,3 @@ async def get_current_admin_user(
             detail="The user does not have administrative privileges.",
         )
     return current_user
-
-
-async def require_admin(
-    current_user: models.User = Depends(get_current_active_user),
-):
-    """Dependency that requires the user to be an admin."""
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="The user does not have administrative privileges.",
-        )
