@@ -1,5 +1,10 @@
 import logging
 from typing import List, Dict, Any
+from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
+
+# Conditionally import transformers only when not testing
+if os.environ.get("PYTEST_RUNNING") != "1":
+    from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
 
 logger = logging.getLogger(__name__)
 
