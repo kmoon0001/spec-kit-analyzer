@@ -2,12 +2,11 @@
 Responsive Layout System - Adaptive UI that scales to different screen sizes.
 """
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QSplitter,
-    QScrollArea, QFrame, QSizePolicy
+    QWidget, QVBoxLayout, QGridLayout, QSplitter,
+    QScrollArea, 
 )
-from PyQt6.QtCore import Qt, QSize, pyqtSignal, QTimer
-from PyQt6.QtGui import QResizeEvent, QFont, QFontMetrics
-import math
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
+from PyQt6.QtGui import QResizeEvent, QFont
 
 class ResponsiveWidget(QWidget):
     """Base widget that adapts to screen size changes."""

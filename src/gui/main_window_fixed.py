@@ -6,16 +6,14 @@ import os
 import sys
 import asyncio
 import logging
-from pathlib import Path
 from typing import Optional, Dict, Any
 import requests
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QMainWindow, QStatusBar,
-    QMenuBar, QFileDialog, QSplitter, QTextEdit, QLabel, QGroupBox, 
-    QProgressBar, QPushButton, QTabWidget, QTextBrowser, QComboBox,
-    QFrame, QApplication
+    QMenuBar, QFileDialog, QSplitter, QTextEdit, QLabel, QProgressBar, QPushButton, QTextBrowser, QComboBox,
+    QFrame, 
 )
-from PyQt6.QtCore import Qt, QThread, QUrl, QTimer, pyqtSignal as Signal
+from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal as Signal
 from PyQt6.QtGui import QFont
 
 # Add project root to path for imports
@@ -26,7 +24,6 @@ if project_root not in sys.path:
 from src.config import get_settings
 from src.core.analysis_service import AnalysisService
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
-from src.gui.workers.analysis_worker import AnalysisWorker
 
 settings = get_settings()
 API_URL = settings.api_url

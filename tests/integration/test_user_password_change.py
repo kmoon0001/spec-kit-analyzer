@@ -1,9 +1,6 @@
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.database import crud, schemas
-from src.api.main import app  # Import your FastAPI app
 from tests.conftest import test_user_credentials
 
 

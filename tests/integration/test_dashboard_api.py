@@ -1,10 +1,5 @@
 import pytest
-from httpx import AsyncClient
 from unittest.mock import AsyncMock, MagicMock
-
-# This is a placeholder for the actual FastAPI app instance
-# In a real test setup, you would import the app from your project
-from src.api.main import app
 
 
 from src.database.models import User
