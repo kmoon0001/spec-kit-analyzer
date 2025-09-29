@@ -353,7 +353,8 @@ class MainApplicationWindow(QMainWindow):
         preview_lines.append("The first 10 files are shown. Folder analysis will include every detected file.")
         return "\n".join(preview_lines)
 
-    def _normalize_result_payload(self, result: object) -> dict:
+    @staticmethod
+    def _normalize_result_payload(result: object) -> dict:
         if isinstance(result, dict):
             return result
         if isinstance(result, str):

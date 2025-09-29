@@ -168,14 +168,16 @@ class AnalysisService:
         else:
             return loop.create_task(_run())
 
-    async def _maybe_await(self, value: Any) -> Any:
+    @staticmethod
+    async def _maybe_await(value: Any) -> Any:
         if asyncio.isfuture(value) or asyncio.iscoroutine(value):
             return await value
         if isinstance(value, Awaitable):
             return await value
         return value
 
-    def _trim_document_text(self, document_text: str, *, max_chars: int = 12000) -> str:
+    @staticmethod
+    def _trim_document_text(document_text: str, *, max_chars: int = 12000) -> str:
         if len(document_text) <= max_chars:
             return document_text
         return document_text[:max_chars] + " ..."
@@ -212,8 +214,9 @@ class AnalysisService:
         result["overall_confidence"] = self._calculate_overall_confidence(result, checklist)
         return result
 
+    @staticmethod
     def _build_summary_fallback(
-        self, analysis_result: Dict[str, Any], checklist: List[Dict[str, Any]]
+        analysis_result: Dict[str, Any], checklist: List[Dict[str, Any]]
     ) -> str:
         findings = analysis_result.get("findings") or []
         if findings:
@@ -244,8 +247,8 @@ class AnalysisService:
         narrative = f"{base_summary} Immediate follow-up recommended for: {focus}."
         return sanitize_human_text(narrative)
 
+    @staticmethod
     def _build_bullet_highlights(
-        self,
         analysis_result: Dict[str, Any],
         checklist: List[Dict[str, Any]],
         summary: str,
@@ -277,8 +280,9 @@ class AnalysisService:
             seen.add(lower)
         return deduped
 
+    @staticmethod
     def _calculate_overall_confidence(
-        self, analysis_result: Dict[str, Any], checklist: List[Dict[str, Any]]
+        analysis_result: Dict[str, Any], checklist: List[Dict[str, Any]]
     ) -> float:
         findings = analysis_result.get("findings") or []
         confidence_values: List[float] = []
