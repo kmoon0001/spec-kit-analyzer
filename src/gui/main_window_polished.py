@@ -6,7 +6,7 @@ import sys
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QMainWindow, QStatusBar,
     QMenuBar, QFileDialog, QTextEdit, QLabel, QPushButton, QComboBox,
-    QFrame, QProgressBar, QMessageBox, QSplitter, QDialog, QTextBrowser, QSizePolicy
+    QFrame, QProgressBar, QMessageBox, QSplitter, QDialog, QTextBrowser
 )
 from PyQt6.QtCore import Qt, QThread
 from PyQt6.QtGui import QFont, QKeySequence, QAction
@@ -187,9 +187,9 @@ class ReportViewDialog(QDialog):
     def export_report(self):
         """Export report to file."""
         file_name, _ = QFileDialog.getSaveFileName(
-            self, 
-            "💾 Export Compliance Report", 
-            "compliance_report.html", 
+            self,
+            "💾 Export Compliance Report",
+            "compliance_report.html",
             "HTML Files (*.html);;PDF Files (*.pdf);;All Files (*)"
         )
 
@@ -236,7 +236,8 @@ class ModernMainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        print("🎨 Initializing Polished Modern UI...")
+        print("!!! JULES DEBUG: EXECUTING LATEST POLISHED VERSION !!!")
+        print("🎨 Initializing working modern UI...")
         self._current_file_path = None
         self._current_document_content = ""
         self._current_report_content = ""
@@ -253,8 +254,8 @@ class ModernMainWindow(QMainWindow):
         # Apply PyCharm gray with medical accents
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #2d3748; /* Dark Slate Gray */
-                color: #bbbbbb;
+                background-color: #3c3f41; /* PyCharm gray background */
+                color: #bbbbbb; /* Light text for dark background */
             }
             QFrame#SectionFrame {
                 background-color: #2b2b2b;
@@ -265,7 +266,7 @@ class ModernMainWindow(QMainWindow):
             QMenuBar {
                 background-color: #ffffff;
                 color: #1a1a1a;
-                border-bottom: 1px solid #4a90e2;
+                border-bottom: 1px solid #4a90e2; /* Medical blue border */
                 padding: 4px;
             }
             QMenuBar::item {
@@ -277,12 +278,12 @@ class ModernMainWindow(QMainWindow):
                 background-color: #e6f3ff;
             }
             QMenuBar::item:selected {
-                background-color: #4a90e2;
+                background-color: #4a90e2; /* Medical blue */
                 color: white;
             }
             QStatusBar {
                 background-color: #ffffff;
-                color: #666666;
+                color: #666666; /* Medical grey */
                 border-top: 1px solid #4a90e2;
             }
         """)
@@ -292,7 +293,7 @@ class ModernMainWindow(QMainWindow):
         self.setup_status_bar()
         self.create_main_layout()
 
-        print("✅ Polished UI created successfully!")
+        print("✅ Working UI created successfully!")
 
     def setup_menu_bar(self):
         """Setup menu bar with keyboard shortcuts."""
@@ -334,13 +335,6 @@ class ModernMainWindow(QMainWindow):
         help_action.triggered.connect(self.show_help_dialog)
         help_menu.addAction(help_action)
 
-        # Info Menu
-        info_menu = menubar.addMenu("ℹ️ Info")
-        moonie_action = QAction("Moonie 🫶", self)
-        moonie_action.triggered.connect(self.show_moonie_egg)
-        info_menu.addAction(moonie_action)
-
-
     def setup_status_bar(self):
         """Setup status bar with easter egg."""
         self.status_bar = QStatusBar()
@@ -353,11 +347,6 @@ class ModernMainWindow(QMainWindow):
         self.ai_status_label.setStyleSheet("color: #059669;")
         self.status_bar.addPermanentWidget(self.ai_status_label)
 
-        # Spacer to push the easter egg to the right
-        spacer = QWidget()
-        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self.status_bar.addPermanentWidget(spacer, 1)
-
         # Easter egg
         self.easter_egg_label = QLabel("Pacific Coast Therapy")
         self.easter_egg_label.setStyleSheet("""
@@ -365,7 +354,7 @@ class ModernMainWindow(QMainWindow):
             font-size: 10px;
             color: #94a3b8;
             font-style: italic;
-            margin-right: 10px;
+            margin-left: 20px;
         """)
         self.status_bar.addPermanentWidget(self.easter_egg_label)
 
@@ -382,7 +371,6 @@ class ModernMainWindow(QMainWindow):
 
         # TOP SECTION: Rubric and Upload cards (7 lines tall each)
         top_section = self.create_top_section()
-        top_section.setMaximumHeight(150) # Shorter top section
         main_layout.addWidget(top_section)
 
         # PROGRESS SECTION: Thin static progress bar
@@ -399,7 +387,6 @@ class ModernMainWindow(QMainWindow):
 
         # BOTTOM: Chat input box
         chat_section = self.create_chat_section()
-        chat_section.setMaximumHeight(120) # Shorter chat section
         main_layout.addWidget(chat_section)
 
     def create_top_section(self) -> QWidget:
@@ -421,7 +408,7 @@ class ModernMainWindow(QMainWindow):
         self.rubric_selector.addItems([
             "Medicare Part B Requirements",
             "PT Compliance Rubric",
-            "OT Compliance Rubric", 
+            "OT Compliance Rubric",
             "SLP Compliance Rubric"
         ])
         self.rubric_selector.setStyleSheet("""
@@ -560,8 +547,6 @@ class ModernMainWindow(QMainWindow):
         layout.setContentsMargins(0, 8, 0, 8)
         layout.setSpacing(12)
 
-        layout.addStretch(1) # Center buttons
-
         # Run Analysis button
         self.run_analysis_button = QPushButton("🚀 Run Analysis")
         self.run_analysis_button.clicked.connect(self.run_analysis)
@@ -692,7 +677,7 @@ class ModernMainWindow(QMainWindow):
         layout.addWidget(self.doc_preview_btn)
         layout.addWidget(self.analytics_button)
         layout.addWidget(self.report_view_btn)
-        layout.addStretch(1) # Center buttons
+        layout.addStretch()  # Push buttons to left
 
         return container
 
@@ -719,9 +704,9 @@ class ModernMainWindow(QMainWindow):
         self.analysis_results.setReadOnly(True)
         self.analysis_results.setStyleSheet("""
             QTextEdit {
-                background-color: #f8fafc;
-                color: #1a1a1a;
-                border: 1px solid #e2e8f0;
+                background-color: #2b2b2b;
+                color: #bbbbbb;
+                border: 1px solid #4a4a4a;
                 border-radius: 8px;
                 padding: 16px;
                 font-size: 12px;
@@ -805,9 +790,9 @@ class ModernMainWindow(QMainWindow):
     def open_file_dialog(self):
         """Open file dialog for document upload."""
         file_name, _ = QFileDialog.getOpenFileName(
-            self, 
-            "📁 Select Clinical Document", 
-            "", 
+            self,
+            "📁 Select Clinical Document",
+            "",
             "All Supported Files (*.pdf *.docx *.txt);;PDF Files (*.pdf);;Word Documents (*.docx);;Text Files (*.txt)"
         )
 
@@ -921,34 +906,34 @@ class ModernMainWindow(QMainWindow):
             </div>
             <p style="margin: 8px 0 0 0;"><strong>Rubric Applied:</strong> {selected_rubric}</p>
         </div>
-        
+
         <h4 style="color: #bbbbbb; margin: 12px 0 8px 0;">Findings</h4>
-        
+
         <div class="finding-item high-risk-border">
             <p><span class="dot high-risk"></span><strong>Critical:</strong> Missing Medicare-required functional limitation reporting</p>
             <p><small><strong>Evidence:</strong> No G-codes or severity modifiers documented</small></p>
             <p><small><strong>Recommendation:</strong> Add G0918-G0920 codes with appropriate severity levels</small></p>
         </div>
-        
+
         <div class="finding-item high-risk-border">
             <p><span class="dot high-risk"></span><strong>Critical:</strong> Insufficient skilled therapy justification</p>
             <p><small><strong>Evidence:</strong> Generic treatment descriptions without complexity rationale</small></p>
             <p><small><strong>Recommendation:</strong> Document why skilled therapist intervention is medically necessary</small></p>
         </div>
-        
+
         <div class="finding-item medium-risk-border">
             <p><span class="dot medium-risk"></span><strong>Medium:</strong> Missing standardized outcome measures</p>
             <p><small><strong>Evidence:</strong> No validated assessment tools documented</small></p>
             <p><small><strong>Recommendation:</strong> Include Berg Balance Scale, FIM scores, or discipline-specific measures</small></p>
         </div>
-        
+
         <h4 style="color: #bbbbbb; margin: 12px 0 8px 0;">Strengths</h4>
 
         <div class="finding-item strength-border">
             <p><span class="dot strength"></span><strong>Excellent:</strong> Clear documentation of treatment interventions</p>
             <p><small><strong>Evidence:</strong> Detailed session notes with specific exercises and patient responses</small></p>
         </div>
-        
+
         <div class="finding-item strength-border">
             <p><span class="dot strength"></span><strong>Good:</strong> Appropriate frequency and duration documented</p>
             <p><small><strong>Evidence:</strong> Treatment schedule aligns with patient condition and goals</small></p>
@@ -972,7 +957,7 @@ class ModernMainWindow(QMainWindow):
                 <strong>You:</strong> {message}
             </div>
             <div style="background-color: #f0f9ff; padding: 8px; border-radius: 4px; margin: 4px 0; color: black;">
-                <strong>🤖 AI Assistant:</strong> Thank you for your question about "{message}". 
+                <strong>🤖 AI Assistant:</strong> Thank you for your question about "{message}".
                 This feature is being enhanced with the new AI chat system. Please use the analysis results above for now.
             </div>
             """)
@@ -998,7 +983,7 @@ class ModernMainWindow(QMainWindow):
 
         if self.document_preview_dialog is None or not self.document_preview_dialog.isVisible():
             self.document_preview_dialog = DocumentPreviewDialog(
-                self._current_document_content, 
+                self._current_document_content,
                 self
             )
             self.document_preview_dialog.show()
@@ -1209,7 +1194,3 @@ class ModernMainWindow(QMainWindow):
         """Show the help dialog."""
         dialog = HelpDialog(self)
         dialog.exec()
-
-    def show_moonie_egg(self):
-        """Shows the Moonie easter egg message."""
-        QMessageBox.information(self, "For Moonie", "With love 🫶")

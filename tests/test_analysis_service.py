@@ -46,7 +46,10 @@ def mock_dependencies():
         )
 
         analyze_future = asyncio.Future()
+        
         # The finding should be a dictionary with an 'issue_title'
+        # Update the mock to return a list of dictionaries for findings
+
         analyze_future.set_result({"findings": [{"issue_title": "Test Finding"}]})
         mock_analyzer.return_value.analyze_document.return_value = analyze_future
 
@@ -81,6 +84,8 @@ async def test_analysis_service_orchestration(mock_dependencies):
         document_text="This is a test.", discipline="PT", doc_type="Test Note"
     )
 
-    # Assert the final result is passed through from the analyzer
-    # The result is now nested inside the 'analysis' key of the report
-    assert result.get("analysis", {}).get("findings", [])[0].get("issue_title") == "Test Finding"
+# Assert the final result is passed through from the analyzer
+# The result is now nested inside the 'analysis' key of the report
+assert "analysis" in result
+assert "findings" in result["analysis"]
+assert result["analysis"]["findings"][0].get("issue_title") == "Test Finding"

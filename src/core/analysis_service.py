@@ -13,6 +13,7 @@ from .document_classifier import DocumentClassifier
 from .explanation import ExplanationEngine
 from .fact_checker_service import FactCheckerService
 from .hybrid_retriever import HybridRetriever
+from .language_analysis import analyze_patient_centered_language
 from .llm_service import LLMService
 from .ner import NERPipeline
 from .nlg_service import NLGService
@@ -20,6 +21,7 @@ from .preprocessing_service import PreprocessingService
 from .prompt_manager import PromptManager
 from .report_generator import ReportGenerator
 from .parsing import parse_document_content
+from .synergy_service import SynergyService
 from .checklist_service import DeterministicChecklistService
 from .text_utils import sanitize_bullets, sanitize_human_text
 
@@ -110,6 +112,14 @@ class AnalysisService:
         )
         # Backwards compatibility for callers that expect an "analyzer" attribute
         self.analyzer = self.compliance_analyzer
+
+        self.synergy_service = SynergyService(
+            llm_service=self.llm_service,
+            retriever=self.retriever,
+            prompt_template_path=str(
+                ROOT_DIR / models_cfg.get("synergy_prompt_template", "src/resources/synergy_prompt_template.txt")
+            ),
+        )
 
         self.report_generator = ReportGenerator()
 
@@ -202,6 +212,8 @@ class AnalysisService:
             document_text, doc_type=doc_type_clean, discipline=discipline_clean
         )
         result["deterministic_checks"] = checklist
+
+        result["patient_centered_language_analysis"] = analyze_patient_centered_language(document_text)
 
         summary = sanitize_human_text(result.get("summary", ""))
         if not summary:
