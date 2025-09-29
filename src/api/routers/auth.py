@@ -8,7 +8,7 @@ from ...auth import AuthService, get_auth_service, get_current_active_user
 from ...database import crud, models, schemas
 from ...database import get_async_db as get_db
 
-router = APIRouter(tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/token", response_model=schemas.Token)

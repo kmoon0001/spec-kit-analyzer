@@ -8,7 +8,19 @@ import psutil
 import yaml
 
 from ..config import get_settings as _get_settings
+from .compliance_analyzer import ComplianceAnalyzer
+from .document_classifier import DocumentClassifier
+from .explanation import ExplanationEngine
+from .fact_checker_service import FactCheckerService
+from .hybrid_retriever import HybridRetriever
+from .llm_service import LLMService
+from .ner import NERPipeline
+from .nlg_service import NLGService
+from .preprocessing_service import PreprocessingService
+from .prompt_manager import PromptManager
+from .report_generator import ReportGenerator
 from .parsing import parse_document_content
+from .checklist_service import DeterministicChecklistService
 from .text_utils import sanitize_bullets, sanitize_human_text
 
 logger = logging.getLogger(__name__)
@@ -32,26 +44,12 @@ def get_settings():
     return _get_settings()
 
 
-from .checklist_service import DeterministicChecklistService
-from .compliance_analyzer import ComplianceAnalyzer
-from .document_classifier import DocumentClassifier
-from .explanation import ExplanationEngine
-from .fact_checker_service import FactCheckerService
-from .hybrid_retriever import HybridRetriever
-from .llm_service import LLMService
-from .ner import NERPipeline
-from .nlg_service import NLGService
-from .preprocessing_service import PreprocessingService
-from .prompt_manager import PromptManager
-from .report_generator import ReportGenerator
-
-
 class AnalysisService:
     """Coordinate preprocessing, classification, retrieval, and reporting."""
 
     def __init__(
         self,
-        retriever: Optional[Any] = None,
+        retriever: Optional[HybridRetriever] = None,
         config_path: Optional[str | Path] = None,
     ) -> None:
         self.config_path = Path(config_path or ROOT_DIR / "config.yaml")
@@ -110,7 +108,9 @@ class AnalysisService:
             nlg_service=self.nlg_service,
             deterministic_focus=self.checklist_expectations,
         )
+        # Backwards compatibility for callers that expect an "analyzer" attribute
         self.analyzer = self.compliance_analyzer
+
         self.report_generator = ReportGenerator()
 
     def analyze_document(
@@ -325,6 +325,7 @@ class AnalysisService:
                     mem_gb,
                 )
                 return chosen_profile.get("repo"), chosen_profile.get("filename")
+            # Fall back to the first profile if none matched
             first_name, first_profile = next(iter(profiles.items()))
             logger.warning(
                 "No generator profile matched %.1f GB; falling back to '%s'.",
@@ -332,14 +333,14 @@ class AnalysisService:
                 first_name,
             )
             return first_profile.get("repo"), first_profile.get("filename")
+        # Legacy single-entry configuration
         return models_cfg.get("generator"), models_cfg.get("generator_filename")
 
     def _build_chat_llm(
         self,
         chat_cfg: Dict[str, Any],
         base_llm_settings: Dict[str, Any],
-    ) -> Any: # Changed to Any
-        from .llm_service import LLMService
+    ) -> LLMService:
         if not chat_cfg:
             return self.llm_service
         repo = chat_cfg.get("repo")
@@ -367,7 +368,7 @@ class AnalysisService:
     def _system_memory_gb() -> float:
         try:
             return psutil.virtual_memory().total / (1024 ** 3)
-        except Exception:
+        except Exception:  # pragma: no cover - defensive fallback
             return 16.0
 
     def _load_config(self) -> Dict[str, Any]:
