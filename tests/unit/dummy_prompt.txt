@@ -1,0 +1,3 @@
+This is a dummy prompt for testing purposes.
+Document: {document_text}
+Classification:

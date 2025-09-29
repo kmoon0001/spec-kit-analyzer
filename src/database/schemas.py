@@ -131,3 +131,41 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     response: str
+
+
+# --- Schemas for Collaborative Review Mode ---
+
+class CommentBase(BaseModel):
+    content: str
+
+class CommentCreate(CommentBase):
+    pass
+
+class Comment(CommentBase):
+    id: int
+    review_id: int
+    commenter_id: int
+    created_at: datetime.datetime
+    commenter: UserBase # To show who made the comment
+
+    class Config:
+        from_attributes = True
+
+class ReviewBase(BaseModel):
+    report_id: int
+    status: str
+
+class ReviewCreate(BaseModel):
+    report_id: int
+    author_id: int
+
+class Review(ReviewBase):
+    id: int
+    author: UserBase
+    reviewer: Optional[UserBase] = None
+    comments: List[Comment] = []
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+
+    class Config:
+        from_attributes = True
