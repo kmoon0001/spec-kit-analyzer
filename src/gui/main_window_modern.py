@@ -17,6 +17,8 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QTextBrowser,
     QComboBox,
+    QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QMainWindow, QStatusBar,
+    QMenuBar, QFileDialog, QTextEdit, QLabel, QProgressBar, QTextBrowser, QComboBox
 )
 from PyQt6.QtCore import QThread
 
