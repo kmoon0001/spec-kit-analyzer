@@ -1,34 +1,18 @@
 """Working Modern Main Window - Your exact layout specification."""
-
 import os
 import sys
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QMainWindow,
-    QStatusBar,
-    QFileDialog,
-    QTextEdit,
-    QLabel,
-    QPushButton,
-    QComboBox,
-    QFrame,
-    QProgressBar,
-    QMessageBox,
-    QDialog,
-    QTextBrowser,
+    QWidget, QVBoxLayout, QHBoxLayout, QMainWindow, QStatusBar,
+    QMenuBar, QFileDialog, QTextEdit, QLabel, QPushButton, QComboBox,
+    QFrame, QProgressBar, QMessageBox, QSplitter, QDialog, QTextBrowser
 )
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
 
 # Add project root to path for imports
-project_root = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
-
 
 class DocumentPreviewDialog(QDialog):
     """Popup dialog for document preview."""
@@ -37,20 +21,17 @@ class DocumentPreviewDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("📖 Document Preview")
         self.setGeometry(200, 200, 800, 600)
-        self.setStyleSheet(
-            """
+        self.setStyleSheet("""
             QDialog {
                 background-color: #f0f8ff;  /* Medical light blue */
             }
-        """
-        )
+        """)
 
         layout = QVBoxLayout(self)
 
         # Header
         header = QLabel("📄 Clinical Document Content")
-        header.setStyleSheet(
-            """
+        header.setStyleSheet("""
             QLabel {
                 color: #4a90e2;  /* Medical blue */
                 font-size: 16px;
@@ -60,16 +41,14 @@ class DocumentPreviewDialog(QDialog):
                 border-radius: 8px;
                 margin-bottom: 10px;
             }
-        """
-        )
+        """)
         layout.addWidget(header)
 
         # Document display
         self.document_display = QTextEdit()
         self.document_display.setPlainText(document_content)
         self.document_display.setReadOnly(True)
-        self.document_display.setStyleSheet(
-            """
+        self.document_display.setStyleSheet("""
             QTextEdit {
                 background-color: #ffffff;
                 border: 2px solid #4a90e2;
@@ -79,15 +58,13 @@ class DocumentPreviewDialog(QDialog):
                 font-size: 11px;
                 line-height: 1.4;
             }
-        """
-        )
+        """)
         layout.addWidget(self.document_display)
 
         # Close button
         close_btn = QPushButton("✖️ Close Preview")
         close_btn.clicked.connect(self.close)
-        close_btn.setStyleSheet(
-            """
+        close_btn.setStyleSheet("""
             QPushButton {
                 background-color: #666666;  /* Medical grey */
                 color: white;
@@ -99,10 +76,8 @@ class DocumentPreviewDialog(QDialog):
             QPushButton:hover {
                 background-color: #555555;
             }
-        """
-        )
+        """)
         layout.addWidget(close_btn)
-
 
 class ReportViewDialog(QDialog):
     """Popup dialog for full compliance report view."""
@@ -111,20 +86,17 @@ class ReportViewDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("📊 Compliance Analysis Report")
         self.setGeometry(150, 150, 1000, 700)
-        self.setStyleSheet(
-            """
+        self.setStyleSheet("""
             QDialog {
                 background-color: #f0f8ff;  /* Medical light blue */
             }
-        """
-        )
+        """)
 
         layout = QVBoxLayout(self)
 
         # Header
         header = QLabel("📋 Detailed Compliance Analysis Report")
-        header.setStyleSheet(
-            """
+        header.setStyleSheet("""
             QLabel {
                 color: #28a745;  /* Medical green */
                 font-size: 18px;
@@ -134,15 +106,13 @@ class ReportViewDialog(QDialog):
                 border-radius: 8px;
                 margin-bottom: 10px;
             }
-        """
-        )
+        """)
         layout.addWidget(header)
 
         # Report display
         self.report_display = QTextBrowser()
         self.report_display.setHtml(report_content)
-        self.report_display.setStyleSheet(
-            """
+        self.report_display.setStyleSheet("""
             QTextBrowser {
                 background-color: #ffffff;
                 border: 2px solid #28a745;  /* Medical green border */
@@ -151,8 +121,7 @@ class ReportViewDialog(QDialog):
                 font-size: 13px;
                 line-height: 1.6;
             }
-        """
-        )
+        """)
         layout.addWidget(self.report_display)
 
         # Button row
@@ -161,8 +130,7 @@ class ReportViewDialog(QDialog):
         # Export button
         export_btn = QPushButton("💾 Export Report")
         export_btn.clicked.connect(self.export_report)
-        export_btn.setStyleSheet(
-            """
+        export_btn.setStyleSheet("""
             QPushButton {
                 background-color: #4a90e2;  /* Medical blue */
                 color: white;
@@ -174,14 +142,12 @@ class ReportViewDialog(QDialog):
             QPushButton:hover {
                 background-color: #357abd;
             }
-        """
-        )
+        """)
 
         # Close button
         close_btn = QPushButton("✖️ Close Report")
         close_btn.clicked.connect(self.close)
-        close_btn.setStyleSheet(
-            """
+        close_btn.setStyleSheet("""
             QPushButton {
                 background-color: #666666;  /* Medical grey */
                 color: white;
@@ -193,8 +159,7 @@ class ReportViewDialog(QDialog):
             QPushButton:hover {
                 background-color: #555555;
             }
-        """
-        )
+        """)
 
         button_layout.addWidget(export_btn)
         button_layout.addStretch()
@@ -204,24 +169,19 @@ class ReportViewDialog(QDialog):
     def export_report(self):
         """Export report to file."""
         file_name, _ = QFileDialog.getSaveFileName(
-            self,
-            "💾 Export Compliance Report",
-            "compliance_report.html",
-            "HTML Files (*.html);;PDF Files (*.pdf);;All Files (*)",
+            self, 
+            "💾 Export Compliance Report", 
+            "compliance_report.html", 
+            "HTML Files (*.html);;PDF Files (*.pdf);;All Files (*)"
         )
 
         if file_name:
             try:
-                with open(file_name, "w", encoding="utf-8") as f:
+                with open(file_name, 'w', encoding='utf-8') as f:
                     f.write(self.report_display.toHtml())
-                QMessageBox.information(
-                    self, "Export Success", f"✅ Report exported to:\n{file_name}"
-                )
+                QMessageBox.information(self, "Export Success", f"✅ Report exported to:\n{file_name}")
             except Exception as e:
-                QMessageBox.warning(
-                    self, "Export Error", f"❌ Could not export report:\n{e}"
-                )
-
+                QMessageBox.warning(self, "Export Error", f"❌ Could not export report:\n{e}")
 
 class ModernCard(QFrame):
     """Modern card widget with shadow effect."""
@@ -234,8 +194,7 @@ class ModernCard(QFrame):
     def setup_ui(self):
         """Setup card UI."""
         self.setFrameStyle(QFrame.Shape.NoFrame)
-        self.setStyleSheet(
-            """
+        self.setStyleSheet("""
             QFrame {
                 background-color: #ffffff;
                 border: 2px solid #4a90e2;  /* Medical blue border */
@@ -243,8 +202,7 @@ class ModernCard(QFrame):
                 margin: 6px;
                 box-shadow: 0 4px 6px rgba(74, 144, 226, 0.1);
             }
-        """
-        )
+        """)
 
         # Main layout
         self.main_layout = QVBoxLayout(self)
@@ -258,9 +216,7 @@ class ModernCard(QFrame):
             title_font.setPointSize(11)
             title_font.setBold(True)
             self.title_label.setFont(title_font)
-            self.title_label.setStyleSheet(
-                "color: #4a90e2; margin-bottom: 4px;"
-            )  # Medical blue
+            self.title_label.setStyleSheet("color: #4a90e2; margin-bottom: 4px;")  # Medical blue
             self.main_layout.addWidget(self.title_label)
 
         # Content container
@@ -272,7 +228,6 @@ class ModernCard(QFrame):
     def add_content(self, widget: QWidget):
         """Add content to card."""
         self.content_layout.addWidget(widget)
-
 
 class ModernMainWindow(QMainWindow):
     """Modern main window with your exact layout."""
@@ -294,8 +249,7 @@ class ModernMainWindow(QMainWindow):
         self.setGeometry(100, 100, 1400, 900)
 
         # Apply PyCharm gray with medical accents
-        self.setStyleSheet(
-            """
+        self.setStyleSheet("""
             QMainWindow {
                 background-color: #3c3f41;  /* PyCharm gray background */
                 color: #bbbbbb;  /* Light text for dark background */
@@ -320,8 +274,7 @@ class ModernMainWindow(QMainWindow):
                 color: #666666;  /* Medical grey */
                 border-top: 1px solid #4a90e2;
             }
-        """
-        )
+        """)
 
         # Setup components
         self.setup_menu_bar()
@@ -364,15 +317,13 @@ class ModernMainWindow(QMainWindow):
 
         # Easter egg
         self.easter_egg_label = QLabel("Pacific Coast Therapy")
-        self.easter_egg_label.setStyleSheet(
-            """
+        self.easter_egg_label.setStyleSheet("""
             font-family: "Brush Script MT", "Lucida Handwriting", cursive;
             font-size: 10px;
             color: #94a3b8;
             font-style: italic;
             margin-left: 20px;
-        """
-        )
+        """)
         self.status_bar.addPermanentWidget(self.easter_egg_label)
 
     def create_main_layout(self):
@@ -421,16 +372,13 @@ class ModernMainWindow(QMainWindow):
 
         # Rubric selector with all disciplines option
         self.rubric_selector = QComboBox()
-        self.rubric_selector.addItems(
-            [
-                "All Disciplines (PT + OT + SLP)",
-                "PT Compliance Rubric",
-                "OT Compliance Rubric",
-                "SLP Compliance Rubric",
-            ]
-        )
-        self.rubric_selector.setStyleSheet(
-            """
+        self.rubric_selector.addItems([
+            "All Disciplines (PT + OT + SLP)",
+            "PT Compliance Rubric",
+            "OT Compliance Rubric", 
+            "SLP Compliance Rubric"
+        ])
+        self.rubric_selector.setStyleSheet("""
             QComboBox {
                 background-color: #f0f8ff;  /* Medical light blue */
                 border: 2px solid #4a90e2;  /* Medical blue */
@@ -442,8 +390,7 @@ class ModernMainWindow(QMainWindow):
                 border-color: #357abd;
                 background-color: #e6f3ff;
             }
-        """
-        )
+        """)
         self.rubric_selector.currentTextChanged.connect(self.on_rubric_changed)
 
         # Description
@@ -467,8 +414,7 @@ class ModernMainWindow(QMainWindow):
 
         self.upload_button = QPushButton("📤 Upload Document")
         self.upload_button.clicked.connect(self.open_file_dialog)
-        self.upload_button.setStyleSheet(
-            """
+        self.upload_button.setStyleSheet("""
             QPushButton {
                 background-color: #4a90e2;  /* Medical blue */
                 color: white;
@@ -480,13 +426,11 @@ class ModernMainWindow(QMainWindow):
             QPushButton:hover {
                 background-color: #357abd;
             }
-        """
-        )
+        """)
 
         self.clear_button = QPushButton("🗑️ Clear")
         self.clear_button.clicked.connect(self.clear_display)
-        self.clear_button.setStyleSheet(
-            """
+        self.clear_button.setStyleSheet("""
             QPushButton {
                 background-color: #cccccc;  /* Medical grey */
                 color: #1a1a1a;  /* Kiro black */
@@ -498,8 +442,7 @@ class ModernMainWindow(QMainWindow):
             QPushButton:hover {
                 background-color: #b8b8b8;
             }
-        """
-        )
+        """)
 
         button_layout.addWidget(self.upload_button)
         button_layout.addWidget(self.clear_button)
@@ -529,16 +472,13 @@ class ModernMainWindow(QMainWindow):
 
         # Progress label
         self.progress_label = QLabel("Ready to analyze")
-        self.progress_label.setStyleSheet(
-            "color: #bbbbbb; font-size: 11px;"
-        )  # Light text for dark background
+        self.progress_label.setStyleSheet("color: #bbbbbb; font-size: 11px;")  # Light text for dark background
 
         # Thin progress bar (always visible)
         self.main_progress_bar = QProgressBar()
         self.main_progress_bar.setFixedHeight(8)  # Very thin
         self.main_progress_bar.setValue(0)
-        self.main_progress_bar.setStyleSheet(
-            """
+        self.main_progress_bar.setStyleSheet("""
             QProgressBar {
                 border: 1px solid #4a90e2;  /* Medical blue */
                 border-radius: 4px;
@@ -549,8 +489,7 @@ class ModernMainWindow(QMainWindow):
                 background-color: #28a745;  /* Medical green */
                 border-radius: 3px;
             }
-        """
-        )
+        """)
 
         layout.addWidget(self.progress_label)
         layout.addWidget(self.main_progress_bar)
@@ -568,8 +507,7 @@ class ModernMainWindow(QMainWindow):
         self.run_analysis_button = QPushButton("🚀 Run Analysis")
         self.run_analysis_button.clicked.connect(self.run_analysis)
         self.run_analysis_button.setEnabled(False)
-        self.run_analysis_button.setStyleSheet(
-            """
+        self.run_analysis_button.setStyleSheet("""
             QPushButton {
                 background-color: #28a745;  /* Medical green */
                 color: white;
@@ -586,15 +524,13 @@ class ModernMainWindow(QMainWindow):
                 background-color: #555555;  /* Dark grey for dark theme */
                 color: #888888;
             }
-        """
-        )
+        """)
 
         # Stop Analysis button
         self.stop_analysis_button = QPushButton("⏹️ Stop Analysis")
         self.stop_analysis_button.clicked.connect(self.stop_analysis)
         self.stop_analysis_button.setEnabled(False)
-        self.stop_analysis_button.setStyleSheet(
-            """
+        self.stop_analysis_button.setStyleSheet("""
             QPushButton {
                 background-color: #dc3545;  /* Red */
                 color: white;
@@ -611,15 +547,13 @@ class ModernMainWindow(QMainWindow):
                 background-color: #555555;
                 color: #888888;
             }
-        """
-        )
+        """)
 
         # Document Preview button
         self.doc_preview_btn = QPushButton("📖 Document Preview")
         self.doc_preview_btn.clicked.connect(self.toggle_document_preview)
         self.doc_preview_btn.setEnabled(False)
-        self.doc_preview_btn.setStyleSheet(
-            """
+        self.doc_preview_btn.setStyleSheet("""
             QPushButton {
                 background-color: #4a90e2;  /* Medical blue */
                 color: white;
@@ -636,14 +570,12 @@ class ModernMainWindow(QMainWindow):
                 background-color: #555555;
                 color: #888888;
             }
-        """
-        )
+        """)
 
         # Analytics button
         self.analytics_button = QPushButton("📊 Analytics Dashboard")
         self.analytics_button.clicked.connect(self.show_analytics)
-        self.analytics_button.setStyleSheet(
-            """
+        self.analytics_button.setStyleSheet("""
             QPushButton {
                 background-color: #6f42c1;  /* Purple */
                 color: white;
@@ -656,15 +588,13 @@ class ModernMainWindow(QMainWindow):
             QPushButton:hover {
                 background-color: #5a32a3;
             }
-        """
-        )
+        """)
 
         # Report View button
         self.report_view_btn = QPushButton("📋 Full Report")
         self.report_view_btn.clicked.connect(self.toggle_report_view)
         self.report_view_btn.setEnabled(False)
-        self.report_view_btn.setStyleSheet(
-            """
+        self.report_view_btn.setStyleSheet("""
             QPushButton {
                 background-color: #fd7e14;  /* Orange */
                 color: white;
@@ -681,8 +611,7 @@ class ModernMainWindow(QMainWindow):
                 background-color: #555555;
                 color: #888888;
             }
-        """
-        )
+        """)
 
         layout.addWidget(self.run_analysis_button)
         layout.addWidget(self.stop_analysis_button)
@@ -701,8 +630,7 @@ class ModernMainWindow(QMainWindow):
         results_layout = QVBoxLayout(results_content)
 
         self.analysis_results = QTextEdit()
-        self.analysis_results.setPlaceholderText(
-            """
+        self.analysis_results.setPlaceholderText("""
 🎯 AI Analysis & Chat Interface
 
 • Upload a clinical document and click 'Document Preview' to see content
@@ -712,11 +640,9 @@ class ModernMainWindow(QMainWindow):
 • View 'Analytics Dashboard' for historical trends and insights
 • Click 'Full Report' to see detailed compliance report in popup window
 • Use the chat below to interact with AI for clarifications and guidance
-        """
-        )
+        """)
         self.analysis_results.setReadOnly(True)
-        self.analysis_results.setStyleSheet(
-            """
+        self.analysis_results.setStyleSheet("""
             QTextEdit {
                 background-color: #2b2b2b;  /* Dark background for PyCharm theme */
                 color: #bbbbbb;  /* Light text */
@@ -726,8 +652,7 @@ class ModernMainWindow(QMainWindow):
                 font-size: 12px;
                 line-height: 1.6;
             }
-        """
-        )
+        """)
 
         results_layout.addWidget(self.analysis_results)
         results_card.add_content(results_content)
@@ -742,12 +667,9 @@ class ModernMainWindow(QMainWindow):
 
         # Chat input
         self.chat_input = QTextEdit()
-        self.chat_input.setPlaceholderText(
-            "Ask the AI assistant about compliance, documentation, or analysis results..."
-        )
+        self.chat_input.setPlaceholderText("Ask the AI assistant about compliance, documentation, or analysis results...")
         self.chat_input.setMaximumHeight(60)
-        self.chat_input.setStyleSheet(
-            """
+        self.chat_input.setStyleSheet("""
             QTextEdit {
                 background-color: #f8fafc;
                 border: 1px solid #e2e8f0;
@@ -755,14 +677,12 @@ class ModernMainWindow(QMainWindow):
                 padding: 8px;
                 font-size: 12px;
             }
-        """
-        )
+        """)
 
         # Send button
         self.send_button = QPushButton("📤 Send")
         self.send_button.clicked.connect(self.send_chat)
-        self.send_button.setStyleSheet(
-            """
+        self.send_button.setStyleSheet("""
             QPushButton {
                 background-color: #4a90e2;  /* Medical blue */
                 color: white;
@@ -774,8 +694,7 @@ class ModernMainWindow(QMainWindow):
             QPushButton:hover {
                 background-color: #357abd;
             }
-        """
-        )
+        """)
         self.send_button.setFixedWidth(80)
 
         chat_layout.addWidget(self.chat_input, 1)
@@ -796,19 +715,17 @@ class ModernMainWindow(QMainWindow):
         descriptions = {
             "PT Compliance Rubric": "Physical therapy compliance guidelines and Medicare requirements",
             "OT Compliance Rubric": "Occupational therapy compliance guidelines and documentation standards",
-            "SLP Compliance Rubric": "Speech-language pathology compliance guidelines and regulatory requirements",
+            "SLP Compliance Rubric": "Speech-language pathology compliance guidelines and regulatory requirements"
         }
-        self.rubric_description.setText(
-            descriptions.get(text, "Select a rubric to see description")
-        )
+        self.rubric_description.setText(descriptions.get(text, "Select a rubric to see description"))
 
     def open_file_dialog(self):
         """Open file dialog for document upload."""
         file_name, _ = QFileDialog.getOpenFileName(
-            self,
-            "📁 Select Clinical Document",
-            "",
-            "All Supported Files (*.pdf *.docx *.txt);;PDF Files (*.pdf);;Word Documents (*.docx);;Text Files (*.txt)",
+            self, 
+            "📁 Select Clinical Document", 
+            "", 
+            "All Supported Files (*.pdf *.docx *.txt);;PDF Files (*.pdf);;Word Documents (*.docx);;Text Files (*.txt)"
         )
 
         if file_name:
@@ -818,7 +735,7 @@ class ModernMainWindow(QMainWindow):
 
             try:
                 # Try to read as text
-                with open(file_name, "r", encoding="utf-8", errors="ignore") as f:
+                with open(file_name, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read()
                     self._current_document_content = content
 
@@ -827,24 +744,20 @@ class ModernMainWindow(QMainWindow):
                 self.doc_preview_btn.setEnabled(True)  # Enable preview button
 
                 # Show success in chat area
-                self.analysis_results.append(
-                    f"""
+                self.analysis_results.append(f"""
                 <div style="background-color: #d4edda; padding: 10px; border-radius: 6px; margin: 4px 0; border-left: 4px solid #28a745;">
                     <strong>✅ Document Loaded:</strong> {file_info}<br>
                     <small style="color: #666;">Click 'View Document Preview' to see content • Ready for analysis</small>
                 </div>
-                """
-                )
+                """)
 
             except Exception as e:
                 self.status_bar.showMessage(f"⚠️ Preview error: {e}", 5000)
-                self.analysis_results.append(
-                    f"""
+                self.analysis_results.append(f"""
                 <div style="background-color: #f8d7da; padding: 10px; border-radius: 6px; margin: 4px 0; border-left: 4px solid #dc3545;">
                     <strong>❌ Error Loading Document:</strong> {e}
                 </div>
-                """
-                )
+                """)
 
     def run_analysis(self):
         """Run compliance analysis."""
@@ -875,15 +788,14 @@ class ModernMainWindow(QMainWindow):
         self.stop_analysis_button.setEnabled(False)
         self.progress_label.setText("✅ Analysis complete")
 
-        if hasattr(self, "analysis_timer"):
+        if hasattr(self, 'analysis_timer'):
             self.analysis_timer.stop()
 
         # Get selected rubric for context
         selected_rubric = self.rubric_selector.currentText()
 
         # Show enhanced demo results
-        self.analysis_results.setHtml(
-            f"""
+        self.analysis_results.setHtml(f"""
         <div style="background-color: #1e3a8a; color: white; padding: 15px; border-radius: 8px; margin-bottom: 12px;">
             <h2 style="color: white; margin: 0 0 10px 0;">🎯 Compliance Analysis Results</h2>
             <div style="display: flex; justify-content: space-between;">
@@ -959,8 +871,7 @@ class ModernMainWindow(QMainWindow):
                 This enhanced report demonstrates the comprehensive analysis capabilities.
             </small>
         </div>
-        """
-        )
+        """)
 
         # Store report content and enable report button
         self._current_report_content = self.analysis_results.toHtml()
@@ -973,8 +884,7 @@ class ModernMainWindow(QMainWindow):
         message = self.chat_input.toPlainText().strip()
         if message:
             # Add to results area
-            self.analysis_results.append(
-                f"""
+            self.analysis_results.append(f"""
             <div style="background-color: #e8f4fd; padding: 8px; border-radius: 4px; margin: 4px 0;">
                 <strong>You:</strong> {message}
             </div>
@@ -983,8 +893,7 @@ class ModernMainWindow(QMainWindow):
                 The AI chat system is working perfectly! In the full version, I'll provide detailed
                 compliance guidance and answer specific questions about your documentation.
             </div>
-            """
-            )
+            """)
             self.chat_input.clear()
 
     def clear_display(self):
@@ -1005,12 +914,10 @@ class ModernMainWindow(QMainWindow):
             QMessageBox.warning(self, "No Document", "Please upload a document first.")
             return
 
-        if (
-            self.document_preview_dialog is None
-            or not self.document_preview_dialog.isVisible()
-        ):
+        if self.document_preview_dialog is None or not self.document_preview_dialog.isVisible():
             self.document_preview_dialog = DocumentPreviewDialog(
-                self._current_document_content, self
+                self._current_document_content, 
+                self
             )
             self.document_preview_dialog.show()
             self.doc_preview_btn.setText("📖 Hide Document Preview")
@@ -1021,14 +928,13 @@ class ModernMainWindow(QMainWindow):
     def toggle_report_view(self):
         """Toggle full report view popup window."""
         if not self._current_report_content:
-            QMessageBox.warning(
-                self, "No Report", "Please run analysis first to generate a report."
-            )
+            QMessageBox.warning(self, "No Report", "Please run analysis first to generate a report.")
             return
 
         if self.report_view_dialog is None or not self.report_view_dialog.isVisible():
             self.report_view_dialog = ReportViewDialog(
-                self._current_report_content, self
+                self._current_report_content,
+                self
             )
             self.report_view_dialog.show()
             self.report_view_btn.setText("📊 Hide Full Report")
@@ -1038,7 +944,7 @@ class ModernMainWindow(QMainWindow):
 
     def stop_analysis(self):
         """Stop the current analysis."""
-        if hasattr(self, "analysis_timer") and self.analysis_timer.isActive():
+        if hasattr(self, 'analysis_timer') and self.analysis_timer.isActive():
             self.analysis_timer.stop()
 
         self.main_progress_bar.setValue(0)
@@ -1048,14 +954,12 @@ class ModernMainWindow(QMainWindow):
         self.progress_label.setText("Analysis stopped by user")
 
         # Show stopped message
-        self.analysis_results.append(
-            """
+        self.analysis_results.append("""
         <div style="background-color: #7f1d1d; color: white; padding: 10px; border-radius: 6px; margin: 4px 0;">
             <strong>⏹️ Analysis Stopped:</strong> Processing halted by user request<br>
             <small style="color: #fca5a5;">You can restart analysis at any time</small>
         </div>
-        """
-        )
+        """)
 
         self.status_bar.showMessage("⏹️ Analysis stopped", 3000)
 
@@ -1065,21 +969,18 @@ class ModernMainWindow(QMainWindow):
         analytics_dialog = QDialog(self)
         analytics_dialog.setWindowTitle("📊 Analytics Dashboard")
         analytics_dialog.setGeometry(200, 200, 900, 600)
-        analytics_dialog.setStyleSheet(
-            """
+        analytics_dialog.setStyleSheet("""
             QDialog {
                 background-color: #3c3f41;  /* PyCharm gray */
                 color: #bbbbbb;
             }
-        """
-        )
+        """)
 
         layout = QVBoxLayout(analytics_dialog)
 
         # Header
         header = QLabel("📊 Compliance Analytics & Trends")
-        header.setStyleSheet(
-            """
+        header.setStyleSheet("""
             QLabel {
                 color: #6f42c1;  /* Purple */
                 font-size: 18px;
@@ -1089,14 +990,12 @@ class ModernMainWindow(QMainWindow):
                 border-radius: 8px;
                 margin-bottom: 10px;
             }
-        """
-        )
+        """)
         layout.addWidget(header)
 
         # Analytics content
         analytics_content = QTextBrowser()
-        analytics_content.setHtml(
-            """
+        analytics_content.setHtml("""
         <div style="background-color: #1e3a8a; color: white; padding: 15px; border-radius: 8px; margin-bottom: 12px;">
             <h3 style="color: white; margin: 0 0 10px 0;">📈 Historical Performance</h3>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -1143,10 +1042,8 @@ class ModernMainWindow(QMainWindow):
             <p>• Custom dashboard widgets</p>
             <p>• Export analytics to Excel/PDF</p>
         </div>
-        """
-        )
-        analytics_content.setStyleSheet(
-            """
+        """)
+        analytics_content.setStyleSheet("""
             QTextBrowser {
                 background-color: #2b2b2b;
                 color: #bbbbbb;
@@ -1155,15 +1052,13 @@ class ModernMainWindow(QMainWindow):
                 padding: 15px;
                 font-size: 12px;
             }
-        """
-        )
+        """)
         layout.addWidget(analytics_content)
 
         # Close button
         close_btn = QPushButton("✖️ Close Analytics")
         close_btn.clicked.connect(analytics_dialog.close)
-        close_btn.setStyleSheet(
-            """
+        close_btn.setStyleSheet("""
             QPushButton {
                 background-color: #666666;
                 color: white;
@@ -1175,8 +1070,7 @@ class ModernMainWindow(QMainWindow):
             QPushButton:hover {
                 background-color: #555555;
             }
-        """
-        )
+        """)
         layout.addWidget(close_btn)
 
         analytics_dialog.exec()
@@ -1184,8 +1078,7 @@ class ModernMainWindow(QMainWindow):
     def set_theme(self, theme):
         """Set application theme."""
         if theme == "dark":
-            self.setStyleSheet(
-                """
+            self.setStyleSheet("""
                 QMainWindow {
                     background-color: #1e293b;
                     color: #f1f5f9;
@@ -1202,8 +1095,7 @@ class ModernMainWindow(QMainWindow):
                 QLabel {
                     color: #f1f5f9;
                 }
-            """
-            )
+            """)
             self.status_bar.showMessage("🌙 Dark theme activated", 2000)
         else:
             # Reset to light theme
@@ -1219,12 +1111,8 @@ class ModernMainWindow(QMainWindow):
 
     def manage_rubrics(self):
         """Manage rubrics."""
-        QMessageBox.information(
-            self, "Rubric Management", "Rubric management dialog will open here."
-        )
+        QMessageBox.information(self, "Rubric Management", "Rubric management dialog will open here.")
 
     def show_performance_settings(self):
         """Show performance settings."""
-        QMessageBox.information(
-            self, "Performance Settings", "Performance settings dialog will open here."
-        )
+        QMessageBox.information(self, "Performance Settings", "Performance settings dialog will open here.")
