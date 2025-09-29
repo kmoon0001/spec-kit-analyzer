@@ -44,7 +44,7 @@ from fastapi.testclient import TestClient
 
 from src.api.main import app, limiter
 from src.auth import get_current_active_user
-from src import schemas
+from src.database import schemas
 
 
 # We must stop the patchers we started manually. A session-scoped autouse fixture
