@@ -39,6 +39,7 @@ from src.gui.workers.folder_analysis_starter_worker import FolderAnalysisStarter
 from src.gui.workers.folder_analysis_worker import FolderAnalysisWorker
 from src.gui.workers.ai_loader_worker import AILoaderWorker
 from src.gui.workers.dashboard_worker import DashboardWorker
+from src.gui.workers.password_change_worker import PasswordChangeWorker
 from src.gui.widgets.dashboard_widget import DashboardWidget
 from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
 from src.gui.dialogs.performance_settings_dialog import PerformanceSettingsDialog
@@ -90,6 +91,8 @@ class MainApplicationWindow(QMainWindow):
         self.ai_loader_worker = None
         self.dashboard_thread = None
         self.dashboard_worker = None
+        self.password_worker_thread = None
+        self.password_worker = None
         self.report_generator = ReportGenerator()
         self.model_status = {
             "Generator": False,
@@ -472,31 +475,47 @@ class MainApplicationWindow(QMainWindow):
         dialog.exec()
 
     def show_change_password_dialog(self):
+        """Handle the password change dialog and process asynchronously."""
         dialog = ChangePasswordDialog(self)
-        if dialog.exec():
-            current_password, new_password = dialog.get_passwords()
-            try:
-                headers = {"Authorization": f"Bearer {self.access_token}"}
-                payload = {
-                    "current_password": current_password,
-                    "new_password": new_password,
-                }
-                response = requests.post(
-                    f"{API_URL}/auth/users/change-password",
-                    json=payload,
-                    headers=headers,
-                )
-                response.raise_for_status()
-                QMessageBox.information(
-                    self, "Success", "Password changed successfully."
-                )
-            except requests.exceptions.RequestException as e:
-                detail = (
-                    e.response.json().get("detail", str(e)) if e.response else str(e)
-                )
-                QMessageBox.critical(
-                    self, "Error", f"Failed to change password: {detail}"
-                )
+        if not dialog.exec():
+            return
+
+        current_password, new_password = dialog.get_passwords()
+
+        if self.password_worker_thread and self.password_worker_thread.isRunning():
+            self.password_worker_thread.quit()
+            self.password_worker_thread.wait()
+
+        self.password_worker_thread = QThread(self)
+        self.password_worker = PasswordChangeWorker(
+            token=self.access_token or "",
+            current_password=current_password,
+            new_password=new_password,
+        )
+        self.password_worker.moveToThread(self.password_worker_thread)
+
+        # Connect signals
+        self.password_worker_thread.started.connect(self.password_worker.run)
+        self.password_worker.success.connect(self.on_password_change_success)
+        self.password_worker.error.connect(self.on_password_change_error)
+        self.password_worker.finished.connect(self.password_worker_thread.quit)
+        self.password_worker.finished.connect(self.password_worker.deleteLater)
+        self.password_worker_thread.finished.connect(
+            self.password_worker_thread.deleteLater
+        )
+
+        self.password_worker_thread.start()
+        self.status_bar.showMessage("Changing password...", 3000)
+
+    def on_password_change_success(self):
+        """Handle successful password change."""
+        QMessageBox.information(self, "Success", "Password changed successfully.")
+        self.status_bar.showMessage("Password changed successfully.", 5000)
+
+    def on_password_change_error(self, error_message: str):
+        """Handle failed password change."""
+        QMessageBox.critical(self, "Error", f"Failed to change password: {error_message}")
+        self.status_bar.showMessage("Failed to change password.", 5000)
 
     def show_performance_settings(self):
         """Show the performance settings dialog."""
@@ -1106,6 +1125,10 @@ QMessageBox QPushButton { min-width: 90px; }
             if self.dashboard_thread and self.dashboard_thread.isRunning():
                 self.dashboard_thread.quit()
                 self.dashboard_thread.wait(3000)
+
+            if self.password_worker_thread and self.password_worker_thread.isRunning():
+                self.password_worker_thread.quit()
+                self.password_worker_thread.wait(3000)
 
             # Accept the close event
             event.accept()

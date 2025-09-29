@@ -52,7 +52,7 @@ async def change_user_password(
 async def create_rubric(
     db: AsyncSession, rubric: schemas.RubricCreate
 ) -> models.Rubric:
-    db_rubric = models.Rubric(**rubric.dict())
+    db_rubric = models.Rubric(**rubric.model_dump())
     db.add(db_rubric)
     await db.commit()
     await db.refresh(db_rubric)
@@ -78,7 +78,7 @@ async def update_rubric(
 ) -> Optional[models.Rubric]:
     db_rubric = await get_rubric(db, rubric_id)
     if db_rubric:
-        for key, value in rubric.dict().items():
+        for key, value in rubric.model_dump().items():
             setattr(db_rubric, key, value)
         await db.commit()
         await db.refresh(db_rubric)
@@ -93,7 +93,7 @@ async def delete_rubric(db: AsyncSession, rubric_id: int) -> None:
 async def create_report(
     db: AsyncSession, report: schemas.ReportCreate
 ) -> models.Report:
-    db_report = models.Report(**report.dict())
+    db_report = models.Report(**report.model_dump())
     db.add(db_report)
     await db.commit()
     await db.refresh(db_report)

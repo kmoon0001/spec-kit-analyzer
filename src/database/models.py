@@ -13,7 +13,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from .database import Base
 import datetime
-from pydantic import BaseModel
 
 
 class User(Base):
@@ -34,19 +33,6 @@ class Rubric(Base):
     name = Column(String, unique=True, index=True, nullable=False)
     content = Column(Text, nullable=False)
     category = Column(String, index=True, nullable=True)
-
-
-class RubricCreate(BaseModel):
-    name: str
-    content: str
-    category: str | None = None
-
-
-class RubricSchema(RubricCreate):
-    id: int
-
-    class Config:
-        from_attributes = True
 
 
 class Report(Base):
