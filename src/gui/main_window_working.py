@@ -6,7 +6,7 @@ import sys
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QMainWindow, QStatusBar,
     QMenuBar, QFileDialog, QTextEdit, QLabel, QPushButton, QComboBox,
-    QFrame, QProgressBar, QMessageBox, QSplitter, QDialog, QTextBrowser
+    QFrame, QProgressBar, QMessageBox, QSplitter, QDialog, QTextBrowser, QSizePolicy
 )
 from PyQt6.QtCore import Qt, QThread
 from PyQt6.QtGui import QFont, QKeySequence, QAction
@@ -253,8 +253,8 @@ class ModernMainWindow(QMainWindow):
         # Apply PyCharm gray with medical accents
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #3c3f41; /* PyCharm gray background */
-                color: #bbbbbb; /* Light text for dark background */
+                background-color: #2d3748; /* Dark Slate Gray */
+                color: #bbbbbb;
             }
             QFrame#SectionFrame {
                 background-color: #2b2b2b;
@@ -265,7 +265,7 @@ class ModernMainWindow(QMainWindow):
             QMenuBar {
                 background-color: #ffffff;
                 color: #1a1a1a;
-                border-bottom: 1px solid #4a90e2; /* Medical blue border */
+                border-bottom: 1px solid #4a90e2;
                 padding: 4px;
             }
             QMenuBar::item {
@@ -277,12 +277,12 @@ class ModernMainWindow(QMainWindow):
                 background-color: #e6f3ff;
             }
             QMenuBar::item:selected {
-                background-color: #4a90e2; /* Medical blue */
+                background-color: #4a90e2;
                 color: white;
             }
             QStatusBar {
                 background-color: #ffffff;
-                color: #666666; /* Medical grey */
+                color: #666666;
                 border-top: 1px solid #4a90e2;
             }
         """)
@@ -334,6 +334,13 @@ class ModernMainWindow(QMainWindow):
         help_action.triggered.connect(self.show_help_dialog)
         help_menu.addAction(help_action)
 
+        # Info Menu
+        info_menu = menubar.addMenu("ℹ️ Info")
+        moonie_action = QAction("Moonie 🫶", self)
+        moonie_action.triggered.connect(self.show_moonie_egg)
+        info_menu.addAction(moonie_action)
+
+
     def setup_status_bar(self):
         """Setup status bar with easter egg."""
         self.status_bar = QStatusBar()
@@ -346,6 +353,11 @@ class ModernMainWindow(QMainWindow):
         self.ai_status_label.setStyleSheet("color: #059669;")
         self.status_bar.addPermanentWidget(self.ai_status_label)
 
+        # Spacer to push the easter egg to the right
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.status_bar.addPermanentWidget(spacer, 1)
+
         # Easter egg
         self.easter_egg_label = QLabel("Pacific Coast Therapy")
         self.easter_egg_label.setStyleSheet("""
@@ -353,7 +365,7 @@ class ModernMainWindow(QMainWindow):
             font-size: 10px;
             color: #94a3b8;
             font-style: italic;
-            margin-left: 20px;
+            margin-right: 10px;
         """)
         self.status_bar.addPermanentWidget(self.easter_egg_label)
 
@@ -370,6 +382,7 @@ class ModernMainWindow(QMainWindow):
 
         # TOP SECTION: Rubric and Upload cards (7 lines tall each)
         top_section = self.create_top_section()
+        top_section.setMaximumHeight(150) # Shorter top section
         main_layout.addWidget(top_section)
 
         # PROGRESS SECTION: Thin static progress bar
@@ -386,6 +399,7 @@ class ModernMainWindow(QMainWindow):
 
         # BOTTOM: Chat input box
         chat_section = self.create_chat_section()
+        chat_section.setMaximumHeight(120) # Shorter chat section
         main_layout.addWidget(chat_section)
 
     def create_top_section(self) -> QWidget:
@@ -546,6 +560,8 @@ class ModernMainWindow(QMainWindow):
         layout.setContentsMargins(0, 8, 0, 8)
         layout.setSpacing(12)
 
+        layout.addStretch(1) # Center buttons
+
         # Run Analysis button
         self.run_analysis_button = QPushButton("🚀 Run Analysis")
         self.run_analysis_button.clicked.connect(self.run_analysis)
@@ -676,7 +692,7 @@ class ModernMainWindow(QMainWindow):
         layout.addWidget(self.doc_preview_btn)
         layout.addWidget(self.analytics_button)
         layout.addWidget(self.report_view_btn)
-        layout.addStretch()  # Push buttons to left
+        layout.addStretch(1) # Center buttons
 
         return container
 
@@ -703,9 +719,9 @@ class ModernMainWindow(QMainWindow):
         self.analysis_results.setReadOnly(True)
         self.analysis_results.setStyleSheet("""
             QTextEdit {
-                background-color: #2b2b2b;
-                color: #bbbbbb;
-                border: 1px solid #4a4a4a;
+                background-color: #f8fafc;
+                color: #1a1a1a;
+                border: 1px solid #e2e8f0;
                 border-radius: 8px;
                 padding: 16px;
                 font-size: 12px;
@@ -1193,3 +1209,7 @@ class ModernMainWindow(QMainWindow):
         """Show the help dialog."""
         dialog = HelpDialog(self)
         dialog.exec()
+
+    def show_moonie_egg(self):
+        """Shows the Moonie easter egg message."""
+        QMessageBox.information(self, "For Moonie", "With love 🫶")
