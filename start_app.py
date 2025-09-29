@@ -28,14 +28,14 @@ def main():
     """Main startup function."""
     print("[START] Starting Therapy Compliance Analyzer...")
     print("=" * 50)
-    
+
     # Check virtual environment
     if not check_virtual_environment():
         print("[WARN]  Warning: Not running in a virtual environment")
         print("   Consider activating .venv first:")
         print("   .venv\\Scripts\\activate")
         print()
-    
+
     # Check dependencies
     if not check_dependencies():
         print("\n[SETUP] Installing dependencies...")
@@ -46,14 +46,14 @@ def main():
             print("[ERROR] Failed to install dependencies")
             print("   Please run: pip install -r requirements.txt")
             return 1
-    
+
     # Check if startup files exist
     startup_file = "run_gui_safe.py" if Path("run_gui_safe.py").exists() else "run_gui.py"
     if not Path(startup_file).exists():
         print(f"[ERROR] {startup_file} not found in current directory")
         print("   Make sure you're in the project root directory")
         return 1
-    
+
     # Launch the application
     print(f"\n[INFO] Launching GUI application using {startup_file}...")
     print("   (First startup may take 30-60 seconds to load AI models)")
@@ -70,7 +70,7 @@ def main():
     except KeyboardInterrupt:
         print("\n[STOP] Application stopped by user")
         return 0
-    
+
     return 0
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ if project_root not in sys.path:
 
 class DocumentPreviewDialog(QDialog):
     """Popup dialog for document preview."""
-    
+
     def __init__(self, document_content: str, parent=None):
         super().__init__(parent)
         self.setWindowTitle("📖 Document Preview")
@@ -28,9 +28,9 @@ class DocumentPreviewDialog(QDialog):
                 background-color: #f0f8ff;  /* Medical light blue */
             }
         """)
-        
+
         layout = QVBoxLayout(self)
-        
+
         # Header
         header = QLabel("📄 Clinical Document Content")
         header.setStyleSheet("""
@@ -45,7 +45,7 @@ class DocumentPreviewDialog(QDialog):
             }
         """)
         layout.addWidget(header)
-        
+
         # Document display
         self.document_display = QTextEdit()
         self.document_display.setPlainText(document_content)
@@ -62,7 +62,7 @@ class DocumentPreviewDialog(QDialog):
             }
         """)
         layout.addWidget(self.document_display)
-        
+
         # Close button
         close_btn = QPushButton("✖️ Close Preview")
         close_btn.clicked.connect(self.close)
@@ -83,7 +83,7 @@ class DocumentPreviewDialog(QDialog):
 
 class ReportViewDialog(QDialog):
     """Popup dialog for full compliance report view."""
-    
+
     def __init__(self, report_content: str, parent=None):
         super().__init__(parent)
         self.setWindowTitle("📊 Compliance Analysis Report")
@@ -93,9 +93,9 @@ class ReportViewDialog(QDialog):
                 background-color: #f0f8ff;  /* Medical light blue */
             }
         """)
-        
+
         layout = QVBoxLayout(self)
-        
+
         # Header
         header = QLabel("📋 Detailed Compliance Analysis Report")
         header.setStyleSheet("""
@@ -110,7 +110,7 @@ class ReportViewDialog(QDialog):
             }
         """)
         layout.addWidget(header)
-        
+
         # Report display
         self.report_display = QTextBrowser()
         self.report_display.setHtml(report_content)
@@ -125,10 +125,10 @@ class ReportViewDialog(QDialog):
             }
         """)
         layout.addWidget(self.report_display)
-        
+
         # Button row
         button_layout = QHBoxLayout()
-        
+
         # Export button
         export_btn = QPushButton("💾 Export Report")
         export_btn.clicked.connect(self.export_report)
@@ -145,7 +145,7 @@ class ReportViewDialog(QDialog):
                 background-color: #357abd;
             }
         """)
-        
+
         # Close button
         close_btn = QPushButton("✖️ Close Report")
         close_btn.clicked.connect(self.close)
@@ -162,12 +162,12 @@ class ReportViewDialog(QDialog):
                 background-color: #555555;
             }
         """)
-        
+
         button_layout.addWidget(export_btn)
         button_layout.addStretch()
         button_layout.addWidget(close_btn)
         layout.addLayout(button_layout)
-    
+
     def export_report(self):
         """Export report to file."""
         from PyQt6.QtWidgets import QFileDialog
@@ -177,7 +177,7 @@ class ReportViewDialog(QDialog):
             "compliance_report.html", 
             "HTML Files (*.html);;PDF Files (*.pdf);;All Files (*)"
         )
-        
+
         if file_name:
             try:
                 with open(file_name, 'w', encoding='utf-8') as f:
@@ -188,12 +188,12 @@ class ReportViewDialog(QDialog):
 
 class ModernCard(QFrame):
     """Modern card widget with shadow effect."""
-    
+
     def __init__(self, title: str = "", parent=None):
         super().__init__(parent)
         self.title = title
         self.setup_ui()
-    
+
     def setup_ui(self):
         """Setup card UI."""
         self.setFrameStyle(QFrame.Shape.NoFrame)
@@ -206,12 +206,12 @@ class ModernCard(QFrame):
                 box-shadow: 0 4px 6px rgba(74, 144, 226, 0.1);
             }
         """)
-        
+
         # Main layout
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(16, 12, 16, 12)
         self.main_layout.setSpacing(8)
-        
+
         # Title
         if self.title:
             self.title_label = QLabel(self.title)
@@ -221,20 +221,20 @@ class ModernCard(QFrame):
             self.title_label.setFont(title_font)
             self.title_label.setStyleSheet("color: #4a90e2; margin-bottom: 4px;")  # Medical blue
             self.main_layout.addWidget(self.title_label)
-        
+
         # Content container
         self.content_widget = QWidget()
         self.content_layout = QVBoxLayout(self.content_widget)
         self.content_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.addWidget(self.content_widget)
-    
+
     def add_content(self, widget: QWidget):
         """Add content to card."""
         self.content_layout.addWidget(widget)
 
 class ModernMainWindow(QMainWindow):
     """Modern main window with your exact layout."""
-    
+
     def __init__(self):
         super().__init__()
         print("🎨 Initializing working modern UI...")
@@ -244,13 +244,13 @@ class ModernMainWindow(QMainWindow):
         self.document_preview_dialog = None
         self.report_view_dialog = None
         self.init_ui()
-    
+
     def init_ui(self):
         """Initialize the UI."""
         # Window setup
         self.setWindowTitle("🏥 Therapy Compliance Analyzer - Modern Edition")
         self.setGeometry(100, 100, 1400, 900)
-        
+
         # Apply PyCharm gray with medical accents
         self.setStyleSheet("""
             QMainWindow {
@@ -278,46 +278,46 @@ class ModernMainWindow(QMainWindow):
                 border-top: 1px solid #4a90e2;
             }
         """)
-        
+
         # Setup components
         self.setup_menu_bar()
         self.setup_status_bar()
         self.create_main_layout()
-        
+
         print("✅ Working UI created successfully!")
-    
+
     def setup_menu_bar(self):
         """Setup menu bar."""
         menubar = self.menuBar()
-        
+
         # File menu
         file_menu = menubar.addMenu("📁 File")
         file_menu.addAction("🚪 Logout", self.logout)
         file_menu.addSeparator()
         file_menu.addAction("❌ Exit", self.close)
-        
+
         # Tools menu
         tools_menu = menubar.addMenu("🔧 Tools")
         tools_menu.addAction("📋 Manage Rubrics", self.manage_rubrics)
         tools_menu.addAction("⚡ Performance Settings", self.show_performance_settings)
-        
+
         # View menu
         view_menu = menubar.addMenu("👁️ View")
         view_menu.addAction("🌞 Light Theme", lambda: self.set_theme("light"))
         view_menu.addAction("🌙 Dark Theme", lambda: self.set_theme("dark"))
-    
+
     def setup_status_bar(self):
         """Setup status bar with easter egg."""
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        
+
         self.status_bar.showMessage("Ready")
-        
+
         # AI status
         self.ai_status_label = QLabel("🤖 AI Models: Ready")
         self.ai_status_label.setStyleSheet("color: #059669;")
         self.status_bar.addPermanentWidget(self.ai_status_label)
-        
+
         # Easter egg
         self.easter_egg_label = QLabel("Pacific Coast Therapy")
         self.easter_egg_label.setStyleSheet("""
@@ -328,51 +328,51 @@ class ModernMainWindow(QMainWindow):
             margin-left: 20px;
         """)
         self.status_bar.addPermanentWidget(self.easter_egg_label)
-    
+
     def create_main_layout(self):
         """Create the main layout with your specification."""
         # Central widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        
+
         # Main vertical layout
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(12, 12, 12, 12)
         main_layout.setSpacing(12)
-        
+
         # TOP SECTION: Rubric and Upload cards (7 lines tall each)
         top_section = self.create_top_section()
         main_layout.addWidget(top_section)
-        
+
         # PROGRESS SECTION: Thin static progress bar
         progress_section = self.create_progress_section()
         main_layout.addWidget(progress_section)
-        
+
         # CONTROL BUTTONS: Run Analysis, Document Preview, Stop, Analytics
         control_buttons = self.create_control_buttons()
         main_layout.addWidget(control_buttons)
-        
+
         # MAIN CONTENT: Large AI chat/results window (biggest section)
         main_content = self.create_main_content()
         main_layout.addWidget(main_content, 1)  # Takes most space
-        
+
         # BOTTOM: Chat input box
         chat_section = self.create_chat_section()
         main_layout.addWidget(chat_section)
-    
+
     def create_top_section(self) -> QWidget:
         """Create top section with rubric and upload cards (4 lines tall each)."""
         container = QWidget()
         layout = QHBoxLayout(container)
         layout.setSpacing(12)
-        
+
         # Rubric card (left side)
         rubric_card = ModernCard("📋 Compliance Rubric")
         rubric_card.setFixedHeight(180)  # 7 lines tall (3 lines taller)
-        
+
         rubric_content = QWidget()
         rubric_layout = QVBoxLayout(rubric_content)
-        
+
         # Rubric selector with all disciplines option
         self.rubric_selector = QComboBox()
         self.rubric_selector.addItems([
@@ -395,26 +395,26 @@ class ModernMainWindow(QMainWindow):
             }
         """)
         self.rubric_selector.currentTextChanged.connect(self.on_rubric_changed)
-        
+
         # Description
         self.rubric_description = QLabel("Physical therapy compliance guidelines")
         self.rubric_description.setWordWrap(True)
         self.rubric_description.setStyleSheet("color: #64748b; font-size: 11px;")
-        
+
         rubric_layout.addWidget(self.rubric_selector)
         rubric_layout.addWidget(self.rubric_description)
         rubric_card.add_content(rubric_content)
-        
+
         # Upload card (right side)
         upload_card = ModernCard("📄 Document Upload")
         upload_card.setFixedHeight(180)  # 7 lines tall (3 lines taller)
-        
+
         upload_content = QWidget()
         upload_layout = QVBoxLayout(upload_content)
-        
+
         # Buttons row
         button_layout = QHBoxLayout()
-        
+
         self.upload_button = QPushButton("📤 Upload Document")
         self.upload_button.clicked.connect(self.open_file_dialog)
         self.upload_button.setStyleSheet("""
@@ -430,7 +430,7 @@ class ModernMainWindow(QMainWindow):
                 background-color: #357abd;
             }
         """)
-        
+
         self.clear_button = QPushButton("🗑️ Clear")
         self.clear_button.clicked.connect(self.clear_display)
         self.clear_button.setStyleSheet("""
@@ -446,37 +446,37 @@ class ModernMainWindow(QMainWindow):
                 background-color: #b8b8b8;
             }
         """)
-        
+
         button_layout.addWidget(self.upload_button)
         button_layout.addWidget(self.clear_button)
         button_layout.addStretch()
-        
+
         # Status
         self.document_status = QLabel("No document uploaded")
         self.document_status.setWordWrap(True)
         self.document_status.setStyleSheet("color: #64748b; font-size: 11px;")
-        
+
         upload_layout.addLayout(button_layout)
         upload_layout.addWidget(self.document_status)
         upload_card.add_content(upload_content)
-        
+
         # Add cards to layout
         layout.addWidget(rubric_card, 1)
         layout.addWidget(upload_card, 1)
-        
+
         return container
-    
+
     def create_progress_section(self) -> QWidget:
         """Create thin static progress bar section."""
         container = QWidget()
         container.setFixedHeight(40)  # Thin section
         layout = QVBoxLayout(container)
         layout.setContentsMargins(0, 5, 0, 5)
-        
+
         # Progress label
         self.progress_label = QLabel("Ready to analyze")
         self.progress_label.setStyleSheet("color: #bbbbbb; font-size: 11px;")  # Light text for dark background
-        
+
         # Thin progress bar (always visible)
         self.main_progress_bar = QProgressBar()
         self.main_progress_bar.setFixedHeight(8)  # Very thin
@@ -493,19 +493,19 @@ class ModernMainWindow(QMainWindow):
                 border-radius: 3px;
             }
         """)
-        
+
         layout.addWidget(self.progress_label)
         layout.addWidget(self.main_progress_bar)
-        
+
         return container
-    
+
     def create_control_buttons(self) -> QWidget:
         """Create control buttons section under progress bar."""
         container = QWidget()
         layout = QHBoxLayout(container)
         layout.setContentsMargins(0, 8, 0, 8)
         layout.setSpacing(12)
-        
+
         # Run Analysis button
         self.run_analysis_button = QPushButton("🚀 Run Analysis")
         self.run_analysis_button.clicked.connect(self.run_analysis)
@@ -528,7 +528,7 @@ class ModernMainWindow(QMainWindow):
                 color: #888888;
             }
         """)
-        
+
         # Stop Analysis button
         self.stop_analysis_button = QPushButton("⏹️ Stop Analysis")
         self.stop_analysis_button.clicked.connect(self.stop_analysis)
@@ -551,7 +551,7 @@ class ModernMainWindow(QMainWindow):
                 color: #888888;
             }
         """)
-        
+
         # Document Preview button
         self.doc_preview_btn = QPushButton("📖 Document Preview")
         self.doc_preview_btn.clicked.connect(self.toggle_document_preview)
@@ -574,7 +574,7 @@ class ModernMainWindow(QMainWindow):
                 color: #888888;
             }
         """)
-        
+
         # Analytics button
         self.analytics_button = QPushButton("📊 Analytics Dashboard")
         self.analytics_button.clicked.connect(self.show_analytics)
@@ -592,7 +592,7 @@ class ModernMainWindow(QMainWindow):
                 background-color: #5a32a3;
             }
         """)
-        
+
         # Report View button
         self.report_view_btn = QPushButton("📋 Full Report")
         self.report_view_btn.clicked.connect(self.toggle_report_view)
@@ -615,23 +615,23 @@ class ModernMainWindow(QMainWindow):
                 color: #888888;
             }
         """)
-        
+
         layout.addWidget(self.run_analysis_button)
         layout.addWidget(self.stop_analysis_button)
         layout.addWidget(self.doc_preview_btn)
         layout.addWidget(self.analytics_button)
         layout.addWidget(self.report_view_btn)
         layout.addStretch()  # Push buttons to left
-        
+
         return container
-    
+
     def create_main_content(self) -> QWidget:
         """Create main AI chat/results area (full width)."""
         # Main AI chat/results area
         results_card = ModernCard("🤖 AI Analysis & Chat Interface")
         results_content = QWidget()
         results_layout = QVBoxLayout(results_content)
-        
+
         self.analysis_results = QTextEdit()
         self.analysis_results.setPlaceholderText("""
 🎯 AI Analysis & Chat Interface
@@ -656,18 +656,18 @@ class ModernMainWindow(QMainWindow):
                 line-height: 1.6;
             }
         """)
-        
+
         results_layout.addWidget(self.analysis_results)
         results_card.add_content(results_content)
-        
+
         return results_card
-    
+
     def create_chat_section(self) -> QWidget:
         """Create chat input box at bottom."""
         chat_card = ModernCard("💬 AI Assistant")
         chat_content = QWidget()
         chat_layout = QHBoxLayout(chat_content)
-        
+
         # Chat input
         self.chat_input = QTextEdit()
         self.chat_input.setPlaceholderText("Ask the AI assistant about compliance, documentation, or analysis results...")
@@ -681,7 +681,7 @@ class ModernMainWindow(QMainWindow):
                 font-size: 12px;
             }
         """)
-        
+
         # Send button
         self.send_button = QPushButton("📤 Send")
         self.send_button.clicked.connect(self.send_chat)
@@ -699,18 +699,18 @@ class ModernMainWindow(QMainWindow):
             }
         """)
         self.send_button.setFixedWidth(80)
-        
+
         chat_layout.addWidget(self.chat_input, 1)
         chat_layout.addWidget(self.send_button)
-        
+
         chat_card.add_content(chat_content)
         return chat_card
-    
+
     def start(self):
         """Start the application."""
         print("🚀 Starting working modern application...")
         print("✅ Working modern UI loaded successfully!")
-    
+
     # Event handlers
     def on_rubric_changed(self, text):
         """Handle rubric selection change."""
@@ -720,7 +720,7 @@ class ModernMainWindow(QMainWindow):
             "SLP Compliance Rubric": "Speech-language pathology compliance guidelines and regulatory requirements"
         }
         self.rubric_description.setText(descriptions.get(text, "Select a rubric to see description"))
-    
+
     def open_file_dialog(self):
         """Open file dialog for document upload."""
         file_name, _ = QFileDialog.getOpenFileName(
@@ -729,22 +729,22 @@ class ModernMainWindow(QMainWindow):
             "", 
             "All Supported Files (*.pdf *.docx *.txt);;PDF Files (*.pdf);;Word Documents (*.docx);;Text Files (*.txt)"
         )
-        
+
         if file_name:
             self._current_file_path = file_name
             file_info = os.path.basename(file_name)
             self.document_status.setText(f"📄 {file_info}")
-            
+
             try:
                 # Try to read as text
                 with open(file_name, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read()
                     self._current_document_content = content
-                
+
                 self.status_bar.showMessage(f"✅ Loaded: {file_info}", 3000)
                 self.run_analysis_button.setEnabled(True)
                 self.doc_preview_btn.setEnabled(True)  # Enable preview button
-                
+
                 # Show success in chat area
                 self.analysis_results.append(f"""
                 <div style="background-color: #d4edda; padding: 10px; border-radius: 6px; margin: 4px 0; border-left: 4px solid #28a745;">
@@ -752,7 +752,7 @@ class ModernMainWindow(QMainWindow):
                     <small style="color: #666;">Click 'View Document Preview' to see content • Ready for analysis</small>
                 </div>
                 """)
-                
+
             except Exception as e:
                 self.status_bar.showMessage(f"⚠️ Preview error: {e}", 5000)
                 self.analysis_results.append(f"""
@@ -760,28 +760,28 @@ class ModernMainWindow(QMainWindow):
                     <strong>❌ Error Loading Document:</strong> {e}
                 </div>
                 """)
-    
+
     def run_analysis(self):
         """Run compliance analysis."""
         if not self._current_file_path:
             QMessageBox.warning(self, "No Document", "Please upload a document first.")
             return
-        
+
         # Setup progress
         self.main_progress_bar.setRange(0, 0)  # Indeterminate
         self.main_progress_bar.setVisible(True)
         self.run_analysis_button.setEnabled(False)
         self.run_analysis_button.setText("🔄 Analyzing...")
         self.progress_label.setText("🤖 AI analysis in progress...")
-        
+
         # Enable stop button
         self.stop_analysis_button.setEnabled(True)
-        
+
         # Simulate analysis with timer
         self.analysis_timer = QTimer()
         self.analysis_timer.timeout.connect(self.analysis_complete)
         self.analysis_timer.start(3000)  # 3 seconds
-    
+
     def analysis_complete(self):
         """Handle analysis completion."""
         self.main_progress_bar.setValue(100)
@@ -789,13 +789,13 @@ class ModernMainWindow(QMainWindow):
         self.run_analysis_button.setText("🚀 Run Analysis")
         self.stop_analysis_button.setEnabled(False)
         self.progress_label.setText("✅ Analysis complete")
-        
+
         if hasattr(self, 'analysis_timer'):
             self.analysis_timer.stop()
-        
+
         # Get selected rubric for context
         selected_rubric = self.rubric_selector.currentText()
-        
+
         # Show enhanced demo results
         self.analysis_results.setHtml(f"""
         <div style="background-color: #1e3a8a; color: white; padding: 15px; border-radius: 8px; margin-bottom: 12px;">
@@ -874,13 +874,13 @@ class ModernMainWindow(QMainWindow):
             </small>
         </div>
         """)
-        
+
         # Store report content and enable report button
         self._current_report_content = self.analysis_results.toHtml()
         self.report_view_btn.setEnabled(True)
-        
+
         self.status_bar.showMessage("✅ Analysis completed successfully!", 5000)
-    
+
     def send_chat(self):
         """Send chat message to AI assistant."""
         message = self.chat_input.toPlainText().strip()
@@ -897,7 +897,7 @@ class ModernMainWindow(QMainWindow):
             </div>
             """)
             self.chat_input.clear()
-    
+
     def clear_display(self):
         """Clear all displays."""
         self.analysis_results.clear()
@@ -909,13 +909,13 @@ class ModernMainWindow(QMainWindow):
         self.doc_preview_btn.setEnabled(False)
         self.report_view_btn.setEnabled(False)
         self.status_bar.showMessage("Displays cleared", 2000)
-    
+
     def toggle_document_preview(self):
         """Toggle document preview popup window."""
         if not self._current_document_content:
             QMessageBox.warning(self, "No Document", "Please upload a document first.")
             return
-        
+
         if self.document_preview_dialog is None or not self.document_preview_dialog.isVisible():
             self.document_preview_dialog = DocumentPreviewDialog(
                 self._current_document_content, 
@@ -926,13 +926,13 @@ class ModernMainWindow(QMainWindow):
         else:
             self.document_preview_dialog.close()
             self.doc_preview_btn.setText("📖 View Document Preview")
-    
+
     def toggle_report_view(self):
         """Toggle full report view popup window."""
         if not self._current_report_content:
             QMessageBox.warning(self, "No Report", "Please run analysis first to generate a report.")
             return
-        
+
         if self.report_view_dialog is None or not self.report_view_dialog.isVisible():
             self.report_view_dialog = ReportViewDialog(
                 self._current_report_content,
@@ -943,18 +943,18 @@ class ModernMainWindow(QMainWindow):
         else:
             self.report_view_dialog.close()
             self.report_view_btn.setText("� VFull Report")
-    
+
     def stop_analysis(self):
         """Stop the current analysis."""
         if hasattr(self, 'analysis_timer') and self.analysis_timer.isActive():
             self.analysis_timer.stop()
-        
+
         self.main_progress_bar.setValue(0)
         self.run_analysis_button.setEnabled(True)
         self.run_analysis_button.setText("🚀 Run Analysis")
         self.stop_analysis_button.setEnabled(False)
         self.progress_label.setText("Analysis stopped by user")
-        
+
         # Show stopped message
         self.analysis_results.append("""
         <div style="background-color: #7f1d1d; color: white; padding: 10px; border-radius: 6px; margin: 4px 0;">
@@ -962,9 +962,9 @@ class ModernMainWindow(QMainWindow):
             <small style="color: #fca5a5;">You can restart analysis at any time</small>
         </div>
         """)
-        
+
         self.status_bar.showMessage("⏹️ Analysis stopped", 3000)
-    
+
     def show_analytics(self):
         """Show analytics dashboard."""
         # Create analytics dialog
@@ -977,9 +977,9 @@ class ModernMainWindow(QMainWindow):
                 color: #bbbbbb;
             }
         """)
-        
+
         layout = QVBoxLayout(analytics_dialog)
-        
+
         # Header
         header = QLabel("📊 Compliance Analytics & Trends")
         header.setStyleSheet("""
@@ -994,7 +994,7 @@ class ModernMainWindow(QMainWindow):
             }
         """)
         layout.addWidget(header)
-        
+
         # Analytics content
         analytics_content = QTextBrowser()
         analytics_content.setHtml("""
@@ -1014,14 +1014,14 @@ class ModernMainWindow(QMainWindow):
                 </div>
             </div>
         </div>
-        
+
         <div style="background-color: #065f46; color: white; padding: 12px; border-radius: 6px; margin-bottom: 8px;">
             <h4 style="color: white; margin: 0 0 8px 0;">📊 Discipline Breakdown</h4>
             <p><strong>Physical Therapy:</strong> 89.1% avg compliance (142 docs)</p>
             <p><strong>Occupational Therapy:</strong> 81.7% avg compliance (67 docs)</p>
             <p><strong>Speech-Language Pathology:</strong> 86.4% avg compliance (38 docs)</p>
         </div>
-        
+
         <div style="background-color: #7c2d12; color: white; padding: 12px; border-radius: 6px; margin-bottom: 8px;">
             <h4 style="color: white; margin: 0 0 8px 0;">🎯 Improvement Trends</h4>
             <p><strong>Last 30 Days:</strong> +7.3% improvement in compliance scores</p>
@@ -1029,14 +1029,14 @@ class ModernMainWindow(QMainWindow):
             <p><strong>Outcome Measures:</strong> Increased usage by 23%</p>
             <p><strong>Audit Risk Reduction:</strong> 31% decrease in high-risk findings</p>
         </div>
-        
+
         <div style="background-color: #92400e; color: white; padding: 12px; border-radius: 6px; margin-bottom: 8px;">
             <h4 style="color: white; margin: 0 0 8px 0;">⚠️ Areas Needing Attention</h4>
             <p><strong>Skilled Therapy Justification:</strong> Still needs improvement (68% compliance)</p>
             <p><strong>Discharge Planning:</strong> Documentation gaps identified</p>
             <p><strong>Progress Note Frequency:</strong> Some gaps in required intervals</p>
         </div>
-        
+
         <div style="background-color: #374151; color: #d1d5db; padding: 12px; border-radius: 6px;">
             <h4 style="color: #d1d5db; margin: 0 0 8px 0;">📅 Upcoming Features</h4>
             <p>• Real-time compliance scoring</p>
@@ -1056,7 +1056,7 @@ class ModernMainWindow(QMainWindow):
             }
         """)
         layout.addWidget(analytics_content)
-        
+
         # Close button
         close_btn = QPushButton("✖️ Close Analytics")
         close_btn.clicked.connect(analytics_dialog.close)
@@ -1074,9 +1074,9 @@ class ModernMainWindow(QMainWindow):
             }
         """)
         layout.addWidget(close_btn)
-        
+
         analytics_dialog.exec()
-    
+
     def set_theme(self, theme):
         """Set application theme."""
         if theme == "dark":
@@ -1103,18 +1103,18 @@ class ModernMainWindow(QMainWindow):
             # Reset to light theme
             self.init_ui()
             self.status_bar.showMessage("🌞 Light theme activated", 2000)
-    
+
     # Placeholder methods
     def logout(self):
         """Handle logout."""
         reply = QMessageBox.question(self, "Logout", "Are you sure you want to logout?")
         if reply == QMessageBox.StandardButton.Yes:
             self.close()
-    
+
     def manage_rubrics(self):
         """Manage rubrics."""
         QMessageBox.information(self, "Rubric Management", "Rubric management dialog will open here.")
-    
+
     def show_performance_settings(self):
         """Show performance settings."""
         QMessageBox.information(self, "Performance Settings", "Performance settings dialog will open here.")
