@@ -25,8 +25,6 @@ async def create_user(
     db_user = models.User(
         username=user.username,
         hashed_password=hashed_password,
-        is_admin=user.is_admin,
-        license_key=user.license_key,
     )
     db.add(db_user)
     await db.commit()
