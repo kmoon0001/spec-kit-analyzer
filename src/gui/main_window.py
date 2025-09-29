@@ -32,6 +32,7 @@ from PyQt6.QtGui import QTextDocument
 
 # Corrected: Use absolute imports from the src root
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
+from src.gui.dialogs.settings_dialog import SettingsDialog
 from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
@@ -127,6 +128,9 @@ class MainApplicationWindow(QMainWindow):
         self.tools_menu = self.menu_bar.addMenu("Tools")
         self.tools_menu.addAction("Manage Rubrics", self.manage_rubrics)
         self.tools_menu.addAction("Performance Settings", self.show_performance_settings)
+        self.tools_menu.addSeparator()
+        self.tools_menu.addAction("Application Settings", self.show_settings_dialog)
+        self.tools_menu.addSeparator()
         self.tools_menu.addAction("Change Password", self.show_change_password_dialog)
         self.theme_menu = self.menu_bar.addMenu("Theme")
         self.theme_menu.addAction("Light", self.set_light_theme)
@@ -473,6 +477,11 @@ class MainApplicationWindow(QMainWindow):
 
     def manage_rubrics(self):
         dialog = RubricManagerDialog(self.access_token, self)
+        dialog.exec()
+
+    def show_settings_dialog(self):
+        """Show the general application settings dialog."""
+        dialog = SettingsDialog(self)
         dialog.exec()
 
     def show_change_password_dialog(self):

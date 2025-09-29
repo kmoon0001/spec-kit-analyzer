@@ -2,6 +2,7 @@ import logging
 import asyncio
 from typing import Any, Dict, List, Optional
 
+from src.config import get_settings
 from .llm_service import LLMService
 from .nlg_service import NLGService
 from .ner import NERPipeline
@@ -9,9 +10,11 @@ from .explanation import ExplanationEngine
 from .prompt_manager import PromptManager
 from .fact_checker_service import FactCheckerService
 from .hybrid_retriever import HybridRetriever
+from .habit_mapper import get_habit_for_finding
 
 logger = logging.getLogger(__name__)
 CONFIDENCE_THRESHOLD = 0.7
+settings = get_settings()
 
 
 class ComplianceAnalyzer:
@@ -125,6 +128,10 @@ class ComplianceAnalyzer:
                     "personalized_tip",
                     finding.get("suggestion", "Tip generation unavailable."),
                 )
+
+            if settings.enable_habit_coaching:
+                habit = get_habit_for_finding(finding)
+                finding["habit_coaching"] = habit
 
         return explained_analysis
 

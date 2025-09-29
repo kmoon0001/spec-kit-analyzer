@@ -80,6 +80,7 @@ class Settings(BaseModel):
     temp_upload_dir: str
     api_url: str
     rule_dir: str
+    enable_habit_coaching: bool = False
 
 
 @lru_cache()
