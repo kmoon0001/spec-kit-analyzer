@@ -23,17 +23,23 @@ from ..dependencies import get_analysis_service
 from ..task_manager import task_manager, Task
 from ...database import crud, schemas
 from ...database.database import get_async_db
+from fastapi import APIRouter, UploadFile, File, Form, Depends, status, HTTPException
+from typing import Dict
+import uuid
+import asyncio
+import logging
+from pathlib import Path
+from .dependencies import get_current_active_user, get_analysis_service, get_settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analysis", tags=["analysis"])
-
 
 async def run_analysis_in_background(
     task: Task,
     file_path: str,
     discipline: str,
     analysis_mode: str,
-    analysis_service: AnalysisService,
+    analysis_service,
     user_id: int,
     original_filename: str,
 ):
@@ -45,36 +51,27 @@ async def run_analysis_in_background(
     db = await db_session_generator.__anext__()
     try:
         await task.update_progress(10, "Starting analysis...")
-        # The actual analysis call, which might be long-running
         result = await analysis_service.analyze_document(
             file_path=file_path,
             discipline=discipline,
             analysis_mode=analysis_mode,
         )
-        
-        # Save the report to the database
         report_create = schemas.ReportCreate(
             document_name=original_filename,
-            # Extract score from analysis, default to 0 if not found
             compliance_score=result.get("analysis", {}).get("overall_confidence", 0.0) * 100,
             analysis_result=result.get("analysis", {}),
         )
         db_report = await crud.create_report(db=db, report=report_create)
         logger.info(f"Saved analysis report with ID: {db_report.id}")
-        
-        # Add report_id to the result
         result_with_report = {**result, "report_id": db_report.id}
         await task.set_completed(result_with_report)
         logger.info("Analysis task %s completed successfully.", task.task_id)
-
     except Exception as e:
         logger.exception("Analysis task %s failed.", task.task_id)
         await task.set_failed(str(e))
     finally:
         await db.close()
-        # Clean up the temporary file
         Path(file_path).unlink(missing_ok=True)
-
 
 @router.post("/analyze", status_code=status.HTTP_202_ACCEPTED)
 async def analyze_document(
@@ -82,7 +79,7 @@ async def analyze_document(
     discipline: str = Form("pt"),
     analysis_mode: str = Form("rubric"),
     current_user=Depends(get_current_active_user),
-    analysis_service: AnalysisService = Depends(get_analysis_service),
+    analysis_service=Depends(get_analysis_service),
 ) -> Dict[str, str]:
     """
     Accepts a document for analysis, creates a task, and starts it in the background.
@@ -102,10 +99,8 @@ async def analyze_document(
     content = await file.read()
     destination.write_bytes(content)
 
-    # Create a new task using the TaskManager
     task = await task_manager.create_task(task_id=task_id, filename=file.filename)
 
-    # Start the analysis in a background asyncio task
     asyncio.create_task(
         run_analysis_in_background(
             task=task,
@@ -116,6 +111,9 @@ async def analyze_document(
             user_id=current_user.id,
             original_filename=file.filename,
         )
+    )
+
+    return {"task_id": task_id, "status": "processing"
     )
 
     return {"task_id": task_id, "status": "processing"}

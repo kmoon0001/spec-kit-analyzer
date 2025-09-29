@@ -46,12 +46,11 @@ def mock_dependencies():
         )
 
         analyze_future = asyncio.Future()
-        
-        # The finding should be a dictionary with an 'issue_title'
-        # Update the mock to return a list of dictionaries for findings
+# The finding should be a dictionary with an 'issue_title'
+# Update the mock to return a list of dictionaries for findings
 
-        analyze_future.set_result({"findings": [{"issue_title": "Test Finding"}]})
-        mock_analyzer.return_value.analyze_document.return_value = analyze_future
+analyze_future.set_result({"findings": [{"issue_title": "Test Finding"}]})
+mock_analyzer.return_value.analyze_document.return_value = analyze_future
 
         yield {
             "mock_parse": mock_parse,

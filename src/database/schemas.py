@@ -134,7 +134,6 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
 
-
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import datetime
