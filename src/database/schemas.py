@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional, List
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict
 import datetime
 
 # --- Schemas for Reports and Findings (Dashboard) ---
@@ -10,6 +10,8 @@ class FindingBase(BaseModel):
     risk: str
     personalized_tip: str
     problematic_text: str
+    clinician_name: Optional[str] = None
+    habit_name: Optional[str] = None
 
 
 class Finding(FindingBase):
@@ -133,6 +135,35 @@ class ChatResponse(BaseModel):
     response: str
 
 
+from pydantic import BaseModel, Field
+from typing import List, Optional
+import datetime
+
+# --- Schemas for Director Dashboard ---
+
+class TeamHabitAnalytics(BaseModel):
+    habit_name: str
+    count: int
+
+class ClinicianHabitAnalytics(BaseModel):
+    clinician_name: str
+    habit_name: str
+    count: int
+
+class DirectorDashboardData(BaseModel):
+    total_findings: int
+    team_habit_summary: List[TeamHabitAnalytics]
+    clinician_habit_breakdown: List[ClinicianHabitAnalytics]
+
+class CoachingFocus(BaseModel):
+    focus_title: str = Field(..., description="The title for the weekly coaching focus.")
+    summary: str = Field(
+        ..., description="A brief summary of the key issue identified."
+    )
+    action_steps: List[str] = Field(
+        ..., description="A list of concrete action steps for the team."
+    )
+
 # --- Schemas for Collaborative Review Mode ---
 
 class CommentBase(BaseModel):
@@ -146,7 +177,7 @@ class Comment(CommentBase):
     review_id: int
     commenter_id: int
     created_at: datetime.datetime
-    commenter: UserBase # To show who made the comment
+    commenter: 'UserBase'  # Use forward reference or import UserBase
 
     class Config:
         from_attributes = True
@@ -161,8 +192,8 @@ class ReviewCreate(BaseModel):
 
 class Review(ReviewBase):
     id: int
-    author: UserBase
-    reviewer: Optional[UserBase] = None
+    author: 'UserBase'  # Use forward reference or import UserBase
+    reviewer: Optional['UserBase'] = None
     comments: List[Comment] = []
     created_at: datetime.datetime
     updated_at: datetime.datetime
