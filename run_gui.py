@@ -31,7 +31,7 @@ async def initialize_database():
 
 if __name__ == "__main__":
     import asyncio
-    
+
     logger.info("Initializing database...")
     try:
         asyncio.run(initialize_database())
