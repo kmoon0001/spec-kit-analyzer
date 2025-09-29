@@ -43,6 +43,7 @@ from src.gui.workers.ai_loader_worker import AILoaderWorker
 from src.gui.workers.dashboard_worker import DashboardWorker
 from src.gui.workers.password_change_worker import PasswordChangeWorker
 from src.gui.widgets.dashboard_widget import DashboardWidget
+from src.gui.widgets.director_dashboard_widget import DirectorDashboardWidget
 from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
 from src.gui.dialogs.performance_settings_dialog import PerformanceSettingsDialog
 from src.core.report_generator import ReportGenerator
@@ -187,6 +188,17 @@ class MainApplicationWindow(QMainWindow):
         self.dashboard_widget = DashboardWidget()
         self.tabs.addTab(self.dashboard_widget, "Dashboard")
         self.dashboard_widget.refresh_requested.connect(self.load_dashboard_data)
+
+        if self.is_admin and settings.enable_director_dashboard:
+            self.director_dashboard_widget = DirectorDashboardWidget(
+                self.access_token or ""
+            )
+            self.tabs.addTab(self.director_dashboard_widget, "Director Dashboard")
+            # Connect a signal to load data when the tab is focused or a button is clicked
+            self.director_dashboard_widget.refresh_requested.connect(
+                self.director_dashboard_widget.load_data
+            )
+
         if self.is_admin:
             self.admin_menu = self.menu_bar.addMenu("Admin")
             self.admin_menu.addAction("Open Admin Dashboard", self.open_admin_dashboard)

@@ -81,6 +81,7 @@ class Settings(BaseModel):
     api_url: str
     rule_dir: str
     enable_habit_coaching: bool = False
+    enable_director_dashboard: bool = False
 
 
 @lru_cache()

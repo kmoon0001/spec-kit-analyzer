@@ -233,7 +233,7 @@ async def async_client(test_db: AsyncSession) -> Generator[AsyncClient, None, No
 
 # --- Test User Data ---------------------------------------------------------
 
-test_user_credentials = {"username": "testuser", "password": "testpassword"}
+test_user_credentials = {"username": "testuser", "password": "test"}
 
 
 @pytest_asyncio.fixture

@@ -2,7 +2,7 @@ from . import models, schemas
 import datetime
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func, desc
 
 
 async def get_user_by_username(
@@ -98,6 +98,58 @@ async def create_report(
     return db_report
 
 
+async def get_total_findings_count(db: AsyncSession) -> int:
+    """Returns the total number of findings in the database."""
+    result = await db.execute(select(func.count(models.Finding.id)))
+    return result.scalar_one_or_none() or 0
+
+
+async def get_team_habit_summary(
+    db: AsyncSession,
+) -> List[schemas.TeamHabitAnalytics]:
+    """Returns a summary of findings per habit for the entire team."""
+    query = (
+        select(
+            models.Finding.habit_name,
+            func.count(models.Finding.id).label("count"),
+        )
+        .group_by(models.Finding.habit_name)
+        .order_by(desc("count"))
+        .filter(models.Finding.habit_name.isnot(None))
+    )
+    result = await db.execute(query)
+    return [
+        schemas.TeamHabitAnalytics(habit_name=row.habit_name, count=row.count)
+        for row in result.all()
+    ]
+
+
+async def get_clinician_habit_breakdown(
+    db: AsyncSession,
+) -> List[schemas.ClinicianHabitAnalytics]:
+    """Returns a detailed breakdown of findings per habit for each clinician."""
+    query = (
+        select(
+            models.Finding.clinician_name,
+            models.Finding.habit_name,
+            func.count(models.Finding.id).label("count"),
+        )
+        .group_by(models.Finding.clinician_name, models.Finding.habit_name)
+        .order_by(models.Finding.clinician_name, desc("count"))
+        .filter(models.Finding.clinician_name.isnot(None))
+        .filter(models.Finding.habit_name.isnot(None))
+    )
+    result = await db.execute(query)
+    return [
+        schemas.ClinicianHabitAnalytics(
+            clinician_name=row.clinician_name,
+            habit_name=row.habit_name,
+            count=row.count,
+        )
+        for row in result.all()
+    ]
+
+
 async def get_report(db: AsyncSession, report_id: int) -> Optional[models.Report]:
     result = await db.execute(
         select(models.Report).filter(models.Report.id == report_id)
@@ -176,6 +228,8 @@ async def create_report_and_findings(
             risk=finding_data.risk,
             personalized_tip=finding_data.personalized_tip,
             problematic_text=finding_data.problematic_text,
+            clinician_name=finding_data.clinician_name,
+            habit_name=finding_data.habit_name,
         )
         db.add(db_finding)
 

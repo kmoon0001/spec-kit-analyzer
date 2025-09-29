@@ -24,6 +24,10 @@ class SettingsDialog(QDialog):
         self.habit_coaching_checkbox = QCheckBox("Enable '7 Habits' Coaching")
         layout.addWidget(self.habit_coaching_checkbox)
 
+        # Director Dashboard
+        self.director_dashboard_checkbox = QCheckBox("Enable Director Dashboard")
+        layout.addWidget(self.director_dashboard_checkbox)
+
         # Add other settings here...
         layout.addStretch()
 
@@ -45,6 +49,9 @@ class SettingsDialog(QDialog):
     def load_settings(self):
         """Load settings from the config object."""
         self.habit_coaching_checkbox.setChecked(self.settings.enable_habit_coaching)
+        self.director_dashboard_checkbox.setChecked(
+            self.settings.enable_director_dashboard
+        )
 
     def save_settings(self):
         """Save the settings to the config.yaml file."""
@@ -53,6 +60,9 @@ class SettingsDialog(QDialog):
                 config_data = yaml.safe_load(f)
 
             config_data["enable_habit_coaching"] = self.habit_coaching_checkbox.isChecked()
+            config_data[
+                "enable_director_dashboard"
+            ] = self.director_dashboard_checkbox.isChecked()
 
             with open("config.yaml", "w") as f:
                 yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)

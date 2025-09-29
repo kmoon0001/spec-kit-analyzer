@@ -62,6 +62,13 @@ class ComplianceAnalyzer:
             else "No specific entities extracted."
         )
 
+        # Extract the clinician name from the entities
+        clinician_name = "Unknown"
+        for entity in entities:
+            if entity.get("entity_group") == "CLINICIAN":
+                clinician_name = entity.get("word", "Unknown")
+                break  # Use the first clinician found
+
         search_query = f"{discipline} {doc_type} {entity_list_str}"
         retrieved_rules = await self.retriever.retrieve(
             search_query, category_filter=discipline
@@ -88,19 +95,24 @@ class ComplianceAnalyzer:
         )
 
         final_analysis = await self._post_process_findings(
-            explained_analysis, retrieved_rules
+            explained_analysis, retrieved_rules, clinician_name
         )
+        final_analysis["clinician_name"] = clinician_name
         logger.info("Compliance analysis complete.")
         return final_analysis
 
     async def _post_process_findings(
-        self, explained_analysis: Dict[str, Any], retrieved_rules: List[Dict[str, Any]]
+        self,
+        explained_analysis: Dict[str, Any],
+        retrieved_rules: List[Dict[str, Any]],
+        clinician_name: str,
     ) -> Dict[str, Any]:
         findings = explained_analysis.get("findings")
         if not isinstance(findings, list):
             return explained_analysis
 
         for finding in findings:
+            finding["clinician_name"] = clinician_name
             rule_id = finding.get("rule_id")
             associated_rule = next(
                 (r for r in retrieved_rules if r.get("id") == rule_id), None
@@ -132,6 +144,7 @@ class ComplianceAnalyzer:
             if settings.enable_habit_coaching:
                 habit = get_habit_for_finding(finding)
                 finding["habit_coaching"] = habit
+                finding["habit_name"] = habit.get("name")
 
         return explained_analysis
 

@@ -62,5 +62,7 @@ class Finding(Base):
     risk = Column(String, index=True)  # Index for risk level filtering
     personalized_tip = Column(Text)
     problematic_text = Column(Text)
+    habit_name = Column(String, index=True, nullable=True)
+    clinician_name = Column(String, index=True, nullable=True)
 
     report = relationship("Report", back_populates="findings")
