@@ -77,7 +77,6 @@ class Settings(BaseModel):
     temp_upload_dir: str
     api_url: str
     rule_dir: str
-    use_ai_mocks: Optional[bool] = False
 
 
 @lru_cache()
