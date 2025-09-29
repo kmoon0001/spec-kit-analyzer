@@ -1,6 +1,5 @@
 import os
 import json
-import logging
 import requests
 import urllib.parse
 import webbrowser
@@ -47,6 +46,7 @@ from src.gui.dialogs.performance_settings_dialog import PerformanceSettingsDialo
 from src.core.report_generator import ReportGenerator
 from src.gui.export import generate_pdf_report
 from src.config import get_settings
+from .api_client import api_client
 
 settings = get_settings()
 API_URL = settings.api_url
@@ -94,6 +94,8 @@ class MainApplicationWindow(QMainWindow):
         self.dashboard_worker = None
         self.password_worker_thread = None
         self.password_worker = None
+        self.password_worker_thread = None
+        self.password_worker = None
         self.report_generator = ReportGenerator()
         self.model_status = {
             "Generator": False,
@@ -111,6 +113,11 @@ class MainApplicationWindow(QMainWindow):
         This is called after the window is created to avoid blocking the constructor,
         which makes the main window testable.
         """
+        # TODO: This should be replaced by a real login dialog flow.
+        # For now, we simulate a successful login to get a token.
+        self.access_token = "dummy_token_for_dev_and_testing"
+        api_client.set_token(self.access_token)
+
         self.load_ai_models()
         self.load_main_ui()  # Load main UI directly
         self.show()
@@ -169,6 +176,7 @@ class MainApplicationWindow(QMainWindow):
         self.access_token = None
         self.username = None
         self.is_admin = False
+        api_client.set_token(None)  # Clear the token from the API client
         self.user_status_label.setText("")
         self.setCentralWidget(None)
         QMessageBox.information(self, "Logged Out", "You have been logged out.")
@@ -472,7 +480,7 @@ class MainApplicationWindow(QMainWindow):
         chat_dialog.exec()
 
     def manage_rubrics(self):
-        dialog = RubricManagerDialog(self.access_token, self)
+        dialog = RubricManagerDialog(self)
         dialog.exec()
 
     def show_change_password_dialog(self):
@@ -489,7 +497,6 @@ class MainApplicationWindow(QMainWindow):
 
         self.password_worker_thread = QThread(self)
         self.password_worker = PasswordChangeWorker(
-            token=self.access_token or "",
             current_password=current_password,
             new_password=new_password,
         )
@@ -536,8 +543,8 @@ class MainApplicationWindow(QMainWindow):
             self.status_bar.showMessage("Performance settings updated", 3000)
 
             # Optionally trigger performance optimization
-            from src.core.performance_integration import optimize_for_analysis
-            optimization_results = optimize_for_analysis()
+            from src.core.services import performance_integration
+            optimization_results = performance_integration.optimize_for_analysis()
 
             if optimization_results.get('cache_cleanup'):
                 memory_freed = optimization_results.get('memory_freed_mb', 0)
@@ -561,7 +568,7 @@ class MainApplicationWindow(QMainWindow):
             self.dashboard_thread.wait(2000)
 
         self.dashboard_thread = QThread()
-        self.dashboard_worker = DashboardWorker(self.access_token)
+        self.dashboard_worker = DashboardWorker()
         self.dashboard_worker.moveToThread(self.dashboard_thread)
         self.dashboard_thread.started.connect(self.dashboard_worker.run)
         self.dashboard_worker.success.connect(self.on_dashboard_data_loaded)
@@ -649,7 +656,6 @@ class MainApplicationWindow(QMainWindow):
         self.worker = AnalysisStarterWorker(
             self._current_file_path,
             payload,
-            self.access_token or "",
         )
         self.worker.moveToThread(self.worker_thread)
         self.worker.success.connect(self.handle_analysis_started)
@@ -692,7 +698,6 @@ class MainApplicationWindow(QMainWindow):
         self.worker = FolderAnalysisStarterWorker(
             files_payload,
             payload,
-            self.access_token or "",
         )
         self.worker.moveToThread(self.worker_thread)
         self.worker.success.connect(self.handle_analysis_started)
@@ -1130,7 +1135,7 @@ QMessageBox QPushButton { min-width: 90px; }
             )
 
         try:
-            from src.core.performance_integration import performance_integration
+            from src.core.services import performance_integration
             performance_integration.cleanup()
         except ImportError:
             logging.warning("Performance integration module not found, skipping cleanup.")
