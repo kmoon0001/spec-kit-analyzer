@@ -21,13 +21,13 @@ class ComplianceService:
         self.rules: List[ComplianceRule] = provided_rules or self._default_rules()
         self.analysis_service = analysis_service
 
-def get_available_rubrics(self) -> List[dict]:
-    """Return available rules/rubrics for UI consumption."""
-    return [asdict(rule) for rule in self.rules]
+    def get_available_rubrics(self) -> List[dict]:
+        """Return available rules/rubrics for UI consumption."""
+        return [asdict(rule) for rule in self.rules]
 
-def get_analysis_service(self) -> Optional[Any]:
-    """Expose the underlying analysis service when available."""
-    return self.analysis_service
+    def get_analysis_service(self) -> Optional[Any]:
+        """Expose the underlying analysis service when available."""
+        return self.analysis_service
 
     def evaluate_document(self, document: TherapyDocument) -> ComplianceResult:
         logger.info("Evaluating compliance for document %s", document.id)
