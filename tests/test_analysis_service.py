@@ -46,7 +46,7 @@ def mock_dependencies():
         )
 
         analyze_future = asyncio.Future()
-        analyze_future.set_result({"findings": ["Test Finding"]})
+        analyze_future.set_result({"findings": [{"issue_title": "Test Finding"}]})
         mock_analyzer.return_value.analyze_document.return_value = analyze_future
 
         yield {
@@ -80,5 +80,6 @@ async def test_analysis_service_orchestration(mock_dependencies):
         document_text="This is a test.", discipline="PT", doc_type="Test Note"
     )
 
-    # Assert the final result is passed through from the analyzer
-    assert result == {"findings": ["Test Finding"]}
+    # Assert the final result contains the enriched analysis data
+    assert "analysis" in result
+    assert result["analysis"]["findings"] == [{"issue_title": "Test Finding"}]
