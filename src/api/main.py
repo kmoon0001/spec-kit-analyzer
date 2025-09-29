@@ -16,7 +16,7 @@ from slowapi.errors import RateLimitExceeded
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from .dependencies import startup_event as api_startup, shutdown_event as api_shutdown
-from .routers import auth, analysis, dashboard, admin, health, chat, compliance, users
+from .routers import auth, analysis, dashboard, admin, health, chat, compliance, users, synergy, review
 from ..core.database_maintenance_service import DatabaseMaintenanceService
 from ..config import get_settings
 
@@ -100,6 +100,8 @@ app.include_router(analysis.router, tags=["Analysis"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 app.include_router(compliance.router, tags=["Compliance"])
+app.include_router(synergy.router, prefix="/synergy", tags=["Synergy"])
+app.include_router(review.router, prefix="/reviews", tags=["Reviews"])
 
 
 @app.get("/")

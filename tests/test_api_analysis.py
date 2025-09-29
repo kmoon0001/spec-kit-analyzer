@@ -109,9 +109,11 @@ def test_analyze_document_api_route(client: TestClient, mocker):
 
     mock_run_analysis.assert_called_once()
 
-    call_args, _ = mock_run_analysis.call_args
-    assert isinstance(call_args[0], str)
-    assert call_args[1] == response_data["task_id"]
-    assert call_args[2] == dummy_filename
-    assert call_args[3] == "pt"
-    assert call_args[4] == "rubric"
+    # Verify that the background task was called with the correct keyword arguments
+    _, call_kwargs = mock_run_analysis.call_args
+    assert isinstance(call_kwargs.get("file_path"), str)
+    assert "test_note.txt" in call_kwargs.get("file_path")
+    assert call_kwargs.get("task_id") == response_data["task_id"]
+    assert call_kwargs.get("original_filename") == dummy_filename
+    assert call_kwargs.get("discipline") == "pt"
+    assert call_kwargs.get("analysis_mode") == "rubric"
