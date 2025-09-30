@@ -109,6 +109,7 @@ class ComplianceAnalyzer:
         logger.info("Compliance analysis complete.")
         return final_analysis
 
+
     async def _post_process_findings(
         self,
         explained_analysis: Dict[str, Any],
@@ -147,8 +148,8 @@ class ComplianceAnalyzer:
 
         return explained_analysis
 
-    @staticmethod
-    def _format_rules_for_prompt(rules: List[Dict[str, Any]]) -> str:
+
+    def _format_rules_for_prompt(self, rules: List[Dict[str, Any]]) -> str:
         """
         Formats retrieved rules for the LLM prompt, including their relevance scores.
         """
