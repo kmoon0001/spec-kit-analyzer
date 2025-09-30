@@ -1,143 +1,120 @@
 # 🚀 Quick Start Guide
 
-## How to Run the Therapy Compliance Analyzer
+This guide provides step-by-step instructions to get the Therapy Compliance Analyzer installed and running on your local machine.
 
-### **Method 1: Simple Startup (Recommended)**
+## 1. System Requirements
+
+Before you begin, ensure your system meets the following requirements:
+
+-   **Python**: Version 3.10 or newer.
+-   **RAM**: A minimum of 6GB of RAM. The application will adapt its performance based on your system's available memory.
+-   **Operating System**: Windows, macOS, or Linux.
+-   **System Dependencies**:
+    -   **Cairo**: Required for PDF and graphics functionality.
+    -   **Tesseract**: Required for Optical Character Recognition (OCR).
+
+## 2. Installation and Setup
+
+Follow these steps to install the application and its dependencies.
+
+### Step 1: Clone the Repository
+First, clone the project repository to your local machine using Git:
 ```bash
-python start_app.py
-```
-This script will:
-- ✅ Check your environment setup
-- ✅ Install missing dependencies automatically  
-- ✅ Launch the GUI application
-
-### **Method 2: Direct Launch**
-```bash
-# Make sure you're in the project directory
-python run_gui.py
-```
-
-### **Method 3: Backend + Frontend Separately**
-```bash
-# Terminal 1 - Start FastAPI backend
-python run_api.py
-
-# Terminal 2 - Start GUI frontend  
-python -m src.gui.main
+git clone <repository-url>
+cd <repository-directory>
 ```
 
-## Prerequisites
-
-### **1. Virtual Environment (Recommended)**
+### Step 2: Create a Virtual Environment (Recommended)
+It is highly recommended to use a virtual environment to manage the project's dependencies.
 ```bash
-# Create virtual environment
+# Create the virtual environment
 python -m venv .venv
 
-# Activate it
-.venv\Scripts\activate  # Windows
-source .venv/bin/activate  # Linux/Mac
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### **2. System Requirements**
-- **Python 3.11+** 
-- **6-16GB RAM** (app auto-adapts to your system)
-- **Windows/Linux/Mac** (cross-platform)
-
-## First Run
-
-1. **Launch the app**: `python start_app.py`
-2. **Wait for AI models**: First startup takes 30-60 seconds to load models
-3. **Upload a document**: Click "Upload Document" and select a clinical note
-4. **Select rubric**: Choose PT/OT/SLP compliance rubric
-5. **Run analysis**: Click "Run Analysis" and wait for results
-6. **View report**: Interactive compliance report appears in right panel
-
-## Performance Optimization
-
-The app automatically detects your system and applies optimal settings:
-
-- **6-8GB RAM**: Conservative mode (CPU-only, small cache)
-- **8-12GB RAM**: Balanced mode (GPU optional, moderate cache)  
-- **12-16GB+ RAM**: Aggressive mode (full GPU, large cache)
-
-Access performance settings via: `Tools → Performance Settings`
-
-## Troubleshooting
-
-### **App Won't Start**
-```bash
-# Check Python version
-python --version  # Should be 3.11+
-
-# Reinstall dependencies
-pip install -r requirements.txt --force-reinstall
-
-# Try direct launch
-python run_gui.py
-```
-
-### **"AI Models Failed" Error**
-- **First run**: Models download automatically (requires internet)
-- **Subsequent runs**: Models cached locally
-- **Fix**: Restart app, models will reload
-
-### **Performance Issues**
-- **High memory usage**: Switch to Conservative profile in settings
-- **Slow analysis**: Enable GPU acceleration if available
-- **UI freezing**: Close other applications, restart app
-
-### **Import Errors**
-```bash
-# Activate virtual environment
+# Activate the environment
+# On Windows:
 .venv\Scripts\activate
-
-# Verify installation
-python -c "import PyQt6; print('✅ GUI ready')"
-python -c "import fastapi; print('✅ API ready')"
+# On macOS and Linux:
+source .venv/bin/activate
 ```
 
-## Features Overview
+### Step 3: Install System Dependencies
+Install the required system libraries for your operating system.
+-   **For Debian/Ubuntu-based systems:**
+    ```bash
+    sudo apt-get update && sudo apt-get install -y libcairo2-dev tesseract-ocr
+    ```
+-   **For other systems (macOS, Windows):**
+    Use your system's package manager (e.g., Homebrew, Chocolatey) to install `cairo` and `tesseract`.
 
-### **📄 Document Analysis**
-- Upload PDF, DOCX, TXT files
-- OCR support for scanned documents
-- AI-powered compliance checking
-- Real-time progress indicators
+### Step 4: Install Python Dependencies
+With your virtual environment activated, install the necessary Python packages.
+```bash
+# Install the main application dependencies
+pip install -r requirements.txt
 
-### **📊 Performance Monitoring**  
-- Real-time memory usage in status bar
-- Automatic performance optimization
-- Hardware-adaptive settings
-- System health monitoring
+# For development, install the additional testing and linting tools
+pip install -r requirements-dev.txt
+```
 
-### **📈 Dashboard & Analytics**
-- Historical compliance trends
-- Performance metrics
-- Exportable reports
-- Drill-down capabilities
+## 3. Configuration
 
-### **⚙️ Advanced Settings**
-- Performance profile selection
-- Cache management
-- GPU acceleration toggle
-- Custom compliance rules
+The application requires a secret key for secure token encoding.
 
-## Getting Help
+### Step 1: Create a `.env` File
+Create a file named `.env` in the root of the project directory. This file will store your secret key.
 
-- **Performance Settings**: `Tools → Performance Settings`
-- **Compliance Guide**: Built-in help system with Medicare guidelines
-- **Chat Assistant**: AI-powered help for compliance questions
-- **Documentation**: See README.md for detailed information
+### Step 2: Set the Secret Key
+Add the following line to your `.env` file. You can generate a new secret key using the command provided.
+```.env
+# Generate a new key with: openssl rand -hex 32
+SECRET_KEY="YOUR_SUPER_SECRET_KEY_HERE"
+```
+**Note**: The application will automatically load this environment variable. It will take precedence over the placeholder key in `config.yaml`.
 
-## Success Indicators
+### Step 3: Create a Default User
+For the first run, you will need to create a default user in the database to be able to log in.
 
-✅ **Application starts without errors**
-✅ **"AI Models Ready" appears in status bar** 
-✅ **Performance widget shows system status**
-✅ **Document upload and analysis work**
-✅ **Interactive reports generate properly**
+## 4. Running the Application
 
-Your Therapy Compliance Analyzer is now ready for clinical documentation analysis! 🎯
+You can run the application in several ways:
+
+-   **Method 1: Simple Startup (Recommended)**
+    This script automatically checks your environment and starts both the backend API and the frontend GUI.
+    ```bash
+    python start_app.py
+    ```
+
+-   **Method 2: Direct GUI Launch**
+    ```bash
+    python run_gui.py
+    ```
+
+-   **Method 3: Backend and Frontend Separately**
+    This is useful for development and debugging.
+    ```bash
+    # Terminal 1: Start the backend API server
+    python run_api.py
+
+    # Terminal 2: Start the GUI application
+    python -m src.gui.main
+    ```
+
+## 5. First Run Walkthrough
+
+1.  **Launch the app** using one of the methods above.
+2.  **Wait for AI models to load**. The first startup may take 30-60 seconds. You should see a "Models Ready" status in the application window.
+3.  **Upload a document** by clicking the "Upload Document" button.
+4.  **Select a rubric** (e.g., PT, OT, SLP) from the dropdown menu.
+5.  **Run the analysis** by clicking the "Run Analysis" button.
+6.  **View the report**. The analysis results will appear in the report panel.
+
+## 6. Basic Troubleshooting
+
+-   **Application Won't Start**:
+    -   Make sure your virtual environment is activated.
+    -   Verify that all dependencies from `requirements.txt` are installed (`pip list`).
+    -   Ensure the system dependencies (Cairo, Tesseract) are installed correctly.
+
+-   **"AI Models Failed" Error**:
+    -   This typically happens on the first run if the models have not been downloaded.
+    -   Ensure you have a stable internet connection and restart the application. The models will be downloaded and cached locally.
