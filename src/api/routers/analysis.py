@@ -15,10 +15,10 @@ from fastapi import (
     status,
 )
 
-from ...auth import get_current_active_user
-from ...config import get_settings
-from ...core.analysis_service import AnalysisService
-from ..dependencies import get_analysis_service
+from src.auth import get_current_active_user
+from src.config import get_settings
+from src.core.analysis_service import AnalysisService
+from src.api.dependencies import get_analysis_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analysis", tags=["analysis"])

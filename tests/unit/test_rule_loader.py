@@ -1,6 +1,6 @@
 import unittest
 from src.core.rule_loader import RuleLoader
-from src.core.models import ComplianceRule
+from src.core.compliance_types import ComplianceRule
 
 
 class TestRuleLoader(unittest.TestCase):

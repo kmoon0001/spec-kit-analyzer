@@ -7,7 +7,7 @@ from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import cos_sim
 
 try:  # pragma: no cover - optional dependency during tests
-    from ..database import crud
+    from src import crud
 except Exception:  # pragma: no cover - fallback when database layer unavailable
     crud = None
 
@@ -100,7 +100,7 @@ class HybridRetriever:
             combined.append((index, bm25_value + dense_value))
 
         combined.sort(key=lambda item: item[1], reverse=True)
-sorted_rules = [self.rules[index] for index, _ in combined]
+        sorted_rules = [self.rules[index] for index, _ in combined]
 
         if category_filter:
             filtered_rules = [
