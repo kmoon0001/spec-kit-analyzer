@@ -83,13 +83,12 @@ class ExportService:
             # Export based on format
             if format_type.lower() == "json" and self.enable_json:
                 return self._export_json(export_data, output_path)
-            elif format_type.lower() == "csv" and self.enable_csv:
+            if format_type.lower() == "csv" and self.enable_csv:
                 return self._export_csv(export_data, output_path, include_findings)
-            elif format_type.lower() == "excel" and self.enable_excel:
+            if format_type.lower() == "excel" and self.enable_excel:
                 return self._export_excel(export_data, output_path, include_findings)
-            else:
-                logger.error(f"Unsupported or disabled export format: {format_type}")
-                return False
+            logger.error(f"Unsupported or disabled export format: {format_type}")
+            return False
 
         except Exception as e:
             logger.error(f"Export failed: {e}")
@@ -250,7 +249,7 @@ class ExportService:
                     json.dump(analytics_data, f, indent=2, default=str)
                 return True
 
-            elif format_type.lower() == "csv" and self.enable_csv:
+            if format_type.lower() == "csv" and self.enable_csv:
                 # Export key metrics as CSV
                 metrics = analytics_data.get('metrics', {})
                 if metrics:
@@ -260,10 +259,8 @@ class ExportService:
                         for key, value in metrics.items():
                             writer.writerow([key, value])
                 return True
-
-            else:
-                logger.error(f"Unsupported format for analytics export: {format_type}")
-                return False
+            logger.error(f"Unsupported format for analytics export: {format_type}")
+            return False
 
         except Exception as e:
             logger.error(f"Analytics export failed: {e}")
@@ -355,8 +352,8 @@ def is_export_format_available(format_type: str) -> bool:
     """Check if specific export format is available."""
     if format_type.lower() == "excel":
         return EXPORT_CONFIG.get("enable_excel", False) and PANDAS_AVAILABLE
-    elif format_type.lower() == "csv":
+    if format_type.lower() == "csv":
         return EXPORT_CONFIG.get("enable_csv", True)
-    elif format_type.lower() == "json":
+    if format_type.lower() == "json":
         return EXPORT_CONFIG.get("enable_json", True)
     return False

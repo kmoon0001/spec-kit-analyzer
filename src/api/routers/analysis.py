@@ -11,11 +11,14 @@ from fastapi import (
     Form,
     HTTPException,
     UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
     status,
 )
 
 from ...auth import get_current_active_user
 from ...config import get_settings
+from ...core.services import AnalysisService
 from ..dependencies import get_analysis_service
 
 logger = logging.getLogger(__name__)
@@ -26,11 +29,11 @@ tasks: Dict[str, Dict[str, Any]] = {}
 
 async def run_analysis_and_save(
     file_path: str,
-    task_id: str,
-    original_filename: str,
     discipline: str,
     analysis_mode: str,
     analysis_service: Any,
+    task_id: str,
+    original_filename: str,
 ) -> None:
     """Runs the analysis in the background and updates the task status."""
     try:
@@ -54,7 +57,6 @@ async def run_analysis_and_save(
     finally:
         Path(file_path).unlink(missing_ok=True)
 
-
 @router.post("/analyze", status_code=status.HTTP_202_ACCEPTED)
 async def analyze_document(
     file: UploadFile = File(...),
@@ -63,10 +65,13 @@ async def analyze_document(
     current_user=Depends(get_current_active_user),
     analysis_service: Any = Depends(get_analysis_service),
 ) -> Dict[str, str]:
-    if analysis_service is None:
+    """
+    Accepts a document for analysis, creates a task, and starts it in the background.
+    """
+    if not analysis_service:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Analysis service is not ready yet.",
+            detail={"code": "service_unavailable", "message": "Analysis service is not available."},
         )
 
     settings = get_settings()
@@ -75,7 +80,6 @@ async def analyze_document(
 
     task_id = uuid.uuid4().hex
     destination = temp_dir / f"{task_id}_{file.filename}"
-
     content = await file.read()
     destination.write_bytes(content)
 

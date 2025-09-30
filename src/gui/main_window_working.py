@@ -5,10 +5,10 @@ import os
 import sys
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QMainWindow, QStatusBar,
-    QMenuBar, QFileDialog, QTextEdit, QLabel, QPushButton, QComboBox,
-    QFrame, QProgressBar, QMessageBox, QSplitter, QDialog, QTextBrowser
+    QFileDialog, QTextEdit, QLabel, QPushButton, QComboBox,
+    QFrame, QProgressBar, QMessageBox, QDialog, QTextBrowser
 )
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QFont
 
 # Add project root to path for imports
@@ -170,7 +170,6 @@ class ReportViewDialog(QDialog):
 
     def export_report(self):
         """Export report to file."""
-        from PyQt6.QtWidgets import QFileDialog
         file_name, _ = QFileDialog.getSaveFileName(
             self, 
             "💾 Export Compliance Report", 
@@ -814,7 +813,7 @@ class ModernMainWindow(QMainWindow):
             <p style="margin: 2px 0;">• Medicare Compliance: 82% • Professional Standards: 91%</p>
             <p style="margin: 2px 0;">• Processing Time: 2.3 seconds • AI Confidence: 94%</p>
         </div>
-        
+
         <h4 style="color: #bbbbbb; margin: 12px 0 8px 0;">🚨 High Risk Findings</h4>
         
         <div style="background-color: #7f1d1d; color: white; padding: 10px; border-radius: 6px; margin: 4px 0; border-left: 4px solid #dc2626;">
@@ -834,7 +833,7 @@ class ModernMainWindow(QMainWindow):
         </div>
         
         <h4 style="color: #bbbbbb; margin: 12px 0 8px 0;">⚠️ Medium Risk Findings</h4>
-        
+
         <div style="background-color: #92400e; color: white; padding: 10px; border-radius: 6px; margin: 4px 0; border-left: 4px solid #f59e0b;">
             <strong>⚠️ Medium:</strong> Missing standardized outcome measures<br>
             <strong>Evidence:</strong> No validated assessment tools documented<br>
@@ -844,14 +843,14 @@ class ModernMainWindow(QMainWindow):
         </div>
         
         <h4 style="color: #bbbbbb; margin: 12px 0 8px 0;">✅ Strengths Identified</h4>
-        
+
         <div style="background-color: #065f46; color: white; padding: 10px; border-radius: 6px; margin: 4px 0; border-left: 4px solid #10b981;">
             <strong>✅ Excellent:</strong> Clear documentation of treatment interventions<br>
             <strong>Evidence:</strong> Detailed session notes with specific exercises and patient responses<br>
             <strong>Impact:</strong> Supports medical necessity and continuity of care<br>
             <small style="color: #6ee7b7;">Confidence: 97% • Meets CMS documentation requirements</small>
         </div>
-        
+
         <div style="background-color: #065f46; color: white; padding: 10px; border-radius: 6px; margin: 4px 0; border-left: 4px solid #10b981;">
             <strong>✅ Good:</strong> Appropriate frequency and duration documented<br>
             <strong>Evidence:</strong> Treatment schedule aligns with patient condition and goals<br>
@@ -865,11 +864,11 @@ class ModernMainWindow(QMainWindow):
             <p style="margin: 4px 0;"><strong>Short-term (1 week):</strong> Implement standardized outcome measures</p>
             <p style="margin: 4px 0;"><strong>Long-term (ongoing):</strong> Enhance skilled therapy justification documentation</p>
         </div>
-        
+
         <div style="background-color: #374151; color: #d1d5db; padding: 10px; border-radius: 6px; margin-top: 12px;">
             <small style="font-style: italic;">
-                Analysis completed using local AI models with {selected_rubric}. 
-                Results should be reviewed by qualified clinical staff. 
+                Analysis completed using local AI models with {selected_rubric}.
+                Results should be reviewed by qualified clinical staff.
                 This enhanced report demonstrates the comprehensive analysis capabilities.
             </small>
         </div>
@@ -892,7 +891,7 @@ class ModernMainWindow(QMainWindow):
             </div>
             <div style="background-color: #f0f9ff; padding: 8px; border-radius: 4px; margin: 4px 0;">
                 <strong>🤖 AI Assistant:</strong> Thank you for your question about "{message}". 
-                The AI chat system is working perfectly! In the full version, I'll provide detailed 
+                The AI chat system is working perfectly! In the full version, I'll provide detailed
                 compliance guidance and answer specific questions about your documentation.
             </div>
             """)

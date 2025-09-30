@@ -1,8 +1,9 @@
 
 import yaml
 from functools import lru_cache
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import List, Dict, Any, Optional
+from pathlib import Path
 
 
 class DatabaseSettings(BaseModel):
@@ -46,6 +47,16 @@ class ModelsSettings(BaseModel):
     analysis_prompt_template: str
     nlg_prompt_template: str
 
+    @field_validator(
+        "doc_classifier_prompt", "analysis_prompt_template", "nlg_prompt_template"
+    )
+    @classmethod
+    def check_template_file_exists(cls, v: str) -> str:
+        """Validate that the prompt template file exists."""
+        if not Path(v).is_file():
+            raise ValueError(f"Prompt template file not found at path: {v}")
+        return v
+
 
 class LLMSettings(BaseModel):
     model_type: str
@@ -70,11 +81,13 @@ class Settings(BaseModel):
     api_url: str
     rule_dir: str
     use_ai_mocks: Optional[bool] = False
+    enable_habit_coaching: bool = False
+    enable_director_dashboard: bool = False
 
 
 @lru_cache()
 def get_settings() -> Settings:
     # Using a relative path from the project root is safer.
     with open("config.yaml", "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-        return Settings(**config)
+        config_data = yaml.safe_load(f)
+    return Settings(**config_data)
