@@ -4,16 +4,16 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...auth import get_current_active_user
-from ...database import crud, models, schemas
-from ...database import get_async_db
-from ...core.report_generator import ReportGenerator
+from src.auth import get_current_active_user
+from src import crud, models, schemas
+from src.database.database import get_async_db
+from src.core.report_generator import ReportGenerator
 
 router = APIRouter()
 report_generator = ReportGenerator()
 
 
-@router.get("/reports", response_model=List[schemas.Report])
+@router.get("/reports", response_model=List[schemas.AnalysisReport])
 async def read_reports(
     skip: int = 0,
     limit: int = 100,
