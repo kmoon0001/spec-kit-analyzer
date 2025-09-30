@@ -82,7 +82,7 @@ class NERPipeline:
                         break # Found a keyword, no need to check other tokens in this entity
 
         # Deduplicate based on the cleaned name
-        unique_names = {}
+        unique_names: Dict[str, Dict[str, Any]] = {}
         for entity in clinician_entities:
             if entity["word"] not in unique_names:
                 unique_names[entity["word"]] = entity
