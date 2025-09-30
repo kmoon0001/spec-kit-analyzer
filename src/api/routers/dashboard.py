@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple, Dict, Any
 import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,6 +14,26 @@ from ...config import get_settings
 from ...core.llm_service import LLMService
 
 settings = get_settings()
+
+
+def _resolve_generator_model(cfg) -> Tuple[str, str]:
+    """Resolve the generator model repo and filename from settings.
+
+    Prefers a named profile if provided; otherwise falls back to legacy fields.
+    """
+    # Prefer profile lookup if configured
+    profile_key = cfg.models.generator
+    profiles = cfg.models.generator_profiles or {}
+    if profile_key and profile_key in profiles:
+        profile = profiles[profile_key]
+        return profile.repo, profile.filename
+
+    # Fallback to legacy fields
+    if cfg.models.generator and cfg.models.generator_filename:
+        return cfg.models.generator, cfg.models.generator_filename
+
+    raise ValueError("Generator model configuration is missing (repo/filename)")
+
 
 router = APIRouter()
 report_generator = ReportGenerator()
@@ -113,12 +133,15 @@ async def generate_coaching_focus(dashboard_data: DirectorDashboardData):
         )
 
     # In a larger application, this service would be managed via a dependency injection system.
+    repo_id, filename = _resolve_generator_model(settings)
     llm_service = LLMService(
-        model_name=settings.models.generator,
-        model_filename=settings.models.generator_filename,
-        context_length=settings.llm_settings.context_length,
-        generation_params=settings.llm_settings.generation_params,
-        model_type=settings.llm_settings.model_type,
+        model_repo_id=repo_id,
+        model_filename=filename,
+        llm_settings={
+            "model_type": settings.llm_settings.model_type,
+            "context_length": settings.llm_settings.context_length,
+            "generation_params": settings.llm_settings.generation_params,
+        },
     )
 
     if not llm_service.is_ready():
@@ -159,7 +182,7 @@ Return only the JSON object.
 """
 
     try:
-        raw_response = await llm_service.generate_analysis(prompt)
+        raw_response = llm_service.generate_analysis(prompt)
         coaching_data = llm_service.parse_json_output(raw_response)
         return CoachingFocus(**coaching_data)
     except Exception as e:
