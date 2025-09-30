@@ -31,9 +31,7 @@ patchers = [
     ),
     patch("transformers.pipeline", return_value=MagicMock()),
     patch("transformers.pipeline", return_value=MagicMock()),
-    patch(
-        "src.core.hybrid_retriever.crud.get_rubrics", return_value=[], create=True
-    ),  # Prevent DB calls and create the attribute
+    patch("src.crud.get_all_rubrics", return_value=[]),  # Prevent DB calls
     patch("src.core.hybrid_retriever.SentenceTransformer", return_value=MagicMock()),
     patch("src.core.hybrid_retriever.BM25Okapi", return_value=MagicMock()),
 ]
