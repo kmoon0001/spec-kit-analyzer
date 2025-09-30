@@ -1,95 +1,104 @@
 import pytest
-from unittest.mock import patch, MagicMock
-import asyncio
-
-# Ensure the src directory is in the Python path
-import sys
-import os
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from unittest.mock import patch, MagicMock, AsyncMock
+from types import SimpleNamespace
 
 from src.core.analysis_service import AnalysisService
+from src.config import Settings, LLMSettings, PathsSettings, DatabaseSettings, AuthSettings, RetrievalSettings, AnalysisSettings, MaintenanceSettings
 
 
 @pytest.fixture
-def mock_dependencies():
-    """A fixture to mock all dependencies of the new AnalysisService architecture."""
-    mock_config = MagicMock()
-    mock_config.models.generator = "dummy_generator"
-    mock_config.models.generator_filename = None
-    mock_config.models.fact_checker = "dummy_fact_checker"
-    mock_config.models.ner_ensemble = ["dummy_ner"]
-    mock_config.models.doc_classifier_prompt = "dummy.txt"
-    mock_config.models.analysis_prompt_template = "dummy.txt"
-    mock_config.llm_settings.dict.return_value = {}
-
-    with (
-        patch("src.core.analysis_service.get_settings", return_value=mock_config),
-        patch("src.core.analysis_service.LLMService"),
-        patch("src.core.analysis_service.FactCheckerService"),
-        patch("src.core.analysis_service.NERPipeline"),
-        patch("src.core.analysis_service.ReportGenerator"),
-        patch("src.core.analysis_service.ExplanationEngine"),
-        patch("src.core.analysis_service.DocumentClassifier") as mock_doc_classifier,
-        patch("src.core.analysis_service.PromptManager"),
-        patch("src.core.analysis_service.ComplianceAnalyzer") as mock_analyzer,
-        patch("src.core.analysis_service.parse_document_content") as mock_parse,
-        patch("src.core.analysis_service.PreprocessingService") as mock_preproc,
-    ):
-        # Setup mock return values
-        mock_parse.return_value = [{"sentence": "This is a test."}]
-
-        # Mock preprocessing to return the text as-is
-        correct_text_future = asyncio.Future()
-        correct_text_future.set_result("This is a test.")
-        mock_preproc.return_value.correct_text.return_value = correct_text_future
-
-        # Use asyncio.Future for async mock return values
-        classify_future = asyncio.Future()
-        classify_future.set_result("Test Note")
-        mock_doc_classifier.return_value.classify_document.return_value = (
-            classify_future
-        )
-
-        analyze_future = asyncio.Future()
-        analyze_future.set_result({"findings": [{"issue_title": "Test Finding"}]})
-        mock_analyzer.return_value.analyze_document.return_value = analyze_future
-
-        yield {
-            "mock_parse": mock_parse,
-            "mock_doc_classifier": mock_doc_classifier.return_value,
-            "mock_analyzer": mock_analyzer.return_value,
-            "mock_preproc": mock_preproc.return_value,
-        }
+def mock_settings() -> Settings:
+    """Provides a fully-structured mock Settings object for testing."""
+    return Settings(
+        api_url="http://test.com",
+        use_ai_mocks=True,
+        database=DatabaseSettings(url="sqlite+aiosqlite:///./test.db", echo=False),
+        auth=AuthSettings(
+            secret_key="test_secret",
+            algorithm="HS256",
+            access_token_expire_minutes=30,
+        ),
+        paths=PathsSettings(
+            temp_upload_dir="tmp/uploads",
+            rule_dir="src/resources/rules",
+            medical_dictionary="src/resources/medical_dictionary.txt",
+            analysis_prompt_template="src/resources/prompts/analysis_prompt_template.txt",
+            nlg_prompt_template="src/resources/prompts/nlg_prompt_template.txt",
+            doc_classifier_prompt="src/resources/prompts/doc_classifier_prompt.txt",
+        ),
+        llm=LLMSettings(
+            repo="test-repo",
+            filename="test-model.gguf",
+            model_type="test-type",
+            context_length=1024,
+            generation_params={"max_new_tokens": 100},
+        ),
+        retrieval=RetrievalSettings(
+            dense_model_name="test-retriever",
+            similarity_top_k=3,
+            rrf_k=50,
+        ),
+        analysis=AnalysisSettings(
+            confidence_threshold=0.6,
+            deterministic_focus="Test focus",
+        ),
+        maintenance=MaintenanceSettings(
+            purge_retention_days=30,
+            purge_interval_days=1,
+        ),
+    )
 
 
 @pytest.mark.asyncio
-async def test_analysis_service_orchestration(mock_dependencies):
-    """Tests that the new AnalysisService correctly orchestrates its dependencies."""
-    # Arrange: The new AnalysisService requires a retriever instance at initialization.
-    mock_retriever = MagicMock()
+@patch("src.core.analysis_service.parse_document_content")
+@patch("src.core.analysis_service.ComplianceAnalyzer")
+@patch("src.core.analysis_service.DocumentClassifier")
+@patch("src.core.analysis_service.PreprocessingService")
+async def test_analysis_service_orchestration(
+    mock_preproc_cls,
+    mock_doc_classifier_cls,
+    mock_analyzer_cls,
+    mock_parse_content,
+    mock_settings,
+):
+    """
+    Tests that AnalysisService correctly orchestrates its dependencies
+    using the new centralized configuration system.
+    """
+    # Arrange: Mock the return values of the service dependencies
+    mock_parse_content.return_value = [{"sentence": "This is a test document."}]
 
-    # Act: Instantiate the service. Its __init__ will use the patched classes.
-    service = AnalysisService(retriever=mock_retriever)
+    mock_preproc_instance = mock_preproc_cls.return_value
+    mock_preproc_instance.correct_text = AsyncMock(return_value="This is a corrected document.")
 
-    # Mock the open call to avoid FileNotFoundError
-    with patch("builtins.open", MagicMock()):
-        result = await service.analyze_document(
-            file_path="fake/doc.txt", discipline="PT"
-        )
+    mock_doc_classifier_instance = mock_doc_classifier_cls.return_value
+    mock_doc_classifier_instance.classify_document = AsyncMock(return_value="Progress Note")
 
-    # Assert: Verify that the orchestration logic calls the correct methods in sequence.
-    mock_dependencies["mock_parse"].assert_called_once()
-    mock_dependencies["mock_preproc"].correct_text.assert_called_once_with(
-        "This is a test."
+    mock_analyzer_instance = mock_analyzer_cls.return_value
+    mock_analyzer_instance.analyze_document = AsyncMock(
+        return_value={"findings": [{"rule_id": "TEST-01"}]}
     )
-    mock_dependencies["mock_doc_classifier"].classify_document.assert_called_once_with(
-        "This is a test."
-    )
-    mock_dependencies["mock_analyzer"].analyze_document.assert_called_once_with(
-        document_text="This is a test.", discipline="PT", doc_type="Test Note"
+
+    # Patch get_settings to return our mock settings object
+    with patch("src.core.analysis_service.get_settings", return_value=mock_settings):
+        # Act: Instantiate the service. Its __init__ will now use the mocked settings.
+        service = AnalysisService(retriever=MagicMock())
+
+        # Mock open to avoid FileNotFoundError when the service tries to read the document
+        with patch("builtins.open", MagicMock()):
+            result = await service.analyze_document(
+                file_path="fake/doc.txt", discipline="PT", analysis_mode="rubric"
+            )
+
+    # Assert: Verify the orchestration logic
+    mock_parse_content.assert_called_once_with("fake/doc.txt")
+    mock_preproc_instance.correct_text.assert_awaited_once_with("This is a test document.")
+    mock_doc_classifier_instance.classify_document.assert_awaited_once_with("This is a corrected document.")
+    mock_analyzer_instance.analyze_document.assert_awaited_once_with(
+        document_text="This is a corrected document.",
+        discipline="PT",
+        doc_type="Progress Note",
     )
 
-    # Assert the final result contains the enriched analysis
     assert "analysis" in result
-    assert result["analysis"]["findings"] == [{"issue_title": "Test Finding"}]
+    assert result["analysis"]["findings"][0]["rule_id"] == "TEST-01"

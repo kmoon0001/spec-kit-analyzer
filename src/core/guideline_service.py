@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from typing import Iterable, List, Sequence, Tuple
 
+# These will be imported conditionally to avoid loading heavy libraries at startup
 import faiss
 import joblib
 import numpy as np
@@ -102,8 +103,7 @@ class GuidelineService:
 
     def _persist_cache_if_ready(self) -> None:
         if self.faiss_index is not None and self.guideline_chunks:
-            cache_dir = self.cache_dir
-            cache_dir.mkdir(parents=True, exist_ok=True)
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
             faiss.write_index(self.faiss_index, str(self.index_path))
             joblib.dump(self.guideline_chunks, self.chunks_path)
 
