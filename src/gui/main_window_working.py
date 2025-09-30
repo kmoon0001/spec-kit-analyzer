@@ -203,6 +203,7 @@ class ReportViewDialog(QDialog):
 
     def export_report(self):
         """Export report to file."""
+        from PyQt6.QtWidgets import QFileDialog
         file_name, _ = QFileDialog.getSaveFileName(
             self,
             "💾 Export Compliance Report",
@@ -1225,6 +1226,4 @@ class ModernMainWindow(QMainWindow):
 
     def show_performance_settings(self):
         """Show performance settings."""
-        QMessageBox.information(
-            self, "Performance Settings", "Performance settings dialog will open here."
-        )
+        QMessageBox.information(self, "Performance Settings", "Performance settings dialog will open here.")
