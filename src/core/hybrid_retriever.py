@@ -62,12 +62,13 @@ class HybridRetriever:
             for r in rubric_models
         ]
 
-    async def retrieve(
+async def retrieve(
         self,
         query: str,
         top_k: int = 5,
         k: int = 60,
         category_filter: Optional[str] = None,
+    ):
     ) -> List[Dict[str, str]]:
         """
         Retrieve and rank rules using a hybrid approach with Reciprocal Rank Fusion (RRF).
