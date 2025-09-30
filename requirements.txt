@@ -46,6 +46,7 @@ passlib[bcrypt]
 python-multipart
 PyJWT
 python-jose[cryptography]
+email-validator  # For Pydantic email validation
 
 # Numeric & Science
 numpy
