@@ -59,71 +59,48 @@ from src.core.report_generator import ReportGenerator
 
 
 class AnalysisService:
-    """Coordinate preprocessing, classification, retrieval, and reporting."""
+    """
+    Coordinates the entire analysis pipeline, from preprocessing to reporting.
+    This service is initialized once and reused, loading its configuration from
+    the central `get_settings` function.
+    """
 
-    def __init__(
-        self,
-        retriever: Optional[HybridRetriever] = None,
-        config_path: Optional[str | Path] = None,
-    ) -> None:
-        self.config_path = Path(config_path or ROOT_DIR / "config.yaml")
-        self.config = self._load_config()
-
-        self.retriever = retriever or HybridRetriever(self.config.get("rules"))
+    def __init__(self, retriever: Optional[HybridRetriever] = None) -> None:
+        """
+        Initializes all subordinate services based on the application's
+        centralized configuration.
+        """
+        self.settings = get_settings()
+        self.retriever = retriever or HybridRetriever()
         self.preprocessing = PreprocessingService()
         self.checklist_service = DeterministicChecklistService()
         self.checklist_expectations = self.checklist_service.describe_expectations()
 
-        models_cfg: Dict[str, Any] = self.config.get("models", {}) or {}
-        llm_settings: Dict[str, Any] = dict(self.config.get("llm_settings", {}) or {})
-
-        generator_repo, generator_filename = self._select_generator_profile(models_cfg)
-        if not generator_repo or not generator_filename:
-            raise RuntimeError(
-                "Generator configuration is missing; unable to start analysis service."
-            )
-
-        # Set default generation parameters if not already defined in the config
-        generation_params = llm_settings.setdefault("generation_params", {})
-        generation_params.setdefault("max_new_tokens", 600)
-        generation_params.setdefault("temperature", 0.2)
-        generation_params.setdefault("top_p", 0.9)
-
-        # Set default generation parameters if not already defined in the config
-        generation_params = llm_settings.setdefault("generation_params", {})
-        generation_params.setdefault("max_new_tokens", 600)
-        generation_params.setdefault("temperature", 0.2)
-        generation_params.setdefault("top_p", 0.9)
-
+        # Initialize LLM Service with settings from the new config structure
         self.llm_service = LLMService(
-            model_repo_id=generator_repo,
-            model_filename=generator_filename,
-            llm_settings=llm_settings,
+            model_repo_id=self.settings.llm.repo,
+            model_filename=self.settings.llm.filename,
+            llm_settings=self.settings.llm.model_dump(),
         )
 
-        self.chat_llm_service = self._build_chat_llm(
-            models_cfg.get("chat") or {}, llm_settings
-        )
+        # For simplicity in this refactoring, the chat LLM is aliased.
+        # A more advanced implementation would configure it separately.
+        self.chat_llm_service = self.llm_service
 
-        self.fact_checker = FactCheckerService(
-            model_name=models_cfg.get("fact_checker", "")
-        )
-        self.ner_pipeline = NERPipeline(model_names=models_cfg.get("ner_ensemble", []))
+        # Initialize other services
+        self.fact_checker = FactCheckerService(model_name="google/flan-t5-base")
+        self.ner_pipeline = NERPipeline(model_names=["d4data/biomedical-ner-all"])
         self.prompt_manager = PromptManager(
-            template_path=str(ROOT_DIR / models_cfg.get("analysis_prompt_template", ""))
+            template_path=self.settings.paths.analysis_prompt_template
         )
         self.explanation_engine = ExplanationEngine()
         self.document_classifier = DocumentClassifier(
             llm_service=self.llm_service,
-            prompt_template_path=str(
-                ROOT_DIR / models_cfg.get("doc_classifier_prompt", "")
-            ),
+            prompt_template_path=self.settings.paths.doc_classifier_prompt,
         )
         self.nlg_service = NLGService(
             llm_service=self.llm_service,
-            prompt_template_path=str(
-                ROOT_DIR / models_cfg.get("nlg_prompt_template", "")
-            ),
+            prompt_template_path=self.settings.paths.nlg_prompt_template,
         )
         self.compliance_analyzer = ComplianceAnalyzer(
             retriever=self.retriever,
@@ -133,11 +110,8 @@ class AnalysisService:
             prompt_manager=self.prompt_manager,
             fact_checker_service=self.fact_checker,
             nlg_service=self.nlg_service,
-            deterministic_focus=self.checklist_expectations,
         )
-        # Backwards compatibility for callers that expect an "analyzer" attribute
-        self.analyzer = self.compliance_analyzer
-
+        self.analyzer = self.compliance_analyzer  # For backward compatibility
         self.report_generator = ReportGenerator()
 
     def analyze_document(

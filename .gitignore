@@ -51,6 +51,49 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# PEP 582; used by Poetry, Flit, etc.
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
 # Environments
 .env
 .venv
@@ -60,13 +103,19 @@ ENV/
 env.bak/
 venv.bak/
 
-# IDE files
+# IDE specific files
 .idea/
 .vscode/
 
-# Generated artifacts
-*.index
-*.joblib
-*.pdf
-compliance.db
+# Custom
+# Ignore test databases
+*.db
+# Ignore temporary upload files
+/tmp/
+# Ignore log files
 *.log
+api_server.err.log
+api_server.log
+# Ignore compiled files from other languages if any
+*.o
+*.out

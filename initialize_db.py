@@ -1,6 +1,7 @@
 import asyncio
 from src.database.database import init_db
-from src import models
+
+
 
 
 async def main():

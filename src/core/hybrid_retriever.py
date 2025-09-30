@@ -127,7 +127,7 @@ class HybridRetriever:
                 rrf_score += 1 / (k + dense_ranks[doc_id])
             rrf_scores[doc_id] = rrf_score
 
-        # 4. Sort by RRF score and apply category filter
+        # 4. Sort by RRF score and return top-k results
         sorted_docs = sorted(
             rrf_scores.items(), key=lambda item: item[1], reverse=True
         )

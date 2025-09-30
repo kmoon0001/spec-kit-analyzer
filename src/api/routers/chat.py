@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Any
 
-from src import schemas, models
-from src.auth import get_current_active_user
-from src.core.chat_service import ChatService
+from ...database import schemas, models
+from ...auth import get_current_active_user
+from ...core.chat_service import ChatService
 
 # from ...core.analysis_service import AnalysisService # Removed to break import cycle
-from src.api.dependencies import get_analysis_service
+from ..dependencies import get_analysis_service
 
 router = APIRouter()
 

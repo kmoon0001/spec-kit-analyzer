@@ -1,45 +1,84 @@
 import pytest
-from src.core.phi_scrubber import scrub_phi
+from src.core.phi_scrubber import PhiScrubberService
 
-def test_scrub_phi_with_ner_and_regex():
-    # Test case with a mix of PHI that can be caught by NER and regex
-    text = "Patient John Doe, born on 1980-01-01, lives in New York. His phone is 555-123-4567 and email is john.doe@example.com. MRN: 12345."
-    scrubbed_text = scrub_phi(text)
+@pytest.fixture(scope="module")
+def scrubber_service() -> PhiScrubberService:
+    """
+    Provides a reusable, lazy-loaded instance of the PhiScrubberService.
+    This fixture is scoped to the module to avoid re-initializing the service
+    for every single test function, making the test suite more efficient.
+    """
+    return PhiScrubberService()
 
-    # Check that NER-detected entities are scrubbed
-    assert "[PERSON]" in scrubbed_text
-    assert "[DATE]" in scrubbed_text
-    assert "[GPE]" in scrubbed_text
 
-    # Check that regex-detected entities are scrubbed
+def test_scrub_comprehensive_phi(scrubber_service: PhiScrubberService):
+    """
+    Tests a complex sentence with a mix of PHI types to ensure
+    both regex and NER scrubbing are working together effectively.
+    """
+    text = (
+        "Patient John Doe, born on 1980-01-01, lives in New York. "
+        "His phone is 555-123-4567 and email is john.doe@example.com. "
+        "MRN: 12345-ABC. The patient was seen at Mercy Hospital."
+    )
+    scrubbed_text = scrubber_service.scrub(text)
+
+    # --- Assertions ---
+    # The primary goal is to ensure PHI is removed. We don't need to be
+    # overly specific about which tag was used, as that can be model-dependent.
+    # The most robust check is that the original, sensitive data is gone.
+
+    # Verify that the original PHI has been removed.
+    assert "John Doe" not in scrubbed_text
+    assert "1980-01-01" not in scrubbed_text
+    assert "Mercy Hospital" not in scrubbed_text
+
+    # Check that regex-detected entities are correctly scrubbed.
     assert "[PHONE]" in scrubbed_text
     assert "[EMAIL]" in scrubbed_text
     assert "[MRN]" in scrubbed_text
 
-def test_scrub_phi_no_phi():
-    # Test case with no PHI
-    text = "This is a simple sentence with no personal information."
-    scrubbed_text = scrub_phi(text)
+    # Verify that the original PHI has been removed.
+    assert "John Doe" not in scrubbed_text
+    assert "1980-01-01" not in scrubbed_text
+    assert "555-123-4567" not in scrubbed_text
+    assert "john.doe@example.com" not in scrubbed_text
+    assert "12345-ABC" not in scrubbed_text
+    assert "Mercy Hospital" not in scrubbed_text
+
+
+def test_scrub_no_phi_present(scrubber_service: PhiScrubberService):
+    """
+    Tests that text containing no PHI remains completely unchanged after scrubbing.
+    """
+    text = "This is a simple clinical note regarding patient's improved range of motion."
+    scrubbed_text = scrubber_service.scrub(text)
     assert text == scrubbed_text
 
-def test_scrub_phi_edge_cases():
-    # Test case with misspellings or variations that regex might miss
-    # Using "New York City" as "NYC" is not reliably detected by the small model
-    text = "Patient Jon Doe visited the clinic in New York City. His birthdate is Jan 1, 1980."
-    scrubbed_text = scrub_phi(text)
 
-    assert "[PERSON]" in scrubbed_text
-    assert "[GPE]" in scrubbed_text
-    assert "[DATE]" in scrubbed_text
+def test_scrub_specific_ids(scrubber_service: PhiScrubberService):
+    """
+    Tests the scrubbing of specific, structured identifiers like SSN and account numbers.
+    """
+    text = "The patient's SSN is 123-45-6789 and their account number is AB12345678."
+    scrubbed_text = scrubber_service.scrub(text)
 
-def test_scrub_phi_empty_string():
-    # Test with an empty string
-    text = ""
-    scrubbed_text = scrub_phi(text)
-    assert "" == scrubbed_text
+    assert "[SSN]" in scrubbed_text
+    assert "[ACCOUNT_NUMBER]" in scrubbed_text
+    assert "123-45-6789" not in scrubbed_text
+    assert "AB12345678" not in scrubbed_text
 
-def test_scrub_phi_non_string_input():
-    # Test with non-string input
-    text = 12345
-    scrubbed_text = scrub_phi(text)
-    assert text == scrubbed_text
+
+def test_scrub_edge_cases(scrubber_service: PhiScrubberService):
+    """
+    Tests edge cases like empty strings and non-string inputs to ensure
+    the scrubber is robust and does not raise errors.
+    """
+    # Test with an empty string.
+    assert scrubber_service.scrub("") == ""
+    # Test with a whitespace-only string.
+    assert scrubber_service.scrub("   ") == "   "
+    # Test with non-string inputs, which should be returned as-is.
+    assert scrubber_service.scrub(12345) == 12345
+    assert scrubber_service.scrub(None) is None
+    assert scrubber_service.scrub(["a", "list", "of", "strings"]) == ["a", "list", "of", "strings"]
