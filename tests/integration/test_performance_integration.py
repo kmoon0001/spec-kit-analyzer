@@ -1,3 +1,11 @@
+"""
+Integration tests for performance management system.
+Tests the integration between performance manager, cache service, and GUI components.
+"""
+import pytest
+from unittest.mock import patch, MagicMock
+import sys
+import os
 
 # Add src to path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -80,33 +88,31 @@ class TestPerformanceIntegration:
         except ImportError:
             pytest.skip("Performance integration not available")
     
-    @pytest.mark.skip(reason="GUI tests cannot be run in a headless environment.")
     def test_performance_status_widget_creation(self):
         """Test that performance status widget can be created."""
         try:
             from PyQt6.QtWidgets import QApplication
             from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
-
+            
             # Create QApplication if it doesn't exist
             app = QApplication.instance()
             if app is None:
                 app = QApplication([])
-
+            
             # Create widget
             widget = PerformanceStatusWidget()
             assert widget is not None
-
+            
             # Test getting performance summary
             summary = widget.get_performance_summary()
             assert isinstance(summary, dict)
-
+            
             # Cleanup
             widget.cleanup()
-
+            
         except ImportError:
             pytest.skip("GUI components not available")
-
-    @pytest.mark.skip(reason="GUI tests cannot be run in a headless environment.")
+    
     def test_performance_settings_dialog_creation(self):
         """Test that performance settings dialog can be created."""
         try:
