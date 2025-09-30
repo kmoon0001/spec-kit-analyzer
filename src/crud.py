@@ -37,3 +37,8 @@ async def get_findings_summary(db: AsyncSession):
                 title = finding.get("issue_title", "Unknown Issue")
                 summary[title] = summary.get(title, 0) + 1
     return [{"issue_title": title, "count": count} for title, count in summary.items()]
+
+async def get_all_rubrics(db: AsyncSession):
+    """Retrieve all compliance rubrics from the database."""
+    result = await db.execute(select(models.ComplianceRubric))
+    return result.scalars().all()
