@@ -7,9 +7,8 @@ import datetime
 from fastapi.testclient import TestClient
 
 from src.api.main import app
-from src.auth import get_current_active_user
-from src.database import schemas
-
+from  src.auth import get_current_active_user
+    from src.database import schemas
 
 @pytest.fixture(scope="module")
 def client_with_auth_override():
