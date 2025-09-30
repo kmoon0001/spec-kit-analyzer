@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import selectinload
 from sqlalchemy import select
 from contextlib import asynccontextmanager
-from .models import Report
+from src.database.models import Report
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class AsyncDatabaseService:
 
     def __init__(self, database_url: str = "sqlite+aiosqlite:///./compliance.db"):
         try:
-            from ..core.performance_manager import get_performance_config
+            from src.core.performance_manager import get_performance_config
 
             self.config = get_performance_config()
             pool_size = self.config.connection_pool_size

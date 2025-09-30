@@ -23,7 +23,7 @@ def client():
     from src.core.mock_analysis_service import MockAnalysisService
     from src.auth import get_current_active_user
     # Note: Using 'from src.database import schemas' from 'main' instead of 'from src import schemas'
-    from src.database import schemas
+    from src import schemas
     import datetime
 
     # The 'dummy_user' definition should be kept from 'fix/initial-setup-and-debugging', 
@@ -43,7 +43,6 @@ def client():
     app.dependency_overrides[get_analysis_service] = override_get_analysis_service
 
     # Override authentication
-    dummy_user = schemas.User(id=1, username="testuser", is_active=True, is_admin=False)
     def override_get_current_active_user():
         return dummy_user
     app.dependency_overrides[get_current_active_user] = override_get_current_active_user

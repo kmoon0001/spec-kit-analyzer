@@ -132,7 +132,7 @@ class HybridRetriever:
             rrf_scores.items(), key=lambda item: item[1], reverse=True
         )
 
-sorted_rules = [self.rules[doc_id] for doc_id, _ in sorted_docs]
+        sorted_rules = [self.rules[doc_id] for doc_id, _ in sorted_docs]
 
         if category_filter:
             filtered_rules = [

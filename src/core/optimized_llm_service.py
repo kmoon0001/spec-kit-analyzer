@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, Optional
 
-from .llm_service import LLMService
+from src.core.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
