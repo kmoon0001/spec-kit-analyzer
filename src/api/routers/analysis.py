@@ -75,7 +75,7 @@ async def analyze_document(
         )
 
     settings = get_settings()
-    temp_dir = Path(settings.temp_upload_dir)
+    temp_dir = settings.paths.temp_upload_dir
     temp_dir.mkdir(parents=True, exist_ok=True)
 
     task_id = uuid.uuid4().hex

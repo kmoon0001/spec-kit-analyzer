@@ -29,6 +29,7 @@ class ReportBase(BaseModel):
     compliance_score: float
     analysis_result: dict
     document_embedding: Optional[bytes] = None
+    document_type: Optional[str] = None
 
 
 class ReportCreate(ReportBase):

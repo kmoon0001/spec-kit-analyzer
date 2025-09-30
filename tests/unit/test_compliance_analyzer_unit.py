@@ -62,22 +62,27 @@ async def test_analyze_document_orchestration(compliance_analyzer: ComplianceAna
 
 
 def test_format_rules_for_prompt():
+    """
+    Tests the formatting of compliance rules for the LLM prompt.
+    Ensures that rule names, details, and relevance scores are correctly included.
+    """
     rules = [
         {
-            "issue_title": "Rule 1",
-            "issue_detail": "Detail 1",
-            "suggestion": "Suggestion 1",
+            "name": "Documentation Timeliness",
+            "content": "All notes must be signed within 24 hours.",
+            "relevance_score": 0.987,
         },
         {
-            "issue_title": "Rule 2",
-            "issue_detail": "Detail 2",
-            "suggestion": "Suggestion 2",
+            "name": "Goal Specificity",
+            "content": "Goals must be measurable and objective.",
+            "relevance_score": 0.876,
         },
     ]
 
     context = ComplianceAnalyzer._format_rules_for_prompt(rules)
 
-    assert "- **Rule:** Rule 1" in context
-    assert "  **Detail:** Detail 1" in context
-    assert "  **Suggestion:** Suggestion 1" in context
-    assert "- **Rule:** Rule 2" in context
+    # Check that the formatted string contains the key elements, including the scores.
+    assert "- **Rule:** Documentation Timeliness (Relevance Score: 0.987)" in context
+    assert "  **Detail:** All notes must be signed within 24 hours." in context
+    assert "- **Rule:** Goal Specificity (Relevance Score: 0.876)" in context
+    assert "  **Detail:** Goals must be measurable and objective." in context

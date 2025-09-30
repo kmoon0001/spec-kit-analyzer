@@ -107,10 +107,42 @@ async def get_report(db: AsyncSession, report_id: int) -> Optional[models.Report
     return result.scalars().first()
 
 
+from sqlalchemy.orm import selectinload
+
+
 async def get_reports(
-    db: AsyncSession, skip: int = 0, limit: int = 100
+    db: AsyncSession,
+    skip: int = 0,
+    limit: int = 100,
+    document_type: Optional[str] = None,
+    min_score: Optional[float] = None,
 ) -> List[models.Report]:
-    result = await db.execute(select(models.Report).offset(skip).limit(limit))
+    """
+    Retrieves a paginated and filtered list of reports from the database.
+
+    This function includes eager loading for related findings to prevent
+    N+1 query problems.
+
+    Args:
+        db (AsyncSession): The database session.
+        skip (int): The number of records to skip for pagination.
+        limit (int): The maximum number of records to return.
+        document_type (str, optional): Filter reports by document type.
+        min_score (float, optional): Filter reports by a minimum compliance score.
+
+    Returns:
+        A list of Report model instances.
+    """
+    query = select(models.Report).options(selectinload(models.Report.findings))
+
+    if document_type:
+        query = query.where(models.Report.document_type == document_type)
+    if min_score is not None:
+        query = query.where(models.Report.compliance_score >= min_score)
+
+    query = query.order_by(models.Report.analysis_date.desc()).offset(skip).limit(limit)
+
+    result = await db.execute(query)
     return result.scalars().all()
 
 

@@ -1,68 +1,115 @@
+import logging
 import re
+from typing import List, Tuple, Set
+from threading import Lock
+
 import spacy
+from spacy.language import Language
 
-# Load the spaCy model
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    # This is a fallback for environments where the model isn't pre-installed.
-    # In a production setup, the model should be part of the deployment package.
-    from spacy.cli import download
-    download("en_core_web_sm")
-    nlp = spacy.load("en_core_web_sm")
+logger = logging.getLogger(__name__)
 
-def scrub_phi_with_ner(text: str) -> str:
+# --- Configuration for PHI Scrubbing ---
+
+GENERAL_PHI_NER_LABELS: Set[str] = {"PERSON", "DATE", "GPE", "LOC", "ORG"}
+BIOMEDICAL_PHI_NER_LABELS: Set[str] = {
+    "PATIENT", "HOSPITAL", "DOCTOR", "AGE", "ID", "PHONE", "EMAIL", "URL",
+    "STREET", "CITY", "STATE", "ZIP", "COUNTRY",
+}
+DEFAULT_REGEX_PATTERNS: List[Tuple[str, str]] = [
+    (r"\b\d{3}-\d{2}-\d{4}\b", "[SSN]"),
+    (r"\b(MRN|mrn|medical record number)[\s:]*[A-Za-z0-9\-]{4,}\b", "[MRN]"),
+    (r"(\+?\d{1,2}[\s\-.]?)?(\(?\d{3}\)?[ \-.]?\d{3}[\-.]?\d{4})", "[PHONE]"),
+    (r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", "[EMAIL]"),
+    (r"\b\d{1,4}[-/]\d{1,2}[-/]\d{1,4}\b", "[DATE]"),
+    (r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", "[IP_ADDRESS]"),
+    (r"\b[A-Z]{2}\d{8,}\b", "[ACCOUNT_NUMBER]"),
+    # Add a pattern for common hospital names that NER might miss
+    (r"\b\w+\s+(?:Hospital|Medical Center|Clinic)\b", "[HOSPITAL]"),
+]
+
+
+class PhiScrubberService:
     """
-    Scrub PHI using a Named Entity Recognition (NER) model.
-    This version correctly handles entity replacements of different lengths.
+    A thread-safe, multi-model service for robustly scrubbing Protected Health Information.
+    It uses a sophisticated single-pass replacement strategy:
+    1. Collects all potential PHI spans from regex, a biomedical NER model, and a general NER model.
+    2. Resolves any overlapping spans.
+    3. Performs a single replacement pass on the original text.
     """
-    if not isinstance(text, str):
-        return text
+    _general_nlp: Language | None = None
+    _biomed_nlp: Language | None = None
+    _lock = Lock()
 
-    doc = nlp(text)
-    new_text_parts = []
-    last_end = 0
+    def __init__(self, general_model: str = "en_core_web_sm", biomed_model: str = "en_core_sci_sm"):
+        self.general_model_name = general_model
+        self.biomed_model_name = biomed_model
+        self.is_loading = False
 
-    for ent in doc.ents:
-        if ent.label_ in ["PERSON", "DATE", "GPE", "ORG"]:
-            new_text_parts.append(text[last_end:ent.start_char])
-            new_text_parts.append(f"[{ent.label_}]")
-            last_end = ent.end_char
+    def _load_models(self):
+        if self._general_nlp and self._biomed_nlp: return
+        self.is_loading = True
+        try:
+            logger.info("Loading spaCy models for PHI scrubbing...")
+            if not self._general_nlp: self._general_nlp = spacy.load(self.general_model_name)
+            if not self._biomed_nlp: self._biomed_nlp = spacy.load(self.biomed_model_name)
+            logger.info("All PHI scrubbing models loaded.")
+        except OSError as e:
+            logger.critical("Could not load a required spaCy model: %s", e)
+            self._general_nlp, self._biomed_nlp = None, None
+        finally:
+            self.is_loading = False
 
-    new_text_parts.append(text[last_end:])
+    def _ensure_models_loaded(self):
+        if (self._general_nlp and self._biomed_nlp) or self.is_loading: return
+        with self._lock:
+            if not (self._general_nlp and self._biomed_nlp): self._load_models()
 
-    return "".join(new_text_parts)
+    def _get_spans_from_text(self, text: str) -> List[Tuple[int, int, str]]:
+        spans = []
+        # Get spans from regex
+        for pattern, tag in DEFAULT_REGEX_PATTERNS:
+            for match in re.finditer(pattern, text):
+                spans.append((match.start(), match.end(), tag))
 
+        # Get spans from biomedical NER
+        if self._biomed_nlp:
+            for ent in self._biomed_nlp(text).ents:
+                if ent.label_ in BIOMEDICAL_PHI_NER_LABELS:
+                    spans.append((ent.start_char, ent.end_char, f"[{ent.label_}]"))
 
-def scrub_phi_regex(text: str) -> str:
-    """
-    Scrub PHI using regular expressions for specific, structured data.
-    """
-    if not isinstance(text, str):
-        return text
-    patterns = [
-        (r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", "[EMAIL]"),
-        (r"(\+?\d{1,2}[\s\-.]?)?(\(?\d{3}\)?[ \-.]?\d{3}[\-.]?\d{4})", "[PHONE]"),
-        (r"\b\d{3}-\d{2}-\d{4}\b", "[SSN]"),
-        (r"\bMRN[:\s]*[A-Za-z0-9\-]{4,}\b", "[MRN]"),
-    ]
-    out = text
-    for pat, repl in patterns:
-        out = re.sub(pat, repl, out)
-    return out
+        # Get spans from general NER
+        if self._general_nlp:
+            for ent in self._general_nlp(text).ents:
+                if ent.label_ in GENERAL_PHI_NER_LABELS:
+                    spans.append((ent.start_char, ent.end_char, f"[{ent.label_}]"))
 
+        return spans
 
-def scrub_phi(text: str) -> str:
-    """
-    Scrub PHI using a hybrid approach (regex first, then NER).
-    """
-    if not isinstance(text, str):
-        return text
+    def scrub(self, text: str) -> str:
+        if not isinstance(text, str) or not text.strip(): return text
+        self._ensure_models_loaded()
 
-    # First, use regex for specific, structured patterns that NER might miss.
-    regex_scrubbed_text = scrub_phi_regex(text)
+        spans = self._get_spans_from_text(text)
+        if not spans: return text
 
-    # Then, use the NER model for broad categories like names, dates, and locations.
-    final_scrubbed_text = scrub_phi_with_ner(regex_scrubbed_text)
+        # Sort spans by start index, then by longest span first to prioritize larger entities
+        spans.sort(key=lambda s: (s[0], s[0] - s[1]))
 
-    return final_scrubbed_text
+        # Resolve overlaps by keeping the first one in the sorted list (which is the longest)
+        resolved_spans = []
+        last_end = -1
+        for start, end, tag in spans:
+            if start >= last_end:
+                resolved_spans.append((start, end, tag))
+                last_end = end
+
+        # Build the new string with a single pass
+        new_text_parts = []
+        last_end = 0
+        for start, end, tag in resolved_spans:
+            new_text_parts.append(text[last_end:start])
+            new_text_parts.append(tag)
+            last_end = end
+        new_text_parts.append(text[last_end:])
+
+        return "".join(new_text_parts)

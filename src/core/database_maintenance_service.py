@@ -1,50 +1,59 @@
 import logging
 import asyncio
-from ..database import AsyncSessionLocal
-from ..database import crud
+from ..database import AsyncSessionLocal, crud
+from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 
 
-class DatabaseMaintenanceService:
+async def _purge_old_reports_async():
     """
-    A service to handle periodic database maintenance tasks, like purging old data.
-    This service runs synchronously within a background thread managed by APScheduler.
+    Asynchronously connects to the database and purges old reports based on
+    the retention policy defined in the application settings.
     """
+    settings = get_settings()
+    retention_days = settings.maintenance.purge_retention_days
 
-    @staticmethod
-    def _purge_old_reports_sync(retention_days: int):
-        """Synchronous wrapper to run the async purge logic."""
+    if retention_days <= 0:
+        logger.info("Database purging is disabled (retention_days <= 0).")
+        return
 
-        async def purge():
-            if retention_days <= 0:
-                logger.info("Database purging is disabled (retention_days <= 0).")
-                return
+    logger.info(
+        "Starting database maintenance job: Purging reports older than %d days.",
+        retention_days,
+    )
 
-            async with AsyncSessionLocal() as db:
-                try:
-                    logger.info(
-                        f"Running database maintenance: Purging reports older than {retention_days} days..."
-                    )
-                    # Note: crud.delete_reports_older_than needs to be async
-                    num_deleted = await crud.delete_reports_older_than(
-                        db, days=retention_days
-                    )
-                    if num_deleted > 0:
-                        logger.info(
-                            f"Successfully purged {num_deleted} old reports from the database."
-                        )
-                    else:
-                        logger.info("No old reports found to purge.")
-                except Exception as e:
-                    logger.error(
-                        f"An error occurred during database maintenance: {e}",
-                        exc_info=True,
-                    )
+    async with AsyncSessionLocal() as db:
+        try:
+            num_deleted = await crud.delete_reports_older_than(db, days=retention_days)
+            if num_deleted > 0:
+                logger.info(
+                    "Successfully purged %d old reports from the database.", num_deleted
+                )
+            else:
+                logger.info("No old reports found to purge.")
+        except Exception as e:
+            logger.error(
+                "An error occurred during the database purge operation: %s",
+                e,
+                exc_info=True,
+            )
 
-        # Run the async function in a new event loop
-        asyncio.run(purge())
 
-    def purge_old_reports(self, retention_days: int):
-        """Public method to trigger the synchronous purge."""
-        self._purge_old_reports_sync(retention_days)
+def run_database_maintenance():
+    """
+    Synchronous entry point for the database maintenance task.
+
+    This function is designed to be called by a synchronous scheduler (like APScheduler).
+    It runs the core asynchronous purge logic in a new asyncio event loop.
+    """
+    logger.info("Scheduler triggered: Kicking off database maintenance task.")
+    try:
+        asyncio.run(_purge_old_reports_async())
+        logger.info("Database maintenance task finished.")
+    except Exception as e:
+        logger.error(
+            "An unexpected error occurred while running the database maintenance task: %s",
+            e,
+            exc_info=True,
+        )

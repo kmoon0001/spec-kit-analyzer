@@ -127,9 +127,17 @@ class HybridRetriever:
                 rrf_score += 1 / (k + dense_ranks[doc_id])
             rrf_scores[doc_id] = rrf_score
 
-        # 4. Sort by RRF score and return top-k results
+        # 4. Sort by RRF score and return top-k results with scores
         sorted_docs = sorted(
             rrf_scores.items(), key=lambda item: item[1], reverse=True
         )
 
-        return [self.rules[doc_id] for doc_id, _ in sorted_docs[:top_k]]
+        top_rules = []
+        for doc_id, score in sorted_docs[:top_k]:
+            # It's crucial to copy the rule to avoid modifying the original
+            # dictionary in self.rules.
+            rule = self.rules[doc_id].copy()
+            rule["relevance_score"] = score
+            top_rules.append(rule)
+
+        return top_rules

@@ -1,86 +1,84 @@
-import os
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
+from pathlib import Path
 
 from src.core.analysis_service import AnalysisService
-
+from src.config import Settings, LLMSettings, PathsSettings, DatabaseSettings, AuthSettings, RetrievalSettings, AnalysisSettings, MaintenanceSettings
 
 @pytest.fixture
-def dummy_document(tmp_path):
+def dummy_document(tmp_path: Path) -> Path:
+    """Creates a dummy document file for testing."""
     doc_path = tmp_path / "test_document.txt"
-    doc_path.write_text(
-        "The patient shows improvement but lacks quantifiable progress.",
-        encoding="utf-8",
-    )
+    doc_path.write_text("The patient shows improvement.", encoding="utf-8")
     return doc_path
 
+@pytest.fixture
+def mock_settings(tmp_path: Path) -> Settings:
+    """Provides a fully-structured mock Settings object for integration testing."""
+    # Create dummy prompt files that the service will try to load
+    prompts_dir = tmp_path / "prompts"
+    prompts_dir.mkdir()
+    (prompts_dir / "analysis.txt").touch()
+    (prompts_dir / "nlg.txt").touch()
+    (prompts_dir / "doc_classifier.txt").touch()
+
+    return Settings(
+        api_url="http://test.com",
+        use_ai_mocks=True,
+        database=DatabaseSettings(url="sqlite+aiosqlite:///./test.db", echo=False),
+        auth=AuthSettings(secret_key="test_secret", algorithm="HS256", access_token_expire_minutes=30),
+        paths=PathsSettings(
+            temp_upload_dir=tmp_path / "uploads",
+            rule_dir=tmp_path / "rules",
+            medical_dictionary=tmp_path / "medical_dict.txt",
+            analysis_prompt_template=prompts_dir / "analysis.txt",
+            nlg_prompt_template=prompts_dir / "nlg.txt",
+            doc_classifier_prompt=prompts_dir / "doc_classifier.txt",
+        ),
+        llm=LLMSettings(repo="test-repo", filename="test-model.gguf"),
+        retrieval=RetrievalSettings(dense_model_name="test-retriever", similarity_top_k=3, rrf_k=50),
+        analysis=AnalysisSettings(confidence_threshold=0.6, deterministic_focus="Test focus"),
+        maintenance=MaintenanceSettings(purge_retention_days=30, purge_interval_days=1),
+    )
 
 @pytest.mark.asyncio
+@patch("src.core.analysis_service.parse_document_content")
 @patch("src.core.analysis_service.ComplianceAnalyzer")
 @patch("src.core.analysis_service.DocumentClassifier")
-@patch("src.core.analysis_service.PromptManager")
-@patch("src.core.analysis_service.ExplanationEngine")
-@patch("src.core.analysis_service.NERPipeline")
-@patch("src.core.analysis_service.FactCheckerService")
-@patch("src.core.analysis_service.NLGService")
-@patch("src.core.analysis_service.LLMService")
-@patch("src.core.analysis_service.get_settings")
+@patch("src.core.analysis_service.PreprocessingService")
 async def test_full_analysis_pipeline(
-    mock_get_settings,
-    mock_llm_service_cls,
-    mock_nlg_service_cls,
-    mock_fact_checker_cls,
-    mock_ner_cls,
-    mock_explanation_cls,
-    mock_prompt_manager_cls,
-    mock_document_classifier_cls,
-    mock_compliance_analyzer_cls,
-    dummy_document,
+    mock_preproc_cls,
+    mock_doc_classifier_cls,
+    mock_analyzer_cls,
+    mock_parse_content,
+    mock_settings: Settings,
+    dummy_document: Path,
 ):
-    """Ensure AnalysisService orchestrates dependencies as expected."""
-    prompt_manager_instance = MagicMock()
-    prompt_manager_instance.build_prompt.return_value = "Prompt"
-    mock_prompt_manager_cls.return_value = prompt_manager_instance
+    """
+    Ensures AnalysisService orchestrates its dependencies correctly using a
+    properly mocked configuration.
+    """
+    # Arrange
+    mock_parse_content.return_value = [{"sentence": "The patient shows improvement."}]
 
-    llm_service_instance = mock_llm_service_cls.return_value
-    llm_service_instance.is_ready.return_value = True
+    mock_preproc_instance = mock_preproc_cls.return_value
+    mock_preproc_instance.correct_text = AsyncMock(return_value="The patient shows improvement.")
 
-    mock_nlg_service_cls.return_value.generate_personalized_tip.return_value = "Tip"
+    mock_doc_classifier_instance = mock_doc_classifier_cls.return_value
+    mock_doc_classifier_instance.classify_document = AsyncMock(return_value="Progress Note")
 
-    document_classifier_instance = mock_document_classifier_cls.return_value
-    document_classifier_instance.classify_document.return_value = "Progress Note"
-
-    analyzer_instance = mock_compliance_analyzer_cls.return_value
-    analyzer_instance.analyze_document = AsyncMock(
+    mock_analyzer_instance = mock_analyzer_cls.return_value
+    mock_analyzer_instance.analyze_document = AsyncMock(
         return_value={"findings": [{"risk": "High"}]}
     )
 
-    mock_get_settings.return_value = SimpleNamespace(
-        models=SimpleNamespace(
-            generator="repo",
-            generator_filename="model.gguf",
-            fact_checker="fc",
-            ner_ensemble=["ner"],
-            doc_classifier_prompt="tests/data/doc_classifier_prompt.txt",
-            analysis_prompt_template="tests/data/analysis_prompt.txt",
-            nlg_prompt_template="tests/data/nlg_prompt.txt",
-        ),
-        llm_settings=SimpleNamespace(dict=lambda: {"generation_params": {}}),
-    )
+    # Act
+    with patch("src.core.analysis_service.get_settings", return_value=mock_settings):
+        service = AnalysisService(retriever=MagicMock())
+        result = await service.analyze_document(str(dummy_document), discipline="pt")
 
-    os.makedirs("tests/data", exist_ok=True)
-    with open("tests/data/doc_classifier_prompt.txt", "w", encoding="utf-8") as f:
-        f.write("Classify: {document_text}")
-    with open("tests/data/analysis_prompt.txt", "w", encoding="utf-8") as f:
-        f.write("Analyze: {document}\nContext: {context}")
-    with open("tests/data/nlg_prompt.txt", "w", encoding="utf-8") as f:
-        f.write("Tip for {issue_title}: {issue_detail}")
-
-    service = AnalysisService(retriever=MagicMock())
-    result = await service.analyze_document(str(dummy_document), discipline="pt")
-
-    document_classifier_instance.classify_document.assert_called_once()
-    analyzer_instance.analyze_document.assert_awaited_once()
-    assert result["findings"][0]["risk"] == "High"
+    # Assert
+    mock_doc_classifier_instance.classify_document.assert_awaited_once()
+    mock_analyzer_instance.analyze_document.assert_awaited_once()
+    assert "analysis" in result
+    assert result["analysis"]["findings"][0]["risk"] == "High"

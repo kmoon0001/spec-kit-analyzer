@@ -31,6 +31,12 @@ rank_bm25
 accelerate
 nltk
 pyspellchecker
+spacy
+scispacy
+# scispaCy model for biomedical NER
+https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz
+# spaCy model for general NER (names, locations, etc.)
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz
 
 # Database
 SQLAlchemy
