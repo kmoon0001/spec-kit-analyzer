@@ -7,7 +7,7 @@ from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import cos_sim
 
 try:  # pragma: no cover - optional dependency during tests
-    from ..database import crud
+    from src import crud
 except Exception:  # pragma: no cover - fallback when database layer unavailable
     crud = None
 
@@ -132,4 +132,14 @@ class HybridRetriever:
             rrf_scores.items(), key=lambda item: item[1], reverse=True
         )
 
-        return [self.rules[doc_id] for doc_id, _ in sorted_docs[:top_k]]
+sorted_rules = [self.rules[doc_id] for doc_id, _ in sorted_docs]
+
+        if category_filter:
+            filtered_rules = [
+                rule
+                for rule in sorted_rules
+                if rule.get("category", "").lower() == category_filter.lower()
+            ]
+            return filtered_rules[:top_k]
+
+        return sorted_rules[:top_k]

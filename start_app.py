@@ -96,12 +96,12 @@ def main():
     try:
         logger.info("Starting GUI application...")
         from PyQt6.QtWidgets import QApplication
-        from src.gui.main_window import MainApplicationWindow
+        from src.gui.main_window import ModernMainWindow
 
         app = QApplication(sys.argv)
         app.setApplicationName("Therapy Compliance Analyzer")
 
-        main_win = MainApplicationWindow()
+        main_win = ModernMainWindow()
         main_win.start()  # This should handle login and then show the window
 
         exit_code = app.exec()

@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 import psutil
 import yaml
 
-from ..config import get_settings as _get_settings
+from src.config import get_settings as _get_settings
 from .compliance_analyzer import ComplianceAnalyzer
 from .document_classifier import DocumentClassifier
 from .explanation import ExplanationEngine

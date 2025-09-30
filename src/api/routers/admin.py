@@ -6,9 +6,9 @@ from typing import List
 import uuid
 import os
 
-from ...database import crud, schemas, models
-from ...database import get_async_db as get_db
-from ...auth import get_current_admin_user, get_auth_service, AuthService
+from src import crud, schemas, models
+from src.database.database import get_async_db as get_db
+from src.auth import get_current_admin_user, get_auth_service, AuthService
 
 router = APIRouter()
 

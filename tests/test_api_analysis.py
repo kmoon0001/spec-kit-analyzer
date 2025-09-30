@@ -1,6 +1,7 @@
 # ruff: noqa: E402
 import os
 import sys
+import datetime
 from unittest.mock import MagicMock, patch
 
 # --- Pre-emptive Mocking ---
@@ -46,7 +47,7 @@ from fastapi.testclient import TestClient
 
 from src.api.main import app, limiter
 from src.auth import get_current_active_user
-from src.database import schemas
+from src import schemas
 
 
 # We must stop the patchers we started manually. A session-scoped autouse fixture
@@ -67,7 +68,7 @@ limiter.enabled = False
 def client():
     """Create a TestClient for the API, with authentication overridden."""
     # Define a dummy user model that matches the User schema
-    dummy_user = schemas.User(id=1, username="testuser", is_active=True, is_admin=False)
+    dummy_user = schemas.User(id=1, username="testuser", is_active=True, is_admin=False, created_at=datetime.datetime.utcnow())
 
     def override_get_current_active_user():
         return dummy_user
