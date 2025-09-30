@@ -1,6 +1,6 @@
 import logging
-from .llm_service import LLMService
-from .prompt_manager import PromptManager
+from src.core.llm_service import LLMService
+from src.core.prompt_manager import PromptManager
 
 logger = logging.getLogger(__name__)
 

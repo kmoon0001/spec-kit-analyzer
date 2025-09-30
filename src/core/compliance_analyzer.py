@@ -3,14 +3,14 @@ import logging
 import asyncio
 from typing import Any, Dict, List, Optional
 
-from .llm_service import LLMService
-from .nlg_service import NLGService
-from .ner import NERPipeline
+from src.core.llm_service import LLMService
+from src.core.nlg_service import NLGService
+from src.core.ner import NERPipeline
 from src.config import get_settings
-from .explanation import ExplanationEngine
-from .prompt_manager import PromptManager
-from .fact_checker_service import FactCheckerService
-from .hybrid_retriever import HybridRetriever
+from src.core.explanation import ExplanationEngine
+from src.core.prompt_manager import PromptManager
+from src.core.fact_checker_service import FactCheckerService
+from src.core.hybrid_retriever import HybridRetriever
 
 logger = logging.getLogger(__name__)
 CONFIDENCE_THRESHOLD = 0.7

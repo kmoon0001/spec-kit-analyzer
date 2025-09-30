@@ -8,20 +8,20 @@ import psutil
 import yaml
 
 from src.config import get_settings as _get_settings
-from .compliance_analyzer import ComplianceAnalyzer
-from .document_classifier import DocumentClassifier
-from .explanation import ExplanationEngine
-from .fact_checker_service import FactCheckerService
-from .hybrid_retriever import HybridRetriever
-from .llm_service import LLMService
-from .ner import NERPipeline
-from .nlg_service import NLGService
-from .preprocessing_service import PreprocessingService
-from .prompt_manager import PromptManager
-from .report_generator import ReportGenerator
-from .parsing import parse_document_content
-from .checklist_service import DeterministicChecklistService
-from .text_utils import sanitize_bullets, sanitize_human_text
+from src.core.compliance_analyzer import ComplianceAnalyzer
+from src.core.document_classifier import DocumentClassifier
+from src.core.explanation import ExplanationEngine
+from src.core.fact_checker_service import FactCheckerService
+from src.core.hybrid_retriever import HybridRetriever
+from src.core.llm_service import LLMService
+from src.core.ner import NERPipeline
+from src.core.nlg_service import NLGService
+from src.core.preprocessing_service import PreprocessingService
+from src.core.prompt_manager import PromptManager
+from src.core.report_generator import ReportGenerator
+from src.core.parsing import parse_document_content
+from src.core.checklist_service import DeterministicChecklistService
+from src.core.text_utils import sanitize_bullets, sanitize_human_text
 
 logger = logging.getLogger(__name__)
 
@@ -44,18 +44,18 @@ def get_settings():
     return _get_settings()
 
 
-from .checklist_service import DeterministicChecklistService
-from .compliance_analyzer import ComplianceAnalyzer
-from .document_classifier import DocumentClassifier
-from .explanation import ExplanationEngine
-from .fact_checker_service import FactCheckerService
-from .hybrid_retriever import HybridRetriever
-from .llm_service import LLMService
-from .ner import NERPipeline
-from .nlg_service import NLGService
-from .preprocessing_service import PreprocessingService
-from .prompt_manager import PromptManager
-from .report_generator import ReportGenerator
+from src.core.checklist_service import DeterministicChecklistService
+from src.core.compliance_analyzer import ComplianceAnalyzer
+from src.core.document_classifier import DocumentClassifier
+from src.core.explanation import ExplanationEngine
+from src.core.fact_checker_service import FactCheckerService
+from src.core.hybrid_retriever import HybridRetriever
+from src.core.llm_service import LLMService
+from src.core.ner import NERPipeline
+from src.core.nlg_service import NLGService
+from src.core.preprocessing_service import PreprocessingService
+from src.core.prompt_manager import PromptManager
+from src.core.report_generator import ReportGenerator
 
 
 class AnalysisService:
