@@ -5,10 +5,10 @@ import os
 import sys
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QMainWindow, QStatusBar,
-    QFileDialog, QTextEdit, QLabel, QPushButton, QComboBox,
-    QFrame, QProgressBar, QMessageBox, QDialog, QTextBrowser
+    QMenuBar, QFileDialog, QTextEdit, QLabel, QPushButton, QComboBox,
+    QFrame, QProgressBar, QMessageBox, QSplitter, QDialog, QTextBrowser
 )
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
 
 # Add project root to path for imports
@@ -170,6 +170,7 @@ class ReportViewDialog(QDialog):
 
     def export_report(self):
         """Export report to file."""
+        from PyQt6.QtWidgets import QFileDialog
         file_name, _ = QFileDialog.getSaveFileName(
             self, 
             "💾 Export Compliance Report", 

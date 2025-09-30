@@ -4,6 +4,7 @@ Simple startup script for the Therapy Compliance Analyzer.
 Handles environment setup and launches the application.
 """
 import sys
+import os
 import subprocess
 from pathlib import Path
 

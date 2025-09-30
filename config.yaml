@@ -50,6 +50,4 @@ retrieval_settings:
 temp_upload_dir: "/tmp/uploads"
 api_url: "http://127.0.0.1:8000"
 rule_dir: "src/resources/rules"
-use_ai_mocks: true
-enable_habit_coaching: false
-enable_director_dashboard: false
+use_ai_mocks: false

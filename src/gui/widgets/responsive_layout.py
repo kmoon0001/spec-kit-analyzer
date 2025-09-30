@@ -2,11 +2,12 @@
 Responsive Layout System - Adaptive UI that scales to different screen sizes.
 """
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QGridLayout, QSplitter,
-    QScrollArea, 
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QSplitter,
+    QScrollArea, QFrame, QSizePolicy
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer
-from PyQt6.QtGui import QResizeEvent, QFont
+from PyQt6.QtCore import Qt, QSize, pyqtSignal, QTimer
+from PyQt6.QtGui import QResizeEvent, QFont, QFontMetrics
+import math
 
 class ResponsiveWidget(QWidget):
     """Base widget that adapts to screen size changes."""
@@ -47,11 +48,12 @@ class ResponsiveWidget(QWidget):
         """Determine current breakpoint based on width."""
         if width < self.breakpoints['mobile']:
             return 'mobile'
-        if width < self.breakpoints['tablet']:
+        elif width < self.breakpoints['tablet']:
             return 'tablet'
-        if width < self.breakpoints['desktop']:
+        elif width < self.breakpoints['desktop']:
             return 'desktop'
-        return 'large'
+        else:
+            return 'large'
 
     def adapt_to_breakpoint(self, breakpoint: str):
         """Override in subclasses to handle breakpoint changes."""

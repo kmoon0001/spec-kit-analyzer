@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List, Dict, Any
+from pydantic import BaseModel
+from typing import Optional, List
 import datetime
 
 # --- Schemas for Reports and Findings (Dashboard) ---
@@ -10,15 +10,14 @@ class FindingBase(BaseModel):
     risk: str
     personalized_tip: str
     problematic_text: str
-    clinician_name: Optional[str] = None
-    habit_name: Optional[str] = None
 
 
 class Finding(FindingBase):
     id: int
     report_id: int
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 
 class FindingCreate(FindingBase):
@@ -28,7 +27,7 @@ class FindingCreate(FindingBase):
 class ReportBase(BaseModel):
     document_name: str
     compliance_score: float
-    analysis_result: Dict[str, Any]
+    analysis_result: dict
     document_embedding: Optional[bytes] = None
 
 
@@ -39,9 +38,10 @@ class ReportCreate(ReportBase):
 class Report(ReportBase):
     id: int
     analysis_date: datetime.datetime
-    findings: List[Finding] = Field(default_factory=list)
+    findings: List[Finding] = []
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 
 class FindingSummary(BaseModel):
@@ -65,7 +65,8 @@ class RubricCreate(RubricBase):
 class Rubric(RubricBase):
     id: int
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 
 # --- Schemas for Users and Auth ---
@@ -84,7 +85,8 @@ class User(UserBase):
     is_active: bool
     is_admin: bool = False
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 
 class UserPasswordChange(BaseModel):
@@ -129,42 +131,3 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     response: str
-
-
-# --- Schemas for Director Dashboard ---
-
-
-class TeamHabitAnalytics(BaseModel):
-    habit_name: str
-    count: int
-
-
-class ClinicianHabitAnalytics(BaseModel):
-    clinician_name: str
-    habit_name: str
-    count: int
-
-
-class DirectorDashboardData(BaseModel):
-    total_findings: int
-    team_habit_summary: List[TeamHabitAnalytics]
-    clinician_habit_breakdown: List[ClinicianHabitAnalytics]
-
-
-class CoachingFocus(BaseModel):
-    focus_title: str = Field(..., description="The title for the weekly coaching focus.")
-    summary: str = Field(
-        ..., description="A brief summary of the key issue identified."
-    )
-    root_cause: str = Field(
-        ..., description="The AI's inferred root cause of the issue."
-    )
-    action_steps: List[str] = Field(
-        ..., description="A list of concrete action steps for the team."
-    )
-
-
-class HabitTrendPoint(BaseModel):
-    date: datetime.date
-    habit_name: str
-    count: int

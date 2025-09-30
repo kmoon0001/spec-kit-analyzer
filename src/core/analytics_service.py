@@ -160,7 +160,7 @@ class AnalyticsService:
                         'frequency': frequency,
                         'impact': impact,
                         'risk_distribution': dict(risk_counts),
-                        'affected_documents': len({d['document'] for d in details})
+                        'affected_documents': len(set(d['document'] for d in details))
                     })
 
             # Sort by frequency and impact
@@ -362,7 +362,7 @@ class AnalyticsService:
                     'export_timestamp': datetime.now().isoformat()
                 }
 
-            if format_type == "detailed":
+            elif format_type == "detailed":
                 trends = self.calculate_compliance_trends(reports_data)
                 insights = self.generate_insights(reports_data, trends)
 
@@ -390,11 +390,13 @@ class AnalyticsService:
                     'common_issues': self.identify_common_issues(reports_data),
                     'export_timestamp': datetime.now().isoformat()
                 }
-            return {
-                'reports': reports_data,
-                'export_timestamp': datetime.now().isoformat(),
-                'total_count': len(reports_data)
-            }
+
+            else:  # raw format
+                return {
+                    'reports': reports_data,
+                    'export_timestamp': datetime.now().isoformat(),
+                    'total_count': len(reports_data)
+                }
 
         except Exception as e:
             logger.error(f"Error exporting analytics data: {e}")

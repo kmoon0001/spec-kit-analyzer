@@ -5,7 +5,6 @@ gunicorn
 slowapi
 requests
 httpx
-websockets
 
 # GUI
 PyQt6

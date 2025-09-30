@@ -2,18 +2,35 @@
 Modern Main Window - Redesigned with medical theme and your exact layout specifications.
 """
 import os
+import requests
+import urllib.parse
+import webbrowser
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QMainWindow, QStatusBar,
-    QMenuBar, QFileDialog, QTextEdit, QLabel, QProgressBar, QTextBrowser, QComboBox
+    QMenuBar, QFileDialog, QSplitter, QTextEdit, QLabel, QGroupBox,
+    QProgressBar, QPushButton, QTabWidget, QTextBrowser, QComboBox,
+    QListWidget, QListWidgetItem, QFrame, QScrollArea, QGridLayout,
+    QSizePolicy, QSpacerItem
 )
-from PyQt6.QtCore import QThread
+from PyQt6.QtCore import Qt, QThread, QUrl, QTimer, pyqtSignal
+from PyQt6.QtGui import QTextDocument, QFont, QIcon, QPixmap
 
 # Import our new modern components
-from .widgets.modern_card import ModernCard
+from .widgets.modern_card import ModernCard, ComplianceCard
 from .widgets.medical_theme import medical_theme
-from .widgets.responsive_layout import ResponsiveWidget
+from .widgets.responsive_layout import ResponsiveWidget, VirtualScrollArea
 from .widgets.micro_interactions import AnimatedButton, FadeInWidget, LoadingSpinner
+
+# Import existing components
+from .dialogs.rubric_manager_dialog import RubricManagerDialog
+from .dialogs.change_password_dialog import ChangePasswordDialog
+from .dialogs.chat_dialog import ChatDialog
+from .dialogs.performance_settings_dialog import PerformanceSettingsDialog
 from .workers.analysis_starter_worker import AnalysisStarterWorker
+from .workers.analysis_worker import AnalysisWorker
+from .workers.ai_loader_worker import AILoaderWorker
+from .workers.dashboard_worker import DashboardWorker
+from .widgets.dashboard_widget import DashboardWidget
 from .widgets.performance_status_widget import PerformanceStatusWidget
 from ..config import get_settings
 

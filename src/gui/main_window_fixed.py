@@ -6,14 +6,16 @@ import os
 import sys
 import asyncio
 import logging
+from pathlib import Path
 from typing import Optional, Dict, Any
 import requests
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QMainWindow, QStatusBar,
-    QMenuBar, QFileDialog, QSplitter, QTextEdit, QLabel, QProgressBar, QPushButton, QTextBrowser, QComboBox,
-    QFrame, 
+    QMenuBar, QFileDialog, QSplitter, QTextEdit, QLabel, QGroupBox,
+    QProgressBar, QPushButton, QTabWidget, QTextBrowser, QComboBox,
+    QFrame, QApplication
 )
-from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal as Signal
+from PyQt6.QtCore import Qt, QThread, QUrl, QTimer, pyqtSignal as Signal
 from PyQt6.QtGui import QFont
 
 # Add project root to path for imports
@@ -24,6 +26,7 @@ if project_root not in sys.path:
 from src.config import get_settings
 from src.core.analysis_service import AnalysisService
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
+from src.gui.workers.analysis_worker import AnalysisWorker
 
 settings = get_settings()
 API_URL = settings.api_url
@@ -723,7 +726,7 @@ class ModernMainWindow(QMainWindow):
 
             Would you like me to explain any specific compliance area?"""
 
-        if any(word in message_lower for word in ['documentation', 'document', 'note']):
+        elif any(word in message_lower for word in ['documentation', 'document', 'note']):
             return """For clinical documentation best practices:
             • Use objective, measurable language
             • Include specific functional outcomes
@@ -732,7 +735,7 @@ class ModernMainWindow(QMainWindow):
 
             What specific documentation challenge can I help with?"""
 
-        if any(word in message_lower for word in ['error', 'issue', 'problem', 'wrong']):
+        elif any(word in message_lower for word in ['error', 'issue', 'problem', 'wrong']):
             return """I understand you're experiencing an issue. Common problems include:
             • Document format not supported
             • Missing required documentation elements
@@ -740,7 +743,7 @@ class ModernMainWindow(QMainWindow):
 
             Can you describe the specific issue you're encountering?"""
 
-        if any(word in message_lower for word in ['help', 'how', 'what', 'explain']):
+        elif any(word in message_lower for word in ['help', 'how', 'what', 'explain']):
             return """I'm here to help with compliance analysis and documentation questions. I can assist with:
 
             📋 **Compliance Guidelines**: Medicare, CMS, and professional standards
@@ -749,7 +752,9 @@ class ModernMainWindow(QMainWindow):
             ⚡ **Quick Fixes**: Common compliance issue solutions
 
             What would you like to know more about?"""
-        return f"""Thank you for your question about "{message}". I'm designed to help with clinical compliance and documentation. 
+
+        else:
+            return f"""Thank you for your question about "{message}". I'm designed to help with clinical compliance and documentation.
             
             I can provide guidance on Medicare guidelines, documentation best practices, and compliance requirements. 
             

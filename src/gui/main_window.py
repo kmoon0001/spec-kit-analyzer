@@ -1,6 +1,6 @@
 import os
 import json
-import logging
+import requests
 import urllib.parse
 import webbrowser
 from typing import Dict, Any
@@ -32,17 +32,15 @@ from src.gui.exception_hook import install_exception_hook
 
 # Corrected: Use absolute imports from the src root
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
-from src.gui.dialogs.settings_dialog import SettingsDialog
 from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
+from src.gui.workers.analysis_worker import AnalysisWorker
 from src.gui.workers.folder_analysis_starter_worker import FolderAnalysisStarterWorker
+from src.gui.workers.folder_analysis_worker import FolderAnalysisWorker
 from src.gui.workers.ai_loader_worker import AILoaderWorker
 from src.gui.workers.dashboard_worker import DashboardWorker
-from src.gui.workers.password_change_worker import PasswordChangeWorker
-from src.gui.workers.task_status_worker import TaskStatusWorker
 from src.gui.widgets.dashboard_widget import DashboardWidget
-from src.gui.widgets.director_dashboard_widget import DirectorDashboardWidget
 from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
 from src.gui.dialogs.performance_settings_dialog import PerformanceSettingsDialog
 from src.core.report_generator import ReportGenerator
@@ -94,8 +92,6 @@ class MainApplicationWindow(QMainWindow):
         self.ai_loader_worker = None
         self.dashboard_thread = None
         self.dashboard_worker = None
-        self.password_worker_thread = None
-        self.password_worker = None
         self.report_generator = ReportGenerator()
         self.model_status = {
             "Generator": False,
@@ -132,9 +128,6 @@ class MainApplicationWindow(QMainWindow):
         self.tools_menu = self.menu_bar.addMenu("Tools")
         self.tools_menu.addAction("Manage Rubrics", self.manage_rubrics)
         self.tools_menu.addAction("Performance Settings", self.show_performance_settings)
-        self.tools_menu.addSeparator()
-        self.tools_menu.addAction("Application Settings", self.show_settings_dialog)
-        self.tools_menu.addSeparator()
         self.tools_menu.addAction("Change Password", self.show_change_password_dialog)
         self.theme_menu = self.menu_bar.addMenu("Theme")
         self.theme_menu.addAction("Light", self.set_light_theme)
@@ -191,17 +184,6 @@ class MainApplicationWindow(QMainWindow):
         self.dashboard_widget = DashboardWidget()
         self.tabs.addTab(self.dashboard_widget, "Dashboard")
         self.dashboard_widget.refresh_requested.connect(self.load_dashboard_data)
-
-        if self.is_admin and settings.enable_director_dashboard:
-            self.director_dashboard_widget = DirectorDashboardWidget(
-                self.access_token or ""
-            )
-            self.tabs.addTab(self.director_dashboard_widget, "Director Dashboard")
-            # Connect a signal to load data when the tab is focused or a button is clicked
-            self.director_dashboard_widget.refresh_requested.connect(
-                self.director_dashboard_widget.load_data
-            )
-
         if self.is_admin:
             self.admin_menu = self.menu_bar.addMenu("Admin")
             self.admin_menu.addAction("Open Admin Dashboard", self.open_admin_dashboard)
@@ -494,53 +476,32 @@ class MainApplicationWindow(QMainWindow):
         dialog = RubricManagerDialog(self.access_token, self)
         dialog.exec()
 
-    def show_settings_dialog(self):
-        """Show the general application settings dialog."""
-        dialog = SettingsDialog(self)
-        dialog.exec()
-
     def show_change_password_dialog(self):
-        """Handle the password change dialog and process asynchronously."""
         dialog = ChangePasswordDialog(self)
-        if not dialog.exec():
-            return
-
-        current_password, new_password = dialog.get_passwords()
-
-        if self.password_worker_thread and self.password_worker_thread.isRunning():
-            self.password_worker_thread.quit()
-            self.password_worker_thread.wait()
-
-        self.password_worker_thread = QThread(self)
-        self.password_worker = PasswordChangeWorker(
-            token=self.access_token or "",
-            current_password=current_password,
-            new_password=new_password,
-        )
-        self.password_worker.moveToThread(self.password_worker_thread)
-
-        # Connect signals
-        self.password_worker_thread.started.connect(self.password_worker.run)
-        self.password_worker.success.connect(self.on_password_change_success)
-        self.password_worker.error.connect(self.on_password_change_error)
-        self.password_worker.finished.connect(self.password_worker_thread.quit)
-        self.password_worker.finished.connect(self.password_worker.deleteLater)
-        self.password_worker_thread.finished.connect(
-            self.password_worker_thread.deleteLater
-        )
-
-        self.password_worker_thread.start()
-        self.status_bar.showMessage("Changing password...", 3000)
-
-    def on_password_change_success(self):
-        """Handle successful password change."""
-        QMessageBox.information(self, "Success", "Password changed successfully.")
-        self.status_bar.showMessage("Password changed successfully.", 5000)
-
-    def on_password_change_error(self, error_message: str):
-        """Handle failed password change."""
-        QMessageBox.critical(self, "Error", f"Failed to change password: {error_message}")
-        self.status_bar.showMessage("Failed to change password.", 5000)
+        if dialog.exec():
+            current_password, new_password = dialog.get_passwords()
+            try:
+                headers = {"Authorization": f"Bearer {self.access_token}"}
+                payload = {
+                    "current_password": current_password,
+                    "new_password": new_password,
+                }
+                response = requests.post(
+                    f"{API_URL}/auth/users/change-password",
+                    json=payload,
+                    headers=headers,
+                )
+                response.raise_for_status()
+                QMessageBox.information(
+                    self, "Success", "Password changed successfully."
+                )
+            except requests.exceptions.RequestException as e:
+                detail = (
+                    e.response.json().get("detail", str(e)) if e.response else str(e)
+                )
+                QMessageBox.critical(
+                    self, "Error", f"Failed to change password: {detail}"
+                )
 
     def show_performance_settings(self):
         """Show the performance settings dialog."""
@@ -726,19 +687,19 @@ class MainApplicationWindow(QMainWindow):
         self.worker_thread.finished.connect(self.worker_thread.deleteLater)
         self.worker_thread.start()
 
-    def _start_status_listener(self, task_id: str) -> None:
-        """Starts a worker to listen for real-time task updates via WebSocket."""
+    def _start_polling_worker(self, task_id: str) -> None:
         self._dispose_worker_thread()
         self.worker_thread = QThread()
-        self.worker = TaskStatusWorker(task_id)
+        if self._current_folder_path:
+            self.worker = FolderAnalysisWorker(task_id)
+        else:
+            self.worker = AnalysisWorker(task_id)
         self.worker.moveToThread(self.worker_thread)
-
-        self.worker.progress.connect(self.on_analysis_progress)
+        self.worker_thread.started.connect(self.worker.run)
         self.worker.success.connect(self.on_analysis_success)
         self.worker.error.connect(self.on_analysis_error)
+        self.worker.progress.connect(self.on_analysis_progress)
         self.worker.finished.connect(self._on_analysis_finished)
-
-        self.worker_thread.started.connect(self.worker.run)
         self.worker_thread.finished.connect(self.worker.deleteLater)
         self.worker_thread.finished.connect(self.worker_thread.deleteLater)
         self.worker_thread.start()
@@ -758,7 +719,7 @@ class MainApplicationWindow(QMainWindow):
     def handle_analysis_started(self, task_id: str):
         self._current_task_id = task_id
         self.status_bar.showMessage(f"Analysis in progress... (Task ID: {task_id})")
-        self._start_status_listener(task_id)
+        self._start_polling_worker(task_id)
 
     def on_analysis_progress(self, progress: int) -> None:
         if self.progress_bar.maximum() == 0:
@@ -1125,49 +1086,35 @@ QMessageBox QPushButton { min-width: 90px; }
 
 
     def closeEvent(self, event):
-        """Handle application close event with proper, robust cleanup."""
-        logging.info("Application close event triggered. Starting cleanup...")
-
-        def _cleanup_thread(thread: QThread | None, name: str):
-            """Safely stop a QThread."""
-            if thread and thread.isRunning():
-                logging.info("Stopping thread: %s", name)
-                try:
-                    thread.quit()
-                    if not thread.wait(2000):  # Wait 2 seconds
-                        logging.warning(
-                            "Thread '%s' did not stop gracefully. Terminating.", name
-                        )
-                        thread.terminate()
-                except Exception as e:
-                    logging.error(
-                        "Error while stopping thread %s: %s", name, e, exc_info=True
-                    )
-
-        # --- Cleanup individual components ---
+        """Handle application close event with proper cleanup."""
         try:
-            if hasattr(self, "performance_status"):
+            # Clean up performance status widget
+            if hasattr(self, 'performance_status'):
                 self.performance_status.cleanup()
+
+            # Clean up performance integration service
+            try:
+                from src.core.performance_integration import performance_integration
+                performance_integration.cleanup()
+            except ImportError:
+                pass
+
+            # Clean up any running worker threads
+            if self.worker_thread and self.worker_thread.isRunning():
+                self.worker_thread.quit()
+                self.worker_thread.wait(3000)
+
+            if self.ai_loader_thread and self.ai_loader_thread.isRunning():
+                self.ai_loader_thread.quit()
+                self.ai_loader_thread.wait(3000)
+
+            if self.dashboard_thread and self.dashboard_thread.isRunning():
+                self.dashboard_thread.quit()
+                self.dashboard_thread.wait(3000)
+
+            # Accept the close event
+            event.accept()
+
         except Exception as e:
-            logging.error(
-                "Error cleaning up performance status widget: %s", e, exc_info=True
-            )
-
-        try:
-            from src.core.performance_integration import performance_integration
-            performance_integration.cleanup()
-        except ImportError:
-            logging.warning("Performance integration module not found, skipping cleanup.")
-        except Exception as e:
-            logging.error(
-                "Error cleaning up performance integration service: %s", e, exc_info=True
-            )
-
-        # --- Cleanup all worker threads ---
-        _cleanup_thread(self.worker_thread, "Analysis")
-        _cleanup_thread(self.ai_loader_thread, "AI Loader")
-        _cleanup_thread(self.dashboard_thread, "Dashboard")
-        _cleanup_thread(self.password_worker_thread, "Password Change")
-
-        logging.info("Cleanup complete. Accepting close event.")
-        event.accept()
+            print(f"Error during application cleanup: {e}")
+            event.accept()  # Still close even if cleanup fails
