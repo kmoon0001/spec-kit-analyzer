@@ -8,7 +8,7 @@ from src.core.compliance_analyzer import ComplianceAnalyzer
 @pytest.fixture
 def compliance_analyzer() -> ComplianceAnalyzer:
     retriever = MagicMock()
-    retriever.retrieve.return_value = []
+    retriever.retrieve = AsyncMock(return_value=[])
 
     ner_pipeline = MagicMock()
     ner_pipeline.extract_entities.return_value = [
@@ -17,7 +17,6 @@ def compliance_analyzer() -> ComplianceAnalyzer:
 
     llm_service = MagicMock()
     llm_service.generate.return_value = '{"findings": []}'
-    llm_service.parse_json_output.return_value = {"findings": []}
 
     explanation_engine = MagicMock()
     explanation_engine.add_explanations.return_value = {"findings": []}
@@ -52,7 +51,7 @@ async def test_analyze_document_orchestration(compliance_analyzer: ComplianceAna
         document_text=document_text, discipline=discipline, doc_type=doc_type
     )
 
-    compliance_analyzer.retriever.retrieve.assert_called_once()
+    compliance_analyzer.retriever.retrieve.assert_awaited_once()
     compliance_analyzer.ner_pipeline.extract_entities.assert_called_once_with(
         document_text
     )
@@ -65,23 +64,20 @@ async def test_analyze_document_orchestration(compliance_analyzer: ComplianceAna
 def test_format_rules_for_prompt():
     rules = [
         {
-            "name": "Rule 1",
-            "regulation": "Regulation 1",
-            "common_pitfalls": "Pitfall 1",
-            "best_practice": "Best Practice 1",
+            "issue_title": "Rule 1",
+            "issue_detail": "Detail 1",
+            "suggestion": "Suggestion 1",
         },
         {
-            "name": "Rule 2",
-            "regulation": "Regulation 2",
-            "common_pitfalls": "Pitfall 2",
-            "best_practice": "Best Practice 2",
+            "issue_title": "Rule 2",
+            "issue_detail": "Detail 2",
+            "suggestion": "Suggestion 2",
         },
     ]
 
     context = ComplianceAnalyzer._format_rules_for_prompt(rules)
 
     assert "- **Rule:** Rule 1" in context
-    assert "  - **Regulation:** Regulation 1" in context
-    assert "  - **Common Pitfalls:** Pitfall 1" in context
-    assert "  - **Best Practice:** Best Practice 1" in context
+    assert "  **Detail:** Detail 1" in context
+    assert "  **Suggestion:** Suggestion 1" in context
     assert "- **Rule:** Rule 2" in context

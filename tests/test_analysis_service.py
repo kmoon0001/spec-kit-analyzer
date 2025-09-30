@@ -80,6 +80,6 @@ async def test_analysis_service_orchestration(mock_dependencies):
         document_text="This is a test.", discipline="PT", doc_type="Test Note"
     )
 
-    # Assert the final result contains the enriched analysis data
+    # Assert the final result contains the enriched analysis
     assert "analysis" in result
     assert result["analysis"]["findings"] == [{"issue_title": "Test Finding"}]

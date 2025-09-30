@@ -89,6 +89,12 @@ class AnalysisService:
         generation_params.setdefault("temperature", 0.2)
         generation_params.setdefault("top_p", 0.9)
 
+        # Set default generation parameters if not already defined in the config
+        generation_params = llm_settings.setdefault("generation_params", {})
+        generation_params.setdefault("max_new_tokens", 600)
+        generation_params.setdefault("temperature", 0.2)
+        generation_params.setdefault("top_p", 0.9)
+
         self.llm_service = LLMService(
             model_repo_id=generator_repo,
             model_filename=generator_filename,
