@@ -1,6 +1,6 @@
 {
   "profile": "balanced",
-  "system_info": {
+"system_info": {
     "total_memory_gb": 7,
     "available_memory_gb": 6,
     "cpu_count": 4,
