@@ -1,1039 +1,880 @@
-"""
-Fixed Modern Main Window - Working version with your layout.
-Integrated with backend services for full functionality.
-"""
-import asyncio
-import json
-import logging
 import os
-import sys
-from typing import Any, Dict
-
+import json
 import requests
-from PyQt6.QtCore import QThread, QTimer, Qt, pyqtSignal as Signal
-from PyQt6.QtGui import QFont
+import urllib.parse
+import webbrowser
+from typing import Dict
 from PyQt6.QtWidgets import (
-    QComboBox,
+    QWidget,
+    QVBoxLayout,
+    QDialog,
+    QMessageBox,
+    QMainWindow,
+    QStatusBar,
+    QMenuBar,
+    QMenu,
     QFileDialog,
-    QFrame,
+    QSplitter,
+    QTextEdit,
     QHBoxLayout,
     QLabel,
-    QMainWindow,
-    QMenuBar,
-    QMessageBox,
+    QGroupBox,
     QProgressBar,
+    QToolButton,
     QPushButton,
-    QSplitter,
-    QStatusBar,
+    QTabWidget,
     QTextBrowser,
-    QTextEdit,
-    QVBoxLayout,
-    QWidget,
+    QComboBox,
 )
+from PyQt6.QtCore import Qt, QThread, QUrl
+from PyQt6.QtGui import QTextDocument
 
-# Add project root to path for imports
-project_root = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-
-from src.config import get_settings
-from src.core.analysis_service import AnalysisService
+# Corrected: Use absolute imports from the src root
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
+from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
+from src.gui.dialogs.chat_dialog import ChatDialog
+from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
+from src.gui.workers.analysis_worker import AnalysisWorker
+from src.gui.workers.folder_analysis_starter_worker import FolderAnalysisStarterWorker
+from src.gui.workers.folder_analysis_worker import FolderAnalysisWorker
+from src.gui.workers.ai_loader_worker import AILoaderWorker
+from src.gui.workers.dashboard_worker import DashboardWorker
+from src.gui.widgets.dashboard_widget import DashboardWidget
+from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
+from src.gui.dialogs.performance_settings_dialog import PerformanceSettingsDialog
+from src.core.report_generator import ReportGenerator
 from src.gui.export import generate_pdf_report
+from src.config import get_settings
 
 settings = get_settings()
 API_URL = settings.api_url
-logger = logging.getLogger(__name__)
 
 
-class ModernCard(QFrame):
-    """Simple modern card widget."""
+class DocumentPreviewDialog(QDialog):
+    """Simple dialog to present the loaded document content in a larger view."""
 
-    def __init__(self, title: str = "", parent=None):
+    def __init__(self, document_content: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.title = title
-        self.setup_ui()
-        self.apply_style()
-
-    def setup_ui(self):
-        """Setup card UI."""
-        self.setFrameStyle(QFrame.Shape.NoFrame)
-
-        self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(16, 12, 16, 12)
-        self.main_layout.setSpacing(8)
-
-        if self.title:
-            self.title_label = QLabel(self.title)
-            title_font = QFont()
-            title_font.setPointSize(11)
-            title_font.setBold(True)
-            self.title_label.setFont(title_font)
-            self.title_label.setStyleSheet("color: #2563eb; margin-bottom: 4px;")
-            self.main_layout.addWidget(self.title_label)
-
-        self.content_widget = QWidget()
-        self.content_layout = QVBoxLayout(self.content_widget)
-        self.content_layout.setContentsMargins(0, 0, 0, 0)
-        self.main_layout.addWidget(self.content_widget)
-
-    def apply_style(self):
-        """Apply card styling."""
-        self.setStyleSheet(
-            """
-            QFrame {
-                background-color: #ffffff;
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
-                margin: 4px;
-            }
-        """
-        )
-
-    def add_content(self, widget: QWidget):
-        """Add content to card."""
-        self.content_layout.addWidget(widget)
+        self.setWindowTitle("Document Preview")
+        self.resize(820, 620)
+        layout = QVBoxLayout(self)
+        preview_area = QTextEdit()
+        preview_area.setReadOnly(True)
+        preview_area.setPlainText(document_content)
+        layout.addWidget(preview_area)
+        close_button = QPushButton("Close")
+        close_button.clicked.connect(self.accept)
+        close_button.setFixedHeight(32)
+        layout.addWidget(close_button, alignment=Qt.AlignmentFlag.AlignRight)
 
 
-class AnalysisWorkerThread(QThread):
-    """Background worker for document analysis."""
-
-    progress_updated = Signal(int)
-    status_updated = Signal(str)
-    analysis_completed = Signal(dict)
-    analysis_failed = Signal(str)
-
-    def __init__(
-        self, file_path: str, discipline: str, analysis_service: AnalysisService
-    ):
-        super().__init__()
-        self.file_path = file_path
-        self.discipline = discipline
-        self.analysis_service = analysis_service
-
-    def run(self):
-        """Run analysis in background thread."""
-        try:
-            self.status_updated.emit("🤖 Initializing AI models...")
-            self.progress_updated.emit(10)
-
-            self.status_updated.emit("📄 Processing document...")
-            self.progress_updated.emit(30)
-
-            # Run the actual analysis
-            result = self.analysis_service.analyze_document(
-                file_path=self.file_path, discipline=self.discipline
-            )
-
-            self.progress_updated.emit(80)
-            self.status_updated.emit("📊 Generating report...")
-
-            # Handle async result if needed
-            if hasattr(result, "__await__"):
-                # This is an async result, we need to handle it properly
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    result = loop.run_until_complete(result)
-                finally:
-                    loop.close()
-
-            self.progress_updated.emit(100)
-            self.status_updated.emit("✅ Analysis complete")
-            self.analysis_completed.emit(result)
-
-        except Exception as e:
-            logger.error(f"Analysis failed: {e}")
-            self.analysis_failed.emit(str(e))
-
-
-class ModernMainWindow(QMainWindow):
-    """Modern main window with your exact layout and full backend integration."""
-
+class MainApplicationWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.access_token = None
         self.username = None
         self.is_admin = False
         self._current_file_path = None
+        self._current_folder_path = None
+        self._current_folder_files = []
+        self._current_document_text = ""
         self._current_report_payload = None
-        self._current_discipline = "PT"  # Default discipline
+        self._analysis_running = False
+        self._all_rubrics = []
+        self._current_task_id = None
+        self.compliance_service = None
         self.worker_thread = None
         self.worker = None
-
-        # Initialize backend services
-        self.analysis_service = None
-        self._rubrics_cache = []
-
-        print("🎨 Initializing modern UI...")
+        self.ai_loader_thread = None
+        self.ai_loader_worker = None
+        self.dashboard_thread = None
+        self.dashboard_worker = None
+        self.report_generator = ReportGenerator()
+        self.model_status = {
+            "Generator": False,
+            "Retriever": False,
+            "Fact Checker": False,
+            "NER": False,
+            "Checklist": False,
+            "Chat": False,
+        }
         self.init_base_ui()
 
     def start(self):
-        """Start the application."""
-        print("🚀 Starting modern application...")
-        try:
-            self.load_main_ui()
-            self.load_ai_models()
-            self.load_rubrics()
-            print("✅ Modern UI loaded successfully!")
-        except Exception as e:
-            print(f"❌ Error in start(): {e}")
-            import traceback
-
-            traceback.print_exc()
+        """
+        Starts the application's main logic, including loading models and showing the login dialog.
+        This is called after the window is created to avoid blocking the constructor,
+        which makes the main window testable.
+        """
+        self.load_ai_models()
+        self.load_main_ui()  # Load main UI directly
+        self.show()
 
     def init_base_ui(self):
-        """Initialize base UI."""
-        self.setWindowTitle("🏥 Therapy Compliance Analyzer - Modern Edition")
-        self.setGeometry(100, 100, 1400, 900)
-
-        # Setup menu bar
-        self.setup_menu_bar()
-
-        # Setup status bar with easter egg
-        self.setup_status_bar()
-
-        # Apply modern styling
-        self.setStyleSheet(
-            """
-            QMainWindow {
-                background-color: #f8fafc;
-                color: #1e293b;
-            }
-            QMenuBar {
-                background-color: #ffffff;
-                color: #1e293b;
-                border-bottom: 1px solid #e2e8f0;
-                padding: 4px;
-            }
-            QMenuBar::item {
-                background-color: transparent;
-                padding: 6px 12px;
-                border-radius: 4px;
-            }
-            QMenuBar::item:selected {
-                background-color: #2563eb;
-                color: white;
-            }
-            QStatusBar {
-                background-color: #ffffff;
-                color: #64748b;
-                border-top: 1px solid #e2e8f0;
-            }
-        """
-        )
-
-    def setup_menu_bar(self):
-        """Setup menu bar."""
+        self.setWindowTitle("Therapy Compliance Analyzer")
+        self.setGeometry(100, 100, 1200, 800)
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
-
-        # File menu
-        self.file_menu = self.menu_bar.addMenu("📁 File")
-        self.file_menu.addAction("🚪 Logout", self.logout)
+        self.file_menu = self.menu_bar.addMenu("File")
+        self.file_menu.addAction("Logout", self.logout)
         self.file_menu.addSeparator()
-        self.file_menu.addAction("❌ Exit", self.close)
-
-        # Tools menu
-        self.tools_menu = self.menu_bar.addMenu("🔧 Tools")
-        self.tools_menu.addAction("📋 Manage Rubrics", self.manage_rubrics)
+        self.file_menu.addAction("Exit", self.close)
+        self.tools_menu = self.menu_bar.addMenu("Tools")
+        self.tools_menu.addAction("Manage Rubrics", self.manage_rubrics)
         self.tools_menu.addAction(
-            "⚡ Performance Settings", self.show_performance_settings
+            "Performance Settings", self.show_performance_settings
         )
-
-        # View menu
-        self.view_menu = self.menu_bar.addMenu("👁️ View")
-        self.view_menu.addAction(
-            "🌞 Light Theme", lambda: print("Light theme selected")
-        )
-        self.view_menu.addAction("🌙 Dark Theme", lambda: print("Dark theme selected"))
-
-    def setup_status_bar(self):
-        """Setup status bar with easter egg."""
+        self.tools_menu.addAction("Change Password", self.show_change_password_dialog)
+        self.theme_menu = self.menu_bar.addMenu("Theme")
+        self.theme_menu.addAction("Light", self.set_light_theme)
+        self.theme_menu.addAction("Dark", self.set_dark_theme)
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-
         self.status_bar.showMessage("Ready")
-
-        # AI status
-        self.ai_status_label = QLabel("🤖 Loading AI models...")
+        self.ai_status_label = QLabel("Loading AI models...")
         self.status_bar.addPermanentWidget(self.ai_status_label)
+        self.user_status_label = QLabel("")
+        self.status_bar.addPermanentWidget(self.user_status_label)
 
-        # Easter egg
-        self.easter_egg_label = QLabel("Pacific Coast Therapy")
-        self.easter_egg_label.setStyleSheet(
-            """
-            font-family: "Brush Script MT", "Lucida Handwriting", cursive;
-            font-size: 10px;
-            color: #94a3b8;
-            font-style: italic;
-            margin-left: 20px;
-        """
+        self.model_health_label = QLabel(self._format_model_status_text())
+        self.model_health_label.setObjectName("modelHealthLabel")
+        self.model_health_label.setTextFormat(Qt.TextFormat.RichText)
+        self.status_bar.addPermanentWidget(self.model_health_label)
+
+        # Add performance status widget to status bar
+        self.performance_status = PerformanceStatusWidget()
+        self.performance_status.settings_requested.connect(
+            self.show_performance_settings
         )
-        self.status_bar.addPermanentWidget(self.easter_egg_label)
+        self.status_bar.addPermanentWidget(self.performance_status)
 
-        # Progress bar
-        self.progress_bar = QProgressBar()
+        self.progress_bar = QProgressBar(self.status_bar)
         self.status_bar.addPermanentWidget(self.progress_bar)
         self.progress_bar.hide()
 
+    def _format_model_status_text(self) -> str:
+        badges = []
+        for name, status in self.model_status.items():
+            color = "#2ecc71" if status else "#e74c3c"
+            badges.append(
+                f'<span style="color: {color}; font-weight:600;">&#9679;</span> {name}'
+            )
+        return "  |  ".join(badges) if badges else "Models offline"
+
+    def _update_model_status_badges(self, updates: Dict[str, bool]) -> None:
+        self.model_status.update(updates)
+        if hasattr(self, "model_health_label"):
+            self.model_health_label.setText(self._format_model_status_text())
+
+    def logout(self):
+        self.access_token = None
+        self.username = None
+        self.is_admin = False
+        self.user_status_label.setText("")
+        self.setCentralWidget(None)
+        QMessageBox.information(self, "Logged Out", "You have been logged out.")
+        # Since login is removed, we can just close or show a message.
+        # For now, let's just clear the UI. A real implementation might close the app.
+
     def load_main_ui(self):
-        """Load main UI with your exact layout."""
-        print("📐 Creating your custom layout...")
+        self.tabs = QTabWidget()
+        self.setCentralWidget(self.tabs)
+        analysis_tab = self._create_analysis_tab()
+        self.tabs.addTab(analysis_tab, "Analysis")
+        self.dashboard_widget = DashboardWidget()
+        self.tabs.addTab(self.dashboard_widget, "Dashboard")
+        self.dashboard_widget.refresh_requested.connect(self.load_dashboard_data)
+        if self.is_admin:
+            self.admin_menu = self.menu_bar.addMenu("Admin")
+            self.admin_menu.addAction("Open Admin Dashboard", self.open_admin_dashboard)
+        self.load_dashboard_data()
+        theme = self.load_theme_setting()
+        self.apply_stylesheet(theme)
 
-        # Main container
-        main_container = QWidget()
-        self.setCentralWidget(main_container)
+    def open_admin_dashboard(self):
+        webbrowser.open(f"{API_URL}/admin/dashboard?token={self.access_token}")
 
-        # Main vertical layout
-        main_layout = QVBoxLayout(main_container)
+    def _create_analysis_tab(self) -> QWidget:
+        analysis_widget = QWidget()
+        main_layout = QVBoxLayout(analysis_widget)
         main_layout.setContentsMargins(12, 12, 12, 12)
-        main_layout.setSpacing(8)
+        main_layout.setSpacing(12)
 
-        # TOP SECTION: Rubric and Upload (4 lines tall each)
-        top_section = self.create_top_section()
-        main_layout.addWidget(top_section)
+        controls_group = QGroupBox("Analysis Setup")
+        controls_group_layout = QVBoxLayout()
+        controls_group_layout.setContentsMargins(10, 8, 10, 8)
+        controls_group_layout.setSpacing(6)
+        controls_group.setLayout(controls_group_layout)
+        main_layout.addWidget(controls_group)
 
-        # PROGRESS SECTION
-        progress_section = self.create_progress_section()
-        main_layout.addWidget(progress_section)
-
-        # MAIN CONTENT: Large AI chat/results window
-        main_content = self.create_main_content()
-        main_layout.addWidget(main_content, 1)  # Takes most space
-
-        # BOTTOM: Chat input
-        chat_section = self.create_chat_section()
-        main_layout.addWidget(chat_section)
-
-        print("✅ Layout created successfully!")
-
-    def create_top_section(self) -> QWidget:
-        """Create top section with rubric and upload cards."""
-        top_widget = QWidget()
-        top_layout = QHBoxLayout(top_widget)
-        top_layout.setSpacing(12)
-
-        # Rubric card (left)
-        rubric_card = ModernCard("📋 Compliance Rubric")
-        rubric_card.setFixedHeight(120)
-
-        rubric_content = QWidget()
-        rubric_content_layout = QVBoxLayout(rubric_content)
-
-        self.rubric_selector = QComboBox()
-        self.rubric_selector.setPlaceholderText("Select compliance rubric...")
-        self.rubric_selector.currentTextChanged.connect(self.on_rubric_changed)
-        self.rubric_selector.setStyleSheet(
-            """
-            QComboBox {
-                background-color: #f1f5f9;
-                border: 1px solid #cbd5e0;
-                padding: 8px 12px;
-                border-radius: 6px;
-                font-size: 12px;
-            }
-            QComboBox:hover {
-                border-color: #2563eb;
-            }
-        """
-        )
-        self.rubric_selector.currentTextChanged.connect(self.on_rubric_changed)
-
-        self.rubric_description = QLabel("Select a rubric to see description")
-        self.rubric_description.setWordWrap(True)
-        self.rubric_description.setMaximumHeight(40)
-        self.rubric_description.setStyleSheet("color: #64748b; font-size: 11px;")
-
-        rubric_content_layout.addWidget(self.rubric_selector)
-        rubric_content_layout.addWidget(self.rubric_description)
-        rubric_card.add_content(rubric_content)
-
-        # Upload card (right)
-        upload_card = ModernCard("📄 Document Upload")
-        upload_card.setFixedHeight(120)
-
-        upload_content = QWidget()
-        upload_content_layout = QVBoxLayout(upload_content)
-
-        # Buttons
-        button_layout = QHBoxLayout()
-
-        self.upload_button = QPushButton("📤 Upload Document")
+        source_layout = QHBoxLayout()
+        source_layout.setSpacing(8)
+        self.upload_button = QToolButton()
+        self.upload_button.setText("Upload Source")
+        self.upload_button.setFixedHeight(34)
+        self.upload_button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
         self.upload_button.clicked.connect(self.open_file_dialog)
-        self.upload_button.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #2563eb;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #1d4ed8;
-            }
-        """
+        self.upload_button_menu = QMenu(self.upload_button)
+        file_action = self.upload_button_menu.addAction("Upload Document")
+        file_action.triggered.connect(self.open_file_dialog)
+        folder_action = self.upload_button_menu.addAction("Upload Folder")
+        folder_action.triggered.connect(self.open_folder_dialog)
+        self.upload_button.setMenu(self.upload_button_menu)
+        source_layout.addWidget(self.upload_button)
+
+        self.selected_source_label = QLabel("No document selected.")
+        self.selected_source_label.setObjectName("selectedSourceLabel")
+        self.selected_source_label.setMinimumWidth(240)
+        source_layout.addWidget(self.selected_source_label, 1)
+        controls_group_layout.addLayout(source_layout)
+
+        rubric_layout = QHBoxLayout()
+        rubric_layout.setSpacing(8)
+        rubric_layout.addWidget(QLabel("Rubric"))
+        self.rubric_selector = QComboBox()
+        self.rubric_selector.setPlaceholderText("Select a Rubric")
+        self.rubric_selector.currentIndexChanged.connect(self._on_rubric_selected)
+        rubric_layout.addWidget(self.rubric_selector, 1)
+        self.rubric_type_selector = QComboBox()
+        self.rubric_type_selector.addItem("All Disciplines", None)
+        self.rubric_type_selector.currentIndexChanged.connect(
+            self._filter_rubrics_by_type
         )
+        rubric_layout.addWidget(self.rubric_type_selector)
+        controls_group_layout.addLayout(rubric_layout)
 
-        self.clear_button = QPushButton("🗑️ Clear")
-        self.clear_button.clicked.connect(self.clear_display)
-        self.clear_button.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #f1f5f9;
-                color: #1e293b;
-                border: 1px solid #cbd5e0;
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #e2e8f0;
-            }
-        """
+        self.rubric_description_label = QLabel(
+            "Description of selected rubric will appear here."
         )
+        self.rubric_description_label.setWordWrap(True)
+        controls_group_layout.addWidget(self.rubric_description_label)
 
-        button_layout.addWidget(self.upload_button)
-        button_layout.addWidget(self.clear_button)
-        button_layout.addStretch()
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+        splitter.setHandleWidth(10)
+        splitter.setObjectName("analysisSplitter")
+        main_layout.addWidget(splitter, 1)
 
-        self.document_status = QLabel("No document uploaded")
-        self.document_status.setWordWrap(True)
-        self.document_status.setMaximumHeight(40)
-        self.document_status.setStyleSheet("color: #64748b; font-size: 11px;")
+        document_group = QGroupBox("Document")
+        document_group.setObjectName("documentPane")
+        document_layout = QVBoxLayout()
+        document_group.setLayout(document_layout)
+        self.document_display_area = QTextEdit()
+        self.document_display_area.setPlaceholderText(
+            "Upload a document to see its content here."
+        )
+        self.document_display_area.setReadOnly(True)
+        document_layout.addWidget(self.document_display_area)
+        splitter.addWidget(document_group)
 
-        upload_content_layout.addLayout(button_layout)
-        upload_content_layout.addWidget(self.document_status)
-        upload_card.add_content(upload_content)
+        results_group = QGroupBox("Analysis Results")
+        results_group.setObjectName("resultsPane")
+        results_layout = QVBoxLayout()
+        results_group.setLayout(results_layout)
+        self.analysis_results_area = QTextBrowser()
+        self.analysis_results_area.setPlaceholderText(
+            "Analysis results will appear here."
+        )
+        self.analysis_results_area.setReadOnly(True)
+        self.analysis_results_area.setOpenExternalLinks(True)
+        self.analysis_results_area.anchorClicked.connect(self.handle_anchor_click)
+        results_layout.addWidget(self.analysis_results_area)
+        splitter.addWidget(results_group)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
 
-        top_layout.addWidget(rubric_card, 1)
-        top_layout.addWidget(upload_card, 1)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setObjectName("analysisProgress")
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setFixedHeight(8)
+        self.progress_bar.hide()
+        main_layout.addWidget(self.progress_bar)
 
-        return top_widget
-
-    def create_progress_section(self) -> QWidget:
-        """Create progress section."""
-        progress_widget = QWidget()
-        progress_layout = QHBoxLayout(progress_widget)
-        progress_layout.setContentsMargins(0, 8, 0, 8)
-
-        self.run_analysis_button = QPushButton("🚀 Run Analysis")
-        self.run_analysis_button.clicked.connect(self.run_analysis)
+        actions_layout = QHBoxLayout()
+        actions_layout.setSpacing(8)
+        self.run_analysis_button = QPushButton("Run Analysis")
         self.run_analysis_button.setEnabled(False)
-        self.run_analysis_button.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #059669;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                border-radius: 6px;
-                font-weight: 600;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background-color: #047857;
-            }
-            QPushButton:disabled {
-                background-color: #cbd5e0;
-                color: #94a3b8;
-            }
-        """
-        )
+        self.run_analysis_button.setFixedHeight(34)
+        self.run_analysis_button.clicked.connect(self.run_analysis)
+        actions_layout.addWidget(self.run_analysis_button)
 
-        progress_container = QWidget()
-        progress_container_layout = QVBoxLayout(progress_container)
-        progress_container_layout.setContentsMargins(0, 0, 0, 0)
+        self.stop_analysis_button = QPushButton("Stop Analysis")
+        self.stop_analysis_button.setEnabled(False)
+        self.stop_analysis_button.setFixedHeight(34)
+        self.stop_analysis_button.clicked.connect(self.stop_analysis)
+        actions_layout.addWidget(self.stop_analysis_button)
 
-        self.progress_label = QLabel("Ready to analyze")
-        self.progress_label.setStyleSheet("color: #64748b; font-size: 11px;")
+        self.document_preview_button = QPushButton("Document Preview")
+        self.document_preview_button.setEnabled(False)
+        self.document_preview_button.setFixedHeight(34)
+        self.document_preview_button.clicked.connect(self.show_document_preview)
+        actions_layout.addWidget(self.document_preview_button)
 
-        self.main_progress_bar = QProgressBar()
-        self.main_progress_bar.setVisible(False)
-        self.main_progress_bar.setStyleSheet(
-            """
-            QProgressBar {
-                border: 1px solid #e2e8f0;
-                border-radius: 4px;
-                text-align: center;
-                background-color: #f1f5f9;
-            }
-            QProgressBar::chunk {
-                background-color: #2563eb;
-                border-radius: 3px;
-            }
-        """
-        )
-
-        progress_container_layout.addWidget(self.progress_label)
-        progress_container_layout.addWidget(self.main_progress_bar)
+        self.analytics_button = QPushButton("Analytics")
+        self.analytics_button.setFixedHeight(34)
+        self.analytics_button.clicked.connect(self.open_analytics_dashboard)
+        actions_layout.addWidget(self.analytics_button)
 
         self.export_report_button = QPushButton("Export Report")
         self.export_report_button.setEnabled(False)
+        self.export_report_button.setFixedHeight(34)
         self.export_report_button.clicked.connect(self.export_report)
-        self.export_report_button.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #f1f5f9;
-                color: #1e293b;
-                border: 1px solid #cbd5e0;
-                padding: 10px 20px;
-                border-radius: 6px;
-                font-weight: 500;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background-color: #e2e8f0;
-            }
-            QPushButton:disabled {
-                background-color: #cbd5e0;
-                color: #94a3b8;
-            }
-        """
+        actions_layout.addWidget(self.export_report_button)
+
+        self.clear_button = QPushButton("Clear Display")
+        self.clear_button.setFixedHeight(34)
+        self.clear_button.clicked.connect(self.clear_display)
+        actions_layout.addWidget(self.clear_button)
+
+        actions_layout.addStretch()
+        main_layout.addLayout(actions_layout)
+
+        self._update_action_states()
+        return analysis_widget
+
+    def _summarize_folder_contents(self, folder_path: str) -> str:
+        preview_lines = [f"Selected folder: {folder_path}", ""]
+        collected_files = []
+        try:
+            for root, _, files in os.walk(folder_path):
+                for name in sorted(files):
+                    full_path = os.path.join(root, name)
+                    collected_files.append(full_path)
+                    if len(collected_files) >= 50:
+                        break
+                if len(collected_files) >= 50:
+                    break
+        except OSError as exc:
+            return f"Could not read folder contents for {folder_path}: {exc}"
+
+        self._current_folder_files = collected_files
+        total = len(collected_files)
+        preview_lines.append(f"Total files detected: {total}")
+        for sample in collected_files[:10]:
+            preview_lines.append(f"- {os.path.relpath(sample, folder_path)}")
+        if total > 10:
+            preview_lines.append("- ...")
+        preview_lines.append("")
+        preview_lines.append(
+            "The first 10 files are shown. Folder analysis will include every detected file."
         )
+        return "\n".join(preview_lines)
 
-        progress_layout.addWidget(self.run_analysis_button)
-        progress_layout.addWidget(self.export_report_button)
-        progress_layout.addWidget(progress_container, 1)
-
-        return progress_widget
-
-    def create_main_content(self) -> QWidget:
-        """Create main content area."""
-        content_widget = QWidget()
-        content_layout = QHBoxLayout(content_widget)
-        content_layout.setSpacing(12)
-
-        # Document preview (left)
-        doc_card = ModernCard("📖 Document Preview")
-        doc_content = QWidget()
-        doc_layout = QVBoxLayout(doc_content)
-
-        self.document_display = QTextEdit()
-        self.document_display.setPlaceholderText(
-            "📄 Upload a document to see its content here..."
-        )
-        self.document_display.setReadOnly(True)
-        self.document_display.setStyleSheet(
-            """
-            QTextEdit {
-                background-color: #f8fafc;
-                border: 1px solid #e2e8f0;
-                border-radius: 6px;
-                padding: 12px;
-                font-family: 'Consolas', 'Monaco', monospace;
-                font-size: 11px;
-            }
-        """
-        )
-
-        doc_layout.addWidget(self.document_display)
-        doc_card.add_content(doc_content)
-
-        # Results area (right)
-        results_card = ModernCard("🤖 AI Analysis & Results")
-        results_content = QWidget()
-        results_layout = QVBoxLayout(results_content)
-
-        self.analysis_results = QTextBrowser()
-        self.analysis_results.setPlaceholderText(
-            """
-🎯 Analysis results will appear here...
-
-• Upload a clinical document
-• Select an appropriate compliance rubric
-• Click 'Run Analysis' to begin
-• Interact with AI for clarifications
-        """
-        )
-        self.analysis_results.setReadOnly(True)
-        self.analysis_results.setStyleSheet(
-            """
-            QTextBrowser {
-                background-color: #ffffff;
-                border: 1px solid #e2e8f0;
-                border-radius: 6px;
-                padding: 16px;
-                font-size: 12px;
-                line-height: 1.5;
-            }
-        """
-        )
-
-        results_layout.addWidget(self.analysis_results)
-        results_card.add_content(results_content)
-
-        # Splitter
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.addWidget(doc_card)
-        splitter.addWidget(results_card)
-        splitter.setSizes([400, 600])
-
-        content_layout.addWidget(splitter)
-        return content_widget
-
-    def create_chat_section(self) -> QWidget:
-        """Create chat input section."""
-        chat_card = ModernCard("💬 AI Assistant")
-        chat_content = QWidget()
-        chat_layout = QHBoxLayout(chat_content)
-
-        self.chat_input = QTextEdit()
-        self.chat_input.setPlaceholderText(
-            "Ask the AI assistant about compliance, documentation, or analysis results..."
-        )
-        self.chat_input.setMaximumHeight(60)
-        self.chat_input.setStyleSheet(
-            """
-            QTextEdit {
-                background-color: #f8fafc;
-                border: 1px solid #e2e8f0;
-                border-radius: 6px;
-                padding: 8px;
-                font-size: 12px;
-            }
-        """
-        )
-
-        self.send_button = QPushButton("📤 Send")
-        self.send_button.clicked.connect(self.send_chat)
-        self.send_button.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #2563eb;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #1d4ed8;
-            }
-        """
-        )
-        self.send_button.setFixedWidth(80)
-
-        chat_layout.addWidget(self.chat_input, 1)
-        chat_layout.addWidget(self.send_button)
-
-        chat_card.add_content(chat_content)
-        return chat_card
-
-    # Event handlers
-    def open_file_dialog(self):
-        """Open file dialog."""
-        file_name, _ = QFileDialog.getOpenFileName(
-            self,
-            "📁 Select Clinical Document",
-            "",
-            "All Supported Files (*.pdf *.docx *.txt);;PDF Files (*.pdf);;Word Documents (*.docx);;Text Files (*.txt)",
-        )
-
-        if file_name:
-            self._current_file_path = file_name
-            file_info = os.path.basename(file_name)
-            self.document_status.setText(f"📄 {file_info}")
-
+    @staticmethod
+    def _normalize_result_payload(result: object) -> dict:
+        if isinstance(result, dict):
+            return result
+        if isinstance(result, str):
             try:
-                with open(file_name, "r", encoding="utf-8", errors="ignore") as f:
-                    content = f.read()
-                    preview = content[:5000] + "..." if len(content) > 5000 else content
-                    self.document_display.setText(preview)
+                return json.loads(result)
+            except json.JSONDecodeError:
+                return {"raw_result": result}
+        return {"raw_result": result}
 
-                self.status_bar.showMessage(f"✅ Loaded: {file_info}", 3000)
-                self.run_analysis_button.setEnabled(True)
+    def _update_action_states(self) -> None:
+        has_source = bool(self._current_file_path or self._current_folder_path)
+        active_rubric = (
+            self.rubric_selector.currentData()
+            if hasattr(self, "rubric_selector")
+            else None
+        )
+        has_preview = bool(self._current_document_text)
+        has_report = bool(self._current_report_payload)
+        can_run = bool(has_source and active_rubric and not self._analysis_running)
+        if hasattr(self, "run_analysis_button"):
+            self.run_analysis_button.setEnabled(can_run)
+        if hasattr(self, "stop_analysis_button"):
+            self.stop_analysis_button.setEnabled(self._analysis_running)
+        if hasattr(self, "document_preview_button"):
+            self.document_preview_button.setEnabled(has_preview)
+        if hasattr(self, "export_report_button"):
+            self.export_report_button.setEnabled(has_report)
+        if hasattr(self, "clear_button"):
+            self.clear_button.setEnabled(has_source or has_preview or has_report)
 
-            except Exception as e:
-                self.document_display.setText(f"❌ Could not preview: {e}")
-                self.status_bar.showMessage(f"⚠️ Preview error: {e}", 5000)
+    def _filter_rubrics_by_type(self, _index: int) -> None:
+        self._apply_rubric_filter()
 
-    def run_analysis(self):
-        """Run analysis using the backend service."""
-        if not self._current_file_path:
-            QMessageBox.warning(self, "No Document", "Please upload a document first.")
+    def _apply_rubric_filter(self) -> None:
+        rubrics = self._all_rubrics or []
+        selected_discipline = None
+        if hasattr(self, "rubric_type_selector"):
+            selected_discipline = self.rubric_type_selector.currentData()
+        if selected_discipline:
+            rubrics = [
+                rubric
+                for rubric in rubrics
+                if (rubric.get("discipline") or "").strip() == selected_discipline
+            ]
+
+        if hasattr(self, "rubric_selector"):
+            previous_selection = self.rubric_selector.currentData()
+            self.rubric_selector.blockSignals(True)
+            self.rubric_selector.clear()
+            self.rubric_selector.addItem("Select a Rubric", None)
+            for rubric in rubrics:
+                name = rubric.get("name") or rubric.get("title") or "Unnamed Rubric"
+                self.rubric_selector.addItem(name, rubric)
+            self.rubric_selector.blockSignals(False)
+
+            if previous_selection in rubrics:
+                index = self.rubric_selector.findData(previous_selection)
+                if index >= 0:
+                    self.rubric_selector.setCurrentIndex(index)
+
+        if hasattr(self, "rubric_description_label"):
+            self.rubric_description_label.setText(
+                "Description of selected rubric will appear here."
+            )
+
+        self._update_action_states()
+
+    def handle_anchor_click(self, url: QUrl):
+        if url.scheme() == "highlight":
+            self.handle_text_highlight_request(url)
+        elif url.scheme() == "chat":
+            self.handle_chat_request(url)
+
+    def handle_text_highlight_request(self, url: QUrl):
+        combined_payload = urllib.parse.unquote(url.path())
+        parts = combined_payload.split("|||")
+        context_snippet = parts[0]
+        text_to_highlight = parts[1] if len(parts) > 1 else context_snippet
+        doc = self.document_display_area.document()
+        if doc:
+            context_cursor = doc.find(
+                context_snippet, 0, QTextDocument.FindFlag.FindCaseSensitively
+            )
+            if not context_cursor.isNull():
+                inner_cursor = doc.find(
+                    text_to_highlight,
+                    context_cursor.selectionStart(),
+                    QTextDocument.FindFlag.FindCaseSensitively,
+                )
+                if (
+                    not inner_cursor.isNull()
+                    and inner_cursor.selectionEnd() <= context_cursor.selectionEnd()
+                ):
+                    self.document_display_area.setTextCursor(inner_cursor)
+                    self.tabs.setCurrentIndex(0)
+                    self.document_display_area.setFocus()
+                    return
+        cursor = self.document_display_area.textCursor()
+        cursor.movePosition(cursor.MoveOperation.Start)
+        self.document_display_area.setTextCursor(cursor)
+        if self.document_display_area.find(
+            text_to_highlight, QTextDocument.FindFlag.FindCaseSensitively
+        ):
+            self.tabs.setCurrentIndex(0)
+            self.document_display_area.setFocus()
+        else:
+            self.status_bar.showMessage(
+                f"Could not find text: '{text_to_highlight}'", 5000
+            )
+
+    def handle_chat_request(self, url: QUrl):
+        initial_context = urllib.parse.unquote(url.path())
+        chat_dialog = ChatDialog(initial_context, self.access_token, self)
+        chat_dialog.exec()
+
+    def manage_rubrics(self):
+        dialog = RubricManagerDialog(self.access_token, self)
+        dialog.exec()
+
+    def show_change_password_dialog(self):
+        dialog = ChangePasswordDialog(self)
+        if dialog.exec():
+            current_password, new_password = dialog.get_passwords()
+            try:
+                headers = {"Authorization": f"Bearer {self.access_token}"}
+                payload = {
+                    "current_password": current_password,
+                    "new_password": new_password,
+                }
+                response = requests.post(
+                    f"{API_URL}/auth/users/change-password",
+                    json=payload,
+                    headers=headers,
+                )
+                response.raise_for_status()
+                QMessageBox.information(
+                    self, "Success", "Password changed successfully."
+                )
+            except requests.exceptions.RequestException as e:
+                detail = (
+                    e.response.json().get("detail", str(e)) if e.response else str(e)
+                )
+                QMessageBox.critical(
+                    self, "Error", f"Failed to change password: {detail}"
+                )
+
+    def show_performance_settings(self):
+        """Show the performance settings dialog."""
+        try:
+            dialog = PerformanceSettingsDialog(self)
+            dialog.settings_changed.connect(self.on_performance_settings_changed)
+            dialog.exec()
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Error", f"Failed to open performance settings: {e}"
+            )
+
+    def on_performance_settings_changed(self, settings):
+        """Handle performance settings changes."""
+        try:
+            # Update status bar to reflect new settings
+            self.status_bar.showMessage("Performance settings updated", 3000)
+
+            # Optionally trigger performance optimization
+            from src.core.performance_integration import optimize_for_analysis
+
+            optimization_results = optimize_for_analysis()
+
+            if optimization_results.get("cache_cleanup"):
+                memory_freed = optimization_results.get("memory_freed_mb", 0)
+                if memory_freed > 0:
+                    self.status_bar.showMessage(
+                        f"Performance optimized - {memory_freed:.1f} MB freed", 5000
+                    )
+
+        except Exception as e:
+            print(f"Error handling performance settings change: {e}")
+
+    def load_dashboard_data(self):
+        if not self.access_token:
+            self.status_bar.showMessage("Login required to load analytics.", 5000)
             return
 
-        if not self.analysis_service:
-            try:
-                self.analysis_service = AnalysisService()
-            except Exception as e:
-                QMessageBox.critical(
-                    self, "Service Error", f"Failed to initialize analysis service: {e}"
+        self.status_bar.showMessage("Refreshing dashboard data...")
+        if self.dashboard_thread and self.dashboard_thread.isRunning():
+            self.dashboard_thread.requestInterruption()
+            self.dashboard_thread.quit()
+            self.dashboard_thread.wait(2000)
+
+        self.dashboard_thread = QThread()
+        self.dashboard_worker = DashboardWorker(self.access_token)
+        self.dashboard_worker.moveToThread(self.dashboard_thread)
+        self.dashboard_thread.started.connect(self.dashboard_worker.run)
+        self.dashboard_worker.success.connect(self.on_dashboard_data_loaded)
+        self.dashboard_worker.error.connect(
+            lambda msg: self.status_bar.showMessage(f"Dashboard Error: {msg}")
+        )
+        self.dashboard_worker.finished.connect(self.dashboard_thread.quit)
+        self.dashboard_thread.finished.connect(self.dashboard_worker.deleteLater)
+        self.dashboard_thread.finished.connect(self._clear_dashboard_worker)
+        self.dashboard_thread.start()
+
+    def _clear_dashboard_worker(self):
+        self.dashboard_worker = None
+        self.dashboard_thread = None
+
+    def on_dashboard_data_loaded(self, data):
+        self.dashboard_widget.update_dashboard(data)
+        self.status_bar.showMessage("Dashboard updated.", 3000)
+
+    def run_analysis(self):
+        if self._analysis_running:
+            return
+
+        source_path = self._current_file_path or self._current_folder_path
+        if not source_path:
+            QMessageBox.warning(
+                self,
+                "No Source Selected",
+                "Please upload a document or folder before running analysis.",
+            )
+            return
+
+        selected_rubric = self.rubric_selector.currentData()
+        if not selected_rubric:
+            QMessageBox.warning(
+                self,
+                "No Rubric Selected",
+                "Please select a rubric before running analysis.",
+            )
+            return
+
+        discipline = selected_rubric.get("discipline", "Unknown")
+        rubric_id = selected_rubric.get("id")
+
+        self.status_bar.showMessage("Optimizing performance...")
+        try:
+            from src.core.performance_integration import optimize_for_analysis
+
+            optimization_results = optimize_for_analysis()
+            if optimization_results.get("recommendations"):
+                recommendations = "\n".join(optimization_results["recommendations"])
+                QMessageBox.information(
+                    self,
+                    "Performance Recommendations",
+                    f"Performance optimization completed:\n\n{recommendations}",
+                )
+        except Exception as exc:
+            print(f"Performance optimization failed: {exc}")
+
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setValue(0)
+        self.progress_bar.show()
+        self._analysis_running = True
+        self._current_report_payload = None
+        self._update_action_states()
+        self.status_bar.showMessage("Starting analysis...")
+
+        payload = {"discipline": discipline, "rubric_id": rubric_id}
+        if self._current_folder_path:
+            self._start_folder_analysis(payload)
+        else:
+            self._start_file_analysis(payload)
+
+    def _dispose_worker_thread(self) -> None:
+        if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.requestInterruption()
+            self.worker_thread.quit()
+            self.worker_thread.wait(2000)
+        self.worker_thread = None
+        self.worker = None
+
+    def _start_file_analysis(self, payload: dict) -> None:
+        self._dispose_worker_thread()
+        self.worker_thread = QThread()
+        self.worker = AnalysisStarterWorker(
+            self._current_file_path,
+            payload,
+            self.access_token or "",
+        )
+        self.worker.moveToThread(self.worker_thread)
+        self.worker.success.connect(self.handle_analysis_started)
+        self.worker.error.connect(self.on_analysis_error)
+        self.worker.finished.connect(self.worker_thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        self.worker_thread.start()
+
+    def _start_folder_analysis(self, payload: dict) -> None:
+        if not self._current_folder_files:
+            summary = self._summarize_folder_contents(self._current_folder_path)
+            self.document_display_area.setPlainText(summary)
+            if not self._current_folder_files:
+                self.on_analysis_error(
+                    "Selected folder does not contain any files for analysis."
                 )
                 return
 
-        # Get selected discipline from rubric
-        discipline = self._current_discipline
-
-        # Setup UI for analysis
-        self.main_progress_bar.setRange(0, 100)
-        self.main_progress_bar.setValue(0)
-        self.main_progress_bar.setVisible(True)
-        self.run_analysis_button.setEnabled(False)
-        self.run_analysis_button.setText("🔄 Analyzing...")
-        self.progress_label.setText("🤖 Starting AI analysis...")
-
-        # Start background analysis
-        self.worker_thread = AnalysisWorkerThread(
-            self._current_file_path, discipline, self.analysis_service
-        )
-        self.worker_thread.progress_updated.connect(self.main_progress_bar.setValue)
-        self.worker_thread.status_updated.connect(self.progress_label.setText)
-        self.worker_thread.analysis_completed.connect(self.on_analysis_complete)
-        self.worker_thread.analysis_failed.connect(self.on_analysis_failed)
-        self.worker_thread.finished.connect(self.on_analysis_finished)
-
-        self.worker_thread.start()
-
-    def on_analysis_complete(self, result: Dict[str, Any]):
-        """Handle successful analysis completion."""
+        files_payload = []
         try:
-            # Store the raw payload for export
-            self._current_report_payload = result
-            self.export_report_button.setEnabled(True)
-
-            # Extract analysis data
-            analysis_data = result.get("analysis", {})
-            findings = analysis_data.get("findings", [])
-
-            # Generate HTML report
-            html_report = self.generate_html_report(analysis_data, findings)
-            self.analysis_results.setHtml(html_report)
-
-            self.status_bar.showMessage("✅ Analysis completed successfully", 5000)
-
-        except Exception as e:
-            logger.error(f"Error processing analysis results: {e}")
-            self.export_report_button.setEnabled(False)
-            self.analysis_results.setHtml(
-                f"""
-                <div style="background-color: #fef2f2; padding: 12px; border-radius: 6px; border-left: 4px solid #ef4444;">
-                    <h3 style="color: #dc2626; margin: 0 0 8px 0;">⚠️ Error Processing Results</h3>
-                    <p>An error occurred while processing the analysis results: {e}</p>
-                </div>
-            """
-            )
-
-    def on_analysis_failed(self, error_message: str):
-        """Handle analysis failure."""
-        logger.error(f"Analysis failed: {error_message}")
-        self._current_report_payload = None
-        self.export_report_button.setEnabled(False)
-        self.analysis_results.setHtml(
-            f"""
-            <div style="background-color: #fef2f2; padding: 12px; border-radius: 6px; border-left: 4px solid #ef4444;">
-                <h3 style="color: #dc2626; margin: 0 0 8px 0;">❌ Analysis Failed</h3>
-                <p>{error_message}</p>
-                <p style="margin-top: 8px; font-size: 11px; color: #64748b;">
-                    Please check your document format and try again. If the problem persists, contact support.
-                </p>
-            </div>
-        """
-        )
-        self.status_bar.showMessage("❌ Analysis failed", 5000)
-
-    def on_analysis_finished(self):
-        """Clean up after analysis completion."""
-        self.main_progress_bar.setVisible(False)
-        self.run_analysis_button.setEnabled(True)
-        self.run_analysis_button.setText("🚀 Run Analysis")
-
-        if self.worker_thread:
-            self.worker_thread.deleteLater()
-            self.worker_thread = None
-
-    def send_chat(self):
-        """Send chat message to AI assistant."""
-        message = self.chat_input.toPlainText().strip()
-        if not message:
+            for file_path in self._current_folder_files:
+                file_handle = open(file_path, "rb")
+                files_payload.append(
+                    (
+                        "files",
+                        (
+                            os.path.basename(file_path),
+                            file_handle,
+                            "application/octet-stream",
+                        ),
+                    )
+                )
+        except OSError as exc:
+            for _, (_, handle, _) in files_payload:
+                handle.close()
+            self.on_analysis_error(f"Failed to open folder files: {exc}")
             return
 
-        # Add user message to results
-        self.analysis_results.append(
-            f"""
-        <div style="background-color: #e8f4fd; padding: 8px; border-radius: 4px; margin: 4px 0;">
-            <strong>👤 You:</strong> {message}
-        </div>
-        """
+        self._dispose_worker_thread()
+        self.worker_thread = QThread()
+        self.worker = FolderAnalysisStarterWorker(
+            files_payload,
+            payload,
+            self.access_token or "",
         )
+        self.worker.moveToThread(self.worker_thread)
+        self.worker.success.connect(self.handle_analysis_started)
+        self.worker.error.connect(self.on_analysis_error)
+        self.worker.finished.connect(self.worker_thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        self.worker_thread.start()
 
-        # Clear input
-        self.chat_input.clear()
-
-        # Show thinking indicator
-        self.analysis_results.append(
-            """
-        <div style="background-color: #f0f9ff; padding: 8px; border-radius: 4px; margin: 4px 0;">
-            <strong>🤖 AI:</strong> <em>Thinking...</em>
-        </div>
-        """
-        )
-
-        # Simulate AI response (in real implementation, this would call the chat service)
-        QTimer.singleShot(1500, lambda: self._add_ai_response(message))
-
-    def _add_ai_response(self, user_message: str):
-        """Add AI response to chat."""
-        # Generate contextual response based on user message
-        response = self._generate_ai_response(user_message)
-
-        # Remove thinking indicator and add real response
-        current_html = self.analysis_results.toHtml()
-        # Remove the last "Thinking..." message
-        lines = current_html.split("\n")
-        filtered_lines = []
-        skip_next = False
-
-        for line in lines:
-            if "Thinking..." in line:
-                skip_next = True
-                continue
-            if skip_next and "</div>" in line:
-                skip_next = False
-                continue
-            filtered_lines.append(line)
-
-        self.analysis_results.setHtml("\n".join(filtered_lines))
-
-        # Add actual AI response
-        self.analysis_results.append(
-            f"""
-        <div style="background-color: #f0f9ff; padding: 8px; border-radius: 4px; margin: 4px 0;">
-            <strong>🤖 AI Assistant:</strong> {response}
-        </div>
-        """
-        )
-
-    def _generate_ai_response(self, message: str) -> str:
-        """Generate contextual AI response."""
-        message_lower = message.lower()
-
-        if any(
-            word in message_lower for word in ["compliance", "regulation", "medicare"]
-        ):
-            return """I can help you understand compliance requirements. Medicare guidelines require specific documentation elements including:
-            • Clear functional goals and outcomes
-            • Objective measurements of progress
-            • Skilled intervention justification
-            • Regular reassessment documentation
-
-            Would you like me to explain any specific compliance area?"""
-
-        elif any(
-            word in message_lower for word in ["documentation", "document", "note"]
-        ):
-            return """For clinical documentation best practices:
-            • Use objective, measurable language
-            • Include specific functional outcomes
-            • Document skilled intervention rationale
-            • Ensure progress is clearly measurable
-
-            What specific documentation challenge can I help with?"""
-
-        elif any(
-            word in message_lower for word in ["error", "issue", "problem", "wrong"]
-        ):
-            return """I understand you're experiencing an issue. Common problems include:
-            • Document format not supported
-            • Missing required documentation elements
-            • Unclear compliance rule interpretation
-
-            Can you describe the specific issue you're encountering?"""
-
-        elif any(word in message_lower for word in ["help", "how", "what", "explain"]):
-            return """I'm here to help with compliance analysis and documentation questions. I can assist with:
-
-            📋 **Compliance Guidelines**: Medicare, CMS, and professional standards
-            📝 **Documentation Tips**: Best practices for clinical notes
-            🔍 **Analysis Results**: Explaining findings and recommendations
-            ⚡ **Quick Fixes**: Common compliance issue solutions
-
-            What would you like to know more about?"""
-
+    def _start_polling_worker(self, task_id: str) -> None:
+        self._dispose_worker_thread()
+        self.worker_thread = QThread()
+        if self._current_folder_path:
+            self.worker = FolderAnalysisWorker(task_id)
         else:
-            return f"""Thank you for your question about "{message}". I'm designed to help with clinical compliance and documentation.
+            self.worker = AnalysisWorker(task_id)
+        self.worker.moveToThread(self.worker_thread)
+        self.worker_thread.started.connect(self.worker.run)
+        self.worker.success.connect(self.on_analysis_success)
+        self.worker.error.connect(self.on_analysis_error)
+        self.worker.progress.connect(self.on_analysis_progress)
+        self.worker.finished.connect(self._on_analysis_finished)
+        self.worker_thread.finished.connect(self.worker.deleteLater)
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        self.worker_thread.start()
 
-            I can provide guidance on Medicare guidelines, documentation best practices, and compliance requirements.
+    def _on_analysis_finished(self) -> None:
+        self._analysis_running = False
+        self._current_task_id = None
+        self.worker = None
+        self.worker_thread = None
+        if self.progress_bar.maximum() == 0:
+            self.progress_bar.setRange(0, 100)
+        if self.progress_bar.value() == 0:
+            self.progress_bar.setValue(0)
+        self.progress_bar.hide()
+        self._update_action_states()
 
-            Could you rephrase your question to focus on a specific compliance or documentation topic?"""
+    def handle_analysis_started(self, task_id: str):
+        self._current_task_id = task_id
+        self.status_bar.showMessage(f"Analysis in progress... (Task ID: {task_id})")
+        self._start_polling_worker(task_id)
+
+    def on_analysis_progress(self, progress):
+        if self.progress_bar.maximum() == 0:
+            self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(max(0, min(100, int(progress))))
+        if not self.progress_bar.isVisible():
+            self.progress_bar.show()
+
+    def on_analysis_success(self, result):
+        payload = self._normalize_result_payload(result)
+        self._current_report_payload = payload
+
+        report_html = payload.get("report_html")
+        if not report_html and payload.get("analysis"):
+            report_html = self.report_generator.generate_html_report(
+                analysis_result=payload.get("analysis", {}),
+                doc_name=payload.get("analysis", {}).get("document_name", "Document"),
+            )
+
+        if report_html:
+            self.analysis_results_area.setHtml(report_html)
+        else:
+            self.analysis_results_area.setPlainText(json.dumps(payload, indent=2))
+
+        self.status_bar.showMessage("Analysis complete.", 5000)
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(100)
+        self.progress_bar.hide()
+        self._on_analysis_finished()
+
+    def on_analysis_error(self, error_message):
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.hide()
+        QMessageBox.critical(self, "Analysis Error", error_message)
+        self.status_bar.showMessage("Backend analysis failed.")
+        self._on_analysis_finished()
+
+    def open_file_dialog(self):
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, "Select Document", "", "All Files (*.*)"
+        )
+        if not file_name:
+            return
+
+        self._current_file_path = file_name
+        self._current_folder_path = None
+        self._current_folder_files = []
+        self._current_report_payload = None
+
+        try:
+            with open(file_name, "r", encoding="utf-8") as handle:
+                content = handle.read()
+        except (IOError, UnicodeDecodeError):
+            try:
+                with open(file_name, "rb") as handle:
+                    content = handle.read().decode("utf-8", errors="ignore")
+            except OSError as exc:
+                content = f"Could not display preview for: {file_name}\n{exc}"
+
+        self._current_document_text = content
+        self.document_display_area.setPlainText(content)
+        self.selected_source_label.setText(os.path.basename(file_name))
+        self.status_bar.showMessage(f"Loaded document: {os.path.basename(file_name)}")
+        self.analysis_results_area.clear()
+        self._analysis_running = False
+        self._update_action_states()
+
+    def open_folder_dialog(self):
+        folder_path = QFileDialog.getExistingDirectory(
+            self,
+            "Select Folder",
+            "",
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if not folder_path:
+            return
+
+        normalized = os.path.normpath(folder_path)
+        summary = self._summarize_folder_contents(normalized)
+        self._current_folder_path = normalized
+        self._current_file_path = None
+        self._current_report_payload = None
+        self._current_document_text = summary
+        self.document_display_area.setPlainText(summary)
+        display_name = os.path.basename(normalized) or normalized
+        self.selected_source_label.setText(display_name)
+        self.status_bar.showMessage(f"Loaded folder: {display_name}")
+        self.analysis_results_area.clear()
+        self._analysis_running = False
+        self._update_action_states()
+
+    def stop_analysis(self) -> None:
+        if not self._analysis_running:
+            return
+
+        if self.worker and hasattr(self.worker, "stop"):
+            try:
+                self.worker.stop()  # type: ignore[attr-defined]
+            except Exception:
+                pass
+
+        if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.requestInterruption()
+            self.worker_thread.quit()
+            self.worker_thread.wait(2000)
+
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.hide()
+        self.status_bar.showMessage("Analysis cancelled.", 4000)
+        self._on_analysis_finished()
 
     def clear_display(self):
-        """Clear displays."""
-        self.document_display.clear()
-        self.analysis_results.clear()
-        self.document_status.setText("No document uploaded")
+        self.document_display_area.clear()
+        self.analysis_results_area.clear()
         self._current_file_path = None
-        self.run_analysis_button.setEnabled(False)
+        self._current_folder_path = None
+        self._current_folder_files = []
+        self._current_document_text = ""
+        self._current_report_payload = None
+        self.selected_source_label.setText("No document selected.")
+        self.status_bar.showMessage("Display cleared.")
+        self._analysis_running = False
+        self._update_action_states()
 
-    def load_rubrics(self):
-        """Load available rubrics from the backend."""
-        try:
-            # Try to load from API first
-            if self.access_token:
-                headers = {"Authorization": f"Bearer {self.access_token}"}
-                response = requests.get(
-                    f"{API_URL}/rubrics/", headers=headers, timeout=5
-                )
-                if response.status_code == 200:
-                    rubrics = response.json()
-                    self._rubrics_cache = rubrics
-                    self.populate_rubric_selector(rubrics)
-                    return
+    def show_document_preview(self) -> None:
+        if not self._current_document_text:
+            QMessageBox.information(
+                self,
+                "No Document",
+                "Please upload a document before opening the preview.",
+            )
+            return
 
-            # Fallback to default rubrics
-            default_rubrics = [
-                {
-                    "name": "PT Compliance Rubric",
-                    "category": "Physical Therapy",
-                    "content": "Physical therapy compliance guidelines",
-                },
-                {
-                    "name": "OT Compliance Rubric",
-                    "category": "Occupational Therapy",
-                    "content": "Occupational therapy compliance guidelines",
-                },
-                {
-                    "name": "SLP Compliance Rubric",
-                    "category": "Speech-Language Pathology",
-                    "content": "Speech-language pathology compliance guidelines",
-                },
-            ]
-            self._rubrics_cache = default_rubrics
-            self.populate_rubric_selector(default_rubrics)
+        preview_dialog = DocumentPreviewDialog(self._current_document_text, self)
+        preview_dialog.exec()
 
-        except Exception as e:
-            logger.warning(f"Could not load rubrics from API: {e}")
-            # Use default rubrics as fallback
-            default_rubrics = [
-                {"name": "PT Compliance Rubric", "category": "Physical Therapy"},
-                {"name": "OT Compliance Rubric", "category": "Occupational Therapy"},
-                {
-                    "name": "SLP Compliance Rubric",
-                    "category": "Speech-Language Pathology",
-                },
-            ]
-            self._rubrics_cache = default_rubrics
-            self.populate_rubric_selector(default_rubrics)
-
-    def populate_rubric_selector(self, rubrics):
-        """Populate the rubric selector with available rubrics."""
-        self.rubric_selector.clear()
-        for rubric in rubrics:
-            self.rubric_selector.addItem(rubric["name"], rubric)
-
-        if rubrics:
-            self.rubric_selector.setCurrentIndex(0)
-            self.on_rubric_changed(rubrics[0]["name"])
-
-    def on_rubric_changed(self, rubric_name: str):
-        """Handle rubric selection change."""
-        current_data = self.rubric_selector.currentData()
-        if current_data:
-            category = current_data.get("category", "")
-            content = current_data.get("content", "")
-
-            # Set discipline based on rubric
-            if "PT" in rubric_name or "Physical" in category:
-                self._current_discipline = "PT"
-            elif "OT" in rubric_name or "Occupational" in category:
-                self._current_discipline = "OT"
-            elif "SLP" in rubric_name or "Speech" in category:
-                self._current_discipline = "SLP"
-
-            # Update description
-            if content:
-                self.rubric_description.setText(f"{category}: {content[:100]}...")
-            else:
-                self.rubric_description.setText(f"Selected: {category or rubric_name}")
-
-    def generate_html_report(
-        self, analysis_data: Dict[str, Any], findings: list
-    ) -> str:
-        """Generate HTML report from analysis results."""
-        try:
-            # Calculate overall score
-            total_findings = len(findings)
-            high_risk = sum(1 for f in findings if f.get("risk_level") == "High")
-            medium_risk = sum(1 for f in findings if f.get("risk_level") == "Medium")
-            low_risk = sum(1 for f in findings if f.get("risk_level") == "Low")
-
-            # Simple scoring algorithm
-            score = max(0, 100 - (high_risk * 20) - (medium_risk * 10) - (low_risk * 5))
-
-            # Determine risk level
-            if score >= 90:
-                risk_level = "Low"
-                risk_color = "#059669"
-            elif score >= 70:
-                risk_level = "Medium"
-                risk_color = "#f59e0b"
-            else:
-                risk_level = "High"
-                risk_color = "#dc2626"
-
-            # Generate findings HTML
-            findings_html = ""
-            for i, finding in enumerate(findings):
-                risk_level_finding = finding.get("risk_level", "Medium")
-                issue = finding.get("issue", "Compliance issue detected")
-                evidence = finding.get("evidence", "No evidence provided")
-                recommendation = finding.get(
-                    "recommendation", "Please review documentation"
-                )
-                confidence = finding.get("confidence", 0.8)
-
-                risk_colors = {"High": "#fef2f2", "Medium": "#fef3c7", "Low": "#dcfce7"}
-
-                findings_html += f"""
-                <div style="background-color: {risk_colors.get(risk_level_finding, '#f8fafc')}; padding: 8px; border-radius: 4px; margin: 4px 0; border-left: 3px solid {'#dc2626' if risk_level_finding == 'High' else '#f59e0b' if risk_level_finding == 'Medium' else '#059669'};">
-                    <strong>🔍 Finding #{i+1} ({risk_level_finding} Risk):</strong> {issue}<br>
-                    <strong>Evidence:</strong> {evidence}<br>
-                    <strong>Recommendation:</strong> {recommendation}<br>
-                    <small style="color: #64748b;">Confidence: {confidence:.1%}</small>
-                </div>
-                """
-
-            if not findings_html:
-                findings_html = """
-                <div style="background-color: #dcfce7; padding: 8px; border-radius: 4px; margin: 4px 0;">
-                    <strong>✅ Excellent!</strong> No significant compliance issues detected.
-                </div>
-                """
-
-            return f"""
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-                <div style="background-color: #f0f9ff; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
-                    <h3 style="color: #1e40af; margin: 0 0 8px 0;">🎯 Compliance Analysis Results</h3>
-                    <p><strong>Overall Score:</strong> <span style="color: {risk_color}; font-weight: bold;">{score}%</span></p>
-                    <p><strong>Risk Level:</strong> <span style="color: {risk_color};">{risk_level}</span></p>
-                    <p><strong>Total Findings:</strong> {total_findings} (High: {high_risk}, Medium: {medium_risk}, Low: {low_risk})</p>
-                </div>
-
-                <h4 style="color: #1e293b; margin: 12px 0 8px 0;">📋 Detailed Findings</h4>
-                {findings_html}
-
-                <div style="background-color: #f8fafc; padding: 8px; border-radius: 4px; margin-top: 12px;">
-                    <small style="color: #64748b; font-style: italic;">
-                        Analysis completed using local AI models. Results should be reviewed by qualified clinical staff.
-                    </small>
-                </div>
-            </div>
-            """
-
-        except Exception as e:
-            logger.error(f"Error generating HTML report: {e}")
-            return f"""
-            <div style="background-color: #fef2f2; padding: 12px; border-radius: 6px;">
-                <h3 style="color: #dc2626;">⚠️ Report Generation Error</h3>
-                <p>Could not generate detailed report: {e}</p>
-            </div>
-            """
+    def open_analytics_dashboard(self) -> None:
+        if hasattr(self, "tabs") and hasattr(self, "dashboard_widget"):
+            index = self.tabs.indexOf(self.dashboard_widget)
+            if index != -1:
+                self.tabs.setCurrentIndex(index)
+                self.load_dashboard_data()
+                self.status_bar.showMessage("Analytics dashboard opened.", 3000)
 
     def export_report(self) -> None:
         if not self._current_report_payload:
@@ -1055,52 +896,235 @@ class ModernMainWindow(QMainWindow):
         else:
             QMessageBox.warning(self, "Export Failed", message)
 
-    # Placeholder methods
-    def logout(self):
-        """Handle user logout."""
-        reply = QMessageBox.question(self, "Logout", "Are you sure you want to logout?")
-        if reply == QMessageBox.StandardButton.Yes:
-            self.access_token = None
-            self.username = None
-            self.close()
-
-    def manage_rubrics(self):
-        """Open rubric management dialog."""
-        if not self.access_token:
-            QMessageBox.warning(
-                self, "Authentication Required", "Please login to manage rubrics."
-            )
+    def load_ai_models(self):
+        if self.ai_loader_thread and self.ai_loader_thread.isRunning():
             return
 
-        dialog = RubricManagerDialog(self.access_token, self)
-        if dialog.exec():
-            # Reload rubrics after management
-            self.load_rubrics()
+        self.ai_loader_thread = QThread()
+        self.ai_loader_worker = AILoaderWorker()
+        self.ai_loader_worker.moveToThread(self.ai_loader_thread)
+        self.ai_loader_thread.started.connect(self.ai_loader_worker.run)
+        self.ai_loader_worker.finished.connect(self.on_ai_loaded)
+        self.ai_loader_worker.finished.connect(self.ai_loader_thread.quit)
+        self.ai_loader_thread.finished.connect(self.ai_loader_worker.deleteLater)
+        self.ai_loader_thread.finished.connect(self._clear_ai_loader_worker)
+        self.ai_loader_thread.start()
 
-    def show_performance_settings(self):
-        """Show performance settings dialog."""
-        QMessageBox.information(
-            self,
-            "Performance Settings",
-            "Performance settings dialog will be implemented soon.",
+    def _clear_ai_loader_worker(self):
+        self.ai_loader_worker = None
+        self.ai_loader_thread = None
+
+    def on_ai_loaded(
+        self, compliance_service, is_healthy, status_message, health_details
+    ):
+        self.compliance_service = compliance_service
+        self.ai_status_label.setText(status_message)
+        self.ai_status_label.setStyleSheet(
+            "color: green;" if is_healthy else "color: red;"
+        )
+        if isinstance(health_details, dict):
+            translated = {name: bool(value) for name, value in health_details.items()}
+            self._update_model_status_badges(translated)
+        else:
+            self._update_model_status_badges(
+                {key: bool(is_healthy) for key in self.model_status}
+            )
+        self._populate_rubric_selector()  # Populate rubrics after AI is loaded
+
+    def _populate_rubric_selector(self):
+        if not self.compliance_service:
+            return
+
+        rubrics = self.compliance_service.get_available_rubrics() or []
+        self._all_rubrics = rubrics
+
+        disciplines = sorted(
+            {
+                (rubric.get("discipline") or "Unknown").strip() or "Unknown"
+                for rubric in rubrics
+            }
         )
 
-    def load_ai_models(self):
-        """Initialize AI models."""
-        try:
-            # This will be called during startup
-            self.ai_status_label.setText("🤖 Loading AI models...")
-            self.ai_status_label.setStyleSheet("color: #f59e0b;")
+        if hasattr(self, "rubric_type_selector"):
+            self.rubric_type_selector.blockSignals(True)
+            self.rubric_type_selector.clear()
+            self.rubric_type_selector.addItem("All Disciplines", None)
+            for discipline in disciplines:
+                label = (
+                    discipline.upper() if len(discipline) <= 4 else discipline.title()
+                )
+                self.rubric_type_selector.addItem(label, discipline)
+            self.rubric_type_selector.blockSignals(False)
 
-            # Simulate model loading delay
-            QTimer.singleShot(2000, self._on_models_loaded)
+        self._apply_rubric_filter()
+
+    def _on_rubric_selected(self, index):
+        selected_rubric = self.rubric_selector.itemData(index)
+        if selected_rubric:
+            self.rubric_description_label.setText(
+                selected_rubric.get("description", "No description available.")
+            )
+        else:
+            self.rubric_description_label.setText(
+                "Description of selected rubric will appear here."
+            )
+
+        self._update_action_states()
+
+    def apply_stylesheet(self, theme: str = "dark") -> None:
+        """Apply the requested theme to the main window."""
+        stylesheet_getter = (
+            self.get_light_theme_stylesheet
+            if theme == "light"
+            else self.get_dark_theme_stylesheet
+        )
+        self.setStyleSheet(stylesheet_getter())
+
+    @staticmethod
+    def save_theme_setting(theme: str) -> None:
+        with open("theme.cfg", "w", encoding="utf-8") as handle:
+            handle.write(theme)
+
+    @staticmethod
+    def load_theme_setting() -> str:
+        try:
+            with open("theme.cfg", "r", encoding="utf-8") as handle:
+                return handle.read().strip()
+        except FileNotFoundError:
+            return "dark"
+
+    def set_light_theme(self) -> None:
+        self.apply_stylesheet("light")
+        self.save_theme_setting("light")
+
+    def set_dark_theme(self) -> None:
+        self.apply_stylesheet("dark")
+        self.save_theme_setting("dark")
+
+    @staticmethod
+    def get_light_theme_stylesheet() -> str:
+        return """
+QWidget { background-color: #f5f5f7; color: #1b1b1f; font-size: 13px; }
+QMainWindow { background-color: #f5f5f7; }
+QMenuBar { background-color: #f5f5f7; color: #1b1b1f; border: none; }
+QMenuBar::item:selected { background-color: #d8def8; color: #1b1b1f; }
+QMenu { background-color: #ffffff; color: #1b1b1f; border: 1px solid #d0d4dc; }
+QMenu::item:selected { background-color: #e7ebff; }
+QStatusBar { background-color: #f5f5f7; color: #1b1b1f; }
+QGroupBox { background-color: #ffffff; color: #1b1b1f; border: 1px solid #d0d4dc; border-radius: 10px; margin-top: 16px; padding-top: 18px; }
+QGroupBox::title { color: #4a5bdc; subcontrol-origin: margin; subcontrol-position: top left; padding: 0 12px; margin-left: 8px; background-color: transparent; }
+QGroupBox#documentPane { border-color: #6550d8; }
+QGroupBox#resultsPane { border-color: #2196b6; }
+QSplitter#analysisSplitter::handle { background-color: #d0d4dc; margin: 0 4px; width: 8px; border-radius: 4px; }
+QSplitter#analysisSplitter::handle:hover { background-color: #2196b6; }
+QTabWidget::pane { border: 1px solid #d0d4dc; border-radius: 8px; top: 0px; }
+QTabBar::tab { background: #eef0f6; color: #1b1b1f; padding: 8px 18px; margin-right: 2px; border: 1px solid #d0d4dc; border-top-left-radius: 8px; border-top-right-radius: 8px; }
+QTabBar::tab:selected { background: #ffffff; color: #1b1b1f; border-bottom-color: #f5f5f7; }
+QTabBar::tab:hover { background: #d8def8; }
+QTextEdit, QTextBrowser { background-color: #ffffff; color: #1b1b1f; border: 1px solid #d0d4dc; border-radius: 8px; padding: 8px; selection-background-color: #6aa9ff; selection-color: #ffffff; }
+QLabel#selectedSourceLabel { color: #455adf; font-weight: 500; }
+QProgressBar { background-color: #ffffff; border: 1px solid #d0d4dc; border-radius: 6px; height: 10px; }
+QProgressBar#analysisProgress::chunk { background-color: #2196b6; border-radius: 6px; }
+QPushButton { background-color: #eef0f6; color: #1b1b1f; border: 1px solid #6550d8; border-radius: 8px; padding: 8px 18px; font-weight: 500; }
+QPushButton:hover { background-color: #dde2fb; border-color: #7b68f7; }
+QPushButton:pressed { background-color: #c6dff4; border-color: #2196b6; }
+QPushButton:disabled { background-color: #f0f0f0; color: #9aa0a9; border-color: #d0d4dc; }
+QToolButton { background-color: #eef0f6; color: #1b1b1f; border: 1px solid #2196b6; border-radius: 8px; padding: 6px 14px; }
+QToolButton::menu-indicator { image: none; }
+QToolButton:hover { background-color: #d8f2f8; border-color: #2ab7ca; }
+QComboBox { background-color: #ffffff; color: #1b1b1f; border: 1px solid #2196b6; border-radius: 8px; padding: 6px 10px; }
+QComboBox::drop-down { border: none; width: 24px; }
+QComboBox::down-arrow { image: none; border: none; }
+QLineEdit { background-color: #ffffff; color: #1b1b1f; border: 1px solid #d0d4dc; border-radius: 6px; padding: 6px; }
+QScrollBar:vertical { background: #f0f0f0; width: 12px; margin: 0; }
+QScrollBar::handle:vertical { background: #c7ccd6; min-height: 24px; border-radius: 6px; }
+QScrollBar::handle:vertical:hover { background: #2196b6; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { background: none; height: 0; }
+QScrollBar:horizontal { background: #f0f0f0; height: 12px; margin: 0; }
+QScrollBar::handle:horizontal { background: #c7ccd6; min-width: 24px; border-radius: 6px; }
+QScrollBar::handle:horizontal:hover { background: #6550d8; }
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { background: none; width: 0; }
+"""
+
+    @staticmethod
+    def get_dark_theme_stylesheet() -> str:
+        return """
+QWidget { background-color: #2b2b2b; color: #e6e6e6; font-size: 13px; }
+QMainWindow { background-color: #2b2b2b; }
+QMenuBar { background-color: #2b2b2b; color: #e6e6e6; border: none; }
+QMenuBar::item { padding: 6px 14px; background: transparent; }
+QMenuBar::item:selected { background-color: #3a3f52; color: #ffffff; }
+QMenu { background-color: #323232; color: #e6e6e6; border: 1px solid #3c3f41; }
+QMenu::item:selected { background-color: #3f4458; color: #ffffff; }
+QStatusBar { background-color: #2b2b2b; color: #e6e6e6; }
+QGroupBox { background-color: #323232; color: #e6e6e6; border: 1px solid #3c3f41; border-radius: 10px; margin-top: 16px; padding-top: 18px; }
+QGroupBox::title { color: #8ab4ff; subcontrol-origin: margin; subcontrol-position: top left; padding: 0 12px; margin-left: 8px; background-color: transparent; }
+QGroupBox#documentPane { border-color: #7254ff; }
+QGroupBox#resultsPane { border-color: #2ab7ca; }
+QSplitter#analysisSplitter::handle { background-color: #3c3f41; margin: 0 4px; width: 8px; border-radius: 4px; }
+QSplitter#analysisSplitter::handle:hover { background-color: #2ab7ca; }
+QTabWidget::pane { border: 1px solid #3c3f41; border-radius: 8px; top: 0px; }
+QTabBar::tab { background: #323232; color: #cfcfcf; padding: 8px 18px; margin-right: 2px; border: 1px solid #3c3f41; border-top-left-radius: 8px; border-top-right-radius: 8px; }
+QTabBar::tab:selected { background: #413f5e; color: #ffffff; border-bottom-color: #2b2b2b; }
+QTabBar::tab:hover { background: #3a3f52; }
+QTextEdit, QTextBrowser { background-color: #1f1f1f; color: #f5f5f5; border: 1px solid #3c3f41; border-radius: 8px; padding: 8px; selection-background-color: #2ab7ca; selection-color: #0f172a; }
+QLabel#selectedSourceLabel { color: #9cdcf2; font-weight: 500; }
+QProgressBar { background-color: #1f1f1f; border: 1px solid #3c3f41; border-radius: 6px; height: 10px; }
+QProgressBar#analysisProgress::chunk { background-color: #2ab7ca; border-radius: 6px; }
+QPushButton { background-color: #3c3f41; color: #e6e6e6; border: 1px solid #7254ff; border-radius: 8px; padding: 8px 18px; font-weight: 500; }
+QPushButton:hover { background-color: #484b4d; border-color: #8f78ff; }
+QPushButton:pressed { background-color: #31343a; border-color: #2ab7ca; }
+QPushButton:disabled { background-color: #242424; color: #707070; border-color: #3c3f41; }
+QToolButton { background-color: #3c3f41; color: #e6e6e6; border: 1px solid #2ab7ca; border-radius: 8px; padding: 6px 14px; }
+QToolButton::menu-indicator { image: none; }
+QToolButton:hover { background-color: #2f3340; border-color: #32c6d8; }
+QComboBox { background-color: #323232; color: #e6e6e6; border: 1px solid #2ab7ca; border-radius: 8px; padding: 6px 10px; }
+QComboBox::drop-down { border: none; width: 24px; }
+QComboBox::down-arrow { image: none; border: none; }
+QLineEdit { background-color: #323232; color: #e6e6e6; border: 1px solid #3c3f41; border-radius: 6px; padding: 6px; }
+QScrollBar:vertical { background: #2b2b2b; width: 12px; margin: 0; }
+QScrollBar::handle:vertical { background: #43484d; min-height: 24px; border-radius: 6px; }
+QScrollBar::handle:vertical:hover { background: #2ab7ca; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { background: none; height: 0; }
+QScrollBar:horizontal { background: #2b2b2b; height: 12px; margin: 0; }
+QScrollBar::handle:horizontal { background: #43484d; min-width: 24px; border-radius: 6px; }
+QScrollBar::handle:horizontal:hover { background: #7254ff; }
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { background: none; width: 0; }
+QMessageBox { background-color: #2b2b2b; color: #e6e6e6; }
+QMessageBox QPushButton { min-width: 90px; }
+"""
+
+    def closeEvent(self, event):
+        """Handle application close event with proper cleanup."""
+        try:
+            # Clean up performance status widget
+            if hasattr(self, "performance_status"):
+                self.performance_status.cleanup()
+
+            # Clean up performance integration service
+            try:
+                from src.core.performance_integration import performance_integration
+
+                performance_integration.cleanup()
+            except ImportError:
+                pass
+
+            # Clean up any running worker threads
+            if self.worker_thread and self.worker_thread.isRunning():
+                self.worker_thread.quit()
+                self.worker_thread.wait(3000)
+
+            if self.ai_loader_thread and self.ai_loader_thread.isRunning():
+                self.ai_loader_thread.quit()
+                self.ai_loader_thread.wait(3000)
+
+            if self.dashboard_thread and self.dashboard_thread.isRunning():
+                self.dashboard_thread.quit()
+                self.dashboard_thread.wait(3000)
+
+            # Accept the close event
+            event.accept()
 
         except Exception as e:
-            logger.error(f"Failed to load AI models: {e}")
-            self.ai_status_label.setText("🤖 AI Models: Error")
-            self.ai_status_label.setStyleSheet("color: #dc2626;")
-
-    def _on_models_loaded(self):
-        """Handle AI models loaded successfully."""
-        self.ai_status_label.setText("🤖 AI Models: Ready")
-        self.ai_status_label.setStyleSheet("color: #059669;")
+            print(f"Error during application cleanup: {e}")
+            event.accept()  # Still close even if cleanup fails

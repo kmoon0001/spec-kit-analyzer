@@ -1,3 +1,0 @@
-This is a test text file.
-It contains some text for testing the document processing service.
-This document mentions pain and the need for strengthening exercises.

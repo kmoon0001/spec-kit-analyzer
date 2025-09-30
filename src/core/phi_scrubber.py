@@ -1,87 +1,123 @@
-import re
-import spacy
 import logging
-from typing import Dict, Any, List, Tuple
+import re
+from typing import List, Tuple, Set
+from threading import Lock
+
+import spacy
+from spacy.language import Language
 
 logger = logging.getLogger(__name__)
 
+# --- Configuration for PHI Scrubbing ---
+
+GENERAL_PHI_NER_LABELS: Set[str] = {"PERSON", "DATE", "GPE", "LOC", "ORG"}
+BIOMEDICAL_PHI_NER_LABELS: Set[str] = {
+    "PATIENT", "HOSPITAL", "DOCTOR", "AGE", "ID", "PHONE", "EMAIL", "URL",
+    "STREET", "CITY", "STATE", "ZIP", "COUNTRY",
+}
+DEFAULT_REGEX_PATTERNS: List[Tuple[str, str]] = [
+    (r"\b\d{3}-\d{2}-\d{4}\b", "[SSN]"),
+    (r"\b(MRN|mrn|medical record number)[\s:]*[A-Za-z0-9\-]{4,}\b", "[MRN]"),
+    (r"(\+?\d{1,2}[\s\-.]?)?(\(?\d{3}\)?[ \-.]?\d{3}[\-.]?\d{4})", "[PHONE]"),
+    (r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", "[EMAIL]"),
+    (r"\b\d{1,4}[-/]\d{1,2}[-/]\d{1,4}\b", "[DATE]"),
+    (r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", "[IP_ADDRESS]"),
+    (r"\b[A-Z]{2}\d{8,}\b", "[ACCOUNT_NUMBER]"),
+    # Add a pattern for common hospital names that NER might miss
+    (r"\b\w+\s+(?:Hospital|Medical Center|Clinic)\b", "[HOSPITAL]"),
+]
+
+
 class PhiScrubberService:
-    """A service for detecting and redacting Protected Health Information (PHI)."""
+    """
+    A thread-safe, multi-model service for robustly scrubbing Protected Health Information.
+    It uses a sophisticated single-pass replacement strategy:
+    1. Collects all potential PHI spans from regex, a biomedical NER model, and a general NER model.
+    2. Resolves any overlapping spans.
+    3. Performs a single replacement pass on the original text.
+    """
+    _general_nlp: Language | None = None
+    _biomed_nlp: Language | None = None
+    _lock = Lock()
 
-    def __init__(self, config: Dict[str, Any]):
-        """
-        Initializes the PhiScrubberService with a configuration.
+    def __init__(self):
+        from ..config import get_settings
+        settings = get_settings()
+        self.general_model_name = settings.models.phi_scrubber.general
+        self.biomed_model_name = settings.models.phi_scrubber.biomedical
+        self.is_loading = False
 
-        Args:
-            config (Dict[str, Any]): Configuration dictionary.
-                Expected keys:
-                - 'redaction_style': 'label' or 'placeholder'.
-                - 'ner_labels': List of spaCy entity labels to redact.
-                - 'regex_patterns': List of custom regex patterns.
-        """
-        self.config = config
-        self.redaction_style = self.config.get("redaction_style", "label")
-        self.ner_labels = self.config.get("ner_labels", ["PERSON", "DATE", "GPE", "ORG"])
-        self.regex_patterns = self.config.get("regex_patterns", self._default_regex_patterns())
-
+    def _load_models(self):
+        if self._general_nlp and self._biomed_nlp:
+            return
+        self.is_loading = True
         try:
-            self.nlp = spacy.load("en_core_web_sm")
-        except OSError:
-            logger.warning("spaCy model 'en_core_web_sm' not found. Attempting to download.")
-            from spacy.cli import download
-            download("en_core_web_sm")
-            self.nlp = spacy.load("en_core_web_sm")
+            logger.info("Loading spaCy models for PHI scrubbing...")
+            # Load to temp vars first for atomicity
+            general_nlp = spacy.load(self.general_model_name)
+            biomed_nlp = spacy.load(self.biomed_model_name)
 
-    def _default_regex_patterns(self) -> List[Tuple[str, str]]:
-        """Provides default regex patterns for PHI."""
-        return [
-            (r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", "[EMAIL]"),
-            (r"(\+?\d{1,2}[\s\-.]?)?(\(?\d{3}\)?[ \-.]?\d{3}[\-.]?\d{4})", "[PHONE]"),
-            (r"\b\d{3}-\d{2}-\d{4}\b", "[SSN]"),
-            (r"\bMRN[:\s]*[A-Za-z0-9\-]{4,}\b", "[MRN]"),
-        ]
+            # Assign only after both are loaded successfully
+            self._general_nlp = general_nlp
+            self._biomed_nlp = biomed_nlp
+            logger.info("All PHI scrubbing models loaded.")
+        except OSError as e:
+            logger.critical("Could not load a required spaCy model: %s", e, exc_info=True)
+            self._general_nlp, self._biomed_nlp = None, None
+        finally:
+            self.is_loading = False
 
-    def scrub_text(self, text: str) -> str:
-        """
-        Scrub PHI from text using a hybrid approach (regex then NER).
-        """
-        if not isinstance(text, str):
-            return text
+    def _ensure_models_loaded(self):
+        if (self._general_nlp and self._biomed_nlp) or self.is_loading: return
+        with self._lock:
+            if not (self._general_nlp and self._biomed_nlp): self._load_models()
 
-        # First, use regex for specific, structured patterns.
-        regex_scrubbed_text = self._scrub_with_regex(text)
+    def _get_spans_from_text(self, text: str) -> List[Tuple[int, int, str]]:
+        spans = []
+        # Get spans from regex
+        for pattern, tag in DEFAULT_REGEX_PATTERNS:
+            for match in re.finditer(pattern, text):
+                spans.append((match.start(), match.end(), tag))
 
-        # Then, use NER for broader categories.
-        final_scrubbed_text = self._scrub_with_ner(regex_scrubbed_text)
+        # Get spans from biomedical NER
+        if self._biomed_nlp:
+            for ent in self._biomed_nlp(text).ents:
+                if ent.label_ in BIOMEDICAL_PHI_NER_LABELS:
+                    spans.append((ent.start_char, ent.end_char, f"[{ent.label_}]"))
 
-        return final_scrubbed_text
+        # Get spans from general NER
+        if self._general_nlp:
+            for ent in self._general_nlp(text).ents:
+                if ent.label_ in GENERAL_PHI_NER_LABELS:
+                    spans.append((ent.start_char, ent.end_char, f"[{ent.label_}]"))
 
-    def _scrub_with_regex(self, text: str) -> str:
-        """Scrub PHI using configured regular expressions."""
-        for pattern, replacement in self.regex_patterns:
-            if self.redaction_style == 'placeholder':
-                replacement = "[REDACTED]"
-            text = re.sub(pattern, replacement, text)
-        return text
+        return spans
 
-    def _scrub_with_ner(self, text: str) -> str:
-        """Scrub PHI using a Named Entity Recognition (NER) model."""
-        doc = self.nlp(text)
+    def scrub(self, text: str) -> str:
+        if not isinstance(text, str) or not text.strip(): return text
+        self._ensure_models_loaded()
+
+        spans = self._get_spans_from_text(text)
+        if not spans: return text
+
+        # Sort spans by start index, then by longest span first to prioritize larger entities
+        spans.sort(key=lambda s: (s[0], s[0] - s[1]))
+
+        # Resolve overlaps by keeping the first one in the sorted list (which is the longest)
+        resolved_spans = []
+        last_end = -1
+        for start, end, tag in spans:
+            if start >= last_end:
+                resolved_spans.append((start, end, tag))
+                last_end = end
+
+        # Build the new string with a single pass
         new_text_parts = []
         last_end = 0
-
-        for ent in doc.ents:
-            if ent.label_ in self.ner_labels:
-                new_text_parts.append(text[last_end:ent.start_char])
-                if self.redaction_style == 'label':
-                    new_text_parts.append(f"[{ent.label_}]")
-                else:
-                    new_text_parts.append("[REDACTED]")
-                last_end = ent.end_char
-
+        for start, end, tag in resolved_spans:
+            new_text_parts.append(text[last_end:start])
+            new_text_parts.append(tag)
+            last_end = end
         new_text_parts.append(text[last_end:])
-        return "".join(new_text_parts)
 
-# For backward compatibility and simple use cases, a default instance can be provided.
-default_scrubber = PhiScrubberService(config={})
-scrub_phi = default_scrubber.scrub_text
+        return "".join(new_text_parts)
