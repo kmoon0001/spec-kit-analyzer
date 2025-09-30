@@ -11,11 +11,11 @@ def mock_sentence_transformer():
     """Mocks the SentenceTransformer to avoid downloading models during tests."""
     with patch("sentence_transformers.SentenceTransformer") as mock_st:
         mock_model = MagicMock()
-# Mock the encode method to return a valid numpy array for embeddings.
-        # The shape should be (number_of_sentences, embedding_dimension).
-        mock_model.encode.return_value = np.random.rand(1, 384).astype(np.float32)
+        # The encode method should return a 2D numpy array (list of embeddings)
+        mock_model.encode.return_value = np.random.rand(1, 384).astype("float32")
         mock_st.return_value = mock_model
         yield mock_st
+
 
 @pytest.fixture
 def guideline_service(tmp_path, mock_sentence_transformer):

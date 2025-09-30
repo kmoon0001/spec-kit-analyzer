@@ -44,6 +44,20 @@ def get_settings():
     return _get_settings()
 
 
+from .checklist_service import DeterministicChecklistService
+from .compliance_analyzer import ComplianceAnalyzer
+from .document_classifier import DocumentClassifier
+from .explanation import ExplanationEngine
+from .fact_checker_service import FactCheckerService
+from .hybrid_retriever import HybridRetriever
+from .llm_service import LLMService
+from .ner import NERPipeline
+from .nlg_service import NLGService
+from .preprocessing_service import PreprocessingService
+from .prompt_manager import PromptManager
+from .report_generator import ReportGenerator
+
+
 class AnalysisService:
     """Coordinate preprocessing, classification, retrieval, and reporting."""
 
@@ -69,14 +83,23 @@ class AnalysisService:
                 "Generator configuration is missing; unable to start analysis service."
             )
 
+        # Set default generation parameters if not already defined in the config
+        generation_params = llm_settings.setdefault("generation_params", {})
+        generation_params.setdefault("max_new_tokens", 600)
+        generation_params.setdefault("temperature", 0.2)
+        generation_params.setdefault("top_p", 0.9)
+
+        # Set default generation parameters if not already defined in the config
+        generation_params = llm_settings.setdefault("generation_params", {})
+        generation_params.setdefault("max_new_tokens", 600)
+        generation_params.setdefault("temperature", 0.2)
+        generation_params.setdefault("top_p", 0.9)
+
         self.llm_service = LLMService(
             model_repo_id=generator_repo,
             model_filename=generator_filename,
             llm_settings=llm_settings,
         )
-        self.llm_service.generation_params.setdefault("max_new_tokens", 600)
-        self.llm_service.generation_params.setdefault("temperature", 0.2)
-        self.llm_service.generation_params.setdefault("top_p", 0.9)
 
         self.chat_llm_service = self._build_chat_llm(
             models_cfg.get("chat") or {}, llm_settings
