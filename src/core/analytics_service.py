@@ -362,7 +362,7 @@ class AnalyticsService:
                     'export_timestamp': datetime.now().isoformat()
                 }
 
-            elif format_type == "detailed":
+            if format_type == "detailed":
                 trends = self.calculate_compliance_trends(reports_data)
                 insights = self.generate_insights(reports_data, trends)
 
@@ -390,13 +390,11 @@ class AnalyticsService:
                     'common_issues': self.identify_common_issues(reports_data),
                     'export_timestamp': datetime.now().isoformat()
                 }
-
-            else:  # raw format
-                return {
-                    'reports': reports_data,
-                    'export_timestamp': datetime.now().isoformat(),
-                    'total_count': len(reports_data)
-                }
+            return {
+                'reports': reports_data,
+                'export_timestamp': datetime.now().isoformat(),
+                'total_count': len(reports_data)
+            }
 
         except Exception as e:
             logger.error(f"Error exporting analytics data: {e}")

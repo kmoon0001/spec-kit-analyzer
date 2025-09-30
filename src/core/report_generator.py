@@ -178,10 +178,9 @@ class ReportGenerator:
         if isinstance(confidence, (int, float)):
             if confidence >= 0.8:
                 return 'class="high-confidence"'
-            elif confidence >= 0.6:
+            if confidence >= 0.6:
                 return 'class="medium-confidence"'
-            else:
-                return 'class="low-confidence"'
+            return 'class="low-confidence"'
 
         if finding.get("is_low_confidence"):
             return 'class="low-confidence"'

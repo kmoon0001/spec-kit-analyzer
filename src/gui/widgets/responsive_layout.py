@@ -47,12 +47,11 @@ class ResponsiveWidget(QWidget):
         """Determine current breakpoint based on width."""
         if width < self.breakpoints['mobile']:
             return 'mobile'
-        elif width < self.breakpoints['tablet']:
+        if width < self.breakpoints['tablet']:
             return 'tablet'
-        elif width < self.breakpoints['desktop']:
+        if width < self.breakpoints['desktop']:
             return 'desktop'
-        else:
-            return 'large'
+        return 'large'
 
     def adapt_to_breakpoint(self, breakpoint: str):
         """Override in subclasses to handle breakpoint changes."""
