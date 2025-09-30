@@ -1,13 +1,14 @@
 import sys
 import traceback
+import logging
 from PyQt6.QtWidgets import QMessageBox
-from src.utils.logger import get_logger
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
-def global_exception_hook(exctype, value, tb):
+def global_exception_hook(exctype, value, tb) -> None:
     """
-    A global exception hook to catch unhandled exceptions in the PyQt5 application.
+    Global exception hook for unhandled exceptions in the PyQt6 application.
+    Logs the error and shows a critical message box when possible.
     """
     traceback_details = "".join(traceback.format_exception(exctype, value, tb))
     error_message = (
@@ -24,7 +25,11 @@ def global_exception_hook(exctype, value, tb):
     error_box.setText(error_message)
     error_box.setWindowTitle("Unhandled Exception")
     error_box.setDetailedText(traceback_details)
-    error_box.exec_()
+    try:
+        error_box.exec()
+    except Exception:
+        # In headless or abnormal states, exec() may fail; log and continue to exit
+        logger.exception("Failed to display error dialog")
 
     # It's generally a good idea to exit the application after an unhandled exception
     sys.exit(1)
