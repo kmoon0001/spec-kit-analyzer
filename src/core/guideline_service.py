@@ -11,7 +11,7 @@ import faiss
 import joblib
 import numpy as np
 
-from src.config import get_settings as _get_settings
+from ..config import get_settings as _get_settings
 
 logger = logging.getLogger(__name__)
 

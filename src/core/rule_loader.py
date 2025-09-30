@@ -5,7 +5,7 @@ from typing import List
 from rdflib import Graph, URIRef
 from rdflib.namespace import RDF
 
-from src.core.compliance_types import ComplianceRule
+from src.core.models import ComplianceRule
 
 
 logger = logging.getLogger(__name__)

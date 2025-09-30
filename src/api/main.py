@@ -14,16 +14,11 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from src.api.dependencies import startup_event as api_startup, shutdown_event as api_shutdown
-from src.api.routers import auth, analysis, dashboard, admin, health, chat, compliance
-from src.core.database_maintenance_service import DatabaseMaintenanceService
-from src.config import get_settings
-
-settings = get_settings()
-
-# --- Configuration ---
-DATABASE_PURGE_RETENTION_DAYS = settings.maintenance.purge_retention_days
-TEMP_UPLOAD_DIR = settings.temp_upload_dir
+from ..config import get_settings
+from ..core.database_maintenance_service import run_database_maintenance
+from ..utils.file_utils import clear_temp_uploads
+from .dependencies import startup_event as api_startup, shutdown_event as api_shutdown
+from .routers import auth, analysis, dashboard, admin, health, chat, compliance
 
 # --- Logging ---
 logger = logging.getLogger(__name__)

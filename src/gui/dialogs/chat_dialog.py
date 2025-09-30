@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import QThread
 from typing import List, Dict
 
-from src.gui.workers.chat_worker import ChatWorker
+from ..workers.chat_worker import ChatWorker
 
 from src.config import get_settings
 

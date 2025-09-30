@@ -70,9 +70,8 @@ def cleanup_api_server():
 
 def main():
     """Main application entry point."""
-    # The following line is commented out to ensure the GUI is displayed.
-    # It was forcing the application into a headless mode.
-    # os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    # Set the Qt platform plugin for headless environments
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
     # 1. Initialize the database first
     logger.info("Initializing database schema...")
@@ -96,12 +95,12 @@ def main():
     try:
         logger.info("Starting GUI application...")
         from PyQt6.QtWidgets import QApplication
-        from src.gui.main_window import ModernMainWindow
+        from src.gui.main_window import MainApplicationWindow
 
         app = QApplication(sys.argv)
         app.setApplicationName("Therapy Compliance Analyzer")
 
-        main_win = ModernMainWindow()
+        main_win = MainApplicationWindow()
         main_win.start()  # This should handle login and then show the window
 
         exit_code = app.exec()

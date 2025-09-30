@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.database import get_async_db as get_db
+from ...database import get_async_db as get_db
 
 router = APIRouter()
 

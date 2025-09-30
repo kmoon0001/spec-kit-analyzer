@@ -5,7 +5,7 @@ Demonstrates how to integrate the cache service with the analysis pipeline.
 
 import logging
 from typing import Dict, List
-from src.core.cache_service import (
+from .cache_service import (
     EmbeddingCache,
     NERCache,
     DocumentCache,
