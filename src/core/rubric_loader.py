@@ -6,8 +6,8 @@ from rdflib.namespace import RDF
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..database import engine as async_engine, AsyncSessionLocal, Base
-from ..database.models import Rubric
+from src.database import engine as async_engine, AsyncSessionLocal, Base
+from src.database.models import Rubric
 
 # --- Configuration ---
 logging.basicConfig(

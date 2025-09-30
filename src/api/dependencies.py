@@ -1,8 +1,8 @@
 import logging
 from typing import Any, Dict
 
-from ..config import get_settings
-from ..core.mock_analysis_service import MockAnalysisService
+from src.config import get_settings
+from src.core.mock_analysis_service import MockAnalysisService
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ async def get_retriever() -> Any:
     if "retriever" not in app_state:
         logger.info("Retriever instance not found, creating a new one.")
         # Conditional import to avoid ModuleNotFoundError in mock mode
-        from ..core.hybrid_retriever import HybridRetriever
+        from src.core.hybrid_retriever import HybridRetriever
 
         retriever_instance = HybridRetriever()
         await retriever_instance.initialize()
@@ -47,7 +47,7 @@ async def startup_event():
     else:
         logger.info("AI mocks are disabled. Initializing real AnalysisService.")
         # Conditionally import the real service only when needed
-        from ..core.analysis_service import AnalysisService
+        from src.core.analysis_service import AnalysisService
 
         # 1. Initialize the retriever, which is a dependency for other services.
         retriever = await get_retriever()

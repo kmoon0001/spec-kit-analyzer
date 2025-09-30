@@ -14,7 +14,7 @@ from PyQt6.QtCore import QUrl
 
 # Local imports
 from src.core.chat_service import ChatService
-from .chat_dialog import ChatDialog
+from src.gui.dialogs.chat_dialog import ChatDialog
 
 logger = logging.getLogger(__name__)
 

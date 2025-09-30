@@ -1,15 +1,15 @@
 import logging
 from typing import Dict, Any, Optional
 
-from .document_processing_service import DocumentProcessingService
-from .phi_scrubber import PhiScrubberService
-from .compliance_analyzer import ComplianceAnalyzer
-from .medicare_compliance_service import MedicareComplianceService
-from .report_generator import ReportGenerator
-from .clinical_entity_service import ClinicalEntityService
-from .bias_detection_service import BiasDetectionService
-from .quality_assurance_service import QualityAssuranceService
-from .audit_trail_service import AuditTrailService
+from src.core.document_processing_service import DocumentProcessingService
+from src.core.phi_scrubber import PhiScrubberService
+from src.core.compliance_analyzer import ComplianceAnalyzer
+from src.core.medicare_compliance_service import MedicareComplianceService
+from src.core.report_generator import ReportGenerator
+from src.core.clinical_entity_service import ClinicalEntityService
+from src.core.bias_detection_service import BiasDetectionService
+from src.core.quality_assurance_service import QualityAssuranceService
+from src.core.audit_trail_service import AuditTrailService
 
 logger = logging.getLogger(__name__)
 

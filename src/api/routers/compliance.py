@@ -3,8 +3,8 @@ from typing import List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from ...core.compliance_service import ComplianceService
-from ...core.compliance_types import TherapyDocument
+from src.core.compliance_service import ComplianceService
+from src.core.compliance_types import TherapyDocument
 
 router = APIRouter(prefix="/compliance", tags=["Compliance"])
 service = ComplianceService()
