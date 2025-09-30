@@ -1,47 +1,41 @@
 """
 Modern Main Window - Redesigned with medical theme and your exact layout specifications.
 """
-
 import os
+import requests
+import urllib.parse
+import webbrowser
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QMainWindow, QStatusBar,
-    QMenuBar, QFileDialog, QTextEdit, QLabel, QProgressBar, QTextBrowser, QComboBox
-    QComboBox,
-    QFileDialog,
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QMainWindow,
-    QMenuBar,
-    QMessageBox,
-    QProgressBar,
-    QStatusBar,
-    QFileDialog,
-    QTextEdit,
-    QLabel,
-    QProgressBar,
-    QTextBrowser,
-    QTextEdit,
-    QVBoxLayout,
-    QWidget,
-    QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QMainWindow, QStatusBar,
-    QMenuBar, QFileDialog, QTextEdit, QLabel, QProgressBar, QTextBrowser, QComboBox
+    QMenuBar, QFileDialog, QSplitter, QTextEdit, QLabel, QGroupBox,
+    QProgressBar, QPushButton, QTabWidget, QTextBrowser, QComboBox,
+    QListWidget, QListWidgetItem, QFrame, QScrollArea, QGridLayout,
+    QSizePolicy, QSpacerItem
 )
-from PyQt6.QtCore import QThread
+from PyQt6.QtCore import Qt, QThread, QUrl, QTimer, pyqtSignal
+from PyQt6.QtGui import QTextDocument, QFont, QIcon, QPixmap
 
 # Import our new modern components
-from .widgets.modern_card import ModernCard
+from .widgets.modern_card import ModernCard, ComplianceCard
 from .widgets.medical_theme import medical_theme
-from .widgets.responsive_layout import ResponsiveWidget
+from .widgets.responsive_layout import ResponsiveWidget, VirtualScrollArea
 from .widgets.micro_interactions import AnimatedButton, FadeInWidget, LoadingSpinner
+
+# Import existing components
+from .dialogs.rubric_manager_dialog import RubricManagerDialog
+from .dialogs.change_password_dialog import ChangePasswordDialog
+from .dialogs.chat_dialog import ChatDialog
+from .dialogs.performance_settings_dialog import PerformanceSettingsDialog
 from .workers.analysis_starter_worker import AnalysisStarterWorker
+from .workers.analysis_worker import AnalysisWorker
+from .workers.ai_loader_worker import AILoaderWorker
+from .workers.dashboard_worker import DashboardWorker
+from .widgets.dashboard_widget import DashboardWidget
 from .widgets.performance_status_widget import PerformanceStatusWidget
 from ..config import get_settings
 
 settings = get_settings()
 API_URL = settings.api_url
-
 
 class ModernMainWindow(QMainWindow):
     """Modern, medical-themed main window with your exact layout specifications."""
@@ -58,7 +52,7 @@ class ModernMainWindow(QMainWindow):
         self.worker = None
 
         # Theme management
-        self.current_theme = "light"
+        self.current_theme = 'light'
 
         # Initialize UI
         self.init_base_ui()
@@ -98,17 +92,13 @@ class ModernMainWindow(QMainWindow):
         # Tools menu
         self.tools_menu = self.menu_bar.addMenu("🔧 Tools")
         self.tools_menu.addAction("📋 Manage Rubrics", self.manage_rubrics)
-        self.tools_menu.addAction(
-            "⚡ Performance Settings", self.show_performance_settings
-        )
-        self.tools_menu.addAction(
-            "🔑 Change Password", self.show_change_password_dialog
-        )
+        self.tools_menu.addAction("⚡ Performance Settings", self.show_performance_settings)
+        self.tools_menu.addAction("🔑 Change Password", self.show_change_password_dialog)
 
         # View menu
         self.view_menu = self.menu_bar.addMenu("👁️ View")
-        self.view_menu.addAction("🌞 Light Theme", lambda: self.set_theme("light"))
-        self.view_menu.addAction("🌙 Dark Theme", lambda: self.set_theme("dark"))
+        self.view_menu.addAction("🌞 Light Theme", lambda: self.set_theme('light'))
+        self.view_menu.addAction("🌙 Dark Theme", lambda: self.set_theme('dark'))
         self.view_menu.addSeparator()
         self.view_menu.addAction("📊 Compliance Guide", self.show_compliance_guide)
 
@@ -126,23 +116,19 @@ class ModernMainWindow(QMainWindow):
 
         # Performance status widget
         self.performance_status = PerformanceStatusWidget()
-        self.performance_status.settings_requested.connect(
-            self.show_performance_settings
-        )
+        self.performance_status.settings_requested.connect(self.show_performance_settings)
         self.status_bar.addPermanentWidget(self.performance_status)
 
         # Easter egg - Pacific Coast Therapy in cursive
         self.easter_egg_label = QLabel("Pacific Coast Therapy")
         self.easter_egg_label.setObjectName("easter_egg")
-        self.easter_egg_label.setStyleSheet(
-            """
+        self.easter_egg_label.setStyleSheet("""
             font-family: "Brush Script MT", "Lucida Handwriting", cursive;
             font-size: 10px;
             color: #94a3b8;
             font-style: italic;
             margin-left: 20px;
-        """
-        )
+        """)
         self.status_bar.addPermanentWidget(self.easter_egg_label)
 
         # Progress bar (hidden by default)
@@ -220,9 +206,7 @@ class ModernMainWindow(QMainWindow):
         self.rubric_selector = QComboBox()
         self.rubric_selector.setPlaceholderText("Select compliance rubric...")
         self.rubric_selector.currentIndexChanged.connect(self._on_rubric_selected)
-        self.rubric_selector.setStyleSheet(
-            medical_theme.get_button_stylesheet("secondary")
-        )
+        self.rubric_selector.setStyleSheet(medical_theme.get_button_stylesheet('secondary'))
 
         # Rubric description (2 lines)
         self.rubric_description_label = QLabel("Select a rubric to see description")
@@ -246,13 +230,11 @@ class ModernMainWindow(QMainWindow):
 
         self.upload_button = AnimatedButton("📤 Upload Document")
         self.upload_button.clicked.connect(self.open_file_dialog)
-        self.upload_button.setStyleSheet(medical_theme.get_button_stylesheet("primary"))
+        self.upload_button.setStyleSheet(medical_theme.get_button_stylesheet('primary'))
 
         self.clear_button = AnimatedButton("🗑️ Clear")
         self.clear_button.clicked.connect(self.clear_display)
-        self.clear_button.setStyleSheet(
-            medical_theme.get_button_stylesheet("secondary")
-        )
+        self.clear_button.setStyleSheet(medical_theme.get_button_stylesheet('secondary'))
 
         upload_button_layout.addWidget(self.upload_button)
         upload_button_layout.addWidget(self.clear_button)
@@ -284,9 +266,7 @@ class ModernMainWindow(QMainWindow):
         self.run_analysis_button = AnimatedButton("🚀 Run Analysis")
         self.run_analysis_button.clicked.connect(self.run_analysis)
         self.run_analysis_button.setEnabled(False)
-        self.run_analysis_button.setStyleSheet(
-            medical_theme.get_button_stylesheet("success")
-        )
+        self.run_analysis_button.setStyleSheet(medical_theme.get_button_stylesheet('success'))
 
         # Progress bar with label
         progress_container = QWidget()
@@ -298,8 +278,7 @@ class ModernMainWindow(QMainWindow):
 
         self.main_progress_bar = QProgressBar()
         self.main_progress_bar.setVisible(False)
-        self.main_progress_bar.setStyleSheet(
-            f"""
+        self.main_progress_bar.setStyleSheet(f"""
             QProgressBar {{
                 border: 1px solid {medical_theme.get_color('border_light')};
                 border-radius: 4px;
@@ -310,8 +289,7 @@ class ModernMainWindow(QMainWindow):
                 background-color: {medical_theme.get_color('primary_blue')};
                 border-radius: 3px;
             }}
-        """
-        )
+        """)
 
         progress_container_layout.addWidget(self.progress_label)
         progress_container_layout.addWidget(self.main_progress_bar)
@@ -338,12 +316,9 @@ class ModernMainWindow(QMainWindow):
         document_layout = QVBoxLayout(document_content)
 
         self.document_display_area = QTextEdit()
-        self.document_display_area.setPlaceholderText(
-            "📄 Upload a document to see its content here..."
-        )
+        self.document_display_area.setPlaceholderText("📄 Upload a document to see its content here...")
         self.document_display_area.setReadOnly(True)
-        self.document_display_area.setStyleSheet(
-            f"""
+        self.document_display_area.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {medical_theme.get_color('bg_secondary')};
                 border: 1px solid {medical_theme.get_color('border_light')};
@@ -353,8 +328,7 @@ class ModernMainWindow(QMainWindow):
                 font-size: 11px;
                 line-height: 1.4;
             }}
-        """
-        )
+        """)
 
         document_layout.addWidget(self.document_display_area)
         document_card.add_content(document_content)
@@ -366,21 +340,18 @@ class ModernMainWindow(QMainWindow):
 
         # Results area with rich formatting
         self.analysis_results_area = QTextBrowser()
-        self.analysis_results_area.setPlaceholderText(
-            """
+        self.analysis_results_area.setPlaceholderText("""
         🎯 Analysis results will appear here...
 
         • Upload a clinical document
         • Select an appropriate compliance rubric
         • Click 'Run Analysis' to begin
         • Interact with AI for clarifications
-        """
-        )
+        """)
         self.analysis_results_area.setReadOnly(True)
         self.analysis_results_area.setOpenExternalLinks(True)
         self.analysis_results_area.anchorClicked.connect(self.handle_anchor_click)
-        self.analysis_results_area.setStyleSheet(
-            f"""
+        self.analysis_results_area.setStyleSheet(f"""
             QTextBrowser {{
                 background-color: {medical_theme.get_color('bg_primary')};
                 border: 1px solid {medical_theme.get_color('border_light')};
@@ -389,15 +360,13 @@ class ModernMainWindow(QMainWindow):
                 font-size: 12px;
                 line-height: 1.5;
             }}
-        """
-        )
+        """)
 
         results_layout.addWidget(self.analysis_results_area)
         results_card.add_content(results_content)
 
         # Add to main layout with responsive splitter
         from .widgets.responsive_layout import ResponsiveSplitter
-
         splitter = ResponsiveSplitter()
         splitter.addWidget(document_card)
         splitter.addWidget(results_card)
@@ -415,12 +384,9 @@ class ModernMainWindow(QMainWindow):
 
         # Chat input
         self.chat_input = QTextEdit()
-        self.chat_input.setPlaceholderText(
-            "Ask the AI assistant about compliance, documentation, or analysis results..."
-        )
+        self.chat_input.setPlaceholderText("Ask the AI assistant about compliance, documentation, or analysis results...")
         self.chat_input.setMaximumHeight(60)
-        self.chat_input.setStyleSheet(
-            f"""
+        self.chat_input.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {medical_theme.get_color('bg_secondary')};
                 border: 1px solid {medical_theme.get_color('border_light')};
@@ -428,15 +394,12 @@ class ModernMainWindow(QMainWindow):
                 padding: 8px;
                 font-size: 12px;
             }}
-        """
-        )
+        """)
 
         # Send button
         self.send_chat_button = AnimatedButton("📤 Send")
         self.send_chat_button.clicked.connect(self.send_chat_message)
-        self.send_chat_button.setStyleSheet(
-            medical_theme.get_button_stylesheet("primary")
-        )
+        self.send_chat_button.setStyleSheet(medical_theme.get_button_stylesheet('primary'))
         self.send_chat_button.setFixedWidth(80)
 
         # Voice input button (future feature)
@@ -444,9 +407,7 @@ class ModernMainWindow(QMainWindow):
         self.voice_button.setToolTip("Voice input (coming soon)")
         self.voice_button.setEnabled(False)
         self.voice_button.setFixedWidth(40)
-        self.voice_button.setStyleSheet(
-            medical_theme.get_button_stylesheet("secondary")
-        )
+        self.voice_button.setStyleSheet(medical_theme.get_button_stylesheet('secondary'))
 
         chat_layout.addWidget(self.chat_input, 1)
         chat_layout.addWidget(self.voice_button)
@@ -455,13 +416,12 @@ class ModernMainWindow(QMainWindow):
         chat_widget.add_content(chat_content)
         return chat_widget
 
-    @staticmethod
-    def adapt_layout(breakpoint: str):
+    def adapt_layout(self, breakpoint: str):
         """Adapt layout based on screen size."""
-        if breakpoint == "mobile":
+        if breakpoint == 'mobile':
             # Stack elements vertically on mobile
             pass
-        elif breakpoint == "tablet":
+        elif breakpoint == 'tablet':
             # Adjust spacing and sizes for tablet
             pass
         # Desktop and large screens use default layout
@@ -486,7 +446,7 @@ class ModernMainWindow(QMainWindow):
             self,
             "📁 Select Clinical Document",
             "",
-            "All Supported Files (*.pdf *.docx *.txt);;PDF Files (*.pdf);;Word Documents (*.docx);;Text Files (*.txt)",
+            "All Supported Files (*.pdf *.docx *.txt);;PDF Files (*.pdf);;Word Documents (*.docx);;Text Files (*.txt)"
         )
 
         if file_name:
@@ -498,11 +458,9 @@ class ModernMainWindow(QMainWindow):
 
             # Load document content
             try:
-                with open(file_name, "r", encoding="utf-8", errors="ignore") as f:
+                with open(file_name, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read()
-                    self.document_display_area.setText(
-                        content[:5000] + "..." if len(content) > 5000 else content
-                    )
+                    self.document_display_area.setText(content[:5000] + "..." if len(content) > 5000 else content)
 
                 self.status_bar.showMessage(f"✅ Loaded document: {file_info}", 3000)
 
@@ -527,10 +485,10 @@ class ModernMainWindow(QMainWindow):
         # Performance optimization
         try:
             from ..core.performance_integration import optimize_for_analysis
-
             optimization_results = optimize_for_analysis()
 
-            if optimization_results.get("recommendations"):
+            if optimization_results.get('recommendations'):
+                recommendations = '\n'.join(optimization_results['recommendations'])
                 self.progress_label.setText("⚡ Performance optimized")
         except Exception as e:
             print(f"Performance optimization failed: {e}")
@@ -569,57 +527,32 @@ class ModernMainWindow(QMainWindow):
             return
 
         # Add message to results area
-        self.analysis_results_area.append(
-            f"""
+        self.analysis_results_area.append(f"""
         <div style="background-color: #e8f4fd; padding: 8px; border-radius: 4px; margin: 4px 0;">
             <strong>You:</strong> {message}
         </div>
-        """
-        )
+        """)
 
         # Clear input
         self.chat_input.clear()
 
         # TODO: Implement actual AI chat functionality
-        self.analysis_results_area.append(
-            f"""
+        self.analysis_results_area.append(f"""
         <div style="background-color: #f0f9ff; padding: 8px; border-radius: 4px; margin: 4px 0;">
             <strong>🤖 AI Assistant:</strong> I understand your question about "{message}".
             This feature is being enhanced with the new AI chat system. Please use the analysis results above for now.
         </div>
-        """
-        )
+        """)
 
     # Placeholder methods for existing functionality
-    def logout(self):
-        raise NotImplementedError()
-
-    def manage_rubrics(self):
-        raise NotImplementedError()
-
-    def show_performance_settings(self):
-        raise NotImplementedError()
-
-    def show_change_password_dialog(self):
-        raise NotImplementedError()
-
-    def show_compliance_guide(self):
-        raise NotImplementedError()
-
-    def clear_display(self):
-        raise NotImplementedError()
-
-    def handle_anchor_click(self, url):
-        raise NotImplementedError()
-
-    def handle_analysis_started(self, task_id):
-        raise NotImplementedError()
-
-    def on_analysis_error(self, error):
-        raise NotImplementedError()
-
-    def load_ai_models(self):
-        raise NotImplementedError()
-
-    def load_dashboard_data(self):
-        raise NotImplementedError()
+    def logout(self): pass
+    def manage_rubrics(self): pass
+    def show_performance_settings(self): pass
+    def show_change_password_dialog(self): pass
+    def show_compliance_guide(self): pass
+    def clear_display(self): pass
+    def handle_anchor_click(self, url): pass
+    def handle_analysis_started(self, task_id): pass
+    def on_analysis_error(self, error): pass
+    def load_ai_models(self): pass
+    def load_dashboard_data(self): pass
