@@ -16,6 +16,7 @@ from fastapi import (
 
 from ...auth import get_current_active_user
 from ...config import get_settings
+from ...core.analysis_service import AnalysisService
 from ..dependencies import get_analysis_service
 
 logger = logging.getLogger(__name__)

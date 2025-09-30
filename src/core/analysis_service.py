@@ -32,6 +32,20 @@ def get_settings():
     return _get_settings()
 
 
+from .checklist_service import DeterministicChecklistService
+from .compliance_analyzer import ComplianceAnalyzer
+from .document_classifier import DocumentClassifier
+from .explanation import ExplanationEngine
+from .fact_checker_service import FactCheckerService
+from .hybrid_retriever import HybridRetriever
+from .llm_service import LLMService
+from .ner import NERPipeline
+from .nlg_service import NLGService
+from .preprocessing_service import PreprocessingService
+from .prompt_manager import PromptManager
+from .report_generator import ReportGenerator
+
+
 class AnalysisService:
     """Coordinate preprocessing, classification, retrieval, and reporting."""
 
@@ -40,20 +54,6 @@ class AnalysisService:
         retriever: Optional[Any] = None,
         config_path: Optional[str | Path] = None,
     ) -> None:
-        # Conditionally import all AI-related services here
-        from .compliance_analyzer import ComplianceAnalyzer
-        from .document_classifier import DocumentClassifier
-        from .explanation import ExplanationEngine
-        from .fact_checker_service import FactCheckerService
-        from .hybrid_retriever import HybridRetriever
-        from .llm_service import LLMService
-        from .ner import NERPipeline
-        from .nlg_service import NLGService
-        from .preprocessing_service import PreprocessingService
-        from .prompt_manager import PromptManager
-        from .report_generator import ReportGenerator
-        from .checklist_service import DeterministicChecklistService
-
         self.config_path = Path(config_path or ROOT_DIR / "config.yaml")
         self.config = self._load_config()
 
