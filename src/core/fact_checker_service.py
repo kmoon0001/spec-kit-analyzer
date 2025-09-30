@@ -1,53 +1,53 @@
 import logging
-from typing import Dict
-from transformers import pipeline
 
 logger = logging.getLogger(__name__)
 
-
 class FactCheckerService:
-    """
-    A service to validate the plausibility of LLM findings using a smaller, specialized model.
-    """
+    """A service to check for factual consistency using a Natural Language Inference model."""
 
-    def __init__(self, model_name: str, **kwargs):
-        """Initializes the Fact-Checking Service."""
+    def __init__(self, model_name: str = "google/flan-t5-base"):
         self.model_name = model_name
-        self.pipeline = None
-        try:
-            logger.info(f"Loading Fact-Checker model: {self.model_name}")
-            self.pipeline = pipeline("text2text-generation", model=self.model_name)
-            logger.info("Fact-Checker model loaded successfully.")
-        except Exception as e:
-            logger.error(
-                f"Failed to load Fact-Checker model {self.model_name}: {e}",
-                exc_info=True,
-            )
+        self.classifier = None
 
-    def is_finding_plausible(self, finding: Dict, rule: Dict) -> bool:
+    def load_model(self):
+        """Lazy-loads the NLI model."""
+        if self.classifier is None:
+            try:
+                from transformers import pipeline
+                logger.info(f"Loading fact-checking model: {self.model_name}")
+                self.classifier = pipeline("text2text-generation", model=self.model_name)
+                logger.info("Fact-checking model loaded successfully.")
+            except Exception as e:
+                logger.error(f"Failed to load fact-checking model: {e}")
+                # The service will be non-functional, but this prevents a crash
+                self.classifier = None
+
+    def is_ready(self) -> bool:
+        """Check if the model is loaded and ready."""
+        return self.classifier is not None
+
+    def check_consistency(self, premise: str, hypothesis: str) -> bool:
         """
-        Checks if a given compliance finding is plausible based on the rule it violated.
+        Checks if the hypothesis is supported by the premise.
+        Returns True if the hypothesis is consistent, False otherwise.
         """
-        if not self.pipeline:
-            logger.warning("Fact-Checker model not loaded. Skipping validation.")
-            return True  # Default to plausible if the checker is not available
+        if not self.is_ready():
+            self.load_model()
+
+        if not self.is_ready():
+            logger.warning("Fact-checker model not available. Skipping consistency check.")
+            return True # Fail open, assuming consistency
 
         try:
-            prompt = f"""
-Rule: {rule.get("name", "")} - {rule.get("content", "")}
-Problematic Text: "{finding.get("text", "")}"
+            # The prompt format depends on the model. For Flan-T5, a simple question works well.
+            prompt = f"Premise: {premise}\nHypothesis: {hypothesis}\nIs the hypothesis supported by the premise?"
+            result = self.classifier(prompt, max_length=50)
 
-Question: Based on the rule, is it plausible that the problematic text represents a compliance issue? Answer only with 'Yes' or 'No'.
-
-Answer:
-"""
-
-            response = self.pipeline(prompt, max_length=10)[0]["generated_text"]
-
-            if "yes" in response.lower():
-                return True
-            return False
+            # The output is a string that needs to be interpreted.
+            # This is a simplified check; a more robust solution would parse the output more carefully.
+            answer = result[0]['generated_text'].lower()
+            return "yes" in answer or "supported" in answer
 
         except Exception as e:
-            logger.error(f"Error during fact-checking: {e}", exc_info=True)
-            return True  # Default to plausible in case of an error
+            logger.error(f"Error during fact-checking: {e}")
+            return True # Fail open

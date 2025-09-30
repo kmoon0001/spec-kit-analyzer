@@ -22,14 +22,14 @@ pyyaml
 markdown
 
 # AI & Machine Learning
-torch
-transformers
-sentence-transformers
-ctransformers
-faiss-cpu
-bitsandbytes
+# torch
+# transformers
+# sentence-transformers
+# ctransformers
+# faiss-cpu
+# bitsandbytes
 rank_bm25
-accelerate
+# accelerate
 nltk
 pyspellchecker
 
@@ -50,13 +50,13 @@ scipy
 
 # Performance & Monitoring
 psutil
-onnxruntime-gpu  # Optional GPU acceleration
-optimum  # Model optimization
+# onnxruntime-gpu  # Optional GPU acceleration
+# optimum  # Model optimization
 
 # Enhanced Features (Optional)
 reportlab  # PDF export functionality
 xhtml2pdf  # HTML-to-PDF export
-openpyxl  # Excel export support
+# openpyxl  # Excel export support - This is a duplicate from above
 
 # Scheduling
 apscheduler
@@ -68,4 +68,4 @@ pytest-mock
 pytest-qt
 pytest-asyncio
 ruff
-spacy
+# spacy
