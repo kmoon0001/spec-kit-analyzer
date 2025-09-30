@@ -8,17 +8,43 @@ import os
 import shutil
 import logging
 from contextlib import asynccontextmanager
+from typing import Dict, Any, Optional
+from logging.config import dictConfig
 
 from fastapi import FastAPI
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 from apscheduler.schedulers.background import BackgroundScheduler
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
 
 from .dependencies import startup_event as api_startup, shutdown_event as api_shutdown
-from .routers import auth, analysis, dashboard, admin, health, chat, compliance
-from ..core.database_maintenance_service import DatabaseMaintenanceService
+from .error_handling import http_exception_handler
+from .routers import admin, analysis, auth, chat, compliance, dashboard, health, users
 from ..config import get_settings
+from ..core.database_maintenance_service import DatabaseMaintenanceService
+
+def configure_logging() -> None:
+    """Configure structured logging for the API process."""
+    log_level = os.getenv("LOG_LEVEL", "INFO")
+    fmt = "%(asctime)s %(levelname)s %(name)s %(message)s"
+    dictConfig({
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "standard": {"format": fmt}
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "standard",
+                "level": log_level,
+            }
+        },
+        "root": {"handlers": ["console"], "level": log_level},
+    })
+
+configure_logging()
 
 settings = get_settings()
 
@@ -31,11 +57,53 @@ logger = logging.getLogger(__name__)
 
 
 # --- Helper Functions ---
-def clear_temp_uploads():
-    """Clears all files from the temporary upload directory."""
-    if os.path.exists(TEMP_UPLOAD_DIR):
-        for filename in os.listdir(TEMP_UPLOAD_DIR):
-            file_path = os.path.join(TEMP_UPLOAD_DIR, filename)
+
+def validate_settings(cfg) -> None:
+    """Validate critical settings to avoid unsafe or invalid configuration."""
+    try:
+        days = int(cfg.maintenance.purge_retention_days)
+        if days < 0 or days > 3650:
+            raise ValueError("purge_retention_days out of safe range (0..3650)")
+    except Exception as exc:
+        raise ValueError(f"Invalid purge_retention_days: {exc}") from exc
+
+    temp_dir = os.path.realpath(cfg.temp_upload_dir)
+    if not temp_dir or len(temp_dir) < 5:
+        raise ValueError("TEMP_UPLOAD_DIR path is suspiciously short/empty")
+    drive, tail = os.path.splitdrive(temp_dir)
+    if (not tail or tail in (os.path.sep, "/", "\\")) and drive:
+        raise ValueError(f"TEMP_UPLOAD_DIR points to drive root: {temp_dir}")
+    if temp_dir in {os.path.sep, "/", "C:\\", "D:\\"}:
+        raise ValueError(f"TEMP_UPLOAD_DIR points to unsafe path: {temp_dir}")
+
+    # Optionally ensure it exists
+    if not os.path.exists(temp_dir):
+        try:
+            os.makedirs(temp_dir, exist_ok=True)
+        except Exception as exc:
+            raise ValueError(f"Unable to create TEMP_UPLOAD_DIR '{temp_dir}': {exc}") from exc
+def clear_temp_uploads() -> None:
+    """Safely clear files from the temporary upload directory.
+
+    Adds guardrails to prevent accidental deletion of unsafe directories.
+    """
+    try:
+        temp_dir = os.path.realpath(TEMP_UPLOAD_DIR)
+        if not os.path.isdir(temp_dir):
+            logger.warning("Temp upload dir does not exist or is not a directory: %s", temp_dir)
+            return
+
+        # Guard against dangerous directories (root, drive root, or suspiciously short paths)
+        drive, tail = os.path.splitdrive(temp_dir)
+        if (not tail or tail in (os.path.sep, "/", "\\")) and drive:
+            logger.error("Refusing to clean drive root: %s", temp_dir)
+            return
+        if temp_dir in {os.path.sep, "/", "C:\\", "D:\\"} or len(temp_dir) < 5:
+            logger.error("Refusing to clean unsafe temp dir: %s", temp_dir)
+            return
+
+        for filename in os.listdir(temp_dir):
+            file_path = os.path.join(temp_dir, filename)
             try:
                 if os.path.isfile(file_path) or os.path.islink(file_path):
                     os.unlink(file_path)
@@ -44,31 +112,34 @@ def clear_temp_uploads():
                 logger.info("Successfully cleaned up temporary file: %s", file_path)
             except (OSError, PermissionError) as e:
                 logger.error("Failed to delete %s. Reason: %s", file_path, e)
+    except Exception as e:
+        logger.exception("An unexpected error occurred while clearing temp uploads: %s", e)
 
 
 def run_database_maintenance():
-    """Instantiates and runs the database maintenance service."""
+    """
+    Instantiates and runs the database maintenance service.
+    Includes error handling to prevent scheduler crashes.
+    """
     logger.info("Scheduler triggered: Starting database maintenance job.")
-    maintenance_service = DatabaseMaintenanceService()
-    maintenance_service.purge_old_reports(retention_days=DATABASE_PURGE_RETENTION_DAYS)
-    logger.info("Scheduler job: Database maintenance finished.")
+    try:
+        maintenance_service = DatabaseMaintenanceService()
+        maintenance_service.purge_old_reports(retention_days=DATABASE_PURGE_RETENTION_DAYS)
+        logger.info("Scheduler job: Database maintenance finished.")
+    except Exception as e:
+        logger.exception("Database maintenance job failed: %s", e)
 
 
-# --- FastAPI App Setup ---
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
-    # Startup
-    # 1. Run API-level startup logic (e.g., model loading)
     await api_startup()
 
-    # 2. Clean up any orphaned temporary files from previous runs
     logger.info("Running startup tasks...")
     clear_temp_uploads()
 
-    # 3. Initialize and start the background scheduler
     scheduler = BackgroundScheduler(daemon=True)
     scheduler.add_job(run_database_maintenance, "interval", days=1)
     scheduler.start()
@@ -76,8 +147,8 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown
     await api_shutdown()
+
 
 app = FastAPI(
     title="Clinical Compliance Analyzer API",
@@ -86,15 +157,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-
-# --- Middleware and Exception Handlers ---
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, http_exception_handler)
 
-# --- Routers ---
 app.include_router(health.router, tags=["Health"])
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
+app.include_router(users.router, tags=["Users"])
 app.include_router(analysis.router, tags=["Analysis"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
