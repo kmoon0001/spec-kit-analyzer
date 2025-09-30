@@ -70,8 +70,9 @@ def cleanup_api_server():
 
 def main():
     """Main application entry point."""
-    # Set the Qt platform plugin for headless environments
-    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    # The following line is commented out to ensure the GUI is displayed.
+    # It was forcing the application into a headless mode.
+    # os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
     # 1. Initialize the database first
     logger.info("Initializing database schema...")
