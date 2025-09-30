@@ -83,6 +83,7 @@ class User(UserBase):
     id: int
     is_active: bool
     is_admin: bool = False
+    hashed_password: str
 
     model_config = ConfigDict(from_attributes=True)
 

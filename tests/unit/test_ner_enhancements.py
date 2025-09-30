@@ -38,7 +38,20 @@ class MockSpan:
 class MockDoc:
     def __init__(self, spans):
         self.ents = spans
-        self.text = " ".join([s.text for s in spans])
+        # Reconstruct the text and calculate char offsets for each span
+        self.text = ""
+        current_pos = 0
+        for i, span in enumerate(spans):
+            # Add a space between spans to mimic original text reconstruction
+            if i > 0:
+                self.text += " "
+                current_pos += 1
+
+            # Set character offsets for the span
+            span.start_char = current_pos
+            self.text += span.text
+            span.end_char = len(self.text)
+            current_pos = len(self.text)
 
         # Create a flat list of all tokens from all spans
         all_tokens = []
@@ -53,6 +66,13 @@ class MockDoc:
         if isinstance(key, slice):
             return self.tokens[key.start:key.stop]
         return self.tokens[key]
+
+    def char_span(self, start_char: int, end_char: int, label: str = "", alignment_mode: str = "strict"):
+        """A simplified mock of SpaCy's char_span method."""
+        span_text = self.text[start_char:end_char]
+        if not span_text:
+            return None
+        return MockSpan(span_text, label, start_char, end_char)
 
 
 @pytest.fixture

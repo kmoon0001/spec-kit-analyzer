@@ -49,35 +49,49 @@ class NERPipeline:
 
     def extract_clinician_name(self, text: str) -> List[Dict[str, Any]]:
         """
-        Extract clinician names from text using SpaCy's NER and a regex pattern.
+        Extracts clinician names using a combination of regex for high-confidence patterns
+        and SpaCy for contextual keyword-based identification.
         """
-        entities = []
         if not self.spacy_nlp:
-            return entities
+            return []
 
+        clinicians = {}  # Use a dictionary to handle deduplication automatically
+
+        # 1. High-confidence regex for titles (Dr., PT, etc.)
+        pattern = r"\b(?:Dr\.|Doctor|PT|OT|RN|Therapist:|Signature:)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+,?\s*(?:[A-Z][a-z]+\.?)*)*)"
+        for match in re.finditer(pattern, text):
+            # Clean credentials from the name for better deduplication
+            name = re.sub(r',\s*\w+$', '', match.group(1)).strip()
+            if name not in clinicians:
+                clinicians[name] = {
+                    "entity_group": "CLINICIAN",
+                    "word": name,
+                    "start": match.start(1),
+                    "end": match.end(1),
+                    "score": 0.95,  # High confidence for regex matches
+                }
+
+        # 2. SpaCy NER with contextual validation
         doc = self.spacy_nlp(text)
+        keywords = {"therapist", "signature", "signed", "by", "clinician"}
         for ent in doc.ents:
             if ent.label_ == "PERSON":
-                entities.append({
-                    "entity_group": "CLINICIAN",
-                    "word": ent.text,
-                    "start": ent.start_char,
-                    "end": ent.end_char,
-                    "score": 0.95,
-                })
+                # Clean the entity text the same way as the regex match
+                name = re.sub(r',\s*\w+$', '', ent.text).strip()
+                if name not in clinicians:
+                    # Check for keywords in a window around the entity
+                    window = doc.char_span(max(0, ent.start_char - 30), ent.end_char + 30)
+                    if window is not None and any(keyword in window.text.lower() for keyword in keywords):
+                        clinicians[name] = {
+                            "entity_group": "CLINICIAN",
+                            "word": name,
+                            "start": ent.start_char,
+                            "end": ent.end_char,
+                            "score": 0.9,  # Slightly lower confidence
+                        }
 
-        # Regex fallback for common patterns
-        pattern = r"\b(?:Dr\.|Doctor|PT|OT|RN)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)"
-        for match in re.finditer(pattern, text):
-            entities.append({
-                "entity_group": "CLINICIAN",
-                "word": match.group(1),
-                "start": match.start(1),
-                "end": match.end(1),
-                "score": 0.90,
-            })
-
-        return entities
+        # Convert to list and sort by appearance in the text
+        return sorted(clinicians.values(), key=lambda x: x['start'])
 
     def extract_entities(self, text: str) -> List[Dict[str, Any]]:
         """

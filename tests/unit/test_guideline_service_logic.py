@@ -46,7 +46,7 @@ def guideline_service(mock_heavy_dependencies):
 def test_search_successful_orchestration(guideline_service: GuidelineService):
     query = "test query"
     results = guideline_service.search(query)
-    guideline_service.model.encode.assert_called_with([query], convert_to_tensor=True)
+    guideline_service.model.encode.assert_called_with([query])
     guideline_service.faiss_index.search.assert_called_once()
     assert len(results) > 0
     assert "Test sentence 1 about Medicare." in results[0]["text"]

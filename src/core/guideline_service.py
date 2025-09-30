@@ -7,11 +7,11 @@ from pathlib import Path
 from typing import Iterable, List, Sequence, Tuple
 
 # These will be imported conditionally to avoid loading heavy libraries at startup
-# import faiss
-# import joblib
-# import numpy as np
+import faiss
+import joblib
+import numpy as np
 
-from ..config import get_settings as _get_settings
+from src.config import get_settings as _get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -92,8 +92,6 @@ class GuidelineService:
 
     def _persist_cache_if_ready(self) -> None:
         if self.faiss_index is not None and self.guideline_chunks:
-            import faiss
-            import joblib
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             faiss.write_index(self.faiss_index, str(self.index_path))
             joblib.dump(self.guideline_chunks, self.chunks_path)
@@ -108,8 +106,6 @@ class GuidelineService:
         if not self.index_path.exists() or not self.chunks_path.exists():
             return False
         try:
-            import faiss
-            import joblib
             self.faiss_index = faiss.read_index(str(self.index_path))
             self.guideline_chunks = joblib.load(self.chunks_path)
             self.is_index_ready = True
@@ -122,8 +118,6 @@ class GuidelineService:
             return False
 
     def _build_index_from_sources(self) -> None:
-        import faiss
-        import numpy as np
         chunks: List[Tuple[str, str]] = []
         for source in self.sources:
             chunks.extend(self._load_from_source(Path(source)))
@@ -153,7 +147,6 @@ class GuidelineService:
         return []
 
     def _encode_texts(self, texts: Iterable[str]) -> 'np.ndarray':
-        import numpy as np
         embeddings = self.model.encode(list(texts), convert_to_numpy=True)
         if not isinstance(embeddings, np.ndarray):
             embeddings = np.asarray(embeddings)

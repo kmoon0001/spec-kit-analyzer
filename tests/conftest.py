@@ -228,7 +228,8 @@ async def async_client(test_db: AsyncSession) -> Generator[AsyncClient, None, No
         yield client
 
     # Clean up the dependency override after the test
-    del app.dependency_overrides[get_async_db]
+    # Use pop with a default to avoid KeyError if the override was already cleared
+    app.dependency_overrides.pop(get_async_db, None)
 
 
 # --- Test User Data ---------------------------------------------------------

@@ -1,8 +1,9 @@
+import logging
+import datetime
+from time import perf_counter
 from typing import List, Optional, Tuple, Dict, Any
 
-import datetime
-
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,6 +47,7 @@ report_generator = ReportGenerator()
 @router.get("/reports", response_model=List[schemas.Report])
 @limiter.limit("60/minute")
 async def read_reports(
+    request: Request,
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_async_db),
@@ -94,6 +96,7 @@ async def read_findings_summary(
 )
 @limiter.limit("30/minute")
 async def get_director_dashboard_data(
+    request: Request,
     db: AsyncSession = Depends(get_async_db),
     start_date: Optional[datetime.date] = None,
     end_date: Optional[datetime.date] = None,
@@ -190,12 +193,11 @@ Generate a JSON object with the following structure. Infer a likely root cause f
 
 Return only the JSON object.
 """
-
-try:
-    start = perf_counter()
-    raw_response = llm_service.generate_analysis(prompt)
-    duration = perf_counter() - start
-    logger.info("LLM coaching focus generation took %.2fs", duration)
+    try:
+        start = perf_counter()
+        raw_response = llm_service.generate_analysis(prompt)
+        duration = perf_counter() - start
+        logger.info("LLM coaching focus generation took %.2fs", duration)
         coaching_data = llm_service.parse_json_output(raw_response)
         return CoachingFocus(**coaching_data)
     except Exception as e:
@@ -213,6 +215,7 @@ try:
 )
 @limiter.limit("60/minute")
 async def get_habit_trends(
+    request: Request,
     db: AsyncSession = Depends(get_async_db),
     start_date: Optional[datetime.date] = None,
     end_date: Optional[datetime.date] = None,
