@@ -141,4 +141,5 @@ def get_settings() -> Settings:
     if db_url_env:
         config_data.setdefault("database", {})["url"] = db_url_env
 
+    print(config_data)
     return Settings(**config_data)
