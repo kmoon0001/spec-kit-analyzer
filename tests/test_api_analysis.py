@@ -15,6 +15,8 @@ MOCK_MODULES = {
     "src.core.nlg_service": MagicMock(),
     "src.core.risk_scoring_service": MagicMock(),
     "src.core.preprocessing_service": MagicMock(),
+    "ctransformers": MagicMock(),
+    "transformers": MagicMock(),
 }
 sys.modules.update(MOCK_MODULES)
 
@@ -23,11 +25,11 @@ sys.modules.update(MOCK_MODULES)
 #    This prevents any network calls or heavy model loading.
 patchers = [
     patch(
-        "src.core.llm_service.AutoModelForCausalLM.from_pretrained",
+        "ctransformers.AutoModelForCausalLM.from_pretrained",
         return_value=MagicMock(),
     ),
-    patch("src.core.fact_checker_service.pipeline", return_value=MagicMock()),
-    patch("src.core.ner.pipeline", return_value=MagicMock()),
+    patch("transformers.pipeline", return_value=MagicMock()),
+    patch("transformers.pipeline", return_value=MagicMock()),
     patch(
         "src.core.hybrid_retriever.crud.get_rubrics", return_value=[], create=True
     ),  # Prevent DB calls and create the attribute
@@ -107,11 +109,13 @@ def test_analyze_document_api_route(client: TestClient, mocker):
     assert "task_id" in response_data
     assert response_data["status"] == "processing"
 
-    mock_run_analysis.assert_called_once()
-
-    call_args, _ = mock_run_analysis.call_args
-    assert isinstance(call_args[0], str)
-    assert call_args[1] == response_data["task_id"]
-    assert call_args[2] == dummy_filename
-    assert call_args[3] == "pt"
-    assert call_args[4] == "rubric"
+    # Verify that the background task was called once with the correct arguments.
+    # We use mocker.ANY for values that are generated at runtime (e.g., file paths, services).
+    mock_run_analysis.assert_called_once_with(
+        file_path=mocker.ANY,
+        task_id=response_data["task_id"],
+        original_filename=dummy_filename,
+        discipline="pt",
+        analysis_mode="rubric",
+        analysis_service=mocker.ANY,
+    )

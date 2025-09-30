@@ -1,3 +1,5 @@
+import sys
+import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -15,10 +17,20 @@ def patched_service(tmp_path):
         encoding="utf-8",
     )
 
+    # Mock faiss and joblib before they are imported by the service
+    sys.modules["faiss"] = MagicMock()
+    sys.modules["joblib"] = MagicMock()
+
+    # Configure the faiss mock that will be used
+    mock_index = MagicMock()
+    mock_index.search.return_value = (
+        np.array([[0.9, 0.5, 0.1]], dtype="float32"),
+        np.array([[0, -1, -1]]),
+    )
+    sys.modules["faiss"].IndexFlatIP.return_value = mock_index
+
     with (
         patch("src.core.guideline_service.SentenceTransformer") as mock_st_cls,
-        patch("src.core.guideline_service.faiss") as mock_faiss_module,
-        patch("src.core.guideline_service.joblib"),
         patch("src.core.guideline_service.get_settings") as mock_get_settings,
         patch.object(GuidelineService, "_load_or_build_index", return_value=None),
     ):
@@ -31,14 +43,6 @@ def patched_service(tmp_path):
         mock_model.encode.return_value = np.random.rand(1, 384).astype("float32")
         mock_st_cls.return_value = mock_model
 
-        mock_index = MagicMock()
-        mock_index.search.return_value = (
-            np.array([[0.9, 0.5, 0.1]], dtype="float32"),
-            np.array([[0, -1, -1]]),
-        )
-        mock_faiss_module.IndexFlatIP.return_value = mock_index
-        mock_faiss_module.normalize_L2 = MagicMock()
-
         service = GuidelineService(sources=sources, cache_dir=str(tmp_path))
         service.guideline_chunks = [
             ("This is a Medicare guideline about documentation.", "guidelines.txt"),
@@ -48,6 +52,12 @@ def patched_service(tmp_path):
         service.model = mock_model
 
         yield service
+
+    # Clean up the mocks
+    if "faiss" in sys.modules:
+        del sys.modules["faiss"]
+    if "joblib" in sys.modules:
+        del sys.modules["joblib"]
 
 
 def test_search_returns_results(patched_service: GuidelineService):

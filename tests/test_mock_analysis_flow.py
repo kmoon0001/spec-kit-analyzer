@@ -7,28 +7,40 @@ from fastapi.testclient import TestClient
 # Ensure the src directory is in the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-# Set the config to use mocks before importing the app
-os.environ["USE_AI_MOCKS"] = "true"
-
-from src.api.main import app
-from src.auth import get_current_active_user
-from src.database import schemas
-
-# Define a dummy user that will be returned by our overridden dependency
-dummy_user = schemas.User(id=1, username="testuser", is_active=True, is_admin=False)
-
-def override_get_current_active_user():
-    """Override dependency to return a dummy user."""
-    return dummy_user
-
-# Apply the dependency override to the app
-app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+# We do not import the app here anymore to control when it's loaded.
 
 @pytest.fixture(scope="module")
 def client():
-    """Create a TestClient for the API."""
+    """
+    Create a TestClient for the API with the AnalysisService dependency
+    overridden to use the MockAnalysisService.
+    """
+    # Import app components here to ensure this fixture controls setup
+    from src.api.main import app
+    from src.api.dependencies import get_analysis_service
+    from src.core.mock_analysis_service import MockAnalysisService
+    from src.auth import get_current_active_user
+    from src.database import schemas
+
+    # Override the analysis service to use our mock
+    def override_get_analysis_service():
+        return MockAnalysisService()
+
+    app.dependency_overrides[get_analysis_service] = override_get_analysis_service
+
+    # Override authentication
+    dummy_user = schemas.User(id=1, username="testuser", is_active=True, is_admin=False)
+    def override_get_current_active_user():
+        return dummy_user
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+
     with TestClient(app) as c:
         yield c
+
+    # Clean up the dependency overrides
+    app.dependency_overrides = {}
+
 
 def test_full_mock_analysis_flow(client: TestClient):
     """

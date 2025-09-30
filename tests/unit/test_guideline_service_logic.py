@@ -4,29 +4,30 @@ import numpy as np
 import sys
 import os
 
-# Add the src directory to the Python path
-sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src"))
-)
+# No sys.path manipulation needed if pytest runs from the root
 
-from core.guideline_service import GuidelineService
+from src.core.guideline_service import GuidelineService
 
 
 @pytest.fixture
 def mock_heavy_dependencies():
-    with (
-        patch("core.guideline_service.SentenceTransformer") as mock_st_class,
-        patch("core.guideline_service.faiss") as mock_faiss_module,
-    ):
+    """Mocks faiss and SentenceTransformer to avoid heavy lifting."""
+    # Mock the entire faiss module before it's imported by the service
+    mock_faiss_module = MagicMock()
+    mock_faiss_index = MagicMock()
+    mock_faiss_index.search.return_value = (np.array([[0.1]]), np.array([[0]]))
+    mock_faiss_module.IndexFlatL2.return_value = mock_faiss_index
+    sys.modules["faiss"] = mock_faiss_module
+
+    with patch("src.core.guideline_service.SentenceTransformer") as mock_st_class:
         mock_st_instance = MagicMock()
         mock_st_instance.encode.return_value = np.random.rand(1, 384).astype("float32")
         mock_st_class.return_value = mock_st_instance
 
-        mock_faiss_index = MagicMock()
-        mock_faiss_index.search.return_value = (np.array([[0.1]]), np.array([[0]]))
-        mock_faiss_module.IndexFlatL2.return_value = mock_faiss_index
-
         yield {"st_class": mock_st_class, "faiss_module": mock_faiss_module}
+
+    # Clean up the mock from sys.modules
+    del sys.modules["faiss"]
 
 
 @pytest.fixture
@@ -46,7 +47,8 @@ def guideline_service(mock_heavy_dependencies):
 def test_search_successful_orchestration(guideline_service: GuidelineService):
     query = "test query"
     results = guideline_service.search(query)
-    guideline_service.model.encode.assert_called_with([query], convert_to_tensor=True)
+    # The search method calls encode without extra arguments for the query
+    guideline_service.model.encode.assert_called_with([query])
     guideline_service.faiss_index.search.assert_called_once()
     assert len(results) > 0
     assert "Test sentence 1 about Medicare." in results[0]["text"]

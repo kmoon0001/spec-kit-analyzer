@@ -1,3 +1,4 @@
+import json
 import logging
 import asyncio
 from typing import Any, Dict, List, Optional
@@ -76,9 +77,13 @@ class ComplianceAnalyzer:
         )
 
         raw_analysis_result = await asyncio.to_thread(
-            self.llm_service.generate_analysis, prompt
+            self.llm_service.generate, prompt
         )
-        initial_analysis = self.llm_service.parse_json_output(raw_analysis_result)
+        try:
+            initial_analysis = json.loads(raw_analysis_result)
+        except json.JSONDecodeError:
+            logger.error("LLM returned non-JSON payload: %s", raw_analysis_result)
+            initial_analysis = {"raw_output": raw_analysis_result}
 
         explained_analysis = self.explanation_engine.add_explanations(
             initial_analysis, document_text

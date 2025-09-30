@@ -3,6 +3,8 @@ from typing import Dict, List, Optional
 
 import numpy as np
 from rank_bm25 import BM25Okapi
+from sentence_transformers import SentenceTransformer
+from sentence_transformers.util import cos_sim
 
 try:  # pragma: no cover - optional dependency during tests
     from ..database import crud
@@ -17,8 +19,6 @@ class HybridRetriever:
     """Combine keyword and dense retrieval over in-memory rules."""
 
     def __init__(self, rules: Optional[List[Dict[str, str]]] = None) -> None:
-        from sentence_transformers import SentenceTransformer
-
         self.rules = rules or self._load_rules_from_db()
         self.dense_retriever = SentenceTransformer(
             "sentence-transformers/all-MiniLM-L6-v2"
@@ -62,19 +62,45 @@ class HybridRetriever:
             for r in rubric_models
         ]
 
-    def retrieve(self, query: str, top_k: int = 5) -> List[Dict[str, str]]:
-        from sentence_transformers.util import cos_sim
+    async def retrieve(
+        self,
+        query: str,
+        top_k: int = 5,
+        k: int = 60,
+        category_filter: Optional[str] = None,
+    ) -> List[Dict[str, str]]:
+        """
+        Retrieve and rank rules using a hybrid approach with Reciprocal Rank Fusion (RRF).
 
-        if not self.rules:
+        Args:
+            query (str): The search query.
+            top_k (int): The number of top results to return.
+            k (int): The ranking constant for RRF. Defaults to 60.
+            category_filter (Optional[str]): A filter for the rule category (currently ignored).
+
+        Returns:
+            List[Dict[str, str]]: A list of the top-k rules.
+        """
+        if category_filter:
+            logger.warning(
+                "The 'category_filter' is not yet implemented with RRF and will be ignored."
+            )
+        if not self.rules or not self.corpus:
             return []
 
+        # 1. Get BM25 scores and ranks
         tokenized_query = query.lower().split()
         bm25_scores = (
             self.bm25.get_scores(tokenized_query)
             if self.bm25 is not None
             else np.zeros(len(self.rules))
         )
+        bm25_ranks = {
+            doc_id: rank + 1
+            for rank, doc_id in enumerate(np.argsort(bm25_scores)[::-1])
+        }
 
+        # 2. Get dense retrieval scores and ranks
         query_embedding = self.dense_retriever.encode(query, convert_to_tensor=True)
         if self.corpus_embeddings is None:
             return []
@@ -84,14 +110,26 @@ class HybridRetriever:
             if hasattr(dense_scores_tensor, "cpu")
             else np.asarray(dense_scores_tensor)
         )
+        dense_ranks = {
+            doc_id: rank + 1
+            for rank, doc_id in enumerate(np.argsort(dense_scores)[::-1])
+        }
 
-        combined = []
-        for index, rule in enumerate(self.rules):
-            bm25_value = float(bm25_scores[index]) if len(bm25_scores) > index else 0.0
-            dense_value = (
-                float(dense_scores[index]) if len(dense_scores) > index else 0.0
-            )
-            combined.append((index, bm25_value + dense_value))
+        # 3. Calculate RRF scores
+        rrf_scores = {}
+        all_doc_ids = set(bm25_ranks.keys()) | set(dense_ranks.keys())
 
-        combined.sort(key=lambda item: item[1], reverse=True)
-        return [self.rules[index] for index, _ in combined[:top_k]]
+        for doc_id in all_doc_ids:
+            rrf_score = 0.0
+            if doc_id in bm25_ranks:
+                rrf_score += 1 / (k + bm25_ranks[doc_id])
+            if doc_id in dense_ranks:
+                rrf_score += 1 / (k + dense_ranks[doc_id])
+            rrf_scores[doc_id] = rrf_score
+
+        # 4. Sort by RRF score and return top-k results
+        sorted_docs = sorted(
+            rrf_scores.items(), key=lambda item: item[1], reverse=True
+        )
+
+        return [self.rules[doc_id] for doc_id, _ in sorted_docs[:top_k]]

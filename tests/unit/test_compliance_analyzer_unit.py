@@ -16,8 +16,7 @@ def compliance_analyzer() -> ComplianceAnalyzer:
     ]
 
     llm_service = MagicMock()
-    llm_service.generate_analysis.return_value = '{"findings": []}'
-    llm_service.parse_json_output.return_value = {"findings": []}
+    llm_service.generate.return_value = '{"findings": []}'
 
     explanation_engine = MagicMock()
     explanation_engine.add_explanations.return_value = {"findings": []}
@@ -57,7 +56,7 @@ async def test_analyze_document_orchestration(compliance_analyzer: ComplianceAna
         document_text
     )
     compliance_analyzer.prompt_manager.build_prompt.assert_called_once()
-    compliance_analyzer.llm_service.generate_analysis.assert_called_once()
+    compliance_analyzer.llm_service.generate.assert_called_once()
     compliance_analyzer.explanation_engine.add_explanations.assert_called_once()
     assert result == {"findings": []}
 
