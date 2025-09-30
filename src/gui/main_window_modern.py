@@ -4,8 +4,15 @@ Modern Main Window - Redesigned with medical theme and your exact layout specifi
 
 import os
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QMainWindow, QStatusBar,
-    QMenuBar, QFileDialog, QSplitter, QTextEdit, QLabel, QGroupBox,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QMessageBox,
+    QMainWindow,
+    QStatusBar,
+    QMenuBar,
+    QFileDialog,
+   QSplitter, QTextEdit, QLabel, QGroupBox,
     QProgressBar, QPushButton, QTabWidget, QTextBrowser, QComboBox,
     QListWidget, QListWidgetItem, QFrame, QScrollArea, QGridLayout,
     QSizePolicy, QSpacerItem
@@ -16,8 +23,7 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QStatusBar,
     QMenuBar,
-    QFileDialog,
-    QTextEdit,
+    QFileDialog, QTextEdit,
     QLabel,
     QProgressBar,
     QTextBrowser,
@@ -587,9 +593,17 @@ class ModernMainWindow(QMainWindow):
 
     # Placeholder methods for existing functionality
     def logout(self):
+
+
+
         raise NotImplementedError()
 
+
+
     def manage_rubrics(self):
+
+
+
         raise NotImplementedError()
 
     def show_performance_settings(self):

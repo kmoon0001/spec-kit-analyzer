@@ -66,7 +66,7 @@ class HybridRetriever:
             }
             for r in rubric_models
         ]
-      
+
     def retrieve(
         self, query: str, top_k: int = 5, category_filter: Optional[str] = None
     ) -> List[Dict[str, str]]:
