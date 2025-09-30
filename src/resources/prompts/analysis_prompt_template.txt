@@ -25,10 +25,10 @@ Your task:
 4. Flag uncertainty if the evidence is weak.
 
 Output strictly as JSON with this structure (omit empty fields):
-{
+{{
   "summary": "One or two sentences summarising the compliance posture.",
   "findings": [
-    {
+    {{
       "rule_id": "<identifier or 'ad-hoc'>",
       "issue_title": "<short description>",
       "text": "<exact excerpt from the document>",
@@ -37,10 +37,10 @@ Output strictly as JSON with this structure (omit empty fields):
       "personalized_tip": "<actionable recommendation>",
       "severity_reason": "<why this matters>",
       "priority": "High|Medium|Low"
-    }
+    }}
   ],
   "citations": ["<reference>"]
-}
+}}
 
 Rules:
 - Do not invent content. If evidence is unclear, set confidence below 0.6 and explain why.

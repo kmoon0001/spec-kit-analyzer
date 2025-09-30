@@ -54,7 +54,9 @@ class FindingSummary(BaseModel):
 
 class RubricBase(BaseModel):
     name: str
-    content: str
+    regulation: str
+    common_pitfalls: str
+    best_practice: str
     category: str | None = None
 
 

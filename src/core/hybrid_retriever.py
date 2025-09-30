@@ -26,7 +26,10 @@ class HybridRetriever:
         self._build_indices()
 
     def _build_indices(self) -> None:
-        self.corpus = [f"{rule['name']}. {rule['content']}" for rule in self.rules]
+        self.corpus = [
+            f"{rule['name']}. Regulation: {rule.get('regulation', '')}. Common Pitfalls: {rule.get('common_pitfalls', '')}. Best Practice: {rule.get('best_practice', '')}"
+            for rule in self.rules
+        ]
         tokenized_corpus = [document.lower().split() for document in self.corpus]
         self.bm25 = BM25Okapi(tokenized_corpus) if tokenized_corpus else None
         self.corpus_embeddings = (
@@ -56,13 +59,18 @@ class HybridRetriever:
             {
                 "id": r.id,
                 "name": getattr(r, "name", ""),
-                "content": getattr(r, "content", ""),
+                "regulation": getattr(r, "regulation", ""),
+                "common_pitfalls": getattr(r, "common_pitfalls", ""),
+                "best_practice": getattr(r, "best_practice", ""),
                 "category": getattr(r, "category", ""),
             }
             for r in rubric_models
         ]
-
-    def retrieve(self, query: str, top_k: int = 5) -> List[Dict[str, str]]:
+      
+    def retrieve(
+        self, query: str, top_k: int = 5, category_filter: Optional[str] = None
+    ) -> List[Dict[str, str]]:
+        from sentence_transformers.util import cos_sim
         if not self.rules:
             return []
 
@@ -92,4 +100,15 @@ class HybridRetriever:
             combined.append((index, bm25_value + dense_value))
 
         combined.sort(key=lambda item: item[1], reverse=True)
-        return [self.rules[index] for index, _ in combined[:top_k]]
+
+        sorted_rules = [self.rules[index] for index, _ in combined]
+
+        if category_filter:
+            filtered_rules = [
+                rule
+                for rule in sorted_rules
+                if rule.get("category", "").lower() == category_filter.lower()
+            ]
+            return filtered_rules[:top_k]
+
+        return sorted_rules[:top_k]

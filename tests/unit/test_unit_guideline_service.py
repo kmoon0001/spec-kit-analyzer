@@ -14,11 +14,18 @@ def patched_service(tmp_path):
         "This is a Medicare guideline about documentation.",
         encoding="utf-8",
     )
+    mock_faiss_module = MagicMock()
+    mock_index = MagicMock()
+    mock_index.search.return_value = (
+        np.array([[0.9, 0.5, 0.1]], dtype="float32"),
+        np.array([[0, -1, -1]]),
+    )
+    mock_faiss_module.IndexFlatIP.return_value = mock_index
+    mock_faiss_module.normalize_L2 = MagicMock()
 
     with (
         patch("src.core.guideline_service.SentenceTransformer") as mock_st_cls,
-        patch("src.core.guideline_service.faiss") as mock_faiss_module,
-        patch("src.core.guideline_service.joblib"),
+        patch.dict("sys.modules", {"faiss": mock_faiss_module, "joblib": MagicMock()}),
         patch("src.core.guideline_service.get_settings") as mock_get_settings,
         patch.object(GuidelineService, "_load_or_build_index", return_value=None),
     ):
@@ -30,14 +37,6 @@ def patched_service(tmp_path):
         mock_model = MagicMock()
         mock_model.encode.return_value = np.random.rand(1, 384).astype("float32")
         mock_st_cls.return_value = mock_model
-
-        mock_index = MagicMock()
-        mock_index.search.return_value = (
-            np.array([[0.9, 0.5, 0.1]], dtype="float32"),
-            np.array([[0, -1, -1]]),
-        )
-        mock_faiss_module.IndexFlatIP.return_value = mock_index
-        mock_faiss_module.normalize_L2 = MagicMock()
 
         service = GuidelineService(sources=sources, cache_dir=str(tmp_path))
         service.guideline_chunks = [
