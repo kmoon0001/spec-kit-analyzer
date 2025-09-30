@@ -20,7 +20,7 @@ class LLMComplianceAnalyzer:
             document_text=document_text,
             context=context,
         )
-        raw_response = self.llm_service.generate_analysis(prompt)
+        raw_response = self.llm_service.generate(prompt)
         return self._parse_response(raw_response)
 
     def _parse_response(self, raw_response: str) -> Dict[str, Any]:
