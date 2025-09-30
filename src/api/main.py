@@ -50,16 +50,6 @@ def run_database_maintenance():
     """Instantiates and runs the database maintenance service."""
     logger.info("Scheduler triggered: Starting database maintenance job.")
     maintenance_service = DatabaseMaintenanceService()
-from fastapi import FastAPI
-from async_limiter import Limiter  # example import; adjust as needed
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-from apscheduler.schedulers.background import BackgroundScheduler
-from contextlib import asynccontextmanager
-import logging
-
-from .dependencies import startup_event as api_startup, shutdown_event as api_shutdown
-from .routers import auth, analysis, dashboard, admin, health, chat, compliance, users
 from .error_handling import http_exception_handler
 
 logger = logging.getLogger(__name__)
