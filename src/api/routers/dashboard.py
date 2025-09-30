@@ -1,4 +1,5 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
+
 import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -18,17 +19,19 @@ settings = get_settings()
 
 logger = logging.getLogger(__name__)
 
-
 def _resolve_generator_model(cfg) -> Tuple[str, str]:
     """Resolve the generator model repo and filename from settings.
 
     Prefers a named profile if provided; otherwise falls back to legacy fields.
     """
+    # Prefer profile lookup if configured
+
     profile_key = cfg.models.generator
     profiles = cfg.models.generator_profiles or {}
     if profile_key and profile_key in profiles:
         profile = profiles[profile_key]
         return profile.repo, profile.filename
+    # Fallback to legacy fields
 
     if cfg.models.generator and cfg.models.generator_filename:
         return cfg.models.generator, cfg.models.generator_filename
@@ -138,7 +141,8 @@ async def generate_coaching_focus(dashboard_data: DirectorDashboardData) -> Coac
             detail="Director Dashboard feature is not enabled.",
         )
 
-    # In a larger application, this service would be managed via DI.
+    # In a larger application, this service would be managed via a dependency injection system.
+
     repo_id, filename = _resolve_generator_model(settings)
     llm_service = LLMService(
         model_repo_id=repo_id,
@@ -187,11 +191,11 @@ Generate a JSON object with the following structure. Infer a likely root cause f
 Return only the JSON object.
 """
 
-    try:
-        start = perf_counter()
-        raw_response = llm_service.generate_analysis(prompt)
-        duration = perf_counter() - start
-        logger.info("LLM coaching focus generation took %.2fs", duration)
+try:
+    start = perf_counter()
+    raw_response = llm_service.generate_analysis(prompt)
+    duration = perf_counter() - start
+    logger.info("LLM coaching focus generation took %.2fs", duration)
         coaching_data = llm_service.parse_json_output(raw_response)
         return CoachingFocus(**coaching_data)
     except Exception as e:
