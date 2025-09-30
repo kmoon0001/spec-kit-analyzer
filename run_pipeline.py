@@ -39,7 +39,8 @@ def main():
             {"risk": "High", "text": "Sample finding 1", "rule_id": "signature_rule", "suggestion": "Ensure the therapist signs the document."},
             {"risk": "Medium", "text": "Sample finding 2", "rule_id": "goals_rule", "suggestion": "This is a recommendation for a young person to improve strength."},
         ],
-        "summary": "This is a mock analysis summary."
+        "summary": "This is a mock analysis summary.",
+        "overall_confidence": 0.85,
     }
 
     medicare_scorer = MedicareComplianceService(config={})
@@ -67,16 +68,13 @@ def main():
 
         if result and "error" not in result:
             logging.info("Pipeline completed successfully!")
+
+            final_report_html = result.get('report', {}).get('report_html', 'Not available')
+            # A more robust way to check the end of the report for the new section
+            logging.info(f"\n--- End of Report ---\n{final_report_html[-500:]}")
+            logging.info("--- End of Report Log ---\n")
         else:
             logging.error(f"Pipeline failed. Result: {result}")
-
-        # Verify audit trail
-        logging.info("\n--- Audit Trail ---")
-        with open(audit_log_file, "r") as f:
-            for line in f:
-                logging.info(line.strip())
-        logging.info("--- End Audit Trail ---\n")
-
 
     except Exception as e:
         logging.error(f"An unexpected error occurred: {e}", exc_info=True)
