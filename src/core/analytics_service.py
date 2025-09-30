@@ -160,7 +160,7 @@ class AnalyticsService:
                         'frequency': frequency,
                         'impact': impact,
                         'risk_distribution': dict(risk_counts),
-                        'affected_documents': len(set(d['document'] for d in details))
+                        'affected_documents': len({d['document'] for d in details})
                     })
 
             # Sort by frequency and impact
