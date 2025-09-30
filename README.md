@@ -1,8 +1,12 @@
 # Therapy Compliance Analyzer
 
+## 🌟 Overview
+
 This project is an advanced, AI-powered desktop application designed to help clinical therapists analyze documentation for compliance with Medicare and other regulatory guidelines. It uses a suite of local AI models to provide in-depth analysis, personalized feedback, and historical trend tracking, all while ensuring data privacy by processing everything on the user's machine.
 
-## 🌟 Key Features
+This document provides a high-level overview of the project, including its features and architecture. For detailed instructions on how to install, configure, and run the application, please see the [Quick Start Guide](QUICK_START.md).
+
+## ✨ Key Features
 
 - **Secure User Authentication**: A robust login system with password management ensures secure access.
 - **Interactive Dashboard**: Visualize compliance trends over time with a historical score chart and see a breakdown of the most common compliance issues.
@@ -18,9 +22,16 @@ This project is an advanced, AI-powered desktop application designed to help cli
 - **Database-Backed Rubric Manager**: A full GUI for adding, editing, and deleting compliance rubrics, with all changes immediately reflected in the analysis engine.
 - **Automated Database Maintenance**: The application automatically purges old reports to manage disk space usage.
 
+### User Interface & Experience
+- **Modern, Responsive UI**: A clean and professional interface that provides a seamless user experience.
+- **Real-time Status Indicators**: Live feedback on AI model status and system performance.
+- **Theme Support**: Switch between light and dark modes to suit your preference.
+- **Smart Chat Assistant**: An AI-powered assistant to help with compliance-related questions.
+- **Enhanced Reporting**:
+    - **Dynamic HTML Reports**: Generate detailed compliance reports from the analysis data.
+    - **Risk Assessment**: Color-coded risk levels (High, Medium, Low) with detailed scoring.
+    - **Interactive Findings**: Clickable findings that provide detailed explanations and suggestions.
 
-
-3
 ## 📂 Project Architecture
 
 The application is composed of a Python backend API and a desktop GUI.
@@ -49,58 +60,7 @@ The application is composed of a Python backend API and a desktop GUI.
 
 ## 🚀 Getting Started
 
-### Prerequisites
-
-- **Python 3.10+** and **pip**.
-- **Git** for cloning the repository.
-- **System Dependencies**: This project relies on system-level libraries that must be installed before the Python packages.
-  - **Cairo**: Required for `pycairo`, which is used for PDF and graphics functionality.
-  - **Tesseract**: Required for `pytesseract`, used for Optical Character Recognition (OCR).
-
-  For Debian/Ubuntu-based systems, install these with:
-  ```bash
-  sudo apt-get update && sudo apt-get install -y libcairo2-dev tesseract-ocr
-  ```
-  For other operating systems (e.g., macOS, Windows), please use your system's package manager (like Homebrew or Chocolatey) to install `cairo` and `tesseract`.
-
-### 1. Installation
-
-Clone the repository and install the required dependencies for running the application:
-
-```bash
-pip install -r requirements.txt
-```
-
-For development, which includes running tests and linters, install the additional development dependencies:
-```bash
-pip install -r requirements-dev.txt
-```
-
-### 2. Configuration (Crucial Step)
-
-The application uses `config.yaml` for most settings, but sensitive data like the `SECRET_KEY` should be handled securely using environment variables.
-
-1.  **Set the Secret Key**: For production, set the `SECRET_KEY` as an environment variable. For local development, you can create a `.env` file in the project root. The application uses `python-dotenv` to load this file automatically.
-
-2.  **Create a `.env` file** with the following content:
-    ```.env
-    # A secret key for encoding JWT tokens. Generate a new one for your instance.
-    # You can generate one with: openssl rand -hex 32
-    SECRET_KEY="YOUR_SUPER_SECRET_KEY_HERE"
-    ```
-    **Note**: The `secret_key` value in `config.yaml` is a placeholder and should not be used for production. The environment variable will always take precedence.
-
-3.  **Create a default user**: The application requires at least one user to log in. You will need to create one manually in the database for the first run.
-
-### 3. Running the Application
-
-The application is launched using a single script that starts both the backend API server and the frontend GUI.
-
-Run the following command from the project root:
-```bash
-python start_app.py
-```
-The GUI application will start, and you will be prompted to log in. The backend API will run in the background, and its logs will be saved to `api_server.log` and `api_server.err.log`.
+For detailed instructions on how to set up and run the application, please see the [Quick Start Guide](QUICK_START.md).
 
 ## 🧪 Running Tests
 
