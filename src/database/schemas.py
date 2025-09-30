@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional, List, Dict, Any
 import datetime
 
 # --- Schemas for Reports and Findings (Dashboard) ---
@@ -18,8 +18,7 @@ class Finding(FindingBase):
     id: int
     report_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FindingCreate(FindingBase):
@@ -29,7 +28,7 @@ class FindingCreate(FindingBase):
 class ReportBase(BaseModel):
     document_name: str
     compliance_score: float
-    analysis_result: dict
+    analysis_result: Dict[str, Any]
     document_embedding: Optional[bytes] = None
 
 
@@ -40,10 +39,9 @@ class ReportCreate(ReportBase):
 class Report(ReportBase):
     id: int
     analysis_date: datetime.datetime
-    findings: List[Finding] = []
+    findings: List[Finding] = Field(default_factory=list)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FindingSummary(BaseModel):
@@ -67,8 +65,7 @@ class RubricCreate(RubricBase):
 class Rubric(RubricBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # --- Schemas for Users and Auth ---
@@ -87,8 +84,7 @@ class User(UserBase):
     is_active: bool
     is_admin: bool = False
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserPasswordChange(BaseModel):
