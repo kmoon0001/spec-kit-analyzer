@@ -21,15 +21,24 @@ API_URL = settings.api_url
 
 
 class RubricEditorDialog(QDialog):
-    def __init__(self, rubric_name, rubric_content, parent=None):
+    def __init__(self, rubric_data, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Edit Rubric")
         self.layout = QFormLayout(self)
-        self.name_editor = QLineEdit(rubric_name)
-        self.content_editor = QTextEdit()
-        self.content_editor.setText(rubric_content)
+
+        self.name_editor = QLineEdit(rubric_data.get("name", ""))
+        self.regulation_editor = QTextEdit()
+        self.regulation_editor.setText(rubric_data.get("regulation", ""))
+        self.common_pitfalls_editor = QTextEdit()
+        self.common_pitfalls_editor.setText(rubric_data.get("common_pitfalls", ""))
+        self.best_practice_editor = QTextEdit()
+        self.best_practice_editor.setText(rubric_data.get("best_practice", ""))
+
         self.layout.addRow("Name:", self.name_editor)
-        self.layout.addRow("Content:", self.content_editor)
+        self.layout.addRow("Regulation:", self.regulation_editor)
+        self.layout.addRow("Common Pitfalls:", self.common_pitfalls_editor)
+        self.layout.addRow("Best Practice:", self.best_practice_editor)
+
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
@@ -40,7 +49,10 @@ class RubricEditorDialog(QDialog):
     def get_data(self):
         return {
             "name": self.name_editor.text(),
-            "content": self.content_editor.toPlainText(),
+            "regulation": self.regulation_editor.toPlainText(),
+            "common_pitfalls": self.common_pitfalls_editor.toPlainText(),
+            "best_practice": self.best_practice_editor.toPlainText(),
+            "category": "default",
         }
 
 
@@ -57,7 +69,7 @@ class RubricManagerDialog(QDialog):
 
         button_box = QDialogButtonBox()
         add_button = button_box.addButton(
-            "Add from File...", QDialogButtonBox.ButtonRole.ActionRole
+            "Add Rubric...", QDialogButtonBox.ButtonRole.ActionRole
         )
         edit_button = button_box.addButton(
             "Edit Selected", QDialogButtonBox.ButtonRole.ActionRole
@@ -70,7 +82,7 @@ class RubricManagerDialog(QDialog):
         if close_button:
             close_button.clicked.connect(self.accept)
         if add_button:
-            add_button.clicked.connect(self.add_rubric_from_file)
+            add_button.clicked.connect(self.add_rubric)
         if edit_button:
             edit_button.clicked.connect(self.edit_rubric)
         if remove_button:
@@ -92,32 +104,24 @@ class RubricManagerDialog(QDialog):
         except requests.exceptions.RequestException as e:
             QMessageBox.critical(self, "Error", f"Failed to load rubrics: {e}")
 
-    def add_rubric_from_file(self):
-        rubric_name, ok = QInputDialog.getText(
-            self, "Add Rubric", "Enter a unique name for the new rubric:"
-        )
-        if not (ok and rubric_name):
-            return
-
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select Rubric Document", "", "Text Files (*.txt)"
-        )
-        if not file_path:
-            return
-
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            headers = {"Authorization": f"Bearer {self.token}"}
-            response = requests.post(
-                f"{API_URL}/rubrics/",
-                json={"name": rubric_name, "content": content},
-                headers=headers,
-            )
-            response.raise_for_status()
-            self.load_rubrics()
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to add rubric: {e}")
+    def add_rubric(self):
+        dialog = RubricEditorDialog({}, self)
+        if dialog.exec():
+            new_data = dialog.get_data()
+            if not new_data.get("name"):
+                QMessageBox.warning(self, "Input Error", "Rubric name cannot be empty.")
+                return
+            try:
+                headers = {"Authorization": f"Bearer {self.token}"}
+                response = requests.post(
+                    f"{API_URL}/rubrics/",
+                    json=new_data,
+                    headers=headers,
+                )
+                response.raise_for_status()
+                self.load_rubrics()
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to add rubric: {e}")
 
     def edit_rubric(self):
         selected_item = self.rubric_list.currentItem()
@@ -125,7 +129,7 @@ class RubricManagerDialog(QDialog):
             return
 
         rubric_data = selected_item.data(Qt.ItemDataRole.UserRole)
-        dialog = RubricEditorDialog(rubric_data["name"], rubric_data["content"], self)
+        dialog = RubricEditorDialog(rubric_data, self)
         if dialog.exec():
             new_data = dialog.get_data()
             try:

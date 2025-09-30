@@ -1,6 +1,7 @@
 import pytest
 import os
 from unittest.mock import patch, MagicMock
+import numpy as np
 
 from src.core.guideline_service import GuidelineService
 
@@ -10,7 +11,8 @@ def mock_sentence_transformer():
     """Mocks the SentenceTransformer to avoid downloading models during tests."""
     with patch("sentence_transformers.SentenceTransformer") as mock_st:
         mock_model = MagicMock()
-        mock_model.encode.return_value = MagicMock()
+        # The encode method should return a numpy array with a shape like (n_sentences, embedding_dim)
+        mock_model.encode.return_value = np.random.rand(1, 384).astype("float32")
         mock_st.return_value = mock_model
         yield mock_st
 
@@ -27,10 +29,7 @@ def guideline_service(tmp_path, mock_sentence_transformer):
 
     # The GuidelineService will use the real implementation but with a mocked model
     # and a temporary cache directory.
-    service = GuidelineService(sources=sources)
-    service.cache_dir = str(tmp_path)
-    service.index_path = str(tmp_path / "guidelines.index")
-    service.chunks_path = str(tmp_path / "guidelines.pkl")
+    service = GuidelineService(sources=sources, cache_dir=str(tmp_path))
 
     return service
 

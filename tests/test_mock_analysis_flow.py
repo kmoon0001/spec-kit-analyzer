@@ -3,32 +3,39 @@ import sys
 import time
 import pytest
 from fastapi.testclient import TestClient
+from unittest.mock import patch
 
 # Ensure the src directory is in the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-# Set the config to use mocks before importing the app
-os.environ["USE_AI_MOCKS"] = "true"
-
 from src.api.main import app
 from src.auth import get_current_active_user
 from src.database import schemas
+from src.config import get_settings
 
-# Define a dummy user that will be returned by our overridden dependency
-dummy_user = schemas.User(id=1, username="testuser", is_active=True, is_admin=False)
-
-def override_get_current_active_user():
-    """Override dependency to return a dummy user."""
-    return dummy_user
-
-# Apply the dependency override to the app
-app.dependency_overrides[get_current_active_user] = override_get_current_active_user
 
 @pytest.fixture(scope="module")
 def client():
-    """Create a TestClient for the API."""
-    with TestClient(app) as c:
-        yield c
+    """Create a TestClient for the API with authentication and settings overridden."""
+
+    def override_get_current_active_user():
+        """Override dependency to return a dummy user."""
+        return schemas.User(id=1, username="testuser", is_active=True, is_admin=False)
+
+    app.dependency_overrides[get_current_active_user] = override_get_current_active_user
+
+    # Clear the cache for get_settings to ensure our patch is effective
+    get_settings.cache_clear()
+    original_settings = get_settings()
+    mock_settings = original_settings.copy(update={"use_ai_mocks": True})
+
+    # We patch get_settings in the module where it is imported and used (the dependencies module)
+    with patch("src.api.dependencies.get_settings", return_value=mock_settings):
+        with TestClient(app) as c:
+            yield c
+
+    app.dependency_overrides.clear()
+
 
 def test_full_mock_analysis_flow(client: TestClient):
     """

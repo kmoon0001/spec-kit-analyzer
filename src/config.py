@@ -66,6 +66,7 @@ class Settings(BaseModel):
     models: ModelsSettings
     llm_settings: LLMSettings
     retrieval_settings: RetrievalSettings
+    use_ai_mocks: bool = False
     temp_upload_dir: str
     api_url: str
     rule_dir: str
