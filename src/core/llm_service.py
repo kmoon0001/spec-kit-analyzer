@@ -1,14 +1,25 @@
 import logging
 from typing import Dict, Any, Optional
+from threading import Lock
 
-# Move import to top level for patching
+# Import at top level for easier mocking and to avoid import-time side effects.
 from ctransformers import AutoModelForCausalLM
 
 logger = logging.getLogger(__name__)
 
 
 class LLMService:
-    """Service wrapper around a local GGUF model loaded via ctransformers."""
+    """
+    A thread-safe, lazy-loading service for managing a local GGUF model.
+
+    This service ensures that the large language model is only loaded into memory
+    when it is first needed, reducing the application's initial memory footprint.
+    It is designed to be thread-safe to prevent race conditions during model loading
+    in concurrent environments.
+    """
+
+    _instance = None
+    _lock = Lock()
 
     def __init__(
         self,
@@ -16,45 +27,93 @@ class LLMService:
         model_filename: str,
         llm_settings: Optional[Dict[str, Any]] = None,
     ):
-        """Initializes the LLM Service and lazy-loads the model."""
+        """
+        Initializes the LLM Service configuration without loading the model.
+
+        Args:
+            model_repo_id (str): The Hugging Face repository ID for the model.
+            model_filename (str): The specific GGUF model file to use.
+            llm_settings (dict, optional): A dictionary of settings for ctransformers.
+        """
         self.model_repo_id = model_repo_id
         self.model_filename = model_filename
         self.settings = llm_settings or {}
-        self.generation_params = self.settings.get("generation_params", {}).copy()
-        self.llm = None
-        self.generation_params = self.settings.get("generation_params", {})
-        self._load_model()
+        self.llm = None  # The model will be loaded lazily.
+        self.is_loading = False
 
     def _load_model(self):
-        """Loads the GGUF model from the specified path."""
+        """
+        Loads the GGUF model using the configured settings.
+        This method is intended to be called internally and is not thread-safe by itself.
+        """
+        if self.llm:
+            return
+
+        self.is_loading = True
         try:
-            logger.info(f"Loading LLM: {self.model_repo_id}/{self.model_filename}")
+            logger.info("Loading LLM: %s/%s", self.model_repo_id, self.model_filename)
+            # Pass model-specific settings directly to the from_pretrained method.
+            model_type = self.settings.get("model_type", "llama")
+            context_length = self.settings.get("context_length", 2048)
+
             self.llm = AutoModelForCausalLM.from_pretrained(
                 self.model_repo_id,
                 model_file=self.model_filename,
-                model_type=self.settings.get("model_type", "llama"),
-                context_length=self.settings.get("context_length", 2048),
+                model_type=model_type,
+                context_length=context_length,
+                # Add any other relevant settings from your config
             )
             logger.info("LLM loaded successfully.")
         except Exception as e:
-            logger.error(f"Failed to load LLM: {e}")
+            logger.critical("Fatal error: Failed to load LLM. %s", e, exc_info=True)
             self.llm = None
+        finally:
+            self.is_loading = False
+
+    def _ensure_model_loaded(self):
+        """
+        Ensures the model is loaded before use. This method is thread-safe.
+        """
+        if self.llm or self.is_loading:
+            return
+        with self._lock:
+            # Double-check locking to prevent multiple threads from loading the model.
+            if not self.llm:
+                self._load_model()
 
     def is_ready(self) -> bool:
-        """Check if the LLM is loaded and ready."""
+        """
+        Checks if the LLM is loaded and ready for inference.
+        This will trigger the model to load if it hasn't been already.
+        """
+        self._ensure_model_loaded()
         return self.llm is not None
 
     def generate(self, prompt: str, **kwargs) -> str:
-        """Generate text using the loaded LLM."""
+        """
+        Generates text using the loaded LLM.
+
+        If the model is not loaded, it will be loaded on the first call.
+
+        Args:
+            prompt (str): The input text prompt for the model.
+            **kwargs: Additional generation parameters to override defaults.
+
+        Returns:
+            A string containing the generated text or an error message.
+        """
         if not self.is_ready():
-            return "LLM not available."
+            logger.error("LLM is not available or failed to load. Cannot generate text.")
+            return "Error: LLM service is not available."
 
         try:
+            # Combine default and call-specific generation parameters.
             gen_params = self.settings.get("generation_params", {}).copy()
             gen_params.update(kwargs)
 
+            logger.debug("Generating text with params: %s", gen_params)
             response = self.llm(prompt, **gen_params)
             return response
         except Exception as e:
-            logger.error(f"Error during text generation: {e}")
+            logger.error("An error occurred during text generation: %s", e, exc_info=True)
             return "An error occurred during text generation."

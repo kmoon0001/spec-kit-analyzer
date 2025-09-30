@@ -53,15 +53,6 @@ The application is composed of a Python backend API and a desktop GUI.
 
 - **Python 3.10+** and **pip**.
 - **Git** for cloning the repository.
-- **System Dependencies**: This project relies on system-level libraries that must be installed before the Python packages.
-  - **Cairo**: Required for `pycairo`, which is used for PDF and graphics functionality.
-  - **Tesseract**: Required for `pytesseract`, used for Optical Character Recognition (OCR).
-
-  For Debian/Ubuntu-based systems, install these with:
-  ```bash
-  sudo apt-get update && sudo apt-get install -y libcairo2-dev tesseract-ocr
-  ```
-  For other operating systems (e.g., macOS, Windows), please use your system's package manager (like Homebrew or Chocolatey) to install `cairo` and `tesseract`.
 
 ### 1. Installation
 

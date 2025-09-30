@@ -12,7 +12,7 @@ except Exception:  # pragma: no cover - spaCy is optional at runtime
     spacy = None
     Language = None  # type: ignore[assignment]
 
-from src.core.text_utils import sanitize_human_text
+from .text_utils import sanitize_human_text
 
 
 @dataclass
