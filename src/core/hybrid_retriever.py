@@ -3,6 +3,8 @@ from typing import Dict, List, Optional
 
 import numpy as np
 from rank_bm25 import BM25Okapi
+from sentence_transformers import SentenceTransformer
+from sentence_transformers.util import cos_sim
 
 try:  # pragma: no cover - optional dependency during tests
     from ..database import crud
@@ -17,8 +19,6 @@ class HybridRetriever:
     """Combine keyword and dense retrieval over in-memory rules."""
 
     def __init__(self, rules: Optional[List[Dict[str, str]]] = None) -> None:
-        from sentence_transformers import SentenceTransformer
-
         self.rules = rules or self._load_rules_from_db()
         self.dense_retriever = SentenceTransformer(
             "sentence-transformers/all-MiniLM-L6-v2"
@@ -66,12 +66,11 @@ class HybridRetriever:
             }
             for r in rubric_models
         ]
-
+      
     def retrieve(
         self, query: str, top_k: int = 5, category_filter: Optional[str] = None
     ) -> List[Dict[str, str]]:
         from sentence_transformers.util import cos_sim
-
         if not self.rules:
             return []
 

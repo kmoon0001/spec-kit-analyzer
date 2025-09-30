@@ -1,4 +1,5 @@
 import logging
+from transformers import pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,6 @@ class FactCheckerService:
         """Lazy-loads the NLI model."""
         if self.classifier is None:
             try:
-                from transformers import pipeline
                 logger.info(f"Loading fact-checking model: {self.model_name}")
                 self.classifier = pipeline("text2text-generation", model=self.model_name)
                 logger.info("Fact-checking model loaded successfully.")

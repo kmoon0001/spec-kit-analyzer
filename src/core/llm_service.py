@@ -1,6 +1,9 @@
 import logging
 from typing import Dict, Any, Optional
 
+# Move import to top level for patching
+from ctransformers import AutoModelForCausalLM
+
 logger = logging.getLogger(__name__)
 
 class LLMService:
@@ -23,8 +26,6 @@ class LLMService:
     def _load_model(self):
         """Loads the GGUF model from the specified path."""
         try:
-            from ctransformers import AutoModelForCausalLM
-
             logger.info(f"Loading LLM: {self.model_repo_id}/{self.model_filename}")
             self.llm = AutoModelForCausalLM.from_pretrained(
                 self.model_repo_id,
