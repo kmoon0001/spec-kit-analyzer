@@ -4,7 +4,7 @@ from httpx import AsyncClient
 
 from src.api.main import app
 from src.auth import get_current_active_user
-from src.database import schemas
+from src import schemas
 
 # Mark all tests in this file as asyncio tests
 pytestmark = pytest.mark.asyncio
@@ -13,8 +13,6 @@ pytestmark = pytest.mark.asyncio
 @pytest.fixture
 def override_auth():
     """A fixture to override authentication for the duration of a test."""
-    dummy_user = schemas.User(id=1, username="testuser", is_active=True, is_admin=False)
-
     def _override_get_current_active_user():
         return dummy_user
 

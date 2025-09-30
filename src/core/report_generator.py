@@ -13,8 +13,8 @@ from typing import Any, Dict, List
 
 import markdown
 
-from .habit_mapper import get_habit_for_finding
-from .text_utils import sanitize_human_text
+from src.core.habit_mapper import get_habit_for_finding
+from src.core.text_utils import sanitize_human_text
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 

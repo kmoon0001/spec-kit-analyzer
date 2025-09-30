@@ -1,8 +1,8 @@
 import logging
 from typing import Dict, List
 
-from .llm_service import LLMService
-from .text_utils import sanitize_human_text
+from src.core.llm_service import LLMService
+from src.core.text_utils import sanitize_human_text
 
 logger = logging.getLogger(__name__)
 
