@@ -22,7 +22,6 @@ def client():
     from src.api.dependencies import get_analysis_service
     from src.core.mock_analysis_service import MockAnalysisService
     from src.auth import get_current_active_user
-
     # Note: Using 'from src.database import schemas' from 'main' instead of 'from src import schemas'
     from src import schemas
     import datetime
