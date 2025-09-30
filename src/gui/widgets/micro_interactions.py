@@ -3,9 +3,10 @@ Micro-interactions and Animations - Smooth transitions and visual feedback.
 """
 from PyQt6.QtWidgets import QPushButton, QWidget, QGraphicsOpacityEffect, QLabel
 from PyQt6.QtCore import (
-    QPropertyAnimation, QEasingCurve, QSequentialAnimationGroup, QTimer, pyqtSignal, QRect, QPoint
+    QPropertyAnimation, QEasingCurve, QParallelAnimationGroup,
+    QSequentialAnimationGroup, QTimer, pyqtSignal, QRect, QPoint
 )
-from PyQt6.QtGui import QColor
+from PyQt6.QtGui import QColor, QPalette
 
 class AnimatedButton(QPushButton):
     """Button with smooth hover and click animations."""

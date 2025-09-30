@@ -655,9 +655,10 @@ class PerformanceSettingsDialog(QDialog):
 
             if memory_percent > 85:
                 return 'High Memory Usage'
-            if memory_percent > 70:
+            elif memory_percent > 70:
                 return 'Moderate Load'
-            return 'Optimal'
+            else:
+                return 'Optimal'
         except Exception:
             return 'Unknown'
 
