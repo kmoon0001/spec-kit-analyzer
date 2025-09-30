@@ -22,17 +22,13 @@ sys.modules.update(MOCK_MODULES)
 #    that are called during the application's import-time initialization.
 #    This prevents any network calls or heavy model loading.
 patchers = [
-    patch(
-        "src.core.llm_service.AutoModelForCausalLM.from_pretrained",
-        return_value=MagicMock(),
-    ),
-    patch("src.core.fact_checker_service.pipeline", return_value=MagicMock()),
+    patch("src.core.llm_service.LLMService._load_model", return_value=None),
+    patch("src.core.fact_checker_service.FactCheckerService.load_model", return_value=None),
     patch("src.core.ner.pipeline", return_value=MagicMock()),
     patch(
-        "src.core.hybrid_retriever.crud.get_rubrics", return_value=[], create=True
+        "src.core.hybrid_retriever.crud.get_all_rubrics", return_value=[], create=True
     ),  # Prevent DB calls and create the attribute
-    patch("src.core.hybrid_retriever.SentenceTransformer", return_value=MagicMock()),
-    patch("src.core.hybrid_retriever.BM25Okapi", return_value=MagicMock()),
+    patch("sentence_transformers.SentenceTransformer", return_value=MagicMock()),
 ]
 for p in patchers:
     p.start()

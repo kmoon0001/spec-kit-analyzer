@@ -32,13 +32,17 @@ class Rubric(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
-    content = Column(Text, nullable=False)
+    regulation = Column(Text, nullable=False)
+    common_pitfalls = Column(Text, nullable=False)
+    best_practice = Column(Text, nullable=False)
     category = Column(String, index=True, nullable=True)
 
 
 class RubricCreate(BaseModel):
     name: str
-    content: str
+    regulation: str
+    common_pitfalls: str
+    best_practice: str
     category: str | None = None
 
 

@@ -20,6 +20,7 @@ class LLMService:
         self.model_repo_id = model_repo_id
         self.model_filename = model_filename
         self.settings = llm_settings or {}
+        self.generation_params = self.settings.get("generation_params", {}).copy()
         self.llm = None
         self.generation_params = self.settings.get("generation_params", {})
         self._load_model()

@@ -3,6 +3,7 @@ import sys
 import time
 import pytest
 from fastapi.testclient import TestClient
+from unittest.mock import patch
 
 # Ensure the src directory is in the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -10,13 +11,13 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from src.api.main import app
 from src.auth import get_current_active_user
 from src.database import schemas
-
+from src.config import get_settings
 
 @pytest.fixture(scope="module")
 def client_with_auth_override():
     """
-    Provides a TestClient with the user authentication dependency overridden.
-    This is scoped to the module to avoid polluting other test files.
+    Provides a TestClient with the user authentication and AI mock settings overridden
+    for testing the mock analysis flow.
     """
     dummy_user = schemas.User(
         id=1,
@@ -31,9 +32,18 @@ def client_with_auth_override():
 
     app.dependency_overrides[get_current_active_user] = override_get_current_active_user
 
-    with TestClient(app) as c:
-        yield c
+    # Clear the cache for get_settings to ensure our patch is effective
+    get_settings.cache_clear()
+    original_settings = get_settings()
+    mock_settings = original_settings.copy(update={"use_ai_mocks": True})
 
+    # Patch get_settings to enable AI mocks
+    with patch("src.api.dependencies.get_settings", return_value=mock_settings):
+        with TestClient(app) as c:
+            yield c
+
+    # Clean up the dependency overrides after the module tests are done
+    app.dependency_overrides.clear()
     # Clean up the override after the tests in this module are done
     app.dependency_overrides.clear()
 

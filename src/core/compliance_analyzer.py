@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import json
 from typing import Any, Dict, List, Optional
 
 from .llm_service import LLMService
@@ -60,7 +61,7 @@ class ComplianceAnalyzer:
         )
 
         search_query = f"{discipline} {doc_type} {entity_list_str}"
-        retrieved_rules = await self.retriever.retrieve(
+        retrieved_rules = self.retriever.retrieve(
             search_query, category_filter=discipline
         )
         logger.info("Retrieved %d rules for analysis.", len(retrieved_rules))
@@ -76,9 +77,9 @@ class ComplianceAnalyzer:
         )
 
         raw_analysis_result = await asyncio.to_thread(
-            self.llm_service.generate_analysis, prompt
+            self.llm_service.generate, prompt
         )
-        initial_analysis = self.llm_service.parse_json_output(raw_analysis_result)
+        initial_analysis = self._parse_llm_output(raw_analysis_result)
 
         explained_analysis = self.explanation_engine.add_explanations(
             initial_analysis, document_text
@@ -128,6 +129,20 @@ class ComplianceAnalyzer:
 
         return explained_analysis
 
+    def _parse_llm_output(self, llm_output: str) -> Dict[str, Any]:
+        """
+        Parses the raw string output from the LLM, which is expected to be a JSON object.
+        """
+        try:
+            # The LLM output is often wrapped in markdown-style code blocks.
+            if "```json" in llm_output:
+                llm_output = llm_output.split("```json")[1].split("```")[0]
+
+            return json.loads(llm_output)
+        except (json.JSONDecodeError, IndexError) as e:
+            logger.error(f"Failed to parse LLM JSON output: {e}\nOutput: {llm_output}")
+            return {"error": "Failed to parse LLM output", "raw_output": llm_output}
+
     @staticmethod
     def _format_rules_for_prompt(rules: List[Dict[str, Any]]) -> str:
         if not rules:
@@ -137,14 +152,17 @@ class ComplianceAnalyzer:
             )
 
         formatted_rules = []
-        for rule in rules[:8]:
-            rule_name = rule.get("name") or rule.get("issue_title", "N/A")
-            rule_detail = rule.get("content") or rule.get("issue_detail", "N/A")
-            rule_suggestion = rule.get("suggestion", "")
+        for rule in rules[:8]:  # Limit to top 8 rules to keep prompt concise
+            rule_name = rule.get("name", "N/A")
+            regulation = rule.get("regulation", "N/A")
+            pitfalls = rule.get("common_pitfalls", "N/A")
+            best_practice = rule.get("best_practice", "N/A")
 
-            rule_text = f"- **Rule:** {rule_name}\n  **Detail:** {rule_detail}"
-            if rule_suggestion:
-                rule_text += f"\n  **Suggestion:** {rule_suggestion}"
-
+            rule_text = (
+                f"- **Rule:** {rule_name}\n"
+                f"  - **Regulation:** {regulation}\n"
+                f"  - **Common Pitfalls:** {pitfalls}\n"
+                f"  - **Best Practice:** {best_practice}"
+            )
             formatted_rules.append(rule_text)
-        return "\n".join(formatted_rules)
+        return "\n\n".join(formatted_rules)
