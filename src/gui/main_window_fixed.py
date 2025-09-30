@@ -11,7 +11,7 @@ from typing import Optional, Dict, Any
 import requests
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QMainWindow, QStatusBar,
-    QMenuBar, QFileDialog, QSplitter, QTextEdit, QLabel, QGroupBox, 
+    QMenuBar, QFileDialog, QSplitter, QTextEdit, QLabel, QGroupBox,
     QProgressBar, QPushButton, QTabWidget, QTextBrowser, QComboBox,
     QFrame, QApplication
 )
@@ -754,7 +754,7 @@ class ModernMainWindow(QMainWindow):
             What would you like to know more about?"""
 
         else:
-            return f"""Thank you for your question about "{message}". I'm designed to help with clinical compliance and documentation. 
+            return f"""Thank you for your question about "{message}". I'm designed to help with clinical compliance and documentation.
             
             I can provide guidance on Medicare guidelines, documentation best practices, and compliance requirements. 
             

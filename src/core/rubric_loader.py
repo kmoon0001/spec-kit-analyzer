@@ -7,7 +7,7 @@ from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import engine as async_engine, AsyncSessionLocal, Base
-from ..models import Rubric
+from ..database.models import Rubric
 
 # --- Configuration ---
 logging.basicConfig(

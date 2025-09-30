@@ -10,7 +10,6 @@ from enum import Enum
 from typing import Any, Dict, Optional
 
 import psutil
-import torch
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +49,7 @@ class SystemProfiler:
     @staticmethod
     def get_system_info() -> Dict[str, Any]:
         """Get comprehensive system information."""
+        import torch
         memory = psutil.virtual_memory()
         cpu_count = psutil.cpu_count()
 
@@ -230,6 +230,7 @@ class PerformanceManager:
 
     def should_use_gpu(self) -> bool:
         """Check if GPU should be used based on current config and availability."""
+        import torch
         return self.config.use_gpu and torch.cuda.is_available()
 
     def get_optimal_batch_size(self, base_size: Optional[int] = None) -> int:
