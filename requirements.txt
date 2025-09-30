@@ -20,8 +20,11 @@ pandas
 openpyxl
 pyyaml
 markdown
+PyMuPDF
+pdf2image
 
 # AI & Machine Learning
+spacy
 torch
 transformers
 sentence-transformers

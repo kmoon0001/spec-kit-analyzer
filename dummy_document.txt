@@ -1,1 +1,1 @@
-This is a test document for mock analysis. The content doesn't matter, but the API requires a file.
+This is a test document from Dr. Smith regarding patient John Doe, born on 01/01/1950. The patient reports pain and decreased range of motion.
