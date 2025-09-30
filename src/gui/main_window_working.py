@@ -1,4 +1,5 @@
 """Working Modern Main Window - Your exact layout specification."""
+
 import os
 import sys
 from PyQt6.QtWidgets import (
@@ -1224,4 +1225,6 @@ class ModernMainWindow(QMainWindow):
 
     def show_performance_settings(self):
         """Show performance settings."""
-        QMessageBox.information(self, "Performance Settings", "Performance settings dialog will open here.")
+        QMessageBox.information(
+            self, "Performance Settings", "Performance settings dialog will open here."
+        )
