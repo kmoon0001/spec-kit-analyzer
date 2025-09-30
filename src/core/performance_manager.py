@@ -145,7 +145,7 @@ class PerformanceManager:
                 max_workers=2
             )
 
-        elif profile == PerformanceProfile.BALANCED:
+        if profile == PerformanceProfile.BALANCED:
             return PerformanceConfig(
                 max_cache_memory_mb=min(2048, memory_gb * 200),  # Up to 2GB or 20% of RAM
                 embedding_cache_size=1000,
@@ -161,7 +161,7 @@ class PerformanceManager:
                 max_workers=min(4, cpu_count)
             )
 
-        elif profile == PerformanceProfile.AGGRESSIVE:
+        if profile == PerformanceProfile.AGGRESSIVE:
             return PerformanceConfig(
                 max_cache_memory_mb=min(4096, memory_gb * 300),  # Up to 4GB or 30% of RAM
                 embedding_cache_size=2000,
@@ -176,9 +176,7 @@ class PerformanceManager:
                 parallel_processing=True,
                 max_workers=min(8, cpu_count)
             )
-
-        else:  # CUSTOM - use balanced as default
-            return self._create_config_for_profile(PerformanceProfile.BALANCED)
+        return self._create_config_for_profile(PerformanceProfile.BALANCED)
 
     def save_config(self):
         """Save current configuration to file."""

@@ -723,7 +723,7 @@ class ModernMainWindow(QMainWindow):
 
             Would you like me to explain any specific compliance area?"""
 
-        elif any(word in message_lower for word in ['documentation', 'document', 'note']):
+        if any(word in message_lower for word in ['documentation', 'document', 'note']):
             return """For clinical documentation best practices:
             • Use objective, measurable language
             • Include specific functional outcomes
@@ -732,7 +732,7 @@ class ModernMainWindow(QMainWindow):
 
             What specific documentation challenge can I help with?"""
 
-        elif any(word in message_lower for word in ['error', 'issue', 'problem', 'wrong']):
+        if any(word in message_lower for word in ['error', 'issue', 'problem', 'wrong']):
             return """I understand you're experiencing an issue. Common problems include:
             • Document format not supported
             • Missing required documentation elements
@@ -740,7 +740,7 @@ class ModernMainWindow(QMainWindow):
 
             Can you describe the specific issue you're encountering?"""
 
-        elif any(word in message_lower for word in ['help', 'how', 'what', 'explain']):
+        if any(word in message_lower for word in ['help', 'how', 'what', 'explain']):
             return """I'm here to help with compliance analysis and documentation questions. I can assist with:
 
             📋 **Compliance Guidelines**: Medicare, CMS, and professional standards
@@ -749,9 +749,7 @@ class ModernMainWindow(QMainWindow):
             ⚡ **Quick Fixes**: Common compliance issue solutions
 
             What would you like to know more about?"""
-
-        else:
-            return f"""Thank you for your question about "{message}". I'm designed to help with clinical compliance and documentation. 
+        return f"""Thank you for your question about "{message}". I'm designed to help with clinical compliance and documentation. 
             
             I can provide guidance on Medicare guidelines, documentation best practices, and compliance requirements. 
             
