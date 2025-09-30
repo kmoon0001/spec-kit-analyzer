@@ -27,7 +27,9 @@ def mock_llm_service():
     # that the mock has the same methods and properties as the real service.
     service = MagicMock(spec=LLMService)
     # We configure the return value of the method that is called by the analyzer.
-    service.generate.return_value = '{"findings": [{"text": "Mocked LLM analysis."}]}'
+    service.generate.return_value = (
+        '{"findings": [{"text": "Mocked LLM analysis."}]}'
+    )
     yield service
 
 
@@ -65,7 +67,9 @@ def test_analyze_document_orchestration(mock_llm_service, mock_prompt_manager):
     )
 
     # 2. Verify that the llm_service was called with the generated prompt
-    mock_llm_service.generate.assert_called_once_with("This is a formatted prompt.")
+    mock_llm_service.generate.assert_called_once_with(
+        "This is a formatted prompt."
+    )
 
     # 3. Verify the result is the parsed JSON from the mocked LLM
     assert "findings" in result

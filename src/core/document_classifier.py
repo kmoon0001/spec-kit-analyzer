@@ -46,7 +46,7 @@ class DocumentClassifier:
             prompt = self.prompt_manager.build_prompt(document_text=text_snippet)
 
             # Generate the classification using the LLM
-            raw_classification = self.llm_service.generate_analysis(prompt)
+            raw_classification = self.llm_service.generate(prompt)
 
             # Clean up the output
             classification = raw_classification.strip().replace('"', "")

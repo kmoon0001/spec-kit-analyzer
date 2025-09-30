@@ -1,3 +1,5 @@
+import sys
+import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -14,18 +16,21 @@ def patched_service(tmp_path):
         "This is a Medicare guideline about documentation.",
         encoding="utf-8",
     )
-    mock_faiss_module = MagicMock()
+
+    # Mock faiss and joblib before they are imported by the service
+    sys.modules["faiss"] = MagicMock()
+    sys.modules["joblib"] = MagicMock()
+
+    # Configure the faiss mock that will be used
     mock_index = MagicMock()
     mock_index.search.return_value = (
         np.array([[0.9, 0.5, 0.1]], dtype="float32"),
         np.array([[0, -1, -1]]),
     )
-    mock_faiss_module.IndexFlatIP.return_value = mock_index
-    mock_faiss_module.normalize_L2 = MagicMock()
+    sys.modules["faiss"].IndexFlatIP.return_value = mock_index
 
     with (
         patch("src.core.guideline_service.SentenceTransformer") as mock_st_cls,
-        patch.dict("sys.modules", {"faiss": mock_faiss_module, "joblib": MagicMock()}),
         patch("src.core.guideline_service.get_settings") as mock_get_settings,
         patch.object(GuidelineService, "_load_or_build_index", return_value=None),
     ):
@@ -47,6 +52,12 @@ def patched_service(tmp_path):
         service.model = mock_model
 
         yield service
+
+    # Clean up the mocks
+    if "faiss" in sys.modules:
+        del sys.modules["faiss"]
+    if "joblib" in sys.modules:
+        del sys.modules["joblib"]
 
 
 def test_search_returns_results(patched_service: GuidelineService):
