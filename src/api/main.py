@@ -5,6 +5,8 @@ FastAPI backend for the Therapy Compliance Analyzer desktop application.
 Provides endpoints for document analysis, user management, and compliance reporting.
 """
 
+import os
+import shutil
 import logging
 from contextlib import asynccontextmanager
 
@@ -14,71 +16,77 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from ..config import get_settings
-from ..core.database_maintenance_service import run_database_maintenance
-from ..utils.file_utils import clear_temp_uploads
-from .dependencies import startup_event as api_startup, shutdown_event as api_shutdown
-from .routers import auth, analysis, dashboard, admin, health, chat, compliance
+from src.api.dependencies import startup_event as api_startup, shutdown_event as api_shutdown
+from src.api.routers import auth, analysis, dashboard, admin, health, chat, compliance
+from src.core.database_maintenance_service import DatabaseMaintenanceService
+from src.config import get_settings
+
+settings = get_settings()
+
+# --- Configuration ---
+DATABASE_PURGE_RETENTION_DAYS = settings.maintenance.purge_retention_days
+TEMP_UPLOAD_DIR = settings.temp_upload_dir
 
 # --- Logging ---
 logger = logging.getLogger(__name__)
 
+
+# --- Helper Functions ---
+def clear_temp_uploads():
+    """Clears all files from the temporary upload directory."""
+    if os.path.exists(TEMP_UPLOAD_DIR):
+        for filename in os.listdir(TEMP_UPLOAD_DIR):
+            file_path = os.path.join(TEMP_UPLOAD_DIR, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+                logger.info("Successfully cleaned up temporary file: %s", file_path)
+            except (OSError, PermissionError) as e:
+                logger.error("Failed to delete %s. Reason: %s", file_path, e)
+    except Exception as e:
+        logger.exception("An unexpected error occurred while clearing temp uploads: %s", e)
+
+
+def run_database_maintenance():
+    """
+    Instantiates and runs the database maintenance service.
+    Includes error handling to prevent scheduler crashes.
+    """
+    logger.info("Scheduler triggered: Starting database maintenance job.")
+    try:
+        maintenance_service = DatabaseMaintenanceService()
+        maintenance_service.purge_old_reports(retention_days=DATABASE_PURGE_RETENTION_DAYS)
+    logger.info("Scheduler job: Database maintenance finished.")except Exception as e:
+        logger.exception("Database maintenance job failed: %s", e)
+
+
 # --- FastAPI App Setup ---
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
-scheduler = BackgroundScheduler(daemon=True)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Manages the application's lifespan, handling startup and shutdown events.
-
-    - Initializes AI models and other services on startup.
-    - Clears temporary files from previous runs.
-    - Starts and gracefully shuts down a background scheduler for maintenance tasks.
-    """
-    # --- Startup ---
-    settings = get_settings()
-    logger.info("Application startup sequence initiated.")
-
-    # 1. Run API-level startup logic (e.g., loading AI models).
+    """Lifespan context manager for startup and shutdown events."""
+    # Startup
+    # 1. Run API-level startup logic (e.g., model loading)
     await api_startup()
 
-    # 2. Clean up any orphaned temporary files from previous runs.
-    logger.info("Clearing temporary upload directory...")
-    clear_temp_uploads(str(settings.paths.temp_upload_dir))
+    # 2. Clean up any orphaned temporary files from previous runs
+    logger.info("Running startup tasks...")
+    clear_temp_uploads()
 
-    # 3. Initialize and start the background scheduler for database maintenance.
-    try:
-        scheduler.add_job(
-            run_database_maintenance,
-            "interval",
-            days=settings.maintenance.purge_interval_days,
-            id="database_maintenance_job",
-            replace_existing=True,
-        )
-        scheduler.start()
-        logger.info("Background scheduler started for daily database maintenance.")
-    except Exception as e:
-        logger.critical("Failed to start background scheduler: %s", e, exc_info=True)
+    # 3. Initialize and start the background scheduler
+    scheduler = BackgroundScheduler(daemon=True)
+    scheduler.add_job(run_database_maintenance, "interval", days=1)
+    scheduler.start()
+    logger.info("Scheduler started for daily database maintenance.")
 
     yield
 
-    # --- Shutdown ---
-    logger.info("Application shutdown sequence initiated.")
-
-    # 1. Gracefully shut down the background scheduler.
-    if scheduler.running:
-        logger.info("Shutting down background scheduler...")
-        try:
-            scheduler.shutdown()
-            logger.info("Background scheduler shut down successfully.")
-        except Exception as e:
-            logger.error("Error during scheduler shutdown: %s", e, exc_info=True)
-
-    # 2. Run API-level shutdown logic (if any).
+    # Shutdown
     await api_shutdown()
-    logger.info("Application shutdown complete.")
 
 
 app = FastAPI(
