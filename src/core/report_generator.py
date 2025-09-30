@@ -112,7 +112,38 @@ class ReportGenerator:
             "<!-- Placeholder for model limitations -->", self.model_limitations_html
         )
 
+        # Add analysis disclosures
+        disclosures_html = self._generate_analysis_disclosures(analysis_result)
+        report_html = report_html.replace(
+            "<!-- Placeholder for analysis disclosures -->", disclosures_html
+        )
+
         return report_html
+
+    def _generate_analysis_disclosures(self, analysis_result: dict) -> str:
+        """Generates the analysis disclosures section."""
+        disclosures = []
+
+        # Bias Analysis
+        bias_analysis = analysis_result.get("bias_analysis", [])
+        if bias_analysis:
+            disclosures.append("<strong>Bias Check:</strong> Potential bias detected in recommendations. Please review carefully.")
+        else:
+            disclosures.append("<strong>Bias Check:</strong> No potential biases detected in recommendations.")
+
+        # Quality Assurance
+        qa_issues = analysis_result.get("qa_issues", [])
+        if qa_issues:
+            disclosures.append(f"<strong>Quality Assurance:</strong> {len(qa_issues)} potential inconsistency/ies found between clinical findings and recommendations.")
+        else:
+            disclosures.append("<strong>Quality Assurance:</strong> Recommendations appear consistent with clinical findings.")
+
+        # AI Confidence
+        overall_confidence = analysis_result.get("overall_confidence")
+        if isinstance(overall_confidence, (int, float)):
+            disclosures.append(f"<strong>AI Confidence:</strong> The overall confidence for this analysis is {overall_confidence:.0%}.")
+
+        return "<br>".join(f"<p>{d}</p>" for d in disclosures)
 
     def _populate_basic_metadata(
         self, template_str: str, doc_name: str, analysis_result: dict
