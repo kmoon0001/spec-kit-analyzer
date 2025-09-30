@@ -1,4 +1,8 @@
+import logging
+from pathlib import Path
+
 import yaml
+from yaml import SafeLoader, SafeDumper
 from PyQt6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -9,8 +13,10 @@ from PyQt6.QtWidgets import (
 )
 from src.config import get_settings
 
+logger = logging.getLogger(__name__)
+
 class SettingsDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Application Settings")
         self.setModal(True)
@@ -46,33 +52,34 @@ class SettingsDialog(QDialog):
 
         self.load_settings()
 
-    def load_settings(self):
+    def load_settings(self) -> None:
         """Load settings from the config object."""
-        self.habit_coaching_checkbox.setChecked(self.settings.enable_habit_coaching)
-        self.director_dashboard_checkbox.setChecked(
-            self.settings.enable_director_dashboard
-        )
+        try:
+            self.habit_coaching_checkbox.setChecked(bool(self.settings.enable_habit_coaching))
+            self.director_dashboard_checkbox.setChecked(bool(self.settings.enable_director_dashboard))
+        except Exception:
+            logger.exception("Failed to load settings into dialog")
+            QMessageBox.warning(self, "Settings", "Unable to load some settings; using defaults.")
 
-    def save_settings(self):
+    def save_settings(self) -> None:
         """Save the settings to the config.yaml file."""
         try:
-            with open("config.yaml", "r") as f:
-                config_data = yaml.safe_load(f)
+            cfg_path = Path("config.yaml").resolve()
+            if not cfg_path.exists():
+                QMessageBox.critical(self, "Error Saving Settings", f"Config file not found: {cfg_path}")
+                return
 
-            config_data["enable_habit_coaching"] = self.habit_coaching_checkbox.isChecked()
-            config_data[
-                "enable_director_dashboard"
-            ] = self.director_dashboard_checkbox.isChecked()
+            with cfg_path.open("r", encoding="utf-8") as f:
+                config_data = yaml.load(f, Loader=SafeLoader) or {}
 
-            with open("config.yaml", "w") as f:
-                yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
+            config_data["enable_habit_coaching"] = bool(self.habit_coaching_checkbox.isChecked())
+            config_data["enable_director_dashboard"] = bool(self.director_dashboard_checkbox.isChecked())
 
-            QMessageBox.information(
-                self, "Settings Saved", "Your settings have been saved successfully."
-            )
+            with cfg_path.open("w", encoding="utf-8") as f:
+                yaml.dump(config_data, f, Dumper=SafeDumper, default_flow_style=False, sort_keys=False, allow_unicode=True)
+
+            QMessageBox.information(self, "Settings Saved", "Your settings have been saved successfully.")
             self.accept()
-
-        except Exception as e:
-            QMessageBox.critical(
-                self, "Error Saving Settings", f"Could not save settings: {e}"
-            )
+        except Exception as e:  # pragma: no cover - GUI safety
+            logger.exception("Failed to save settings")
+            QMessageBox.critical(self, "Error Saving Settings", f"Could not save settings: {e}")

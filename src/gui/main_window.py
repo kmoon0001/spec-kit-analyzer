@@ -3,7 +3,7 @@ import json
 import logging
 import urllib.parse
 import webbrowser
-from typing import Dict
+from typing import Dict, Any
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -28,6 +28,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QThread, QUrl
 from PyQt6.QtGui import QTextDocument
+from src.gui.exception_hook import install_exception_hook
 
 # Corrected: Use absolute imports from the src root
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
@@ -50,6 +51,7 @@ from src.config import get_settings
 
 settings = get_settings()
 API_URL = settings.api_url
+logger = logging.getLogger(__name__)
 
 
 
@@ -105,12 +107,15 @@ class MainApplicationWindow(QMainWindow):
         }
         self.init_base_ui()
 
-    def start(self):
+    def start(self) -> None:
         """
-        Starts the application's main logic, including loading models and showing the login dialog.
-        This is called after the window is created to avoid blocking the constructor,
-        which makes the main window testable.
+        Starts the application's main logic, installs the global exception hook,
+        loads AI models, and shows the main UI. Separated from __init__ for testability.
         """
+        try:
+            install_exception_hook()
+        except Exception:
+            logger.exception("Failed to install global exception hook")
         self.load_ai_models()
         self.load_main_ui()  # Load main UI directly
         self.show()
@@ -548,7 +553,7 @@ class MainApplicationWindow(QMainWindow):
                 self, "Error", f"Failed to open performance settings: {e}"
             )
 
-    def on_performance_settings_changed(self, settings):
+    def on_performance_settings_changed(self, settings: Any) -> None:
         """Handle performance settings changes."""
         try:
             # Update status bar to reflect new settings
@@ -565,8 +570,8 @@ class MainApplicationWindow(QMainWindow):
                         f"Performance optimized - {memory_freed:.1f} MB freed", 5000
                     )
 
-        except Exception as e:
-            print(f"Error handling performance settings change: {e}")
+        except Exception:
+            logger.exception("Error handling performance settings change")
 
     def load_dashboard_data(self):
         if not self.access_token:
@@ -596,7 +601,7 @@ class MainApplicationWindow(QMainWindow):
         self.dashboard_worker = None
         self.dashboard_thread = None
 
-    def on_dashboard_data_loaded(self, data):
+    def on_dashboard_data_loaded(self, data: dict) -> None:
         self.dashboard_widget.update_dashboard(data)
         self.status_bar.showMessage("Dashboard updated.", 3000)
 
@@ -638,7 +643,7 @@ class MainApplicationWindow(QMainWindow):
                     f"Performance optimization completed:\n\n{recommendations}",
                 )
         except Exception as exc:
-            print(f"Performance optimization failed: {exc}")
+            logger.warning("Performance optimization failed: %s", exc)
 
         self.progress_bar.setRange(0, 0)
         self.progress_bar.setValue(0)
@@ -755,14 +760,14 @@ class MainApplicationWindow(QMainWindow):
         self.status_bar.showMessage(f"Analysis in progress... (Task ID: {task_id})")
         self._start_status_listener(task_id)
 
-    def on_analysis_progress(self, progress):
+    def on_analysis_progress(self, progress: int) -> None:
         if self.progress_bar.maximum() == 0:
             self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(max(0, min(100, int(progress))))
         if not self.progress_bar.isVisible():
             self.progress_bar.show()
 
-    def on_analysis_success(self, result):
+    def on_analysis_success(self, result: object) -> None:
         payload = self._normalize_result_payload(result)
         self._current_report_payload = payload
 
