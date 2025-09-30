@@ -1,11 +1,8 @@
 import os
-import sys
 import time
 import pytest
+import datetime
 from fastapi.testclient import TestClient
-
-# Ensure the src directory is in the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.api.main import app
 from src.auth import get_current_active_user
@@ -23,6 +20,7 @@ def client_with_auth_override():
         username="testuser",
         is_active=True,
         is_admin=False,
+        created_at=datetime.datetime.utcnow(),
         hashed_password="dummy_hash_for_mock_flow",
     )
 

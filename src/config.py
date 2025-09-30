@@ -69,6 +69,27 @@ class AnalysisSettings(BaseModel):
         description="Default focus points for compliance analysis.",
     )
 
+class PhiScrubberModelSettings(BaseModel):
+    general: str
+    biomedical: str
+
+class ModelsSettings(BaseModel):
+    fact_checker: str
+    ner_ensemble: List[str]
+    phi_scrubber: PhiScrubberModelSettings
+
+class MaintenanceSettings(BaseModel):
+    purge_retention_days: int
+    purge_interval_days: int = 1
+class AnalysisSettings(BaseModel):
+    confidence_threshold: float = Field(
+        0.7, description="Minimum confidence score for a finding to be considered valid."
+    )
+    deterministic_focus: str = Field(
+        "- Treatment frequency documented\n- Goals reviewed or adjusted\n- Medical necessity justified",
+        description="Default focus points for compliance analysis.",
+    )
+
 class MaintenanceSettings(BaseModel):
     purge_retention_days: int
     purge_interval_days: int = 1
@@ -82,6 +103,12 @@ class Settings(BaseModel):
     llm: LLMSettings
     retrieval: RetrievalSettings
     analysis: AnalysisSettings
+    maintenance: MaintenanceSettings
+    paths: PathsSettings
+    llm: LLMSettings
+    retrieval: RetrievalSettings
+    analysis: AnalysisSettings
+    models: ModelsSettings
     maintenance: MaintenanceSettings
 
 # --- Settings Loader ---
@@ -114,4 +141,5 @@ def get_settings() -> Settings:
     if db_url_env:
         config_data.setdefault("database", {})["url"] = db_url_env
 
+    print(config_data)
     return Settings(**config_data)

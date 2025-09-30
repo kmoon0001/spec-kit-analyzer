@@ -1,7 +1,7 @@
 import logging
 import asyncio
-from src.database.database import AsyncSessionLocal
-from src import crud
+from ..database import AsyncSessionLocal, crud
+from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 

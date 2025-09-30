@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
-from src.database import crud, schemas
-from src.database.database import get_async_db as get_db
-from src.auth import get_current_admin_user
+from ...database import crud, schemas
+from ...database.database import get_async_db as get_db
+from ...auth import get_current_admin_user
 
 router = APIRouter(prefix="/rubrics", tags=["rubrics"])
 

@@ -8,9 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.api.main import app
-from src.database.database import Base, get_async_db
+from src.database import Base, get_async_db
 from src.auth import get_current_active_user
-from src import models
+from src.database import models
 from src.api.dependencies import get_analysis_service
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test_api.db"
