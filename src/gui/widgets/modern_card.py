@@ -2,8 +2,8 @@
 Modern Card Widget - Clean cards with shadows and medical styling.
 """
 from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel, QWidget
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtGui import QFont
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QFont, QPalette
 
 class ModernCard(QFrame):
     """Modern card widget with shadow and clean styling."""

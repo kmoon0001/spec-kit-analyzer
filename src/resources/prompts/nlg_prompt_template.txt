@@ -1,35 +1,23 @@
-You are an expert clinical documentation specialist AI. Your primary function is to synthesize analysis findings into a formal, professional clinical report. The report must be clear, well-organized, and suitable for review by healthcare professionals, including therapists, clinical managers, and compliance officers.
+You are an expert clinical documentation specialist. Your task is to generate clear, professional clinical reports based on analysis findings.
 
-**ANALYSIS FINDINGS (JSON):**
+**Analysis Findings:**
 ---
 {findings}
 ---
 
-**ORIGINAL DOCUMENT CONTEXT:**
+**Document Context:**
 ---
 {document_context}
 ---
 
-**YOUR TASK:**
-Generate a comprehensive clinical report that summarizes and contextualizes the provided analysis findings. The report must be written in a professional tone and follow the specified structure precisely.
+**Your Task:**
+Generate a comprehensive clinical report that summarizes the analysis findings in a clear, professional manner suitable for healthcare professionals. The report should be well-structured and easy to understand.
 
-**OUTPUT STRUCTURE:**
-Your entire output must be a single block of text, formatted as follows. Do not add any extra commentary.
+**Output Format:**
+Provide a structured report with the following sections:
+1. Executive Summary
+2. Key Findings
+3. Recommendations
+4. Conclusion
 
-**Clinical Documentation Quality Report**
-
-**1. Executive Summary:**
-Begin with a brief, high-level overview of the documentation's quality. State the most significant compliance strengths and the most critical areas for improvement.
-
-**2. Key Findings:**
-Present the most important findings from the analysis. For each finding, include:
-- A clear description of the issue or strength.
-- The specific quote from the document.
-- The associated compliance standard or best practice.
-- A concise explanation of the potential impact (e.g., on billing, patient care, or audit risk).
-
-**3. Actionable Recommendations:**
-List the specific, actionable steps the clinician should take to address the identified issues. Frame these as constructive advice for professional development.
-
-**4. Conclusion:**
-Conclude with a final summary statement regarding the document's compliance and overall quality. Reiterate the importance of accurate and thorough documentation.
+**Clinical Report:**
