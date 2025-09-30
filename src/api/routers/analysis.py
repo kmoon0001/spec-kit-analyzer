@@ -100,9 +100,18 @@ async def analyze_document(
 
 
 @router.get("/status/{task_id}")
-async def get_analysis_status(task_id: str) -> Dict[str, Any]:
-    """Retrieves the status or result of an analysis task."""
+async def get_analysis_status(
+    task_id: str, current_user=Depends(get_current_active_user)
+) -> Dict[str, Any]:
+    """
+    Retrieves the status of a background analysis task.
+    """
     task = tasks.get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    if task["status"] == "completed":
+        # Pop the result once it's retrieved to avoid memory bloat
+        return tasks.pop(task_id)
+
     return task

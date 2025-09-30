@@ -2,16 +2,24 @@
 Contextual Help System - Provides tooltips and help bubbles throughout the UI.
 Safe, optional feature that enhances user experience without affecting core functionality.
 """
+
 import logging
 from typing import Dict, Optional
 from PyQt6.QtWidgets import (
-    QWidget, QLabel, QVBoxLayout, QHBoxLayout, QPushButton,
-    QTextEdit, QDialog, QFrame
+    QWidget,
+    QLabel,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QTextEdit,
+    QDialog,
+    QFrame,
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint
 from PyQt6.QtGui import QFont
 
 logger = logging.getLogger(__name__)
+
 
 class HelpTooltip(QLabel):
     """
@@ -29,7 +37,8 @@ class HelpTooltip(QLabel):
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
 
         # Styling
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QLabel {
                 background-color: #ffffcc;
                 border: 1px solid #cccccc;
@@ -39,7 +48,8 @@ class HelpTooltip(QLabel):
                 color: #333333;
                 max-width: 300px;
             }
-        """)
+        """
+        )
 
         self.setText(self.help_text)
         self.setWordWrap(True)
@@ -52,6 +62,7 @@ class HelpTooltip(QLabel):
 
         # Auto-hide after 5 seconds
         QTimer.singleShot(5000, self.hide)
+
 
 class HelpBubble(QFrame):
     """
@@ -69,7 +80,8 @@ class HelpBubble(QFrame):
     def setup_ui(self):
         """Setup the help bubble UI."""
         self.setFrameStyle(QFrame.Shape.Box)
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QFrame {
                 background-color: #e8f4fd;
                 border: 1px solid #bee5eb;
@@ -80,7 +92,8 @@ class HelpBubble(QFrame):
                 background: transparent;
                 border: none;
             }
-        """)
+        """
+        )
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 8, 12, 8)
@@ -95,7 +108,8 @@ class HelpBubble(QFrame):
 
         close_button = QPushButton("×")
         close_button.setFixedSize(20, 20)
-        close_button.setStyleSheet("""
+        close_button.setStyleSheet(
+            """
             QPushButton {
                 background: transparent;
                 border: none;
@@ -107,7 +121,8 @@ class HelpBubble(QFrame):
                 background-color: #d4edda;
                 border-radius: 10px;
             }
-        """)
+        """
+        )
         close_button.clicked.connect(self.close_bubble)
 
         header_layout.addWidget(title_label)
@@ -126,6 +141,7 @@ class HelpBubble(QFrame):
         """Close the help bubble."""
         self.hide()
         self.closed.emit()
+
 
 class ComplianceGuideDialog(QDialog):
     """
@@ -220,6 +236,7 @@ class ComplianceGuideDialog(QDialog):
 
         self.content_area.setHtml(content)
 
+
 class HelpSystem:
     """
     Main help system coordinator that manages contextual help throughout the application.
@@ -242,32 +259,32 @@ class HelpSystem:
         return {
             "upload_button": {
                 "title": "Document Upload",
-                "content": "Upload PDF, DOCX, or TXT files for compliance analysis. Scanned documents will be processed with OCR."
+                "content": "Upload PDF, DOCX, or TXT files for compliance analysis. Scanned documents will be processed with OCR.",
             },
             "rubric_selector": {
                 "title": "Compliance Rubric",
-                "content": "Select the appropriate compliance rubric for your discipline (PT, OT, SLP) to ensure accurate analysis."
+                "content": "Select the appropriate compliance rubric for your discipline (PT, OT, SLP) to ensure accurate analysis.",
             },
             "analyze_button": {
                 "title": "Run Analysis",
-                "content": "Start AI-powered compliance analysis. This may take 30-60 seconds depending on document size."
+                "content": "Start AI-powered compliance analysis. This may take 30-60 seconds depending on document size.",
             },
             "compliance_score": {
                 "title": "Compliance Score",
-                "content": "Overall compliance score from 0-100%. Scores above 85% indicate good compliance."
+                "content": "Overall compliance score from 0-100%. Scores above 85% indicate good compliance.",
             },
             "findings_table": {
                 "title": "Compliance Findings",
-                "content": "Detailed list of compliance issues found in your document, with risk levels and recommendations."
+                "content": "Detailed list of compliance issues found in your document, with risk levels and recommendations.",
             },
             "performance_settings": {
                 "title": "Performance Settings",
-                "content": "Adjust system performance based on your hardware. Conservative mode for 6-8GB RAM, Aggressive for 12GB+."
+                "content": "Adjust system performance based on your hardware. Conservative mode for 6-8GB RAM, Aggressive for 12GB+.",
             },
             "dashboard": {
                 "title": "Analytics Dashboard",
-                "content": "View historical compliance trends, performance metrics, and insights from your analysis history."
-            }
+                "content": "View historical compliance trends, performance metrics, and insights from your analysis history.",
+            },
         }
 
     def show_tooltip(self, widget: QWidget, help_key: str) -> bool:
@@ -326,7 +343,7 @@ class HelpSystem:
             return None
 
         try:
-            bubble = HelpBubble(help_info['title'], help_info['content'], parent)
+            bubble = HelpBubble(help_info["title"], help_info["content"], parent)
             bubble.closed.connect(lambda: self._remove_bubble(bubble))
 
             self.active_bubbles.append(bubble)
@@ -372,20 +389,24 @@ class HelpSystem:
         if not enabled:
             self.cleanup()
 
+
 # Global help system instance
 help_system = HelpSystem()
+
 
 def get_help_system(enabled: bool = True) -> HelpSystem:
     """Get help system instance with specified configuration."""
     return HelpSystem(enabled=enabled)
+
 
 # Configuration
 HELP_SYSTEM_CONFIG = {
     "enabled": True,
     "show_tooltips": True,
     "show_bubbles": True,
-    "auto_show_guide": False  # Whether to show guide on first run
+    "auto_show_guide": False,  # Whether to show guide on first run
 }
+
 
 def is_help_enabled() -> bool:
     """Check if help system is enabled."""

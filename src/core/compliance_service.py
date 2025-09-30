@@ -16,7 +16,12 @@ logger = logging.getLogger(__name__)
 class ComplianceService:
     """Keyword-driven compliance evaluation with injectable rule sets."""
 
-    def __init__(self, rules: Optional[Iterable[ComplianceRule]] = None, analysis_service: Optional[Any] = None, **_unused: Any) -> None:
+    def __init__(
+        self,
+        rules: Optional[Iterable[ComplianceRule]] = None,
+        analysis_service: Optional[Any] = None,
+        **_unused: Any
+    ) -> None:
         provided_rules = list(rules or [])
         self.rules: List[ComplianceRule] = provided_rules or self._default_rules()
         self.analysis_service = analysis_service

@@ -2,6 +2,7 @@
 API Documentation configuration and setup.
 Provides comprehensive API documentation with examples and security schemes.
 """
+
 import logging
 from typing import Dict, Any
 from fastapi import FastAPI
@@ -17,6 +18,7 @@ DOCUMENTATION_CONFIG = {
     "include_examples": True,
     "include_security_info": True,
 }
+
 
 def setup_api_documentation(app: FastAPI) -> None:
     """
@@ -35,6 +37,7 @@ def setup_api_documentation(app: FastAPI) -> None:
         return generate_api_documentation_html()
 
     logger.info("API documentation setup completed")
+
 
 def create_custom_openapi(app: FastAPI) -> Dict[str, Any]:
     """Generate enhanced OpenAPI schema with examples and security."""
@@ -60,6 +63,7 @@ def create_custom_openapi(app: FastAPI) -> Dict[str, Any]:
     app.openapi_schema = schema
     return schema
 
+
 def _add_security_schemes(schema: Dict[str, Any]) -> None:
     """Add security scheme definitions."""
     if "components" not in schema:
@@ -70,7 +74,7 @@ def _add_security_schemes(schema: Dict[str, Any]) -> None:
             "type": "http",
             "scheme": "bearer",
             "bearerFormat": "JWT",
-            "description": "JWT token obtained from /auth/login endpoint"
+            "description": "JWT token obtained from /auth/login endpoint",
         }
     }
 
@@ -83,6 +87,7 @@ def _add_security_schemes(schema: Dict[str, Any]) -> None:
                 for method, operation in path_item.items():
                     if isinstance(operation, dict):
                         operation["security"] = [{"BearerAuth": []}]
+
 
 def _add_common_examples(schema: Dict[str, Any]) -> None:
     """Add common request/response examples for API endpoints."""
@@ -99,8 +104,8 @@ def _add_common_examples(schema: Dict[str, Any]) -> None:
             "description": "Standard user authentication",
             "value": {
                 "username": "therapist@clinic.com",
-                "password": "secure_password"
-            }
+                "password": "secure_password",
+            },
         },
         "LoginResponse": {
             "summary": "Successful login response",
@@ -108,8 +113,8 @@ def _add_common_examples(schema: Dict[str, Any]) -> None:
             "value": {
                 "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                 "token_type": "bearer",
-                "expires_in": 3600
-            }
+                "expires_in": 3600,
+            },
         },
         "ComplianceReport": {
             "summary": "Example compliance analysis report",
@@ -118,16 +123,13 @@ def _add_common_examples(schema: Dict[str, Any]) -> None:
                 "document_name": "progress_note_2024_01_15.pdf",
                 "analysis_date": "2024-01-15T10:30:00Z",
                 "compliance_score": 87.5,
-                "risk_distribution": {
-                    "High": 2,
-                    "Medium": 5,
-                    "Low": 12
-                }
-            }
-        }
+                "risk_distribution": {"High": 2, "Medium": 5, "Low": 12},
+            },
+        },
     }
 
     schema["components"]["examples"].update(common_examples)
+
 
 def _add_response_examples(schema: Dict[str, Any]) -> None:
     """Add detailed response examples for API endpoints."""
@@ -148,18 +150,19 @@ def _add_response_examples(schema: Dict[str, Any]) -> None:
                                 "file": {
                                     "type": "string",
                                     "format": "binary",
-                                    "description": "Document file to analyze (PDF, DOCX, or TXT)"
+                                    "description": "Document file to analyze (PDF, DOCX, or TXT)",
                                 },
                                 "rubric_id": {
                                     "type": "string",
                                     "description": "ID of compliance rubric to use",
-                                    "example": "pt_compliance_v1"
-                                }
-                            }
+                                    "example": "pt_compliance_v1",
+                                },
+                            },
                         }
                     }
                 }
             }
+
 
 def generate_api_documentation_html() -> str:
     """Generate comprehensive API documentation as HTML string."""
@@ -248,6 +251,7 @@ def generate_api_documentation_html() -> str:
     """
 
     return html_template
+
 
 def is_documentation_feature_enabled(feature: str) -> bool:
     """Check if a documentation feature is enabled."""

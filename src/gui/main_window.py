@@ -50,8 +50,6 @@ settings = get_settings()
 API_URL = settings.api_url
 
 
-
-
 class DocumentPreviewDialog(QDialog):
     """Simple dialog to present the loaded document content in a larger view."""
 
@@ -68,6 +66,7 @@ class DocumentPreviewDialog(QDialog):
         close_button.clicked.connect(self.accept)
         close_button.setFixedHeight(32)
         layout.addWidget(close_button, alignment=Qt.AlignmentFlag.AlignRight)
+
 
 class MainApplicationWindow(QMainWindow):
     def __init__(self):
@@ -122,7 +121,9 @@ class MainApplicationWindow(QMainWindow):
         self.file_menu.addAction("Exit", self.close)
         self.tools_menu = self.menu_bar.addMenu("Tools")
         self.tools_menu.addAction("Manage Rubrics", self.manage_rubrics)
-        self.tools_menu.addAction("Performance Settings", self.show_performance_settings)
+        self.tools_menu.addAction(
+            "Performance Settings", self.show_performance_settings
+        )
         self.tools_menu.addAction("Change Password", self.show_change_password_dialog)
         self.theme_menu = self.menu_bar.addMenu("Theme")
         self.theme_menu.addAction("Light", self.set_light_theme)
@@ -142,7 +143,9 @@ class MainApplicationWindow(QMainWindow):
 
         # Add performance status widget to status bar
         self.performance_status = PerformanceStatusWidget()
-        self.performance_status.settings_requested.connect(self.show_performance_settings)
+        self.performance_status.settings_requested.connect(
+            self.show_performance_settings
+        )
         self.status_bar.addPermanentWidget(self.performance_status)
 
         self.progress_bar = QProgressBar(self.status_bar)
@@ -153,7 +156,9 @@ class MainApplicationWindow(QMainWindow):
         badges = []
         for name, status in self.model_status.items():
             color = "#2ecc71" if status else "#e74c3c"
-            badges.append(f'<span style="color: {color}; font-weight:600;">&#9679;</span> {name}')
+            badges.append(
+                f'<span style="color: {color}; font-weight:600;">&#9679;</span> {name}'
+            )
         return "  |  ".join(badges) if badges else "Models offline"
 
     def _update_model_status_badges(self, updates: Dict[str, bool]) -> None:
@@ -232,7 +237,9 @@ class MainApplicationWindow(QMainWindow):
         rubric_layout.addWidget(self.rubric_selector, 1)
         self.rubric_type_selector = QComboBox()
         self.rubric_type_selector.addItem("All Disciplines", None)
-        self.rubric_type_selector.currentIndexChanged.connect(self._filter_rubrics_by_type)
+        self.rubric_type_selector.currentIndexChanged.connect(
+            self._filter_rubrics_by_type
+        )
         rubric_layout.addWidget(self.rubric_type_selector)
         controls_group_layout.addLayout(rubric_layout)
 
@@ -350,7 +357,9 @@ class MainApplicationWindow(QMainWindow):
         if total > 10:
             preview_lines.append("- ...")
         preview_lines.append("")
-        preview_lines.append("The first 10 files are shown. Folder analysis will include every detected file.")
+        preview_lines.append(
+            "The first 10 files are shown. Folder analysis will include every detected file."
+        )
         return "\n".join(preview_lines)
 
     @staticmethod
@@ -367,7 +376,9 @@ class MainApplicationWindow(QMainWindow):
     def _update_action_states(self) -> None:
         has_source = bool(self._current_file_path or self._current_folder_path)
         active_rubric = (
-            self.rubric_selector.currentData() if hasattr(self, "rubric_selector") else None
+            self.rubric_selector.currentData()
+            if hasattr(self, "rubric_selector")
+            else None
         )
         has_preview = bool(self._current_document_text)
         has_report = bool(self._current_report_payload)
@@ -518,10 +529,11 @@ class MainApplicationWindow(QMainWindow):
 
             # Optionally trigger performance optimization
             from src.core.performance_integration import optimize_for_analysis
+
             optimization_results = optimize_for_analysis()
 
-            if optimization_results.get('cache_cleanup'):
-                memory_freed = optimization_results.get('memory_freed_mb', 0)
+            if optimization_results.get("cache_cleanup"):
+                memory_freed = optimization_results.get("memory_freed_mb", 0)
                 if memory_freed > 0:
                     self.status_bar.showMessage(
                         f"Performance optimized - {memory_freed:.1f} MB freed", 5000
@@ -645,7 +657,9 @@ class MainApplicationWindow(QMainWindow):
             summary = self._summarize_folder_contents(self._current_folder_path)
             self.document_display_area.setPlainText(summary)
             if not self._current_folder_files:
-                self.on_analysis_error("Selected folder does not contain any files for analysis.")
+                self.on_analysis_error(
+                    "Selected folder does not contain any files for analysis."
+                )
                 return
 
         files_payload = []
@@ -779,9 +793,7 @@ class MainApplicationWindow(QMainWindow):
         self._current_document_text = content
         self.document_display_area.setPlainText(content)
         self.selected_source_label.setText(os.path.basename(file_name))
-        self.status_bar.showMessage(
-            f"Loaded document: {os.path.basename(file_name)}"
-        )
+        self.status_bar.showMessage(f"Loaded document: {os.path.basename(file_name)}")
         self.analysis_results_area.clear()
         self._analysis_running = False
         self._update_action_states()
@@ -902,7 +914,9 @@ class MainApplicationWindow(QMainWindow):
         self.ai_loader_worker = None
         self.ai_loader_thread = None
 
-    def on_ai_loaded(self, compliance_service, is_healthy, status_message, health_details):
+    def on_ai_loaded(
+        self, compliance_service, is_healthy, status_message, health_details
+    ):
         self.compliance_service = compliance_service
         self.ai_status_label.setText(status_message)
         self.ai_status_label.setStyleSheet(
@@ -912,7 +926,9 @@ class MainApplicationWindow(QMainWindow):
             translated = {name: bool(value) for name, value in health_details.items()}
             self._update_model_status_badges(translated)
         else:
-            self._update_model_status_badges({key: bool(is_healthy) for key in self.model_status})
+            self._update_model_status_badges(
+                {key: bool(is_healthy) for key in self.model_status}
+            )
         self._populate_rubric_selector()  # Populate rubrics after AI is loaded
 
     def _populate_rubric_selector(self):
@@ -934,7 +950,9 @@ class MainApplicationWindow(QMainWindow):
             self.rubric_type_selector.clear()
             self.rubric_type_selector.addItem("All Disciplines", None)
             for discipline in disciplines:
-                label = discipline.upper() if len(discipline) <= 4 else discipline.title()
+                label = (
+                    discipline.upper() if len(discipline) <= 4 else discipline.title()
+                )
                 self.rubric_type_selector.addItem(label, discipline)
             self.rubric_type_selector.blockSignals(False)
 
@@ -985,8 +1003,7 @@ class MainApplicationWindow(QMainWindow):
 
     @staticmethod
     def get_light_theme_stylesheet() -> str:
-        return (
-            """
+        return """
 QWidget { background-color: #f5f5f7; color: #1b1b1f; font-size: 13px; }
 QMainWindow { background-color: #f5f5f7; }
 QMenuBar { background-color: #f5f5f7; color: #1b1b1f; border: none; }
@@ -1028,12 +1045,10 @@ QScrollBar::handle:horizontal { background: #c7ccd6; min-width: 24px; border-rad
 QScrollBar::handle:horizontal:hover { background: #6550d8; }
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { background: none; width: 0; }
 """
-        )
 
     @staticmethod
     def get_dark_theme_stylesheet() -> str:
-        return (
-            """
+        return """
 QWidget { background-color: #2b2b2b; color: #e6e6e6; font-size: 13px; }
 QMainWindow { background-color: #2b2b2b; }
 QMenuBar { background-color: #2b2b2b; color: #e6e6e6; border: none; }
@@ -1078,19 +1093,18 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { background: n
 QMessageBox { background-color: #2b2b2b; color: #e6e6e6; }
 QMessageBox QPushButton { min-width: 90px; }
 """
-        )
-
 
     def closeEvent(self, event):
         """Handle application close event with proper cleanup."""
         try:
             # Clean up performance status widget
-            if hasattr(self, 'performance_status'):
+            if hasattr(self, "performance_status"):
                 self.performance_status.cleanup()
 
             # Clean up performance integration service
             try:
                 from src.core.performance_integration import performance_integration
+
                 performance_integration.cleanup()
             except ImportError:
                 pass

@@ -8,6 +8,7 @@ from ...auth import get_current_admin_user
 
 router = APIRouter(prefix="/rubrics", tags=["rubrics"])
 
+
 @router.post("/", response_model=schemas.Rubric)
 async def create_rubric(
     rubric: schemas.RubricCreate,
@@ -15,6 +16,7 @@ async def create_rubric(
     current_user: schemas.User = Depends(get_current_admin_user),
 ):
     return await crud.create_rubric(db=db, rubric=rubric)
+
 
 @router.get("/", response_model=List[schemas.Rubric])
 async def read_rubrics(
@@ -24,6 +26,7 @@ async def read_rubrics(
     current_user: schemas.User = Depends(get_current_admin_user),
 ):
     return await crud.get_rubrics(db, skip=skip, limit=limit)
+
 
 @router.get("/{rubric_id}", response_model=schemas.Rubric)
 async def read_rubric(
@@ -36,6 +39,7 @@ async def read_rubric(
         raise HTTPException(status_code=404, detail="Rubric not found")
     return db_rubric
 
+
 @router.put("/{rubric_id}", response_model=schemas.Rubric)
 async def update_rubric(
     rubric_id: int,
@@ -47,6 +51,7 @@ async def update_rubric(
     if db_rubric is None:
         raise HTTPException(status_code=404, detail="Rubric not found")
     return db_rubric
+
 
 @router.delete("/{rubric_id}", response_model=schemas.Rubric)
 async def delete_rubric(

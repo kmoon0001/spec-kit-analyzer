@@ -61,14 +61,16 @@ def main():
     cursor = conn.cursor()
 
     # --- Create the users table ---
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         password_hash BLOB NOT NULL,
         salt BLOB NOT NULL
     )
-    """)
+    """
+    )
 
     # --- Add the admin user ---
     admin_password = generate_random_password()

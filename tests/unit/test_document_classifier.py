@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 from src.core.document_classifier import DocumentClassifier
 
+
 @pytest.fixture
 def classifier():
     """Fixture to create a DocumentClassifier with a mocked LLM service."""
@@ -25,24 +26,30 @@ def classifier():
     )
     # Mock the prompt manager within the instance to simplify the test
     classifier_instance.prompt_manager = MagicMock()
-    classifier_instance.prompt_manager.build_prompt.side_effect = lambda document_text: document_text
+    classifier_instance.prompt_manager.build_prompt.side_effect = (
+        lambda document_text: document_text
+    )
 
     return classifier_instance
+
 
 def test_classify_evaluation(classifier: DocumentClassifier):
     """Tests that the classifier correctly identifies an evaluation note."""
     text = "This is a patient evaluation and assessment."
     assert classifier.classify_document(text) == "Evaluation"
 
+
 def test_classify_progress_note(classifier: DocumentClassifier):
     """Tests that the classifier correctly identifies a progress note."""
     text = "This is a daily progress note."
     assert classifier.classify_document(text) == "Progress Note"
 
+
 def test_classify_unknown(classifier: DocumentClassifier):
     """Tests that the classifier returns 'Unknown' for unrecognized text."""
     text = "This is a standard document with no keywords."
     assert classifier.classify_document(text) == "Unknown"
+
 
 def test_llm_service_not_ready(classifier: DocumentClassifier):
     """Tests that the classifier returns 'Unknown' if the LLM service is not ready."""

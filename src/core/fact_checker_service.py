@@ -3,6 +3,7 @@ from transformers import pipeline
 
 logger = logging.getLogger(__name__)
 
+
 class FactCheckerService:
     """A service to check for factual consistency using a Natural Language Inference model."""
 
@@ -15,7 +16,9 @@ class FactCheckerService:
         if self.classifier is None:
             try:
                 logger.info(f"Loading fact-checking model: {self.model_name}")
-                self.classifier = pipeline("text2text-generation", model=self.model_name)
+                self.classifier = pipeline(
+                    "text2text-generation", model=self.model_name
+                )
                 logger.info("Fact-checking model loaded successfully.")
             except Exception as e:
                 logger.error(f"Failed to load fact-checking model: {e}")
@@ -35,8 +38,10 @@ class FactCheckerService:
             self.load_model()
 
         if not self.is_ready():
-            logger.warning("Fact-checker model not available. Skipping consistency check.")
-            return True # Fail open, assuming consistency
+            logger.warning(
+                "Fact-checker model not available. Skipping consistency check."
+            )
+            return True  # Fail open, assuming consistency
 
         try:
             # The prompt format depends on the model. For Flan-T5, a simple question works well.
@@ -45,9 +50,9 @@ class FactCheckerService:
 
             # The output is a string that needs to be interpreted.
             # This is a simplified check; a more robust solution would parse the output more carefully.
-            answer = result[0]['generated_text'].lower()
+            answer = result[0]["generated_text"].lower()
             return "yes" in answer or "supported" in answer
 
         except Exception as e:
             logger.error(f"Error during fact-checking: {e}")
-            return True # Fail open
+            return True  # Fail open

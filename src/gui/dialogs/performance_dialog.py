@@ -1,14 +1,25 @@
 """
 Performance Settings Dialog - Simplified version for system configuration.
 """
+
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
-    QPushButton, QGroupBox, QProgressBar, QFormLayout, QSpinBox, QCheckBox
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QComboBox,
+    QPushButton,
+    QGroupBox,
+    QProgressBar,
+    QFormLayout,
+    QSpinBox,
+    QCheckBox,
 )
 from PyQt6.QtCore import QTimer, pyqtSignal
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 class PerformanceDialog(QDialog):
     """Simplified performance settings dialog."""
@@ -22,7 +33,11 @@ class PerformanceDialog(QDialog):
         self.resize(500, 400)
 
         try:
-            from ...core.performance_manager import performance_manager, PerformanceProfile
+            from ...core.performance_manager import (
+                performance_manager,
+                PerformanceProfile,
+            )
+
             self.performance_manager = performance_manager
             self.PerformanceProfile = PerformanceProfile
         except ImportError as e:
@@ -118,9 +133,9 @@ class PerformanceDialog(QDialog):
 
         # System info
         self.memory_label.setText(f"{system_info['total_memory_gb']} GB")
-        self.cpu_label.setText(str(system_info['cpu_count']))
+        self.cpu_label.setText(str(system_info["cpu_count"]))
 
-        gpu_text = "Available" if system_info['cuda_available'] else "Not Available"
+        gpu_text = "Available" if system_info["cuda_available"] else "Not Available"
         self.gpu_label.setText(gpu_text)
 
         # Settings
@@ -146,11 +161,17 @@ class PerformanceDialog(QDialog):
 
             # Color coding
             if percent > 85:
-                self.memory_bar.setStyleSheet("QProgressBar::chunk { background-color: red; }")
+                self.memory_bar.setStyleSheet(
+                    "QProgressBar::chunk { background-color: red; }"
+                )
             elif percent > 70:
-                self.memory_bar.setStyleSheet("QProgressBar::chunk { background-color: orange; }")
+                self.memory_bar.setStyleSheet(
+                    "QProgressBar::chunk { background-color: orange; }"
+                )
             else:
-                self.memory_bar.setStyleSheet("QProgressBar::chunk { background-color: green; }")
+                self.memory_bar.setStyleSheet(
+                    "QProgressBar::chunk { background-color: green; }"
+                )
         except Exception as e:
             logger.error(f"Error updating memory display: {e}")
 
@@ -200,6 +221,6 @@ class PerformanceDialog(QDialog):
 
     def closeEvent(self, event):
         """Handle close event."""
-        if hasattr(self, 'timer'):
+        if hasattr(self, "timer"):
             self.timer.stop()
         super().closeEvent(event)

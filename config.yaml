@@ -4,7 +4,7 @@ database:
   url: "sqlite:///./compliance.db"
 
 auth:
-  secret_key: "a_very_secret_key"
+  secret_key: "your_secret_key_here" # Changed to a placeholder
   algorithm: "HS256" 
   access_token_expire_minutes: 30
 

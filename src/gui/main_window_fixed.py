@@ -2,35 +2,50 @@
 Fixed Modern Main Window - Working version with your layout.
 Integrated with backend services for full functionality.
 """
-import os
-import sys
 import asyncio
 import logging
-from pathlib import Path
-from typing import Optional, Dict, Any
+import os
+import sys
+from typing import Any, Dict
+
 import requests
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QMainWindow, QStatusBar,
-    QMenuBar, QFileDialog, QSplitter, QTextEdit, QLabel, QGroupBox,
-    QProgressBar, QPushButton, QTabWidget, QTextBrowser, QComboBox,
-    QFrame, QApplication
-)
-from PyQt6.QtCore import Qt, QThread, QUrl, QTimer, pyqtSignal as Signal
+from PyQt6.QtCore import QThread, QTimer, Qt, pyqtSignal as Signal
 from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMenuBar,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QSplitter,
+    QStatusBar,
+    QTextBrowser,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 # Add project root to path for imports
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+project_root = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
+
 
 from src.config import get_settings
 from src.core.analysis_service import AnalysisService
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
-from src.gui.workers.analysis_worker import AnalysisWorker
 
 settings = get_settings()
 API_URL = settings.api_url
 logger = logging.getLogger(__name__)
+
 
 class ModernCard(QFrame):
     """Simple modern card widget."""
@@ -65,18 +80,21 @@ class ModernCard(QFrame):
 
     def apply_style(self):
         """Apply card styling."""
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QFrame {
                 background-color: #ffffff;
                 border: 1px solid #e2e8f0;
                 border-radius: 8px;
                 margin: 4px;
             }
-        """)
+        """
+        )
 
     def add_content(self, widget: QWidget):
         """Add content to card."""
         self.content_layout.addWidget(widget)
+
 
 class AnalysisWorkerThread(QThread):
     """Background worker for document analysis."""
@@ -86,7 +104,9 @@ class AnalysisWorkerThread(QThread):
     analysis_completed = Signal(dict)
     analysis_failed = Signal(str)
 
-    def __init__(self, file_path: str, discipline: str, analysis_service: AnalysisService):
+    def __init__(
+        self, file_path: str, discipline: str, analysis_service: AnalysisService
+    ):
         super().__init__()
         self.file_path = file_path
         self.discipline = discipline
@@ -103,15 +123,14 @@ class AnalysisWorkerThread(QThread):
 
             # Run the actual analysis
             result = self.analysis_service.analyze_document(
-                file_path=self.file_path,
-                discipline=self.discipline
+                file_path=self.file_path, discipline=self.discipline
             )
 
             self.progress_updated.emit(80)
             self.status_updated.emit("📊 Generating report...")
 
             # Handle async result if needed
-            if hasattr(result, '__await__'):
+            if hasattr(result, "__await__"):
                 # This is an async result, we need to handle it properly
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
@@ -160,6 +179,7 @@ class ModernMainWindow(QMainWindow):
         except Exception as e:
             print(f"❌ Error in start(): {e}")
             import traceback
+
             traceback.print_exc()
 
     def init_base_ui(self):
@@ -174,7 +194,8 @@ class ModernMainWindow(QMainWindow):
         self.setup_status_bar()
 
         # Apply modern styling
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QMainWindow {
                 background-color: #f8fafc;
                 color: #1e293b;
@@ -199,7 +220,8 @@ class ModernMainWindow(QMainWindow):
                 color: #64748b;
                 border-top: 1px solid #e2e8f0;
             }
-        """)
+        """
+        )
 
     def setup_menu_bar(self):
         """Setup menu bar."""
@@ -215,11 +237,15 @@ class ModernMainWindow(QMainWindow):
         # Tools menu
         self.tools_menu = self.menu_bar.addMenu("🔧 Tools")
         self.tools_menu.addAction("📋 Manage Rubrics", self.manage_rubrics)
-        self.tools_menu.addAction("⚡ Performance Settings", self.show_performance_settings)
+        self.tools_menu.addAction(
+            "⚡ Performance Settings", self.show_performance_settings
+        )
 
         # View menu
         self.view_menu = self.menu_bar.addMenu("👁️ View")
-        self.view_menu.addAction("🌞 Light Theme", lambda: print("Light theme selected"))
+        self.view_menu.addAction(
+            "🌞 Light Theme", lambda: print("Light theme selected")
+        )
         self.view_menu.addAction("🌙 Dark Theme", lambda: print("Dark theme selected"))
 
     def setup_status_bar(self):
@@ -235,13 +261,15 @@ class ModernMainWindow(QMainWindow):
 
         # Easter egg
         self.easter_egg_label = QLabel("Pacific Coast Therapy")
-        self.easter_egg_label.setStyleSheet("""
+        self.easter_egg_label.setStyleSheet(
+            """
             font-family: "Brush Script MT", "Lucida Handwriting", cursive;
             font-size: 10px;
             color: #94a3b8;
             font-style: italic;
             margin-left: 20px;
-        """)
+        """
+        )
         self.status_bar.addPermanentWidget(self.easter_egg_label)
 
         # Progress bar
@@ -296,7 +324,8 @@ class ModernMainWindow(QMainWindow):
         self.rubric_selector = QComboBox()
         self.rubric_selector.setPlaceholderText("Select compliance rubric...")
         self.rubric_selector.currentTextChanged.connect(self.on_rubric_changed)
-        self.rubric_selector.setStyleSheet("""
+        self.rubric_selector.setStyleSheet(
+            """
             QComboBox {
                 background-color: #f1f5f9;
                 border: 1px solid #cbd5e0;
@@ -307,7 +336,8 @@ class ModernMainWindow(QMainWindow):
             QComboBox:hover {
                 border-color: #2563eb;
             }
-        """)
+        """
+        )
         self.rubric_selector.currentTextChanged.connect(self.on_rubric_changed)
 
         self.rubric_description = QLabel("Select a rubric to see description")
@@ -331,7 +361,8 @@ class ModernMainWindow(QMainWindow):
 
         self.upload_button = QPushButton("📤 Upload Document")
         self.upload_button.clicked.connect(self.open_file_dialog)
-        self.upload_button.setStyleSheet("""
+        self.upload_button.setStyleSheet(
+            """
             QPushButton {
                 background-color: #2563eb;
                 color: white;
@@ -343,11 +374,13 @@ class ModernMainWindow(QMainWindow):
             QPushButton:hover {
                 background-color: #1d4ed8;
             }
-        """)
+        """
+        )
 
         self.clear_button = QPushButton("🗑️ Clear")
         self.clear_button.clicked.connect(self.clear_display)
-        self.clear_button.setStyleSheet("""
+        self.clear_button.setStyleSheet(
+            """
             QPushButton {
                 background-color: #f1f5f9;
                 color: #1e293b;
@@ -359,7 +392,8 @@ class ModernMainWindow(QMainWindow):
             QPushButton:hover {
                 background-color: #e2e8f0;
             }
-        """)
+        """
+        )
 
         button_layout.addWidget(self.upload_button)
         button_layout.addWidget(self.clear_button)
@@ -388,7 +422,8 @@ class ModernMainWindow(QMainWindow):
         self.run_analysis_button = QPushButton("🚀 Run Analysis")
         self.run_analysis_button.clicked.connect(self.run_analysis)
         self.run_analysis_button.setEnabled(False)
-        self.run_analysis_button.setStyleSheet("""
+        self.run_analysis_button.setStyleSheet(
+            """
             QPushButton {
                 background-color: #059669;
                 color: white;
@@ -405,7 +440,8 @@ class ModernMainWindow(QMainWindow):
                 background-color: #cbd5e0;
                 color: #94a3b8;
             }
-        """)
+        """
+        )
 
         progress_container = QWidget()
         progress_container_layout = QVBoxLayout(progress_container)
@@ -416,7 +452,8 @@ class ModernMainWindow(QMainWindow):
 
         self.main_progress_bar = QProgressBar()
         self.main_progress_bar.setVisible(False)
-        self.main_progress_bar.setStyleSheet("""
+        self.main_progress_bar.setStyleSheet(
+            """
             QProgressBar {
                 border: 1px solid #e2e8f0;
                 border-radius: 4px;
@@ -427,7 +464,8 @@ class ModernMainWindow(QMainWindow):
                 background-color: #2563eb;
                 border-radius: 3px;
             }
-        """)
+        """
+        )
 
         progress_container_layout.addWidget(self.progress_label)
         progress_container_layout.addWidget(self.main_progress_bar)
@@ -449,9 +487,12 @@ class ModernMainWindow(QMainWindow):
         doc_layout = QVBoxLayout(doc_content)
 
         self.document_display = QTextEdit()
-        self.document_display.setPlaceholderText("📄 Upload a document to see its content here...")
+        self.document_display.setPlaceholderText(
+            "📄 Upload a document to see its content here..."
+        )
         self.document_display.setReadOnly(True)
-        self.document_display.setStyleSheet("""
+        self.document_display.setStyleSheet(
+            """
             QTextEdit {
                 background-color: #f8fafc;
                 border: 1px solid #e2e8f0;
@@ -460,7 +501,8 @@ class ModernMainWindow(QMainWindow):
                 font-family: 'Consolas', 'Monaco', monospace;
                 font-size: 11px;
             }
-        """)
+        """
+        )
 
         doc_layout.addWidget(self.document_display)
         doc_card.add_content(doc_content)
@@ -471,16 +513,19 @@ class ModernMainWindow(QMainWindow):
         results_layout = QVBoxLayout(results_content)
 
         self.analysis_results = QTextBrowser()
-        self.analysis_results.setPlaceholderText("""
+        self.analysis_results.setPlaceholderText(
+            """
 🎯 Analysis results will appear here...
 
 • Upload a clinical document
 • Select an appropriate compliance rubric  
 • Click 'Run Analysis' to begin
 • Interact with AI for clarifications
-        """)
+        """
+        )
         self.analysis_results.setReadOnly(True)
-        self.analysis_results.setStyleSheet("""
+        self.analysis_results.setStyleSheet(
+            """
             QTextBrowser {
                 background-color: #ffffff;
                 border: 1px solid #e2e8f0;
@@ -489,7 +534,8 @@ class ModernMainWindow(QMainWindow):
                 font-size: 12px;
                 line-height: 1.5;
             }
-        """)
+        """
+        )
 
         results_layout.addWidget(self.analysis_results)
         results_card.add_content(results_content)
@@ -510,9 +556,12 @@ class ModernMainWindow(QMainWindow):
         chat_layout = QHBoxLayout(chat_content)
 
         self.chat_input = QTextEdit()
-        self.chat_input.setPlaceholderText("Ask the AI assistant about compliance, documentation, or analysis results...")
+        self.chat_input.setPlaceholderText(
+            "Ask the AI assistant about compliance, documentation, or analysis results..."
+        )
         self.chat_input.setMaximumHeight(60)
-        self.chat_input.setStyleSheet("""
+        self.chat_input.setStyleSheet(
+            """
             QTextEdit {
                 background-color: #f8fafc;
                 border: 1px solid #e2e8f0;
@@ -520,11 +569,13 @@ class ModernMainWindow(QMainWindow):
                 padding: 8px;
                 font-size: 12px;
             }
-        """)
+        """
+        )
 
         self.send_button = QPushButton("📤 Send")
         self.send_button.clicked.connect(self.send_chat)
-        self.send_button.setStyleSheet("""
+        self.send_button.setStyleSheet(
+            """
             QPushButton {
                 background-color: #2563eb;
                 color: white;
@@ -536,7 +587,8 @@ class ModernMainWindow(QMainWindow):
             QPushButton:hover {
                 background-color: #1d4ed8;
             }
-        """)
+        """
+        )
         self.send_button.setFixedWidth(80)
 
         chat_layout.addWidget(self.chat_input, 1)
@@ -549,10 +601,10 @@ class ModernMainWindow(QMainWindow):
     def open_file_dialog(self):
         """Open file dialog."""
         file_name, _ = QFileDialog.getOpenFileName(
-            self, 
-            "📁 Select Clinical Document", 
-            "", 
-            "All Supported Files (*.pdf *.docx *.txt);;PDF Files (*.pdf);;Word Documents (*.docx);;Text Files (*.txt)"
+            self,
+            "📁 Select Clinical Document",
+            "",
+            "All Supported Files (*.pdf *.docx *.txt);;PDF Files (*.pdf);;Word Documents (*.docx);;Text Files (*.txt)",
         )
 
         if file_name:
@@ -561,7 +613,7 @@ class ModernMainWindow(QMainWindow):
             self.document_status.setText(f"📄 {file_info}")
 
             try:
-                with open(file_name, 'r', encoding='utf-8', errors='ignore') as f:
+                with open(file_name, "r", encoding="utf-8", errors="ignore") as f:
                     content = f.read()
                     preview = content[:5000] + "..." if len(content) > 5000 else content
                     self.document_display.setText(preview)
@@ -583,7 +635,9 @@ class ModernMainWindow(QMainWindow):
             try:
                 self.analysis_service = AnalysisService()
             except Exception as e:
-                QMessageBox.critical(self, "Service Error", f"Failed to initialize analysis service: {e}")
+                QMessageBox.critical(
+                    self, "Service Error", f"Failed to initialize analysis service: {e}"
+                )
                 return
 
         # Get selected discipline from rubric
@@ -599,9 +653,7 @@ class ModernMainWindow(QMainWindow):
 
         # Start background analysis
         self.worker_thread = AnalysisWorkerThread(
-            self._current_file_path, 
-            discipline, 
-            self.analysis_service
+            self._current_file_path, discipline, self.analysis_service
         )
         self.worker_thread.progress_updated.connect(self.main_progress_bar.setValue)
         self.worker_thread.status_updated.connect(self.progress_label.setText)
@@ -615,8 +667,8 @@ class ModernMainWindow(QMainWindow):
         """Handle successful analysis completion."""
         try:
             # Extract analysis data
-            analysis_data = result.get('analysis', {})
-            findings = analysis_data.get('findings', [])
+            analysis_data = result.get("analysis", {})
+            findings = analysis_data.get("findings", [])
 
             # Generate HTML report
             html_report = self.generate_html_report(analysis_data, findings)
@@ -626,17 +678,20 @@ class ModernMainWindow(QMainWindow):
 
         except Exception as e:
             logger.error(f"Error processing analysis results: {e}")
-            self.analysis_results.setHtml(f"""
+            self.analysis_results.setHtml(
+                f"""
                 <div style="background-color: #fef2f2; padding: 12px; border-radius: 6px; border-left: 4px solid #ef4444;">
                     <h3 style="color: #dc2626; margin: 0 0 8px 0;">⚠️ Error Processing Results</h3>
                     <p>An error occurred while processing the analysis results: {e}</p>
                 </div>
-            """)
+            """
+            )
 
     def on_analysis_failed(self, error_message: str):
         """Handle analysis failure."""
         logger.error(f"Analysis failed: {error_message}")
-        self.analysis_results.setHtml(f"""
+        self.analysis_results.setHtml(
+            f"""
             <div style="background-color: #fef2f2; padding: 12px; border-radius: 6px; border-left: 4px solid #ef4444;">
                 <h3 style="color: #dc2626; margin: 0 0 8px 0;">❌ Analysis Failed</h3>
                 <p>{error_message}</p>
@@ -644,7 +699,8 @@ class ModernMainWindow(QMainWindow):
                     Please check your document format and try again. If the problem persists, contact support.
                 </p>
             </div>
-        """)
+        """
+        )
         self.status_bar.showMessage("❌ Analysis failed", 5000)
 
     def on_analysis_finished(self):
@@ -664,21 +720,25 @@ class ModernMainWindow(QMainWindow):
             return
 
         # Add user message to results
-        self.analysis_results.append(f"""
+        self.analysis_results.append(
+            f"""
         <div style="background-color: #e8f4fd; padding: 8px; border-radius: 4px; margin: 4px 0;">
             <strong>👤 You:</strong> {message}
         </div>
-        """)
+        """
+        )
 
         # Clear input
         self.chat_input.clear()
 
         # Show thinking indicator
-        self.analysis_results.append(f"""
+        self.analysis_results.append(
+            """
         <div style="background-color: #f0f9ff; padding: 8px; border-radius: 4px; margin: 4px 0;">
             <strong>🤖 AI:</strong> <em>Thinking...</em>
         </div>
-        """)
+        """
+        )
 
         # Simulate AI response (in real implementation, this would call the chat service)
         QTimer.singleShot(1500, lambda: self._add_ai_response(message))
@@ -691,33 +751,37 @@ class ModernMainWindow(QMainWindow):
         # Remove thinking indicator and add real response
         current_html = self.analysis_results.toHtml()
         # Remove the last "Thinking..." message
-        lines = current_html.split('\n')
+        lines = current_html.split("\n")
         filtered_lines = []
         skip_next = False
 
         for line in lines:
-            if 'Thinking...' in line:
+            if "Thinking..." in line:
                 skip_next = True
                 continue
-            if skip_next and '</div>' in line:
+            if skip_next and "</div>" in line:
                 skip_next = False
                 continue
             filtered_lines.append(line)
 
-        self.analysis_results.setHtml('\n'.join(filtered_lines))
+        self.analysis_results.setHtml("\n".join(filtered_lines))
 
         # Add actual AI response
-        self.analysis_results.append(f"""
+        self.analysis_results.append(
+            f"""
         <div style="background-color: #f0f9ff; padding: 8px; border-radius: 4px; margin: 4px 0;">
             <strong>🤖 AI Assistant:</strong> {response}
         </div>
-        """)
+        """
+        )
 
     def _generate_ai_response(self, message: str) -> str:
         """Generate contextual AI response."""
         message_lower = message.lower()
 
-        if any(word in message_lower for word in ['compliance', 'regulation', 'medicare']):
+        if any(
+            word in message_lower for word in ["compliance", "regulation", "medicare"]
+        ):
             return """I can help you understand compliance requirements. Medicare guidelines require specific documentation elements including:
             • Clear functional goals and outcomes
             • Objective measurements of progress
@@ -726,7 +790,9 @@ class ModernMainWindow(QMainWindow):
 
             Would you like me to explain any specific compliance area?"""
 
-        elif any(word in message_lower for word in ['documentation', 'document', 'note']):
+        elif any(
+            word in message_lower for word in ["documentation", "document", "note"]
+        ):
             return """For clinical documentation best practices:
             • Use objective, measurable language
             • Include specific functional outcomes
@@ -735,7 +801,9 @@ class ModernMainWindow(QMainWindow):
 
             What specific documentation challenge can I help with?"""
 
-        elif any(word in message_lower for word in ['error', 'issue', 'problem', 'wrong']):
+        elif any(
+            word in message_lower for word in ["error", "issue", "problem", "wrong"]
+        ):
             return """I understand you're experiencing an issue. Common problems include:
             • Document format not supported
             • Missing required documentation elements
@@ -743,7 +811,7 @@ class ModernMainWindow(QMainWindow):
 
             Can you describe the specific issue you're encountering?"""
 
-        elif any(word in message_lower for word in ['help', 'how', 'what', 'explain']):
+        elif any(word in message_lower for word in ["help", "how", "what", "explain"]):
             return """I'm here to help with compliance analysis and documentation questions. I can assist with:
 
             📋 **Compliance Guidelines**: Medicare, CMS, and professional standards
@@ -774,7 +842,9 @@ class ModernMainWindow(QMainWindow):
             # Try to load from API first
             if self.access_token:
                 headers = {"Authorization": f"Bearer {self.access_token}"}
-                response = requests.get(f"{API_URL}/rubrics/", headers=headers, timeout=5)
+                response = requests.get(
+                    f"{API_URL}/rubrics/", headers=headers, timeout=5
+                )
                 if response.status_code == 200:
                     rubrics = response.json()
                     self._rubrics_cache = rubrics
@@ -783,9 +853,21 @@ class ModernMainWindow(QMainWindow):
 
             # Fallback to default rubrics
             default_rubrics = [
-                {"name": "PT Compliance Rubric", "category": "Physical Therapy", "content": "Physical therapy compliance guidelines"},
-                {"name": "OT Compliance Rubric", "category": "Occupational Therapy", "content": "Occupational therapy compliance guidelines"},
-                {"name": "SLP Compliance Rubric", "category": "Speech-Language Pathology", "content": "Speech-language pathology compliance guidelines"}
+                {
+                    "name": "PT Compliance Rubric",
+                    "category": "Physical Therapy",
+                    "content": "Physical therapy compliance guidelines",
+                },
+                {
+                    "name": "OT Compliance Rubric",
+                    "category": "Occupational Therapy",
+                    "content": "Occupational therapy compliance guidelines",
+                },
+                {
+                    "name": "SLP Compliance Rubric",
+                    "category": "Speech-Language Pathology",
+                    "content": "Speech-language pathology compliance guidelines",
+                },
             ]
             self._rubrics_cache = default_rubrics
             self.populate_rubric_selector(default_rubrics)
@@ -796,7 +878,10 @@ class ModernMainWindow(QMainWindow):
             default_rubrics = [
                 {"name": "PT Compliance Rubric", "category": "Physical Therapy"},
                 {"name": "OT Compliance Rubric", "category": "Occupational Therapy"},
-                {"name": "SLP Compliance Rubric", "category": "Speech-Language Pathology"}
+                {
+                    "name": "SLP Compliance Rubric",
+                    "category": "Speech-Language Pathology",
+                },
             ]
             self._rubrics_cache = default_rubrics
             self.populate_rubric_selector(default_rubrics)
@@ -832,14 +917,16 @@ class ModernMainWindow(QMainWindow):
             else:
                 self.rubric_description.setText(f"Selected: {category or rubric_name}")
 
-    def generate_html_report(self, analysis_data: Dict[str, Any], findings: list) -> str:
+    def generate_html_report(
+        self, analysis_data: Dict[str, Any], findings: list
+    ) -> str:
         """Generate HTML report from analysis results."""
         try:
             # Calculate overall score
             total_findings = len(findings)
-            high_risk = sum(1 for f in findings if f.get('risk_level') == 'High')
-            medium_risk = sum(1 for f in findings if f.get('risk_level') == 'Medium')
-            low_risk = sum(1 for f in findings if f.get('risk_level') == 'Low')
+            high_risk = sum(1 for f in findings if f.get("risk_level") == "High")
+            medium_risk = sum(1 for f in findings if f.get("risk_level") == "Medium")
+            low_risk = sum(1 for f in findings if f.get("risk_level") == "Low")
 
             # Simple scoring algorithm
             score = max(0, 100 - (high_risk * 20) - (medium_risk * 10) - (low_risk * 5))
@@ -849,7 +936,7 @@ class ModernMainWindow(QMainWindow):
                 risk_level = "Low"
                 risk_color = "#059669"
             elif score >= 70:
-                risk_level = "Medium" 
+                risk_level = "Medium"
                 risk_color = "#f59e0b"
             else:
                 risk_level = "High"
@@ -858,17 +945,15 @@ class ModernMainWindow(QMainWindow):
             # Generate findings HTML
             findings_html = ""
             for i, finding in enumerate(findings):
-                risk_level_finding = finding.get('risk_level', 'Medium')
-                issue = finding.get('issue', 'Compliance issue detected')
-                evidence = finding.get('evidence', 'No evidence provided')
-                recommendation = finding.get('recommendation', 'Please review documentation')
-                confidence = finding.get('confidence', 0.8)
+                risk_level_finding = finding.get("risk_level", "Medium")
+                issue = finding.get("issue", "Compliance issue detected")
+                evidence = finding.get("evidence", "No evidence provided")
+                recommendation = finding.get(
+                    "recommendation", "Please review documentation"
+                )
+                confidence = finding.get("confidence", 0.8)
 
-                risk_colors = {
-                    'High': '#fef2f2',
-                    'Medium': '#fef3c7', 
-                    'Low': '#dcfce7'
-                }
+                risk_colors = {"High": "#fef2f2", "Medium": "#fef3c7", "Low": "#dcfce7"}
 
                 findings_html += f"""
                 <div style="background-color: {risk_colors.get(risk_level_finding, '#f8fafc')}; padding: 8px; border-radius: 4px; margin: 4px 0; border-left: 3px solid {'#dc2626' if risk_level_finding == 'High' else '#f59e0b' if risk_level_finding == 'Medium' else '#059669'};">
@@ -916,7 +1001,7 @@ class ModernMainWindow(QMainWindow):
             """
 
     # Placeholder methods
-    def logout(self): 
+    def logout(self):
         """Handle user logout."""
         reply = QMessageBox.question(self, "Logout", "Are you sure you want to logout?")
         if reply == QMessageBox.StandardButton.Yes:
@@ -924,10 +1009,12 @@ class ModernMainWindow(QMainWindow):
             self.username = None
             self.close()
 
-    def manage_rubrics(self): 
+    def manage_rubrics(self):
         """Open rubric management dialog."""
         if not self.access_token:
-            QMessageBox.warning(self, "Authentication Required", "Please login to manage rubrics.")
+            QMessageBox.warning(
+                self, "Authentication Required", "Please login to manage rubrics."
+            )
             return
 
         dialog = RubricManagerDialog(self.access_token, self)
@@ -935,11 +1022,15 @@ class ModernMainWindow(QMainWindow):
             # Reload rubrics after management
             self.load_rubrics()
 
-    def show_performance_settings(self): 
+    def show_performance_settings(self):
         """Show performance settings dialog."""
-        QMessageBox.information(self, "Performance Settings", "Performance settings dialog will be implemented soon.")
+        QMessageBox.information(
+            self,
+            "Performance Settings",
+            "Performance settings dialog will be implemented soon.",
+        )
 
-    def load_ai_models(self): 
+    def load_ai_models(self):
         """Initialize AI models."""
         try:
             # This will be called during startup

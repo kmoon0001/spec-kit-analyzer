@@ -6,6 +6,7 @@ from ctransformers import AutoModelForCausalLM
 
 logger = logging.getLogger(__name__)
 
+
 class LLMService:
     """Service wrapper around a local GGUF model loaded via ctransformers."""
 
@@ -21,6 +22,7 @@ class LLMService:
         self.settings = llm_settings or {}
         self.generation_params = self.settings.get("generation_params", {}).copy()
         self.llm = None
+        self.generation_params = self.settings.get("generation_params", {})
         self._load_model()
 
     def _load_model(self):

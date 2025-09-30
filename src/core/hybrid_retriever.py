@@ -100,8 +100,7 @@ class HybridRetriever:
             combined.append((index, bm25_value + dense_value))
 
         combined.sort(key=lambda item: item[1], reverse=True)
-
-        sorted_rules = [self.rules[index] for index, _ in combined]
+sorted_rules = [self.rules[index] for index, _ in combined]
 
         if category_filter:
             filtered_rules = [

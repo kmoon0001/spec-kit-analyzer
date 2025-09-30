@@ -65,7 +65,9 @@ class AnalysisService:
 
         generator_repo, generator_filename = self._select_generator_profile(models_cfg)
         if not generator_repo or not generator_filename:
-            raise RuntimeError("Generator configuration is missing; unable to start analysis service.")
+            raise RuntimeError(
+                "Generator configuration is missing; unable to start analysis service."
+            )
 
         self.llm_service = LLMService(
             model_repo_id=generator_repo,
@@ -76,7 +78,9 @@ class AnalysisService:
         self.llm_service.generation_params.setdefault("temperature", 0.2)
         self.llm_service.generation_params.setdefault("top_p", 0.9)
 
-        self.chat_llm_service = self._build_chat_llm(models_cfg.get("chat") or {}, llm_settings)
+        self.chat_llm_service = self._build_chat_llm(
+            models_cfg.get("chat") or {}, llm_settings
+        )
 
         self.fact_checker = FactCheckerService(
             model_name=models_cfg.get("fact_checker", "")
@@ -210,8 +214,12 @@ class AnalysisService:
             summary = self._build_summary_fallback(result, checklist)
         result["summary"] = summary
         result["narrative_summary"] = self._build_narrative_summary(summary, checklist)
-        result["bullet_highlights"] = self._build_bullet_highlights(result, checklist, summary)
-        result["overall_confidence"] = self._calculate_overall_confidence(result, checklist)
+        result["bullet_highlights"] = self._build_bullet_highlights(
+            result, checklist, summary
+        )
+        result["overall_confidence"] = self._calculate_overall_confidence(
+            result, checklist
+        )
         return result
 
     @staticmethod
@@ -240,7 +248,9 @@ class AnalysisService:
     ) -> str:
         flagged = [item for item in checklist if item.get("status") != "pass"]
         if not flagged:
-            return sanitize_human_text(base_summary + " Core documentation elements were present.")
+            return sanitize_human_text(
+                base_summary + " Core documentation elements were present."
+            )
         focus = ", ".join(
             sanitize_human_text(item.get("title", "")) for item in flagged[:3]
         )
@@ -256,9 +266,7 @@ class AnalysisService:
         bullets: List[str] = []
         for item in checklist:
             if item.get("status") != "pass":
-                bullets.append(
-                    f"{item.get('title')}: {item.get('recommendation')}"
-                )
+                bullets.append(f"{item.get('title')}: {item.get('recommendation')}")
         findings = analysis_result.get("findings") or []
         for finding in findings[:4]:
             issue = finding.get("issue_title") or finding.get("rule_name")
@@ -290,7 +298,11 @@ class AnalysisService:
             value = finding.get("confidence")
             if isinstance(value, (int, float)):
                 confidence_values.append(float(value))
-        base_conf = sum(confidence_values) / len(confidence_values) if confidence_values else 0.85
+        base_conf = (
+            sum(confidence_values) / len(confidence_values)
+            if confidence_values
+            else 0.85
+        )
         flagged = sum(1 for item in checklist if item.get("status") != "pass")
         penalty = 0.05 * flagged
         overall = max(0.0, min(1.0, base_conf - penalty))
@@ -350,7 +362,9 @@ class AnalysisService:
         repo = chat_cfg.get("repo")
         filename = chat_cfg.get("filename")
         if not repo or not filename:
-            logger.warning("Chat model configuration incomplete; reusing primary generator for chat.")
+            logger.warning(
+                "Chat model configuration incomplete; reusing primary generator for chat."
+            )
             return self.llm_service
         chat_settings = dict(base_llm_settings)
         if chat_cfg.get("model_type"):
@@ -371,7 +385,7 @@ class AnalysisService:
     @staticmethod
     def _system_memory_gb() -> float:
         try:
-            return psutil.virtual_memory().total / (1024 ** 3)
+            return psutil.virtual_memory().total / (1024**3)
         except Exception:  # pragma: no cover - defensive fallback
             return 16.0
 

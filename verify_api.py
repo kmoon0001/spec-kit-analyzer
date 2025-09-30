@@ -7,6 +7,7 @@ API_URL = "http://127.0.0.1:8000"
 USERNAME = "admin"
 PASSWORD = "password"
 
+
 def get_auth_token():
     """Authenticate and retrieve a JWT token."""
     print("Authenticating...")
@@ -18,6 +19,7 @@ def get_auth_token():
     token = response.json()["access_token"]
     print("Authentication successful.")
     return token
+
 
 def analyze_document(token: str, file_path: str):
     """Upload a document for analysis and get the task ID."""
@@ -35,6 +37,7 @@ def analyze_document(token: str, file_path: str):
     task_id = response.json()["task_id"]
     print(f"Analysis task started with ID: {task_id}")
     return task_id
+
 
 def get_analysis_result(token: str, task_id: str):
     """Poll for the analysis result until it's complete."""
@@ -56,6 +59,7 @@ def get_analysis_result(token: str, task_id: str):
         else:
             print("Analysis in progress, waiting 2 seconds...")
             time.sleep(2)
+
 
 def main():
     """Run the full end-to-end API test."""
@@ -85,6 +89,7 @@ def main():
         # Clean up the dummy file
         if os.path.exists(dummy_file_path):
             os.remove(dummy_file_path)
+
 
 if __name__ == "__main__":
     main()

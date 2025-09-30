@@ -5,6 +5,7 @@ from .llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
+
 class OptimizedLLMService(LLMService):
     """An optimized LLM service that might use a different model or fine-tuning."""
 
@@ -20,6 +21,7 @@ class OptimizedLLMService(LLMService):
     def get_sentence_transformer_model(self):
         """Lazy-loads and returns a SentenceTransformer model."""
         from sentence_transformers import SentenceTransformer
+
         return SentenceTransformer("all-MiniLM-L6-v2")
 
     def generate_embedding(self, text: str) -> Any:

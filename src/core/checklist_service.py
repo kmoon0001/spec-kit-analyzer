@@ -1,4 +1,5 @@
 """Deterministic checklist heuristics for common compliance requirements."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -39,19 +40,36 @@ class DeterministicChecklistService:
             ChecklistItem(
                 identifier="treatment_frequency",
                 title="Treatment frequency documented",
-                keywords=("frequency", "per week", "times per week", "x/week", "sessions per week"),
+                keywords=(
+                    "frequency",
+                    "per week",
+                    "times per week",
+                    "x/week",
+                    "sessions per week",
+                ),
                 recommendation="Document the planned visit frequency (for example, '3 sessions per week').",
             ),
             ChecklistItem(
                 identifier="goals_adjusted",
                 title="Goals reviewed or adjusted",
-                keywords=("goal", "progress", "updated goal", "goal status", "short-term goal"),
+                keywords=(
+                    "goal",
+                    "progress",
+                    "updated goal",
+                    "goal status",
+                    "short-term goal",
+                ),
                 recommendation="State whether established goals were met, progressed, or require adjustment.",
             ),
             ChecklistItem(
                 identifier="medical_necessity",
                 title="Medical necessity justified",
-                keywords=("medical necessity", "medically necessary", "justified", "clinical rationale"),
+                keywords=(
+                    "medical necessity",
+                    "medically necessary",
+                    "justified",
+                    "clinical rationale",
+                ),
                 recommendation="Add a sentence that justifies why skilled therapy remains medically necessary.",
             ),
             ChecklistItem(
@@ -64,12 +82,17 @@ class DeterministicChecklistService:
             ChecklistItem(
                 identifier="plan_changes",
                 title="Plan of care or interventions updated",
-                keywords=("plan of care", "continue", "upgrade", "downgrade", "modify treatment"),
+                keywords=(
+                    "plan of care",
+                    "continue",
+                    "upgrade",
+                    "downgrade",
+                    "modify treatment",
+                ),
                 recommendation="Note any change to the plan of care or affirm that the current plan continues.",
                 optional=True,
             ),
         ]
-
 
     def describe_expectations(self) -> str:
         lines = []
@@ -106,7 +129,9 @@ class DeterministicChecklistService:
 
         results: List[Dict[str, str]] = []
         for item in self._checks:
-            evidence_sentence = self._locate_sentence(sentences, sentences_lower, item.keywords)
+            evidence_sentence = self._locate_sentence(
+                sentences, sentences_lower, item.keywords
+            )
             status = "pass" if evidence_sentence else "review"
             results.append(
                 {
@@ -122,7 +147,7 @@ class DeterministicChecklistService:
 
     def _split_sentences(self, text: str) -> List[str]:
         if self._nlp is None:
-            return [segment.strip() for segment in text.split('.') if segment.strip()]
+            return [segment.strip() for segment in text.split(".") if segment.strip()]
         doc = self._nlp(text)
         return [sent.text.strip() for sent in doc.sents if sent.text.strip()]
 

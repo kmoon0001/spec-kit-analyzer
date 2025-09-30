@@ -1,6 +1,7 @@
 import asyncio
 from typing import Any, Dict
 
+
 class MockAnalysisService:
     """
     A mock implementation of the AnalysisService that returns hard-coded data

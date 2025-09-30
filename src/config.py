@@ -1,8 +1,9 @@
-
+import os
 import yaml
 from functools import lru_cache
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
+from dotenv import load_dotenv
 
 
 class DatabaseSettings(BaseModel):
@@ -70,11 +71,21 @@ class Settings(BaseModel):
     temp_upload_dir: str
     api_url: str
     rule_dir: str
+    use_ai_mocks: bool
 
 
 @lru_cache()
 def get_settings() -> Settings:
+    # Load environment variables from .env file
+    load_dotenv()
+
     # Using a relative path from the project root is safer.
     with open("config.yaml", "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
-        return Settings(**config)
+
+    # Override secret_key from environment variable if it exists
+    secret_key = os.environ.get("SECRET_KEY")
+    if secret_key:
+        config["auth"]["secret_key"] = secret_key
+
+    return Settings(**config)

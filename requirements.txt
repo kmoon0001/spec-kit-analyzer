@@ -27,7 +27,6 @@ transformers
 sentence-transformers
 ctransformers
 faiss-cpu
-bitsandbytes
 rank_bm25
 accelerate
 nltk
@@ -39,6 +38,7 @@ rdflib
 aiosqlite
 
 # Security & Auth
+python-dotenv # For loading .env files
 passlib[bcrypt]
 python-multipart
 PyJWT
@@ -50,7 +50,7 @@ scipy
 
 # Performance & Monitoring
 psutil
-onnxruntime-gpu  # Optional GPU acceleration
+onnxruntime  # Switched to CPU-only version
 optimum  # Model optimization
 
 # Enhanced Features (Optional)
@@ -61,11 +61,3 @@ openpyxl  # Excel export support
 # Scheduling
 apscheduler
 tenacity
-
-# Testing
-pytest
-pytest-mock
-pytest-qt
-pytest-asyncio
-ruff
-spacy

@@ -3,6 +3,7 @@ from src.database.database import AsyncSessionLocal
 from src.database import models, crud
 from src.auth import AuthService
 
+
 async def create_default_user():
     """
     Creates a default administrative user if one does not already exist.
@@ -29,7 +30,7 @@ async def create_default_user():
             hashed_password=hashed_password,
             is_admin=True,
             is_active=True,
-            license_key=None
+            license_key=None,
         )
 
         db.add(db_user)
@@ -41,6 +42,7 @@ async def create_default_user():
 
     finally:
         await db.close()
+
 
 if __name__ == "__main__":
     asyncio.run(create_default_user())

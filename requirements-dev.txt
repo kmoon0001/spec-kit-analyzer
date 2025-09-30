@@ -1,0 +1,7 @@
+# Development and Testing Dependencies
+pytest
+pytest-mock
+pytest-qt
+pytest-asyncio
+ruff
+spacy
