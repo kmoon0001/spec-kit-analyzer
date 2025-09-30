@@ -45,14 +45,21 @@ def clear_temp_uploads():
                 logger.info("Successfully cleaned up temporary file: %s", file_path)
             except (OSError, PermissionError) as e:
                 logger.error("Failed to delete %s. Reason: %s", file_path, e)
+    except Exception as e:
+        logger.exception("An unexpected error occurred while clearing temp uploads: %s", e)
 
 
 def run_database_maintenance():
-    """Instantiates and runs the database maintenance service."""
+    """
+    Instantiates and runs the database maintenance service.
+    Includes error handling to prevent scheduler crashes.
+    """
     logger.info("Scheduler triggered: Starting database maintenance job.")
-    maintenance_service = DatabaseMaintenanceService()
-    maintenance_service.purge_old_reports(retention_days=DATABASE_PURGE_RETENTION_DAYS)
-    logger.info("Scheduler job: Database maintenance finished.")
+    try:
+        maintenance_service = DatabaseMaintenanceService()
+        maintenance_service.purge_old_reports(retention_days=DATABASE_PURGE_RETENTION_DAYS)
+    logger.info("Scheduler job: Database maintenance finished.")except Exception as e:
+        logger.exception("Database maintenance job failed: %s", e)
 
 
 # --- FastAPI App Setup ---
