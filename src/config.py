@@ -1,14 +1,9 @@
 import os
+import os
 from functools import lru_cache
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-
-import yaml
-from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config.yaml"
+from pydantic import BaseModel
+from typing import List, Dict, Any, Optional
+from dotenv import load_dotenv
 
 
 class DatabaseSettings(BaseModel):
@@ -87,20 +82,19 @@ class Settings(BaseModel):
 
 @lru_cache()
 def get_settings() -> Settings:
-    config_data: Dict[str, Any] = {}
+    # Load environment variables from .env file
+    load_dotenv()
 
-    if DEFAULT_CONFIG_PATH.is_file():
-        with open(DEFAULT_CONFIG_PATH, "r", encoding="utf-8") as f:
-            config_data = yaml.safe_load(f) or {}
+    # Using a relative path from the project root is safer.
+    with open("config.yaml", "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
 
-    # Allow environment variables to override key settings.
-    secret_key_env = os.environ.get("SECRET_KEY")
-    if secret_key_env:
-        config_data.setdefault("auth", {})["secret_key"] = secret_key_env
+    # Override secret_key from environment variable if it exists
+    secret_key = os.environ.get("SECRET_KEY")
+    if secret_key:
+        config["auth"]["secret_key"] = secret_key
 
-    db_url_env = os.environ.get("DATABASE_URL")
-    if db_url_env:
-        config_data.setdefault("database", {})["url"] = db_url_env
+    return Settings(**config)
 
     # Load deterministic_focus from file and add to config_data
     deterministic_focus_path = PROJECT_ROOT / "src/resources/deterministic_focus.txt"
