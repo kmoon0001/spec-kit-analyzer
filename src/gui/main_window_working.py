@@ -1,6 +1,4 @@
-"""
-Working Modern Main Window - Your exact layout specification.
-"""
+"""Working Modern Main Window - Your exact layout specification."""
 import os
 import sys
 from PyQt6.QtWidgets import (
@@ -170,7 +168,6 @@ class ReportViewDialog(QDialog):
 
     def export_report(self):
         """Export report to file."""
-        from PyQt6.QtWidgets import QFileDialog
         file_name, _ = QFileDialog.getSaveFileName(
             self, 
             "💾 Export Compliance Report", 
@@ -706,7 +703,8 @@ class ModernMainWindow(QMainWindow):
         chat_card.add_content(chat_content)
         return chat_card
 
-    def start(self):
+    @staticmethod
+    def start():
         """Start the application."""
         print("🚀 Starting working modern application...")
         print("✅ Working modern UI loaded successfully!")

@@ -8,7 +8,19 @@ import psutil
 import yaml
 
 from ..config import get_settings as _get_settings
+from .compliance_analyzer import ComplianceAnalyzer
+from .document_classifier import DocumentClassifier
+from .explanation import ExplanationEngine
+from .fact_checker_service import FactCheckerService
+from .hybrid_retriever import HybridRetriever
+from .llm_service import LLMService
+from .ner import NERPipeline
+from .nlg_service import NLGService
+from .preprocessing_service import PreprocessingService
+from .prompt_manager import PromptManager
+from .report_generator import ReportGenerator
 from .parsing import parse_document_content
+from .checklist_service import DeterministicChecklistService
 from .text_utils import sanitize_bullets, sanitize_human_text
 
 logger = logging.getLogger(__name__)
@@ -37,23 +49,9 @@ class AnalysisService:
 
     def __init__(
         self,
-        retriever: Optional[Any] = None,
+        retriever: Optional[HybridRetriever] = None,
         config_path: Optional[str | Path] = None,
     ) -> None:
-        # Conditionally import all AI-related services here
-        from .compliance_analyzer import ComplianceAnalyzer
-        from .document_classifier import DocumentClassifier
-        from .explanation import ExplanationEngine
-        from .fact_checker_service import FactCheckerService
-        from .hybrid_retriever import HybridRetriever
-        from .llm_service import LLMService
-        from .ner import NERPipeline
-        from .nlg_service import NLGService
-        from .preprocessing_service import PreprocessingService
-        from .prompt_manager import PromptManager
-        from .report_generator import ReportGenerator
-        from .checklist_service import DeterministicChecklistService
-
         self.config_path = Path(config_path or ROOT_DIR / "config.yaml")
         self.config = self._load_config()
 
@@ -110,7 +108,9 @@ class AnalysisService:
             nlg_service=self.nlg_service,
             deterministic_focus=self.checklist_expectations,
         )
+        # Backwards compatibility for callers that expect an "analyzer" attribute
         self.analyzer = self.compliance_analyzer
+
         self.report_generator = ReportGenerator()
 
     def analyze_document(
@@ -168,14 +168,16 @@ class AnalysisService:
         else:
             return loop.create_task(_run())
 
-    async def _maybe_await(self, value: Any) -> Any:
+    @staticmethod
+    async def _maybe_await(value: Any) -> Any:
         if asyncio.isfuture(value) or asyncio.iscoroutine(value):
             return await value
         if isinstance(value, Awaitable):
             return await value
         return value
 
-    def _trim_document_text(self, document_text: str, *, max_chars: int = 12000) -> str:
+    @staticmethod
+    def _trim_document_text(document_text: str, *, max_chars: int = 12000) -> str:
         if len(document_text) <= max_chars:
             return document_text
         return document_text[:max_chars] + " ..."
@@ -212,8 +214,9 @@ class AnalysisService:
         result["overall_confidence"] = self._calculate_overall_confidence(result, checklist)
         return result
 
+    @staticmethod
     def _build_summary_fallback(
-        self, analysis_result: Dict[str, Any], checklist: List[Dict[str, Any]]
+        analysis_result: Dict[str, Any], checklist: List[Dict[str, Any]]
     ) -> str:
         findings = analysis_result.get("findings") or []
         if findings:
@@ -244,8 +247,8 @@ class AnalysisService:
         narrative = f"{base_summary} Immediate follow-up recommended for: {focus}."
         return sanitize_human_text(narrative)
 
+    @staticmethod
     def _build_bullet_highlights(
-        self,
         analysis_result: Dict[str, Any],
         checklist: List[Dict[str, Any]],
         summary: str,
@@ -277,8 +280,9 @@ class AnalysisService:
             seen.add(lower)
         return deduped
 
+    @staticmethod
     def _calculate_overall_confidence(
-        self, analysis_result: Dict[str, Any], checklist: List[Dict[str, Any]]
+        analysis_result: Dict[str, Any], checklist: List[Dict[str, Any]]
     ) -> float:
         findings = analysis_result.get("findings") or []
         confidence_values: List[float] = []
@@ -325,6 +329,7 @@ class AnalysisService:
                     mem_gb,
                 )
                 return chosen_profile.get("repo"), chosen_profile.get("filename")
+            # Fall back to the first profile if none matched
             first_name, first_profile = next(iter(profiles.items()))
             logger.warning(
                 "No generator profile matched %.1f GB; falling back to '%s'.",
@@ -332,14 +337,14 @@ class AnalysisService:
                 first_name,
             )
             return first_profile.get("repo"), first_profile.get("filename")
+        # Legacy single-entry configuration
         return models_cfg.get("generator"), models_cfg.get("generator_filename")
 
     def _build_chat_llm(
         self,
         chat_cfg: Dict[str, Any],
         base_llm_settings: Dict[str, Any],
-    ) -> Any: # Changed to Any
-        from .llm_service import LLMService
+    ) -> LLMService:
         if not chat_cfg:
             return self.llm_service
         repo = chat_cfg.get("repo")
@@ -367,7 +372,7 @@ class AnalysisService:
     def _system_memory_gb() -> float:
         try:
             return psutil.virtual_memory().total / (1024 ** 3)
-        except Exception:
+        except Exception:  # pragma: no cover - defensive fallback
             return 16.0
 
     def _load_config(self) -> Dict[str, Any]:
