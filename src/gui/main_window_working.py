@@ -170,7 +170,6 @@ class ReportViewDialog(QDialog):
 
     def export_report(self):
         """Export report to file."""
-        from PyQt6.QtWidgets import QFileDialog
         file_name, _ = QFileDialog.getSaveFileName(
             self, 
             "💾 Export Compliance Report", 
