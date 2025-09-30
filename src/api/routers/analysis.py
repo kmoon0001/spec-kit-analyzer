@@ -27,35 +27,35 @@ router = APIRouter(prefix="/analysis", tags=["analysis"])
 tasks: Dict[str, Dict[str, Any]] = {}
 
 
-def run_analysis_and_save(
+async def run_analysis_and_save(
     file_path: str,
     discipline: str,
     analysis_mode: str,
-    analysis_service: AnalysisService,
+    analysis_service: Any,
+    task_id: str,
+    original_filename: str,
 ) -> None:
-    async def _job() -> None:
-        try:
-            result = await analysis_service.analyze_document(
-                file_path=file_path,
-                discipline=discipline,
-                analysis_mode=analysis_mode,
-            )
-            tasks[task_id] = {
-                "status": "completed",
-                "result": result,
-                "filename": original_filename,
-            }
-        except Exception as exc:  # pragma: no cover - defensive
-            logger.exception("Analysis task %s failed", task_id)
-            tasks[task_id] = {
-                "status": "failed",
-                "error": str(exc),
-                "filename": original_filename,
-            }
-        finally:
-            Path(file_path).unlink(missing_ok=True)
-
-    asyncio.create_task(_job())
+    """Runs the analysis in the background and updates the task status."""
+    try:
+        result = await analysis_service.analyze_document(
+            file_path=file_path,
+            discipline=discipline,
+            analysis_mode=analysis_mode,
+        )
+        tasks[task_id] = {
+            "status": "completed",
+            "result": result,
+            "filename": original_filename,
+        }
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.exception("Analysis task %s failed", task_id)
+        tasks[task_id] = {
+            "status": "failed",
+            "error": str(exc),
+            "filename": original_filename,
+        }
+    finally:
+        Path(file_path).unlink(missing_ok=True)
 
 @router.post("/analyze", status_code=status.HTTP_202_ACCEPTED)
 async def analyze_document(
@@ -63,7 +63,7 @@ async def analyze_document(
     discipline: str = Form("pt"),
     analysis_mode: str = Form("rubric"),
     current_user=Depends(get_current_active_user),
-    analysis_service=Depends(get_analysis_service),
+    analysis_service: Any = Depends(get_analysis_service),
 ) -> Dict[str, str]:
     """
     Accepts a document for analysis, creates a task, and starts it in the background.
@@ -83,57 +83,33 @@ async def analyze_document(
     content = await file.read()
     destination.write_bytes(content)
 
-    task = await task_manager.create_task(task_id=task_id, filename=file.filename)
+    tasks[task_id] = {"status": "processing", "filename": file.filename}
 
-    background_tasks.add_task(
-        run_analysis_and_save,
-        str(destination),
-        task_id,
-        file.filename,
-        discipline,
-        analysis_mode,
-        analysis_service,
+    asyncio.create_task(
+        run_analysis_and_save(
+            file_path=str(destination),
+            task_id=task_id,
+            original_filename=file.filename,
+            discipline=discipline,
+            analysis_mode=analysis_mode,
+            analysis_service=analysis_service,
+        )
     )
 
     return {"task_id": task_id, "status": "processing"}
 
 
-@router.websocket("/ws/tasks/{task_id}")
-async def websocket_task_status(websocket: WebSocket, task_id: str):
+@router.get("/status/{task_id}")
+async def get_task_status(task_id: str) -> Dict[str, Any]:
     """
-    WebSocket endpoint to provide real-time status updates for an analysis task.
+    Retrieves the status or result of a background analysis task.
+    Once the task is complete, the result is returned and removed from memory.
     """
-    await websocket.accept()
-    task = await task_manager.get_task(task_id)
-
+    task = tasks.get(task_id)
     if not task:
-        await websocket.send_json({"status": "failed", "error": "Task not found."})
-        await websocket.close()
-        return
+        raise HTTPException(status_code=404, detail="Task not found")
 
-    # If the task is already finished, send the final state and close.
-    if task.status in ["completed", "failed"]:
-        final_state = {"status": task.status}
-        if task.result:
-            final_state["result"] = task.result
-        if task.error:
-            final_state["error"] = task.error
-        await websocket.send_json(final_state)
-        await websocket.close()
-        return
+    if task.get("status") == "completed":
+        return tasks.pop(task_id)
 
-    # Subscribe to updates for the ongoing task
-    queue = task.subscribe()
-    try:
-        while True:
-            update = await queue.get()
-            if update is None:  # Sentinel value indicating task completion
-                break
-            await websocket.send_json(update)
-        await websocket.close()
-    except WebSocketDisconnect:
-        logger.info("WebSocket disconnected for task %s", task_id)
-    finally:
-        task.unsubscribe(queue)
-        # Optionally, clean up the task from the manager once all subscribers are gone
-        # or after a certain period. For now, we leave it for potential result retrieval.
+    return task

@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
-from ...database import models, crud
+from ...database import crud, models, schemas
 from ...database.database import get_async_db
 from ...auth import AuthService, get_auth_service, get_current_active_user
 
-router = APIRouter()
+router = APIRouter(prefix="/users", tags=["users"])
 
 
 class PasswordUpdate(BaseModel):
@@ -14,7 +14,7 @@ class PasswordUpdate(BaseModel):
     new_password: str
 
 
-@router.put("/users/me/password", status_code=status.HTTP_204_NO_CONTENT)
+@router.put("/me/password", status_code=status.HTTP_204_NO_CONTENT)
 async def update_current_user_password(
     password_data: PasswordUpdate,
     db: AsyncSession = Depends(get_async_db),
@@ -37,5 +37,5 @@ async def update_current_user_password(
 
     # 3. Update the user in the database
     await crud.change_user_password(
-        db, user=current_user, new_hashed_password=new_hashed_password
+        db=db, user=current_user, new_hashed_password=new_hashed_password
     )

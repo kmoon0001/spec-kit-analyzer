@@ -8,7 +8,6 @@ from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassificatio
 
 logger = logging.getLogger(__name__)
 
-
 class NERPipeline:
     """
     A pipeline for Named Entity Recognition that uses an ensemble of models
@@ -34,64 +33,55 @@ class NERPipeline:
 
         for model_name in model_names:
             try:
-                # ... (rest of the model loading logic remains the same)
-                 tokenizer = AutoTokenizer.from_pretrained(model_name)
-                 model = AutoModelForTokenClassification.from_pretrained(model_name)
-                 self.pipelines.append(
-                     pipeline(
-                         "ner",
-                         model=model,
-                         tokenizer=tokenizer,
-                         aggregation_strategy="simple",
-                     )
-                 )
-                 logger.info(f"Successfully loaded NER model: {model_name}")
-            except Exception as e:
-                logger.error(
-                    f"Failed to load NER model {model_name}: {e}", exc_info=True
+                logger.info(f"Loading NER model: {model_name}")
+                tokenizer = AutoTokenizer.from_pretrained(model_name)
+                model = AutoModelForTokenClassification.from_pretrained(model_name)
+                nlp = pipeline(
+                    "ner",
+                    model=model,
+                    tokenizer=tokenizer,
+                    aggregation_strategy="simple",
                 )
-
-    def _clean_name(self, name: str) -> str:
-        """Strips credentials and trailing punctuation from a name string."""
-        cleaned_text = re.sub(r",?\s*\b(?:PT|OT|SLP|PTA|COTA|DPT|CCC-SLP|OTR/L|MD|DO|PhD|RN)\b.*", "", name, flags=re.IGNORECASE)
-        return cleaned_text.strip().rstrip(',.')
+                self.pipelines.append(nlp)
+                logger.info(f"Successfully loaded {model_name}.")
+            except Exception as e:
+                logger.error(f"Failed to load NER model {model_name}: {e}", exc_info=True)
 
     def extract_clinician_name(self, text: str) -> List[Dict[str, Any]]:
-        """Extracts clinician names using SpaCy for robust entity recognition."""
+        """
+        Extract clinician names from text using SpaCy's NER and a regex pattern.
+        """
+        entities = []
         if not self.spacy_nlp:
-            return []
+            return entities
 
         doc = self.spacy_nlp(text)
-        clinician_entities = []
-
-        # Look for PERSON entities near signature keywords
-        keywords = ["signature", "therapist", "clinician", "by"]
         for ent in doc.ents:
             if ent.label_ == "PERSON":
-                # Check for nearby keywords
-                for token in ent:
-                    # Check 5 tokens before the entity for a keyword
-                    window = doc[max(0, token.i - 5) : token.i]
-                    if any(k in t.lower_ for t in window for k in keywords):
-                        cleaned_name = self._clean_name(ent.text)
-                        if cleaned_name:
-                            clinician_entities.append({
-                                "entity_group": "CLINICIAN", "word": cleaned_name,
-                                "start": ent.start_char, "end": ent.end_char
-                            })
-                        break # Found a keyword, no need to check other tokens in this entity
+                entities.append({
+                    "entity_group": "CLINICIAN",
+                    "word": ent.text,
+                    "start": ent.start_char,
+                    "end": ent.end_char,
+                    "score": 0.95,
+                })
 
-        # Deduplicate based on the cleaned name
-        unique_names: Dict[str, Dict[str, Any]] = {}
-        for entity in clinician_entities:
-            if entity["word"] not in unique_names:
-                unique_names[entity["word"]] = entity
+        # Regex fallback for common patterns
+        pattern = r"\b(?:Dr\.|Doctor|PT|OT|RN)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)"
+        for match in re.finditer(pattern, text):
+            entities.append({
+                "entity_group": "CLINICIAN",
+                "word": match.group(1),
+                "start": match.start(1),
+                "end": match.end(1),
+                "score": 0.90,
+            })
 
-        return list(unique_names.values())
+        return entities
 
     def extract_entities(self, text: str) -> List[Dict[str, Any]]:
         """
-        Extracts entities from the text using the ensemble of models and merges the results.
+        Extract entities from text using all loaded pipelines and SpaCy.
         """
         all_entities = []
         for p in self.pipelines:

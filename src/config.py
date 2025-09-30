@@ -80,6 +80,7 @@ class Settings(BaseModel):
     temp_upload_dir: str
     api_url: str
     rule_dir: str
+    use_ai_mocks: Optional[bool] = False
     enable_habit_coaching: bool = False
     enable_director_dashboard: bool = False
 
@@ -88,5 +89,5 @@ class Settings(BaseModel):
 def get_settings() -> Settings:
     # Using a relative path from the project root is safer.
     with open("config.yaml", "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-        return Settings(**config)
+        config_data = yaml.safe_load(f)
+    return Settings(**config_data)
