@@ -2,15 +2,15 @@
   "profile": "balanced",
 {
   "system_info": {
-    "total_memory_gb": 7,
-    "available_memory_gb": 6,
-    "cpu_count": 4,
+    "total_memory_gb": 15,
+    "available_memory_gb": 1,
+    "cpu_count": 14,
     "cuda_available": false,
     "gpu_memory_gb": 0,
     "gpu_name": "None"
   },
   "config": {
-    "max_cache_memory_mb": 1400,
+    "max_cache_memory_mb": 2048,
     "embedding_cache_size": 1000,
     "ner_cache_size": 500,
     "use_gpu": false,
