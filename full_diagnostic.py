@@ -3,26 +3,29 @@ import importlib
 import sys
 import traceback
 
+
 def find_python_files(root_dir):
     """Finds all Python files in a directory, ignoring __pycache__."""
     py_files = []
     for root, dirs, files in os.walk(root_dir):
         # Exclude __pycache__ directories from the search
-        if '__pycache__' in dirs:
-            dirs.remove('__pycache__')
+        if "__pycache__" in dirs:
+            dirs.remove("__pycache__")
 
         for file in files:
             if file.endswith(".py"):
                 py_files.append(os.path.join(root, file))
     return py_files
 
+
 def path_to_module(file_path):
     """Converts a file path to a Python module path."""
     # Remove the '.py' extension
     module_path = file_path[:-3]
     # Replace path separators with dots
-    module_path = module_path.replace(os.path.sep, '.')
+    module_path = module_path.replace(os.path.sep, ".")
     return module_path
+
 
 def main():
     """
@@ -54,25 +57,30 @@ def main():
         try:
             # The core of the diagnostic: try to import the module
             importlib.import_module(module_name)
-        except Exception as e:
-            print("\n" + "="*60)
+        except Exception:
+            print("\n" + "=" * 60)
             print("!!! IMPORT ERROR DETECTED !!!")
             print(f"Failed to import module: {module_name}")
-            print("="*60)
+            print("=" * 60)
             print("Traceback:")
             traceback.print_exc()
-            print("="*60)
+            print("=" * 60)
             print("This is the root cause of the server crash.")
-            print("Please fix the import error in the file above and re-run this diagnostic script.")
+            print(
+                "Please fix the import error in the file above and re-run this diagnostic script."
+            )
             all_imports_succeeded = False
             # Stop after the first error to provide a clear, actionable target
             break
 
     if all_imports_succeeded:
         print("\n--- Full Diagnostic Check Complete ---")
-        print("All modules imported successfully. The application should be able to start.")
+        print(
+            "All modules imported successfully. The application should be able to start."
+        )
     else:
         print("\n--- Diagnostic Check Failed ---")
+
 
 if __name__ == "__main__":
     main()

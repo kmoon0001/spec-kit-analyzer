@@ -17,7 +17,9 @@ DEFAULT_SYSTEM_PROMPT = (
 class ChatService:
     """Lightweight conversational wrapper around an LLM service."""
 
-    def __init__(self, llm_service: LLMService, system_prompt: str | None = None) -> None:
+    def __init__(
+        self, llm_service: LLMService, system_prompt: str | None = None
+    ) -> None:
         self.llm_service = llm_service
         self.system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
 
@@ -37,7 +39,9 @@ class ChatService:
     def _build_prompt(self, history: List[Dict[str, str]]) -> str:
         lines = [self.system_prompt, "", "Conversation log:"]
         for message in history:
-            role = sanitize_human_text((message.get("role") or "user").strip()) or "user"
+            role = (
+                sanitize_human_text((message.get("role") or "user").strip()) or "user"
+            )
             content = sanitize_human_text((message.get("content") or "").strip())
             if not content:
                 continue

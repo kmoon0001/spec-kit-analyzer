@@ -2,6 +2,7 @@
 Cache integration service for the Therapy Compliance Analyzer.
 Demonstrates how to integrate the cache service with the analysis pipeline.
 """
+
 import logging
 from typing import Dict, List
 from .cache_service import (
@@ -10,10 +11,11 @@ from .cache_service import (
     DocumentCache,
     LLMResponseCache,
     cleanup_all_caches,
-    get_cache_stats
+    get_cache_stats,
 )
 
 logger = logging.getLogger(__name__)
+
 
 class CacheIntegrationService:
     """
@@ -76,7 +78,9 @@ class CacheIntegrationService:
         NERCache.set_ner_results(text, model_name, ner_results)
         return ner_results
 
-    def get_or_compute_llm_response(self, prompt: str, model_name: str, llm_func) -> str:
+    def get_or_compute_llm_response(
+        self, prompt: str, model_name: str, llm_func
+    ) -> str:
         """
         Get LLM response from cache or compute and cache it.
 
@@ -102,7 +106,9 @@ class CacheIntegrationService:
         LLMResponseCache.set_llm_response(prompt, model_name, response)
         return response
 
-    def get_or_compute_document_classification(self, doc_hash: str, text: str, classify_func) -> Dict:
+    def get_or_compute_document_classification(
+        self, doc_hash: str, text: str, classify_func
+    ) -> Dict:
         """
         Get document classification from cache or compute and cache it.
 
@@ -136,11 +142,11 @@ class CacheIntegrationService:
         cache_stats = get_cache_stats()
 
         return {
-            'hit_rate_percent': round(hit_rate, 2),
-            'total_hits': self.cache_hits,
-            'total_misses': self.cache_misses,
-            'total_requests': total_requests,
-            **cache_stats
+            "hit_rate_percent": round(hit_rate, 2),
+            "total_hits": self.cache_hits,
+            "total_misses": self.cache_misses,
+            "total_requests": total_requests,
+            **cache_stats,
         }
 
     def reset_performance_counters(self):
@@ -151,11 +157,14 @@ class CacheIntegrationService:
     def cleanup_and_report(self):
         """Cleanup caches and log performance report."""
         stats = self.get_cache_performance_stats()
-        logger.info(f"Cache performance - Hit rate: {stats['hit_rate_percent']}%, "
-                   f"Memory usage: {stats['memory_usage_mb']:.1f}MB, "
-                   f"Total entries: {stats['total_entries']}")
+        logger.info(
+            f"Cache performance - Hit rate: {stats['hit_rate_percent']}%, "
+            f"Memory usage: {stats['memory_usage_mb']:.1f}MB, "
+            f"Total entries: {stats['total_entries']}"
+        )
 
         cleanup_all_caches()
+
 
 # Global cache integration service instance
 cache_integration = CacheIntegrationService()

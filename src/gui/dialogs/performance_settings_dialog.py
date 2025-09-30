@@ -2,16 +2,30 @@
 Performance Settings Dialog - Configure system performance based on hardware capabilities.
 Integrates with the performance manager and help system for optimal user experience.
 """
+
 import logging
 from typing import Dict, Any, Optional
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
-    QLabel, QComboBox, QSpinBox, QCheckBox, QPushButton, QProgressBar,
-    QTextEdit, QTabWidget, QWidget, QMessageBox
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QGridLayout,
+    QGroupBox,
+    QLabel,
+    QComboBox,
+    QSpinBox,
+    QCheckBox,
+    QPushButton,
+    QProgressBar,
+    QTextEdit,
+    QTabWidget,
+    QWidget,
+    QMessageBox,
 )
 from PyQt6.QtCore import QTimer, pyqtSignal, QThread
 
 logger = logging.getLogger(__name__)
+
 
 class SystemInfoWorker(QThread):
     """Background worker to gather system information without blocking UI."""
@@ -22,11 +36,13 @@ class SystemInfoWorker(QThread):
         """Gather comprehensive system information."""
         try:
             from ...core.performance_manager import SystemProfiler
+
             system_info = SystemProfiler.get_system_info()
             self.info_ready.emit(system_info)
         except Exception as e:
             logger.error(f"Error gathering system info: {e}")
             self.info_ready.emit({})
+
 
 class PerformanceSettingsDialog(QDialog):
     """
@@ -44,7 +60,11 @@ class PerformanceSettingsDialog(QDialog):
 
         # Initialize performance manager
         try:
-            from ...core.performance_manager import performance_manager, PerformanceProfile
+            from ...core.performance_manager import (
+                performance_manager,
+                PerformanceProfile,
+            )
+
             self.performance_manager = performance_manager
             self.PerformanceProfile = PerformanceProfile
         except ImportError:
@@ -55,6 +75,7 @@ class PerformanceSettingsDialog(QDialog):
         # Initialize help system
         try:
             from ..widgets.help_system import help_system
+
             self.help_system = help_system
         except ImportError:
             logger.warning("Help system not available")
@@ -426,7 +447,7 @@ class PerformanceSettingsDialog(QDialog):
             • Maximum parallel processing<br>
             • All performance optimizations enabled<br><br>
             <b>Best for:</b> High-end workstations, gaming PCs, servers
-            """
+            """,
         }
 
         description = descriptions.get(current_profile.value, "Custom configuration")
@@ -442,10 +463,12 @@ class PerformanceSettingsDialog(QDialog):
         indicators = {
             "conservative": {"speed": 40, "memory": 30, "gpu": 0},
             "balanced": {"speed": 70, "memory": 60, "gpu": 50},
-            "aggressive": {"speed": 95, "memory": 85, "gpu": 90}
+            "aggressive": {"speed": 95, "memory": 85, "gpu": 90},
         }
 
-        profile_indicators = indicators.get(current_profile.value, {"speed": 50, "memory": 50, "gpu": 25})
+        profile_indicators = indicators.get(
+            current_profile.value, {"speed": 50, "memory": 50, "gpu": 25}
+        )
 
         self.speed_indicator.setValue(profile_indicators["speed"])
         self.memory_indicator.setValue(profile_indicators["memory"])
@@ -458,6 +481,7 @@ class PerformanceSettingsDialog(QDialog):
 
         try:
             from ...core.performance_manager import SystemProfiler
+
             system_info = SystemProfiler.get_system_info()
             recommended_profile = SystemProfiler.recommend_profile(system_info)
 
@@ -474,23 +498,29 @@ class PerformanceSettingsDialog(QDialog):
                 f"Based on your system:\n"
                 f"• {system_info.get('total_memory_gb', 'Unknown')}GB RAM\n"
                 f"• {system_info.get('cpu_count', 'Unknown')} CPU cores\n"
-                f"• GPU: {'Available' if system_info.get('cuda_available') else 'Not available'}"
+                f"• GPU: {'Available' if system_info.get('cuda_available') else 'Not available'}",
             )
 
         except Exception as e:
             logger.error(f"Error in auto-detection: {e}")
-            QMessageBox.warning(self, "Auto-Detection Failed", f"Could not detect optimal settings: {e}")
+            QMessageBox.warning(
+                self, "Auto-Detection Failed", f"Could not detect optimal settings: {e}"
+            )
 
     def update_system_info(self, system_info: Dict[str, Any]):
         """Update system information display."""
         self.system_info = system_info
 
-        self.total_memory_label.setText(f"{system_info.get('total_memory_gb', 'Unknown')} GB")
-        self.cpu_cores_label.setText(str(system_info.get('cpu_count', 'Unknown')))
+        self.total_memory_label.setText(
+            f"{system_info.get('total_memory_gb', 'Unknown')} GB"
+        )
+        self.cpu_cores_label.setText(str(system_info.get("cpu_count", "Unknown")))
 
-        if system_info.get('cuda_available'):
+        if system_info.get("cuda_available"):
             self.gpu_available_label.setText("Yes")
-            self.gpu_memory_label.setText(f"{system_info.get('gpu_memory_gb', 'Unknown')} GB")
+            self.gpu_memory_label.setText(
+                f"{system_info.get('gpu_memory_gb', 'Unknown')} GB"
+            )
         else:
             self.gpu_available_label.setText("No")
             self.gpu_memory_label.setText("N/A")
@@ -506,21 +536,22 @@ class PerformanceSettingsDialog(QDialog):
             memory_stats = self.performance_manager.get_memory_usage()
 
             # Update system memory
-            system_percent = memory_stats.get('system_used_percent', 0)
+            system_percent = memory_stats.get("system_used_percent", 0)
             self.system_memory_bar.setValue(int(system_percent))
             self.system_memory_label.setText(f"{system_percent:.1f}%")
 
             # Update process memory
-            process_mb = memory_stats.get('process_memory_mb', 0)
+            process_mb = memory_stats.get("process_memory_mb", 0)
             self.process_memory_bar.setValue(int(process_mb))
             self.process_memory_label.setText(f"{process_mb:.1f} MB")
 
             # Update cache usage (if available)
             try:
                 from ...core.cache_service import get_cache_stats
+
                 cache_stats = get_cache_stats()
-                cache_mb = cache_stats.get('memory_usage_mb', 0)
-                cache_limit = memory_stats.get('cache_limit_mb', 1024)
+                cache_mb = cache_stats.get("memory_usage_mb", 0)
+                cache_limit = memory_stats.get("cache_limit_mb", 1024)
                 cache_percent = (cache_mb / cache_limit * 100) if cache_limit > 0 else 0
 
                 self.cache_usage_bar.setValue(int(cache_percent))
@@ -536,20 +567,32 @@ class PerformanceSettingsDialog(QDialog):
         recommendations = []
 
         if self.system_info:
-            memory_gb = self.system_info.get('total_memory_gb', 0)
-            has_gpu = self.system_info.get('cuda_available', False)
+            memory_gb = self.system_info.get("total_memory_gb", 0)
+            has_gpu = self.system_info.get("cuda_available", False)
 
             if memory_gb < 8:
-                recommendations.append("• Consider using Conservative profile for optimal performance")
-                recommendations.append("• Close other applications during analysis to free memory")
+                recommendations.append(
+                    "• Consider using Conservative profile for optimal performance"
+                )
+                recommendations.append(
+                    "• Close other applications during analysis to free memory"
+                )
             elif memory_gb >= 16 and has_gpu:
-                recommendations.append("• Your system can handle Aggressive profile for maximum speed")
-                recommendations.append("• GPU acceleration is available for faster processing")
+                recommendations.append(
+                    "• Your system can handle Aggressive profile for maximum speed"
+                )
+                recommendations.append(
+                    "• GPU acceleration is available for faster processing"
+                )
             else:
-                recommendations.append("• Balanced profile is recommended for your system")
+                recommendations.append(
+                    "• Balanced profile is recommended for your system"
+                )
 
             if not has_gpu:
-                recommendations.append("• Consider upgrading to a system with dedicated GPU for better performance")
+                recommendations.append(
+                    "• Consider upgrading to a system with dedicated GPU for better performance"
+                )
 
         if not recommendations:
             recommendations.append("• System information not yet available")
@@ -569,7 +612,7 @@ class PerformanceSettingsDialog(QDialog):
                 "• Conservative: Best for 6-8GB RAM systems\n"
                 "• Balanced: Best for 8-12GB RAM systems\n"
                 "• Aggressive: Best for 12GB+ RAM systems with GPU\n\n"
-                "Use Auto-Detect to automatically choose the best profile for your system."
+                "Use Auto-Detect to automatically choose the best profile for your system.",
             )
 
     def reset_to_defaults(self):
@@ -581,7 +624,7 @@ class PerformanceSettingsDialog(QDialog):
             self,
             "Reset to Defaults",
             "This will reset all performance settings to system defaults. Continue?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
 
         if reply == QMessageBox.StandardButton.Yes:
@@ -601,7 +644,11 @@ class PerformanceSettingsDialog(QDialog):
             # Emit settings changed signal
             self.settings_changed.emit(self.get_current_settings())
 
-            QMessageBox.information(self, "Settings Applied", "Performance settings have been applied successfully.")
+            QMessageBox.information(
+                self,
+                "Settings Applied",
+                "Performance settings have been applied successfully.",
+            )
 
         except Exception as e:
             logger.error(f"Error applying settings: {e}")
@@ -615,52 +662,64 @@ class PerformanceSettingsDialog(QDialog):
     def get_current_settings(self) -> Dict[str, Any]:
         """Get current settings as dictionary."""
         return {
-            'profile': self.profile_combo.currentData(),
-            'max_cache_memory_mb': self.cache_memory_spin.value(),
-            'embedding_cache_size': self.embedding_cache_spin.value(),
-            'ner_cache_size': self.ner_cache_spin.value(),
-            'use_gpu': self.use_gpu_check.isChecked(),
-            'model_quantization': self.model_quantization_check.isChecked(),
-            'batch_size': self.batch_size_spin.value(),
-            'max_sequence_length': self.sequence_length_spin.value(),
-            'parallel_processing': self.parallel_processing_check.isChecked(),
-            'async_operations': self.async_operations_check.isChecked(),
-            'max_workers': self.max_workers_spin.value(),
-            'chunk_size': self.chunk_size_spin.value(),
-            'connection_pool_size': self.pool_size_spin.value()
+            "profile": self.profile_combo.currentData(),
+            "max_cache_memory_mb": self.cache_memory_spin.value(),
+            "embedding_cache_size": self.embedding_cache_spin.value(),
+            "ner_cache_size": self.ner_cache_spin.value(),
+            "use_gpu": self.use_gpu_check.isChecked(),
+            "model_quantization": self.model_quantization_check.isChecked(),
+            "batch_size": self.batch_size_spin.value(),
+            "max_sequence_length": self.sequence_length_spin.value(),
+            "parallel_processing": self.parallel_processing_check.isChecked(),
+            "async_operations": self.async_operations_check.isChecked(),
+            "max_workers": self.max_workers_spin.value(),
+            "chunk_size": self.chunk_size_spin.value(),
+            "connection_pool_size": self.pool_size_spin.value(),
         }
 
     def get_performance_summary(self) -> Dict[str, Any]:
         """Get a summary of current performance status for main window display."""
         try:
-            memory_stats = self.performance_manager.get_memory_usage() if self.performance_manager else {}
+            memory_stats = (
+                self.performance_manager.get_memory_usage()
+                if self.performance_manager
+                else {}
+            )
 
             return {
-                'current_profile': self.performance_manager.current_profile.value if self.performance_manager else 'Unknown',
-                'system_memory_percent': memory_stats.get('system_used_percent', 0),
-                'process_memory_mb': memory_stats.get('process_memory_mb', 0),
-                'gpu_available': self.system_info.get('cuda_available', False),
-                'cache_enabled': True,
-                'performance_status': self._get_performance_status()
+                "current_profile": (
+                    self.performance_manager.current_profile.value
+                    if self.performance_manager
+                    else "Unknown"
+                ),
+                "system_memory_percent": memory_stats.get("system_used_percent", 0),
+                "process_memory_mb": memory_stats.get("process_memory_mb", 0),
+                "gpu_available": self.system_info.get("cuda_available", False),
+                "cache_enabled": True,
+                "performance_status": self._get_performance_status(),
             }
         except Exception as e:
             logger.error(f"Error getting performance summary: {e}")
-            return {'performance_status': 'Error'}
+            return {"performance_status": "Error"}
 
     def _get_performance_status(self) -> str:
         """Determine overall performance status."""
         try:
-            memory_stats = self.performance_manager.get_memory_usage() if self.performance_manager else {}
-            memory_percent = memory_stats.get('system_used_percent', 0)
+            memory_stats = (
+                self.performance_manager.get_memory_usage()
+                if self.performance_manager
+                else {}
+            )
+            memory_percent = memory_stats.get("system_used_percent", 0)
 
             if memory_percent > 85:
-                return 'High Memory Usage'
+                return "High Memory Usage"
             elif memory_percent > 70:
-                return 'Moderate Load'
+                return "Moderate Load"
             else:
-                return 'Optimal'
+                return "Optimal"
         except Exception:
-            return 'Unknown'
+            return "Unknown"
 
     def start_system_monitoring(self):
         """Start system monitoring if available."""
@@ -672,11 +731,11 @@ class PerformanceSettingsDialog(QDialog):
     def closeEvent(self, event):
         """Handle dialog close event."""
         # Stop monitoring timer
-        if hasattr(self, 'monitor_timer'):
+        if hasattr(self, "monitor_timer"):
             self.monitor_timer.stop()
 
         # Stop system worker
-        if hasattr(self, 'system_worker') and self.system_worker.isRunning():
+        if hasattr(self, "system_worker") and self.system_worker.isRunning():
             self.system_worker.quit()
             self.system_worker.wait()
 

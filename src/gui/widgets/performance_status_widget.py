@@ -2,16 +2,15 @@
 Performance Status Widget - Shows real-time performance metrics in the main window.
 Provides quick access to performance settings and system monitoring.
 """
+
 import logging
 from typing import Dict, Any, Optional
-from PyQt6.QtWidgets import (
-    QWidget, QHBoxLayout, QLabel, QPushButton,
-    QProgressBar
-)
+from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QProgressBar
 from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtGui import QFont
 
 logger = logging.getLogger(__name__)
+
 
 class PerformanceStatusWidget(QWidget):
     """
@@ -40,7 +39,8 @@ class PerformanceStatusWidget(QWidget):
 
         # Performance profile indicator
         self.profile_label = QLabel("Balanced")
-        self.profile_label.setStyleSheet("""
+        self.profile_label.setStyleSheet(
+            """
             QLabel {
                 background-color: #e8f4fd;
                 border: 1px solid #bee5eb;
@@ -49,14 +49,16 @@ class PerformanceStatusWidget(QWidget):
                 font-size: 10px;
                 font-weight: bold;
             }
-        """)
+        """
+        )
 
         # Memory usage indicator
         self.memory_bar = QProgressBar()
         self.memory_bar.setRange(0, 100)
         self.memory_bar.setFixedSize(60, 12)
         self.memory_bar.setTextVisible(False)
-        self.memory_bar.setStyleSheet("""
+        self.memory_bar.setStyleSheet(
+            """
             QProgressBar {
                 border: 1px solid #ccc;
                 border-radius: 2px;
@@ -66,7 +68,8 @@ class PerformanceStatusWidget(QWidget):
                 background-color: #4CAF50;
                 border-radius: 1px;
             }
-        """)
+        """
+        )
 
         # Status text
         self.status_label = QLabel("Optimal")
@@ -79,7 +82,8 @@ class PerformanceStatusWidget(QWidget):
         self.settings_button.setFixedSize(20, 20)
         self.settings_button.setToolTip("Open Performance Settings")
         self.settings_button.clicked.connect(self.settings_requested.emit)
-        self.settings_button.setStyleSheet("""
+        self.settings_button.setStyleSheet(
+            """
             QPushButton {
                 border: 1px solid #ccc;
                 border-radius: 10px;
@@ -89,7 +93,8 @@ class PerformanceStatusWidget(QWidget):
             QPushButton:hover {
                 background-color: #e9ecef;
             }
-        """)
+        """
+        )
 
         # Add widgets to layout
         layout.addWidget(QLabel("Performance:"))
@@ -103,6 +108,7 @@ class PerformanceStatusWidget(QWidget):
         """Initialize performance manager connection."""
         try:
             from ...core.performance_manager import performance_manager
+
             self.performance_manager = performance_manager
             logger.info("Performance manager connected to status widget")
         except ImportError:
@@ -119,11 +125,13 @@ class PerformanceStatusWidget(QWidget):
             current_profile = self.performance_manager.current_profile
 
             # Update profile display
-            profile_name = current_profile.value.title() if current_profile else "Unknown"
+            profile_name = (
+                current_profile.value.title() if current_profile else "Unknown"
+            )
             self.profile_label.setText(profile_name)
 
             # Update memory bar
-            memory_percent = memory_stats.get('system_used_percent', 0)
+            memory_percent = memory_stats.get("system_used_percent", 0)
             self.memory_bar.setValue(int(memory_percent))
 
             # Update memory bar color based on usage
@@ -137,7 +145,8 @@ class PerformanceStatusWidget(QWidget):
                 color = "#4CAF50"  # Green
                 status = "Optimal"
 
-            self.memory_bar.setStyleSheet(f"""
+            self.memory_bar.setStyleSheet(
+                f"""
                 QProgressBar {{
                     border: 1px solid #ccc;
                     border-radius: 2px;
@@ -147,13 +156,14 @@ class PerformanceStatusWidget(QWidget):
                     background-color: {color};
                     border-radius: 1px;
                 }}
-            """)
+            """
+            )
 
             # Update status text
             self.status_label.setText(status)
 
             # Update tooltips with detailed info
-            process_memory = memory_stats.get('process_memory_mb', 0)
+            process_memory = memory_stats.get("process_memory_mb", 0)
             tooltip = (
                 f"System Memory: {memory_percent:.1f}%\n"
                 f"Process Memory: {process_memory:.1f} MB\n"
@@ -174,10 +184,10 @@ class PerformanceStatusWidget(QWidget):
         try:
             memory_stats = self.performance_manager.get_memory_usage()
             return {
-                'profile': self.performance_manager.current_profile.value,
-                'memory_percent': memory_stats.get('system_used_percent', 0),
-                'process_memory_mb': memory_stats.get('process_memory_mb', 0),
-                'status': self.status_label.text()
+                "profile": self.performance_manager.current_profile.value,
+                "memory_percent": memory_stats.get("system_used_percent", 0),
+                "process_memory_mb": memory_stats.get("process_memory_mb", 0),
+                "status": self.status_label.text(),
             }
         except Exception as e:
             logger.error(f"Error getting performance summary: {e}")

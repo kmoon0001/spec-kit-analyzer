@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
-from ... import models
-from ...database import get_db
-from ...auth import auth_service, get_current_active_user
+from src.database import models
+from src.database.database import get_async_db
+from src.auth import AuthService, get_auth_service, get_current_active_user
 
 router = APIRouter()
 
@@ -15,10 +15,11 @@ class PasswordUpdate(BaseModel):
 
 
 @router.put("/users/me/password", status_code=status.HTTP_204_NO_CONTENT)
-def update_current_user_password(
+async def update_current_user_password(
     password_data: PasswordUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: models.User = Depends(get_current_active_user),
+    auth_service: AuthService = Depends(get_auth_service),
 ):
     """
     Allows the currently logged-in user to change their password.
@@ -37,4 +38,4 @@ def update_current_user_password(
     # 3. Update the user in the database
     current_user.hashed_password = new_hashed_password
     db.add(current_user)
-    db.commit()
+    await db.commit()

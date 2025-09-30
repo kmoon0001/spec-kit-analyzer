@@ -1,13 +1,11 @@
 """
 Responsive Layout System - Adaptive UI that scales to different screen sizes.
 """
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QSplitter,
-    QScrollArea, QFrame, QSizePolicy
-)
-from PyQt6.QtCore import Qt, QSize, pyqtSignal, QTimer
-from PyQt6.QtGui import QResizeEvent, QFont, QFontMetrics
-import math
+
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QGridLayout, QSplitter, QScrollArea
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
+from PyQt6.QtGui import QResizeEvent, QFont
+
 
 class ResponsiveWidget(QWidget):
     """Base widget that adapts to screen size changes."""
@@ -16,12 +14,12 @@ class ResponsiveWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.current_breakpoint = 'desktop'
+        self.current_breakpoint = "desktop"
         self.breakpoints = {
-            'mobile': 480,
-            'tablet': 768,
-            'desktop': 1024,
-            'large': 1440
+            "mobile": 480,
+            "tablet": 768,
+            "desktop": 1024,
+            "large": 1440,
         }
 
         # Responsive timer to debounce resize events
@@ -46,14 +44,14 @@ class ResponsiveWidget(QWidget):
 
     def get_breakpoint(self, width: int) -> str:
         """Determine current breakpoint based on width."""
-        if width < self.breakpoints['mobile']:
-            return 'mobile'
-        elif width < self.breakpoints['tablet']:
-            return 'tablet'
-        elif width < self.breakpoints['desktop']:
-            return 'desktop'
+        if width < self.breakpoints["mobile"]:
+            return "mobile"
+        elif width < self.breakpoints["tablet"]:
+            return "tablet"
+        elif width < self.breakpoints["desktop"]:
+            return "desktop"
         else:
-            return 'large'
+            return "large"
 
     def adapt_to_breakpoint(self, breakpoint: str):
         """Override in subclasses to handle breakpoint changes."""
@@ -61,23 +59,14 @@ class ResponsiveWidget(QWidget):
 
     def get_responsive_font_size(self, base_size: int) -> int:
         """Get font size adjusted for current breakpoint."""
-        multipliers = {
-            'mobile': 0.85,
-            'tablet': 0.9,
-            'desktop': 1.0,
-            'large': 1.1
-        }
+        multipliers = {"mobile": 0.85, "tablet": 0.9, "desktop": 1.0, "large": 1.1}
         return int(base_size * multipliers.get(self.current_breakpoint, 1.0))
 
     def get_responsive_spacing(self, base_spacing: int) -> int:
         """Get spacing adjusted for current breakpoint."""
-        multipliers = {
-            'mobile': 0.7,
-            'tablet': 0.85,
-            'desktop': 1.0,
-            'large': 1.2
-        }
+        multipliers = {"mobile": 0.7, "tablet": 0.85, "desktop": 1.0, "large": 1.2}
         return int(base_spacing * multipliers.get(self.current_breakpoint, 1.0))
+
 
 class VirtualScrollArea(QScrollArea):
     """Virtual scrolling for large datasets."""
@@ -124,8 +113,10 @@ class VirtualScrollArea(QScrollArea):
 
         # Calculate visible range with buffer
         first_visible = max(0, (viewport_top // self.item_height) - self.buffer_size)
-        last_visible = min(len(self.items) - 1, 
-                          (viewport_bottom // self.item_height) + self.buffer_size)
+        last_visible = min(
+            len(self.items) - 1,
+            (viewport_bottom // self.item_height) + self.buffer_size,
+        )
 
         # Remove items outside visible range
         for index in list(self.visible_items.keys()):
@@ -147,9 +138,11 @@ class VirtualScrollArea(QScrollArea):
     def create_item_widget(self, item_data, index: int) -> QWidget:
         """Override in subclasses to create item widgets."""
         from PyQt6.QtWidgets import QLabel
+
         widget = QLabel(f"Item {index}: {str(item_data)}")
         widget.setFixedHeight(self.item_height)
         return widget
+
 
 class AdaptiveGridLayout(QGridLayout):
     """Grid layout that adapts column count based on available space."""
@@ -183,6 +176,7 @@ class AdaptiveGridLayout(QGridLayout):
             col = i % columns
             self.addWidget(widget, row, col)
 
+
 class ScalableFont:
     """Font scaling system for accessibility."""
 
@@ -208,6 +202,7 @@ class ScalableFont:
         font = ScalableFont.get_scaled_font(base_size, scale_factor)
         widget.setFont(font)
 
+
 class ResponsiveSplitter(QSplitter):
     """Splitter that adapts orientation based on screen size."""
 
@@ -229,6 +224,7 @@ class ResponsiveSplitter(QSplitter):
             # Side by side on larger screens
             if self.orientation() != Qt.Orientation.Horizontal:
                 self.setOrientation(Qt.Orientation.Horizontal)
+
 
 class AccessibleWidget(QWidget):
     """Base widget with accessibility features."""
@@ -252,15 +248,9 @@ class AccessibleWidget(QWidget):
     def set_accessible_role(self, role: str):
         """Set accessible role."""
         # Map common roles to Qt accessibility
-        role_map = {
-            'button': 'PushButton',
-            'textbox': 'EditableText',
-            'label': 'StaticText',
-            'list': 'List',
-            'table': 'Table'
-        }
         # This would be implemented with proper Qt accessibility APIs
         pass
+
 
 class HighContrastSupport:
     """High contrast mode support for accessibility."""

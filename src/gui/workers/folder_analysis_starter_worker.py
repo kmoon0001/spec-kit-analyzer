@@ -17,7 +17,12 @@ class FolderAnalysisStarterWorker(QObject):
     success = Signal(str)  # Emits the task_id on success # type: ignore[attr-defined]
     error = Signal(str)  # type: ignore[attr-defined]
 
-    def __init__(self, files: Iterable[Tuple[str, Tuple[str, object, str]]], data: dict, token: str):
+    def __init__(
+        self,
+        files: Iterable[Tuple[str, Tuple[str, object, str]]],
+        data: dict,
+        token: str,
+    ):
         super().__init__()
         self.files = list(files)
         self.data = data

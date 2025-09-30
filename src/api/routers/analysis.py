@@ -56,7 +56,7 @@ def run_analysis_and_save(
         finally:
             Path(file_path).unlink(missing_ok=True)
 
-    asyncio.create_task(_job())
+    asyncio.run(_job())
 
 
 @router.post("/analyze", status_code=status.HTTP_202_ACCEPTED)
@@ -97,3 +97,21 @@ async def analyze_document(
     )
 
     return {"task_id": task_id, "status": "processing"}
+
+
+@router.get("/status/{task_id}")
+async def get_analysis_status(
+    task_id: str, current_user=Depends(get_current_active_user)
+) -> Dict[str, Any]:
+    """
+    Retrieves the status of a background analysis task.
+    """
+    task = tasks.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if task["status"] == "completed":
+        # Pop the result once it's retrieved to avoid memory bloat
+        return tasks.pop(task_id)
+
+    return task

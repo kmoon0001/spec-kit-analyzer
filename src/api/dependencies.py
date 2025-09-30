@@ -28,6 +28,7 @@ async def get_retriever() -> Any:
         logger.info("Retriever instance not found, creating a new one.")
         # Conditional import to avoid ModuleNotFoundError in mock mode
         from ..core.hybrid_retriever import HybridRetriever
+
         retriever_instance = HybridRetriever()
         await retriever_instance.initialize()
         app_state["retriever"] = retriever_instance

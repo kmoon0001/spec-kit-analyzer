@@ -4,6 +4,7 @@ Clinical Compliance Report Generator
 Generates comprehensive HTML reports following the structure defined in REPORT_ELEMENTS.md.
 Includes executive summary, detailed findings, AI transparency, and regulatory citations.
 """
+
 import os
 import urllib.parse
 from datetime import UTC, datetime
@@ -85,7 +86,9 @@ class ReportGenerator:
         template_str = self.rubric_template_str
 
         # Basic report metadata
-        report_html = self._populate_basic_metadata(template_str, doc_name, analysis_result)
+        report_html = self._populate_basic_metadata(
+            template_str, doc_name, analysis_result
+        )
 
         # Generate findings table
         findings = analysis_result.get("findings", [])
@@ -111,30 +114,46 @@ class ReportGenerator:
 
         return report_html
 
-    def _populate_basic_metadata(self, template_str: str, doc_name: str, analysis_result: dict) -> str:
+    def _populate_basic_metadata(
+        self, template_str: str, doc_name: str, analysis_result: dict
+    ) -> str:
         """Populate basic report metadata and summary information."""
-        report_html = template_str.replace("<!-- Placeholder for document name -->", doc_name)
+        report_html = template_str.replace(
+            "<!-- Placeholder for document name -->", doc_name
+        )
 
         analysis_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        report_html = report_html.replace("<!-- Placeholder for analysis date -->", analysis_date)
+        report_html = report_html.replace(
+            "<!-- Placeholder for analysis date -->", analysis_date
+        )
 
         compliance_score = analysis_result.get("compliance_score", "N/A")
-        report_html = report_html.replace("<!-- Placeholder for compliance score -->", str(compliance_score))
+        report_html = report_html.replace(
+            "<!-- Placeholder for compliance score -->", str(compliance_score)
+        )
 
         findings_count = len(analysis_result.get("findings", []))
-        report_html = report_html.replace("<!-- Placeholder for total findings -->", str(findings_count))
+        report_html = report_html.replace(
+            "<!-- Placeholder for total findings -->", str(findings_count)
+        )
 
         doc_type = sanitize_human_text(analysis_result.get("document_type", "Unknown"))
         discipline = sanitize_human_text(analysis_result.get("discipline", "Unknown"))
-        report_html = report_html.replace("<!-- Placeholder for document type -->", doc_type)
-        report_html = report_html.replace("<!-- Placeholder for discipline -->", discipline)
+        report_html = report_html.replace(
+            "<!-- Placeholder for document type -->", doc_type
+        )
+        report_html = report_html.replace(
+            "<!-- Placeholder for discipline -->", discipline
+        )
 
         overall_confidence = analysis_result.get("overall_confidence")
         if isinstance(overall_confidence, (int, float)):
             confidence_text = f"{overall_confidence:.0%}"
         else:
             confidence_text = "Not reported"
-        report_html = report_html.replace("<!-- Placeholder for overall confidence -->", confidence_text)
+        report_html = report_html.replace(
+            "<!-- Placeholder for overall confidence -->", confidence_text
+        )
 
         return report_html
 
@@ -198,7 +217,7 @@ class ReportGenerator:
         # Add financial impact if available
         financial_impact = finding.get("financial_impact")
         if financial_impact:
-            risk_html += f'<br><small>Impact: {financial_impact}</small>'
+            risk_html += f"<br><small>Impact: {financial_impact}</small>"
 
         return risk_html
 
@@ -217,7 +236,9 @@ class ReportGenerator:
 
     def _generate_issue_cell(self, finding: dict) -> str:
         """Generate compliance issue cell with regulatory citations."""
-        issue_title = sanitize_human_text(finding.get("issue_title", "Compliance Issue"))
+        issue_title = sanitize_human_text(
+            finding.get("issue_title", "Compliance Issue")
+        )
         regulation = sanitize_human_text(finding.get("regulation", ""))
 
         issue_html = f"<strong>{issue_title}</strong>"
@@ -264,9 +285,13 @@ class ReportGenerator:
 
         # Confidence indicator
         if isinstance(confidence, (int, float)):
-            confidence_html = f'<div class="confidence-indicator">{confidence:.0%} confidence</div>'
+            confidence_html = (
+                f'<div class="confidence-indicator">{confidence:.0%} confidence</div>'
+            )
         else:
-            confidence_html = '<div class="confidence-indicator">Confidence: Unknown</div>'
+            confidence_html = (
+                '<div class="confidence-indicator">Confidence: Unknown</div>'
+            )
 
         # Chat link for clarification
         problematic_text = sanitize_human_text(finding.get("text", "N/A"))
@@ -277,17 +302,26 @@ class ReportGenerator:
             f"please provide additional clarification and guidance."
         )
         encoded_chat_context = urllib.parse.quote(chat_context)
-        chat_link = f'<a href="chat://{encoded_chat_context}" class="chat-link">Ask AI</a>'
+        chat_link = (
+            f'<a href="chat://{encoded_chat_context}" class="chat-link">Ask AI</a>'
+        )
 
         # Dispute mechanism
-        dispute_link = '<a href="dispute://finding" class="chat-link">Dispute Finding</a>'
+        dispute_link = (
+            '<a href="dispute://finding" class="chat-link">Dispute Finding</a>'
+        )
 
         return f"{confidence_html}<br>{chat_link}<br>{dispute_link}"
-    def _inject_summary_sections(self, report_html: str, analysis_result: Dict[str, Any]) -> str:
+
+    def _inject_summary_sections(
+        self, report_html: str, analysis_result: Dict[str, Any]
+    ) -> str:
         narrative = sanitize_human_text(analysis_result.get("narrative_summary", ""))
         if not narrative:
             narrative = "No narrative summary generated."
-        report_html = report_html.replace("<!-- Placeholder for narrative summary -->", narrative)
+        report_html = report_html.replace(
+            "<!-- Placeholder for narrative summary -->", narrative
+        )
 
         bullet_items = analysis_result.get("bullet_highlights") or []
         if bullet_items:
@@ -296,21 +330,34 @@ class ReportGenerator:
             )
         else:
             bullets_html = "<li>No key highlights available.</li>"
-        report_html = report_html.replace("<!-- Placeholder for bullet highlights -->", bullets_html)
+        report_html = report_html.replace(
+            "<!-- Placeholder for bullet highlights -->", bullets_html
+        )
         return report_html
 
-    def _inject_checklist(self, report_html: str, checklist: List[Dict[str, Any]]) -> str:
+    def _inject_checklist(
+        self, report_html: str, checklist: List[Dict[str, Any]]
+    ) -> str:
         if not checklist:
             rows_html = '<tr><td colspan="4">Checklist data was not captured for this analysis.</td></tr>'
         else:
             rows = []
             for item in checklist:
                 status = (item.get("status") or "review").lower()
-                status_class = "checklist-status-pass" if status == "pass" else "checklist-status-review"
+                status_class = (
+                    "checklist-status-pass"
+                    if status == "pass"
+                    else "checklist-status-review"
+                )
                 status_label = "Pass" if status == "pass" else "Review"
-                evidence = sanitize_human_text(item.get("evidence", "")) or "Not located in document."
+                evidence = (
+                    sanitize_human_text(item.get("evidence", ""))
+                    or "Not located in document."
+                )
                 recommendation = sanitize_human_text(item.get("recommendation", ""))
-                title = sanitize_human_text(item.get("title", item.get("id", "Checklist item")))
+                title = sanitize_human_text(
+                    item.get("title", item.get("id", "Checklist item"))
+                )
                 rows.append(
                     f"<tr><td>{title}</td><td><span class='{status_class}'>{status_label}</span></td><td>{evidence}</td><td>{recommendation}</td></tr>"
                 )
@@ -327,6 +374,7 @@ class ReportGenerator:
         )
         top_categories = categories.most_common(3)
         list_items = "".join(
-            f"<li>{category}: {count} finding(s)</li>" for category, count in top_categories
+            f"<li>{category}: {count} finding(s)</li>"
+            for category, count in top_categories
         )
         return f"<ul>{list_items}</ul>"

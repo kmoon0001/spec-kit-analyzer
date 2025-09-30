@@ -1,12 +1,20 @@
 """
 Micro-interactions and Animations - Smooth transitions and visual feedback.
 """
+
 from PyQt6.QtWidgets import QPushButton, QWidget, QGraphicsOpacityEffect, QLabel
 from PyQt6.QtCore import (
-    QPropertyAnimation, QEasingCurve, QParallelAnimationGroup,
-    QSequentialAnimationGroup, QTimer, pyqtSignal, QRect, QPoint
+    QPropertyAnimation,
+    QEasingCurve,
+    Qt,
+    QSequentialAnimationGroup,
+    QTimer,
+    pyqtSignal,
+    QRect,
+    QPoint,
 )
-from PyQt6.QtGui import QColor, QPalette
+from PyQt6.QtGui import QColor
+
 
 class AnimatedButton(QPushButton):
     """Button with smooth hover and click animations."""
@@ -45,7 +53,7 @@ class AnimatedButton(QPushButton):
             current_rect.x() - 2,
             current_rect.y() - 1,
             current_rect.width() + 4,
-            current_rect.height() + 2
+            current_rect.height() + 2,
         )
 
         self.hover_animation.setStartValue(current_rect)
@@ -67,7 +75,7 @@ class AnimatedButton(QPushButton):
             current_rect.x() + 2,
             current_rect.y() + 1,
             current_rect.width() - 4,
-            current_rect.height() - 2
+            current_rect.height() - 2,
         )
 
         self.hover_animation.setStartValue(current_rect)
@@ -89,12 +97,13 @@ class AnimatedButton(QPushButton):
             current_rect.x() + 1,
             current_rect.y() + 1,
             current_rect.width() - 2,
-            current_rect.height() - 2
+            current_rect.height() - 2,
         )
 
         self.click_animation.setStartValue(current_rect)
         self.click_animation.setEndValue(click_rect)
         self.click_animation.start()
+
 
 class FadeInWidget(QWidget):
     """Widget that fades in when shown."""
@@ -134,12 +143,13 @@ class FadeInWidget(QWidget):
 
         fade_out_animation.start()
 
+
 class SlideInWidget(QWidget):
     """Widget that slides in from a direction."""
 
     slide_completed = pyqtSignal()
 
-    def __init__(self, direction: str = 'left', parent=None):
+    def __init__(self, direction: str = "left", parent=None):
         super().__init__(parent)
         self.direction = direction
         self.setup_slide_animation()
@@ -160,23 +170,40 @@ class SlideInWidget(QWidget):
         final_rect = self.geometry()
 
         # Calculate start position based on direction
-        if self.direction == 'left':
-            start_rect = QRect(-final_rect.width(), final_rect.y(), 
-                             final_rect.width(), final_rect.height())
-        elif self.direction == 'right':
-            start_rect = QRect(parent_rect.width(), final_rect.y(),
-                             final_rect.width(), final_rect.height())
-        elif self.direction == 'top':
-            start_rect = QRect(final_rect.x(), -final_rect.height(),
-                             final_rect.width(), final_rect.height())
+        if self.direction == "left":
+            start_rect = QRect(
+                -final_rect.width(),
+                final_rect.y(),
+                final_rect.width(),
+                final_rect.height(),
+            )
+        elif self.direction == "right":
+            start_rect = QRect(
+                parent_rect.width(),
+                final_rect.y(),
+                final_rect.width(),
+                final_rect.height(),
+            )
+        elif self.direction == "top":
+            start_rect = QRect(
+                final_rect.x(),
+                -final_rect.height(),
+                final_rect.width(),
+                final_rect.height(),
+            )
         else:  # bottom
-            start_rect = QRect(final_rect.x(), parent_rect.height(),
-                             final_rect.width(), final_rect.height())
+            start_rect = QRect(
+                final_rect.x(),
+                parent_rect.height(),
+                final_rect.width(),
+                final_rect.height(),
+            )
 
         self.setGeometry(start_rect)
         self.slide_animation.setStartValue(start_rect)
         self.slide_animation.setEndValue(final_rect)
         self.slide_animation.start()
+
 
 class PulseAnimation(QWidget):
     """Widget with pulsing animation for notifications."""
@@ -230,6 +257,7 @@ class PulseAnimation(QWidget):
             self.is_pulsing = False
             self.pulse_group.stop()
             self.opacity_effect.setOpacity(1.0)
+
 
 class LoadingSpinner(QLabel):
     """Animated loading spinner."""
@@ -285,6 +313,7 @@ class LoadingSpinner(QLabel):
         rect = self.rect().adjusted(4, 4, -4, -4)
         painter.drawArc(rect, self.angle * 16, 120 * 16)
 
+
 class ProgressRipple(QWidget):
     """Ripple effect for progress indication."""
 
@@ -301,21 +330,16 @@ class ProgressRipple(QWidget):
 
     def add_ripple(self, position: QPoint):
         """Add a new ripple at position."""
-        ripple = {
-            'center': position,
-            'radius': 0,
-            'opacity': 1.0,
-            'max_radius': 100
-        }
+        ripple = {"center": position, "radius": 0, "opacity": 1.0, "max_radius": 100}
         self.ripples.append(ripple)
 
     def update_ripples(self):
         """Update ripple animations."""
         for ripple in self.ripples[:]:
-            ripple['radius'] += 3
-            ripple['opacity'] -= 0.02
+            ripple["radius"] += 3
+            ripple["opacity"] -= 0.02
 
-            if ripple['opacity'] <= 0 or ripple['radius'] >= ripple['max_radius']:
+            if ripple["opacity"] <= 0 or ripple["radius"] >= ripple["max_radius"]:
                 self.ripples.remove(ripple)
 
         if self.ripples:
@@ -329,14 +353,15 @@ class ProgressRipple(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         for ripple in self.ripples:
-            color = QColor(59, 130, 246, int(ripple['opacity'] * 100))
+            color = QColor(59, 130, 246, int(ripple["opacity"] * 100))
             brush = QBrush(color)
             painter.setBrush(brush)
             painter.setPen(Qt.PenStyle.NoPen)
 
-            center = ripple['center']
-            radius = ripple['radius']
+            center = ripple["center"]
+            radius = ripple["radius"]
             painter.drawEllipse(center, radius, radius)
+
 
 class SmartTooltip(QLabel):
     """Enhanced tooltip with rich content and animations."""
@@ -352,7 +377,8 @@ class SmartTooltip(QLabel):
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
 
         # Styling
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QLabel {
                 background-color: rgba(30, 41, 59, 0.95);
                 color: white;
@@ -362,7 +388,8 @@ class SmartTooltip(QLabel):
                 font-size: 11px;
                 max-width: 250px;
             }
-        """)
+        """
+        )
 
         self.setText(self.content)
         self.setWordWrap(True)

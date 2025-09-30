@@ -1,4 +1,5 @@
 """Utility helpers for sanitising text prior to displaying it to users."""
+
 import string
 from typing import Iterable, List
 
@@ -9,9 +10,9 @@ def sanitize_human_text(value: str, *, collapse_whitespace: bool = True) -> str:
     """Return a version of *value* that only contains human readable ASCII characters."""
     if not isinstance(value, str):
         return ""
-    filtered = ''.join(ch for ch in value if ch in _ALLOWED_CHARS)
+    filtered = "".join(ch for ch in value if ch in _ALLOWED_CHARS)
     if collapse_whitespace:
-        filtered = ' '.join(filtered.split())
+        filtered = " ".join(filtered.split())
     return filtered.strip()
 
 

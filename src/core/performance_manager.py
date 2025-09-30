@@ -2,6 +2,7 @@
 Adaptive Performance Manager for Therapy Compliance Analyzer
 Automatically detects system capabilities and adjusts performance settings.
 """
+
 import json
 import logging
 import os
@@ -13,16 +14,20 @@ import psutil
 
 logger = logging.getLogger(__name__)
 
+
 class PerformanceProfile(Enum):
     """Performance profiles based on system capabilities."""
+
     CONSERVATIVE = "conservative"  # 6-8GB RAM, integrated graphics
-    BALANCED = "balanced"         # 8-12GB RAM, dedicated GPU optional
-    AGGRESSIVE = "aggressive"     # 12-16GB+ RAM, dedicated GPU
-    CUSTOM = "custom"            # User-defined settings
+    BALANCED = "balanced"  # 8-12GB RAM, dedicated GPU optional
+    AGGRESSIVE = "aggressive"  # 12-16GB+ RAM, dedicated GPU
+    CUSTOM = "custom"  # User-defined settings
+
 
 @dataclass
 class PerformanceConfig:
     """Configuration for performance optimization settings."""
+
     # Memory Management
     max_cache_memory_mb: int
     embedding_cache_size: int
@@ -43,6 +48,7 @@ class PerformanceConfig:
     parallel_processing: bool
     max_workers: int
 
+
 class SystemProfiler:
     """Analyzes system capabilities and recommends performance settings."""
 
@@ -50,6 +56,7 @@ class SystemProfiler:
     def get_system_info() -> Dict[str, Any]:
         """Get comprehensive system information."""
         import torch
+
         memory = psutil.virtual_memory()
         cpu_count = psutil.cpu_count()
 
@@ -60,7 +67,9 @@ class SystemProfiler:
 
         if cuda_available:
             try:
-                gpu_memory = torch.cuda.get_device_properties(0).total_memory // (1024**3)  # GB
+                gpu_memory = torch.cuda.get_device_properties(0).total_memory // (
+                    1024**3
+                )  # GB
                 gpu_name = torch.cuda.get_device_name(0)
             except Exception as e:
                 logger.warning("Could not get GPU info: %s", e)
@@ -72,7 +81,7 @@ class SystemProfiler:
             "cpu_count": cpu_count,
             "cuda_available": cuda_available,
             "gpu_memory_gb": gpu_memory,
-            "gpu_name": gpu_name
+            "gpu_name": gpu_name,
         }
 
     @staticmethod
@@ -86,6 +95,7 @@ class SystemProfiler:
         if memory_gb >= 12 or (memory_gb >= 8 and has_gpu):
             return PerformanceProfile.BALANCED
         return PerformanceProfile.CONSERVATIVE
+
 
 class PerformanceManager:
     """Manages performance settings and system resource utilization."""
@@ -109,9 +119,11 @@ class PerformanceManager:
         """Load existing config or create new one based on system."""
         if os.path.exists(self.config_path):
             try:
-                with open(self.config_path, 'r') as f:
+                with open(self.config_path, "r") as f:
                     data = json.load(f)
-                    self.current_profile = PerformanceProfile(data.get('profile', 'balanced'))
+                    self.current_profile = PerformanceProfile(
+                        data.get("profile", "balanced")
+                    )
                     return self._create_config_for_profile(self.current_profile)
             except Exception as e:
                 logger.warning(f"Could not load config: {e}")
@@ -123,7 +135,9 @@ class PerformanceManager:
         # Save config after it's created and assigned
         return config
 
-    def _create_config_for_profile(self, profile: PerformanceProfile) -> PerformanceConfig:
+    def _create_config_for_profile(
+        self, profile: PerformanceProfile
+    ) -> PerformanceConfig:
         """Create performance config for specific profile."""
         memory_gb = self.system_info["total_memory_gb"]
         has_gpu = self.system_info["cuda_available"]
@@ -142,12 +156,14 @@ class PerformanceManager:
                 async_operations=False,  # Simpler synchronous operations
                 chunk_size=1000,
                 parallel_processing=False,
-                max_workers=2
+                max_workers=2,
             )
 
         elif profile == PerformanceProfile.BALANCED:
             return PerformanceConfig(
-                max_cache_memory_mb=min(2048, memory_gb * 200),  # Up to 2GB or 20% of RAM
+                max_cache_memory_mb=min(
+                    2048, memory_gb * 200
+                ),  # Up to 2GB or 20% of RAM
                 embedding_cache_size=1000,
                 ner_cache_size=500,
                 use_gpu=has_gpu,  # Use GPU if available
@@ -158,12 +174,14 @@ class PerformanceManager:
                 async_operations=True,
                 chunk_size=2000,
                 parallel_processing=True,
-                max_workers=min(4, cpu_count)
+                max_workers=min(4, cpu_count),
             )
 
         elif profile == PerformanceProfile.AGGRESSIVE:
             return PerformanceConfig(
-                max_cache_memory_mb=min(4096, memory_gb * 300),  # Up to 4GB or 30% of RAM
+                max_cache_memory_mb=min(
+                    4096, memory_gb * 300
+                ),  # Up to 4GB or 30% of RAM
                 embedding_cache_size=2000,
                 ner_cache_size=1000,
                 use_gpu=has_gpu,
@@ -174,7 +192,7 @@ class PerformanceManager:
                 async_operations=True,
                 chunk_size=4000,
                 parallel_processing=True,
-                max_workers=min(8, cpu_count)
+                max_workers=min(8, cpu_count),
             )
 
         else:  # CUSTOM - use balanced as default
@@ -183,26 +201,26 @@ class PerformanceManager:
     def save_config(self):
         """Save current configuration to file."""
         config_data = {
-            'profile': self.current_profile.value,
-            'system_info': self.system_info,
-            'config': {
-                'max_cache_memory_mb': self.config.max_cache_memory_mb,
-                'embedding_cache_size': self.config.embedding_cache_size,
-                'ner_cache_size': self.config.ner_cache_size,
-                'use_gpu': self.config.use_gpu,
-                'model_quantization': self.config.model_quantization,
-                'batch_size': self.config.batch_size,
-                'max_sequence_length': self.config.max_sequence_length,
-                'connection_pool_size': self.config.connection_pool_size,
-                'async_operations': self.config.async_operations,
-                'chunk_size': self.config.chunk_size,
-                'parallel_processing': self.config.parallel_processing,
-                'max_workers': self.config.max_workers
-            }
+            "profile": self.current_profile.value,
+            "system_info": self.system_info,
+            "config": {
+                "max_cache_memory_mb": self.config.max_cache_memory_mb,
+                "embedding_cache_size": self.config.embedding_cache_size,
+                "ner_cache_size": self.config.ner_cache_size,
+                "use_gpu": self.config.use_gpu,
+                "model_quantization": self.config.model_quantization,
+                "batch_size": self.config.batch_size,
+                "max_sequence_length": self.config.max_sequence_length,
+                "connection_pool_size": self.config.connection_pool_size,
+                "async_operations": self.config.async_operations,
+                "chunk_size": self.config.chunk_size,
+                "parallel_processing": self.config.parallel_processing,
+                "max_workers": self.config.max_workers,
+            },
         }
 
         try:
-            with open(self.config_path, 'w', encoding='utf-8') as f:
+            with open(self.config_path, "w", encoding="utf-8") as f:
                 json.dump(config_data, f, indent=2)
             logger.info("Performance config saved to %s", self.config_path)
         except Exception as e:
@@ -225,12 +243,13 @@ class PerformanceManager:
             "system_used_percent": memory.percent,
             "system_available_gb": memory.available / (1024**3),
             "process_memory_mb": process.memory_info().rss / (1024**2),
-            "cache_limit_mb": self.config.max_cache_memory_mb
+            "cache_limit_mb": self.config.max_cache_memory_mb,
         }
 
     def should_use_gpu(self) -> bool:
         """Check if GPU should be used based on current config and availability."""
         import torch
+
         return self.config.use_gpu and torch.cuda.is_available()
 
     def get_optimal_batch_size(self, base_size: Optional[int] = None) -> int:
@@ -256,18 +275,23 @@ class PerformanceManager:
             logger.info("High memory usage detected, performing cleanup")
             # Import here to avoid circular imports
             from .cache_service import cleanup_all_caches
+
             cleanup_all_caches()
 
             # Force garbage collection
             import gc
+
             gc.collect()
+
 
 # Global performance manager instance
 performance_manager = PerformanceManager()
 
+
 def get_performance_config() -> PerformanceConfig:
     """Get current performance configuration."""
     return performance_manager.config
+
 
 def get_system_info() -> Dict[str, Any]:
     """Get system information."""

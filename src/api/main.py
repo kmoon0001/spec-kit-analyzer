@@ -4,6 +4,7 @@ Clinical Compliance Analyzer API
 FastAPI backend for the Therapy Compliance Analyzer desktop application.
 Provides endpoints for document analysis, user management, and compliance reporting.
 """
+
 import os
 import shutil
 import logging
@@ -57,6 +58,7 @@ def run_database_maintenance():
 # --- FastAPI App Setup ---
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
@@ -78,6 +80,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     await api_shutdown()
+
 
 app = FastAPI(
     title="Clinical Compliance Analyzer API",

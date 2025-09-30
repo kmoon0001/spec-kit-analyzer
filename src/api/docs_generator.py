@@ -1,12 +1,14 @@
 """
 API Documentation generator - Safe and stable implementation.
 """
+
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from typing import Dict, Any
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 def create_enhanced_openapi(app: FastAPI) -> Dict[str, Any]:
     """Create enhanced OpenAPI documentation with examples."""
@@ -25,15 +27,12 @@ def create_enhanced_openapi(app: FastAPI) -> Dict[str, Any]:
         openapi_schema["components"] = {}
 
     openapi_schema["components"]["securitySchemes"] = {
-        "BearerAuth": {
-            "type": "http",
-            "scheme": "bearer",
-            "bearerFormat": "JWT"
-        }
+        "BearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
     }
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema
+
 
 def setup_documentation(app: FastAPI) -> None:
     """Setup API documentation with enhanced features."""

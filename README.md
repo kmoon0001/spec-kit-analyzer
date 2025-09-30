@@ -56,61 +56,42 @@ The application is composed of a Python backend API and a desktop GUI.
 
 ### 1. Installation
 
-Clone the repository and install the required dependencies:
+Clone the repository and install the required dependencies for running the application:
 
 ```bash
 pip install -r requirements.txt
 ```
 
+For development, which includes running tests and linters, install the additional development dependencies:
+```bash
+pip install -r requirements-dev.txt
+```
+
 ### 2. Configuration (Crucial Step)
 
-This application requires environment variables for database and security key configuration. The easiest way to manage this is with a `.env` file.
+The application uses `config.yaml` for most settings, but sensitive data like the `SECRET_KEY` should be handled securely using environment variables.
 
-1.  **Create a `.env` file** in the root directory of the project.
-2.  **Add the following lines** to the file:
+1.  **Set the Secret Key**: For production, set the `SECRET_KEY` as an environment variable. For local development, you can create a `.env` file in the project root. The application uses `python-dotenv` to load this file automatically.
 
-    ```
-    # The path to your SQLite database file
-    DATABASE_URL="sqlite:///./compliance.db"
-
+2.  **Create a `.env` file** with the following content:
+    ```.env
     # A secret key for encoding JWT tokens. Generate a new one for your instance.
     # You can generate one with: openssl rand -hex 32
     SECRET_KEY="YOUR_SUPER_SECRET_KEY_HERE"
-
-    # The algorithm for JWT encoding
-    ALGORITHM="HS256"
-
-    # Token expiration time in minutes
-    ACCESS_TOKEN_EXPIRE_MINUTES=30
     ```
+    **Note**: The `secret_key` value in `config.yaml` is a placeholder and should not be used for production. The environment variable will always take precedence.
 
 3.  **Create a default user**: The application requires at least one user to log in. You will need to create one manually in the database for the first run.
 
 ### 3. Running the Application
 
-You must run both the backend API and the GUI application.
+The application is launched using a single script that starts both the backend API server and the frontend GUI.
 
-**A. Run the Backend API:**
-
-Open a terminal and run the following command from the project root:
-
+Run the following command from the project root:
 ```bash
-# The --reload flag is great for development, as it restarts the server on code changes.
-uvicorn src.api.main:app --reload
+python start_app.py
 ```
-
-The API will be accessible at `http://127.0.0.1:8000`.
-
-**B. Run the GUI Application:**
-
-Open a *second* terminal and run the following command from the project root:
-
-```bash
-# Run the GUI as a module
-python -m src.main
-```
-
-The GUI application will start, and you will be prompted to log in.
+The GUI application will start, and you will be prompted to log in. The backend API will run in the background, and its logs will be saved to `api_server.log` and `api_server.err.log`.
 
 ## 🧪 Running Tests
 
