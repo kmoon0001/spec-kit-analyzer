@@ -112,10 +112,10 @@ def test_analyze_document_api_route(client: TestClient, mocker):
     # Verify that the background task was called once with the correct arguments.
     # We use mocker.ANY for values that are generated at runtime (e.g., file paths, services).
     mock_run_analysis.assert_called_once_with(
-        file_path=mocker.ANY,
-        task_id=response_data["task_id"],
-        original_filename=dummy_filename,
-        discipline="pt",
-        analysis_mode="rubric",
-        analysis_service=mocker.ANY,
+        mocker.ANY,
+        response_data["task_id"],
+        dummy_filename,
+        "pt",
+        "rubric",
+        mocker.ANY,
     )
