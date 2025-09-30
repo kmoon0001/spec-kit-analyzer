@@ -109,76 +109,47 @@ def clear_temp_uploads() -> None:
                     os.unlink(file_path)
                 elif os.path.isdir(file_path):
                     shutil.rmtree(file_path)
-                logger.info("Cleaned temporary item: %s", file_path)
+                logger.info("Successfully cleaned up temporary file: %s", file_path)
             except (OSError, PermissionError) as e:
                 logger.error("Failed to delete %s. Reason: %s", file_path, e)
-    except Exception:
-        logger.exception("Unexpected error while cleaning temp uploads")
 
 
-def run_database_maintenance() -> None:
-    """Run database maintenance job (purge old reports)."""
+def run_database_maintenance():
+    """Instantiates and runs the database maintenance service."""
     logger.info("Scheduler triggered: Starting database maintenance job.")
-    try:
-        maintenance_service = DatabaseMaintenanceService()
-        maintenance_service.purge_old_reports(retention_days=DATABASE_PURGE_RETENTION_DAYS)
-        logger.info("Scheduler job: Database maintenance finished.")
-    except Exception as e:
-        logger.exception("Database maintenance failed: %s", e)
+    maintenance_service = DatabaseMaintenanceService()
+from .error_handling import http_exception_handler
 
+logger = logging.getLogger(__name__)
 
-# --- Rate Limiting ---
+DATABASE_PURGE_RETENTION_DAYS = 30  # example value
+
+def clear_temp_uploads():
+    # Implementation to clear temporary upload files
+    pass
+
+async def run_database_maintenance():
+    maintenance_service.purge_old_reports(retention_days=DATABASE_PURGE_RETENTION_DAYS)
+    logger.info("Scheduler job: Database maintenance finished.")
+
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan context manager for startup and shutdown events.
-
-    Ensures robust startup/shutdown with scheduler lifecycle management.
-    """
-    # Startup phase
-    try:
-        validate_settings(settings)
-        await api_startup()
-    except Exception:
-        logger.exception("Startup failed")
-        raise
+    """Lifespan context manager for startup and shutdown events."""
+    await api_startup()
 
     logger.info("Running startup tasks...")
     clear_temp_uploads()
 
-    # Avoid duplicate scheduler instances (e.g., under reload)
-    scheduler = getattr(app.state, "scheduler", None)
-    if scheduler is None:
-        try:
-            scheduler = BackgroundScheduler(daemon=True)
-            scheduler.add_job(run_database_maintenance, "interval", days=1)
-            scheduler.start()
-            app.state.scheduler = scheduler
-            logger.info("Scheduler started for daily database maintenance.")
-        except Exception:
-            logger.exception("Failed to start scheduler")
-    else:
-        logger.info("Scheduler already present; skipping start.")
+    scheduler = BackgroundScheduler(daemon=True)
+    scheduler.add_job(run_database_maintenance, "interval", days=1)
+    scheduler.start()
+    logger.info("Scheduler started for daily database maintenance.")
 
-    # Request handling phase
-    try:
-        yield
-    finally:
-        # Shutdown phase
-        try:
-            scheduler = getattr(app.state, "scheduler", None)
-            if scheduler is not None:
-                scheduler.shutdown(wait=False)
-                app.state.scheduler = None
-                logger.info("Scheduler shutdown complete.")
-        except Exception:
-            logger.exception("Failed to shutdown scheduler")
-        try:
-            await api_shutdown()
-        except Exception:
-            logger.exception("Shutdown hook failed")
+    yield
+
+    await api_shutdown()
 
 
 app = FastAPI(
@@ -188,12 +159,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Middleware and exception handlers
-app.add_middleware(SlowAPIMiddleware)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, http_exception_handler)
 
-# Routers
 app.include_router(health.router, tags=["Health"])
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
@@ -204,32 +172,7 @@ app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 app.include_router(compliance.router, tags=["Compliance"])
 
 
-@app.get("/", tags=["Health"])
-@limiter.limit("30/minute")
-def read_root() -> Dict[str, str]:
+@app.get("/")
+def read_root():
     """Root endpoint providing API welcome message."""
     return {"message": "Welcome to the Clinical Compliance Analyzer API"}
-
-
-@app.get("/internal/health", tags=["Health"])
-@limiter.limit("60/minute")
-def internal_health() -> Dict[str, Any]:
-    """Internal health endpoint reporting scheduler state."""
-    scheduler = getattr(app.state, "scheduler", None)
-    running = bool(getattr(scheduler, "running", False))
-    next_run: Optional[str] = None
-    if running:
-        try:
-            jobs = scheduler.get_jobs()
-            if jobs:
-                nr = jobs[0].next_run_time
-                if nr:
-                    next_run = nr.isoformat()
-        except Exception:
-            # Keep health endpoint robust; log suppressed
-            pass
-    return {
-        "status": "ok",
-        "scheduler_running": running,
-        "next_run_time": next_run,
-    }
