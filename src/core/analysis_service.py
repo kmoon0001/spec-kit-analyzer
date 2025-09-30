@@ -150,11 +150,15 @@ class AnalysisService:
             logger.info("Starting analysis for document: %s", file_path)
             chunks = parse_document_content(file_path)
             document_text = " ".join(
-                chunk.get("sentence", "") for chunk in chunks
+                chunk.get("sentence", "")
+                for chunk in chunks
+                if isinstance(chunk, dict)
             ).strip()
             document_text = self._trim_document_text(document_text)
 
-            await self._maybe_await(self.preprocessing.correct_text(document_text))
+            document_text = await self._maybe_await(
+                self.preprocessing.correct_text(document_text)
+            )
 
             discipline_clean = sanitize_human_text(discipline or "Unknown")
             doc_type_raw = await self._maybe_await(

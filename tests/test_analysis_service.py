@@ -34,9 +34,15 @@ def mock_dependencies():
         patch("src.core.analysis_service.PromptManager"),
         patch("src.core.analysis_service.ComplianceAnalyzer") as mock_analyzer,
         patch("src.core.analysis_service.parse_document_content") as mock_parse,
+        patch("src.core.analysis_service.PreprocessingService") as mock_preproc,
     ):
         # Setup mock return values
         mock_parse.return_value = [{"sentence": "This is a test."}]
+
+        # Mock preprocessing to return the text as-is
+        correct_text_future = asyncio.Future()
+        correct_text_future.set_result("This is a test.")
+        mock_preproc.return_value.correct_text.return_value = correct_text_future
 
         # Use asyncio.Future for async mock return values
         classify_future = asyncio.Future()
@@ -53,6 +59,7 @@ def mock_dependencies():
             "mock_parse": mock_parse,
             "mock_doc_classifier": mock_doc_classifier.return_value,
             "mock_analyzer": mock_analyzer.return_value,
+            "mock_preproc": mock_preproc.return_value,
         }
 
 
@@ -73,6 +80,9 @@ async def test_analysis_service_orchestration(mock_dependencies):
 
     # Assert: Verify that the orchestration logic calls the correct methods in sequence.
     mock_dependencies["mock_parse"].assert_called_once()
+    mock_dependencies["mock_preproc"].correct_text.assert_called_once_with(
+        "This is a test."
+    )
     mock_dependencies["mock_doc_classifier"].classify_document.assert_called_once_with(
         "This is a test."
     )

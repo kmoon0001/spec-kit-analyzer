@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 from src.core.analysis_service import AnalysisService
 
@@ -39,17 +39,26 @@ def mock_dependencies():
         }
 
         mock_parser.return_value = [{"sentence": "This is a test sentence."}]
-        mock_classifier.return_value.classify_document.return_value = "Progress Note"
+        mock_preproc.return_value.correct_text = AsyncMock(
+            return_value="This is a test sentence."
+        )
+        mock_classifier.return_value.classify_document = AsyncMock(
+            return_value="Progress Note"
+        )
 
         # This is the direct output from the ComplianceAnalyzer
         mock_analysis_result = {"findings": [{"issue_title": "test finding"}]}
-        mock_analyzer.return_value.analyze_document.return_value = mock_analysis_result
+        mock_analyzer.return_value.analyze_document = AsyncMock(
+            return_value=mock_analysis_result
+        )
 
         # The ReportGenerator will wrap this analysis result
-        mock_reporter.return_value.generate_report.return_value = {
-            "summary": "Report Summary",
-            "analysis": mock_analysis_result,
-        }
+        mock_reporter.return_value.generate_report = AsyncMock(
+            return_value={
+                "summary": "Report Summary",
+                "analysis": mock_analysis_result,
+            }
+        )
 
         yield {
             "parser": mock_parser,
