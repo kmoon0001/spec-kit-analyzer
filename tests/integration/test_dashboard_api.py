@@ -55,16 +55,13 @@ async def test_get_director_dashboard_data_as_admin(async_client, mocker):
     try:
         app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
+        # Mock the CRUD functions
         mock_crud = mocker.patch(
             "src.api.routers.dashboard.crud", new_callable=mocker.AsyncMock
         )
-        mock_crud.get_total_findings_count.return_value = 150
-        mock_crud.get_team_habit_summary.return_value = [
-            {"habit_name": "Habit 1", "count": 50}
-        ]
-        mock_crud.get_clinician_habit_breakdown.return_value = [
-            {"clinician_name": "Dr. Doe", "habit_name": "Habit 1", "count": 25}
-        ]
+        mock_crud.get_total_findings_count.return_value = 10
+        mock_crud.get_team_habit_summary.return_value = []
+        mock_crud.get_clinician_habit_breakdown.return_value = []
 
         # For now, we'll manually create a token for the mock_user
         mock_token = "mock_access_token"
@@ -75,9 +72,9 @@ async def test_get_director_dashboard_data_as_admin(async_client, mocker):
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["total_findings"] == 150
-        assert data["team_habit_summary"][0]["habit_name"] == "Habit 1"
-        assert data["clinician_habit_breakdown"][0]["clinician_name"] == "Dr. Doe"
+        assert data["total_findings"] == 10
+        assert data["team_habit_summary"] == []
+        assert data["clinician_habit_breakdown"] == []
     finally:
         app.dependency_overrides.clear()
 

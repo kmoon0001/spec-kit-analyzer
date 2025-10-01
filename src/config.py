@@ -15,6 +15,7 @@ class PathsSettings(BaseModel):
 
 class DatabaseSettings(BaseModel):
     url: str
+    echo: bool = False
 
 
 class AuthSettings(BaseModel):
@@ -49,8 +50,6 @@ class PhiScrubberModelSettings(BaseModel):
 
 
 class ModelsSettings(BaseModel):
-    generator: Optional[str] = None
-    generator_filename: Optional[str] = None
     generator_profiles: Optional[Dict[str, GeneratorProfile]] = None
     chat: Optional[ChatModelSettings] = None
     retriever: str
@@ -59,8 +58,9 @@ class ModelsSettings(BaseModel):
     doc_classifier_prompt: str
     analysis_prompt_template: str
     nlg_prompt_template: str
-    phi_scrubber: PhiScrubberModelSettings
-
+    phi_scrubber: Optional[PhiScrubberModelSettings] = None
+    generator: Optional[str] = None
+    generator_filename: Optional[str] = None
 
 class LLMSettings(BaseModel):
     model_type: str

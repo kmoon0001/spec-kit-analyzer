@@ -13,6 +13,7 @@ async def test_get_director_dashboard_with_filters(async_client, mocker):
     Test that the director dashboard endpoint correctly handles date and discipline filters.
     """
     settings = get_settings()
+
     # Manually create a mock user for testing purposes
     mock_user = schemas.User(
         id=1,
