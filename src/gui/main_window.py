@@ -7,10 +7,26 @@ from typing import Dict
 from PyQt6.QtCore import Qt, QThread, QUrl
 from PyQt6.QtGui import QTextDocument
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QDialog, QMessageBox, QMainWindow,
-    QStatusBar, QMenuBar, QMenu, QFileDialog, QSplitter,
-    QTextEdit, QHBoxLayout, QLabel, QGroupBox, QProgressBar,
-    QToolButton, QPushButton, QTabWidget, QTextBrowser, QComboBox,
+    QWidget,
+    QVBoxLayout,
+    QDialog,
+    QMessageBox,
+    QMainWindow,
+    QStatusBar,
+    QMenuBar,
+    QMenu,
+    QFileDialog,
+    QSplitter,
+    QTextEdit,
+    QHBoxLayout,
+    QLabel,
+    QGroupBox,
+    QProgressBar,
+    QToolButton,
+    QPushButton,
+    QTabWidget,
+    QTextBrowser,
+    QComboBox,
 )
 
 from src.config import get_settings

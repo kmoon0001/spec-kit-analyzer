@@ -8,13 +8,21 @@ import psutil
 import yaml
 
 from src.config import get_settings as _get_settings
+from src.core.compliance_analyzer import ComplianceAnalyzer
 from src.core.document_classifier import DocumentClassifier
 from src.core.hybrid_retriever import HybridRetriever
 from src.core.llm_service import LLMService
 from src.core.report_generator import ReportGenerator
 from src.core.parsing import parse_document_content
-from src.core.phi_scrubber import PhiScrubberService  # Corrected PHIScrubber import
+from src.core.phi_scrubber import PhiScrubberService
+from src.core.preprocessing_service import PreprocessingService
 from src.core.text_utils import sanitize_bullets, sanitize_human_text
+from src.core.ner import NERPipeline
+from src.core.prompt_manager import PromptManager
+from src.core.explanation import ExplanationEngine
+from src.core.fact_checker_service import FactCheckerService
+from src.core.nlg_service import NLGService
+from src.core.checklist_service import DeterministicChecklistService as ChecklistService
 
 logger = logging.getLogger(__name__)
 
@@ -43,16 +51,65 @@ class AnalysisService:
     def __init__(
         self,
         phi_scrubber: PhiScrubberService = None,
+        preprocessing: PreprocessingService = None,
         document_classifier: DocumentClassifier = None,
         retriever: HybridRetriever = None,
         llm_service: LLMService = None,
         report_generator: ReportGenerator = None,
+        compliance_analyzer: ComplianceAnalyzer = None,
+        checklist_service: ChecklistService = None,
+        ner_pipeline: NERPipeline = None,
+        explanation_engine: ExplanationEngine = None,
+        prompt_manager: PromptManager = None,
+        fact_checker_service: FactCheckerService = None,
+        nlg_service: NLGService = None,
     ):
+        settings = _get_settings()
+
+        # Select generator profile based on system memory
+        repo_id, filename = self._select_generator_profile(settings.models.dict())
+
+        # Initialize core services if not provided
+        self.llm_service = llm_service or LLMService(
+            model_repo_id=repo_id,
+            model_filename=filename,
+            llm_settings=settings.llm.dict(),
+        )
+        self.retriever = retriever or HybridRetriever(settings=settings)
+        self.ner_pipeline = ner_pipeline or NERPipeline(settings.models.ner_ensemble)
+        self.prompt_manager = prompt_manager or PromptManager(
+            template_path=settings.models.analysis_prompt_template
+        )
+        self.explanation_engine = explanation_engine or ExplanationEngine()
+        self.fact_checker_service = fact_checker_service or FactCheckerService(
+            model_name=settings.models.fact_checker
+        )
+        self.nlg_service = nlg_service or NLGService(
+            llm_service=self.llm_service,
+            prompt_template_path=settings.models.nlg_prompt_template,
+        )
+
+        # Initialize analyzer that depends on other services
+        self.compliance_analyzer = compliance_analyzer or ComplianceAnalyzer(
+            retriever=self.retriever,
+            ner_pipeline=self.ner_pipeline,
+            llm_service=self.llm_service,
+            explanation_engine=self.explanation_engine,
+            prompt_manager=self.prompt_manager,
+            fact_checker_service=self.fact_checker_service,
+            nlg_service=self.nlg_service,
+            deterministic_focus=settings.analysis.deterministic_focus,
+        )
+
+        # Initialize other services
         self.phi_scrubber = phi_scrubber or PhiScrubberService()
-        self.document_classifier = document_classifier or DocumentClassifier()
-        self.retriever = retriever or HybridRetriever()
-        self.llm_service = llm_service or LLMService()
+        self.preprocessing = preprocessing or PreprocessingService()
+        self.document_classifier = document_classifier or DocumentClassifier(
+            llm_service=self.llm_service,
+            prompt_template_path=settings.models.doc_classifier_prompt,
+        )
         self.report_generator = report_generator or ReportGenerator()
+        self.checklist_service = checklist_service or ChecklistService()
 
     def analyze_document(
         self,
