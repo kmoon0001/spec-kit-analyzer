@@ -84,7 +84,7 @@ def _add_security_schemes(schema: Dict[str, Any]) -> None:
     if "paths" in schema:
         for path_url, path_item in schema["paths"].items():
             if any(protected in path_url for protected in protected_paths):
-                for method, operation in path_item.items():
+                for _, operation in path_item.items():
                     if isinstance(operation, dict):
                         operation["security"] = [{"BearerAuth": []}]
 

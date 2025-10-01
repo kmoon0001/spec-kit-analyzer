@@ -1,3 +1,8 @@
+"""Dependency injection and singleton service management for FastAPI application."""
+
+import logging
+"""Dependency injection and singleton service management for FastAPI application."""
+
 import logging
 from typing import Any, Dict
 
@@ -5,8 +10,10 @@ from fastapi import Depends, HTTPException, status
 
 from src.database import models
 from src.auth import get_current_active_user
-from ..config import get_settings
 from ..core.mock_analysis_service import MockAnalysisService
+from src.core.hybrid_retriever import HybridRetriever
+from ..core.analysis_service import AnalysisService
+from src.core.config import settings  # Add this import for settings
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -34,14 +41,8 @@ def get_analysis_service() -> Any:
 
 
 async def get_retriever() -> Any:
-    """
-    Dependency to get the singleton HybridRetriever instance.
-    Initializes the retriever on the first call.
-    """
     if "retriever" not in app_state:
         logger.info("Retriever instance not found, creating a new one.")
-        # Conditional import to avoid ModuleNotFoundError in mock mode
-        from ..core.hybrid_retriever import HybridRetriever
 
         retriever_instance = HybridRetriever()
         await retriever_instance.initialize()
@@ -53,15 +54,11 @@ async def get_retriever() -> Any:
 async def startup_event():
     """Application startup event handler. Initializes singleton services."""
     logger.info("Application starting up...")
-    settings = get_settings()
-
     if settings.use_ai_mocks:
         logger.warning("AI mocks are enabled. Using MockAnalysisService.")
         app_state["analysis_service"] = MockAnalysisService()
     else:
         logger.info("AI mocks are disabled. Initializing real AnalysisService.")
-        # Conditionally import the real service only when needed
-        from ..core.analysis_service import AnalysisService
 
         # 1. Initialize the retriever, which is a dependency for other services.
         retriever = await get_retriever()
