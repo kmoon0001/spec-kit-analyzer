@@ -69,9 +69,11 @@ class PhiScrubberService:
             self.is_loading = False
 
     def _ensure_models_loaded(self):
-        if (self._general_nlp and self._biomed_nlp) or self.is_loading: return
+        if (self._general_nlp and self._biomed_nlp) or self.is_loading:
+            return
         with self._lock:
-            if not (self._general_nlp and self._biomed_nlp): self._load_models()
+            if not (self._general_nlp and self._biomed_nlp):
+                self._load_models()
 
     def _get_spans_from_text(self, text: str) -> List[Tuple[int, int, str]]:
         spans = []
@@ -95,11 +97,13 @@ class PhiScrubberService:
         return spans
 
     def scrub(self, text: str) -> str:
-        if not isinstance(text, str) or not text.strip(): return text
+        if not isinstance(text, str) or not text.strip():
+            return text
         self._ensure_models_loaded()
 
         spans = self._get_spans_from_text(text)
-        if not spans: return text
+        if not spans:
+            return text
 
         # Sort spans by start index, then by longest span first to prioritize larger entities
         spans.sort(key=lambda s: (s[0], s[0] - s[1]))

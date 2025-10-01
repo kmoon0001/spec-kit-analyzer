@@ -3,6 +3,7 @@ import datetime
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
+from sqlalchemy.orm import selectinload
 
 
 async def get_user_by_username(
@@ -106,8 +107,6 @@ async def get_report(db: AsyncSession, report_id: int) -> Optional[models.Report
     )
     return result.scalars().first()
 
-
-from sqlalchemy.orm import selectinload
 
 
 async def get_reports(

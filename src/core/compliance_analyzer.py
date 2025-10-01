@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Optional
 from src.core.llm_service import LLMService
 from src.core.nlg_service import NLGService
 from src.core.ner import NERPipeline
-from src.config import get_settings
 from src.core.explanation import ExplanationEngine
 from src.core.prompt_manager import PromptManager
 from src.core.fact_checker_service import FactCheckerService
