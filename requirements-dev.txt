@@ -5,3 +5,4 @@ pytest-qt
 pytest-asyncio
 ruff
 spacy
+bandit
