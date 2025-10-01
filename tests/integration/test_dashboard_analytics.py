@@ -3,8 +3,7 @@ from datetime import datetime
 
 from src.api.main import app
 from src.auth import get_current_active_user
-from src import schemas
-from src.config import get_settings
+from src.database import schemas
 
 
 @pytest.mark.asyncio
@@ -12,7 +11,6 @@ async def test_get_director_dashboard_with_filters(async_client, mocker):
     """
     Test that the director dashboard endpoint correctly handles date and discipline filters.
     """
-    settings = get_settings()
 
     # Manually create a mock user for testing purposes
     mock_user = schemas.User(

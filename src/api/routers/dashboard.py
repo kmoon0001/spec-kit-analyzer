@@ -5,10 +5,10 @@ from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import HTMLResponse
-from src.schemas import DirectorDashboardData, CoachingFocus
+from src.database.schemas import DirectorDashboardData, CoachingFocus
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src import crud, models, schemas
+from src.database import crud, models, schemas
 from src.api.dependencies import require_admin
 from src.api.limiter import limiter
 from src.auth import get_current_active_user
