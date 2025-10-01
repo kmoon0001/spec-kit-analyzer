@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from ...core.compliance_service import ComplianceService
-from ...core.models import TherapyDocument
+from ...core.domain_models import TherapyDocument
 
 router = APIRouter(prefix="/compliance", tags=["Compliance"])
 service = ComplianceService()

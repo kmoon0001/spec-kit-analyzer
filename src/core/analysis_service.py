@@ -76,10 +76,14 @@ class AnalysisService:
         self.checklist_service = DeterministicChecklistService()
         self.checklist_expectations = self.checklist_service.describe_expectations()
 
-        # Initialize LLM Service with settings from the new config structure
+        # Correctly select the model profile and initialize the LLM service.
+        repo_id, filename = self._select_generator_profile(
+            self.settings.models.model_dump()
+        )
+
         self.llm_service = LLMService(
-            model_repo_id=self.settings.llm.repo,
-            model_filename=self.settings.llm.filename,
+            model_repo_id=repo_id,
+            model_filename=filename,
             llm_settings=self.settings.llm.model_dump(),
         )
 

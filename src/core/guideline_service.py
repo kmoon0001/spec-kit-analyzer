@@ -157,7 +157,7 @@ class GuidelineService:
         if not self.is_index_ready or self.faiss_index is None:
             return []
 
-        query_embedding = self.model.encode([query])
+        query_embedding = self.model.encode([query], convert_to_tensor=True)
         query_array = np.asarray(query_embedding, dtype=np.float32)
 
         distances, indices = self.faiss_index.search(query_array, top_k)

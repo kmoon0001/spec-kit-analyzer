@@ -79,7 +79,7 @@ async def lifespan(app: FastAPI):
 
     # 2. Clean up any orphaned temporary files from previous runs
     logger.info("Running startup tasks...")
-    clear_temp_uploads()
+    clear_temp_uploads(settings.paths.temp_upload_dir)
 
     # 3. Initialize and start the background scheduler
     scheduler = BackgroundScheduler(daemon=True)
