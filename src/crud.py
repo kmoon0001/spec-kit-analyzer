@@ -1,5 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from typing import Optional
+import datetime
 from src import models, schemas
 
 async def get_user(db: AsyncSession, user_id: int):
@@ -16,6 +18,23 @@ async def change_user_password(db: AsyncSession, user: models.User, new_hashed_p
     await db.commit()
     await db.refresh(user)
     return user
+
+async def create_user(db: AsyncSession, user: schemas.UserCreate, hashed_password: str):
+    db_user = models.User(username=user.username, hashed_password=hashed_password, is_active=True, is_admin=False)
+    db.add(db_user)
+    await db.commit()
+    await db.refresh(db_user)
+    return db_user
+
+async def get_total_findings_count(
+    db: AsyncSession,
+    start_date: Optional[datetime.date] = None,
+    end_date: Optional[datetime.date] = None,
+    discipline: Optional[str] = None,
+) -> int:
+    """Retrieve the total count of findings, optionally filtered by date and discipline."""
+    # Placeholder for actual database query
+    return 0
 
 async def get_reports(db: AsyncSession, skip: int = 0, limit: int = 100):
     result = await db.execute(select(models.AnalysisReport).offset(skip).limit(limit))

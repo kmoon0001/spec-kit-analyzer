@@ -1,5 +1,7 @@
 import os
 import time
+import datetime
+
 import pytest
 import datetime
 from fastapi.testclient import TestClient
@@ -33,6 +35,7 @@ def client_with_auth_override():
         is_admin=False,
         created_at=datetime.datetime.utcnow(),
         hashed_password="dummy_hash_for_mock_flow",
+        created_at=datetime.datetime.utcnow(),
     )
 
     def override_get_current_active_user():

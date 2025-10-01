@@ -1,6 +1,10 @@
 import logging
 from typing import Any, Dict
 
+from fastapi import Depends, HTTPException, status
+
+from src import models
+from src.auth import get_current_active_user
 from ..config import get_settings
 from ..core.mock_analysis_service import MockAnalysisService
 
@@ -9,6 +13,16 @@ logger = logging.getLogger(__name__)
 
 # This dictionary will hold our singleton instances
 app_state: Dict[str, Any] = {}
+
+
+def require_admin(current_user: models.User = Depends(get_current_active_user)):
+    """Dependency that requires the current user to be an admin."""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user does not have administrative privileges",
+        )
+    return current_user
 
 
 def get_analysis_service() -> Any:

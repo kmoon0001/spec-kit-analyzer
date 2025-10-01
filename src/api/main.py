@@ -12,23 +12,32 @@ import os
 import shutil
 from contextlib import asynccontextmanager
 
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from apscheduler.schedulers.background import BackgroundScheduler
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from src.api.dependencies import (
+    shutdown_event as api_shutdown,
+    startup_event as api_startup,
+)
+from src.api.routers import admin, analysis, auth, chat, compliance, dashboard, health
 from src.api.dependencies import startup_event as api_startup, shutdown_event as api_shutdown
 from src.api.routers import auth, analysis, dashboard, admin, health, chat, compliance
 from src.api.error_handling import http_exception_handler
 from src.core.database_maintenance_service import DatabaseMaintenanceService
 from src.config import get_settings
+from src.core.database_maintenance_service import DatabaseMaintenanceService
 
 settings = get_settings()
 
 # --- Configuration ---
 DATABASE_PURGE_RETENTION_DAYS = settings.maintenance.purge_retention_days
+TEMP_UPLOAD_DIR = settings.paths.temp_upload_dir
 
 # --- Logging ---
 logger = logging.getLogger(__name__)
@@ -50,7 +59,9 @@ def clear_temp_uploads(directory_path: str):
                 except (OSError, PermissionError) as e:
                     logger.error("Failed to delete %s. Reason: %s", file_path, e)
     except Exception as e:
-        logger.exception("An unexpected error occurred while clearing temp uploads: %s", e)
+        logger.exception(
+            "An unexpected error occurred while clearing temp uploads: %s", e
+        )
 
 def run_database_maintenance():
     """
@@ -60,13 +71,17 @@ def run_database_maintenance():
     logger.info("Scheduler triggered: Starting database maintenance job.")
     try:
         maintenance_service = DatabaseMaintenanceService()
-        maintenance_service.purge_old_reports(retention_days=DATABASE_PURGE_RETENTION_DAYS)
+        maintenance_service.purge_old_reports(
+            retention_days=DATABASE_PURGE_RETENTION_DAYS
+        )
         logger.info("Scheduler job: Database maintenance finished.")
     except Exception as e:
         logger.exception("Database maintenance job failed: %s", e)
 
 
 # --- FastAPI App Setup ---
+from src.api.limiter import limiter
+scheduler = BackgroundScheduler(daemon=True)
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
 
 
@@ -77,6 +92,12 @@ async def lifespan(app: FastAPI):
     # 1. Run API-level startup logic (e.g., model loading)
     await api_startup()
 
+    # 2. Clean up any orphaned temporary files from previous runs.
+    logger.info("Clearing temporary upload directory...")
+    try:
+        clear_temp_uploads()
+    except Exception as e:
+        logger.error("An error occurred during temp file cleanup: %s", e)
     # 2. Clean up any orphaned temporary files from previous runs
     logger.info("Running startup tasks...")
     clear_temp_uploads()

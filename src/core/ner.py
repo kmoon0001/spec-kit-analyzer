@@ -1,5 +1,6 @@
 import logging
 import os
+import spacy
 from unittest.mock import MagicMock
 from typing import List, Dict, Any
 from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
@@ -25,6 +26,7 @@ class NERPipeline:
             model_names: A list of model names from the Hugging Face Hub.
         """
         self.pipelines = []
+        self.spacy_nlp = spacy.load("en_core_web_sm")
 
         # Check for pytest environment to mock the model loading
         if os.environ.get("PYTEST_RUNNING") == "1":
@@ -60,3 +62,18 @@ class NERPipeline:
         """
         Extracts entities from the text using the ensemble of models and merges the results.
         """
+
+    def extract_clinician_name(self, text: str) -> List[str]:
+        """
+        Extracts clinician names from the text by looking for PERSON entities near keywords.
+        """
+        clinician_names = []
+        doc = self.spacy_nlp(text)
+        for ent in doc.ents:
+            if ent.label_ == "PERSON":
+                for token in ent:
+                    head = getattr(token, 'head', None)
+                    if head and head.text.lower() in ["signature", "therapist", "by"]:
+                        clinician_names.append(ent.text)
+                        break
+        return list(set(clinician_names))

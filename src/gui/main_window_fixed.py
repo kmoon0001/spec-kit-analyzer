@@ -30,17 +30,16 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.config import get_settings
+from src.core.analysis_service import AnalysisService
+from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
+
 # Add project root to path for imports
 project_root = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 )
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
-
-
-from src.config import get_settings
-from src.core.analysis_service import AnalysisService
-from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
 
 settings = get_settings()
 API_URL = settings.api_url
