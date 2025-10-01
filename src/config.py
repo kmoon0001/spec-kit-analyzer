@@ -21,21 +21,7 @@ class AuthSettings(BaseModel):
     access_token_expire_minutes: int
 
 
-class MaintenanceSettings(BaseModel):
-    purge_retention_days: int
 
-    def __init__(self, **data: Any):
-        super().__init__(**data)
-        # Resolve all paths relative to the project root to make them absolute.
-        for attr in [
-            "temp_upload_dir",
-            "rule_dir",
-            "medical_dictionary",
-            "analysis_prompt_template",
-            "nlg_prompt_template",
-            "doc_classifier_prompt",
-        ]:
-            setattr(self, attr, (PROJECT_ROOT / getattr(self, attr)).resolve())
 
 class GeneratorProfile(BaseModel):
     repo: str
@@ -81,20 +67,6 @@ class AnalysisSettings(BaseModel):
         0.7, description="Minimum confidence score for a finding to be considered valid."
     )
     deterministic_focus: str
-
-    def __init__(self, **data: Any):
-        super().__init__(**data)
-        # Load deterministic_focus from file
-        deterministic_focus_path = PROJECT_ROOT / "src/resources/deterministic_focus.txt"
-        if deterministic_focus_path.is_file():
-            with open(deterministic_focus_path, "r", encoding="utf-8") as f:
-                self.deterministic_focus = f.read()
-        else:
-            self.deterministic_focus = (
-                "- Treatment frequency documented\n"
-                "- Goals reviewed or adjusted\n"
-                "- Medical necessity justified"
-            ) # Fallback to hardcoded if file not found
 
 class MaintenanceSettings(BaseModel):
     purge_retention_days: int
