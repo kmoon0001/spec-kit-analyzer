@@ -116,24 +116,47 @@ class PerformanceManager:
         logger.info("Performance profile: %s", self.current_profile.value)
 
     def _load_or_create_config(self) -> PerformanceConfig:
-        """Load existing config or create new one based on system."""
+        """
+        Load existing config or create a new one. This version is hardened
+        against empty or corrupted config files.
+        """
         if os.path.exists(self.config_path):
             try:
-                with open(self.config_path, "r") as f:
-                    data = json.load(f)
-                    self.current_profile = PerformanceProfile(
-                        data.get("profile", "balanced")
-                    )
-                    return self._create_config_for_profile(self.current_profile)
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    if not content:
+                        logger.warning(
+                            "Performance config file is empty. A new one will be created."
+                        )
+                    else:
+                        data = json.loads(content)
+                        self.current_profile = PerformanceProfile(
+                            data.get("profile", "balanced")
+                        )
+                        # Note: This logic re-creates the config based on the profile,
+                        # ignoring other custom values. For this fix, we are preserving
+                        # this behavior to minimize changes, focusing on stability.
+                        logger.info(
+                            "Loaded performance profile: %s", self.current_profile.value
+                        )
+                        return self._create_config_for_profile(self.current_profile)
+            except json.JSONDecodeError as e:
+                logger.warning(
+                    "Could not parse performance_config.json: %s. A new configuration will be created.",
+                    e,
+                )
             except Exception as e:
-                logger.warning(f"Could not load config: {e}")
+                logger.error(
+                    "An unexpected error occurred loading performance config: %s. Creating a new one.",
+                    e,
+                    exc_info=True,
+                )
 
-        # Auto-detect and create new config
+        # Auto-detect and create new config if loading fails or file doesn't exist
+        logger.info("Creating a new performance configuration based on system profile.")
         recommended_profile = SystemProfiler.recommend_profile(self.system_info)
         self.current_profile = recommended_profile
-        config = self._create_config_for_profile(recommended_profile)
-        # Save config after it's created and assigned
-        return config
+        return self._create_config_for_profile(recommended_profile)
 
     def _create_config_for_profile(
         self, profile: PerformanceProfile
