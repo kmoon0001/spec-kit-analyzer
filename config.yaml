@@ -4,50 +4,57 @@
 
 api_url: "http://127.0.0.1:8000"
 use_ai_mocks: true
+enable_director_dashboard: true
+# Correctly structured configuration for the Therapy Compliance Analyzer
 
 database:
   url: "sqlite:///./compliance.db"
-  echo: false
 
 auth:
-  # It is strongly recommended to override this with an environment variable:
-  # export SECRET_KEY='your_super_secret_key_here'
-  secret_key: "your_secret_key_here_for_dev"
+  secret_key: "your_secret_key_here" # Changed to a placeholder
   algorithm: "HS256"
   access_token_expire_minutes: 30
 
-paths:
-  # All paths are relative to the project root directory.
-  temp_upload_dir: "tmp/uploads"
-  rule_dir: "src/resources/rules"
-  medical_dictionary: "src/resources/medical_dictionary.txt"
+maintenance:
+  purge_retention_days: 60
+
+models:
+  generator_profiles:
+    standard:
+      repo: "microsoft/Phi-3-mini-4k-instruct-gguf"
+      filename: "Phi-3-mini-4k-instruct.Q4_K_M.gguf"
+      max_system_gb: 11.0
+    enhanced:
+      repo: "meta-llama/Meta-Llama-3-8B-Instruct-GGUF"
+      filename: "Meta-Llama-3-8B-Instruct.Q4_K_M.gguf"
+      min_system_gb: 11.0
+  chat:
+    repo: "TheBloke/ClinicalCamel-5B-GGUF"
+    filename: "clinical-camel-5b.Q4_K_M.gguf"
+    model_type: "llama"
+    context_length: 2048
+  retriever: "sentence-transformers/all-MiniLM-L6-v2"
+  fact_checker: "google/flan-t5-base"
+  ner_ensemble:
+    - "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
+    - "d4data/biomedical-ner-all"
+  doc_classifier_prompt: "src/resources/prompts/doc_classifier_prompt.txt"
   analysis_prompt_template: "src/resources/prompts/analysis_prompt_template.txt"
   nlg_prompt_template: "src/resources/prompts/nlg_prompt_template.txt"
-  doc_classifier_prompt: "src/resources/prompts/doc_classifier_prompt.txt"
 
-llm:
-  # Configuration for the primary Large Language Model used for analysis.
-  # Using ClinicalCamel-5B as the default.
-  repo: "TheBloke/ClinicalCamel-5B-GGUF"
-  filename: "clinical-camel-5b.Q4_K_M.gguf"
+llm_settings:
   model_type: "llama"
   context_length: 2048
   generation_params:
     temperature: 0.1
     max_new_tokens: 2048
 
-retrieval:
-  # Settings for the document retrieval system.
+retrieval_settings:
   dense_model_name: "pritamdeka/S-PubMedBert-MS-MARCO"
   similarity_top_k: 3
   rrf_k: 60
 
-analysis:
-  # Parameters controlling the compliance analysis logic.
-  confidence_threshold: 0.7
-
-
-maintenance:
-  # Settings for automated database maintenance tasks.
-  purge_retention_days: 60
-  purge_interval_days: 1
+temp_upload_dir: "/tmp/uploads"
+api_url: "http://127.0.0.1:8000"
+rule_dir: "src/resources/rules"
+use_ai_mocks: true

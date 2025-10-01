@@ -7,7 +7,7 @@ from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassificatio
 
 # Conditionally import transformers only when not testing
 if os.environ.get("PYTEST_RUNNING") != "1":
-    from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class NERPipeline:
         for ent in doc.ents:
             if ent.label_ == "PERSON":
                 for token in ent:
-                    head = getattr(token, "head", None)
+                    head = getattr(token, 'head', None)
                     if head and head.text.lower() in ["signature", "therapist", "by"]:
                         clinician_names.append(ent.text)
                         break

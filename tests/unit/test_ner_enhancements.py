@@ -9,7 +9,6 @@ sys.path.insert(
 
 from core.ner import NERPipeline
 
-
 # A more accurate mock for SpaCy's Token
 class MockToken:
     def __init__(self, text, i, head=None):
@@ -17,7 +16,6 @@ class MockToken:
         self.i = i
         self.text = text
         self.head = head if head is not None else self
-
 
 # A more accurate mock for SpaCy's Span, making it iterable
 class MockSpan:
@@ -27,11 +25,7 @@ class MockSpan:
         self.start_char = start_char
         self.end_char = end_char
         # Create mock tokens for the span
-        self.tokens = (
-            tokens
-            if tokens is not None
-            else [MockToken(t, i) for i, t in enumerate(text.split())]
-        )
+        self.tokens = tokens if tokens is not None else [MockToken(t, i) for i, t in enumerate(text.split())]
         # Assign a mock 'i' to the span itself for window checking
         if self.tokens:
             self.start = self.tokens[0].i
@@ -41,7 +35,6 @@ class MockSpan:
 
     def __iter__(self):
         return iter(self.tokens)
-
 
 # A more accurate mock for SpaCy's Doc
 class MockDoc:
@@ -54,11 +47,9 @@ class MockDoc:
         for span in self.ents:
             for i, token in enumerate(span.tokens):
                 if i > 0:
-                    token.head = span.tokens[i - 1]
+                    token.head = span.tokens[i-1]
                 else:
-                    token.head = (
-                        token  # First token in span points to itself by default
-                    )
+                    token.head = token # First token in span points to itself by default
 
     def __call__(self, text):
         # This allows the mock to be called like a spacy_nlp object
@@ -67,16 +58,10 @@ class MockDoc:
 
     def __getitem__(self, key):
         if isinstance(key, slice):
-            return self.tokens[key.start : key.stop]
+            return self.tokens[key.start:key.stop]
         return self.tokens[key]
 
-    def char_span(
-        self,
-        start_char: int,
-        end_char: int,
-        label: str = "",
-        alignment_mode: str = "strict",
-    ):
+    def char_span(self, start_char: int, end_char: int, label: str = "", alignment_mode: str = "strict"):
         """A simplified mock of SpaCy's char_span method."""
         span_text = self.text[start_char:end_char]
         if not span_text:
@@ -93,7 +78,6 @@ def ner_pipeline(mocker):
     pipeline.spacy_nlp = MagicMock(return_value=MockDoc([]))  # Default empty doc
     return pipeline
 
-
 def test_extract_clinician_with_keyword(ner_pipeline):
     """Test that a PERSON entity near a keyword is identified as a clinician."""
     text = "Signature: Dr. Jane Doe, PT"
@@ -105,22 +89,16 @@ def test_extract_clinician_with_keyword(ner_pipeline):
     token_pt = MockToken("PT", 4, head=token_doe)
 
     # Create a span for the person entity
-    span_jane_doe = MockSpan(
-        "Dr. Jane Doe", "PERSON", tokens=[token_dr, token_jane, token_doe]
-    )
+    span_jane_doe = MockSpan("Dr. Jane Doe", "PERSON", tokens=[token_dr, token_jane, token_doe])
 
-    mock_doc_instance = MockDoc(
-        spans=[span_jane_doe],
-        all_tokens=[token_signature, token_dr, token_jane, token_doe, token_pt],
-    )
-    mock_doc_instance.text = text  # Set the text attribute
+    mock_doc_instance = MockDoc(spans=[span_jane_doe], all_tokens=[token_signature, token_dr, token_jane, token_doe, token_pt])
+    mock_doc_instance.text = text # Set the text attribute
     ner_pipeline.spacy_nlp.return_value = mock_doc_instance
 
     entities = ner_pipeline.extract_clinician_name(text)
 
     assert len(entities) == 1
     assert entities[0] == "Dr. Jane Doe"
-
 
 def test_ignore_person_not_near_keyword(ner_pipeline):
     """Test that a PERSON entity not near a keyword is ignored."""
@@ -136,23 +114,12 @@ def test_ignore_person_not_near_keyword(ner_pipeline):
     # Create a span for the person entity
     span_john_smith = MockSpan("John Smith", "PERSON", tokens=[token_john, token_smith])
 
-    mock_doc_instance = MockDoc(
-        spans=[span_john_smith],
-        all_tokens=[
-            token_the,
-            token_patient,
-            token_john,
-            token_smith,
-            token_reported,
-            token_improvement,
-        ],
-    )
-    mock_doc_instance.text = text  # Set the text attribute
+    mock_doc_instance = MockDoc(spans=[span_john_smith], all_tokens=[token_the, token_patient, token_john, token_smith, token_reported, token_improvement])
+    mock_doc_instance.text = text # Set the text attribute
     ner_pipeline.spacy_nlp.return_value = mock_doc_instance
 
     entities = ner_pipeline.extract_clinician_name(text)
     assert len(entities) == 0
-
 
 def test_multiple_clinicians_found_and_deduplicated(ner_pipeline):
     """Test that multiple clinicians are found and deduplicated."""
@@ -169,35 +136,17 @@ def test_multiple_clinicians_found_and_deduplicated(ner_pipeline):
     token_cota = MockToken("COTA.", 8, head=token_brown)
 
     # Create spans for the person entities
-    span_emily_white = MockSpan(
-        "Dr. Emily White", "PERSON", tokens=[token_dr, token_emily, token_white]
-    )
-    span_michael_brown = MockSpan(
-        "Michael Brown", "PERSON", tokens=[token_michael, token_brown]
-    )
+    span_emily_white = MockSpan("Dr. Emily White", "PERSON", tokens=[token_dr, token_emily, token_white])
+    span_michael_brown = MockSpan("Michael Brown", "PERSON", tokens=[token_michael, token_brown])
 
-    mock_doc_instance = MockDoc(
-        spans=[span_emily_white, span_michael_brown],
-        all_tokens=[
-            token_therapist,
-            token_dr,
-            token_emily,
-            token_white,
-            token_co_signed,
-            token_by,
-            token_michael,
-            token_brown,
-            token_cota,
-        ],
-    )
-    mock_doc_instance.text = text  # Set the text attribute
+    mock_doc_instance = MockDoc(spans=[span_emily_white, span_michael_brown], all_tokens=[token_therapist, token_dr, token_emily, token_white, token_co_signed, token_by, token_michael, token_brown, token_cota])
+    mock_doc_instance.text = text # Set the text attribute
     ner_pipeline.spacy_nlp.return_value = mock_doc_instance
 
     entities = ner_pipeline.extract_clinician_name(text)
     assert len(entities) == 2
     assert "Dr. Emily White" in entities
     assert "Michael Brown" in entities
-
 
 def test_deduplication_of_same_name(ner_pipeline):
     """Test that the same name found twice is deduplicated."""
@@ -214,28 +163,11 @@ def test_deduplication_of_same_name(ner_pipeline):
     token_connor2 = MockToken("Connor.", 8, head=token_sarah2)
 
     # Create spans for the person entities
-    span_sarah_connor1 = MockSpan(
-        "Sarah Connor", "PERSON", tokens=[token_sarah1, token_connor1]
-    )
-    span_sarah_connor2 = MockSpan(
-        "Sarah Connor", "PERSON", tokens=[token_sarah2, token_connor2]
-    )
+    span_sarah_connor1 = MockSpan("Sarah Connor", "PERSON", tokens=[token_sarah1, token_connor1])
+    span_sarah_connor2 = MockSpan("Sarah Connor", "PERSON", tokens=[token_sarah2, token_connor2])
 
-    mock_doc_instance = MockDoc(
-        spans=[span_sarah_connor1, span_sarah_connor2],
-        all_tokens=[
-            token_signature,
-            token_sarah1,
-            token_connor1,
-            token_later,
-            token_note,
-            token_signed,
-            token_by,
-            token_sarah2,
-            token_connor2,
-        ],
-    )
-    mock_doc_instance.text = text  # Set the text attribute
+    mock_doc_instance = MockDoc(spans=[span_sarah_connor1, span_sarah_connor2], all_tokens=[token_signature, token_sarah1, token_connor1, token_later, token_note, token_signed, token_by, token_sarah2, token_connor2])
+    mock_doc_instance.text = text # Set the text attribute
     ner_pipeline.spacy_nlp.return_value = mock_doc_instance
 
     entities = ner_pipeline.extract_clinician_name(text)

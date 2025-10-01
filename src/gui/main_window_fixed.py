@@ -2,16 +2,19 @@
 Fixed Modern Main Window - Working version with your layout.
 Integrated with backend services for full functionality.
 """
+import asyncio
 import logging
 import os
+import sys
 from typing import Any, Dict
 
-import json
 import requests
-from PyQt6.QtCore import QThread, QTimer, Qt
+from PyQt6.QtCore import QThread, QTimer, Qt, pyqtSignal as Signal
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QComboBox,
     QFileDialog,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -27,22 +30,121 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-
-
-
 from src.config import get_settings
 from src.core.analysis_service import AnalysisService
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
-from src.gui.widgets.modern_card import ModernCard
-from src.gui.workers.analysis_worker import AnalysisWorker
+
+# Add project root to path for imports
+project_root = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 settings = get_settings()
 API_URL = settings.api_url
 logger = logging.getLogger(__name__)
 
 
+class ModernCard(QFrame):
+    """Simple modern card widget."""
+
+    def __init__(self, title: str = "", parent=None):
+        super().__init__(parent)
+        self.title = title
+        self.setup_ui()
+        self.apply_style()
+
+    def setup_ui(self):
+        """Setup card UI."""
+        self.setFrameStyle(QFrame.Shape.NoFrame)
+
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(16, 12, 16, 12)
+        self.main_layout.setSpacing(8)
+
+        if self.title:
+            self.title_label = QLabel(self.title)
+            title_font = QFont()
+            title_font.setPointSize(11)
+            title_font.setBold(True)
+            self.title_label.setFont(title_font)
+            self.title_label.setStyleSheet("color: #2563eb; margin-bottom: 4px;")
+            self.main_layout.addWidget(self.title_label)
+
+        self.content_widget = QWidget()
+        self.content_layout = QVBoxLayout(self.content_widget)
+        self.content_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.addWidget(self.content_widget)
+
+    def apply_style(self):
+        """Apply card styling."""
+        self.setStyleSheet(
+            """
+            QFrame {
+                background-color: #ffffff;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                margin: 4px;
+            }
+        """
+        )
+
+    def add_content(self, widget: QWidget):
+        """Add content to card."""
+        self.content_layout.addWidget(widget)
 
 
+class AnalysisWorkerThread(QThread):
+    """Background worker for document analysis."""
+
+    progress_updated = Signal(int)
+    status_updated = Signal(str)
+    analysis_completed = Signal(dict)
+    analysis_failed = Signal(str)
+
+    def __init__(
+        self, file_path: str, discipline: str, analysis_service: AnalysisService
+    ):
+        super().__init__()
+        self.file_path = file_path
+        self.discipline = discipline
+        self.analysis_service = analysis_service
+
+    def run(self):
+        """Run analysis in background thread."""
+        try:
+            self.status_updated.emit("🤖 Initializing AI models...")
+            self.progress_updated.emit(10)
+
+            self.status_updated.emit("📄 Processing document...")
+            self.progress_updated.emit(30)
+
+            # Run the actual analysis
+            result = self.analysis_service.analyze_document(
+                file_path=self.file_path, discipline=self.discipline
+            )
+
+            self.progress_updated.emit(80)
+            self.status_updated.emit("📊 Generating report...")
+
+            # Handle async result if needed
+            if hasattr(result, "__await__"):
+                # This is an async result, we need to handle it properly
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    result = loop.run_until_complete(result)
+                finally:
+                    loop.close()
+
+            self.progress_updated.emit(100)
+            self.status_updated.emit("✅ Analysis complete")
+            self.analysis_completed.emit(result)
+
+        except Exception as e:
+            logger.error(f"Analysis failed: {e}")
+            self.analysis_failed.emit(str(e))
 
 
 class ModernMainWindow(QMainWindow):
@@ -59,7 +161,7 @@ class ModernMainWindow(QMainWindow):
         self.worker = None
 
         # Initialize backend services
-        self.analysis_service = AnalysisService()
+        self.analysis_service = None
         self._rubrics_cache = []
 
         print("🎨 Initializing modern UI...")
@@ -528,7 +630,14 @@ class ModernMainWindow(QMainWindow):
             QMessageBox.warning(self, "No Document", "Please upload a document first.")
             return
 
-
+        if not self.analysis_service:
+            try:
+                self.analysis_service = AnalysisService()
+            except Exception as e:
+                QMessageBox.critical(
+                    self, "Service Error", f"Failed to initialize analysis service: {e}"
+                )
+                return
 
         # Get selected discipline from rubric
         discipline = self._current_discipline
@@ -542,20 +651,14 @@ class ModernMainWindow(QMainWindow):
         self.progress_label.setText("🤖 Starting AI analysis...")
 
         # Start background analysis
-        self.worker_thread = QThread()
-        self.worker = AnalysisWorker(
+        self.worker_thread = AnalysisWorkerThread(
             self._current_file_path, discipline, self.analysis_service
         )
-        self.worker.moveToThread(self.worker_thread)
-        self.worker.progress_updated.connect(self.main_progress_bar.setValue)
-        self.worker.status_updated.connect(self.progress_label.setText)
-        self.worker.analysis_completed.connect(self.on_analysis_complete)
-        self.worker.analysis_failed.connect(self.on_analysis_failed)
-        self.worker_thread.started.connect(self.worker.run)
-        self.worker.finished.connect(self.worker_thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
-        self.worker.finished.connect(self.on_analysis_finished)
+        self.worker_thread.progress_updated.connect(self.main_progress_bar.setValue)
+        self.worker_thread.status_updated.connect(self.progress_label.setText)
+        self.worker_thread.analysis_completed.connect(self.on_analysis_complete)
+        self.worker_thread.analysis_failed.connect(self.on_analysis_failed)
+        self.worker_thread.finished.connect(self.on_analysis_finished)
 
         self.worker_thread.start()
 
@@ -748,28 +851,37 @@ class ModernMainWindow(QMainWindow):
                     return
 
             # Fallback to default rubrics
-            try:
-                default_rubrics_path = os.path.join(os.path.dirname(__file__), "..", "resources", "default_rubrics.json")
-                with open(default_rubrics_path, "r", encoding="utf-8") as f:
-                    default_rubrics = json.load(f)
-            except Exception as json_e:
-                logger.error(f"Failed to load default rubrics from file: {json_e}")
-                default_rubrics = [] # Fallback to empty list if file loading fails
-
+            default_rubrics = [
+                {
+                    "name": "PT Compliance Rubric",
+                    "category": "Physical Therapy",
+                    "content": "Physical therapy compliance guidelines",
+                },
+                {
+                    "name": "OT Compliance Rubric",
+                    "category": "Occupational Therapy",
+                    "content": "Occupational therapy compliance guidelines",
+                },
+                {
+                    "name": "SLP Compliance Rubric",
+                    "category": "Speech-Language Pathology",
+                    "content": "Speech-language pathology compliance guidelines",
+                },
+            ]
             self._rubrics_cache = default_rubrics
             self.populate_rubric_selector(default_rubrics)
 
         except Exception as e:
             logger.warning(f"Could not load rubrics from API: {e}")
-            # Use default rubrics as fallback from file
-            try:
-                default_rubrics_path = os.path.join(os.path.dirname(__file__), "..", "resources", "default_rubrics.json")
-                with open(default_rubrics_path, "r", encoding="utf-8") as f:
-                    default_rubrics = json.load(f)
-            except Exception as json_e:
-                logger.error(f"Failed to load default rubrics from file: {json_e}")
-                default_rubrics = [] # Fallback to empty list if file loading fails
-
+            # Use default rubrics as fallback
+            default_rubrics = [
+                {"name": "PT Compliance Rubric", "category": "Physical Therapy"},
+                {"name": "OT Compliance Rubric", "category": "Occupational Therapy"},
+                {
+                    "name": "SLP Compliance Rubric",
+                    "category": "Speech-Language Pathology",
+                },
+            ]
             self._rubrics_cache = default_rubrics
             self.populate_rubric_selector(default_rubrics)
 

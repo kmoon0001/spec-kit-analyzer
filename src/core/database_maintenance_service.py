@@ -1,39 +1,26 @@
 import logging
 import asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
-from ..database import crud
+from src.config import get_settings
+from ..database import AsyncSessionLocal, crud
 from ..config import get_settings
-from ..database.database import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 
-
 class DatabaseMaintenanceService:
     """
-    A service to handle background database maintenance tasks, such as purging old records.
+    A service to handle database maintenance tasks, such as purging old reports.
     """
 
-    def purge_old_reports(self, retention_days: int):
-        """
-        Synchronous entry point for purging old reports.
-        This can be called from a synchronous context like a scheduler.
-        """
-        logger.info("Scheduler triggered: Kicking off database maintenance task for reports older than %d days.", retention_days)
-        try:
-            # Use asyncio.run() to execute the async method
-            asyncio.run(self._purge_old_reports_async(retention_days))
-            logger.info("Database maintenance task finished.")
-        except Exception as e:
-            logger.error(
-                "An unexpected error occurred while running the database maintenance task: %s",
-                e,
-                exc_info=True,
-            )
+    def __init__(self):
+        self.settings = get_settings()
 
-    async def _purge_old_reports_async(self, retention_days: int):
+    async def _purge_old_reports_async(self):
         """
-        Asynchronously connects to the database and purges old reports.
+        Asynchronously connects to the database and purges old reports based on
+        the retention policy defined in the application settings.
         """
+        retention_days = self.settings.maintenance.purge_retention_days
+
         if retention_days <= 0:
             logger.info("Database purging is disabled (retention_days <= 0).")
             return
@@ -58,3 +45,21 @@ class DatabaseMaintenanceService:
                     e,
                     exc_info=True,
                 )
+
+    def purge_old_reports(self, retention_days: int = 0):
+        """
+        Synchronous entry point for the database maintenance task.
+
+        This function is designed to be called by a synchronous scheduler (like APScheduler).
+        It runs the core asynchronous purge logic in a new asyncio event loop.
+        """
+        logger.info("Scheduler triggered: Kicking off database maintenance task.")
+        try:
+            asyncio.run(self._purge_old_reports_async())
+            logger.info("Database maintenance task finished.")
+        except Exception as e:
+            logger.error(
+                "An unexpected error occurred while running the database maintenance task: %s",
+                e,
+                exc_info=True,
+            )

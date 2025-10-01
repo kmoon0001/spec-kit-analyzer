@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from src import crud, models, schemas
 from src.api.main import app
+from src.auth import get_auth_service
 from src.core.compliance_analyzer import ComplianceAnalyzer
 from src.core.explanation import ExplanationEngine
 from src.core.fact_checker_service import FactCheckerService
@@ -162,9 +163,7 @@ def compliance_analyzer(
 # --- Async Database and Test Client Fixtures ---------------------------------
 
 # The URI format is important for shared in-memory DBs
-ASYNC_SQLITE_URL = (
-    "sqlite+aiosqlite:///file:memdb_async?mode=memory&cache=shared&uri=true"
-)
+ASYNC_SQLITE_URL = "sqlite+aiosqlite:///file:memdb_async?mode=memory&cache=shared&uri=true"
 
 async_engine = create_async_engine(
     ASYNC_SQLITE_URL, connect_args={"check_same_thread": False}
@@ -237,9 +236,7 @@ async def test_user(test_db: AsyncSession) -> models.User:
     """Create a standard user for testing purposes."""
     # Bypass actual password hashing for testing purposes
     # Use a mock hashed password that is valid in format but doesn't require bcrypt to generate
-    mock_hashed_password = (
-        "$2b$12$mockhashedpasswordstringforetesting12345678901234567890"
-    )
+    mock_hashed_password = "$2b$12$mockhashedpasswordstringforetesting12345678901234567890"
     user_in = schemas.UserCreate(
         username=test_user_credentials["username"],
         password="mockpass",  # A short placeholder password for the schema
