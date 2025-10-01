@@ -3,8 +3,6 @@ from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
 import yaml
-from functools import lru_cache
-from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
@@ -78,7 +76,7 @@ class RetrievalSettings(BaseModel):
 
 class AnalysisSettings(BaseModel):
     confidence_threshold: float = Field(
-0.7,
+        0.7,
         description="Minimum confidence score for a finding to be considered valid.",
     )
     deterministic_focus: str = Field(
@@ -87,23 +85,17 @@ class AnalysisSettings(BaseModel):
     )
 
 
-class MaintenanceSettings(BaseModel):
-    purge_retention_days: int
-    purge_interval_days: int = 1
-
-
 class Settings(BaseModel):
     enable_director_dashboard: bool = False
     database: DatabaseSettings
     auth: AuthSettings
     maintenance: MaintenanceSettings
-paths: PathsSettings
+    paths: PathsSettings
     llm: LLMSettings
     retrieval: RetrievalSettings
     analysis: AnalysisSettings
     models: ModelsSettings
     use_ai_mocks: bool = False
-
 
 
 @lru_cache()

@@ -8,7 +8,7 @@ from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from functools import lru_cache
 
-from src import crud, models, schemas
+from src.database import crud, models, schemas
 from src.config import get_settings
 from src.database.database import get_async_db as get_db
 

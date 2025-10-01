@@ -1,6 +1,6 @@
 import unittest
 from src.core.compliance_service import ComplianceService
-from src.core.models import TherapyDocument, ComplianceRule
+from src.core.domain_models import TherapyDocument, ComplianceRule
 
 
 class TestComplianceService(unittest.TestCase):
