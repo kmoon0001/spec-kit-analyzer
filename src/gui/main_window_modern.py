@@ -4,30 +4,38 @@ Modern Main Window - Redesigned with medical theme and your exact layout specifi
 
 import os
 from PyQt6.QtWidgets import (
+    QComboBox,
+    QFileDialog,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
-    QMessageBox,
+    QLabel,
     QMainWindow,
-    QStatusBar,
     QMenuBar,
+    QMessageBox,
+    QProgressBar,
+    QStatusBar,
     QFileDialog,
     QTextEdit,
     QLabel,
     QProgressBar,
     QTextBrowser,
-    QComboBox,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+    QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QMainWindow, QStatusBar,
+    QMenuBar, QFileDialog, QTextEdit, QLabel, QProgressBar, QTextBrowser, QComboBox
 )
 from PyQt6.QtCore import QThread
 
 # Import our new modern components
-from .widgets.modern_card import ModernCard
-from .widgets.medical_theme import medical_theme
-from .widgets.responsive_layout import ResponsiveWidget
-from .widgets.micro_interactions import AnimatedButton, FadeInWidget, LoadingSpinner
-from .workers.analysis_starter_worker import AnalysisStarterWorker
-from .widgets.performance_status_widget import PerformanceStatusWidget
-from ..config import get_settings
+from src.gui.widgets.modern_card import ModernCard
+from src.gui.widgets.medical_theme import medical_theme
+from src.gui.widgets.responsive_layout import ResponsiveWidget
+from src.gui.widgets.micro_interactions import AnimatedButton, FadeInWidget, LoadingSpinner
+from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
+from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
+from src.config import get_settings
 
 settings = get_settings()
 API_URL = settings.api_url
@@ -386,7 +394,7 @@ class ModernMainWindow(QMainWindow):
         results_card.add_content(results_content)
 
         # Add to main layout with responsive splitter
-        from .widgets.responsive_layout import ResponsiveSplitter
+        from src.gui.widgets.responsive_layout import ResponsiveSplitter
 
         splitter = ResponsiveSplitter()
         splitter.addWidget(document_card)
@@ -516,7 +524,7 @@ class ModernMainWindow(QMainWindow):
 
         # Performance optimization
         try:
-            from ..core.performance_integration import optimize_for_analysis
+            from src.core.performance_integration import optimize_for_analysis
 
             optimization_results = optimize_for_analysis()
 

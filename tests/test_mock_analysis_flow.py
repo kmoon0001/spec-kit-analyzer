@@ -1,10 +1,13 @@
 import os
+import sys
 import time
 import datetime
 
 import pytest
-import datetime
 from fastapi.testclient import TestClient
+
+# Ensure the src directory is in the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.api.main import app
 from  src.auth import get_current_active_user
@@ -16,23 +19,11 @@ def client_with_auth_override():
     Provides a TestClient with the user authentication dependency overridden.
     This is scoped to the module to avoid polluting other test files.
     """
-    # Import app components here to ensure this fixture controls setup
-    from src.api.main import app
-    from src.api.dependencies import get_analysis_service
-    from src.core.mock_analysis_service import MockAnalysisService
-    from src.auth import get_current_active_user
-    # Note: Using 'from src.database import schemas' from 'main' instead of 'from src import schemas'
-    from src import schemas
-    import datetime
-
-    # The 'dummy_user' definition should be kept from 'fix/initial-setup-and-debugging',
-    # but placed here after the imports.
     dummy_user = schemas.User(
         id=1,
         username="testuser",
         is_active=True,
         is_admin=False,
-        created_at=datetime.datetime.utcnow(),
         hashed_password="dummy_hash_for_mock_flow",
         created_at=datetime.datetime.utcnow(),
     )
