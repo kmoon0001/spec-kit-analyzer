@@ -3,7 +3,7 @@ import logging
 from time import perf_counter
 from typing import List, Optional, Tuple
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import HTMLResponse
 from src.schemas import DirectorDashboardData, CoachingFocus
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,9 +22,8 @@ router = APIRouter()
 report_generator = ReportGenerator()
 
 
-
-
 # --- Helper Functions ---#
+
 
 def _resolve_generator_model(settings: Settings) -> Tuple[str, str]:
     """Placeholder for resolving the generator model."""
@@ -162,7 +161,9 @@ async def generate_coaching_focus(
 
     prompt += "\n**Clinician-Specific Breakdown (Top 5):**\n"
     for item in dashboard_data.clinician_habit_breakdown[:5]:
-        prompt += f"  - {item.clinician_name} ({item.habit_name}): {item.count} findings\n"
+        prompt += (
+            f"  - {item.clinician_name} ({item.habit_name}): {item.count} findings\n"
+        )
 
     prompt += """
     **Your Task:**
@@ -214,6 +215,4 @@ async def get_habit_trends(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Director Dashboard feature is not enabled.",
         )
-    return await crud.get_habit_trend_data(
-        db, start_date=start_date, end_date=end_date
-    )
+    return await crud.get_habit_trend_data(db, start_date=start_date, end_date=end_date)

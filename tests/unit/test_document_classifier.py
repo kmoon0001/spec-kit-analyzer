@@ -31,7 +31,6 @@ def test_classify_unknown():
     assert classifier.classify_document(text) == "Unknown"
 
 
-
 def test_classify_case_insensitivity():
     classifier = DocumentClassifier(llm_service=None, prompt_template_path="")
     text = "this is an EVALUATION."

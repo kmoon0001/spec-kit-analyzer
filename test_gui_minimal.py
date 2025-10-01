@@ -2,6 +2,7 @@
 """
 Minimal GUI test to isolate window visibility issues.
 """
+
 import os
 import sys
 

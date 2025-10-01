@@ -2,8 +2,6 @@ import asyncio
 from src.database.database import init_db
 
 
-
-
 async def main():
     print("Initializing database...")
     await init_db()

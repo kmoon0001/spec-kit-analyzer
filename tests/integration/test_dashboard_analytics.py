@@ -1,22 +1,18 @@
 import pytest
-from unittest.mock import MagicMock
 from datetime import datetime
 
 from src.api.main import app
 from src.auth import get_current_active_user
 from src import schemas
-from src.models import User
-from src.config import get_settings
+
 
 
 @pytest.mark.asyncio
-async def test_get_director_dashboard_with_filters(
-    async_client, mocker
-):
+async def test_get_director_dashboard_with_filters(async_client, mocker):
     """
     Test that the director dashboard endpoint correctly handles date and discipline filters.
     """
-    settings = get_settings()
+
     # Manually create a mock user for testing purposes
     mock_user = schemas.User(
         id=1,
@@ -30,7 +26,9 @@ async def test_get_director_dashboard_with_filters(
         app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
         # Mock the CRUD functions
-        mock_crud = mocker.patch("src.api.routers.dashboard.crud", new_callable=mocker.AsyncMock)
+        mock_crud = mocker.patch(
+            "src.api.routers.dashboard.crud", new_callable=mocker.AsyncMock
+        )
         mock_crud.get_total_findings_count.return_value = 10
         mock_crud.get_team_habit_summary.return_value = []
         mock_crud.get_clinician_habit_breakdown.return_value = []
@@ -55,16 +53,16 @@ async def test_get_director_dashboard_with_filters(
         # Verify that the CRUD functions were called with the correct filter arguments
         mock_crud.get_total_findings_count.assert_awaited_once()
         call_kwargs = mock_crud.get_total_findings_count.call_args.kwargs
-        assert call_kwargs['discipline'] == "PT"
-        assert str(call_kwargs['start_date']) == "2023-01-01"
-        assert str(call_kwargs['end_date']) == "2023-01-31"
+        assert call_kwargs["discipline"] == "PT"
+        assert str(call_kwargs["start_date"]) == "2023-01-01"
+        assert str(call_kwargs["end_date"]) == "2023-01-31"
 
         mock_crud.get_team_habit_summary.assert_awaited_once()
         call_kwargs = mock_crud.get_team_habit_summary.call_args.kwargs
-        assert call_kwargs['discipline'] == "PT"
+        assert call_kwargs["discipline"] == "PT"
 
         mock_crud.get_clinician_habit_breakdown.assert_awaited_once()
         call_kwargs = mock_crud.get_clinician_habit_breakdown.call_args.kwargs
-        assert call_kwargs['discipline'] == "PT"
+        assert call_kwargs["discipline"] == "PT"
     finally:
         app.dependency_overrides = {}

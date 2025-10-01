@@ -209,9 +209,9 @@ class PDFExportService:
 
         summary_text = f"""
         This document analysis identified {len(findings)} compliance findings with an overall
-        compliance score of {report_data.get('compliance_score', 0):.1f}%.
-        The risk distribution includes {risk_counts['High']} high-risk,
-        {risk_counts['Medium']} medium-risk, and {risk_counts['Low']} low-risk findings.
+        compliance score of {report_data.get("compliance_score", 0):.1f}%.
+        The risk distribution includes {risk_counts["High"]} high-risk,
+        {risk_counts["Medium"]} medium-risk, and {risk_counts["Low"]} low-risk findings.
         """
 
         story.append(Paragraph(summary_text, self.body_style))

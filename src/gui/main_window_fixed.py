@@ -2,6 +2,7 @@
 Fixed Modern Main Window - Working version with your layout.
 Integrated with backend services for full functionality.
 """
+
 import asyncio
 import logging
 import os
@@ -955,8 +956,8 @@ class ModernMainWindow(QMainWindow):
                 risk_colors = {"High": "#fef2f2", "Medium": "#fef3c7", "Low": "#dcfce7"}
 
                 findings_html += f"""
-                <div style="background-color: {risk_colors.get(risk_level_finding, '#f8fafc')}; padding: 8px; border-radius: 4px; margin: 4px 0; border-left: 3px solid {'#dc2626' if risk_level_finding == 'High' else '#f59e0b' if risk_level_finding == 'Medium' else '#059669'};">
-                    <strong>🔍 Finding #{i+1} ({risk_level_finding} Risk):</strong> {issue}<br>
+                <div style="background-color: {risk_colors.get(risk_level_finding, "#f8fafc")}; padding: 8px; border-radius: 4px; margin: 4px 0; border-left: 3px solid {"#dc2626" if risk_level_finding == "High" else "#f59e0b" if risk_level_finding == "Medium" else "#059669"};">
+                    <strong>🔍 Finding #{i + 1} ({risk_level_finding} Risk):</strong> {issue}<br>
                     <strong>Evidence:</strong> {evidence}<br>
                     <strong>Recommendation:</strong> {recommendation}<br>
                     <small style="color: #64748b;">Confidence: {confidence:.1%}</small>

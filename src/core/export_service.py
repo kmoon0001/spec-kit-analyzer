@@ -35,7 +35,6 @@ class ExportService:
         enable_json: bool = True,
         max_file_size_mb: int = 100,
     ):
-
         self.enable_excel = enable_excel and PANDAS_AVAILABLE
         self.enable_csv = enable_csv
         self.enable_json = enable_json

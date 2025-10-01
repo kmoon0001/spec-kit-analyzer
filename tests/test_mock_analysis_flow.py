@@ -10,8 +10,9 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.api.main import app
-from  src.auth import get_current_active_user
-    from src.database import schemas
+from src.auth import get_current_active_user
+from src.database import schemas
+
 
 @pytest.fixture(scope="module")
 def client_with_auth_override():
@@ -63,9 +64,9 @@ def test_full_mock_analysis_flow(client_with_auth_override: TestClient):
                 data={"discipline": "pt", "analysis_mode": "rubric"},
                 headers=headers,
             )
-        assert (
-            response.status_code == 202
-        ), f"Failed to submit document for analysis: {response.text}"
+        assert response.status_code == 202, (
+            f"Failed to submit document for analysis: {response.text}"
+        )
         response_data = response.json()
         task_id = response_data.get("task_id")
         assert task_id is not None, "API did not return a task_id"
@@ -73,9 +74,9 @@ def test_full_mock_analysis_flow(client_with_auth_override: TestClient):
         result = None
         for _ in range(10):  # Poll up to 10 times
             response = client.get(f"/analysis/status/{task_id}", headers=headers)
-            assert (
-                response.status_code == 200
-            ), f"Failed to get status for task {task_id}"
+            assert response.status_code == 200, (
+                f"Failed to get status for task {task_id}"
+            )
             data = response.json()
             if data.get("status") == "completed":
                 result = data

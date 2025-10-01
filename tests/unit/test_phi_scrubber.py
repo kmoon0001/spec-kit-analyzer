@@ -1,6 +1,7 @@
 import pytest
 from src.core.phi_scrubber import PhiScrubberService
 
+
 @pytest.fixture(scope="module")
 def scrubber_service() -> PhiScrubberService:
     """
@@ -51,7 +52,9 @@ def test_scrub_no_phi_present(scrubber_service: PhiScrubberService):
     """
     Tests that text containing no PHI remains completely unchanged after scrubbing.
     """
-    text = "This is a simple clinical note regarding patient's improved range of motion."
+    text = (
+        "This is a simple clinical note regarding patient's improved range of motion."
+    )
     scrubbed_text = scrubber_service.scrub_text(text)
     assert text == scrubbed_text
 
@@ -81,4 +84,9 @@ def test_scrub_edge_cases(scrubber_service: PhiScrubberService):
     # Test with non-string inputs, which should be returned as-is.
     assert scrubber_service.scrub_text(12345) == 12345
     assert scrubber_service.scrub_text(None) is None
-    assert scrubber_service.scrub_text(["a", "list", "of", "strings"]) == ["a", "list", "of", "strings"]
+    assert scrubber_service.scrub_text(["a", "list", "of", "strings"]) == [
+        "a",
+        "list",
+        "of",
+        "strings",
+    ]

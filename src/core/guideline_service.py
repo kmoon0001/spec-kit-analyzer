@@ -109,7 +109,9 @@ class GuidelineService:
             self.faiss_index = faiss.read_index(str(self.index_path))
             self.guideline_chunks = joblib.load(self.chunks_path)
             self.is_index_ready = True
-            logger.info("Loaded %d guideline chunks from cache", len(self.guideline_chunks))
+            logger.info(
+                "Loaded %d guideline chunks from cache", len(self.guideline_chunks)
+            )
             return True
         except Exception as exc:
             logger.warning("Failed to load guideline cache: %s", exc)
@@ -142,11 +144,15 @@ class GuidelineService:
             logger.warning("Guideline source %s does not exist", path)
             return []
         if path.suffix.lower() == ".txt":
-            return [(line.strip(), path.name) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+            return [
+                (line.strip(), path.name)
+                for line in path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
         logger.warning("Unsupported guideline format for %s", path)
         return []
 
-    def _encode_texts(self, texts: Iterable[str]) -> 'np.ndarray':
+    def _encode_texts(self, texts: Iterable[str]) -> "np.ndarray":
         embeddings = self.model.encode(list(texts), convert_to_numpy=True)
         if not isinstance(embeddings, np.ndarray):
             embeddings = np.asarray(embeddings)
@@ -154,6 +160,7 @@ class GuidelineService:
 
     def search(self, query: str, top_k: int = 5) -> List[dict]:
         import numpy as np
+
         if not self.is_index_ready or self.faiss_index is None:
             return []
 
@@ -169,8 +176,10 @@ class GuidelineService:
                 results.append({"text": text, "source": source, "score": float(dist)})
         return results
 
+
 def set_sentence_transformer_override(factory) -> None:
     global _SentenceTransformer_override
     _SentenceTransformer_override = factory
+
 
 __all__ = ["GuidelineService", "set_sentence_transformer_override", "get_settings"]

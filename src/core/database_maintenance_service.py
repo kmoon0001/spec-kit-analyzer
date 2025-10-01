@@ -2,9 +2,9 @@ import logging
 import asyncio
 from src.config import get_settings
 from ..database import AsyncSessionLocal, crud
-from ..config import get_settings
 
 logger = logging.getLogger(__name__)
+
 
 class DatabaseMaintenanceService:
     """
@@ -32,10 +32,13 @@ class DatabaseMaintenanceService:
 
         async with AsyncSessionLocal() as db:
             try:
-                num_deleted = await crud.delete_reports_older_than(db, days=retention_days)
+                num_deleted = await crud.delete_reports_older_than(
+                    db, days=retention_days
+                )
                 if num_deleted > 0:
                     logger.info(
-                        "Successfully purged %d old reports from the database.", num_deleted
+                        "Successfully purged %d old reports from the database.",
+                        num_deleted,
                     )
                 else:
                     logger.info("No old reports found to purge.")
