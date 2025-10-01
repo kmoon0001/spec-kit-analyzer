@@ -23,7 +23,7 @@ from src.api.dependencies import (
 )
 from src.api.routers import admin, analysis, auth, chat, compliance, dashboard, health
 from src.api.error_handling import http_exception_handler
-from src.core.database_maintenance_service import DatabaseMaintenanceService
+from src.core.database_maintenance_service import run_database_maintenance
 from src.config import get_settings
 
 settings = get_settings()
@@ -38,8 +38,9 @@ logger = logging.getLogger(__name__)
 
 
 # --- Helper Functions ---
-def clear_temp_uploads(directory_path: str):
-    """Clears all files from the specified directory."""
+def clear_temp_uploads():
+    """Clears all files from the temporary upload directory."""
+    directory_path = settings.temp_upload_dir
     try:
         if os.path.exists(directory_path):
             for filename in os.listdir(directory_path):

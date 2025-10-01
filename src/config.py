@@ -3,6 +3,8 @@ from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
 import yaml
+from functools import lru_cache
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
@@ -15,6 +17,7 @@ class PathsSettings(BaseModel):
 
 class DatabaseSettings(BaseModel):
     url: str
+    echo: bool = False
 
 
 class AuthSettings(BaseModel):
@@ -49,8 +52,6 @@ class PhiScrubberModelSettings(BaseModel):
 
 
 class ModelsSettings(BaseModel):
-    generator: Optional[str] = None
-    generator_filename: Optional[str] = None
     generator_profiles: Optional[Dict[str, GeneratorProfile]] = None
     chat: Optional[ChatModelSettings] = None
     retriever: str
@@ -59,8 +60,9 @@ class ModelsSettings(BaseModel):
     doc_classifier_prompt: str
     analysis_prompt_template: str
     nlg_prompt_template: str
-    phi_scrubber: PhiScrubberModelSettings
-
+    phi_scrubber: Optional[PhiScrubberModelSettings] = None
+    generator: Optional[str] = None
+    generator_filename: Optional[str] = None
 
 class LLMSettings(BaseModel):
     model_type: str
@@ -76,7 +78,7 @@ class RetrievalSettings(BaseModel):
 
 class AnalysisSettings(BaseModel):
     confidence_threshold: float = Field(
-        0.7,
+0.7,
         description="Minimum confidence score for a finding to be considered valid.",
     )
     deterministic_focus: str = Field(
@@ -85,17 +87,23 @@ class AnalysisSettings(BaseModel):
     )
 
 
+class MaintenanceSettings(BaseModel):
+    purge_retention_days: int
+    purge_interval_days: int = 1
+
+
 class Settings(BaseModel):
     enable_director_dashboard: bool = False
     database: DatabaseSettings
     auth: AuthSettings
     maintenance: MaintenanceSettings
-    paths: PathsSettings
+paths: PathsSettings
     llm: LLMSettings
     retrieval: RetrievalSettings
     analysis: AnalysisSettings
     models: ModelsSettings
     use_ai_mocks: bool = False
+
 
 
 @lru_cache()

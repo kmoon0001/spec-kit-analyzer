@@ -5,7 +5,7 @@ import asyncio
 # Import the services this worker needs to run
 from src.config import get_settings
 from src.core.analysis_service import AnalysisService
-from src.core.database_maintenance_service import DatabaseMaintenanceService
+from src.core.database_maintenance_service import run_database_maintenance
 from src.core.retriever import HybridRetriever
 from src.core.compliance_service import ComplianceService
 
@@ -27,9 +27,8 @@ class AILoaderWorker(QObject):
             config = get_settings()
 
             # 2. Run Database Maintenance
-            maintenance_service = DatabaseMaintenanceService()
-            retention_days = config.maintenance.purge_retention_days
-            maintenance_service.purge_old_reports(retention_days)
+            logger.info("Kicking off database maintenance from the AI loader.")
+            run_database_maintenance()
 
             # 3. Initialize HybridRetriever and AnalysisService
             retriever = HybridRetriever()
