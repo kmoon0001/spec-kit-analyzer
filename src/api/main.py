@@ -8,8 +8,6 @@ Provides endpoints for document analysis, user management, and compliance report
 import os
 import shutil
 import logging
-import os
-import shutil
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -31,6 +29,7 @@ from src.api.routers import auth, analysis, dashboard, admin, health, chat, comp
 from src.api.error_handling import http_exception_handler
 from src.core.database_maintenance_service import DatabaseMaintenanceService
 from src.config import get_settings
+from src.api.rate_limiter import limiter # Import limiter from new file
 from src.core.database_maintenance_service import DatabaseMaintenanceService
 
 settings = get_settings()
@@ -80,8 +79,6 @@ def run_database_maintenance():
 
 
 # --- FastAPI App Setup ---
-from src.api.limiter import limiter
-scheduler = BackgroundScheduler(daemon=True)
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
 
 
@@ -103,7 +100,6 @@ async def lifespan(app: FastAPI):
     clear_temp_uploads(settings.paths.temp_upload_dir)
 
     # 3. Initialize and start the background scheduler
-    scheduler = BackgroundScheduler(daemon=True)
     scheduler.add_job(run_database_maintenance, "interval", days=1)
     scheduler.start()
     logger.info("Scheduler started for daily database maintenance.")
