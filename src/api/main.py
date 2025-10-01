@@ -8,8 +8,6 @@ Provides endpoints for document analysis, user management, and compliance report
 import os
 import shutil
 import logging
-import os
-import shutil
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -29,7 +27,7 @@ from src.api.routers import admin, analysis, auth, chat, compliance, dashboard, 
 from src.api.dependencies import startup_event as api_startup, shutdown_event as api_shutdown
 from src.api.routers import auth, analysis, dashboard, admin, health, chat, compliance
 from src.api.error_handling import http_exception_handler
-from src.core.database_maintenance_service import DatabaseMaintenanceService
+from src.core.database_maintenance_service import run_database_maintenance
 from src.config import get_settings
 from src.core.database_maintenance_service import DatabaseMaintenanceService
 
@@ -44,8 +42,9 @@ logger = logging.getLogger(__name__)
 
 
 # --- Helper Functions ---
-def clear_temp_uploads(directory_path: str):
-    """Clears all files from the specified directory."""
+def clear_temp_uploads():
+    """Clears all files from the temporary upload directory."""
+    directory_path = settings.temp_upload_dir
     try:
         if os.path.exists(directory_path):
             for filename in os.listdir(directory_path):

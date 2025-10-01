@@ -5,13 +5,14 @@ from typing import Any, Dict
 
 import yaml
 from functools import lru_cache
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 
 
 class DatabaseSettings(BaseModel):
     url: str
+    echo: bool = False
 
 
 class AuthSettings(BaseModel):
@@ -39,9 +40,12 @@ class ChatModelSettings(BaseModel):
     generation_params: Optional[Dict[str, Any]] = None
 
 
+class PhiScrubberModelSettings(BaseModel):
+    general: str
+    biomedical: str
+
+
 class ModelsSettings(BaseModel):
-    generator: Optional[str] = None
-    generator_filename: Optional[str] = None
     generator_profiles: Optional[Dict[str, GeneratorProfile]] = None
     chat: Optional[ChatModelSettings] = None
     retriever: str
@@ -50,6 +54,9 @@ class ModelsSettings(BaseModel):
     doc_classifier_prompt: str
     analysis_prompt_template: str
     nlg_prompt_template: str
+    phi_scrubber: Optional[PhiScrubberModelSettings] = None
+    generator: Optional[str] = None
+    generator_filename: Optional[str] = None
 
 
 class LLMSettings(BaseModel):
@@ -63,6 +70,7 @@ class RetrievalSettings(BaseModel):
     dense_model_name: str
     rrf_k: int
 
+
 class AnalysisSettings(BaseModel):
     confidence_threshold: float = Field(
         0.7, description="Minimum confidence score for a finding to be considered valid."
@@ -72,30 +80,11 @@ class AnalysisSettings(BaseModel):
         description="Default focus points for compliance analysis.",
     )
 
-class PhiScrubberModelSettings(BaseModel):
-    general: str
-    biomedical: str
-
-class ModelsSettings(BaseModel):
-    fact_checker: str
-    ner_ensemble: List[str]
-    phi_scrubber: PhiScrubberModelSettings
 
 class MaintenanceSettings(BaseModel):
     purge_retention_days: int
     purge_interval_days: int = 1
-class AnalysisSettings(BaseModel):
-    confidence_threshold: float = Field(
-        0.7, description="Minimum confidence score for a finding to be considered valid."
-    )
-    deterministic_focus: str = Field(
-        "- Treatment frequency documented\n- Goals reviewed or adjusted\n- Medical necessity justified",
-        description="Default focus points for compliance analysis.",
-    )
 
-class MaintenanceSettings(BaseModel):
-    purge_retention_days: int
-    purge_interval_days: int = 1
 
 class Settings(BaseModel):
     api_url: str
@@ -104,16 +93,14 @@ class Settings(BaseModel):
     database: DatabaseSettings
     auth: AuthSettings
     maintenance: MaintenanceSettings
-paths: PathsSettings
-    llm: LLMSettings
-    retrieval: RetrievalSettings
-    analysis: AnalysisSettings
     models: ModelsSettings
-    maintenance: MaintenanceSettings
+    llm_settings: LLMSettings
+    retrieval_settings: RetrievalSettings
     use_ai_mocks: bool = False
     temp_upload_dir: str
     api_url: str
     rule_dir: str
+
 
 @lru_cache()
 def get_settings() -> Settings:
@@ -129,5 +116,4 @@ def get_settings() -> Settings:
     if secret_key:
         config["auth"]["secret_key"] = secret_key
 
-    print(config_data)
-    return Settings(**config_data)
+    return Settings(**config)
