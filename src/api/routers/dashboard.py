@@ -1,6 +1,7 @@
 import datetime
 import logging
 from time import perf_counter
+import logging # Added from the logging section of the previous block
 from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -8,21 +9,24 @@ from fastapi.responses import HTMLResponse
 from src.schemas import DirectorDashboardData, CoachingFocus
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# Combined and resolved imports
 from src import crud, models, schemas
 from src.api.dependencies import require_admin
 from src.api.limiter import limiter
-from src.auth import get_current_active_user
+from src.auth import get_current_active_user, get_current_admin_user # Combined auth imports
 from src.config import Settings, get_settings
 from src.core.llm_service import LLMService
 from src.core.report_generator import ReportGenerator
-from src.database.database import get_async_db
+from src.core.analysis_service import AnalysisService # Added from detached7
+from src.database.database import get_async_db # Use the explicit path from main
+
+# Initialization
+logger = logging.getLogger(__name__) # Added logging import/init
+settings = get_settings() # Added settings init
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 report_generator = ReportGenerator()
-
-
-
 
 # --- Helper Functions ---#
 
@@ -78,7 +82,7 @@ async def read_findings_summary(
 @router.get(
     "/director-dashboard",
     response_model=DirectorDashboardData,
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(get_current_admin_user)],
 )
 @limiter.limit("30/minute")
 async def get_director_dashboard_data(
@@ -119,7 +123,7 @@ async def get_director_dashboard_data(
 @router.post(
     "/coaching-focus",
     response_model=CoachingFocus,
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(get_current_admin_user)],
 )
 async def generate_coaching_focus(
     dashboard_data: DirectorDashboardData, settings: Settings = Depends(get_settings)
@@ -132,8 +136,10 @@ async def generate_coaching_focus(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Director Dashboard feature is not enabled.",
         )
+# In a larger application, this service would be managed via a dependency injection system.
 
-    repo_id, filename = _resolve_generator_model(settings)
+    analysis_service = AnalysisService() # Instantiate AnalysisService
+    repo_id, filename = _resolve_generator_model(settings) # Use the clean helper function from main
     llm_service = LLMService(
         model_repo_id=repo_id,
         model_filename=filename,
@@ -198,7 +204,7 @@ async def generate_coaching_focus(
 @router.get(
     "/habit-trends",
     response_model=List[schemas.HabitTrendPoint],
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(get_current_admin_user)],
 )
 @limiter.limit("60/minute")
 async def get_habit_trends(

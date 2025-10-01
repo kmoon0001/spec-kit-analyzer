@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from typing import Optional
 import datetime
+from typing import Optional
 from src import models, schemas
 
 async def get_user(db: AsyncSession, user_id: int):

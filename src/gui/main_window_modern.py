@@ -1,13 +1,10 @@
 """
 Modern Main Window - Redesigned with medical theme and your exact layout specifications.
 """
-
 import os
 from PyQt6.QtWidgets import (
     QComboBox,
     QFileDialog,
-    QWidget,
-    QVBoxLayout,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -15,16 +12,10 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QStatusBar,
-    QFileDialog,
-    QTextEdit,
-    QLabel,
-    QProgressBar,
     QTextBrowser,
     QTextEdit,
     QVBoxLayout,
     QWidget,
-    QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QMainWindow, QStatusBar,
-    QMenuBar, QFileDialog, QTextEdit, QLabel, QProgressBar, QTextBrowser, QComboBox
 )
 from PyQt6.QtCore import QThread
 

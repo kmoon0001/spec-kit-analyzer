@@ -54,6 +54,15 @@ retrieval_settings:
   similarity_top_k: 3
   rrf_k: 60
 
+analysis:
+  # Parameters controlling the compliance analysis logic.
+  confidence_threshold: 0.7
+
+maintenance:
+  # Settings for automated database maintenance tasks.
+  purge_retention_days: 60
+  purge_interval_days: 1
+
 temp_upload_dir: "/tmp/uploads"
 api_url: "http://127.0.0.1:8000"
 rule_dir: "src/resources/rules"

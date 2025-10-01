@@ -12,16 +12,9 @@ def mock_dependencies():
     """
     with (
         patch("src.core.analysis_service.LLMService") as _,
-        patch("src.core.analysis_service.FactCheckerService") as _,
-        patch("src.core.analysis_service.NERPipeline") as _,
         patch("src.core.analysis_service.HybridRetriever") as _,
-        patch("src.core.analysis_service.PreprocessingService") as mock_preproc,
         patch("src.core.analysis_service.ReportGenerator") as mock_reporter,
         patch("src.core.analysis_service.DocumentClassifier") as mock_classifier,
-        patch("src.core.analysis_service.NLGService") as _,
-        patch("src.core.analysis_service.PromptManager") as _,
-        patch("src.core.analysis_service.ExplanationEngine") as _,
-        patch("src.core.analysis_service.ComplianceAnalyzer") as mock_analyzer,
         patch("src.core.analysis_service.parse_document_content") as mock_parser,
         patch("src.core.analysis_service.yaml.safe_load") as mock_yaml,
     ):
@@ -39,18 +32,18 @@ def mock_dependencies():
         }
 
         mock_parser.return_value = [{"sentence": "This is a test sentence."}]
-        mock_preproc.return_value.correct_text = AsyncMock(
-            return_value="This is a test sentence."
-        )
+        # mock_preproc.return_value.correct_text = AsyncMock( # Removed as PreprocessingService is not directly an attribute
+        #     return_value="This is a test sentence."
+        # )
         mock_classifier.return_value.classify_document = AsyncMock(
             return_value="Progress Note"
         )
 
         # This is the direct output from the ComplianceAnalyzer
         mock_analysis_result = {"findings": [{"issue_title": "test finding"}]}
-        mock_analyzer.return_value.analyze_document = AsyncMock(
-            return_value=mock_analysis_result
-        )
+        # mock_analyzer.return_value.analyze_document = AsyncMock( # Removed as ComplianceAnalyzer is not directly an attribute
+        #     return_value=mock_analysis_result
+        # )
 
         # The ReportGenerator will wrap this analysis result
         mock_reporter.return_value.generate_report = AsyncMock(
@@ -62,9 +55,9 @@ def mock_dependencies():
 
         yield {
             "parser": mock_parser,
-            "preproc": mock_preproc,
+            # "preproc": mock_preproc, # Removed
             "classifier": mock_classifier,
-            "analyzer": mock_analyzer,
+            # "analyzer": mock_analyzer, # Removed
             "reporter": mock_reporter,
         }
 

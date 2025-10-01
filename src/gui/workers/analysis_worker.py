@@ -1,52 +1,61 @@
-import time
-from typing import Any, Dict
+import asyncio
+import logging
 
-import requests
 from PyQt6.QtCore import QObject, pyqtSignal as Signal
 
-from src.config import get_settings
+from src.core.analysis_service import AnalysisService
 
-settings = get_settings()
-API_URL = settings.api_url
+logger = logging.getLogger(__name__)
 
 
 class AnalysisWorker(QObject):
-    finished = Signal()
-    error = Signal(str)
-    success = Signal(object)
-    progress = Signal(int)
+    """Background worker for document analysis."""
 
-    def __init__(self, task_id: str):
+    progress_updated = Signal(int)
+    status_updated = Signal(str)
+    analysis_completed = Signal(dict)
+    analysis_failed = Signal(str)
+    finished = Signal() # Add this line
+
+    def __init__(
+        self, file_path: str, discipline: str, analysis_service: AnalysisService
+    ):
         super().__init__()
-        self.task_id = task_id
-        self._is_running = True
+        self.file_path = file_path
+        self.discipline = discipline
+        self.analysis_service = analysis_service
 
-    def stop(self) -> None:
-        """Request the polling loop to stop."""
-        self._is_running = False
-
-    def run(self) -> None:
+    def run(self):
+        """Run analysis in background thread."""
         try:
-            while self._is_running:
-                response = requests.get(f"{API_URL}/tasks/{self.task_id}", timeout=15)
-                response.raise_for_status()
-                task: Dict[str, Any] = response.json()
+            self.status_updated.emit("🤖 Initializing AI models...")
+            self.progress_updated.emit(10)
 
-                status = task.get("status")
-                if status == "completed":
-                    self.success.emit(task.get("result"))
-                    break
-                if status == "failed":
-                    self.error.emit(task.get("error", "Analysis failed."))
-                    break
+            self.status_updated.emit("📄 Processing document...")
+            self.progress_updated.emit(30)
 
-                reported_progress = int(task.get("progress", 50))
-                self.progress.emit(max(0, min(100, reported_progress)))
-                time.sleep(1)
-        except requests.RequestException as exc:
-            self.error.emit(f"Failed to connect to backend or perform analysis:\n{exc}")
-        except Exception as exc:  # pragma: no cover - defensive
-            self.error.emit(f"Unexpected analysis error: {exc}")
-        finally:
-            self._is_running = False
-            self.finished.emit()
+            # Run the actual analysis
+            result = self.analysis_service.analyze_document(
+                file_path=self.file_path, discipline=self.discipline
+            )
+
+            self.progress_updated.emit(80)
+            self.status_updated.emit("📊 Generating report...")
+
+            # Handle async result if needed
+            if hasattr(result, "__await__"):
+                # This is an async result, we need to handle it properly
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    result = loop.run_until_complete(result)
+                finally:
+                    loop.close()
+
+            self.progress_updated.emit(100)
+            self.status_updated.emit("✅ Analysis complete")
+            self.analysis_completed.emit(result)
+
+        except Exception as e:
+            logger.error(f"Analysis failed: {e}")
+            self.analysis_failed.emit(str(e))

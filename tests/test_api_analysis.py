@@ -31,7 +31,7 @@ patchers = [
     ),
     patch("transformers.pipeline", return_value=MagicMock()),
     patch("transformers.pipeline", return_value=MagicMock()),
-    patch("src.crud.get_all_rubrics", return_value=[]),  # Prevent DB calls
+    patch("src.database.crud.get_rubrics", return_value=[]),  # Prevent DB calls
     patch("src.core.hybrid_retriever.SentenceTransformer", return_value=MagicMock()),
     patch("src.core.hybrid_retriever.BM25Okapi", return_value=MagicMock()),
 ]
@@ -45,7 +45,7 @@ from fastapi.testclient import TestClient
 
 from src.api.main import app, limiter
 from src.auth import get_current_active_user
-from src import schemas
+from src.database import schemas
 
 
 # We must stop the patchers we started manually. A session-scoped autouse fixture

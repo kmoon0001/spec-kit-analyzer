@@ -1,0 +1,17 @@
+[
+    {
+        "name": "PT Compliance Rubric",
+        "category": "Physical Therapy",
+        "content": "Physical therapy compliance guidelines"
+    },
+    {
+        "name": "OT Compliance Rubric",
+        "category": "Occupational Therapy",
+        "content": "Occupational therapy compliance guidelines"
+    },
+    {
+        "name": "SLP Compliance Rubric",
+        "category": "Speech-Language Pathology",
+        "content": "Speech-language pathology compliance guidelines"
+    }
+]

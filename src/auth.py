@@ -43,8 +43,11 @@ class AuthService:
         return pwd_context.verify(plain_password, hashed_password)
 
     @staticmethod
-    def get_password_hash(password):
-        return pwd_context.hash(password)
+    def get_password_hash(password: str) -> str:
+        # bcrypt passwords must be 72 bytes or less. Truncate if necessary.
+        # passlib handles encoding to bytes internally, so we truncate the string.
+        truncated_password = password[:72]
+        return pwd_context.hash(truncated_password)
 
 
 @lru_cache()

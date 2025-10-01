@@ -8,7 +8,6 @@ from src import schemas
 from src.models import User
 from src.config import get_settings
 
-
 @pytest.mark.asyncio
 async def test_get_director_dashboard_with_filters(
     async_client, mocker
@@ -25,39 +24,42 @@ async def test_get_director_dashboard_with_filters(
         is_admin=True,
         hashed_password="$2b$12$mockhashedpasswordstringforetesting12345678901234567890",
         created_at=datetime.utcnow(),
+# Use the more explicit mocking practices from both branches
+    # Mocking the admin user from detached7 for the director dashboard test context
+    app.dependency_overrides[get_current_active_user] = lambda: admin_user
+
+    # Add settings mock from detached7
+    mocker.patch("src.api.routers.dashboard.settings.enable_director_dashboard", True)
+
+    # Mock the CRUD functions, using AsyncMock from main for better async testing
+    mock_crud = mocker.patch("src.api.routers.dashboard.crud", new_callable=mocker.AsyncMock)
+    mock_crud.get_total_findings_count.return_value = 10
+    mock_crud.get_team_habit_summary.return_value = []
+    mock_crud.get_clinician_habit_breakdown.return_value = []
+
+    # Use the hardcoded mock token from main to avoid a live API call during the test
+    mock_token = "mock_access_token"
+    headers = {"Authorization": f"Bearer {mock_token}"}
+
+    # Make the request with filters
+    params = {
+        "start_date": "2023-01-01",
+        "end_date": "2023-01-31",
+        "discipline": "PT",
+    }
+    response = await async_client.get(
+        "/dashboard/director-dashboard", headers=headers, params=params
     )
-    try:
-        app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-        # Mock the CRUD functions
-        mock_crud = mocker.patch("src.api.routers.dashboard.crud", new_callable=mocker.AsyncMock)
-        mock_crud.get_total_findings_count.return_value = 10
-        mock_crud.get_team_habit_summary.return_value = []
-        mock_crud.get_clinician_habit_breakdown.return_value = []
+    # Assertions
+    assert response.status_code == 200
 
-        # For now, we'll manually create a token for the mock_user
-        mock_token = "mock_access_token"
-        headers = {"Authorization": f"Bearer {mock_token}"}
-
-        # Make the request with filters
-        params = {
-            "start_date": "2023-01-01",
-            "end_date": "2023-01-31",
-            "discipline": "PT",
-        }
-        response = await async_client.get(
-            "/dashboard/director-dashboard", headers=headers, params=params
-        )
-
-        # Assertions
-        assert response.status_code == 200
-
-        # Verify that the CRUD functions were called with the correct filter arguments
-        mock_crud.get_total_findings_count.assert_awaited_once()
-        call_kwargs = mock_crud.get_total_findings_count.call_args.kwargs
-        assert call_kwargs['discipline'] == "PT"
-        assert str(call_kwargs['start_date']) == "2023-01-01"
-        assert str(call_kwargs['end_date']) == "2023-01-31"
+    # Verify that the CRUD functions were called with the correct filter arguments
+    mock_crud.get_total_findings_count.assert_awaited_once()
+    call_kwargs = mock_crud.get_total_findings_count.call_args.kwargs
+    assert call_kwargs['discipline'] == "PT"
+    assert str(call_kwargs['start_date']) == "2023-01-01"
+    assert str(call_kwargs['end_date']) == "2023-01-31"
 
         mock_crud.get_team_habit_summary.assert_awaited_once()
         call_kwargs = mock_crud.get_team_habit_summary.call_args.kwargs

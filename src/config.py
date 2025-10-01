@@ -19,6 +19,26 @@ class AuthSettings(BaseModel):
     algorithm: str
     access_token_expire_minutes: int
 
+class PathsSettings(BaseModel):
+    temp_upload_dir: Path
+    rule_dir: Path
+    medical_dictionary: Path
+    analysis_prompt_template: Path
+    nlg_prompt_template: Path
+    doc_classifier_prompt: Path
+
+    def __init__(self, **data: Any):
+        super().__init__(**data)
+        # Resolve all paths relative to the project root to make them absolute.
+        for attr in [
+            "temp_upload_dir",
+            "rule_dir",
+            "medical_dictionary",
+            "analysis_prompt_template",
+            "nlg_prompt_template",
+            "doc_classifier_prompt",
+        ]:
+            setattr(self, attr, (PROJECT_ROOT / getattr(self, attr)).resolve())
 
 class MaintenanceSettings(BaseModel):
     purge_retention_days: int
@@ -67,10 +87,21 @@ class AnalysisSettings(BaseModel):
     confidence_threshold: float = Field(
         0.7, description="Minimum confidence score for a finding to be considered valid."
     )
-    deterministic_focus: str = Field(
-        "- Treatment frequency documented\n- Goals reviewed or adjusted\n- Medical necessity justified",
-        description="Default focus points for compliance analysis.",
-    )
+    deterministic_focus: str
+
+    def __init__(self, **data: Any):
+        super().__init__(**data)
+        # Load deterministic_focus from file
+        deterministic_focus_path = PROJECT_ROOT / "src/resources/deterministic_focus.txt"
+        if deterministic_focus_path.is_file():
+            with open(deterministic_focus_path, "r", encoding="utf-8") as f:
+                self.deterministic_focus = f.read()
+        else:
+            self.deterministic_focus = (
+                "- Treatment frequency documented\n"
+                "- Goals reviewed or adjusted\n"
+                "- Medical necessity justified"
+            ) # Fallback to hardcoded if file not found
 
 class PhiScrubberModelSettings(BaseModel):
     general: str
@@ -129,5 +160,18 @@ def get_settings() -> Settings:
     if secret_key:
         config["auth"]["secret_key"] = secret_key
 
-    print(config_data)
+# Load deterministic_focus from file and add to config_data
+    deterministic_focus_path = PROJECT_ROOT / "src/resources/deterministic_focus.txt"
+    if deterministic_focus_path.is_file():
+        with open(deterministic_focus_path, "r", encoding="utf-8") as f:
+            config_data.setdefault("analysis", {})["deterministic_focus"] = f.read()
+    else:
+        # Fallback to hardcoded if file not found
+        config_data.setdefault("analysis", {})["deterministic_focus"] = (
+            "- Treatment frequency documented\n"
+            "- Goals reviewed or adjusted\n"
+            "- Medical necessity justified"
+        )
+
+    print(config_data) # Debug line from main
     return Settings(**config_data)

@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from src.api.main import app
 from src.auth import get_current_active_user
-from src import schemas
+from src.database import schemas
 
 
 @pytest.fixture(scope="module")
