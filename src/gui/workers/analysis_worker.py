@@ -15,7 +15,7 @@ class AnalysisWorker(QObject):
     status_updated = Signal(str)
     analysis_completed = Signal(dict)
     analysis_failed = Signal(str)
-    finished = Signal() # Add this line
+    finished = Signal()  # Add this line
 
     def __init__(
         self, file_path: str, discipline: str, analysis_service: AnalysisService

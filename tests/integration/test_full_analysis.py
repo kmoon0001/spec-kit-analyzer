@@ -12,8 +12,6 @@ from src.config import (
     RetrievalSettings,
     AnalysisSettings,
     MaintenanceSettings,
-    ModelsSettings,
-    PhiScrubberModelSettings,
 )
 
 
@@ -35,35 +33,22 @@ def mock_settings(tmp_path: Path) -> Settings:
     (prompts_dir / "nlg.txt").touch()
     (prompts_dir / "doc_classifier.txt").touch()
 
-    # This fixture is corrected to match the Pydantic models, converting Path objects
-    # to strings and placing settings in their correct nested structures.
     return Settings(
+        api_url="http://test.com",
         use_ai_mocks=True,
         database=DatabaseSettings(url="sqlite+aiosqlite:///./test.db", echo=False),
         auth=AuthSettings(
             secret_key="test_secret", algorithm="HS256", access_token_expire_minutes=30
         ),
         paths=PathsSettings(
-            temp_upload_dir=str(tmp_path / "uploads"),
-            rule_dir=str(tmp_path / "rules"),
-            api_url="http://test.com",
+            temp_upload_dir=tmp_path / "uploads",
+            rule_dir=tmp_path / "rules",
+            medical_dictionary=tmp_path / "medical_dict.txt",
+            analysis_prompt_template=prompts_dir / "analysis.txt",
+            nlg_prompt_template=prompts_dir / "nlg.txt",
+            doc_classifier_prompt=prompts_dir / "doc_classifier.txt",
         ),
-        llm=LLMSettings(
-            model_type="llama",
-            context_length=2048,
-            generation_params={},
-        ),
-        models=ModelsSettings(
-            retriever="sentence-transformers/all-MiniLM-L6-v2",
-            fact_checker="google/flan-t5-base",
-            ner_ensemble=["d4data/biomedical-ner-all"],
-            doc_classifier_prompt=str(prompts_dir / "doc_classifier.txt"),
-            analysis_prompt_template=str(prompts_dir / "analysis.txt"),
-            nlg_prompt_template=str(prompts_dir / "nlg.txt"),
-            phi_scrubber=PhiScrubberModelSettings(
-                general="dslim/bert-base-NER", biomedical="d4data/biomedical-ner-all"
-            ),
-        ),
+        llm=LLMSettings(repo="test-repo", filename="test-model.gguf"),
         retrieval=RetrievalSettings(
             dense_model_name="test-retriever", similarity_top_k=3, rrf_k=50
         ),

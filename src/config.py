@@ -1,18 +1,20 @@
 import os
 from functools import lru_cache
-from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import yaml
-from functools import lru_cache
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
+
+
+class PathsSettings(BaseModel):
+    temp_upload_dir: str
+    api_url: str
+    rule_dir: str
 
 
 class DatabaseSettings(BaseModel):
     url: str
-    echo: bool = False
 
 
 class AuthSettings(BaseModel):
@@ -23,6 +25,7 @@ class AuthSettings(BaseModel):
 
 class MaintenanceSettings(BaseModel):
     purge_retention_days: int
+    purge_interval_days: int = 1
 
 
 class GeneratorProfile(BaseModel):
@@ -46,6 +49,8 @@ class PhiScrubberModelSettings(BaseModel):
 
 
 class ModelsSettings(BaseModel):
+    generator: Optional[str] = None
+    generator_filename: Optional[str] = None
     generator_profiles: Optional[Dict[str, GeneratorProfile]] = None
     chat: Optional[ChatModelSettings] = None
     retriever: str
@@ -54,9 +59,7 @@ class ModelsSettings(BaseModel):
     doc_classifier_prompt: str
     analysis_prompt_template: str
     nlg_prompt_template: str
-    phi_scrubber: Optional[PhiScrubberModelSettings] = None
-    generator: Optional[str] = None
-    generator_filename: Optional[str] = None
+    phi_scrubber: PhiScrubberModelSettings
 
 
 class LLMSettings(BaseModel):
@@ -73,7 +76,8 @@ class RetrievalSettings(BaseModel):
 
 class AnalysisSettings(BaseModel):
     confidence_threshold: float = Field(
-        0.7, description="Minimum confidence score for a finding to be considered valid."
+        0.7,
+        description="Minimum confidence score for a finding to be considered valid.",
     )
     deterministic_focus: str = Field(
         "- Treatment frequency documented\n- Goals reviewed or adjusted\n- Medical necessity justified",
@@ -81,25 +85,17 @@ class AnalysisSettings(BaseModel):
     )
 
 
-class MaintenanceSettings(BaseModel):
-    purge_retention_days: int
-    purge_interval_days: int = 1
-
-
 class Settings(BaseModel):
-    api_url: str
-    use_ai_mocks: bool = False
     enable_director_dashboard: bool = False
     database: DatabaseSettings
     auth: AuthSettings
     maintenance: MaintenanceSettings
+    paths: PathsSettings
+    llm: LLMSettings
+    retrieval: RetrievalSettings
+    analysis: AnalysisSettings
     models: ModelsSettings
-    llm_settings: LLMSettings
-    retrieval_settings: RetrievalSettings
     use_ai_mocks: bool = False
-    temp_upload_dir: str
-    api_url: str
-    rule_dir: str
 
 
 @lru_cache()
@@ -116,4 +112,5 @@ def get_settings() -> Settings:
     if secret_key:
         config["auth"]["secret_key"] = secret_key
 
+    print(config)
     return Settings(**config)
