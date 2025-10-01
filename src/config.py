@@ -87,16 +87,11 @@ class Settings(BaseModel):
 
 @lru_cache()
 def get_settings() -> Settings:
-    # Using a relative path from the project root is safer.
-    with open("config.yaml", "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-        return Settings(**config)
+    config_data: Dict[str, Any] = {}
 
-    if not DEFAULT_CONFIG_PATH.is_file():
-        raise FileNotFoundError(f"Configuration file not found at: {DEFAULT_CONFIG_PATH}")
-
-    with open(DEFAULT_CONFIG_PATH, "r", encoding="utf-8") as f:
-        config_data = yaml.safe_load(f)
+    if DEFAULT_CONFIG_PATH.is_file():
+        with open(DEFAULT_CONFIG_PATH, "r", encoding="utf-8") as f:
+            config_data = yaml.safe_load(f) or {}
 
     # Allow environment variables to override key settings.
     secret_key_env = os.environ.get("SECRET_KEY")
