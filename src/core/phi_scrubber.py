@@ -13,8 +13,19 @@ logger = logging.getLogger(__name__)
 
 GENERAL_PHI_NER_LABELS: Set[str] = {"PERSON", "DATE", "GPE", "LOC", "ORG"}
 BIOMEDICAL_PHI_NER_LABELS: Set[str] = {
-    "PATIENT", "HOSPITAL", "DOCTOR", "AGE", "ID", "PHONE", "EMAIL", "URL",
-    "STREET", "CITY", "STATE", "ZIP", "COUNTRY",
+    "PATIENT",
+    "HOSPITAL",
+    "DOCTOR",
+    "AGE",
+    "ID",
+    "PHONE",
+    "EMAIL",
+    "URL",
+    "STREET",
+    "CITY",
+    "STATE",
+    "ZIP",
+    "COUNTRY",
 }
 DEFAULT_REGEX_PATTERNS: List[Tuple[str, str]] = [
     (r"\b\d{3}-\d{2}-\d{4}\b", "[SSN]"),
@@ -37,12 +48,14 @@ class PhiScrubberService:
     2. Resolves any overlapping spans.
     3. Performs a single replacement pass on the original text.
     """
+
     _general_nlp: Language | None = None
     _biomed_nlp: Language | None = None
     _lock = Lock()
 
     def __init__(self):
         from ..config import get_settings
+
         settings = get_settings()
         self.general_model_name = settings.models.phi_scrubber.general
         self.biomed_model_name = settings.models.phi_scrubber.biomedical
@@ -63,7 +76,9 @@ class PhiScrubberService:
             self._biomed_nlp = biomed_nlp
             logger.info("All PHI scrubbing models loaded.")
         except OSError as e:
-            logger.critical("Could not load a required spaCy model: %s", e, exc_info=True)
+            logger.critical(
+                "Could not load a required spaCy model: %s", e, exc_info=True
+            )
             self._general_nlp, self._biomed_nlp = None, None
         finally:
             self.is_loading = False

@@ -38,7 +38,9 @@ class PreprocessingService:
             # Get dictionary path from the centralized configuration.
             dict_path = self.settings.paths.medical_dictionary
             self.spell.word_frequency.load_text_file(dict_path)
-            logger.info("Successfully loaded custom medical dictionary from: %s", dict_path)
+            logger.info(
+                "Successfully loaded custom medical dictionary from: %s", dict_path
+            )
         except FileNotFoundError:
             logger.error(
                 "Medical dictionary not found at path: %s. "
@@ -68,9 +70,7 @@ class PreprocessingService:
             return ""
 
         # Identify only the unknown words to minimize processing.
-        unknown_words = self.spell.unknown(
-            [word for word in tokens if word.isalpha()]
-        )
+        unknown_words = self.spell.unknown([word for word in tokens if word.isalpha()])
 
         if not unknown_words:
             return text

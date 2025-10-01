@@ -103,7 +103,9 @@ class LLMService:
             A string containing the generated text or an error message.
         """
         if not self.is_ready():
-            logger.error("LLM is not available or failed to load. Cannot generate text.")
+            logger.error(
+                "LLM is not available or failed to load. Cannot generate text."
+            )
             return "Error: LLM service is not available."
 
         try:
@@ -115,5 +117,7 @@ class LLMService:
             response = self.llm(prompt, **gen_params)
             return response
         except Exception as e:
-            logger.error("An error occurred during text generation: %s", e, exc_info=True)
+            logger.error(
+                "An error occurred during text generation: %s", e, exc_info=True
+            )
             return "An error occurred during text generation."

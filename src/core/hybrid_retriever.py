@@ -128,9 +128,7 @@ class HybridRetriever:
             rrf_scores[doc_id] = rrf_score
 
         # 4. Sort by RRF score and return top-k results
-        sorted_docs = sorted(
-            rrf_scores.items(), key=lambda item: item[1], reverse=True
-        )
+        sorted_docs = sorted(rrf_scores.items(), key=lambda item: item[1], reverse=True)
         sorted_rules = [self.rules[doc_id] for doc_id, _ in sorted_docs]
 
         if category_filter:

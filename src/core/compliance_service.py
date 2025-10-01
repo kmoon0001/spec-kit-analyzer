@@ -20,7 +20,7 @@ class ComplianceService:
         self,
         rules: Optional[Iterable[ComplianceRule]] = None,
         analysis_service: Optional[Any] = None,
-        **_unused: Any
+        **_unused: Any,
     ) -> None:
         provided_rules = list(rules or [])
         self.rules: List[ComplianceRule] = provided_rules or self._default_rules()
