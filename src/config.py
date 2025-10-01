@@ -1,4 +1,8 @@
 import os
+from functools import lru_cache
+from pathlib import Path
+from typing import Any, Dict
+
 import yaml
 from functools import lru_cache
 from pydantic import BaseModel, Field
@@ -85,6 +89,9 @@ class PathsSettings(BaseModel):
 
 
 class Settings(BaseModel):
+    api_url: str
+    use_ai_mocks: bool = False
+    enable_director_dashboard: bool = False
     database: DatabaseSettings
     auth: AuthSettings
     maintenance: MaintenanceSettings

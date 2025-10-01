@@ -44,18 +44,6 @@ def get_settings():
     return _get_settings()
 
 
-from src.core.checklist_service import DeterministicChecklistService
-from src.core.compliance_analyzer import ComplianceAnalyzer
-from src.core.document_classifier import DocumentClassifier
-from src.core.explanation import ExplanationEngine
-from src.core.fact_checker_service import FactCheckerService
-from src.core.hybrid_retriever import HybridRetriever
-from src.core.llm_service import LLMService
-from src.core.ner import NERPipeline
-from src.core.nlg_service import NLGService
-from src.core.preprocessing_service import PreprocessingService
-from src.core.prompt_manager import PromptManager
-from src.core.report_generator import ReportGenerator
 
 
 class AnalysisService:

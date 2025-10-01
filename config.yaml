@@ -1,3 +1,10 @@
+# --- Therapy Compliance Analyzer Configuration ---
+# This file defines the settings for the application, organized into logical sections.
+# Sensitive values like 'secret_key' should be set via environment variables in production.
+
+api_url: "http://127.0.0.1:8000"
+use_ai_mocks: true
+enable_director_dashboard: true
 # Correctly structured configuration for the Therapy Compliance Analyzer
 
 database:

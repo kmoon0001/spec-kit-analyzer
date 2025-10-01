@@ -4,19 +4,25 @@ Modern Main Window - Redesigned with medical theme and your exact layout specifi
 
 import os
 from PyQt6.QtWidgets import (
+    QComboBox,
+    QFileDialog,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
-    QMessageBox,
+    QLabel,
     QMainWindow,
-    QStatusBar,
     QMenuBar,
+    QMessageBox,
+    QProgressBar,
+    QStatusBar,
     QFileDialog,
     QTextEdit,
     QLabel,
     QProgressBar,
     QTextBrowser,
-    QComboBox,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
     QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QMainWindow, QStatusBar,
     QMenuBar, QFileDialog, QTextEdit, QLabel, QProgressBar, QTextBrowser, QComboBox
 )

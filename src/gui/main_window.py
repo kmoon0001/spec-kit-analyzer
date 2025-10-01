@@ -24,6 +24,19 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QTabWidget,
     QTextBrowser,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
+
+from src.config import get_settings
+from src.core.analysis_service import AnalysisService
+from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
+from src.gui.export import generate_pdf_report
+
+# Add project root to path for imports
+project_root = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     QComboBox,
 )
 from PyQt6.QtCore import Qt, QThread, QUrl

@@ -8,7 +8,7 @@ def scrubber_service() -> PhiScrubberService:
     This fixture is scoped to the module to avoid re-initializing the service
     for every single test function, making the test suite more efficient.
     """
-    return PhiScrubberService()
+    return PhiScrubberService(config={})
 
 
 def test_scrub_comprehensive_phi(scrubber_service: PhiScrubberService):
