@@ -86,11 +86,6 @@ class AnalysisSettings(BaseModel):
     )
 
 
-class MaintenanceSettings(BaseModel):
-    purge_retention_days: int
-    purge_interval_days: int = 1
-
-
 class Settings(BaseModel):
     enable_director_dashboard: bool = False
     database: DatabaseSettings
@@ -102,7 +97,6 @@ class Settings(BaseModel):
     analysis: AnalysisSettings
     models: ModelsSettings
     use_ai_mocks: bool = False
-
 
 
 @lru_cache()

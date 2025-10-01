@@ -67,10 +67,10 @@ class ChatResponse(BaseModel):
 
 
 class AnalysisReportBase(BaseModel):
-    document_name: str
-    compliance_score: float
+    filename: str
+    findings: Optional[List[dict]] = None
+    overall_compliance_score: Optional[float] = None
     summary: Optional[str] = None
-    findings: Optional[dict] = None
 
 
 class AnalysisReportCreate(AnalysisReportBase):

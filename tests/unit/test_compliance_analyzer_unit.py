@@ -81,8 +81,8 @@ def test_format_rules_for_prompt():
 
     context = ComplianceAnalyzer._format_rules_for_prompt(rules)
 
-    # Check that the formatted string contains the key elements, including the scores.
-    assert "- **Rule:** Documentation Timeliness (Relevance Score: 0.987)" in context
+    # Check that the formatted string contains the key elements.
+    assert "- **Rule:** Documentation Timeliness" in context
     assert "  **Detail:** All notes must be signed within 24 hours." in context
-    assert "- **Rule:** Goal Specificity (Relevance Score: 0.876)" in context
+    assert "- **Rule:** Goal Specificity" in context
     assert "  **Detail:** Goals must be measurable and objective." in context

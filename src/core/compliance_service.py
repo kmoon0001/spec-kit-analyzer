@@ -2,7 +2,7 @@ import logging
 from dataclasses import asdict
 from typing import Any, Iterable, List, Optional
 
-from .models import (
+from .domain_models import (
     ComplianceFinding,
     ComplianceResult,
     ComplianceRule,
