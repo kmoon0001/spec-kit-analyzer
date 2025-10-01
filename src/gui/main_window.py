@@ -1040,8 +1040,18 @@ QToolButton { background-color: #eef0f6; color: #1b1b1f; border: 1px solid #2196
 QToolButton::menu-indicator { image: none; }
 QToolButton:hover { background-color: #d8f2f8; border-color: #2ab7ca; }
 QComboBox { background-color: #ffffff; color: #1b1b1f; border: 1px solid #2196b6; border-radius: 8px; padding: 6px 10px; }
-QComboBox::drop-down { border: none; width: 24px; }
-QComboBox::down-arrow { image: none; border: none; }
+QComboBox::drop-down { border: none; width: 24px; subcontrol-origin: padding; subcontrol-position: center right; padding-right: 6px; }
+QComboBox::down-arrow {
+    width: 0;
+    height: 0;
+    margin-right: 6px;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid #2196b6;
+}
+QComboBox::down-arrow:on {
+    border-top-color: #6550d8;
+}
 QLineEdit { background-color: #ffffff; color: #1b1b1f; border: 1px solid #d0d4dc; border-radius: 6px; padding: 6px; }
 QScrollBar:vertical { background: #f0f0f0; width: 12px; margin: 0; }
 QScrollBar::handle:vertical { background: #c7ccd6; min-height: 24px; border-radius: 6px; }
@@ -1086,8 +1096,18 @@ QToolButton { background-color: #3c3f41; color: #e6e6e6; border: 1px solid #2ab7
 QToolButton::menu-indicator { image: none; }
 QToolButton:hover { background-color: #2f3340; border-color: #32c6d8; }
 QComboBox { background-color: #323232; color: #e6e6e6; border: 1px solid #2ab7ca; border-radius: 8px; padding: 6px 10px; }
-QComboBox::drop-down { border: none; width: 24px; }
-QComboBox::down-arrow { image: none; border: none; }
+QComboBox::drop-down { border: none; width: 24px; subcontrol-origin: padding; subcontrol-position: center right; padding-right: 6px; }
+QComboBox::down-arrow {
+    width: 0;
+    height: 0;
+    margin-right: 6px;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid #3b82f6;
+}
+QComboBox::down-arrow:on {
+    border-top-color: #8ab4ff;
+}
 QLineEdit { background-color: #323232; color: #e6e6e6; border: 1px solid #3c3f41; border-radius: 6px; padding: 6px; }
 QScrollBar:vertical { background: #2b2b2b; width: 12px; margin: 0; }
 QScrollBar::handle:vertical { background: #43484d; min-height: 24px; border-radius: 6px; }
