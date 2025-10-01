@@ -27,7 +27,7 @@ class User(Base):
     license_key = Column(String, unique=True, index=True, nullable=True)
 
 
-class Rubric(Base):
+class ComplianceRubric(Base):
     __tablename__ = "rubrics"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -38,22 +38,7 @@ class Rubric(Base):
     category = Column(String, index=True, nullable=True)
 
 
-class RubricCreate(BaseModel):
-    name: str
-    regulation: str
-    common_pitfalls: str
-    best_practice: str
-    category: str | None = None
-
-
-class RubricSchema(RubricCreate):
-    id: int
-
-    class Config:
-        from_attributes = True
-
-
-class Report(Base):
+class AnalysisReport(Base):
     __tablename__ = "reports"
 
     id = Column(Integer, primary_key=True, index=True)

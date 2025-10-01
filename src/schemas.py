@@ -35,6 +35,10 @@ class UserPasswordChange(BaseModel):
     new_password: str
 
 
+class TokenData(BaseModel):
+    username: Optional[str] = None
+
+
 # --- Finding Summary Schemas ---
 
 

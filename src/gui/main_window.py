@@ -21,6 +21,7 @@ from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
 from src.gui.workers.analysis_worker import AnalysisWorker
 from src.gui.workers.folder_analysis_starter_worker import FolderAnalysisStarterWorker
 from src.gui.workers.folder_analysis_worker import FolderAnalysisWorker
+from src.gui.workers.single_analysis_polling_worker import SingleAnalysisPollingWorker
 from src.gui.workers.ai_loader_worker import AILoaderWorker
 from src.gui.workers.dashboard_worker import DashboardWorker
 from src.gui.widgets.dashboard_widget import DashboardWidget
@@ -35,7 +36,7 @@ project_root = os.path.dirname(
 )
 
 settings = get_settings()
-API_URL = settings.api_url
+API_URL = settings.paths.api_url
 
 
 class DocumentPreviewDialog(QDialog):
@@ -204,9 +205,11 @@ class MainApplicationWindow(QMainWindow):
         self.upload_button.clicked.connect(self.open_file_dialog)
         self.upload_button_menu = QMenu(self.upload_button)
         file_action = self.upload_button_menu.addAction("Upload Document")
-        file_action.triggered.connect(self.open_file_dialog)
+        if file_action:
+            file_action.triggered.connect(self.open_file_dialog)
         folder_action = self.upload_button_menu.addAction("Upload Folder")
-        folder_action.triggered.connect(self.open_folder_dialog)
+        if folder_action:
+            folder_action.triggered.connect(self.open_folder_dialog)
         self.upload_button.setMenu(self.upload_button_menu)
         source_layout.addWidget(self.upload_button)
 
@@ -691,7 +694,7 @@ class MainApplicationWindow(QMainWindow):
         if self._current_folder_path:
             self.worker = FolderAnalysisWorker(task_id)
         else:
-            self.worker = AnalysisWorker(task_id)
+            self.worker = SingleAnalysisPollingWorker(task_id)
         self.worker.moveToThread(self.worker_thread)
         self.worker_thread.started.connect(self.worker.run)
         self.worker.success.connect(self.on_analysis_success)

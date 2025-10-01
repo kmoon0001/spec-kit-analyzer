@@ -15,7 +15,7 @@ from ..workers.chat_worker import ChatWorker
 from src.config import get_settings
 
 settings = get_settings()
-API_URL = settings.api_url
+API_URL = settings.paths.api_url
 
 
 class ChatDialog(QDialog):
@@ -55,8 +55,8 @@ class ChatDialog(QDialog):
         self.send_button.clicked.connect(self.send_message)
         self.close_button.rejected.connect(self.reject)
 
-        self.thread = None
-        self.worker = None
+        self.thread: QThread | None = None
+        self.worker: ChatWorker | None = None
 
         self.send_initial_message()
 
