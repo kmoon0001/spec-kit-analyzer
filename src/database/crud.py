@@ -2,8 +2,7 @@ from . import models, schemas
 import datetime
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select, delete, func
 
 
 async def get_user_by_username(
@@ -101,12 +100,38 @@ async def create_report(
     return db_report
 
 
+async def get_findings_summary(db: AsyncSession) -> List[dict]:
+    """
+    Retrieves a summarized count of findings grouped by their rule ID.
+
+    This function performs an aggregation query to count the occurrences of
+    each `rule_id` in the `findings` table, providing a high-level overview
+    of common compliance issues.
+
+    Args:
+        db (AsyncSession): The database session.
+
+    Returns:
+        A list of dictionaries, where each dictionary contains the `rule_id`
+        and the total `count` of its occurrences.
+    """
+    result = await db.execute(
+        select(models.Finding.rule_id, func.count(models.Finding.rule_id).label("count"))
+        .group_by(models.Finding.rule_id)
+        .order_by(func.count(models.Finding.rule_id).desc())
+    )
+    summary = result.mappings().all()
+    return summary
+
+
 async def get_report(db: AsyncSession, report_id: int) -> Optional[models.Report]:
     result = await db.execute(
         select(models.Report).filter(models.Report.id == report_id)
     )
     return result.scalars().first()
 
+
+from sqlalchemy.orm import selectinload
 
 
 async def get_reports(
