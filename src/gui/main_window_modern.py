@@ -2,35 +2,20 @@
 Modern Main Window - Redesigned with medical theme and your exact layout specifications.
 """
 import os
-import requests
-import urllib.parse
-import webbrowser
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QMainWindow, QStatusBar,
-    QMenuBar, QFileDialog, QSplitter, QTextEdit, QLabel, QGroupBox,
-    QProgressBar, QPushButton, QTabWidget, QTextBrowser, QComboBox,
-    QListWidget, QListWidgetItem, QFrame, QScrollArea, QGridLayout,
-    QSizePolicy, QSpacerItem
+    QMenuBar, QFileDialog, QTextEdit, QLabel, QProgressBar, QTextBrowser, QComboBox
 )
-from PyQt6.QtCore import Qt, QThread, QUrl, QTimer, pyqtSignal
-from PyQt6.QtGui import QTextDocument, QFont, QIcon, QPixmap
+from PyQt6.QtCore import QThread
 
 # Import our new modern components
-from .widgets.modern_card import ModernCard, ComplianceCard
+from .widgets.modern_card import ModernCard
 from .widgets.medical_theme import medical_theme
-from .widgets.responsive_layout import ResponsiveWidget, VirtualScrollArea
+from .widgets.responsive_layout import ResponsiveWidget
 from .widgets.micro_interactions import AnimatedButton, FadeInWidget, LoadingSpinner
 
 # Import existing components
-from .dialogs.rubric_manager_dialog import RubricManagerDialog
-from .dialogs.change_password_dialog import ChangePasswordDialog
-from .dialogs.chat_dialog import ChatDialog
-from .dialogs.performance_settings_dialog import PerformanceSettingsDialog
 from .workers.analysis_starter_worker import AnalysisStarterWorker
-from .workers.analysis_worker import AnalysisWorker
-from .workers.ai_loader_worker import AILoaderWorker
-from .workers.dashboard_worker import DashboardWorker
-from .widgets.dashboard_widget import DashboardWidget
 from .widgets.performance_status_widget import PerformanceStatusWidget
 from ..config import get_settings
 
@@ -488,8 +473,7 @@ class ModernMainWindow(QMainWindow):
             optimization_results = optimize_for_analysis()
 
             if optimization_results.get('recommendations'):
-                recommendations = '\n'.join(optimization_results['recommendations'])
-                self.progress_label.setText("⚡ Performance optimized")
+                self.progress_label.setText("⚡ Performance optimized: " + '\n'.join(optimization_results['recommendations']))
         except Exception as e:
             print(f"Performance optimization failed: {e}")
 

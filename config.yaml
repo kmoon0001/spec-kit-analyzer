@@ -1,17 +1,10 @@
-# --- Therapy Compliance Analyzer Configuration ---
-# This file defines the settings for the application, organized into logical sections.
-# Sensitive values like 'secret_key' should be set via environment variables in production.
-
-api_url: "http://127.0.0.1:8000"
-use_ai_mocks: true
-enable_director_dashboard: true
 # Correctly structured configuration for the Therapy Compliance Analyzer
 
 database:
   url: "sqlite:///./compliance.db"
 
 auth:
-  secret_key: "your_secret_key_here" # Changed to a placeholder
+  secret_key: "a_very_secret_key"
   algorithm: "HS256"
   access_token_expire_minutes: 30
 
@@ -58,3 +51,12 @@ temp_upload_dir: "/tmp/uploads"
 api_url: "http://127.0.0.1:8000"
 rule_dir: "src/resources/rules"
 use_ai_mocks: true
+analysis:
+  # Parameters controlling the compliance analysis logic.
+  confidence_threshold: 0.7
+
+
+maintenance:
+  # Settings for automated database maintenance tasks.
+  purge_retention_days: 60
+  purge_interval_days: 1

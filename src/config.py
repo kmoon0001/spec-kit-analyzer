@@ -1,13 +1,14 @@
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import yaml
-from functools import lru_cache
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
-from dotenv import load_dotenv
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config.yaml"
 
 
 class DatabaseSettings(BaseModel):
@@ -23,6 +24,18 @@ class AuthSettings(BaseModel):
 class MaintenanceSettings(BaseModel):
     purge_retention_days: int
 
+    def __init__(self, **data: Any):
+        super().__init__(**data)
+        # Resolve all paths relative to the project root to make them absolute.
+        for attr in [
+            "temp_upload_dir",
+            "rule_dir",
+            "medical_dictionary",
+            "analysis_prompt_template",
+            "nlg_prompt_template",
+            "doc_classifier_prompt",
+        ]:
+            setattr(self, attr, (PROJECT_ROOT / getattr(self, attr)).resolve())
 
 class GeneratorProfile(BaseModel):
     repo: str
@@ -67,67 +80,72 @@ class AnalysisSettings(BaseModel):
     confidence_threshold: float = Field(
         0.7, description="Minimum confidence score for a finding to be considered valid."
     )
-    deterministic_focus: str = Field(
-        "- Treatment frequency documented\n- Goals reviewed or adjusted\n- Medical necessity justified",
-        description="Default focus points for compliance analysis.",
-    )
+    deterministic_focus: str
 
-class PhiScrubberModelSettings(BaseModel):
-    general: str
-    biomedical: str
-
-class ModelsSettings(BaseModel):
-    fact_checker: str
-    ner_ensemble: List[str]
-    phi_scrubber: PhiScrubberModelSettings
-
-class MaintenanceSettings(BaseModel):
-    purge_retention_days: int
-    purge_interval_days: int = 1
-class AnalysisSettings(BaseModel):
-    confidence_threshold: float = Field(
-        0.7, description="Minimum confidence score for a finding to be considered valid."
-    )
-    deterministic_focus: str = Field(
-        "- Treatment frequency documented\n- Goals reviewed or adjusted\n- Medical necessity justified",
-        description="Default focus points for compliance analysis.",
-    )
+    def __init__(self, **data: Any):
+        super().__init__(**data)
+        # Load deterministic_focus from file
+        deterministic_focus_path = PROJECT_ROOT / "src/resources/deterministic_focus.txt"
+        if deterministic_focus_path.is_file():
+            with open(deterministic_focus_path, "r", encoding="utf-8") as f:
+                self.deterministic_focus = f.read()
+        else:
+            self.deterministic_focus = (
+                "- Treatment frequency documented\n"
+                "- Goals reviewed or adjusted\n"
+                "- Medical necessity justified"
+            ) # Fallback to hardcoded if file not found
 
 class MaintenanceSettings(BaseModel):
     purge_retention_days: int
     purge_interval_days: int = 1
 
 class Settings(BaseModel):
-    api_url: str
-    use_ai_mocks: bool = False
-    enable_director_dashboard: bool = False
     database: DatabaseSettings
     auth: AuthSettings
     maintenance: MaintenanceSettings
-paths: PathsSettings
-    llm: LLMSettings
-    retrieval: RetrievalSettings
-    analysis: AnalysisSettings
     models: ModelsSettings
-    maintenance: MaintenanceSettings
-    use_ai_mocks: bool = False
+    llm_settings: LLMSettings
+    retrieval_settings: RetrievalSettings
     temp_upload_dir: str
     api_url: str
     rule_dir: str
+    use_ai_mocks: Optional[bool] = False
+
 
 @lru_cache()
 def get_settings() -> Settings:
-    # Load environment variables from .env file
-    load_dotenv()
-
     # Using a relative path from the project root is safer.
     with open("config.yaml", "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
+        return Settings(**config)
 
-    # Override secret_key from environment variable if it exists
-    secret_key = os.environ.get("SECRET_KEY")
-    if secret_key:
-        config["auth"]["secret_key"] = secret_key
+    if not DEFAULT_CONFIG_PATH.is_file():
+        raise FileNotFoundError(f"Configuration file not found at: {DEFAULT_CONFIG_PATH}")
 
-    print(config_data)
+    with open(DEFAULT_CONFIG_PATH, "r", encoding="utf-8") as f:
+        config_data = yaml.safe_load(f)
+
+    # Allow environment variables to override key settings.
+    secret_key_env = os.environ.get("SECRET_KEY")
+    if secret_key_env:
+        config_data.setdefault("auth", {})["secret_key"] = secret_key_env
+
+    db_url_env = os.environ.get("DATABASE_URL")
+    if db_url_env:
+        config_data.setdefault("database", {})["url"] = db_url_env
+
+    # Load deterministic_focus from file and add to config_data
+    deterministic_focus_path = PROJECT_ROOT / "src/resources/deterministic_focus.txt"
+    if deterministic_focus_path.is_file():
+        with open(deterministic_focus_path, "r", encoding="utf-8") as f:
+            config_data.setdefault("analysis", {})["deterministic_focus"] = f.read()
+    else:
+        # Fallback to hardcoded if file not found
+        config_data.setdefault("analysis", {})["deterministic_focus"] = (
+            "- Treatment frequency documented\n"
+            "- Goals reviewed or adjusted\n"
+            "- Medical necessity justified"
+        )
+
     return Settings(**config_data)
