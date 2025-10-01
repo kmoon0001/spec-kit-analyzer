@@ -66,7 +66,13 @@ limiter.enabled = False
 def client():
     """Create a TestClient for the API, with authentication overridden."""
     # Define a dummy user model that matches the User schema
-    dummy_user = schemas.User(id=1, username="testuser", is_active=True, is_admin=False, created_at=datetime.datetime.utcnow())
+    dummy_user = schemas.User(
+        id=1,
+        username="testuser",
+        is_active=True,
+        is_admin=False,
+        created_at=datetime.datetime.utcnow(),
+    )
 
     def override_get_current_active_user():
         return dummy_user

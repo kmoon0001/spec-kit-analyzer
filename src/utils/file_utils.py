@@ -3,6 +3,7 @@ File System Utilities
 
 This module contains helper functions for file and directory operations.
 """
+
 import os
 import shutil
 import logging
@@ -18,7 +19,9 @@ def clear_temp_uploads(temp_dir: str):
         temp_dir (str): The absolute path to the temporary directory to clear.
     """
     if not os.path.exists(temp_dir):
-        logger.warning("Temporary directory '%s' does not exist. Skipping cleanup.", temp_dir)
+        logger.warning(
+            "Temporary directory '%s' does not exist. Skipping cleanup.", temp_dir
+        )
         return
 
     if not os.path.isdir(temp_dir):

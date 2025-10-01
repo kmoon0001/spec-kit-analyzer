@@ -93,14 +93,14 @@ class MedicalTheme(QObject):
 
         return f"""
         QMainWindow {{
-            background-color: {colors['bg_primary']};
-            color: {colors['text_primary']};
+            background-color: {colors["bg_primary"]};
+            color: {colors["text_primary"]};
         }}
         
         QMenuBar {{
-            background-color: {colors['bg_secondary']};
-            color: {colors['text_primary']};
-            border-bottom: 1px solid {colors['border_light']};
+            background-color: {colors["bg_secondary"]};
+            color: {colors["text_primary"]};
+            border-bottom: 1px solid {colors["border_light"]};
             padding: 4px;
         }}
         
@@ -111,32 +111,32 @@ class MedicalTheme(QObject):
         }}
         
         QMenuBar::item:selected {{
-            background-color: {colors['primary_blue']};
+            background-color: {colors["primary_blue"]};
             color: white;
         }}
         
         QStatusBar {{
-            background-color: {colors['bg_secondary']};
-            color: {colors['text_secondary']};
-            border-top: 1px solid {colors['border_light']};
+            background-color: {colors["bg_secondary"]};
+            color: {colors["text_secondary"]};
+            border-top: 1px solid {colors["border_light"]};
         }}
         
         QStatusBar QLabel#easter_egg {{
             font-family: "Brush Script MT", "Lucida Handwriting", cursive;
             font-size: 10px;
-            color: {colors['text_muted']};
+            color: {colors["text_muted"]};
             font-style: italic;
             opacity: 0.6;
         }}
         
         QTabWidget::pane {{
-            border: 1px solid {colors['border_light']};
-            background-color: {colors['bg_primary']};
+            border: 1px solid {colors["border_light"]};
+            background-color: {colors["bg_primary"]};
         }}
         
         QTabBar::tab {{
-            background-color: {colors['bg_secondary']};
-            color: {colors['text_secondary']};
+            background-color: {colors["bg_secondary"]};
+            color: {colors["text_secondary"]};
             padding: 8px 16px;
             margin-right: 2px;
             border-top-left-radius: 6px;
@@ -144,12 +144,12 @@ class MedicalTheme(QObject):
         }}
         
         QTabBar::tab:selected {{
-            background-color: {colors['primary_blue']};
+            background-color: {colors["primary_blue"]};
             color: white;
         }}
         
         QTabBar::tab:hover {{
-            background-color: {colors['border_medium']};
+            background-color: {colors["border_medium"]};
         }}
         """
 
@@ -160,7 +160,7 @@ class MedicalTheme(QObject):
         styles = {
             "primary": f"""
                 QPushButton {{
-                    background-color: {colors['primary_blue']};
+                    background-color: {colors["primary_blue"]};
                     color: white;
                     border: none;
                     padding: 8px 16px;
@@ -169,37 +169,37 @@ class MedicalTheme(QObject):
                     min-width: 80px;
                 }}
                 QPushButton:hover {{
-                    background-color: {colors['kiro_black']};
+                    background-color: {colors["kiro_black"]};
                 }}
                 QPushButton:pressed {{
-                    background-color: {colors['medical_gray']};
+                    background-color: {colors["medical_gray"]};
                 }}
                 QPushButton:disabled {{
-                    background-color: {colors['border_medium']};
-                    color: {colors['text_muted']};
+                    background-color: {colors["border_medium"]};
+                    color: {colors["text_muted"]};
                 }}
             """,
             "secondary": f"""
                 QPushButton {{
-                    background-color: {colors['bg_secondary']};
-                    color: {colors['text_primary']};
-                    border: 1px solid {colors['border_medium']};
+                    background-color: {colors["bg_secondary"]};
+                    color: {colors["text_primary"]};
+                    border: 1px solid {colors["border_medium"]};
                     padding: 8px 16px;
                     border-radius: 6px;
                     font-weight: 500;
                     min-width: 80px;
                 }}
                 QPushButton:hover {{
-                    background-color: {colors['bg_tertiary']};
-                    border-color: {colors['primary_blue']};
+                    background-color: {colors["bg_tertiary"]};
+                    border-color: {colors["primary_blue"]};
                 }}
                 QPushButton:pressed {{
-                    background-color: {colors['border_light']};
+                    background-color: {colors["border_light"]};
                 }}
             """,
             "success": f"""
                 QPushButton {{
-                    background-color: {colors['success']};
+                    background-color: {colors["success"]};
                     color: white;
                     border: none;
                     padding: 8px 16px;
@@ -208,12 +208,12 @@ class MedicalTheme(QObject):
                     min-width: 80px;
                 }}
                 QPushButton:hover {{
-                    background-color: {colors['primary_green']};
+                    background-color: {colors["primary_green"]};
                 }}
             """,
             "warning": f"""
                 QPushButton {{
-                    background-color: {colors['warning']};
+                    background-color: {colors["warning"]};
                     color: white;
                     border: none;
                     padding: 8px 16px;
@@ -224,7 +224,7 @@ class MedicalTheme(QObject):
             """,
             "danger": f"""
                 QPushButton {{
-                    background-color: {colors['error']};
+                    background-color: {colors["error"]};
                     color: white;
                     border: none;
                     padding: 8px 16px;
@@ -243,18 +243,18 @@ class MedicalTheme(QObject):
 
         return f"""
         QFrame {{
-            background-color: {colors['bg_primary']};
-            border: 1px solid {colors['border_light']};
+            background-color: {colors["bg_primary"]};
+            border: 1px solid {colors["border_light"]};
             border-radius: 8px;
         }}
         
         QGroupBox {{
-            background-color: {colors['bg_primary']};
-            border: 1px solid {colors['border_light']};
+            background-color: {colors["bg_primary"]};
+            border: 1px solid {colors["border_light"]};
             border-radius: 8px;
             margin-top: 12px;
             font-weight: 600;
-            color: {colors['text_primary']};
+            color: {colors["text_primary"]};
             padding-top: 8px;
         }}
         
@@ -262,8 +262,8 @@ class MedicalTheme(QObject):
             subcontrol-origin: margin;
             subcontrol-position: top left;
             padding: 0 8px;
-            background-color: {colors['bg_primary']};
-            color: {colors['primary_blue']};
+            background-color: {colors["bg_primary"]};
+            color: {colors["primary_blue"]};
         }}
         """
 

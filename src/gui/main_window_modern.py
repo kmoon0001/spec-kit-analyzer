@@ -4,27 +4,19 @@ Modern Main Window - Redesigned with medical theme and your exact layout specifi
 
 import os
 from PyQt6.QtWidgets import (
-    QComboBox,
-    QFileDialog,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
-    QLabel,
-    QMainWindow,
-    QMenuBar,
     QMessageBox,
-    QProgressBar,
+    QMainWindow,
     QStatusBar,
+    QMenuBar,
     QFileDialog,
     QTextEdit,
     QLabel,
     QProgressBar,
     QTextBrowser,
-    QTextEdit,
-    QVBoxLayout,
-    QWidget,
-    QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QMainWindow, QStatusBar,
-    QMenuBar, QFileDialog, QTextEdit, QLabel, QProgressBar, QTextBrowser, QComboBox
+    QComboBox,
 )
 from PyQt6.QtCore import QThread
 
@@ -32,7 +24,11 @@ from PyQt6.QtCore import QThread
 from src.gui.widgets.modern_card import ModernCard
 from src.gui.widgets.medical_theme import medical_theme
 from src.gui.widgets.responsive_layout import ResponsiveWidget
-from src.gui.widgets.micro_interactions import AnimatedButton, FadeInWidget, LoadingSpinner
+from src.gui.widgets.micro_interactions import (
+    AnimatedButton,
+    FadeInWidget,
+    LoadingSpinner,
+)
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
 from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
 from src.config import get_settings
@@ -299,13 +295,13 @@ class ModernMainWindow(QMainWindow):
         self.main_progress_bar.setStyleSheet(
             f"""
             QProgressBar {{
-                border: 1px solid {medical_theme.get_color('border_light')};
+                border: 1px solid {medical_theme.get_color("border_light")};
                 border-radius: 4px;
                 text-align: center;
-                background-color: {medical_theme.get_color('bg_secondary')};
+                background-color: {medical_theme.get_color("bg_secondary")};
             }}
             QProgressBar::chunk {{
-                background-color: {medical_theme.get_color('primary_blue')};
+                background-color: {medical_theme.get_color("primary_blue")};
                 border-radius: 3px;
             }}
         """
@@ -343,8 +339,8 @@ class ModernMainWindow(QMainWindow):
         self.document_display_area.setStyleSheet(
             f"""
             QTextEdit {{
-                background-color: {medical_theme.get_color('bg_secondary')};
-                border: 1px solid {medical_theme.get_color('border_light')};
+                background-color: {medical_theme.get_color("bg_secondary")};
+                border: 1px solid {medical_theme.get_color("border_light")};
                 border-radius: 6px;
                 padding: 12px;
                 font-family: 'Consolas', 'Monaco', monospace;
@@ -380,8 +376,8 @@ class ModernMainWindow(QMainWindow):
         self.analysis_results_area.setStyleSheet(
             f"""
             QTextBrowser {{
-                background-color: {medical_theme.get_color('bg_primary')};
-                border: 1px solid {medical_theme.get_color('border_light')};
+                background-color: {medical_theme.get_color("bg_primary")};
+                border: 1px solid {medical_theme.get_color("border_light")};
                 border-radius: 6px;
                 padding: 16px;
                 font-size: 12px;
@@ -420,8 +416,8 @@ class ModernMainWindow(QMainWindow):
         self.chat_input.setStyleSheet(
             f"""
             QTextEdit {{
-                background-color: {medical_theme.get_color('bg_secondary')};
-                border: 1px solid {medical_theme.get_color('border_light')};
+                background-color: {medical_theme.get_color("bg_secondary")};
+                border: 1px solid {medical_theme.get_color("border_light")};
                 border-radius: 6px;
                 padding: 8px;
                 font-size: 12px;

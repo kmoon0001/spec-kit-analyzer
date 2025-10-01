@@ -4,45 +4,16 @@ import requests
 import urllib.parse
 import webbrowser
 from typing import Dict
+from PyQt6.QtCore import Qt, QThread, QUrl
+from PyQt6.QtGui import QTextDocument
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QDialog,
-    QMessageBox,
-    QMainWindow,
-    QStatusBar,
-    QMenuBar,
-    QMenu,
-    QFileDialog,
-    QSplitter,
-    QTextEdit,
-    QHBoxLayout,
-    QLabel,
-    QGroupBox,
-    QProgressBar,
-    QToolButton,
-    QPushButton,
-    QTabWidget,
-    QTextBrowser,
-    QTextEdit,
-    QVBoxLayout,
-    QWidget,
+    QWidget, QVBoxLayout, QDialog, QMessageBox, QMainWindow,
+    QStatusBar, QMenuBar, QMenu, QFileDialog, QSplitter,
+    QTextEdit, QHBoxLayout, QLabel, QGroupBox, QProgressBar,
+    QToolButton, QPushButton, QTabWidget, QTextBrowser, QComboBox,
 )
 
 from src.config import get_settings
-from src.core.analysis_service import AnalysisService
-from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
-from src.gui.export import generate_pdf_report
-
-# Add project root to path for imports
-project_root = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    QComboBox,
-)
-from PyQt6.QtCore import Qt, QThread, QUrl
-from PyQt6.QtGui import QTextDocument
-
-# Corrected: Use absolute imports from the src root
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
 from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 from src.gui.dialogs.chat_dialog import ChatDialog
@@ -57,7 +28,11 @@ from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
 from src.gui.dialogs.performance_settings_dialog import PerformanceSettingsDialog
 from src.core.report_generator import ReportGenerator
 from src.gui.export import generate_pdf_report
-from src.config import get_settings
+
+# Add project root to path for imports
+project_root = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 
 settings = get_settings()
 API_URL = settings.api_url

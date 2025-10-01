@@ -76,9 +76,7 @@ class ComplianceAnalyzer:
             deterministic_focus=self.deterministic_focus,
         )
 
-        raw_analysis_result = await asyncio.to_thread(
-            self.llm_service.generate, prompt
-        )
+        raw_analysis_result = await asyncio.to_thread(self.llm_service.generate, prompt)
         try:
             initial_analysis = json.loads(raw_analysis_result)
         except json.JSONDecodeError:
@@ -94,7 +92,6 @@ class ComplianceAnalyzer:
         )
         logger.info("Compliance analysis complete.")
         return final_analysis
-
 
     async def _post_process_findings(
         self, explained_analysis: Dict[str, Any], retrieved_rules: List[Dict[str, Any]]
@@ -133,7 +130,6 @@ class ComplianceAnalyzer:
                 )
 
         return explained_analysis
-
 
     @staticmethod
     def _format_rules_for_prompt(rules: List[Dict[str, Any]]) -> str:

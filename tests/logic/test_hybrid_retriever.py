@@ -16,8 +16,10 @@ def mock_sentence_transformer():
         # Mock the three calls to encode(): one for the corpus (init) and two for the queries (retrieve).
         mock_model.encode.side_effect = [
             np.random.rand(3, 384).astype("float32"),  # Corpus embeddings
-            np.random.rand(384).astype("float32"),    # Query embedding for first retrieve
-            np.random.rand(384).astype("float32"),    # Query embedding for second retrieve
+            np.random.rand(384).astype("float32"),  # Query embedding for first retrieve
+            np.random.rand(384).astype(
+                "float32"
+            ),  # Query embedding for second retrieve
         ]
         mock_st.return_value = mock_model
         yield mock_st
@@ -81,7 +83,9 @@ async def test_rrf_ranking_logic(retriever):
     result_names = [res["name"] for res in results]
     expected_order = ["Doc A", "Doc C", "Doc B"]
 
-    assert result_names == expected_order, f"Expected {expected_order}, but got {result_names}"
+    assert result_names == expected_order, (
+        f"Expected {expected_order}, but got {result_names}"
+    )
 
     # Also test that top_k works correctly
     with patch("src.core.hybrid_retriever.cos_sim", return_value=[mock_tensor]):

@@ -5,7 +5,6 @@ from datetime import datetime
 from src.api.main import app
 from src.auth import get_current_active_user
 from src import schemas
-from src.models import User
 from src.config import get_settings
 
 
@@ -30,16 +29,16 @@ async def test_get_director_dashboard_data_unauthorized(async_client):
         mock_token = "mock_access_token"
         headers = {"Authorization": f"Bearer {mock_token}"}
 
-        response = await async_client.get("/dashboard/director-dashboard", headers=headers)
+        response = await async_client.get(
+            "/dashboard/director-dashboard", headers=headers
+        )
         assert response.status_code == 403
     finally:
         app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio
-async def test_get_director_dashboard_data_as_admin(
-    async_client, mocker
-):
+async def test_get_director_dashboard_data_as_admin(async_client, mocker):
     settings = get_settings()
     """
     Test that an admin user can successfully fetch director dashboard data.
@@ -56,7 +55,9 @@ async def test_get_director_dashboard_data_as_admin(
     try:
         app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-        mock_crud = mocker.patch("src.api.routers.dashboard.crud", new_callable=mocker.AsyncMock)
+        mock_crud = mocker.patch(
+            "src.api.routers.dashboard.crud", new_callable=mocker.AsyncMock
+        )
         mock_crud.get_total_findings_count.return_value = 150
         mock_crud.get_team_habit_summary.return_value = [
             {"habit_name": "Habit 1", "count": 50}
@@ -82,9 +83,7 @@ async def test_get_director_dashboard_data_as_admin(
 
 
 @pytest.mark.asyncio
-async def test_generate_coaching_focus_as_admin(
-    async_client, mocker
-):
+async def test_generate_coaching_focus_as_admin(async_client, mocker):
     """
     Test that an admin can successfully generate an AI coaching focus.
     """
@@ -111,11 +110,14 @@ async def test_generate_coaching_focus_as_admin(
             "action_steps": ["Step 1"],
         }
         mocker.patch(
-            "src.api.routers.dashboard.LLMService", return_value=mock_llm_service_instance
+            "src.api.routers.dashboard.LLMService",
+            return_value=mock_llm_service_instance,
         )
 
         # Mock the CRUD functions
-        mock_crud = mocker.patch("src.api.routers.dashboard.crud", new_callable=mocker.AsyncMock)
+        mock_crud = mocker.patch(
+            "src.api.routers.dashboard.crud", new_callable=mocker.AsyncMock
+        )
         mock_crud.get_total_findings_count.return_value = 10
         mock_crud.get_team_habit_summary.return_value = []
         mock_crud.get_clinician_habit_breakdown.return_value = []

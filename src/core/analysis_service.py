@@ -13,7 +13,7 @@ from src.core.hybrid_retriever import HybridRetriever
 from src.core.llm_service import LLMService
 from src.core.report_generator import ReportGenerator
 from src.core.parsing import parse_document_content
-from src.core.phi_scrubber import PhiScrubberService # Corrected PHIScrubber import
+from src.core.phi_scrubber import PhiScrubberService  # Corrected PHIScrubber import
 from src.core.text_utils import sanitize_bullets, sanitize_human_text
 
 logger = logging.getLogger(__name__)
@@ -35,8 +35,6 @@ class AnalysisOutput(dict):
 def get_settings():
     """Legacy helper retained for tests that patch this symbol."""
     return _get_settings()
-
-
 
 
 class AnalysisService:
@@ -66,9 +64,7 @@ class AnalysisService:
             logger.info("Starting analysis for document: %s", file_path)
             chunks = parse_document_content(file_path)
             document_text = " ".join(
-                chunk.get("sentence", "")
-                for chunk in chunks
-                if isinstance(chunk, dict)
+                chunk.get("sentence", "") for chunk in chunks if isinstance(chunk, dict)
             ).strip()
             document_text = self._trim_document_text(document_text)
 

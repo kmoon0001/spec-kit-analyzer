@@ -1,13 +1,16 @@
 import os
 from functools import lru_cache
-from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import yaml
-from functools import lru_cache
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+
+
+class PathsSettings(BaseModel):
+    temp_upload_dir: str
+    api_url: str
+    rule_dir: str
 
 
 class DatabaseSettings(BaseModel):
@@ -22,6 +25,7 @@ class AuthSettings(BaseModel):
 
 class MaintenanceSettings(BaseModel):
     purge_retention_days: int
+    purge_interval_days: int = 1
 
 
 class GeneratorProfile(BaseModel):
@@ -39,6 +43,11 @@ class ChatModelSettings(BaseModel):
     generation_params: Optional[Dict[str, Any]] = None
 
 
+class PhiScrubberModelSettings(BaseModel):
+    general: str
+    biomedical: str
+
+
 class ModelsSettings(BaseModel):
     generator: Optional[str] = None
     generator_filename: Optional[str] = None
@@ -50,6 +59,7 @@ class ModelsSettings(BaseModel):
     doc_classifier_prompt: str
     analysis_prompt_template: str
     nlg_prompt_template: str
+    phi_scrubber: PhiScrubberModelSettings
 
 
 class LLMSettings(BaseModel):
@@ -63,57 +73,30 @@ class RetrievalSettings(BaseModel):
     dense_model_name: str
     rrf_k: int
 
+
 class AnalysisSettings(BaseModel):
     confidence_threshold: float = Field(
-        0.7, description="Minimum confidence score for a finding to be considered valid."
+        0.7,
+        description="Minimum confidence score for a finding to be considered valid.",
     )
     deterministic_focus: str = Field(
         "- Treatment frequency documented\n- Goals reviewed or adjusted\n- Medical necessity justified",
         description="Default focus points for compliance analysis.",
     )
 
-class PhiScrubberModelSettings(BaseModel):
-    general: str
-    biomedical: str
-
-class ModelsSettings(BaseModel):
-    fact_checker: str
-    ner_ensemble: List[str]
-    phi_scrubber: PhiScrubberModelSettings
-
-class MaintenanceSettings(BaseModel):
-    purge_retention_days: int
-    purge_interval_days: int = 1
-class AnalysisSettings(BaseModel):
-    confidence_threshold: float = Field(
-        0.7, description="Minimum confidence score for a finding to be considered valid."
-    )
-    deterministic_focus: str = Field(
-        "- Treatment frequency documented\n- Goals reviewed or adjusted\n- Medical necessity justified",
-        description="Default focus points for compliance analysis.",
-    )
-
-class MaintenanceSettings(BaseModel):
-    purge_retention_days: int
-    purge_interval_days: int = 1
 
 class Settings(BaseModel):
-    api_url: str
-    use_ai_mocks: bool = False
     enable_director_dashboard: bool = False
     database: DatabaseSettings
     auth: AuthSettings
     maintenance: MaintenanceSettings
-paths: PathsSettings
+    paths: PathsSettings
     llm: LLMSettings
     retrieval: RetrievalSettings
     analysis: AnalysisSettings
     models: ModelsSettings
-    maintenance: MaintenanceSettings
     use_ai_mocks: bool = False
-    temp_upload_dir: str
-    api_url: str
-    rule_dir: str
+
 
 @lru_cache()
 def get_settings() -> Settings:
@@ -129,5 +112,5 @@ def get_settings() -> Settings:
     if secret_key:
         config["auth"]["secret_key"] = secret_key
 
-    print(config_data)
-    return Settings(**config_data)
+    print(config)
+    return Settings(**config)

@@ -19,6 +19,7 @@ if "sqlite" in DATABASE_URL and "aiosqlite" not in DATABASE_URL:
 try:
     # Attempt to use performance settings if available
     from ..core.performance_manager import get_performance_config
+
     perf_config = get_performance_config()
     pool_size = perf_config.connection_pool_size
     logger.info("Applying performance-tuned connection pool size: %d", pool_size)
@@ -43,7 +44,9 @@ if "sqlite" not in DATABASE_URL:
 else:
     # For SQLite, we might want to ensure we are using a specific pool implementation
     # if the defaults are not suitable, but for now, we avoid unsupported args.
-    logger.info("SQLite database detected. Skipping advanced connection pooling settings.")
+    logger.info(
+        "SQLite database detected. Skipping advanced connection pooling settings."
+    )
 
 
 engine = create_async_engine(DATABASE_URL, **engine_args)
@@ -60,6 +63,7 @@ AsyncSessionLocal = async_sessionmaker(
 
 # --- Declarative Base ---
 Base = declarative_base()
+
 
 # --- Database Utilities ---
 async def get_async_db() -> AsyncGenerator[AsyncSession, None]:

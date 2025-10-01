@@ -3,6 +3,7 @@
 Unified startup script for the Therapy Compliance Analyzer.
 Launches the backend API and the frontend GUI.
 """
+
 import sys
 import subprocess
 import atexit
@@ -31,7 +32,14 @@ def start_api_server():
     try:
         logger.info("Starting backend API server...")
         # Use sys.executable to ensure we're using the same Python interpreter
-        command = [sys.executable, "-m", "uvicorn", "src.api.main:app", "--port", "8000"]
+        command = [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "src.api.main:app",
+            "--port",
+            "8000",
+        ]
 
         # Open log files for stdout and stderr
         api_log_out = open("api_server.log", "a")
@@ -41,7 +49,7 @@ def start_api_server():
             command,
             stdout=api_log_out,
             stderr=api_log_err,
-            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
         )
         logger.info(f"API server started with PID: {api_process.pid}")
         # Register the cleanup function to be called on exit
@@ -84,7 +92,9 @@ def main():
 
     # 2. Start the backend server
     if not start_api_server():
-        logger.error("Could not start the backend API. The application cannot continue.")
+        logger.error(
+            "Could not start the backend API. The application cannot continue."
+        )
         return 1
 
     # 2. Give the server a moment to initialize
@@ -110,6 +120,7 @@ def main():
     except Exception as e:
         logger.error(f"An unexpected error occurred in the GUI application: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
     finally:
