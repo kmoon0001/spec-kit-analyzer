@@ -5,8 +5,6 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QDialogButtonBox,
     QMessageBox,
-    QInputDialog,
-    QFileDialog,
     QListWidgetItem,
     QTextEdit,
     QLineEdit,

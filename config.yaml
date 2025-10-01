@@ -45,10 +45,7 @@ retrieval:
 analysis:
   # Parameters controlling the compliance analysis logic.
   confidence_threshold: 0.7
-  deterministic_focus: |
-    - Treatment frequency documented
-    - Goals reviewed or adjusted
-    - Medical necessity justified
+
 
 maintenance:
   # Settings for automated database maintenance tasks.

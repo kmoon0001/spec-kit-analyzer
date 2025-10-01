@@ -1,16 +1,24 @@
 import logging
 import datetime
 from time import perf_counter
-from typing import List, Optional, Tuple, Dict, Any
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...auth import get_current_active_user
+from ...auth import get_current_active_user, get_current_admin_user
 from ...database import crud, models, schemas
+from ...database.schemas import DirectorDashboardData, CoachingFocus # Explicitly import these
 from ...database import get_async_db
 from ...core.report_generator import ReportGenerator
+from ...core.llm_service import LLMService
+from ...core.analysis_service import AnalysisService # Added AnalysisService import
+from ...config import get_settings
+from ..rate_limiter import limiter # Import limiter from new file
+
+logger = logging.getLogger(__name__)
+settings = get_settings()
 
 router = APIRouter()
 report_generator = ReportGenerator()
@@ -60,7 +68,7 @@ async def read_findings_summary(
 @router.get(
     "/director-dashboard",
     response_model=DirectorDashboardData,
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(get_current_admin_user)],
 )
 @limiter.limit("30/minute")
 async def get_director_dashboard_data(
@@ -100,7 +108,7 @@ async def get_director_dashboard_data(
 @router.post(
     "/coaching-focus",
     response_model=CoachingFocus,
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(get_current_admin_user)],
 )
 async def generate_coaching_focus(dashboard_data: DirectorDashboardData) -> CoachingFocus:
     """
@@ -114,7 +122,8 @@ async def generate_coaching_focus(dashboard_data: DirectorDashboardData) -> Coac
 
     # In a larger application, this service would be managed via a dependency injection system.
 
-    repo_id, filename = _resolve_generator_model(settings)
+    analysis_service = AnalysisService() # Instantiate AnalysisService
+    repo_id, filename = analysis_service._select_generator_profile(settings.models) # Use AnalysisService to get repo_id and filename
     llm_service = LLMService(
         model_repo_id=repo_id,
         model_filename=filename,
@@ -179,7 +188,7 @@ Return only the JSON object.
 @router.get(
     "/habit-trends",
     response_model=List[schemas.HabitTrendPoint],
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(get_current_admin_user)],
 )
 @limiter.limit("60/minute")
 async def get_habit_trends(

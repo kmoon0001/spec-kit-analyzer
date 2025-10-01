@@ -1,7 +1,7 @@
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 import yaml
 from pydantic import BaseModel, Field
@@ -35,18 +35,15 @@ class PathsSettings(BaseModel):
     def __init__(self, **data: Any):
         super().__init__(**data)
         # Resolve all paths relative to the project root to make them absolute.
-        self.temp_upload_dir = (PROJECT_ROOT / self.temp_upload_dir).resolve()
-        self.rule_dir = (PROJECT_ROOT / self.rule_dir).resolve()
-        self.medical_dictionary = (PROJECT_ROOT / self.medical_dictionary).resolve()
-        self.analysis_prompt_template = (
-            PROJECT_ROOT / self.analysis_prompt_template
-        ).resolve()
-        self.nlg_prompt_template = (
-            PROJECT_ROOT / self.nlg_prompt_template
-        ).resolve()
-        self.doc_classifier_prompt = (
-            PROJECT_ROOT / self.doc_classifier_prompt
-        ).resolve()
+        for attr in [
+            "temp_upload_dir",
+            "rule_dir",
+            "medical_dictionary",
+            "analysis_prompt_template",
+            "nlg_prompt_template",
+            "doc_classifier_prompt",
+        ]:
+            setattr(self, attr, (PROJECT_ROOT / getattr(self, attr)).resolve())
 
 class LLMSettings(BaseModel):
     repo: str
@@ -64,10 +61,21 @@ class AnalysisSettings(BaseModel):
     confidence_threshold: float = Field(
         0.7, description="Minimum confidence score for a finding to be considered valid."
     )
-    deterministic_focus: str = Field(
-        "- Treatment frequency documented\n- Goals reviewed or adjusted\n- Medical necessity justified",
-        description="Default focus points for compliance analysis.",
-    )
+    deterministic_focus: str
+
+    def __init__(self, **data: Any):
+        super().__init__(**data)
+        # Load deterministic_focus from file
+        deterministic_focus_path = PROJECT_ROOT / "src/resources/deterministic_focus.txt"
+        if deterministic_focus_path.is_file():
+            with open(deterministic_focus_path, "r", encoding="utf-8") as f:
+                self.deterministic_focus = f.read()
+        else:
+            self.deterministic_focus = (
+                "- Treatment frequency documented\n"
+                "- Goals reviewed or adjusted\n"
+                "- Medical necessity justified"
+            ) # Fallback to hardcoded if file not found
 
 class MaintenanceSettings(BaseModel):
     purge_retention_days: int
@@ -113,5 +121,18 @@ def get_settings() -> Settings:
     db_url_env = os.environ.get("DATABASE_URL")
     if db_url_env:
         config_data.setdefault("database", {})["url"] = db_url_env
+
+    # Load deterministic_focus from file and add to config_data
+    deterministic_focus_path = PROJECT_ROOT / "src/resources/deterministic_focus.txt"
+    if deterministic_focus_path.is_file():
+        with open(deterministic_focus_path, "r", encoding="utf-8") as f:
+            config_data.setdefault("analysis", {})["deterministic_focus"] = f.read()
+    else:
+        # Fallback to hardcoded if file not found
+        config_data.setdefault("analysis", {})["deterministic_focus"] = (
+            "- Treatment frequency documented\n"
+            "- Goals reviewed or adjusted\n"
+            "- Medical necessity justified"
+        )
 
     return Settings(**config_data)

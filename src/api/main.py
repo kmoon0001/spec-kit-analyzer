@@ -9,8 +9,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -19,44 +18,20 @@ from ..core.database_maintenance_service import run_database_maintenance
 from ..utils.file_utils import clear_temp_uploads
 from .dependencies import startup_event as api_startup, shutdown_event as api_shutdown
 from .routers import auth, analysis, dashboard, admin, health, chat, compliance
+from .rate_limiter import limiter # Import limiter from new file
 
 # --- Logging ---
 logger = logging.getLogger(__name__)
 
 
 # --- Helper Functions ---
-def clear_temp_uploads():
-    """Clears all files from the temporary upload directory."""
-    if os.path.exists(TEMP_UPLOAD_DIR):
-        for filename in os.listdir(TEMP_UPLOAD_DIR):
-            file_path = os.path.join(TEMP_UPLOAD_DIR, filename)
-            try:
-                if os.path.isfile(file_path) or os.path.islink(file_path):
-                    os.unlink(file_path)
-                elif os.path.isdir(file_path):
-                    shutil.rmtree(file_path)
-                logger.info("Successfully cleaned up temporary file: %s", file_path)
-            except (OSError, PermissionError) as e:
-                logger.error("Failed to delete %s. Reason: %s", file_path, e)
-    except Exception as e:
-        logger.exception("An unexpected error occurred while clearing temp uploads: %s", e)
 
 
-def run_database_maintenance():
-    """
-    Instantiates and runs the database maintenance service.
-    Includes error handling to prevent scheduler crashes.
-    """
-    logger.info("Scheduler triggered: Starting database maintenance job.")
-    try:
-        maintenance_service = DatabaseMaintenanceService()
-        maintenance_service.purge_old_reports(retention_days=DATABASE_PURGE_RETENTION_DAYS)
-    logger.info("Scheduler job: Database maintenance finished.")except Exception as e:
-        logger.exception("Database maintenance job failed: %s", e)
+
+
 
 
 # --- FastAPI App Setup ---
-limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
 scheduler = BackgroundScheduler(daemon=True)
 
 
