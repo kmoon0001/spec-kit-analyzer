@@ -68,7 +68,7 @@ async def read_findings_summary(
 @router.get(
     "/director-dashboard",
     response_model=DirectorDashboardData,
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(get_current_admin_user)],
 )
 @limiter.limit("30/minute")
 async def get_director_dashboard_data(
@@ -108,7 +108,7 @@ async def get_director_dashboard_data(
 @router.post(
     "/coaching-focus",
     response_model=CoachingFocus,
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(get_current_admin_user)],
 )
 async def generate_coaching_focus(dashboard_data: DirectorDashboardData) -> CoachingFocus:
     """
@@ -122,7 +122,8 @@ async def generate_coaching_focus(dashboard_data: DirectorDashboardData) -> Coac
 
     # In a larger application, this service would be managed via a dependency injection system.
 
-    repo_id, filename = _resolve_generator_model(settings)
+    analysis_service = AnalysisService() # Instantiate AnalysisService
+    repo_id, filename = analysis_service._select_generator_profile(settings.models) # Use AnalysisService to get repo_id and filename
     llm_service = LLMService(
         model_repo_id=repo_id,
         model_filename=filename,
@@ -187,7 +188,7 @@ Return only the JSON object.
 @router.get(
     "/habit-trends",
     response_model=List[schemas.HabitTrendPoint],
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(get_current_admin_user)],
 )
 @limiter.limit("60/minute")
 async def get_habit_trends(

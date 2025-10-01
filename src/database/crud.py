@@ -108,6 +108,7 @@ async def get_report(db: AsyncSession, report_id: int) -> Optional[models.Report
     return result.scalars().first()
 
 
+
 async def get_reports(
     db: AsyncSession,
     skip: int = 0,

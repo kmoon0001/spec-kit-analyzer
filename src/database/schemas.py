@@ -135,33 +135,27 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
 
-
 # --- Schemas for Dashboard Analytics ---
-
 
 class HabitSummary(BaseModel):
     habit_name: str
     count: int
-
 
 class ClinicianHabitBreakdown(BaseModel):
     clinician_name: str
     habit_name: str
     count: int
 
-
 class DirectorDashboardData(BaseModel):
     total_findings: int
     team_habit_summary: List[HabitSummary]
     clinician_habit_breakdown: List[ClinicianHabitBreakdown]
-
 
 class CoachingFocus(BaseModel):
     focus_title: str
     summary: str
     root_cause: str
     action_steps: List[str]
-
 
 class HabitTrendPoint(BaseModel):
     date: datetime.date

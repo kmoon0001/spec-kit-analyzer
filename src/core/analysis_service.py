@@ -2,25 +2,18 @@ import asyncio
 import logging
 from collections.abc import Awaitable
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import psutil
 import yaml
 
 from src.config import get_settings as _get_settings
-from src.core.compliance_analyzer import ComplianceAnalyzer
 from src.core.document_classifier import DocumentClassifier
-from src.core.explanation import ExplanationEngine
-from src.core.fact_checker_service import FactCheckerService
 from src.core.hybrid_retriever import HybridRetriever
 from src.core.llm_service import LLMService
-from src.core.ner import NERPipeline
-from src.core.nlg_service import NLGService
-from src.core.preprocessing_service import PreprocessingService
-from src.core.prompt_manager import PromptManager
 from src.core.report_generator import ReportGenerator
 from src.core.parsing import parse_document_content
-from src.core.checklist_service import DeterministicChecklistService
+from src.core.phi_scrubber import PhiScrubberService # Corrected PHIScrubber import
 from src.core.text_utils import sanitize_bullets, sanitize_human_text
 
 logger = logging.getLogger(__name__)
@@ -47,64 +40,21 @@ def get_settings():
 
 
 class AnalysisService:
-    """
-    Coordinates the entire analysis pipeline, from preprocessing to reporting.
-    This service is initialized once and reused, loading its configuration from
-    the central `get_settings` function.
-    """
+    """Orchestrates the document analysis process."""
 
-    def __init__(self, retriever: Optional[HybridRetriever] = None) -> None:
-        """
-        Initializes all subordinate services based on the application's
-        centralized configuration.
-        """
-        self.settings = get_settings()
+    def __init__(
+        self,
+        phi_scrubber: PhiScrubberService = None,
+        document_classifier: DocumentClassifier = None,
+        retriever: HybridRetriever = None,
+        llm_service: LLMService = None,
+        report_generator: ReportGenerator = None,
+    ):
+        self.phi_scrubber = phi_scrubber or PhiScrubberService()
+        self.document_classifier = document_classifier or DocumentClassifier()
         self.retriever = retriever or HybridRetriever()
-        self.preprocessing = PreprocessingService()
-        self.checklist_service = DeterministicChecklistService()
-        self.checklist_expectations = self.checklist_service.describe_expectations()
-
-        # Correctly select the model profile and initialize the LLM service.
-        repo_id, filename = self._select_generator_profile(
-            self.settings.models.model_dump()
-        )
-
-        self.llm_service = LLMService(
-            model_repo_id=repo_id,
-            model_filename=filename,
-            llm_settings=self.settings.llm.model_dump(),
-        )
-
-        # For simplicity in this refactoring, the chat LLM is aliased.
-        # A more advanced implementation would configure it separately.
-        self.chat_llm_service = self.llm_service
-
-        # Initialize other services
-        self.fact_checker = FactCheckerService(model_name="google/flan-t5-base")
-        self.ner_pipeline = NERPipeline(model_names=["d4data/biomedical-ner-all"])
-        self.prompt_manager = PromptManager(
-            template_path=self.settings.paths.analysis_prompt_template
-        )
-        self.explanation_engine = ExplanationEngine()
-        self.document_classifier = DocumentClassifier(
-            llm_service=self.llm_service,
-            prompt_template_path=self.settings.paths.doc_classifier_prompt,
-        )
-        self.nlg_service = NLGService(
-            llm_service=self.llm_service,
-            prompt_template_path=self.settings.paths.nlg_prompt_template,
-        )
-        self.compliance_analyzer = ComplianceAnalyzer(
-            retriever=self.retriever,
-            ner_pipeline=self.ner_pipeline,
-            llm_service=self.llm_service,
-            explanation_engine=self.explanation_engine,
-            prompt_manager=self.prompt_manager,
-            fact_checker_service=self.fact_checker,
-            nlg_service=self.nlg_service,
-        )
-        self.analyzer = self.compliance_analyzer  # For backward compatibility
-        self.report_generator = ReportGenerator()
+        self.llm_service = llm_service or LLMService()
+        self.report_generator = report_generator or ReportGenerator()
 
     def analyze_document(
         self,
