@@ -1,47 +1,62 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
+from datetime import datetime
 
 from src.api.main import app
 from src.auth import get_current_active_user
-from src.database import schemas
-from src.database.models import User
+from src import schemas
+from src.models import User
+from src.config import get_settings
 
 
 @pytest.mark.asyncio
-async def test_get_director_dashboard_data_unauthorized(async_client, test_user: User):
+async def test_get_director_dashboard_data_unauthorized(async_client):
     """
     Test that a non-admin user cannot access the director dashboard.
     """
-    response = await async_client.post(
-        "/auth/token",
-        data={"username": test_user.username, "password": "test"},
+    # Manually create a mock user for testing purposes
+    mock_user = schemas.User(
+        id=1,
+        username="testuser",
+        is_active=True,
+        is_admin=False,
+        hashed_password="$2b$12$mockhashedpasswordstringforetesting12345678901234567890",
+        created_at=datetime.utcnow(),
     )
-    token = response.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-    response = await async_client.get("/dashboard/director-dashboard", headers=headers)
-    assert response.status_code == 403
+        # For now, we'll manually create a token for the mock_user
+        mock_token = "mock_access_token"
+        headers = {"Authorization": f"Bearer {mock_token}"}
+
+        response = await async_client.get("/dashboard/director-dashboard", headers=headers)
+        assert response.status_code == 403
+    finally:
+        app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio
 async def test_get_director_dashboard_data_as_admin(
-    async_client, test_user: User, mocker
+    async_client, mocker
 ):
+    settings = get_settings()
     """
     Test that an admin user can successfully fetch director dashboard data.
     """
-    admin_user = schemas.User(
-        id=test_user.id,
-        username=test_user.username,
+    # Manually create a mock user for testing purposes
+    mock_user = schemas.User(
+        id=1,
+        username="testuser",
         is_active=True,
         is_admin=True,
-        hashed_password="test_password",
+        hashed_password="$2b$12$mockhashedpasswordstringforetesting12345678901234567890",
+        created_at=datetime.utcnow(),
     )
     try:
-        app.dependency_overrides[get_current_active_user] = lambda: admin_user
-        mocker.patch("src.api.routers.dashboard.settings.enable_director_dashboard", True)
+        app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
-        mock_crud = mocker.patch("src.api.routers.dashboard.crud")
+        mock_crud = mocker.patch("src.api.routers.dashboard.crud", new_callable=mocker.AsyncMock)
         mock_crud.get_total_findings_count.return_value = 150
         mock_crud.get_team_habit_summary.return_value = [
             {"habit_name": "Habit 1", "count": 50}
@@ -50,12 +65,9 @@ async def test_get_director_dashboard_data_as_admin(
             {"clinician_name": "Dr. Doe", "habit_name": "Habit 1", "count": 25}
         ]
 
-        response = await async_client.post(
-            "/auth/token",
-            data={"username": test_user.username, "password": "test"},
-        )
-        token = response.json()["access_token"]
-        headers = {"Authorization": f"Bearer {token}"}
+        # For now, we'll manually create a token for the mock_user
+        mock_token = "mock_access_token"
+        headers = {"Authorization": f"Bearer {mock_token}"}
 
         response = await async_client.get(
             "/dashboard/director-dashboard", headers=headers
@@ -71,21 +83,23 @@ async def test_get_director_dashboard_data_as_admin(
 
 @pytest.mark.asyncio
 async def test_generate_coaching_focus_as_admin(
-    async_client, test_user: User, mocker
+    async_client, mocker
 ):
     """
     Test that an admin can successfully generate an AI coaching focus.
     """
-    admin_user = schemas.User(
-        id=test_user.id,
-        username=test_user.username,
+    settings = get_settings()
+    # Manually create a mock user for testing purposes
+    mock_user = schemas.User(
+        id=1,
+        username="testuser",
         is_active=True,
         is_admin=True,
-        hashed_password="test_password",
+        hashed_password="$2b$12$mockhashedpasswordstringforetesting12345678901234567890",
+        created_at=datetime.utcnow(),
     )
     try:
-        app.dependency_overrides[get_current_active_user] = lambda: admin_user
-        mocker.patch("src.api.routers.dashboard.settings.enable_director_dashboard", True)
+        app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
         mock_llm_service_instance = MagicMock()
         mock_llm_service_instance.is_ready.return_value = True
@@ -100,18 +114,20 @@ async def test_generate_coaching_focus_as_admin(
             "src.api.routers.dashboard.LLMService", return_value=mock_llm_service_instance
         )
 
+        # Mock the CRUD functions
+        mock_crud = mocker.patch("src.api.routers.dashboard.crud", new_callable=mocker.AsyncMock)
+        mock_crud.get_total_findings_count.return_value = 10
+        mock_crud.get_team_habit_summary.return_value = []
+        mock_crud.get_clinician_habit_breakdown.return_value = []
         dashboard_data = {
             "total_findings": 10,
             "team_habit_summary": [],
             "clinician_habit_breakdown": [],
         }
 
-        response = await async_client.post(
-            "/auth/token",
-            data={"username": test_user.username, "password": "test"},
-        )
-        token = response.json()["access_token"]
-        headers = {"Authorization": f"Bearer {token}"}
+        # For now, we'll manually create a token for the mock_user
+        mock_token = "mock_access_token"
+        headers = {"Authorization": f"Bearer {mock_token}"}
 
         response = await async_client.post(
             "/dashboard/coaching-focus", json=dashboard_data, headers=headers

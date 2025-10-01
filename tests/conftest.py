@@ -1,28 +1,37 @@
-# ruff: noqa: E402
 import logging
 import os
-import sys
 import sys
 from typing import Generator
 from unittest.mock import MagicMock
 
 import pytest
+import pytest_asyncio
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import (
+    async_sessionmaker,
+    AsyncSession,
+    create_async_engine,
+)
 from sqlalchemy.orm import Session, sessionmaker
 
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
-
-from src.database import Base
+from src import crud, models, schemas
+from src.api.main import app
+from src.auth import get_auth_service
 from src.core.compliance_analyzer import ComplianceAnalyzer
 from src.core.explanation import ExplanationEngine
 from src.core.fact_checker_service import FactCheckerService
+from src.core.hybrid_retriever import HybridRetriever
 from src.core.llm_service import LLMService
 from src.core.ner import NERPipeline
-from src.core.prompt_manager import PromptManager
-from src.core.hybrid_retriever import HybridRetriever
 from src.core.nlg_service import NLGService
+from src.core.prompt_manager import PromptManager
+from src.database.database import Base, get_async_db
+
+# Ensure the project root is in the Python path
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -93,7 +102,7 @@ def mock_nlg_service() -> MagicMock:
     return service
 
 
-# --- Database fixtures -------------------------------------------------------
+# --- Synchronous Database fixtures -------------------------------------------
 
 
 @pytest.fixture(scope="session")
@@ -152,32 +161,13 @@ def compliance_analyzer(
 
 
 # --- Async Database and Test Client Fixtures ---------------------------------
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-import pytest_asyncio
 
-from src.api.main import app
-from src.database import crud, models, schemas
-from src.database.database import get_async_db
-from src.auth import get_auth_service
-
-# Use a separate in-memory database for async tests
 # The URI format is important for shared in-memory DBs
 ASYNC_SQLITE_URL = "sqlite+aiosqlite:///file:memdb_async?mode=memory&cache=shared&uri=true"
 
-async_engine = create_async_engine(ASYNC_SQLITE_URL, connect_args={"check_same_thread": False})
-AsyncTestingSessionLocal = async_sessionmaker(
-    async_engine, class_=AsyncSession, expire_on_commit=False
+async_engine = create_async_engine(
+    ASYNC_SQLITE_URL, connect_args={"check_same_thread": False}
 )
-
-
-# This is no longer needed as we will override the dependency per test
-# async def override_get_async_db() -> Generator[AsyncSession, None, None]:
-#     """Dependency override to use the async test database."""
-#     async with AsyncTestingSessionLocal() as session:
-#         yield session
-#
-# app.dependency_overrides[get_async_db] = override_get_async_db
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -191,7 +181,9 @@ async def setup_async_database():
 
 
 @pytest_asyncio.fixture
-async def test_db(setup_async_database) -> Generator[AsyncSession, None, None]:
+async def test_db(
+    setup_async_database: None,
+) -> Generator[AsyncSession, None, None]:
     """
     Provide a transactional scope for each test.
     This ensures a clean database state for each test function.
@@ -199,7 +191,6 @@ async def test_db(setup_async_database) -> Generator[AsyncSession, None, None]:
     connection = await async_engine.connect()
     transaction = await connection.begin()
 
-    # The session will use the connection and be part of the transaction
     async_session_factory = async_sessionmaker(
         connection, class_=AsyncSession, expire_on_commit=False
     )
@@ -214,7 +205,9 @@ async def test_db(setup_async_database) -> Generator[AsyncSession, None, None]:
 
 
 @pytest_asyncio.fixture
-async def async_client(test_db: AsyncSession) -> Generator[AsyncClient, None, None]:
+async def async_client(
+    test_db: AsyncSession,
+) -> Generator[AsyncClient, None, None]:
     """
     Provide an async test client that uses the same transactional session
     as the test function.
@@ -225,29 +218,30 @@ async def async_client(test_db: AsyncSession) -> Generator[AsyncClient, None, No
 
     app.dependency_overrides[get_async_db] = override_get_async_db_for_test
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         yield client
 
-    # Clean up the dependency override after the test
-    # Use pop with a default to avoid KeyError if the override was already cleared
     app.dependency_overrides.pop(get_async_db, None)
 
 
 # --- Test User Data ---------------------------------------------------------
 
-test_user_credentials = {"username": "testuser", "password": "test"}
+test_user_credentials = {"username": "testuser", "password": "test_password"}
 
 
 @pytest_asyncio.fixture
 async def test_user(test_db: AsyncSession) -> models.User:
     """Create a standard user for testing purposes."""
-    auth_service = get_auth_service()
-    hashed_password = auth_service.get_password_hash(test_user_credentials["password"])
+    # Bypass actual password hashing for testing purposes
+    # Use a mock hashed password that is valid in format but doesn't require bcrypt to generate
+    mock_hashed_password = "$2b$12$mockhashedpasswordstringforetesting12345678901234567890"
     user_in = schemas.UserCreate(
         username=test_user_credentials["username"],
-        password=test_user_credentials["password"],
+        password="mockpass",  # A short placeholder password for the schema
     )
     user = await crud.create_user(
-        db=test_db, user=user_in, hashed_password=hashed_password
+        db=test_db, user=user_in, hashed_password=mock_hashed_password
     )
     return user

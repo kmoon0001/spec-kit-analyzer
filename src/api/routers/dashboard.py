@@ -1,32 +1,46 @@
-import logging
 import datetime
+import logging
 from time import perf_counter
-from typing import List, Optional
+import logging # Added from the logging section of the previous block
+from typing import List, Optional, Tuple
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
+from src.schemas import DirectorDashboardData, CoachingFocus
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...auth import get_current_active_user, get_current_admin_user
-from ...database import crud, models, schemas
-from ...database.schemas import DirectorDashboardData, CoachingFocus # Explicitly import these
-from ...database import get_async_db
-from ...core.report_generator import ReportGenerator
-from ...core.llm_service import LLMService
-from ...core.analysis_service import AnalysisService # Added AnalysisService import
-from ...config import get_settings
-from ..rate_limiter import limiter # Import limiter from new file
+# Combined and resolved imports
+from src import crud, models, schemas
+from src.api.dependencies import require_admin
+from src.api.limiter import limiter
+from src.auth import get_current_active_user, get_current_admin_user # Combined auth imports
+from src.config import Settings, get_settings
+from src.core.llm_service import LLMService
+from src.core.report_generator import ReportGenerator
+from src.core.analysis_service import AnalysisService # Added from detached7
+from src.database.database import get_async_db # Use the explicit path from main
+
+# Initialization
+logger = logging.getLogger(__name__) # Added logging import/init
+settings = get_settings() # Added settings init
 
 logger = logging.getLogger(__name__)
-settings = get_settings()
-
 router = APIRouter()
 report_generator = ReportGenerator()
+
+# --- Helper Functions ---#
+
+def _resolve_generator_model(settings: Settings) -> Tuple[str, str]:
+    """Placeholder for resolving the generator model."""
+    # In a real scenario, this could involve more complex logic
+    return (
+        settings.llm.repo,
+        settings.llm.filename,
+    )
 
 
 @router.get("/reports", response_model=List[schemas.Report])
 async def read_reports(
-    request: Request,
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_async_db),
@@ -74,6 +88,7 @@ async def read_findings_summary(
 async def get_director_dashboard_data(
     request: Request,
     db: AsyncSession = Depends(get_async_db),
+    settings: Settings = Depends(get_settings),
     start_date: Optional[datetime.date] = None,
     end_date: Optional[datetime.date] = None,
     discipline: Optional[str] = None,
@@ -110,7 +125,9 @@ async def get_director_dashboard_data(
     response_model=CoachingFocus,
     dependencies=[Depends(get_current_admin_user)],
 )
-async def generate_coaching_focus(dashboard_data: DirectorDashboardData) -> CoachingFocus:
+async def generate_coaching_focus(
+    dashboard_data: DirectorDashboardData, settings: Settings = Depends(get_settings)
+) -> CoachingFocus:
     """
     Generates an AI-powered weekly coaching focus based on team analytics.
     """
@@ -119,18 +136,17 @@ async def generate_coaching_focus(dashboard_data: DirectorDashboardData) -> Coac
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Director Dashboard feature is not enabled.",
         )
-
-    # In a larger application, this service would be managed via a dependency injection system.
+# In a larger application, this service would be managed via a dependency injection system.
 
     analysis_service = AnalysisService() # Instantiate AnalysisService
-    repo_id, filename = analysis_service._select_generator_profile(settings.models) # Use AnalysisService to get repo_id and filename
+    repo_id, filename = _resolve_generator_model(settings) # Use the clean helper function from main
     llm_service = LLMService(
         model_repo_id=repo_id,
         model_filename=filename,
         llm_settings={
-            "model_type": settings.llm_settings.model_type,
-            "context_length": settings.llm_settings.context_length,
-            "generation_params": settings.llm_settings.generation_params,
+            "model_type": settings.llm.model_type,
+            "context_length": settings.llm.context_length,
+            "generation_params": settings.llm.generation_params,
         },
     )
 
@@ -140,36 +156,36 @@ async def generate_coaching_focus(dashboard_data: DirectorDashboardData) -> Coac
             detail="LLM service is not available.",
         )
 
-    prompt = f'''
-You are an expert clinical director AI assistant. Based on the following team performance data, generate a concise and actionable weekly coaching focus. The focus should identify the most critical issue and provide concrete steps for improvement.
+    prompt = f"""
+    You are an expert clinical director AI assistant. Based on the following team performance data, generate a concise and actionable weekly coaching focus. The focus should identify the most critical issue and provide concrete steps for improvement.
 
-**Team Analytics Data:**
-- **Total Compliance Findings:** {dashboard_data.total_findings}
-- **Top Habit-Related Issues:**
-'''
+    **Team Analytics Data:**
+    - **Total Compliance Findings:** {dashboard_data.total_findings}
+    - **Top Habit-Related Issues:**
+    """
     for item in dashboard_data.team_habit_summary[:3]:
-        prompt += f"  - {item.habit_name}: {item.count} findings\\n"
+        prompt += f"  - {item.habit_name}: {item.count} findings\n"
 
-    prompt += "\\n**Clinician-Specific Breakdown (Top 5):**\\n"
+    prompt += "\n**Clinician-Specific Breakdown (Top 5):**\n"
     for item in dashboard_data.clinician_habit_breakdown[:5]:
-        prompt += f"  - {item.clinician_name} ({item.habit_name}): {item.count} findings\\n"
+        prompt += f"  - {item.clinician_name} ({item.habit_name}): {item.count} findings\n"
 
     prompt += """
-**Your Task:**
-Generate a JSON object with the following structure. Infer a likely root cause for the primary issue based on the data.
-{{
-  "focus_title": "A compelling title for the weekly focus.",
-  "summary": "A brief summary explaining the most significant issue and its impact.",
-  "root_cause": "The inferred root cause of the issue (e.g., 'Lack of familiarity with new guidelines', 'Time management during patient care').",
-  "action_steps": [
-    "A concrete, actionable step for the team related to the root cause.",
-    "Another actionable step.",
-    "A final actionable step."
-  ]
-}}
+    **Your Task:**
+    Generate a JSON object with the following structure. Infer a likely root cause for the primary issue based on the data.
+    {{
+      "focus_title": "A compelling title for the weekly focus.",
+      "summary": "A brief summary explaining the most significant issue and its impact.",
+      "root_cause": "The inferred root cause of the issue (e.g., 'Lack of familiarity with new guidelines', 'Time management during patient care').",
+      "action_steps": [
+        "A concrete, actionable step for the team related to the root cause.",
+        "Another actionable step.",
+        "A final actionable step."
+      ]
+    }}
 
-Return only the JSON object.
-"""
+    Return only the JSON object.
+    """
     try:
         start = perf_counter()
         raw_response = llm_service.generate_analysis(prompt)
@@ -194,6 +210,7 @@ Return only the JSON object.
 async def get_habit_trends(
     request: Request,
     db: AsyncSession = Depends(get_async_db),
+    settings: Settings = Depends(get_settings),
     start_date: Optional[datetime.date] = None,
     end_date: Optional[datetime.date] = None,
 ) -> List[schemas.HabitTrendPoint]:

@@ -149,7 +149,7 @@ class ComplianceAnalyzer:
             rule_detail = rule.get("content") or rule.get("issue_detail", "N/A")
             rule_suggestion = rule.get("suggestion", "")
 
-            rule_text = f"- **Rule:** {rule_name}\n  **Detail:** {rule_detail}"
+            rule_text = f"- **Rule:** {rule_name} (Relevance Score: {rule.get('relevance_score', 0.0):.3f})\n  **Detail:** {rule_detail}"
             if rule_suggestion:
                 rule_text += f"\n  **Suggestion:** {rule_suggestion}"
 

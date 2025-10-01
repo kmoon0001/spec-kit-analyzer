@@ -1,12 +1,21 @@
 """
 Modern Main Window - Redesigned with medical theme and your exact layout specifications.
 """
-
 import os
 from PyQt6.QtWidgets import (
-    QComboBox, QFileDialog, QHBoxLayout, QLabel, QMainWindow, QMenuBar,
-    QMessageBox, QProgressBar, QStatusBar, QTextBrowser, QTextEdit,
-    QVBoxLayout, QWidget
+    QComboBox,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMenuBar,
+    QMessageBox,
+    QProgressBar,
+    QStatusBar,
+    QTextBrowser,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 from PyQt6.QtCore import QThread
 
@@ -572,17 +581,9 @@ class ModernMainWindow(QMainWindow):
 
     # Placeholder methods for existing functionality
     def logout(self):
-
-
-
         raise NotImplementedError()
 
-
-
     def manage_rubrics(self):
-
-
-
         raise NotImplementedError()
 
     def show_performance_settings(self):

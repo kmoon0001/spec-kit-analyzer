@@ -3,7 +3,7 @@ Integration tests for performance management system.
 Tests the integration between performance manager, cache service, and GUI components.
 """
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import sys
 import os
 
