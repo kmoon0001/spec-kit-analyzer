@@ -1,3 +1,21 @@
+import datetime
+from typing import List, Optional
+
+from pydantic import BaseModel
+
+
+# --- User Schemas ---
+
+
+class UserBase(BaseModel):
+    username: str
+    email: Optional[str] = None
+
+
+class UserCreate(UserBase):
+    password: str
+
+
 class User(UserBase):
     id: int
     created_at: datetime.datetime
@@ -6,6 +24,15 @@ class User(UserBase):
 
     class Config:
         orm_mode = True
+
+
+class UserInDB(User):
+    hashed_password: str
+
+
+class UserPasswordChange(BaseModel):
+    current_password: str
+    new_password: str
 
 
 # --- Finding Summary Schemas ---
@@ -30,15 +57,6 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     response: str
-
-
-class UserInDB(User):
-    hashed_password: str
-
-
-class UserPasswordChange(BaseModel):
-    current_password: str
-    new_password: str
 
 
 # --- Analysis Report Schemas ---
