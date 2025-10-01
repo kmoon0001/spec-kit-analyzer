@@ -2,7 +2,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from typing import Optional
 import datetime
-from src import models, schemas
+from src.database import models
+from src import schemas
 
 
 async def get_user(db: AsyncSession, user_id: int):
@@ -20,7 +21,7 @@ async def get_user_by_username(db: AsyncSession, username: str):
 async def change_user_password(
     db: AsyncSession, user: models.User, new_hashed_password: str
 ):
-    user.hashed_password = new_hashed_password
+    user.hashed_password = new_hashed_password  # type: ignore
     db.add(user)
     await db.commit()
     await db.refresh(user)
@@ -53,7 +54,7 @@ async def get_total_findings_count(
 
 async def get_reports(db: AsyncSession, skip: int = 0, limit: int = 100):
     result = await db.execute(select(models.AnalysisReport).offset(skip).limit(limit))
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def get_report(db: AsyncSession, report_id: int):
@@ -68,7 +69,7 @@ async def get_findings_summary(db: AsyncSession):
     # more complex aggregation queries.
     result = await db.execute(select(models.AnalysisReport))
     reports = result.scalars().all()
-    summary = {}
+    summary: dict[str, int] = {}
     for report in reports:
         if report.findings:
             for finding in report.findings:
@@ -80,4 +81,5 @@ async def get_findings_summary(db: AsyncSession):
 async def get_all_rubrics(db: AsyncSession):
     """Retrieve all compliance rubrics from the database."""
     result = await db.execute(select(models.ComplianceRubric))
-    return result.scalars().all()
+    return list(result.scalars().all()
+)

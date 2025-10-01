@@ -10,7 +10,7 @@ settings = get_settings()
 API_URL = settings.paths.api_url
 
 
-class FolderAnalysisWorker(QObject):
+class SingleAnalysisPollingWorker(QObject):
     finished = Signal()  # type: ignore[attr-defined]
     error = Signal(str)  # type: ignore[attr-defined]
     success = Signal(object)  # type: ignore[attr-defined]
@@ -25,7 +25,7 @@ class FolderAnalysisWorker(QObject):
         self.is_running = False
 
     def run(self):
-        """Poll the API for the result of the folder analysis task."""
+        """Poll the API for the result of the single analysis task."""
         poll_interval = 2  # seconds
         max_attempts = 150  # 5 minutes
         attempts = 0

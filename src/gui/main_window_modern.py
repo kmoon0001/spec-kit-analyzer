@@ -34,7 +34,7 @@ from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
 from src.config import get_settings
 
 settings = get_settings()
-API_URL = settings.api_url
+API_URL = settings.paths.api_url
 
 
 class ModernMainWindow(QMainWindow):

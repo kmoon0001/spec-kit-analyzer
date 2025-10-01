@@ -125,7 +125,7 @@ class PDFExportService:
             )
 
             # Build content
-            story = []
+            story: List[Any] = []
 
             # Header
             self._add_header(story, report_data, include_branding)
