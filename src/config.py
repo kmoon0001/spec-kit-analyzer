@@ -3,8 +3,6 @@ from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
 import yaml
-from functools import lru_cache
-from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
@@ -52,6 +50,8 @@ class PhiScrubberModelSettings(BaseModel):
 
 
 class ModelsSettings(BaseModel):
+    generator: Optional[str] = None
+    generator_filename: Optional[str] = None
     generator_profiles: Optional[Dict[str, GeneratorProfile]] = None
     chat: Optional[ChatModelSettings] = None
     retriever: str
@@ -61,8 +61,7 @@ class ModelsSettings(BaseModel):
     analysis_prompt_template: str
     nlg_prompt_template: str
     phi_scrubber: Optional[PhiScrubberModelSettings] = None
-    generator: Optional[str] = None
-    generator_filename: Optional[str] = None
+
 
 class LLMSettings(BaseModel):
     model_type: str
@@ -78,7 +77,7 @@ class RetrievalSettings(BaseModel):
 
 class AnalysisSettings(BaseModel):
     confidence_threshold: float = Field(
-0.7,
+        0.7,
         description="Minimum confidence score for a finding to be considered valid.",
     )
     deterministic_focus: str = Field(
@@ -97,7 +96,7 @@ class Settings(BaseModel):
     database: DatabaseSettings
     auth: AuthSettings
     maintenance: MaintenanceSettings
-paths: PathsSettings
+    paths: PathsSettings
     llm: LLMSettings
     retrieval: RetrievalSettings
     analysis: AnalysisSettings
