@@ -1,12 +1,15 @@
-import logging
-from PyQt6.QtCore import QObject, pyqtSignal as Signal
-import asyncio
+"""AI Loader Worker for background initialization of AI models and services."""
 
-# Import the services this worker needs to run
+import asyncio
+import logging
+from typing import Dict, Optional
+
+from PyQt6.QtCore import QObject, pyqtSignal as Signal
+
 from src.core.analysis_service import AnalysisService
-from src.core.database_maintenance_service import DatabaseMaintenanceService
-from src.core.retriever import HybridRetriever
 from src.core.compliance_service import ComplianceService
+from src.core.database_maintenance_service import DatabaseMaintenanceService
+from src.core.hybrid_retriever import HybridRetriever
 
 logger = logging.getLogger(__name__)
 
