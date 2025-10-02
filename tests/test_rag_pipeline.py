@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch, AsyncMock
 
 from src.core.analysis_service import AnalysisService
+from src.core.hybrid_retriever import HybridRetriever
 
 
 @pytest.fixture
@@ -73,23 +74,63 @@ async def test_full_analysis_pipeline_orchestration(mock_dependencies):
     """
     Tests that AnalysisService.analyze_document correctly orchestrates its sub-components.
     """
-    service = AnalysisService()
-    test_file_path = "/fake/path/to/doc.txt"
+    # test code here
 
-    # The service's analyze_document method now returns a coroutine
-    result = await service.analyze_document(test_file_path, discipline="PT")
+    """
+    Tests that AnalysisService.analyze_document correctly orchestrates its sub-components.
+    """
+    # Arrange
+    mock_retriever = MagicMock(spec=HybridRetriever)
 
-    # Verify the initial steps
-    mock_dependencies["parser"].assert_called_once_with(test_file_path)
-    mock_dependencies["classifier"].classify_document.assert_awaited_once()
+    # We need to patch get_settings because it's called inside the __init__
+    with patch("src.core.analysis_service.get_settings") as mock_get_settings:
+        # Provide a mock settings object that has the necessary attributes
+        mock_settings = MagicMock()
+        mock_settings.models.analysis_prompt_template = "dummy.txt"
+        mock_settings.models.nlg_prompt_template = "dummy.txt"
+        mock_settings.models.doc_classifier_prompt = "dummy.txt"
+        mock_settings.analysis.deterministic_focus = "focus"
+        # Mock the model dump for LLMService initialization
+        mock_settings.models.model_dump.return_value = {
+            "generator_profiles": {
+                "standard": {"repo": "test-repo", "filename": "test.gguf"}
+            }
+        }
+        mock_settings.llm.model_dump.return_value = {}
+        mock_get_settings.return_value = mock_settings
 
-    # Verify that the core analysis was delegated correctly
-    analyze_call_args = mock_dependencies["analyzer"].analyze_document.call_args
-    assert "document_text" in analyze_call_args.kwargs
-    assert analyze_call_args.kwargs["discipline"] == "PT"
-    assert analyze_call_args.kwargs["doc_type"] == "Progress Note"
+        service = AnalysisService(retriever=mock_retriever)
 
+<<<<<<< HEAD
     # Verify that the final report is generated and returned
     mock_dependencies["reporter"].generate_report.assert_awaited_once()
     assert "summary" in result
     assert result["analysis"]["findings"] == [{"issue_title": "test finding"}]
+||||||| ab2d9e5
+    # Verify that the final report is generated and returned
+    mock_dependencies["reporter"].generate_report.assert_awaited_once()
+    assert "summary" in result
+    assert result["analysis"]["findings"] == [{"issue_title": "test finding"}]
+=======
+test_file_path = "/fake/path/to/doc.txt"
+
+# Act
+result = await service.analyze_document(test_file_path, discipline="PT")
+
+# Assert – Verify the initial calls and pipeline orchestration
+mock_dependencies["parser"].assert_called_once_with(test_file_path)
+mock_dependencies["classifier"].classify_document.assert_awaited_once()
+
+# Verify that the core analysis was delegated correctly
+analyze_call_args = mock_dependencies["analyzer"].analyze_document.call_args
+assert "document_text" in analyze_call_args.kwargs
+assert analyze_call_args.kwargs["discipline"] == "PT"
+assert analyze_call_args.kwargs["doc_type"] == "Progress Note"
+
+# Verify final report is generated and returned
+mock_dependencies["reporter"].generate_report.assert_awaited_once()
+
+# Final result checks
+assert "summary" in result
+assert result["analysis"]["findings"] == [{"issue_title": "test finding"}]
+>>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da

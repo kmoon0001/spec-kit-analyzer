@@ -1,71 +1,74 @@
 # Core Web & API
-fastapi
-uvicorn 
-gunicorn
-slowapi
-requests
-httpx
+fastapi==0.118.0
+uvicorn==0.37.0
+gunicorn==23.0.0
+slowapi==0.1.9
+requests==2.32.5
+httpx==0.28.1
 
 # GUI
-PyQt6
-PyQt6-WebEngine
-matplotlib
-pytesseract
+PyQt6==6.9.1
+PyQt6-WebEngine==6.9.0
+matplotlib==3.10.6
+pytesseract==0.3.13
 
 # Data & Parsing
-pdfplumber
-pypdfium2
-python-docx
-pandas
-openpyxl
-pyyaml
-markdown
+pdfplumber==0.11.7
+pypdfium2==4.30.0
+python-docx==1.2.0
+pandas==2.3.3
+openpyxl==3.1.5
+pyyaml==6.0.3
+markdown==3.9
 
 # AI & Machine Learning
-torch
+torch==2.8.0
 transformers==4.49.0
-sentence-transformers
-ctransformers
-faiss-cpu
-rank_bm25
-accelerate
-nltk
-pyspellchecker
-spacy
-spacy-transformers==1.3.8
-scispacy
-# scispaCy model for biomedical NER
+sentence-transformers==5.1.1
+ctransformers==0.2.27
+faiss-cpu==1.12.0
+rank_bm25==0.2.2
+accelerate==1.10.1
+nltk==3.9.2
+pyspellchecker==0.8.3
+spacy==3.8.7
+spacy-transformers==1.3.9
+scispacy==0.6.2
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl#sha256=1932429db727d4bff3deed6b34cfc05df17794f4a52eeb26cf8928f7c1a0fb85
 https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz
-# spaCy model for general NER (names, locations, etc.)
-en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz
 
 # Database
-SQLAlchemy
-rdflib
-aiosqlite
+SQLAlchemy==2.0.43
+rdflib==7.2.1
+aiosqlite==0.21.0
 
 # Security & Auth
-python-dotenv # For loading .env files
-passlib[bcrypt]
-python-multipart
-PyJWT
-python-jose[cryptography]
-email-validator  # For Pydantic email validation
+python-dotenv==1.1.1
+passlib==1.7.4
+bcrypt==3.2.0
+python-multipart==0.0.20
+PyJWT==2.10.1
+python-jose==3.5.0
+cryptography==46.0.2
+email-validator==2.3.0
 
 # Numeric & Science
-numpy
-scipy
+numpy==2.3.3
+scipy==1.16.2
 
 # Performance & Monitoring
-psutil
-onnxruntime  # Switched to CPU-only version
-optimum  # Model optimization
+psutil==7.1.0
+onnxruntime==1.23.0
+optimum==1.27.0
 
 # Enhanced Features (Optional)
-reportlab  # PDF export functionality
-xhtml2pdf  # HTML-to-PDF export
-openpyxl  # Excel export support
+reportlab==4.4.4
+xhtml2pdf==0.2.17
 
 # Scheduling
-apscheduler
-tenacity
+apscheduler==3.11.0
+tenacity==9.1.2
+
+# Configuration
+pydantic-settings==2.11.0
+structlog==25.4.0

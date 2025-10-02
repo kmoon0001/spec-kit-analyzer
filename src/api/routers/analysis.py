@@ -6,7 +6,7 @@ and retrieving analysis results.
 """
 
 import asyncio
-import logging
+import structlog
 import uuid
 from pathlib import Path
 from typing import Any, Dict
@@ -28,7 +28,7 @@ from ...core.analysis_service import AnalysisService
 from ...core.security_validator import SecurityValidator
 from ..dependencies import get_analysis_service
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
 tasks: Dict[str, Dict[str, Any]] = {}
@@ -66,7 +66,7 @@ def run_analysis_and_save(
                 "filename": original_filename,
             }
         except Exception as exc:  # pragma: no cover - defensive
-            logger.exception("Analysis task %s failed", task_id)
+            logger.exception("Analysis task failed", task_id=task_id, error=str(exc))
             tasks[task_id] = {
                 "status": "failed",
                 "error": str(exc),

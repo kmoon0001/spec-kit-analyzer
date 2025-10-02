@@ -15,9 +15,12 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.database.crud import create_user
 from src.database.models import User
+from src.database.crud import create_user
 from src.database.schemas import UserCreate
+import src.database.models as models
+import src.database.crud as crud
+import src.database.schemas as schemas
 from src.api.main import app
 from src.core.compliance_analyzer import ComplianceAnalyzer
 from src.core.explanation import ExplanationEngine

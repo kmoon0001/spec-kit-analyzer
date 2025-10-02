@@ -52,8 +52,16 @@ async def change_user_password(
 
 async def create_rubric(
     db: AsyncSession, rubric: schemas.RubricCreate
+<<<<<<< HEAD
 ) -> models.ComplianceRubric:
     db_rubric = models.ComplianceRubric(**rubric.dict())
+||||||| ab2d9e5
+) -> models.Rubric:
+    db_rubric = models.Rubric(**rubric.dict())
+=======
+) -> models.ComplianceRubric:
+db_rubric = models.ComplianceRubric(**rubric.model_dump())
+>>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
     db.add(db_rubric)
     await db.commit()
     await db.refresh(db_rubric)
@@ -68,12 +76,21 @@ async def get_rubric(
     )
     return result.scalars().first()
 
-
 async def get_rubrics(
     db: AsyncSession, skip: int = 0, limit: int = 100
+<<<<<<< HEAD
 ) -> List[models.ComplianceRubric]:
     result = await db.execute(select(models.ComplianceRubric).offset(skip).limit(limit))
     return list(result.scalars().all())
+||||||| ab2d9e5
+) -> List[models.Rubric]:
+    result = await db.execute(select(models.Rubric).offset(skip).limit(limit))
+    return result.scalars().all()
+=======
+) -> List[models.ComplianceRubric]:
+    result = await db.execute(select(models.ComplianceRubric).offset(skip).limit(limit))
+    return result.scalars().all()
+>>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
 
 
 async def update_rubric(
@@ -81,7 +98,7 @@ async def update_rubric(
 ) -> Optional[models.ComplianceRubric]:
     db_rubric = await get_rubric(db, rubric_id)
     if db_rubric:
-        for key, value in rubric.dict().items():
+        for key, value in rubric.model_dump().items():
             setattr(db_rubric, key, value)
         await db.commit()
         await db.refresh(db_rubric)
@@ -89,16 +106,32 @@ async def update_rubric(
 
 
 async def delete_rubric(db: AsyncSession, rubric_id: int) -> None:
+<<<<<<< HEAD
     await db.execute(
         delete(models.ComplianceRubric).where(models.ComplianceRubric.id == rubric_id)
     )
+||||||| ab2d9e5
+    await db.execute(delete(models.Rubric).where(models.Rubric.id == rubric_id))
+=======
+await db.execute(
+        delete(models.ComplianceRubric).where(models.ComplianceRubric.id == rubric_id)
+    )
+>>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
     await db.commit()
 
 
 async def create_report(
     db: AsyncSession, report: schemas.ReportCreate
+<<<<<<< HEAD
 ) -> models.AnalysisReport:
     db_report = models.AnalysisReport(**report.dict())
+||||||| ab2d9e5
+) -> models.Report:
+    db_report = models.Report(**report.dict())
+=======
+) -> models.AnalysisReport:
+    db_report = models.AnalysisReport(**report.model_dump())
+>>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
     db.add(db_report)
     await db.commit()
     await db.refresh(db_report)
@@ -137,9 +170,17 @@ async def get_reports(
     Returns:
         A list of AnalysisReport model instances.
     """
+<<<<<<< HEAD
     query = select(models.AnalysisReport).options(
         selectinload(models.AnalysisReport.findings)
     )
+||||||| ab2d9e5
+    query = select(models.Report).options(selectinload(models.Report.findings))
+=======
+query = select(models.AnalysisReport).options(
+        selectinload(models.AnalysisReport.findings)
+    )
+>>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
 
     if document_type:
         query = query.where(models.AnalysisReport.document_type == document_type)
@@ -167,7 +208,7 @@ async def delete_report(db: AsyncSession, report_id: int) -> None:
 
 
 async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
-    cutoff_date = datetime.datetime.utcnow() - datetime.timedelta(days=days)
+    cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)
     # Delete associated findings first due to foreign key constraints
     # Find report IDs to delete
     reports_to_delete_query = select(models.AnalysisReport.id).filter(
@@ -185,9 +226,17 @@ async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
         )
         # Then delete the reports
         result = await db.execute(
+<<<<<<< HEAD
             delete(models.AnalysisReport).filter(
                 models.AnalysisReport.analysis_date < cutoff_date
             )
+||||||| ab2d9e5
+            delete(models.Report).filter(models.Report.analysis_date < cutoff_date)
+=======
+delete(models.AnalysisReport).filter(
+                models.AnalysisReport.analysis_date < cutoff_date
+            )
+>>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
         )
         await db.commit()
         return result.rowcount

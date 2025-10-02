@@ -1,6 +1,16 @@
 """Dependency injection and singleton service management for FastAPI application."""
+<<<<<<< HEAD
 
 import logging
+||||||| ab2d9e5
+
+import logging
+"""Dependency injection and singleton service management for FastAPI application."""
+
+import logging
+=======
+import structlog
+>>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
 from typing import Any, Dict
 
 from fastapi import Depends, HTTPException, status
@@ -15,7 +25,7 @@ from src.database import models
 settings = get_settings()
 
 # Configure logger
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # This dictionary will hold our singleton instances
 app_state: Dict[str, Any] = {}
@@ -62,7 +72,9 @@ async def get_retriever() -> Any:
 async def startup_event():
     """Application startup event handler. Initializes singleton services."""
     logger.info("Application starting up...")
-    if settings.use_ai_mocks:
+    use_mocks = get_settings().use_ai_mocks
+    logger.info("AI mock status", use_ai_mocks=use_mocks)
+    if use_mocks:
         logger.warning("AI mocks are enabled. Using MockAnalysisService.")
         app_state["analysis_service"] = MockAnalysisService()
     else:

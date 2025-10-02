@@ -26,7 +26,7 @@ def client_with_auth_override():
         is_active=True,
         is_admin=False,
         hashed_password="dummy_hash_for_mock_flow",
-        created_at=datetime.datetime.utcnow(),
+        created_at=datetime.datetime.now(datetime.timezone.utc),
     )
 
     def override_get_current_active_user():

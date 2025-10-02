@@ -1,11 +1,11 @@
-import logging
+import structlog
 from typing import Dict, Any, Optional
 from threading import Lock
 
 # Import at top level for easier mocking and to avoid import-time side effects.
 from ctransformers import AutoModelForCausalLM
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class LLMService:
@@ -26,6 +26,7 @@ class LLMService:
         model_repo_id: str,
         model_filename: str,
         llm_settings: Optional[Dict[str, Any]] = None,
+        revision: Optional[str] = None,
     ):
         """
         Initializes the LLM Service configuration without loading the model.
@@ -34,10 +35,12 @@ class LLMService:
             model_repo_id (str): The Hugging Face repository ID for the model.
             model_filename (str): The specific GGUF model file to use.
             llm_settings (dict, optional): A dictionary of settings for ctransformers.
+            revision (str, optional): The specific model revision (commit hash) to use.
         """
         self.model_repo_id = model_repo_id
         self.model_filename = model_filename
         self.settings = llm_settings or {}
+        self.revision = revision
         self.llm = None  # The model will be loaded lazily.
         self.is_loading = False
 
@@ -51,21 +54,29 @@ class LLMService:
 
         self.is_loading = True
         try:
-            logger.info("Loading LLM: %s/%s", self.model_repo_id, self.model_filename)
+            logger.info(
+                "Loading LLM",
+                model_repo_id=self.model_repo_id,
+                model_filename=self.model_filename,
+            )
             # Pass model-specific settings directly to the from_pretrained method.
             model_type = self.settings.get("model_type", "llama")
             context_length = self.settings.get("context_length", 2048)
 
+            from_pretrained_args = {
+                "model_file": self.model_filename,
+                "model_type": model_type,
+                "context_length": context_length,
+            }
+            if self.revision:
+                from_pretrained_args["revision"] = self.revision
+
             self.llm = AutoModelForCausalLM.from_pretrained(
-                self.model_repo_id,
-                model_file=self.model_filename,
-                model_type=model_type,
-                context_length=context_length,
-                # Add any other relevant settings from your config
+                self.model_repo_id, **from_pretrained_args
             )
-            logger.info("LLM loaded successfully.")
+            logger.info("LLM loaded successfully")
         except Exception as e:
-            logger.critical("Fatal error: Failed to load LLM. %s", e, exc_info=True)
+            logger.critical("Fatal error: Failed to load LLM", error=str(e), exc_info=True)
             self.llm = None
         finally:
             self.is_loading = False
@@ -103,9 +114,7 @@ class LLMService:
             A string containing the generated text or an error message.
         """
         if not self.is_ready():
-            logger.error(
-                "LLM is not available or failed to load. Cannot generate text."
-            )
+            logger.error("LLM is not available or failed to load. Cannot generate text.")
             return "Error: LLM service is not available."
 
         try:
@@ -113,16 +122,23 @@ class LLMService:
             gen_params = self.settings.get("generation_params", {}).copy()
             gen_params.update(kwargs)
 
+<<<<<<< HEAD
             logger.debug("Generating text with params: %s", gen_params)
             if self.llm is None:
                 logger.error("LLM model is not loaded")
                 return "Error: LLM model is not available."
+||||||| ab2d9e5
+            logger.debug("Generating text with params: %s", gen_params)
+=======
+            logger.debug("Generating text with params", params=gen_params)
+>>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
             response = self.llm(prompt, **gen_params)
             return response
         except Exception as e:
             logger.error(
-                "An error occurred during text generation: %s", e, exc_info=True
+                "An error occurred during text generation", error=str(e), exc_info=True
             )
+<<<<<<< HEAD
             return "An error occurred during text generation."
 
     def generate_analysis(self, prompt: str, **kwargs) -> str:
@@ -137,3 +153,8 @@ class LLMService:
             A string containing the generated analysis.
         """
         return self.generate(prompt, **kwargs)
+||||||| ab2d9e5
+            return "An error occurred during text generation."
+=======
+            return "An error occurred during text generation."
+>>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da

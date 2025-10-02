@@ -1,7 +1,7 @@
 # ruff: noqa: E402
 import os
 import sys
-import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 # --- Pre-emptive Mocking ---
@@ -71,7 +71,7 @@ def client():
         username="testuser",
         is_active=True,
         is_admin=False,
-        created_at=datetime.datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
 
     def override_get_current_active_user():
