@@ -16,52 +16,146 @@ logger = logging.getLogger(__name__)
 
 class AILoaderWorker(QObject):
     """
-    A worker to handle all application startup tasks in the background,
-    including database maintenance and loading AI models.
+    Background worker for initializing AI models and services during application startup.
+    
+    Handles database maintenance, AI model loading, and service initialization
+    in a separate thread to prevent UI blocking.
     """
 
-    finished = Signal(object, bool, str, dict)  # analyzer, is_healthy, status_message
+    # Signals
+    progress_updated = Signal(int)  # Progress percentage (0-100)
+    status_updated = Signal(str)   # Status message for UI
+    finished = Signal(object, bool, str, dict)  # service, success, message, health_map
 
-    def run(self):
-        """Runs startup tasks: database purge, then AI model loading."""
+    def __init__(self) -> None:
+        """Initialize the AI loader worker."""
+        super().__init__()
+        self._analysis_service: Optional[AnalysisService] = None
+        self._compliance_service: Optional[ComplianceService] = None
+
+    def run(self) -> None:
+        """
+        Execute the AI loading workflow.
+        
+        Steps:
+        1. Database maintenance and cleanup
+        2. Initialize retrieval system
+        3. Load AI models and services
+        4. Perform health checks
+        5. Emit completion signal
+        """
         try:
-            # 1. Run Database Maintenance
-            logger.info("Kicking off database maintenance from the AI loader.")
-            maintenance_service = DatabaseMaintenanceService()
-            maintenance_service.purge_old_reports()
-
-            # 3. Initialize HybridRetriever and AnalysisService
-            retriever = HybridRetriever()
-            asyncio.run(retriever.initialize())
-            analyzer_service = AnalysisService(retriever=retriever)
-            compliance_service = ComplianceService(analysis_service=analyzer_service)
-
-            chat_llm = getattr(analyzer_service, "chat_llm_service", None)
-            chat_ready = (
-                bool(getattr(chat_llm, "is_ready", lambda: False)())
-                if chat_llm
-                else False
-            )
-
-            health_map = {
-                "Generator": bool(
-                    getattr(analyzer_service.llm_service, "is_ready", lambda: False)()
-                ),
-                "Retriever": True,
-                "Fact Checker": bool(
-                    getattr(analyzer_service.fact_checker_service, "pipeline", None)
-                ),
-                "NER": bool(getattr(analyzer_service.ner_analyzer, "ner_pipeline", None)),
-                "Checklist": True,
-                "Chat": chat_ready,
-            }
-
-            # 4. Emit the success signal with the initialized service
+            self._run_database_maintenance()
+            self._initialize_retrieval_system()
+            self._load_ai_services()
+            health_map = self._perform_health_checks()
+            
+            self.status_updated.emit("AI Systems: Online")
+            self.progress_updated.emit(100)
             self.finished.emit(
-                compliance_service, True, "AI Systems: Online", health_map
+                self._compliance_service, True, "AI Systems: Online", health_map
             )
-
+            
         except Exception as e:
-            # If any part of the startup fails, emit a failure signal
-            logger.error(f"Error during AI loader worker execution: {e}", exc_info=True)
+            logger.error("AI loader worker failed: %s", str(e), exc_info=True)
+            self.status_updated.emit(f"AI Systems: Offline - {e}")
             self.finished.emit(None, False, f"AI Systems: Offline - {e}", {})
+
+    def _run_database_maintenance(self) -> None:
+        """Run database cleanup and maintenance tasks."""
+        self.status_updated.emit("🔧 Running database maintenance...")
+        self.progress_updated.emit(10)
+        
+        logger.info("Starting database maintenance")
+        maintenance_service = DatabaseMaintenanceService()
+        maintenance_service.purge_old_reports()
+        logger.info("Database maintenance completed")
+
+    def _initialize_retrieval_system(self) -> None:
+        """Initialize the hybrid retrieval system."""
+        self.status_updated.emit("🔍 Initializing retrieval system...")
+        self.progress_updated.emit(30)
+        
+        logger.info("Initializing hybrid retriever")
+        retriever = HybridRetriever()
+        
+        # Handle async initialization properly
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(retriever.initialize())
+        finally:
+            loop.close()
+            
+        self._retriever = retriever
+        logger.info("Hybrid retriever initialized successfully")
+
+    def _load_ai_services(self) -> None:
+        """Load and initialize AI services."""
+        self.status_updated.emit("🤖 Loading AI models...")
+        self.progress_updated.emit(60)
+        
+        logger.info("Initializing analysis service")
+        self._analysis_service = AnalysisService(retriever=self._retriever)
+        
+        logger.info("Initializing compliance service")
+        self._compliance_service = ComplianceService(
+            analysis_service=self._analysis_service
+        )
+        
+        self.progress_updated.emit(80)
+        logger.info("AI services loaded successfully")
+
+    def _perform_health_checks(self) -> Dict[str, bool]:
+        """
+        Perform health checks on all AI components.
+        
+        Returns:
+            Dictionary mapping component names to their health status
+        """
+        self.status_updated.emit("🏥 Performing health checks...")
+        self.progress_updated.emit(90)
+        
+        health_map = {}
+        
+        if self._analysis_service:
+            # Check LLM service
+            llm_service = getattr(self._analysis_service, "llm_service", None)
+            health_map["Generator"] = bool(
+                llm_service and getattr(llm_service, "is_ready", lambda: False)()
+            )
+            
+            # Check fact checker
+            fact_checker = getattr(self._analysis_service, "fact_checker_service", None)
+            health_map["Fact Checker"] = bool(
+                fact_checker and getattr(fact_checker, "pipeline", None)
+            )
+            
+            # Check NER analyzer
+            ner_analyzer = getattr(self._analysis_service, "ner_analyzer", None)
+            health_map["NER"] = bool(
+                ner_analyzer and hasattr(ner_analyzer, "ner_pipeline")
+            )
+            
+            # Check chat service
+            chat_service = getattr(self._analysis_service, "chat_llm_service", None)
+            health_map["Chat"] = bool(
+                chat_service and getattr(chat_service, "is_ready", lambda: False)()
+            )
+        else:
+            # Default to False if analysis service not available
+            health_map.update({
+                "Generator": False,
+                "Fact Checker": False,
+                "NER": False,
+                "Chat": False,
+            })
+        
+        # These components are always available
+        health_map.update({
+            "Retriever": True,
+            "Checklist": True,
+        })
+        
+        logger.info("Health check completed: %s", health_map)
+        return health_map
