@@ -1,14 +1,23 @@
-from . import models, schemas
+"""
+Database CRUD operations for the Therapy Compliance Analyzer.
+
+Provides async database operations for users, rubrics, reports, and findings.
+"""
+
 import datetime
 from typing import List, Optional
+
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
+
+from . import models, schemas
 
 
 async def get_user_by_username(
     db: AsyncSession, username: str
 ) -> Optional[models.User]:
+    """Get user by username."""
     result = await db.execute(
         select(models.User).filter(models.User.username == username)
     )
@@ -16,6 +25,7 @@ async def get_user_by_username(
 
 
 async def get_user(db: AsyncSession, user_id: int) -> Optional[models.User]:
+    """Get user by ID."""
     result = await db.execute(select(models.User).filter(models.User.id == user_id))
     return result.scalars().first()
 
@@ -23,6 +33,7 @@ async def get_user(db: AsyncSession, user_id: int) -> Optional[models.User]:
 async def create_user(
     db: AsyncSession, user: schemas.UserCreate, hashed_password: str
 ) -> models.User:
+    """Create a new user."""
     db_user = models.User(
         username=user.username,
         hashed_password=hashed_password,
@@ -36,6 +47,7 @@ async def create_user(
 
 
 async def delete_user(db: AsyncSession, user_id: int) -> None:
+    """Delete a user by ID."""
     await db.execute(delete(models.User).where(models.User.id == user_id))
     await db.commit()
 
@@ -43,6 +55,7 @@ async def delete_user(db: AsyncSession, user_id: int) -> None:
 async def change_user_password(
     db: AsyncSession, user: models.User, new_hashed_password: str
 ) -> models.User:
+    """Change user password."""
     user.hashed_password = new_hashed_password
     db.add(user)
     await db.commit()
@@ -52,16 +65,9 @@ async def change_user_password(
 
 async def create_rubric(
     db: AsyncSession, rubric: schemas.RubricCreate
-<<<<<<< HEAD
 ) -> models.ComplianceRubric:
-    db_rubric = models.ComplianceRubric(**rubric.dict())
-||||||| ab2d9e5
-) -> models.Rubric:
-    db_rubric = models.Rubric(**rubric.dict())
-=======
-) -> models.ComplianceRubric:
-db_rubric = models.ComplianceRubric(**rubric.model_dump())
->>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
+    """Create a new compliance rubric."""
+    db_rubric = models.ComplianceRubric(**rubric.model_dump())
     db.add(db_rubric)
     await db.commit()
     await db.refresh(db_rubric)
@@ -71,31 +77,27 @@ db_rubric = models.ComplianceRubric(**rubric.model_dump())
 async def get_rubric(
     db: AsyncSession, rubric_id: int
 ) -> Optional[models.ComplianceRubric]:
+    """Get rubric by ID."""
     result = await db.execute(
         select(models.ComplianceRubric).filter(models.ComplianceRubric.id == rubric_id)
     )
     return result.scalars().first()
 
+
 async def get_rubrics(
     db: AsyncSession, skip: int = 0, limit: int = 100
-<<<<<<< HEAD
 ) -> List[models.ComplianceRubric]:
-    result = await db.execute(select(models.ComplianceRubric).offset(skip).limit(limit))
+    """Get paginated list of rubrics."""
+    result = await db.execute(
+        select(models.ComplianceRubric).offset(skip).limit(limit)
+    )
     return list(result.scalars().all())
-||||||| ab2d9e5
-) -> List[models.Rubric]:
-    result = await db.execute(select(models.Rubric).offset(skip).limit(limit))
-    return result.scalars().all()
-=======
-) -> List[models.ComplianceRubric]:
-    result = await db.execute(select(models.ComplianceRubric).offset(skip).limit(limit))
-    return result.scalars().all()
->>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
 
 
 async def update_rubric(
     db: AsyncSession, rubric_id: int, rubric: schemas.RubricCreate
 ) -> Optional[models.ComplianceRubric]:
+    """Update an existing rubric."""
     db_rubric = await get_rubric(db, rubric_id)
     if db_rubric:
         for key, value in rubric.model_dump().items():
@@ -106,32 +108,18 @@ async def update_rubric(
 
 
 async def delete_rubric(db: AsyncSession, rubric_id: int) -> None:
-<<<<<<< HEAD
+    """Delete a rubric by ID."""
     await db.execute(
         delete(models.ComplianceRubric).where(models.ComplianceRubric.id == rubric_id)
     )
-||||||| ab2d9e5
-    await db.execute(delete(models.Rubric).where(models.Rubric.id == rubric_id))
-=======
-await db.execute(
-        delete(models.ComplianceRubric).where(models.ComplianceRubric.id == rubric_id)
-    )
->>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
     await db.commit()
 
 
 async def create_report(
     db: AsyncSession, report: schemas.ReportCreate
-<<<<<<< HEAD
 ) -> models.AnalysisReport:
-    db_report = models.AnalysisReport(**report.dict())
-||||||| ab2d9e5
-) -> models.Report:
-    db_report = models.Report(**report.dict())
-=======
-) -> models.AnalysisReport:
+    """Create a new analysis report."""
     db_report = models.AnalysisReport(**report.model_dump())
->>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
     db.add(db_report)
     await db.commit()
     await db.refresh(db_report)
@@ -141,6 +129,7 @@ async def create_report(
 async def get_report(
     db: AsyncSession, report_id: int
 ) -> Optional[models.AnalysisReport]:
+    """Get report by ID."""
     result = await db.execute(
         select(models.AnalysisReport).filter(models.AnalysisReport.id == report_id)
     )
@@ -155,32 +144,23 @@ async def get_reports(
     min_score: Optional[float] = None,
 ) -> List[models.AnalysisReport]:
     """
-    Retrieves a paginated and filtered list of reports from the database.
+    Retrieve paginated and filtered list of reports.
 
-    This function includes eager loading for related findings to prevent
-    N+1 query problems.
+    Includes eager loading for related findings to prevent N+1 query problems.
 
     Args:
-        db (AsyncSession): The database session.
-        skip (int): The number of records to skip for pagination.
-        limit (int): The maximum number of records to return.
-        document_type (str, optional): Filter reports by document type.
-        min_score (float, optional): Filter reports by a minimum compliance score.
+        db: Database session
+        skip: Number of records to skip for pagination
+        limit: Maximum number of records to return
+        document_type: Optional filter by document type
+        min_score: Optional filter by minimum compliance score
 
     Returns:
-        A list of AnalysisReport model instances.
+        List of AnalysisReport model instances
     """
-<<<<<<< HEAD
     query = select(models.AnalysisReport).options(
         selectinload(models.AnalysisReport.findings)
     )
-||||||| ab2d9e5
-    query = select(models.Report).options(selectinload(models.Report.findings))
-=======
-query = select(models.AnalysisReport).options(
-        selectinload(models.AnalysisReport.findings)
-    )
->>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
 
     if document_type:
         query = query.where(models.AnalysisReport.document_type == document_type)
@@ -198,6 +178,7 @@ query = select(models.AnalysisReport).options(
 
 
 async def delete_report(db: AsyncSession, report_id: int) -> None:
+    """Delete a report and its associated findings."""
     await db.execute(
         delete(models.Finding).where(models.Finding.report_id == report_id)
     )
@@ -208,14 +189,26 @@ async def delete_report(db: AsyncSession, report_id: int) -> None:
 
 
 async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
-    cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)
-    # Delete associated findings first due to foreign key constraints
+    """
+    Delete reports older than specified days.
+
+    Args:
+        db: Database session
+        days: Number of days threshold
+
+    Returns:
+        Number of reports deleted
+    """
+    cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+        days=days
+    )
+
     # Find report IDs to delete
     reports_to_delete_query = select(models.AnalysisReport.id).filter(
         models.AnalysisReport.analysis_date < cutoff_date
     )
     reports_to_delete_result = await db.execute(reports_to_delete_query)
-    report_ids_to_delete = reports_to_delete_result.scalars().all()
+    report_ids_to_delete = list(reports_to_delete_result.scalars().all())
 
     if report_ids_to_delete:
         # Delete findings associated with these reports
@@ -226,17 +219,9 @@ async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
         )
         # Then delete the reports
         result = await db.execute(
-<<<<<<< HEAD
             delete(models.AnalysisReport).filter(
                 models.AnalysisReport.analysis_date < cutoff_date
             )
-||||||| ab2d9e5
-            delete(models.Report).filter(models.Report.analysis_date < cutoff_date)
-=======
-delete(models.AnalysisReport).filter(
-                models.AnalysisReport.analysis_date < cutoff_date
-            )
->>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
         )
         await db.commit()
         return result.rowcount
@@ -246,9 +231,21 @@ delete(models.AnalysisReport).filter(
 async def find_similar_report(
     db: AsyncSession, embedding: bytes, threshold: float = 0.9
 ) -> Optional[models.AnalysisReport]:
-    # This is a placeholder for actual similarity search logic.
-    # In a real application, this would involve a vector database or a more sophisticated similarity search.
-    # For now, we'll return None, simulating no similar report found.
+    """
+    Find similar report based on embedding similarity.
+
+    This is a placeholder for actual similarity search logic.
+    In production, this would use a vector database.
+
+    Args:
+        db: Database session
+        embedding: Document embedding bytes
+        threshold: Similarity threshold
+
+    Returns:
+        Similar report if found, None otherwise
+    """
+    # Placeholder - would implement vector similarity search in production
     return None
 
 
@@ -257,6 +254,17 @@ async def create_report_and_findings(
     report_data: schemas.ReportCreate,
     findings_data: List[schemas.FindingCreate],
 ) -> models.AnalysisReport:
+    """
+    Create a report with associated findings in a single transaction.
+
+    Args:
+        db: Database session
+        report_data: Report creation data
+        findings_data: List of finding creation data
+
+    Returns:
+        Created AnalysisReport with findings
+    """
     db_report = models.AnalysisReport(
         document_name=report_data.document_name,
         compliance_score=report_data.compliance_score,
