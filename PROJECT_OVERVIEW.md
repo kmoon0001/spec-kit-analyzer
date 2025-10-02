@@ -69,7 +69,8 @@ The application relies on a number of open-source libraries and frameworks, whic
 - **Rank-BM25**: A library for BM25 ranking, a keyword-based search algorithm.
 - **NLTK**: The Natural Language Toolkit, a leading platform for building Python programs to work with human language data.
 - **PySpellChecker**: A library for identifying and correcting misspelled words.
-- **spaCy & scispaCy**: Industrial-strength NLP libraries used for Named Entity Recognition (NER) and other text processing tasks. `scispaCy` is specialized for biomedical text.
+- **Hugging Face Transformers**: Modern transformer-based models for Named Entity Recognition (NER) and biomedical text analysis, replacing spaCy for better accuracy and flexibility.
+- **Presidio**: Microsoft's data protection and de-identification SDK for detecting and anonymizing PII/PHI in text.
 
 ### Database
 - **SQLAlchemy**: A SQL toolkit and Object-Relational Mapper (ORM) that gives application developers the full power and flexibility of SQL.
