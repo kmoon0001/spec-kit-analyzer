@@ -1,9 +1,12 @@
-import structlog
-from typing import Dict, Any, Optional
-from threading import Lock
+"""LLM Service for managing local language models using llama-cpp-python."""
 
-# Import at top level for easier mocking and to avoid import-time side effects.
-from ctransformers import AutoModelForCausalLM
+from threading import Lock
+from typing import Any, Dict, Optional
+
+import structlog
+
+# Import llama-cpp-python for GGUF model support
+from llama_cpp import Llama
 
 logger = structlog.get_logger(__name__)
 
@@ -46,7 +49,7 @@ class LLMService:
 
     def _load_model(self):
         """
-        Loads the GGUF model using the configured settings.
+        Loads the GGUF model using llama-cpp-python.
         This method is intended to be called internally and is not thread-safe by itself.
         """
         if self.llm:
@@ -55,26 +58,32 @@ class LLMService:
         self.is_loading = True
         try:
             logger.info(
-                "Loading LLM",
+                "Loading LLM with llama-cpp-python",
                 model_repo_id=self.model_repo_id,
                 model_filename=self.model_filename,
             )
-            # Pass model-specific settings directly to the from_pretrained method.
-            model_type = self.settings.get("model_type", "llama")
-            context_length = self.settings.get("context_length", 2048)
 
-            from_pretrained_args = {
-                "model_file": self.model_filename,
-                "model_type": model_type,
-                "context_length": context_length,
-            }
-            if self.revision:
-                from_pretrained_args["revision"] = self.revision
+            # Download model from Hugging Face if needed
+            from huggingface_hub import hf_hub_download
 
-            self.llm = AutoModelForCausalLM.from_pretrained(
-                self.model_repo_id, **from_pretrained_args
+            model_path = hf_hub_download(
+                repo_id=self.model_repo_id,
+                filename=self.model_filename,
+                revision=self.revision,
             )
-            logger.info("LLM loaded successfully")
+
+            # Get settings
+            context_length = self.settings.get("context_length", 2048)
+            n_threads = self.settings.get("n_threads", 4)
+
+            # Load model with llama-cpp-python
+            self.llm = Llama(
+                model_path=model_path,
+                n_ctx=context_length,
+                n_threads=n_threads,
+                verbose=False,
+            )
+            logger.info("LLM loaded successfully with llama-cpp-python")
         except Exception as e:
             logger.critical(
                 "Fatal error: Failed to load LLM", error=str(e), exc_info=True
@@ -126,13 +135,33 @@ class LLMService:
             gen_params = self.settings.get("generation_params", {}).copy()
             gen_params.update(kwargs)
 
-            logger.debug("Generating text with params", params=gen_params)
+            # Map parameter names for llama-cpp-python
+            max_tokens = gen_params.pop("max_new_tokens", 512)
+            temperature = gen_params.pop("temperature", 0.1)
+
+            logger.debug(
+                "Generating text with llama-cpp-python",
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+
             if self.llm is None:
                 logger.error("LLM model is not loaded")
                 return "Error: LLM model is not available."
 
-            response = self.llm(prompt, **gen_params)
-            return response
+            # Generate with llama-cpp-python
+            response = self.llm(
+                prompt,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                stop=["</s>", "\n\n"],
+                echo=False,
+            )
+
+            # Extract text from response
+            generated_text = response["choices"][0]["text"].strip()
+            return generated_text
+
         except Exception as e:
             logger.error(
                 "An error occurred during text generation", error=str(e), exc_info=True
