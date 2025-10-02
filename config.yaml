@@ -71,3 +71,61 @@ analysis:
     - Treatment frequency documented
     - Goals reviewed or adjusted
     - Medical necessity justified
+
+# --- 7 Habits Personal Development Framework ---
+habits_framework:
+  enabled: true  # Master toggle for entire habits feature
+  
+  # Visibility Level: Controls how prominent the habits feature is
+  # Options: "subtle" (A), "moderate" (B), "prominent" (C)
+  visibility_level: "moderate"  # Default to moderate visibility
+  
+  # Report Integration Settings
+  report_integration:
+    show_habit_tags: true  # Show habit tags on individual findings
+    show_personal_development_section: true  # Show collapsible section at end of report
+    show_habit_tooltips: true  # Show hover tooltips with quick tips
+    habit_section_expanded_by_default: false  # Start collapsed (moderate)
+    # When visibility_level="prominent", this becomes true
+  
+  # Dashboard Integration Settings
+  dashboard_integration:
+    show_growth_journey_tab: true  # Show dedicated habits tab in dashboard
+    show_weekly_focus_widget: true  # Show "This Week's Focus" widget
+    show_habit_progression_charts: true  # Show habit mastery visualizations
+    show_peer_comparison: false  # Anonymous peer comparison (privacy-sensitive)
+  
+  # AI-Powered Features
+  ai_features:
+    use_ai_mapping: false  # Use AI for contextual habit mapping (requires LLM)
+    use_ai_coaching: false  # Enable AI habit coach assistant
+    personalized_strategies: true  # Generate personalized improvement strategies
+  
+  # Gamification & Motivation
+  gamification:
+    enabled: true  # Enable achievement system
+    show_badges: true  # Show achievement badges
+    show_streaks: true  # Show improvement streaks
+    show_milestones: true  # Celebrate milestones
+    notifications_enabled: false  # Send achievement notifications (off by default)
+  
+  # Educational Content
+  education:
+    show_habit_resources: true  # Show detailed habit explanations
+    show_clinical_examples: true  # Show clinical application examples
+    show_improvement_strategies: true  # Show actionable strategies
+    show_templates: true  # Offer habit-based documentation templates
+  
+  # Privacy & Data
+  privacy:
+    track_progression: true  # Track habit improvement over time
+    anonymous_analytics: true  # Contribute to anonymous benchmarking
+    share_achievements: false  # Allow sharing achievements (off by default)
+  
+  # Advanced Settings
+  advanced:
+    habit_confidence_threshold: 0.6  # Minimum confidence for habit mapping
+    focus_area_threshold: 0.20  # Percentage threshold for "needs focus" (20%)
+    mastery_threshold: 0.05  # Percentage threshold for "mastered" (5%)
+    weekly_focus_enabled: true  # Generate weekly habit focus
+    auto_suggest_templates: true  # Suggest templates based on findings
