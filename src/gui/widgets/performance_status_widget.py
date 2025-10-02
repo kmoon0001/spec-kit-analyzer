@@ -115,8 +115,6 @@ class PerformanceStatusWidget(QWidget):
             logger.warning("Performance manager not available")
 
     def update_status(self):
-        try:
-            # Original update logic with error handling
         """Update performance status display with error handling."""
         if not self.performance_manager:
             return
