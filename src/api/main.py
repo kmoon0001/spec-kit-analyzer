@@ -7,7 +7,7 @@ Provides endpoints for document analysis, user management, and compliance report
 
 import os
 import shutil
-import logging
+import structlog
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -25,22 +25,22 @@ from src.api.routers import admin, analysis, auth, chat, compliance, dashboard, 
 from src.api.error_handling import http_exception_handler
 from src.core.database_maintenance_service import DatabaseMaintenanceService
 from src.config import get_settings
+from src.logging_config import CorrelationIdMiddleware
 
 settings = get_settings()
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
 
 # --- Configuration ---
 DATABASE_PURGE_RETENTION_DAYS = settings.maintenance.purge_retention_days
-TEMP_UPLOAD_DIR = settings.paths.temp_upload_dir
 
 # --- Logging ---
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 # --- Helper Functions ---
 def clear_temp_uploads():
     """Clears all files from the temporary upload directory."""
-    directory_path = settings.temp_upload_dir
+    directory_path = settings.paths.temp_upload_dir
     try:
         if os.path.exists(directory_path):
             for filename in os.listdir(directory_path):
@@ -50,13 +50,11 @@ def clear_temp_uploads():
                         os.unlink(file_path)
                     elif os.path.isdir(file_path):
                         shutil.rmtree(file_path)
-                    logger.info("Successfully cleaned up temporary file: %s", file_path)
+                    logger.info("Successfully cleaned up temporary file", file_path=file_path)
                 except (OSError, PermissionError) as e:
-                    logger.error("Failed to delete %s. Reason: %s", file_path, e)
+                    logger.error("Failed to delete temp file", file_path=file_path, error=str(e))
     except Exception as e:
-        logger.exception(
-            "An unexpected error occurred while clearing temp uploads: %s", e
-        )
+        logger.exception("An unexpected error occurred while clearing temp uploads", error=str(e))
 
 
 def run_database_maintenance():
@@ -72,7 +70,7 @@ def run_database_maintenance():
         )
         logger.info("Scheduler job: Database maintenance finished.")
     except Exception as e:
-        logger.exception("Database maintenance job failed: %s", e)
+        logger.exception("Database maintenance job failed", error=str(e))
 
 
 # --- FastAPI App Setup ---
@@ -89,9 +87,9 @@ async def lifespan(app: FastAPI):
     # 2. Clean up any orphaned temporary files from previous runs.
     logger.info("Clearing temporary upload directory...")
     try:
-        clear_temp_uploads(TEMP_UPLOAD_DIR)
+        clear_temp_uploads()
     except Exception as e:
-        logger.error("An error occurred during temp file cleanup: %s", e)
+        logger.error("An error occurred during temp file cleanup", error=str(e))
 
     # 3. Initialize and start the background scheduler
     scheduler.add_job(run_database_maintenance, "interval", days=1)
@@ -114,6 +112,7 @@ app = FastAPI(
 
 
 # --- Middleware and Exception Handlers ---
+app.add_middleware(CorrelationIdMiddleware)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)

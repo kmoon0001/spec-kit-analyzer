@@ -26,16 +26,19 @@ paths:
 models:
   generator_profiles:
     standard:
-      repo: "microsoft/Phi-3-mini-4k-instruct-gguf"
+      repo: "QuantFactory/Phi-3-mini-4k-instruct-GGUF"
       filename: "Phi-3-mini-4k-instruct.Q4_K_M.gguf"
+      revision: "7dcfbd4b7f6f2718048dc171d977aab914075776"
       max_system_gb: 11.0
     enhanced:
-      repo: "meta-llama/Meta-Llama-3-8B-Instruct-GGUF"
-      filename: "Meta-Llama-3-8B-Instruct.Q4_K_M.gguf"
+      repo: "second-state/Llama-3-8B-Instruct-GGUF"
+      filename: "Meta-Llama-3-8B-Instruct-Q4_K_M.gguf"
+      revision: "05372b81638de3fcbfe8945745dd7666b7bc47e3"
       min_system_gb: 11.0
   chat:
-    repo: "TheBloke/ClinicalCamel-5B-GGUF"
-    filename: "clinical-camel-5b.Q4_K_M.gguf"
+    repo: "TheBloke/medicine-chat-GGUF"
+    filename: "medicine-chat.Q4_K_M.gguf"
+    revision: "4b698781e153498a28f456df766e8cd3c2f22212"
     model_type: "llama"
     context_length: 2048
   retriever: "sentence-transformers/all-MiniLM-L6-v2"

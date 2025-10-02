@@ -53,7 +53,7 @@ async def change_user_password(
 async def create_rubric(
     db: AsyncSession, rubric: schemas.RubricCreate
 ) -> models.ComplianceRubric:
-    db_rubric = models.ComplianceRubric(**rubric.dict())
+db_rubric = models.ComplianceRubric(**rubric.model_dump())
     db.add(db_rubric)
     await db.commit()
     await db.refresh(db_rubric)
@@ -68,7 +68,6 @@ async def get_rubric(
     )
     return result.scalars().first()
 
-
 async def get_rubrics(
     db: AsyncSession, skip: int = 0, limit: int = 100
 ) -> List[models.ComplianceRubric]:
@@ -81,7 +80,7 @@ async def update_rubric(
 ) -> Optional[models.ComplianceRubric]:
     db_rubric = await get_rubric(db, rubric_id)
     if db_rubric:
-        for key, value in rubric.dict().items():
+        for key, value in rubric.model_dump().items():
             setattr(db_rubric, key, value)
         await db.commit()
         await db.refresh(db_rubric)
@@ -89,7 +88,7 @@ async def update_rubric(
 
 
 async def delete_rubric(db: AsyncSession, rubric_id: int) -> None:
-    await db.execute(
+await db.execute(
         delete(models.ComplianceRubric).where(models.ComplianceRubric.id == rubric_id)
     )
     await db.commit()
@@ -98,7 +97,7 @@ async def delete_rubric(db: AsyncSession, rubric_id: int) -> None:
 async def create_report(
     db: AsyncSession, report: schemas.ReportCreate
 ) -> models.AnalysisReport:
-    db_report = models.AnalysisReport(**report.dict())
+    db_report = models.AnalysisReport(**report.model_dump())
     db.add(db_report)
     await db.commit()
     await db.refresh(db_report)
@@ -137,7 +136,7 @@ async def get_reports(
     Returns:
         A list of Report model instances.
     """
-    query = select(models.AnalysisReport).options(
+query = select(models.AnalysisReport).options(
         selectinload(models.AnalysisReport.findings)
     )
 
@@ -167,7 +166,7 @@ async def delete_report(db: AsyncSession, report_id: int) -> None:
 
 
 async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
-    cutoff_date = datetime.datetime.utcnow() - datetime.timedelta(days=days)
+    cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)
     # Delete associated findings first due to foreign key constraints
     # Find report IDs to delete
     reports_to_delete_query = select(models.AnalysisReport.id).filter(
@@ -185,7 +184,7 @@ async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
         )
         # Then delete the reports
         result = await db.execute(
-            delete(models.AnalysisReport).filter(
+delete(models.AnalysisReport).filter(
                 models.AnalysisReport.analysis_date < cutoff_date
             )
         )

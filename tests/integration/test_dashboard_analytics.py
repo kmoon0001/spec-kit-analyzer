@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.api.main import app
 from src.auth import get_current_active_user
@@ -19,7 +19,7 @@ async def test_get_director_dashboard_with_filters(async_client, mocker):
         is_active=True,
         is_admin=True,
         hashed_password="$2b$12$mockhashedpasswordstringforetesting12345678901234567890",
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     try:
         app.dependency_overrides[get_current_active_user] = lambda: mock_user
