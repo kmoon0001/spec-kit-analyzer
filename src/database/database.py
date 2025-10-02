@@ -31,10 +31,10 @@ try:
 
     perf_config = get_performance_config()
     pool_size = perf_config.connection_pool_size
-    logger.info("Applying performance-tuned connection pool size", pool_size=pool_size)
+    logger.info("Applying performance-tuned connection pool size: %s", pool_size)
 except (ImportError, AttributeError):
     pool_size = 10  # Sensible default
-    logger.info("Using default connection pool size", pool_size=pool_size)
+    logger.info("Using default connection pool size: %s", pool_size)
 
 engine_args: Dict[str, Any] = {"echo": settings.database.echo}
 
