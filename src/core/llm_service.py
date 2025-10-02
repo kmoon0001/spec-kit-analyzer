@@ -62,9 +62,9 @@ class LLMService:
                 model_repo_id=self.model_repo_id,
             )
 
-            # Use a small, fast model that works well
-            # TinyLlama is too big, use microsoft/phi-2 or TinyLlama/TinyLlama-1.1B-Chat-v1.0
-            model_id = "microsoft/phi-2"  # 2.7GB, works great for medical text
+            # Use a very small, fast model for CPU
+            # distilgpt2 is tiny (82MB) and fast enough for basic text generation
+            model_id = "distilgpt2"  # 82MB, very fast on CPU
 
             # Load tokenizer and model
             self.tokenizer = AutoTokenizer.from_pretrained(

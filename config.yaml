@@ -1,7 +1,7 @@
 # Lightweight Configuration for Therapy Compliance Analyzer
 # Optimized for reliable startup and core functionality
 
-use_ai_mocks: true  # Use mocks to avoid LLM loading issues
+use_ai_mocks: false  # Use real models
 enable_director_dashboard: true
 
 database:
