@@ -10,6 +10,8 @@ class PathsSettings(BaseModel):
     api_url: str
     rule_dir: str
     medical_dictionary: str = "src/resources/medical_dictionary.txt"
+    cache_dir: str = ".cache"
+    logs_dir: str = "logs"
 
 
 class DatabaseSettings(BaseModel):
@@ -75,13 +77,21 @@ class ModelsSettings(BaseModel):
 class LLMSettings(BaseModel):
     model_type: str
     context_length: int
-    generation_params: Dict[str, Any]
+    generation_params: Dict[str, Any] = {
+        "temperature": 0.1,
+        "max_new_tokens": 1024,
+        "top_p": 0.9,
+        "repeat_penalty": 1.1,
+        "stop_sequences": ["</analysis>", "\n\n---"]
+    }
 
 
 class RetrievalSettings(BaseModel):
     similarity_top_k: int
     dense_model_name: str
     rrf_k: int
+    batch_size: int = 16
+    max_sequence_length: int = 512
 
 
 class HabitsReportIntegration(BaseModel):
@@ -175,13 +185,76 @@ class HabitsFrameworkSettings(BaseModel):
 
 class AnalysisSettings(BaseModel):
     confidence_threshold: float = Field(
-        0.7,
+        0.75,
         description="Minimum confidence score for a finding to be considered valid.",
     )
     deterministic_focus: str = Field(
         "- Treatment frequency documented\n- Goals reviewed or adjusted\n- Medical necessity justified",
         description="Default focus points for compliance analysis.",
     )
+    max_document_length: int = Field(
+        50000,
+        description="Maximum document length in characters for processing.",
+    )
+    chunk_overlap: int = Field(
+        100,
+        description="Overlap between text chunks for context preservation.",
+    )
+    parallel_processing: bool = Field(
+        True,
+        description="Enable parallel analysis processing where possible.",
+    )
+
+
+class PerformanceSettings(BaseModel):
+    """Performance and caching configuration."""
+    
+    # Memory management
+    max_cache_memory_mb: int = 2048
+    embedding_cache_size: int = 1000
+    ner_cache_size: int = 500
+    llm_cache_size: int = 200
+    
+    # Processing optimization
+    use_gpu: bool = False
+    model_quantization: bool = True
+    batch_size: int = 4
+    max_workers: int = 2
+    
+    # Timeouts and limits
+    analysis_timeout_minutes: int = 10
+    model_load_timeout_minutes: int = 5
+    api_request_timeout_seconds: int = 30
+
+
+class LoggingSettings(BaseModel):
+    """Logging configuration."""
+    
+    level: str = "INFO"
+    format: str = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    file_rotation: bool = True
+    max_file_size_mb: int = 10
+    backup_count: int = 5
+
+
+class SecuritySettings(BaseModel):
+    """Security configuration."""
+    
+    enable_rate_limiting: bool = True
+    max_requests_per_minute: int = 60
+    enable_cors: bool = False
+    allowed_file_extensions: List[str] = [".pdf", ".docx", ".txt", ".doc"]
+    max_file_size_mb: int = 50
+
+
+class FeatureSettings(BaseModel):
+    """Feature flags configuration."""
+    
+    enable_ocr: bool = True
+    enable_batch_processing: bool = True
+    enable_export: bool = True
+    enable_chat: bool = True
+    enable_dashboard_analytics: bool = True
 
 
 class Settings(BaseModel):
@@ -195,6 +268,10 @@ class Settings(BaseModel):
     analysis: AnalysisSettings
     models: ModelsSettings
     habits_framework: HabitsFrameworkSettings = HabitsFrameworkSettings()
+    performance: PerformanceSettings = PerformanceSettings()
+    logging: LoggingSettings = LoggingSettings()
+    security: SecuritySettings = SecuritySettings()
+    features: FeatureSettings = FeatureSettings()
     use_ai_mocks: bool = False
 
     # This field will be populated from the SECRET_KEY in the .env file

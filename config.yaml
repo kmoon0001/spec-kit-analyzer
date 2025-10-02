@@ -1,18 +1,18 @@
 # Lightweight Configuration for Therapy Compliance Analyzer
-# Optimized for reliable startup and core functionality
+# Avoids T5/sentencepiece conflicts by using only BERT-based models
 
-use_ai_mocks: false  # Use real models
+use_ai_mocks: false  # Use real models but lightweight ones
 enable_director_dashboard: true
 
 database:
   url: "sqlite:///./compliance.db"
   echo: false
-  pool_size: 5  # Reduced for lighter load
-  max_overflow: 10
-  pool_timeout: 30
-  pool_recycle: 3600
+  pool_size: 3
+  max_overflow: 5
+  pool_timeout: 20
+  pool_recycle: 1800
   sqlite_optimizations: true
-  connection_timeout: 20
+  connection_timeout: 15
 
 auth:
   secret_key: "your_secret_key_here"
@@ -24,34 +24,34 @@ maintenance:
   purge_interval_days: 1
 
 paths:
-  temp_upload_dir: "/tmp/uploads"
+  temp_upload_dir: "tmp/uploads"
   api_url: "http://127.0.0.1:8000"
   rule_dir: "src/resources/rules"
   medical_dictionary: "src/resources/medical_dictionary.txt"
 
 models:
-  # Use GGUF format models compatible with llama-cpp-python
+  # Use only BERT-based models to avoid T5/sentencepiece conflicts
   generator_profiles:
     standard:
-      repo: "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF"  # Tiny, fast GGUF model (637MB)
-      filename: "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
+      repo: "distilbert-base-uncased"  # Lightweight BERT model
+      filename: null
       revision: "main"
-      max_system_gb: 8.0  # Use for systems with less than 8GB
+      max_system_gb: 8.0
     enhanced:
-      repo: "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF"  # Same model for now - fast and reliable
-      filename: "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
+      repo: "bert-base-uncased"  # Standard BERT model
+      filename: null
       revision: "main"
-      min_system_gb: 8.0  # Use for systems with 8GB+
+      min_system_gb: 8.0
   chat:
-    repo: "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF"
-    filename: "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
+    repo: "distilbert-base-uncased"
+    filename: null
     revision: "main"
-    model_type: "llama"
-    context_length: 1024
-  retriever: "sentence-transformers/all-MiniLM-L6-v2"  # Keep this - it's good
-  fact_checker: "google/flan-t5-small"  # Use small version
+    model_type: "bert"
+    context_length: 512
+  retriever: "sentence-transformers/all-MiniLM-L6-v2"
+  fact_checker: "microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext"  # Medical BERT
   ner_ensemble:
-    - "d4data/biomedical-ner-all"  # Keep just one to start faster
+    - "d4data/biomedical-ner-all"
   phi_scrubber:
     general: "beki/en_spacy_pii_fast"
     biomedical: "bigcode/starpii"
@@ -60,14 +60,14 @@ models:
   nlg_prompt_template: "src/resources/prompts/nlg_prompt_template.txt"
 
 llm:
-  model_type: "llama"  # Use llama for GGUF models
-  context_length: 1024  # Smaller context
+  model_type: "bert"  # Use BERT instead of llama/T5
+  context_length: 512
   generation_params:
     temperature: 0.1
-    max_new_tokens: 512  # Much smaller
+    max_new_tokens: 256
 
 retrieval:
-  dense_model_name: "sentence-transformers/all-MiniLM-L6-v2"  # Use same as retriever
+  dense_model_name: "sentence-transformers/all-MiniLM-L6-v2"
   similarity_top_k: 3
   rrf_k: 60
 
@@ -93,7 +93,7 @@ habits_framework:
     show_habit_progression_charts: true
     show_peer_comparison: false
   ai_features:
-    use_ai_mapping: false  # Disable to avoid LLM dependency
+    use_ai_mapping: false
     use_ai_coaching: false
     personalized_strategies: true
   gamification:
