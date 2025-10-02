@@ -15,45 +15,15 @@ from src.core.llm_service import LLMService
 from src.core.report_generator import ReportGenerator
 from src.core.parsing import parse_document_content
 from src.core.phi_scrubber import PhiScrubberService
-from src.core.preprocessing_service import PreprocessingService
-from src.core.text_utils import sanitize_bullets, sanitize_human_text
-from src.core.ner import NERPipeline
-from src.core.prompt_manager import PromptManager
-from src.core.explanation import ExplanationEngine
-from src.core.fact_checker_service import FactCheckerService
-from src.core.nlg_service import NLGService
-from src.core.checklist_service import DeterministicChecklistService as ChecklistService
-
-logger = logging.getLogger(__name__)
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
-
-
-class AnalysisOutput(dict):
-    """Dictionary wrapper that compares by analysis payload for legacy tests."""
-
-    def __eq__(self, other: object) -> bool:  # type: ignore[override]
-        if isinstance(other, dict) and set(other.keys()) == {"findings"}:
-            analysis_section = self.get("analysis")
-            if isinstance(analysis_section, dict):
-                return analysis_section == other
-        return super().__eq__(other)
-
-
-def get_settings():
-    """Legacy helper retained for tests that patch this symbol."""
-    return _get_settings()
-
-
 class AnalysisService:
     """Orchestrates the document analysis process."""
 
     def __init__(
         self,
+        retriever: HybridRetriever,
         phi_scrubber: PhiScrubberService = None,
         preprocessing: PreprocessingService = None,
         document_classifier: DocumentClassifier = None,
-        retriever: HybridRetriever = None,
         llm_service: LLMService = None,
         report_generator: ReportGenerator = None,
         compliance_analyzer: ComplianceAnalyzer = None,
@@ -66,10 +36,8 @@ class AnalysisService:
     ):
         settings = _get_settings()
 
-        # Select generator profile based on system memory
         repo_id, filename = self._select_generator_profile(settings.models.dict())
 
-        # Initialize core services if not provided
         self.llm_service = llm_service or LLMService(
             model_repo_id=repo_id,
             model_filename=filename,
@@ -89,7 +57,6 @@ class AnalysisService:
             prompt_template_path=settings.models.nlg_prompt_template,
         )
 
-        # Initialize analyzer that depends on other services
         self.compliance_analyzer = compliance_analyzer or ComplianceAnalyzer(
             retriever=self.retriever,
             ner_pipeline=self.ner_pipeline,
@@ -101,7 +68,6 @@ class AnalysisService:
             deterministic_focus=settings.analysis.deterministic_focus,
         )
 
-        # Initialize other services
         self.phi_scrubber = phi_scrubber or PhiScrubberService()
         self.preprocessing = preprocessing or PreprocessingService()
         self.document_classifier = document_classifier or DocumentClassifier(
@@ -109,6 +75,8 @@ class AnalysisService:
             prompt_template_path=settings.models.doc_classifier_prompt,
         )
         self.report_generator = report_generator or ReportGenerator()
+        self.checklist_service = checklist_service or ChecklistService()
+
         self.checklist_service = checklist_service or ChecklistService()
 
     def analyze_document(
@@ -128,6 +96,9 @@ class AnalysisService:
             document_text = await self._maybe_await(
                 self.preprocessing.correct_text(document_text)
             )
+
+            # Scrub PHI from the document before any further processing
+            document_text = self.phi_scrubber.scrub(document_text)
 
             discipline_clean = sanitize_human_text(discipline or "Unknown")
             doc_type_raw = await self._maybe_await(

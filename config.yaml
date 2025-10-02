@@ -10,7 +10,7 @@ database:
   echo: false
 
 auth:
-  secret_key: "your_secret_key_here" # Should be overridden by environment variable in production
+  secret_key: "your_secret_key_here"  # Should be overridden by environment variable in production
   algorithm: "HS256"
   access_token_expire_minutes: 30
 
