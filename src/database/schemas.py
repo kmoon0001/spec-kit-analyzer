@@ -10,6 +10,7 @@ class FindingBase(BaseModel):
     risk: str
     personalized_tip: str
     problematic_text: str
+    confidence_score: float = 0.0
 
 
 class Finding(FindingBase):
@@ -55,6 +56,7 @@ class FindingSummary(BaseModel):
 
 class RubricBase(BaseModel):
     name: str
+    discipline: str
     regulation: str
     common_pitfalls: str
     best_practice: str
@@ -81,6 +83,8 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    is_admin: bool = False
+    license_key: Optional[str] = None
 
 
 class User(UserBase):

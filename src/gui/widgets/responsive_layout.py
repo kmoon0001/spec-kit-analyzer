@@ -27,7 +27,7 @@ class ResponsiveWidget(QWidget):
         self.resize_timer.setSingleShot(True)
         self.resize_timer.timeout.connect(self.handle_responsive_change)
 
-    def resizeEvent(self, event: QResizeEvent):
+    def resizeEvent(self, event: QResizeEvent | None):
         """Handle resize events with debouncing."""
         super().resizeEvent(event)
         self.resize_timer.start(100)  # 100ms debounce
@@ -74,8 +74,8 @@ class VirtualScrollArea(QScrollArea):
     def __init__(self, item_height: int = 50, parent=None):
         super().__init__(parent)
         self.item_height = item_height
-        self.items = []
-        self.visible_items = {}
+        self.items: list = []
+        self.visible_items: dict = {}
         self.buffer_size = 5  # Extra items to render outside viewport
 
         self.setWidgetResizable(True)
@@ -89,7 +89,9 @@ class VirtualScrollArea(QScrollArea):
         self.setWidget(self.content_widget)
 
         # Connect scroll events
-        self.verticalScrollBar().valueChanged.connect(self.update_visible_items)
+        scrollbar = self.verticalScrollBar()
+        if scrollbar:
+            scrollbar.valueChanged.connect(self.update_visible_items)
 
     def set_items(self, items: list):
         """Set the list of items to display."""
@@ -150,7 +152,7 @@ class AdaptiveGridLayout(QGridLayout):
     def __init__(self, min_item_width: int = 200, parent=None):
         super().__init__(parent)
         self.min_item_width = min_item_width
-        self.items = []
+        self.items: list = []
 
     def add_adaptive_widget(self, widget: QWidget):
         """Add widget that will be positioned adaptively."""

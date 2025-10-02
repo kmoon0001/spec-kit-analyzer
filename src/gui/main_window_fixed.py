@@ -43,7 +43,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 settings = get_settings()
-API_URL = settings.api_url
+API_URL = settings.paths.api_url
 logger = logging.getLogger(__name__)
 
 

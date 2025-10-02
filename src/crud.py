@@ -81,5 +81,4 @@ async def get_findings_summary(db: AsyncSession):
 async def get_all_rubrics(db: AsyncSession):
     """Retrieve all compliance rubrics from the database."""
     result = await db.execute(select(models.ComplianceRubric))
-    return list(result.scalars().all()
-)
+    return list(result.scalars().all())

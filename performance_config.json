@@ -1,9 +1,9 @@
 {
   "profile": "conservative",
   "system_info": {
-    "total_memory_gb": 7,
-    "available_memory_gb": 7,
-    "cpu_count": 4,
+    "total_memory_gb": 15,
+    "available_memory_gb": 4,
+    "cpu_count": 14,
     "cuda_available": false,
     "gpu_memory_gb": 0,
     "gpu_name": "None"

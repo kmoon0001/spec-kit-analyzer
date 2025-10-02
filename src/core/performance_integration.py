@@ -108,11 +108,11 @@ class PerformanceIntegrationService(QObject):
 
     def optimize_for_analysis(self) -> Dict[str, Any]:
         """Optimize system performance before running analysis."""
-        optimization_results = {
+        optimization_results: Dict[str, Any] = {
             "cache_cleanup": False,
             "memory_freed_mb": 0,
+            "recommendations": [],
             "profile_adjusted": False,
-            "recommendations": [],  # type: ignore
         }
 
         try:

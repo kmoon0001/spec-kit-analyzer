@@ -1,19 +1,18 @@
 """Dependency injection and singleton service management for FastAPI application."""
 
 import logging
-"""Dependency injection and singleton service management for FastAPI application."""
-
-import logging
 from typing import Any, Dict
 
 from fastapi import Depends, HTTPException, status
 
-from src.database import models
 from src.auth import get_current_active_user
-from ..core.mock_analysis_service import MockAnalysisService
+from src.config import get_settings
+from src.core.analysis_service import AnalysisService
 from src.core.hybrid_retriever import HybridRetriever
-from ..core.analysis_service import AnalysisService
-from src.core.config import settings  # Add this import for settings
+from src.core.mock_analysis_service import MockAnalysisService
+from src.database import models
+
+settings = get_settings()
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -41,13 +40,22 @@ def get_analysis_service() -> Any:
 
 
 async def get_retriever() -> Any:
+    """
+    Dependency to get the singleton HybridRetriever instance.
+    Creates and initializes the retriever if it doesn't exist.
+    """
     if "retriever" not in app_state:
         logger.info("Retriever instance not found, creating a new one.")
-
-        retriever_instance = HybridRetriever()
-        await retriever_instance.initialize()
-        app_state["retriever"] = retriever_instance
-        logger.info("New retriever instance created and initialized.")
+        try:
+            retriever_instance = HybridRetriever()
+            # Check if the retriever has an initialize method
+            if hasattr(retriever_instance, 'initialize'):
+                await retriever_instance.initialize()
+            app_state["retriever"] = retriever_instance
+            logger.info("New retriever instance created and initialized.")
+        except Exception as e:
+            logger.error("Failed to create retriever instance: %s", e)
+            raise
     return app_state["retriever"]
 
 

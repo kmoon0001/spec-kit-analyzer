@@ -55,7 +55,7 @@ class ChatDialog(QDialog):
         self.send_button.clicked.connect(self.send_message)
         self.close_button.rejected.connect(self.reject)
 
-        self.thread: QThread | None = None
+        self.worker_thread: QThread | None = None
         self.worker: ChatWorker | None = None
 
         self.send_initial_message()
@@ -77,15 +77,15 @@ class ChatDialog(QDialog):
         self.message_input.setEnabled(False)
         self.update_chat_display("assistant", "<i>...thinking...</i>")
 
-        self.thread = QThread()
+        self.worker_thread = QThread()
         self.worker = ChatWorker(self.history, self.token)
-        self.worker.moveToThread(self.thread)
+        self.worker.moveToThread(self.worker_thread)
         self.worker.success.connect(self.on_chat_success)
         self.worker.error.connect(self.on_chat_error)
-        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker_thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.start()
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        self.worker_thread.start()
 
     def on_chat_success(self, ai_response: str):
         self.history.append({"role": "assistant", "content": ai_response})

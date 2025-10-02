@@ -37,7 +37,7 @@ class RuleLoader:
 
         for subject in graph.subjects(RDF.type, rule_class_uri):
             try:
-                rules.append(self._create_rule_from_graph(graph, subject, default_ns))
+                rules.append(self._create_rule_from_graph(graph, subject, default_ns))  # type: ignore[arg-type]
             except Exception as exc:  # pragma: no cover - defensive
                 logger.error(
                     "Failed to parse rule %s in %s: %s", subject, filepath, exc
@@ -49,7 +49,7 @@ class RuleLoader:
     ) -> ComplianceRule:
         def literal(predicate: str) -> str | None:
             value = graph.value(rule_uri, URIRef(default_ns + predicate))
-            return value.toPython() if value is not None else None
+            return value.toPython() if value is not None else None  # type: ignore[attr-defined]
 
         def keywords(predicate: str) -> List[str]:
             keyword_list: List[str] = []
@@ -58,7 +58,7 @@ class RuleLoader:
                 return keyword_list
             keyword_predicate = URIRef(default_ns + "hasKeyword")
             for keyword in graph.objects(keyword_node, keyword_predicate):
-                keyword_list.append(keyword.toPython())
+                keyword_list.append(keyword.toPython())  # type: ignore[attr-defined]
             return keyword_list
 
         return ComplianceRule(

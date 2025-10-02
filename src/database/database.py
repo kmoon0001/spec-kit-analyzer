@@ -1,5 +1,5 @@
 import logging
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Dict, Any
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from ..config import get_settings
@@ -27,7 +27,7 @@ except (ImportError, AttributeError):
     pool_size = 10  # Sensible default
     logger.info("Using default connection pool size: %d", pool_size)
 
-engine_args = {"echo": settings.database.echo}
+engine_args: Dict[str, Any] = {"echo": settings.database.echo}
 
 # Connection pooling is not supported by aiosqlite in the same way as other drivers.
 # We apply these settings only for non-SQLite databases.

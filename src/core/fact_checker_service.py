@@ -46,6 +46,9 @@ class FactCheckerService:
         try:
             # The prompt format depends on the model. For Flan-T5, a simple question works well.
             prompt = f"Premise: {premise}\nHypothesis: {hypothesis}\nIs the hypothesis supported by the premise?"
+            if self.classifier is None:
+                logger.error("Classifier is not loaded")
+                return True  # Fail open
             result = self.classifier(prompt, max_length=50)
 
             # The output is a string that needs to be interpreted.
@@ -55,4 +58,31 @@ class FactCheckerService:
 
         except Exception as e:
             logger.error(f"Error during fact-checking: {e}")
+            return True  # Fail open
+
+    def is_finding_plausible(self, finding: dict, rule: dict) -> bool:
+        """
+        Check if a finding is plausible given the associated rule.
+        
+        Args:
+            finding: Dictionary containing finding details
+            rule: Dictionary containing rule details
+            
+        Returns:
+            True if the finding is plausible, False otherwise
+        """
+        try:
+            # Extract relevant text from finding and rule
+            finding_text = finding.get("problematic_text", "")
+            rule_text = rule.get("content", "") or rule.get("regulation", "")
+            
+            if not finding_text or not rule_text:
+                logger.warning("Missing text for fact-checking, assuming plausible")
+                return True
+            
+            # Use the consistency checker to validate the finding against the rule
+            return self.check_consistency(rule_text, finding_text)
+            
+        except Exception as e:
+            logger.error(f"Error checking finding plausibility: {e}")
             return True  # Fail open

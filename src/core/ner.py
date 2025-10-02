@@ -1,10 +1,10 @@
 import logging
-import os
 import spacy
 from typing import List, Dict, Any
 from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
 
 logger = logging.getLogger(__name__)
+
 
 class NERPipeline:
     """
@@ -57,7 +57,17 @@ class NERPipeline:
         """
         clinician_names = []
         doc = self.spacy_nlp(text)
-        keywords = {"signature", "therapist", "by", "dr", "pt", "ot", "slp", "cota", "pta"}
+        keywords = {
+            "signature",
+            "therapist",
+            "by",
+            "dr",
+            "pt",
+            "ot",
+            "slp",
+            "cota",
+            "pta",
+        }
         for ent in doc.ents:
             if ent.label_ == "PERSON":
                 # Check for keywords in the vicinity of the entity

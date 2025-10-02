@@ -4,15 +4,7 @@ from datetime import datetime
 
 from src.api.main import app
 from src.auth import get_current_active_user
-<<<<<<< HEAD
-from src import schemas
-from src.config import get_settings
-||||||| parent of 40e7f4c (Fix test suite and format with black)
-from src import schemas
-
-=======
 from src.database import schemas
->>>>>>> 40e7f4c (Fix test suite and format with black)
 
 
 @pytest.mark.asyncio
@@ -46,7 +38,6 @@ async def test_get_director_dashboard_data_unauthorized(async_client):
 
 @pytest.mark.asyncio
 async def test_get_director_dashboard_data_as_admin(async_client, mocker):
-    settings = get_settings()
     """
     Test that an admin user can successfully fetch director dashboard data.
     """
@@ -91,7 +82,6 @@ async def test_generate_coaching_focus_as_admin(async_client, mocker):
     """
     Test that an admin can successfully generate an AI coaching focus.
     """
-    settings = get_settings()
     # Manually create a mock user for testing purposes
     mock_user = schemas.User(
         id=1,

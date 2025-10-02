@@ -3,7 +3,7 @@ import urllib.parse
 from PyQt6.QtWidgets import (
     QDialog,
     QVBoxLayout,
-    QTextEdit,
+    QTextBrowser,
     QDialogButtonBox,
     QPushButton,
     QFileDialog,
@@ -13,7 +13,6 @@ from PyQt6.QtPrintSupport import QPrinter
 from PyQt6.QtCore import QUrl
 
 # Local imports
-from src.core.chat_service import ChatService
 from .chat_dialog import ChatDialog
 
 logger = logging.getLogger(__name__)
@@ -24,16 +23,16 @@ class ReportDialog(QDialog):
     A dialog to display an HTML report, handle chat links, and provide a print option.
     """
 
-    def __init__(self, report_html: str, chat_service: ChatService, parent=None):
+    def __init__(self, report_html: str, token: str, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Analysis Report")
         self.setGeometry(150, 150, 900, 700)
 
-        self.chat_service = chat_service
+        self.token = token
 
         self.main_layout = QVBoxLayout(self)
 
-        self.report_display = QTextEdit()
+        self.report_display = QTextBrowser()
         self.report_display.setReadOnly(True)
         self.report_display.setHtml(report_html)
         # Ensure links are not opened externally, so we can handle them
@@ -56,14 +55,14 @@ class ReportDialog(QDialog):
     def handle_anchor_click(self, url: QUrl):
         """Handles clicks on links within the report, specifically for chat."""
         if url.scheme() == "chat":
-            if not self.chat_service:
-                QMessageBox.critical(self, "Error", "Chat service is not available.")
+            if not self.token:
+                QMessageBox.critical(self, "Error", "Authentication token is not available.")
                 return
 
             initial_context = urllib.parse.unquote(url.path())
             chat_dialog = ChatDialog(
                 initial_context=initial_context,
-                chat_service=self.chat_service,
+                token=self.token,
                 parent=self,
             )
             chat_dialog.exec()

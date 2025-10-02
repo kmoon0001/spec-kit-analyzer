@@ -315,7 +315,7 @@ class ExportService:
                     pass
 
             # Document types
-            doc_types = {}
+            doc_types: Dict[str, int] = {}
             for report in reports_data:
                 doc_type = report.get("document_type", "Unknown")
                 doc_types[doc_type] = doc_types.get(doc_type, 0) + 1
@@ -370,7 +370,7 @@ def get_export_service(
 
 
 # Configuration
-EXPORT_CONFIG = {
+EXPORT_CONFIG: Dict[str, Any] = {
     "enable_excel": True,
     "enable_csv": True,
     "enable_json": True,
@@ -382,9 +382,9 @@ EXPORT_CONFIG = {
 def is_export_format_available(format_type: str) -> bool:
     """Check if specific export format is available."""
     if format_type.lower() == "excel":
-        return EXPORT_CONFIG.get("enable_excel", False) and PANDAS_AVAILABLE
+        return bool(EXPORT_CONFIG.get("enable_excel", False)) and PANDAS_AVAILABLE
     elif format_type.lower() == "csv":
-        return EXPORT_CONFIG.get("enable_csv", True)
+        return bool(EXPORT_CONFIG.get("enable_csv", True))
     elif format_type.lower() == "json":
-        return EXPORT_CONFIG.get("enable_json", True)
+        return bool(EXPORT_CONFIG.get("enable_json", True))
     return False

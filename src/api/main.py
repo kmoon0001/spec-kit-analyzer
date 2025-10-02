@@ -22,7 +22,7 @@ from src.api.dependencies import (
     startup_event as api_startup,
 )
 from src.api.routers import admin, analysis, auth, chat, compliance, dashboard, health
-from src.api.error_handling import http_exception_handler
+from src.api.global_exception_handler import global_exception_handler, http_exception_handler
 from src.core.database_maintenance_service import DatabaseMaintenanceService
 from src.config import get_settings
 
@@ -89,7 +89,7 @@ async def lifespan(app: FastAPI):
     # 2. Clean up any orphaned temporary files from previous runs.
     logger.info("Clearing temporary upload directory...")
     try:
-        clear_temp_uploads(TEMP_UPLOAD_DIR)
+        clear_temp_uploads()
     except Exception as e:
         logger.error("An error occurred during temp file cleanup: %s", e)
 
@@ -117,6 +117,7 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(Exception, global_exception_handler)
 
 # --- Routers ---
 app.include_router(health.router, tags=["Health"])

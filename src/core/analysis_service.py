@@ -2,10 +2,9 @@ import asyncio
 import logging
 from collections.abc import Awaitable
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import psutil
-import yaml
 
 from src.config import get_settings as _get_settings
 from src.core.compliance_analyzer import ComplianceAnalyzer
@@ -50,19 +49,19 @@ class AnalysisService:
 
     def __init__(
         self,
-        phi_scrubber: PhiScrubberService = None,
-        preprocessing: PreprocessingService = None,
-        document_classifier: DocumentClassifier = None,
-        retriever: HybridRetriever = None,
-        llm_service: LLMService = None,
-        report_generator: ReportGenerator = None,
-        compliance_analyzer: ComplianceAnalyzer = None,
-        checklist_service: ChecklistService = None,
-        ner_pipeline: NERPipeline = None,
-        explanation_engine: ExplanationEngine = None,
-        prompt_manager: PromptManager = None,
-        fact_checker_service: FactCheckerService = None,
-        nlg_service: NLGService = None,
+        phi_scrubber: Optional[PhiScrubberService] = None,
+        preprocessing: Optional[PreprocessingService] = None,
+        document_classifier: Optional[DocumentClassifier] = None,
+        retriever: Optional[HybridRetriever] = None,
+        llm_service: Optional[LLMService] = None,
+        report_generator: Optional[ReportGenerator] = None,
+        compliance_analyzer: Optional[ComplianceAnalyzer] = None,
+        checklist_service: Optional[ChecklistService] = None,
+        ner_pipeline: Optional[NERPipeline] = None,
+        explanation_engine: Optional[ExplanationEngine] = None,
+        prompt_manager: Optional[PromptManager] = None,
+        fact_checker_service: Optional[FactCheckerService] = None,
+        nlg_service: Optional[NLGService] = None,
     ):
         settings = _get_settings()
 
@@ -75,7 +74,7 @@ class AnalysisService:
             model_filename=filename,
             llm_settings=settings.llm.dict(),
         )
-        self.retriever = retriever or HybridRetriever(settings=settings)
+        self.retriever = retriever or HybridRetriever()
         self.ner_pipeline = ner_pipeline or NERPipeline(settings.models.ner_ensemble)
         self.prompt_manager = prompt_manager or PromptManager(
             template_path=settings.models.analysis_prompt_template
@@ -336,7 +335,7 @@ class AnalysisService:
                     chosen_name,
                     mem_gb,
                 )
-                return chosen_profile.get("repo"), chosen_profile.get("filename")
+                return chosen_profile.get("repo", ""), chosen_profile.get("filename", "")
             # Fall back to the first profile if none matched
             first_name, first_profile = next(iter(profiles.items()))
             logger.warning(
@@ -344,9 +343,9 @@ class AnalysisService:
                 mem_gb,
                 first_name,
             )
-            return first_profile.get("repo"), first_profile.get("filename")
+            return first_profile.get("repo", ""), first_profile.get("filename", "")
         # Legacy single-entry configuration
-        return models_cfg.get("generator"), models_cfg.get("generator_filename")
+        return models_cfg.get("generator", ""), models_cfg.get("generator_filename", "")
 
     def _build_chat_llm(
         self,
@@ -385,12 +384,7 @@ class AnalysisService:
         except Exception:  # pragma: no cover - defensive fallback
             return 16.0
 
-    def _load_config(self) -> Dict[str, Any]:
-        try:
-            with open(self.config_path, "r", encoding="utf-8") as handle:
-                return yaml.safe_load(handle) or {}
-        except FileNotFoundError:
-            return yaml.safe_load("{}") or {}
+
 
 
 __all__ = ["AnalysisService", "AnalysisOutput", "get_settings"]

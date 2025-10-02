@@ -15,26 +15,34 @@ def mock_llm_service():
 
 
 def test_classify_evaluation(mock_llm_service):
-    classifier = DocumentClassifier(llm_service=mock_llm_service, prompt_template_path="")
+    classifier = DocumentClassifier(
+        llm_service=mock_llm_service, prompt_template_path=""
+    )
     text = "This is a patient evaluation and assessment."
     assert classifier.classify_document(text) == "Evaluation"
 
 
 def test_classify_progress_note(mock_llm_service):
     mock_llm_service.generate.return_value = "Progress Note"
-    classifier = DocumentClassifier(llm_service=mock_llm_service, prompt_template_path="")
+    classifier = DocumentClassifier(
+        llm_service=mock_llm_service, prompt_template_path=""
+    )
     text = "This is a daily progress note."
     assert classifier.classify_document(text) == "Progress Note"
 
 
 def test_classify_unknown(mock_llm_service):
     mock_llm_service.is_ready.return_value = False
-    classifier = DocumentClassifier(llm_service=mock_llm_service, prompt_template_path="")
+    classifier = DocumentClassifier(
+        llm_service=mock_llm_service, prompt_template_path=""
+    )
     text = "This is a standard document with no keywords."
     assert classifier.classify_document(text) == "Unknown"
 
 
 def test_classify_case_insensitivity(mock_llm_service):
-    classifier = DocumentClassifier(llm_service=mock_llm_service, prompt_template_path="")
+    classifier = DocumentClassifier(
+        llm_service=mock_llm_service, prompt_template_path=""
+    )
     text = "this is an EVALUATION."
     assert classifier.classify_document(text) == "Evaluation"

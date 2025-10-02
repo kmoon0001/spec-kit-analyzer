@@ -4,7 +4,6 @@ from typing import List, Tuple, Set
 from threading import Lock
 
 import spacy
-import spacy_transformers
 from spacy.language import Language
 
 logger = logging.getLogger(__name__)

@@ -335,7 +335,7 @@ def create_pdf_export_service(enabled: bool = True) -> Optional[PDFExportService
 
 
 # Configuration
-PDF_EXPORT_CONFIG = {
+PDF_EXPORT_CONFIG: Dict[str, Any] = {
     "enabled": True,  # Can be set to False to disable PDF export
     "include_branding": True,
     "default_output_dir": "reports",
@@ -345,4 +345,4 @@ PDF_EXPORT_CONFIG = {
 
 def is_pdf_export_enabled() -> bool:
     """Check if PDF export is enabled and available."""
-    return PDF_EXPORT_CONFIG.get("enabled", False) and PDF_AVAILABLE
+    return bool(PDF_EXPORT_CONFIG.get("enabled", False)) and PDF_AVAILABLE

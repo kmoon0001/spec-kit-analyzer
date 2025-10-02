@@ -245,8 +245,8 @@ class HelpSystem:
     def __init__(self, enabled: bool = True):
         self.enabled = enabled
         self.help_content = self._load_help_content()
-        self.active_tooltips = []
-        self.active_bubbles = []
+        self.active_tooltips: list = []
+        self.active_bubbles: list = []
 
         if not enabled:
             logger.info("Help system disabled")
@@ -309,7 +309,8 @@ class HelpSystem:
         try:
             # Create tooltip
             tooltip_text = f"<b>{help_info['title']}</b><br><br>{help_info['content']}"
-            tooltip = HelpTooltip(tooltip_text, widget.parent())
+            parent_widget = widget.parent()
+            tooltip = HelpTooltip(tooltip_text, parent_widget if isinstance(parent_widget, QWidget) else None)
 
             # Position tooltip near widget
             widget_pos = widget.mapToGlobal(QPoint(0, widget.height() + 5))

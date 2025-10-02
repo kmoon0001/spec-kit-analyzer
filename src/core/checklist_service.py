@@ -9,8 +9,8 @@ try:
     import spacy
     from spacy.language import Language
 except Exception:  # pragma: no cover - spaCy is optional at runtime
-    spacy = None
-    Language = None  # type: ignore[assignment]
+    spacy = None  # type: ignore[assignment]
+    Language = None  # type: ignore[assignment,misc]
 
 from .text_utils import sanitize_human_text
 

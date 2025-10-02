@@ -1,6 +1,5 @@
 import os
 import json
-import logging
 import requests
 import urllib.parse
 import webbrowser
@@ -35,7 +34,7 @@ from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
 from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
-from src.gui.workers.analysis_worker import AnalysisWorker
+
 from src.gui.workers.folder_analysis_starter_worker import FolderAnalysisStarterWorker
 from src.gui.workers.folder_analysis_worker import FolderAnalysisWorker
 from src.gui.workers.single_analysis_polling_worker import SingleAnalysisPollingWorker

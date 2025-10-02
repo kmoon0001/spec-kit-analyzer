@@ -43,7 +43,7 @@ class AnalyticsService:
 
     def __init__(self, enable_advanced_features: bool = True):
         self.enable_advanced_features = enable_advanced_features
-        self.cache = {}  # Simple caching for expensive calculations
+        self.cache: Dict[str, Any] = {}  # Simple caching for expensive calculations
         logger.info(
             f"Analytics service initialized (advanced features: {enable_advanced_features})"
         )
@@ -99,7 +99,7 @@ class AnalyticsService:
                 avg_score = statistics.mean(scores) if scores else 0
 
                 # Calculate risk distribution
-                risk_dist = defaultdict(int)
+                risk_dist: Dict[str, int] = defaultdict(int)
                 for report in day_reports:
                     findings = report.get("findings", [])
                     for finding in findings:
@@ -135,7 +135,7 @@ class AnalyticsService:
             List of common issues with frequency and impact data
         """
         try:
-            issue_counter = Counter()
+            issue_counter: Counter[str] = Counter()
             issue_details = defaultdict(list)
 
             for report in reports_data:
@@ -160,7 +160,7 @@ class AnalyticsService:
                     details = issue_details[rule_id]
 
                     # Calculate risk distribution for this issue
-                    risk_counts = Counter(d["risk"] for d in details)
+                    risk_counts: Counter[str] = Counter(d["risk"] for d in details)
 
                     # Determine overall impact
                     high_risk_count = risk_counts.get("High", 0)
@@ -234,7 +234,7 @@ class AnalyticsService:
 
             # Risk analysis
             total_findings = 0
-            risk_counts = defaultdict(int)
+            risk_counts: Dict[str, int] = defaultdict(int)
 
             for report in reports_data:
                 findings = report.get("findings", [])
@@ -244,7 +244,7 @@ class AnalyticsService:
                     risk_counts[risk] += 1
 
             # Document type analysis
-            doc_type_counts = Counter()
+            doc_type_counts: Counter[str] = Counter()
             doc_type_scores = defaultdict(list)
 
             for report in reports_data:

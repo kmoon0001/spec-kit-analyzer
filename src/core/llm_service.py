@@ -114,6 +114,9 @@ class LLMService:
             gen_params.update(kwargs)
 
             logger.debug("Generating text with params: %s", gen_params)
+            if self.llm is None:
+                logger.error("LLM model is not loaded")
+                return "Error: LLM model is not available."
             response = self.llm(prompt, **gen_params)
             return response
         except Exception as e:
@@ -121,3 +124,16 @@ class LLMService:
                 "An error occurred during text generation: %s", e, exc_info=True
             )
             return "An error occurred during text generation."
+
+    def generate_analysis(self, prompt: str, **kwargs) -> str:
+        """
+        Alias for generate method to maintain compatibility with other services.
+        
+        Args:
+            prompt (str): The input text prompt for analysis.
+            **kwargs: Additional generation parameters.
+            
+        Returns:
+            A string containing the generated analysis.
+        """
+        return self.generate(prompt, **kwargs)
