@@ -2,14 +2,15 @@
 # This file defines the settings for the application, organized into logical sections.
 # Sensitive values like 'secret_key' should be set via environment variables in production.
 
-enable_director_dashboard: true
 use_ai_mocks: true
+enable_director_dashboard: true
 
 database:
   url: "sqlite:///./compliance.db"
+  echo: false
 
 auth:
-  secret_key: "your_secret_key_here" # Changed to a placeholder
+  secret_key: "your_secret_key_here"  # Should be overridden by environment variable in production
   algorithm: "HS256"
   access_token_expire_minutes: 30
 
@@ -42,12 +43,12 @@ models:
   ner_ensemble:
     - "OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M"
     - "d4data/biomedical-ner-all"
+  phi_scrubber:
+    general: "beki/en_spacy_pii_fast"
+    biomedical: "bigcode/starpii"
   doc_classifier_prompt: "src/resources/prompts/doc_classifier_prompt.txt"
   analysis_prompt_template: "src/resources/prompts/analysis_prompt_template.txt"
   nlg_prompt_template: "src/resources/prompts/nlg_prompt_template.txt"
-  phi_scrubber:
-    general: "en_core_sci_sm"
-    biomedical: "en_core_sci_sm"
 
 llm:
   model_type: "llama"
@@ -63,3 +64,7 @@ retrieval:
 
 analysis:
   confidence_threshold: 0.7
+  deterministic_focus: |
+    - Treatment frequency documented
+    - Goals reviewed or adjusted
+    - Medical necessity justified

@@ -102,7 +102,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     await api_shutdown()
-    scheduler.shutdown() # Ensure scheduler is shut down gracefully
+    scheduler.shutdown()  # Ensure scheduler is shut down gracefully
 
 
 app = FastAPI(

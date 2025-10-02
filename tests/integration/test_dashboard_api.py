@@ -4,8 +4,15 @@ from datetime import datetime
 
 from src.api.main import app
 from src.auth import get_current_active_user
+<<<<<<< HEAD
 from src import schemas
 from src.config import get_settings
+||||||| parent of 40e7f4c (Fix test suite and format with black)
+from src import schemas
+
+=======
+from src.database import schemas
+>>>>>>> 40e7f4c (Fix test suite and format with black)
 
 
 @pytest.mark.asyncio

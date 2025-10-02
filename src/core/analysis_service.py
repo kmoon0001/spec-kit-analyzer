@@ -8,46 +8,13 @@ import psutil
 import yaml
 
 from src.config import get_settings as _get_settings
+from src.core.compliance_analyzer import ComplianceAnalyzer
 from src.core.document_classifier import DocumentClassifier
 from src.core.hybrid_retriever import HybridRetriever
 from src.core.llm_service import LLMService
 from src.core.report_generator import ReportGenerator
 from src.core.parsing import parse_document_content
 from src.core.phi_scrubber import PhiScrubberService
-from src.core.text_utils import sanitize_bullets, sanitize_human_text
-from src.core.compliance_analyzer import ComplianceAnalyzer
-from src.core.preprocessing_service import PreprocessingService
-from src.core.checklist_service import (
-    DeterministicChecklistService as ChecklistService,
-)
-from src.core.ner import NERPipeline
-from src.core.explanation import ExplanationEngine
-from src.core.prompt_manager import PromptManager
-from src.core.fact_checker_service import FactCheckerService
-from src.core.nlg_service import NLGService
-
-
-logger = logging.getLogger(__name__)
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
-
-
-class AnalysisOutput(dict):
-    """Dictionary wrapper that compares by analysis payload for legacy tests."""
-
-    def __eq__(self, other: object) -> bool:  # type: ignore[override]
-        if isinstance(other, dict) and set(other.keys()) == {"findings"}:
-            analysis_section = self.get("analysis")
-            if isinstance(analysis_section, dict):
-                return analysis_section == other
-        return super().__eq__(other)
-
-
-def get_settings():
-    """Legacy helper retained for tests that patch this symbol."""
-    return _get_settings()
-
-
 class AnalysisService:
     """Orchestrates the document analysis process."""
 
@@ -55,11 +22,11 @@ class AnalysisService:
         self,
         retriever: HybridRetriever,
         phi_scrubber: PhiScrubberService = None,
+        preprocessing: PreprocessingService = None,
         document_classifier: DocumentClassifier = None,
         llm_service: LLMService = None,
         report_generator: ReportGenerator = None,
         compliance_analyzer: ComplianceAnalyzer = None,
-        preprocessing_service: PreprocessingService = None,
         checklist_service: ChecklistService = None,
         ner_pipeline: NERPipeline = None,
         explanation_engine: ExplanationEngine = None,
@@ -67,64 +34,49 @@ class AnalysisService:
         fact_checker_service: FactCheckerService = None,
         nlg_service: NLGService = None,
     ):
-        settings = get_settings()
-        self.retriever = retriever
+        settings = _get_settings()
 
-        # Initialize core services, allowing mocks to be injected for testing
-        if llm_service:
-            self.llm_service = llm_service
-        else:
-            # Resolve the generator model from settings to initialize the LLM service
-            repo_id, filename = self._select_generator_profile(
-                settings.models.model_dump()
-            )
-            if not repo_id or not filename:
-                raise ValueError("Could not resolve a generator model from settings.")
-            self.llm_service = LLMService(
-                model_repo_id=repo_id,
-                model_filename=filename,
-                llm_settings=settings.llm.model_dump(),
-            )
+        repo_id, filename = self._select_generator_profile(settings.models.dict())
 
-        self.ner_pipeline = ner_pipeline or NERPipeline()
-
-        # If a generic prompt_manager is passed for mocking, use it for the analyzer.
-        if prompt_manager:
-            analysis_pm = prompt_manager
-        else:
-            analysis_pm = PromptManager(
-                template_path=settings.models.analysis_prompt_template
-            )
-
-        self.fact_checker_service = fact_checker_service or FactCheckerService()
+        self.llm_service = llm_service or LLMService(
+            model_repo_id=repo_id,
+            model_filename=filename,
+            llm_settings=settings.llm.dict(),
+        )
+        self.retriever = retriever or HybridRetriever(settings=settings)
+        self.ner_pipeline = ner_pipeline or NERPipeline(settings.models.ner_ensemble)
+        self.prompt_manager = prompt_manager or PromptManager(
+            template_path=settings.models.analysis_prompt_template
+        )
         self.explanation_engine = explanation_engine or ExplanationEngine()
-
-        # NLGService takes the template path directly, not a manager instance.
+        self.fact_checker_service = fact_checker_service or FactCheckerService(
+            model_name=settings.models.fact_checker
+        )
         self.nlg_service = nlg_service or NLGService(
             llm_service=self.llm_service,
             prompt_template_path=settings.models.nlg_prompt_template,
         )
 
-        # Initialize the main analyzer that depends on the core services
         self.compliance_analyzer = compliance_analyzer or ComplianceAnalyzer(
             retriever=self.retriever,
             ner_pipeline=self.ner_pipeline,
             llm_service=self.llm_service,
             explanation_engine=self.explanation_engine,
-            prompt_manager=analysis_pm, # Use the correct prompt manager
+            prompt_manager=self.prompt_manager,
             fact_checker_service=self.fact_checker_service,
             nlg_service=self.nlg_service,
             deterministic_focus=settings.analysis.deterministic_focus,
         )
 
-        # Initialize other services used in the orchestration
         self.phi_scrubber = phi_scrubber or PhiScrubberService()
+        self.preprocessing = preprocessing or PreprocessingService()
         self.document_classifier = document_classifier or DocumentClassifier(
             llm_service=self.llm_service,
             prompt_template_path=settings.models.doc_classifier_prompt,
         )
         self.report_generator = report_generator or ReportGenerator()
-        self.preprocessing = preprocessing_service or PreprocessingService()
+        self.checklist_service = checklist_service or ChecklistService()
+
         self.checklist_service = checklist_service or ChecklistService()
 
     def analyze_document(

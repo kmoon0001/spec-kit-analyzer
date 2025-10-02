@@ -83,9 +83,9 @@ async def test_rrf_ranking_logic(retriever):
     result_names = [res["name"] for res in results]
     expected_order = ["Doc A", "Doc C", "Doc B"]
 
-    assert result_names == expected_order, (
-        f"Expected {expected_order}, but got {result_names}"
-    )
+    assert (
+        result_names == expected_order
+    ), f"Expected {expected_order}, but got {result_names}"
 
     # Also test that top_k works correctly
     with patch("src.core.hybrid_retriever.cos_sim", return_value=[mock_tensor]):

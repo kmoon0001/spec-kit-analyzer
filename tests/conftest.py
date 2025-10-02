@@ -15,7 +15,12 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.database import models, crud, schemas
+from src.database.models import User
+from src.database.crud import create_user
+from src.database.schemas import UserCreate
+import src.database.models as models
+import src.database.crud as crud
+import src.database.schemas as schemas
 from src.api.main import app
 from src.core.compliance_analyzer import ComplianceAnalyzer
 from src.core.explanation import ExplanationEngine
@@ -233,18 +238,18 @@ test_user_credentials = {"username": "testuser", "password": "test_password"}
 
 
 @pytest_asyncio.fixture
-async def test_user(test_db: AsyncSession) -> models.User:
+async def test_user(test_db: AsyncSession) -> User:
     """Create a standard user for testing purposes."""
     # Bypass actual password hashing for testing purposes
     # Use a mock hashed password that is valid in format but doesn't require bcrypt to generate
     mock_hashed_password = (
         "$2b$12$mockhashedpasswordstringforetesting12345678901234567890"
     )
-    user_in = schemas.UserCreate(
+    user_in = UserCreate(
         username=test_user_credentials["username"],
         password="mockpass",  # A short placeholder password for the schema
     )
-    user = await crud.create_user(
+    user = await create_user(
         db=test_db, user=user_in, hashed_password=mock_hashed_password
     )
     return user

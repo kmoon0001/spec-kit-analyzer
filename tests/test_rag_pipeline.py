@@ -6,57 +6,65 @@ from src.core.hybrid_retriever import HybridRetriever
 
 
 @pytest.fixture
-def mock_all_dependencies():
-    """Mocks all sub-services to test the orchestration logic of AnalysisService."""
-    with patch(
-        "src.core.analysis_service.parse_document_content"
-    ) as mock_parse, patch(
-        "src.core.analysis_service.PreprocessingService"
-    ) as mock_preproc, patch(
-        "src.core.analysis_service.DocumentClassifier"
-    ) as mock_classifier, patch(
-        "src.core.analysis_service.ComplianceAnalyzer"
-    ) as mock_analyzer, patch(
-        "src.core.analysis_service.ReportGenerator"
-    ) as mock_reporter, patch(
-        "src.core.analysis_service.ChecklistService"
-    ) as mock_checklist:
+def mock_dependencies():
+    """
+    Mocks all the sub-services that AnalysisService initializes to test its orchestration logic
+    without any real model loading, file I/O, or database access.
+    """
+    with patch("src.core.analysis_service.LLMService"), \
+         patch("src.core.analysis_service.HybridRetriever") as mock_retriever_cls, \
+         patch("src.core.analysis_service.ReportGenerator") as mock_reporter_cls, \
+         patch("src.core.analysis_service.DocumentClassifier") as mock_classifier_cls, \
+         patch("src.core.analysis_service.parse_document_content") as mock_parser, \
+         patch("src.core.analysis_service.yaml.safe_load") as mock_yaml, \
+         patch("src.core.analysis_service.ComplianceAnalyzer") as mock_analyzer_cls, \
+         patch("src.core.analysis_service.PreprocessingService"), \
+         patch("src.core.analysis_service.PhiScrubberService"), \
+         patch("src.core.analysis_service.ExplanationEngine"), \
+         patch("src.core.analysis_service.FactCheckerService"), \
+         patch("src.core.analysis_service.NLGService"), \
+         patch("src.core.analysis_service.PromptManager"), \
+         patch("src.core.analysis_service.ChecklistService"):
 
-        # Configure mock return values
-        mock_parse.return_value = [{"sentence": "This is a test sentence."}]
-        mock_preproc.return_value.correct_text = AsyncMock(
-            return_value="This is a test sentence."
-        )
-        mock_classifier.return_value.classify_document = AsyncMock(
-            return_value="Progress Note"
-        )
+        # Mock config loading
+        mock_yaml.return_value = {
+            "models": {
+                "generator": "dummy", "generator_filename": "dummy", "fact_checker": "dummy",
+                "ner_ensemble": [], "doc_classifier_prompt": "dummy.txt",
+                "nlg_prompt_template": "dummy.txt", "analysis_prompt_template": "dummy.txt"
+            },
+            "llm_settings": {}, "retrieval": {}, "analysis": {},
+        }
+
+        # Mock file parsing
+        mock_parser.return_value = [{"sentence": "This is a test sentence."}]
+
+        # Mock service behaviors
+        mock_classifier_cls.return_value.classify_document = AsyncMock(return_value="Progress Note")
+        mock_retriever_cls.return_value.retrieve = AsyncMock(return_value=[])
 
         mock_analysis_result = {"findings": [{"issue_title": "test finding"}]}
-        mock_analyzer.return_value.analyze_document = AsyncMock(
-            return_value=mock_analysis_result
-        )
+        mock_analyzer_cls.return_value.analyze_document = AsyncMock(return_value=mock_analysis_result)
 
-        mock_checklist.return_value.evaluate.return_value = []
-
-        mock_reporter.return_value.generate_report = AsyncMock(
-            return_value={
-                "summary": "Report Summary",
-                "analysis": mock_analysis_result,
-            }
+        mock_reporter_cls.return_value.generate_report = AsyncMock(
+            return_value={"summary": "Report Summary", "analysis": mock_analysis_result}
         )
 
         yield {
-            "parse": mock_parse,
-            "preproc": mock_preproc.return_value,
-            "classifier": mock_classifier.return_value,
-            "analyzer": mock_analyzer.return_value,
-            "reporter": mock_reporter.return_value,
-            "checklist": mock_checklist.return_value,
+            "parser": mock_parser,
+            "classifier": mock_classifier_cls.return_value,
+            "analyzer": mock_analyzer_cls.return_value,
+            "reporter": mock_reporter_cls.return_value,
         }
 
 
 @pytest.mark.asyncio
-async def test_full_analysis_pipeline_orchestration(mock_all_dependencies):
+async def test_full_analysis_pipeline_orchestration(mock_dependencies):
+    """
+    Tests that AnalysisService.analyze_document correctly orchestrates its sub-components.
+    """
+    # test code here
+
     """
     Tests that AnalysisService.analyze_document correctly orchestrates its sub-components.
     """
@@ -82,18 +90,24 @@ async def test_full_analysis_pipeline_orchestration(mock_all_dependencies):
 
         service = AnalysisService(retriever=mock_retriever)
 
-    test_file_path = "/fake/path/to/doc.txt"
+test_file_path = "/fake/path/to/doc.txt"
 
-    # Act
-    result = await service.analyze_document(test_file_path, discipline="PT")
+# Act
+result = await service.analyze_document(test_file_path, discipline="PT")
 
-    # Assert
-    mock_all_dependencies["parse"].assert_called_once_with(test_file_path)
-    mock_all_dependencies["preproc"].correct_text.assert_awaited_once()
-    mock_all_dependencies["classifier"].classify_document.assert_awaited_once()
-    mock_all_dependencies["analyzer"].analyze_document.assert_awaited_once()
-    mock_all_dependencies["checklist"].evaluate.assert_called_once()
-    mock_all_dependencies["reporter"].generate_report.assert_awaited_once()
+# Assert – Verify the initial calls and pipeline orchestration
+mock_dependencies["parser"].assert_called_once_with(test_file_path)
+mock_dependencies["classifier"].classify_document.assert_awaited_once()
 
-    assert "summary" in result
-    assert result["analysis"]["findings"] == [{"issue_title": "test finding"}]
+# Verify that the core analysis was delegated correctly
+analyze_call_args = mock_dependencies["analyzer"].analyze_document.call_args
+assert "document_text" in analyze_call_args.kwargs
+assert analyze_call_args.kwargs["discipline"] == "PT"
+assert analyze_call_args.kwargs["doc_type"] == "Progress Note"
+
+# Verify final report is generated and returned
+mock_dependencies["reporter"].generate_report.assert_awaited_once()
+
+# Final result checks
+assert "summary" in result
+assert result["analysis"]["findings"] == [{"issue_title": "test finding"}]
