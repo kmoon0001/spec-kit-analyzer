@@ -23,7 +23,7 @@ from src.api.dependencies import (
 )
 from src.api.routers import admin, analysis, auth, chat, compliance, dashboard, health
 from src.api.error_handling import http_exception_handler
-from src.core.database_maintenance_service import run_database_maintenance
+from src.core.database_maintenance_service import DatabaseMaintenanceService
 from src.config import get_settings
 
 settings = get_settings()

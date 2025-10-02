@@ -1,6 +1,6 @@
 # Core Web & API
 fastapi
-uvicorn 
+uvicorn
 gunicorn
 slowapi
 requests
@@ -22,8 +22,12 @@ pyyaml
 markdown
 
 # AI & Machine Learning
+presidio-analyzer
+presidio-anonymizer
 torch
+# Pin versions to resolve dependency conflicts
 transformers==4.49.0
+spacy-transformers==1.3.8
 sentence-transformers
 ctransformers
 faiss-cpu
@@ -32,12 +36,9 @@ accelerate
 nltk
 pyspellchecker
 spacy
-spacy-transformers==1.3.8
 scispacy
 # scispaCy model for biomedical NER
 https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz
-# spaCy model for general NER (names, locations, etc.)
-en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz
 
 # Database
 SQLAlchemy

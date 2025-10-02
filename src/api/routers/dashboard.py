@@ -8,7 +8,8 @@ from fastapi.responses import HTMLResponse
 from src.schemas import DirectorDashboardData, CoachingFocus
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src import crud, models, schemas
+from src.database import crud, models
+from src import schemas
 from src.api.dependencies import require_admin
 from src.api.limiter import limiter
 from src.auth import get_current_active_user
@@ -26,15 +27,20 @@ report_generator = ReportGenerator()
 
 
 def _resolve_generator_model(settings: Settings) -> Tuple[str, str]:
-    """Placeholder for resolving the generator model."""
-    # In a real scenario, this could involve more complex logic
-    return (
-        settings.llm.repo,
-        settings.llm.filename,
-    )
+    """Resolves the generator model from settings, preferring profiles."""
+    if settings.models.generator_profiles:
+        # In this context, we can just use the first available profile.
+        profile = next(iter(settings.models.generator_profiles.values()))
+        return profile.repo, profile.filename
+
+    if settings.models.generator and settings.models.generator_filename:
+        return settings.models.generator, settings.models.generator_filename
+
+    # If no generator model is configured, something is wrong.
+    raise ValueError("Could not resolve a generator model from the settings.")
 
 
-@router.get("/reports", response_model=List[schemas.Report])
+@router.get("/reports", response_model=List[schemas.AnalysisReport])
 async def read_reports(
     skip: int = 0,
     limit: int = 100,

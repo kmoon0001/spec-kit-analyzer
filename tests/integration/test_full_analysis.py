@@ -5,6 +5,7 @@ from pathlib import Path
 from src.core.analysis_service import AnalysisService
 from src.config import (
     Settings,
+    ModelsSettings,
     LLMSettings,
     PathsSettings,
     DatabaseSettings,
@@ -29,26 +30,44 @@ def mock_settings(tmp_path: Path) -> Settings:
     # Create dummy prompt files that the service will try to load
     prompts_dir = tmp_path / "prompts"
     prompts_dir.mkdir()
-    (prompts_dir / "analysis.txt").touch()
-    (prompts_dir / "nlg.txt").touch()
-    (prompts_dir / "doc_classifier.txt").touch()
+    analysis_prompt_path = prompts_dir / "analysis.txt"
+    nlg_prompt_path = prompts_dir / "nlg.txt"
+    doc_classifier_prompt_path = prompts_dir / "doc_classifier.txt"
+    analysis_prompt_path.touch()
+    nlg_prompt_path.touch()
+    doc_classifier_prompt_path.touch()
 
     return Settings(
-        api_url="http://test.com",
+        enable_director_dashboard=True,
         use_ai_mocks=True,
         database=DatabaseSettings(url="sqlite+aiosqlite:///./test.db", echo=False),
         auth=AuthSettings(
             secret_key="test_secret", algorithm="HS256", access_token_expire_minutes=30
         ),
         paths=PathsSettings(
-            temp_upload_dir=tmp_path / "uploads",
-            rule_dir=tmp_path / "rules",
-            medical_dictionary=tmp_path / "medical_dict.txt",
-            analysis_prompt_template=prompts_dir / "analysis.txt",
-            nlg_prompt_template=prompts_dir / "nlg.txt",
-            doc_classifier_prompt=prompts_dir / "doc_classifier.txt",
+            temp_upload_dir=str(tmp_path / "uploads"),
+            api_url="http://test.com",
+            rule_dir=str(tmp_path / "rules"),
         ),
-        llm=LLMSettings(repo="test-repo", filename="test-model.gguf"),
+        models=ModelsSettings(
+            retriever="test-retriever",
+            fact_checker="test-fact-checker",
+            ner_ensemble=["test-ner"],
+            doc_classifier_prompt=str(doc_classifier_prompt_path),
+            analysis_prompt_template=str(analysis_prompt_path),
+            nlg_prompt_template=str(nlg_prompt_path),
+            generator_profiles={
+                "standard": {
+                    "repo": "test-repo",
+                    "filename": "test.gguf",
+                }
+            },
+        ),
+        llm=LLMSettings(
+            model_type="llama",
+            context_length=4096,
+            generation_params={"temperature": 0.1},
+        ),
         retrieval=RetrievalSettings(
             dense_model_name="test-retriever", similarity_top_k=3, rrf_k=50
         ),

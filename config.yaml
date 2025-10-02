@@ -2,10 +2,8 @@
 # This file defines the settings for the application, organized into logical sections.
 # Sensitive values like 'secret_key' should be set via environment variables in production.
 
-api_url: "http://127.0.0.1:8000"
-use_ai_mocks: true
 enable_director_dashboard: true
-# Correctly structured configuration for the Therapy Compliance Analyzer
+use_ai_mocks: true
 
 database:
   url: "sqlite:///./compliance.db"
@@ -17,6 +15,12 @@ auth:
 
 maintenance:
   purge_retention_days: 60
+  purge_interval_days: 1
+
+paths:
+  temp_upload_dir: "/tmp/uploads"
+  api_url: "http://127.0.0.1:8000"
+  rule_dir: "src/resources/rules"
 
 models:
   generator_profiles:
@@ -41,29 +45,21 @@ models:
   doc_classifier_prompt: "src/resources/prompts/doc_classifier_prompt.txt"
   analysis_prompt_template: "src/resources/prompts/analysis_prompt_template.txt"
   nlg_prompt_template: "src/resources/prompts/nlg_prompt_template.txt"
+  phi_scrubber:
+    general: "en_core_sci_sm"
+    biomedical: "en_core_sci_sm"
 
-llm_settings:
+llm:
   model_type: "llama"
   context_length: 2048
   generation_params:
     temperature: 0.1
     max_new_tokens: 2048
 
-retrieval_settings:
+retrieval:
   dense_model_name: "pritamdeka/S-PubMedBert-MS-MARCO"
   similarity_top_k: 3
   rrf_k: 60
 
-temp_upload_dir: "/tmp/uploads"
-api_url: "http://127.0.0.1:8000"
-rule_dir: "src/resources/rules"
-use_ai_mocks: true
 analysis:
-  # Parameters controlling the compliance analysis logic.
   confidence_threshold: 0.7
-
-
-maintenance:
-  # Settings for automated database maintenance tasks.
-  purge_retention_days: 60
-  purge_interval_days: 1

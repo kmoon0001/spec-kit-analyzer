@@ -10,10 +10,12 @@ from fastapi import Depends, HTTPException, status
 
 from src.database import models
 from src.auth import get_current_active_user
-from ..core.mock_analysis_service import MockAnalysisService
+from src.core.mock_analysis_service import MockAnalysisService
 from src.core.hybrid_retriever import HybridRetriever
-from ..core.analysis_service import AnalysisService
-from src.core.config import settings  # Add this import for settings
+from src.core.analysis_service import AnalysisService
+from src.config import get_settings
+
+settings = get_settings()
 
 # Configure logger
 logger = logging.getLogger(__name__)
