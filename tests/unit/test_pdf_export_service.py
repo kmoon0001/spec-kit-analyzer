@@ -90,7 +90,7 @@ class TestPDFExportService:
     def test_output_directory_creation(self, temp_output_dir):
         """Test output directory is created if it doesn't exist."""
         subdir = Path(temp_output_dir) / "nested" / "reports"
-        service = PDFExportService(output_dir=str(subdir))
+        PDFExportService(output_dir=str(subdir))
 
         assert subdir.exists()
         assert subdir.is_dir()
@@ -163,7 +163,7 @@ class TestPDFGeneration:
         mock_html_instance = MagicMock()
         mock_html.return_value = mock_html_instance
 
-        result = pdf_service.export_to_pdf(
+        pdf_service.export_to_pdf(
             html_content=sample_html,
             document_name="test_document.pdf",
             metadata=sample_metadata,
@@ -179,9 +179,7 @@ class TestPDFGeneration:
         assert "Progress Note" in html_string
 
     @patch("src.core.pdf_export_service.HTML")
-    def test_export_to_pdf_without_metadata(
-        self, mock_html, pdf_service, sample_html
-    ):
+    def test_export_to_pdf_without_metadata(self, mock_html, pdf_service, sample_html):
         """Test PDF export works without metadata."""
         mock_html_instance = MagicMock()
         mock_html.return_value = mock_html_instance

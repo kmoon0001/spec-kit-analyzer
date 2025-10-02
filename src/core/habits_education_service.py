@@ -23,10 +23,10 @@ class HabitsEducationService:
     def get_habit_education(self, habit_number: int) -> Dict[str, Any]:
         """
         Get educational content for a specific habit.
-        
+
         Args:
             habit_number: The habit number (1-7)
-            
+
         Returns:
             Educational content for the habit
         """
@@ -38,8 +38,8 @@ class HabitsEducationService:
                 "tips": [
                     "Review documentation requirements before writing",
                     "Use templates and checklists",
-                    "Double-check compliance before submitting"
-                ]
+                    "Double-check compliance before submitting",
+                ],
             },
             2: {
                 "title": "Begin with the End in Mind",
@@ -48,8 +48,8 @@ class HabitsEducationService:
                 "tips": [
                     "Start with compliance objectives",
                     "Use clear, measurable goals",
-                    "Document outcomes and progress"
-                ]
+                    "Document outcomes and progress",
+                ],
             },
             3: {
                 "title": "Put First Things First",
@@ -58,8 +58,8 @@ class HabitsEducationService:
                 "tips": [
                     "Document medical necessity first",
                     "Ensure skilled therapy is clearly described",
-                    "Include functional outcomes"
-                ]
+                    "Include functional outcomes",
+                ],
             },
             4: {
                 "title": "Think Win-Win",
@@ -68,8 +68,8 @@ class HabitsEducationService:
                 "tips": [
                     "Use patient-centered language",
                     "Show clear benefit to patient",
-                    "Demonstrate skilled intervention"
-                ]
+                    "Demonstrate skilled intervention",
+                ],
             },
             5: {
                 "title": "Seek First to Understand, Then to Be Understood",
@@ -78,8 +78,8 @@ class HabitsEducationService:
                 "tips": [
                     "Study Medicare guidelines",
                     "Understand discipline-specific requirements",
-                    "Ask questions when uncertain"
-                ]
+                    "Ask questions when uncertain",
+                ],
             },
             6: {
                 "title": "Synergize",
@@ -88,8 +88,8 @@ class HabitsEducationService:
                 "tips": [
                     "Connect clinical findings to functional goals",
                     "Show interdisciplinary collaboration",
-                    "Demonstrate comprehensive care"
-                ]
+                    "Demonstrate comprehensive care",
+                ],
             },
             7: {
                 "title": "Sharpen the Saw",
@@ -98,22 +98,25 @@ class HabitsEducationService:
                 "tips": [
                     "Attend compliance training",
                     "Review feedback and improve",
-                    "Stay updated on regulation changes"
-                ]
-            }
+                    "Stay updated on regulation changes",
+                ],
+            },
         }
-        
-        return habits_content.get(habit_number, {
-            "title": "Unknown Habit",
-            "description": "Habit not found",
-            "clinical_application": "",
-            "tips": []
-        })
+
+        return habits_content.get(
+            habit_number,
+            {
+                "title": "Unknown Habit",
+                "description": "Habit not found",
+                "clinical_application": "",
+                "tips": [],
+            },
+        )
 
     def get_all_habits_overview(self) -> List[Dict[str, Any]]:
         """
         Get overview of all 7 habits.
-        
+
         Returns:
             List of all habits with basic information
         """
@@ -122,10 +125,10 @@ class HabitsEducationService:
     def get_habit_resources(self, habit_number: int) -> Dict[str, Any]:
         """
         Get additional resources for a specific habit.
-        
+
         Args:
             habit_number: The habit number (1-7)
-            
+
         Returns:
             Additional resources and references
         """
@@ -134,11 +137,11 @@ class HabitsEducationService:
             "resources": [
                 "Medicare Guidelines Reference",
                 "Discipline-Specific Documentation Standards",
-                "Compliance Best Practices Guide"
+                "Compliance Best Practices Guide",
             ],
             "examples": [
                 "Sample compliant documentation",
                 "Common compliance issues to avoid",
-                "Improvement strategies"
-            ]
+                "Improvement strategies",
+            ],
         }

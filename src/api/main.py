@@ -21,8 +21,21 @@ from src.api.dependencies import (
     shutdown_event as api_shutdown,
     startup_event as api_startup,
 )
-from src.api.routers import admin, analysis, auth, chat, compliance, dashboard, health, habits, meta_analytics
-from src.api.global_exception_handler import global_exception_handler, http_exception_handler
+from src.api.routers import (
+    admin,
+    analysis,
+    auth,
+    chat,
+    compliance,
+    dashboard,
+    health,
+    habits,
+    meta_analytics,
+)
+from src.api.global_exception_handler import (
+    global_exception_handler,
+    http_exception_handler,
+)
 from src.core.database_maintenance_service import DatabaseMaintenanceService
 from src.config import get_settings
 from src.logging_config import CorrelationIdMiddleware
@@ -50,11 +63,17 @@ def clear_temp_uploads():
                         os.unlink(file_path)
                     elif os.path.isdir(file_path):
                         shutil.rmtree(file_path)
-                    logger.info("Successfully cleaned up temporary file", file_path=file_path)
+                    logger.info(
+                        "Successfully cleaned up temporary file", file_path=file_path
+                    )
                 except (OSError, PermissionError) as e:
-                    logger.error("Failed to delete temp file", file_path=file_path, error=str(e))
+                    logger.error(
+                        "Failed to delete temp file", file_path=file_path, error=str(e)
+                    )
     except Exception as e:
-        logger.exception("An unexpected error occurred while clearing temp uploads", error=str(e))
+        logger.exception(
+            "An unexpected error occurred while clearing temp uploads", error=str(e)
+        )
 
 
 def run_database_maintenance():

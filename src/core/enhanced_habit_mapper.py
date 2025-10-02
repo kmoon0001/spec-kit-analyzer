@@ -418,9 +418,7 @@ class SevenHabitsFramework:
                 "habit_number": habit["number"],
                 "name": habit["name"],
                 "principle": habit["principle"],
-                "explanation": result.get(
-                    "explanation", habit["clinical_application"]
-                ),
+                "explanation": result.get("explanation", habit["clinical_application"]),
                 "detailed_description": habit["description"].strip(),
                 "improvement_strategies": result.get(
                     "strategies", habit["improvement_strategies"]
@@ -454,9 +452,9 @@ class SevenHabitsFramework:
 You are an expert in clinical documentation and Stephen Covey's 7 Habits framework.
 
 **Compliance Finding:**
-- Issue: {finding.get('issue_title', 'Unknown')}
-- Text: {finding.get('text', 'N/A')}
-- Risk: {finding.get('risk', 'Unknown')}
+- Issue: {finding.get("issue_title", "Unknown")}
+- Text: {finding.get("text", "N/A")}
+- Risk: {finding.get("risk", "Unknown")}
 {context_str}
 
 **7 Habits Framework:**
@@ -495,8 +493,7 @@ Return a JSON object:
             List of all habit dictionaries
         """
         return [
-            {**habit, "habit_id": habit_id}
-            for habit_id, habit in self.HABITS.items()
+            {**habit, "habit_id": habit_id} for habit_id, habit in self.HABITS.items()
         ]
 
     def get_habit_progression_metrics(

@@ -27,14 +27,18 @@ class MetaAnalyticsWorker(QObject):
 
     def __init__(self, token: str, parent=None):
         super().__init__(parent)
-        self.base_url = settings.paths.api_url.rstrip('/')
+        self.base_url = settings.paths.api_url.rstrip("/")
         self.token = token
         self.days_back = 90
         self.discipline = None
         self.load_type = "overview"
 
-    def set_parameters(self, days_back: int = 90, discipline: Optional[str] = None, 
-                      load_type: str = "overview"):
+    def set_parameters(
+        self,
+        days_back: int = 90,
+        discipline: Optional[str] = None,
+        load_type: str = "overview",
+    ):
         """Set parameters for the data loading."""
         self.days_back = days_back
         self.discipline = discipline
@@ -49,9 +53,9 @@ class MetaAnalyticsWorker(QObject):
         """Main worker thread execution."""
         try:
             self.progress_updated.emit("Loading organizational analytics...")
-            
+
             headers = {"Authorization": f"Bearer {self.token}"}
-            
+
             if self.load_type == "overview":
                 data = self.load_organizational_overview(headers)
             elif self.load_type == "training":
@@ -70,13 +74,13 @@ class MetaAnalyticsWorker(QObject):
                 data = self.load_peer_comparison(headers, user_id)
             else:
                 data = self.load_organizational_overview(headers)
-            
+
             self.progress_updated.emit("Analytics loaded successfully")
             self.success.emit(data)
-            
+
         except requests.exceptions.RequestException as e:
             error_detail = str(e)
-            if hasattr(e, 'response') and e.response is not None:
+            if hasattr(e, "response") and e.response is not None:
                 try:
                     error_detail = e.response.json().get("detail", str(e))
                 except requests.exceptions.JSONDecodeError:
@@ -92,115 +96,117 @@ class MetaAnalyticsWorker(QObject):
     def load_organizational_overview(self, headers: Dict[str, str]) -> Dict[str, Any]:
         """Load comprehensive organizational overview."""
         self.progress_updated.emit("Loading organizational overview...")
-        
+
         params = {"days_back": self.days_back}
         if self.discipline:
             params["discipline"] = self.discipline
-        
+
         response = requests.get(
             f"{self.base_url}/meta-analytics/organizational-overview",
             headers=headers,
             params=params,
-            timeout=30
+            timeout=30,
         )
         response.raise_for_status()
-        
+
         return response.json()
 
     def load_training_needs(self, headers: Dict[str, str]) -> Dict[str, Any]:
         """Load training needs analysis."""
         self.progress_updated.emit("Analyzing training needs...")
-        
+
         params = {"days_back": self.days_back}
         if self.discipline:
             params["discipline"] = self.discipline
-        
+
         response = requests.get(
             f"{self.base_url}/meta-analytics/training-needs",
             headers=headers,
             params=params,
-            timeout=30
+            timeout=30,
         )
         response.raise_for_status()
-        
+
         return response.json()
 
     def load_team_trends(self, headers: Dict[str, str]) -> Dict[str, Any]:
         """Load team performance trends."""
         self.progress_updated.emit("Loading performance trends...")
-        
+
         weeks_back = max(4, self.days_back // 7)
         params = {"weeks_back": weeks_back}
         if self.discipline:
             params["discipline"] = self.discipline
-        
+
         response = requests.get(
             f"{self.base_url}/meta-analytics/team-trends",
             headers=headers,
             params=params,
-            timeout=30
+            timeout=30,
         )
         response.raise_for_status()
-        
+
         return response.json()
 
     def load_benchmarks(self, headers: Dict[str, str]) -> Dict[str, Any]:
         """Load benchmarking data."""
         self.progress_updated.emit("Loading benchmark data...")
-        
+
         params = {"days_back": self.days_back}
-        
+
         response = requests.get(
             f"{self.base_url}/meta-analytics/benchmarks",
             headers=headers,
             params=params,
-            timeout=30
+            timeout=30,
         )
         response.raise_for_status()
-        
+
         return response.json()
 
     def load_performance_alerts(self, headers: Dict[str, str]) -> Dict[str, Any]:
         """Load performance alerts for immediate attention."""
         self.progress_updated.emit("Loading performance alerts...")
-        
+
         response = requests.get(
             f"{self.base_url}/meta-analytics/performance-alerts",
             headers=headers,
-            timeout=30
+            timeout=30,
         )
         response.raise_for_status()
-        
+
         return response.json()
 
     def load_discipline_comparison(self, headers: Dict[str, str]) -> Dict[str, Any]:
         """Load discipline comparison data."""
         self.progress_updated.emit("Loading discipline comparison...")
-        
+
         params = {"days_back": self.days_back}
-        
+
         response = requests.get(
             f"{self.base_url}/meta-analytics/discipline-comparison",
             headers=headers,
             params=params,
-            timeout=30
+            timeout=30,
         )
         response.raise_for_status()
-        
+
         return response.json()
 
-    def load_peer_comparison(self, headers: Dict[str, str], user_id: int) -> Dict[str, Any]:
+    def load_peer_comparison(
+        self, headers: Dict[str, str], user_id: int
+    ) -> Dict[str, Any]:
         """Load peer comparison data for a specific user."""
         self.progress_updated.emit("Loading peer comparison...")
-        
+
         params = {"days_back": self.days_back}
-        
+
         response = requests.get(
             f"{self.base_url}/meta-analytics/peer-comparison/{user_id}",
             headers=headers,
             params=params,
-            timeout=30
+            timeout=30,
         )
         response.raise_for_status()
-        
+
         return response.json()

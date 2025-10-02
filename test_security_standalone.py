@@ -43,11 +43,11 @@ def test_all_validators():
     print("5. Testing text sanitization...")
     clean_text = "This is a clean clinical note."
     assert SecurityValidator.sanitize_text_input(clean_text) == clean_text
-    
+
     xss_text = "Normal text <script>alert('xss')</script> more text"
     sanitized = SecurityValidator.sanitize_text_input(xss_text)
     assert "<script" not in sanitized.lower()
-    
+
     path_traversal = "File: ../../etc/passwd"
     sanitized = SecurityValidator.sanitize_text_input(path_traversal)
     assert "../" not in sanitized
@@ -75,11 +75,11 @@ def test_all_validators():
     print("8. Testing filename sanitization...")
     assert SecurityValidator.sanitize_filename("document.pdf") == "document.pdf"
     assert SecurityValidator.sanitize_filename("my document.pdf") == "my_document.pdf"
-    
+
     sanitized = SecurityValidator.sanitize_filename("doc@#$ument!.pdf")
     assert "@" not in sanitized
     assert "#" not in sanitized
-    
+
     sanitized = SecurityValidator.sanitize_filename("/path/to/document.pdf")
     assert "/" not in sanitized
     assert sanitized == "document.pdf"

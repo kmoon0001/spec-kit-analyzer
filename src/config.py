@@ -86,6 +86,7 @@ class RetrievalSettings(BaseModel):
 
 class HabitsReportIntegration(BaseModel):
     """Settings for habits integration in reports."""
+
     show_habit_tags: bool = True
     show_personal_development_section: bool = True
     show_habit_tooltips: bool = True
@@ -94,6 +95,7 @@ class HabitsReportIntegration(BaseModel):
 
 class HabitsDashboardIntegration(BaseModel):
     """Settings for habits integration in dashboard."""
+
     show_growth_journey_tab: bool = True
     show_weekly_focus_widget: bool = True
     show_habit_progression_charts: bool = True
@@ -102,6 +104,7 @@ class HabitsDashboardIntegration(BaseModel):
 
 class HabitsAIFeatures(BaseModel):
     """AI-powered habits features settings."""
+
     use_ai_mapping: bool = False
     use_ai_coaching: bool = False
     personalized_strategies: bool = True
@@ -109,6 +112,7 @@ class HabitsAIFeatures(BaseModel):
 
 class HabitsGamification(BaseModel):
     """Gamification and motivation settings."""
+
     enabled: bool = True
     show_badges: bool = True
     show_streaks: bool = True
@@ -118,6 +122,7 @@ class HabitsGamification(BaseModel):
 
 class HabitsEducation(BaseModel):
     """Educational content settings."""
+
     show_habit_resources: bool = True
     show_clinical_examples: bool = True
     show_improvement_strategies: bool = True
@@ -126,6 +131,7 @@ class HabitsEducation(BaseModel):
 
 class HabitsPrivacy(BaseModel):
     """Privacy and data settings."""
+
     track_progression: bool = True
     anonymous_analytics: bool = True
     share_achievements: bool = False
@@ -133,6 +139,7 @@ class HabitsPrivacy(BaseModel):
 
 class HabitsAdvanced(BaseModel):
     """Advanced habits framework settings."""
+
     habit_confidence_threshold: float = 0.6
     focus_area_threshold: float = 0.20
     mastery_threshold: float = 0.05
@@ -142,6 +149,7 @@ class HabitsAdvanced(BaseModel):
 
 class HabitsFrameworkSettings(BaseModel):
     """Complete 7 Habits framework configuration."""
+
     enabled: bool = True
     visibility_level: str = "moderate"  # "subtle", "moderate", or "prominent"
     report_integration: HabitsReportIntegration = HabitsReportIntegration()
@@ -151,15 +159,15 @@ class HabitsFrameworkSettings(BaseModel):
     education: HabitsEducation = HabitsEducation()
     privacy: HabitsPrivacy = HabitsPrivacy()
     advanced: HabitsAdvanced = HabitsAdvanced()
-    
+
     def is_subtle(self) -> bool:
         """Check if visibility is set to subtle."""
         return self.visibility_level.lower() == "subtle"
-    
+
     def is_moderate(self) -> bool:
         """Check if visibility is set to moderate."""
         return self.visibility_level.lower() == "moderate"
-    
+
     def is_prominent(self) -> bool:
         """Check if visibility is set to prominent."""
         return self.visibility_level.lower() == "prominent"
@@ -177,7 +185,6 @@ class AnalysisSettings(BaseModel):
 
 
 class Settings(BaseModel):
-
     enable_director_dashboard: bool = False
     database: DatabaseSettings
     auth: AuthSettings

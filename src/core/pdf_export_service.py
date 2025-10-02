@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class PDFExportService:
     """
     Service for exporting compliance reports to PDF format.
-    
+
     Features:
     - HTML to PDF conversion with professional styling
     - Custom headers/footers with metadata
@@ -48,16 +48,16 @@ class PDFExportService:
         """
         self.output_dir = Path(output_dir or "temp/reports")
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         self.retention_hours = retention_hours
         self.enable_auto_purge = enable_auto_purge
-        
+
         # Font configuration for better rendering
         self.font_config = FontConfiguration()
-        
+
         # Custom CSS for PDF styling
         self.pdf_css = self._load_pdf_styles()
-        
+
         logger.info(
             f"PDF Export Service initialized: output_dir={self.output_dir}, "
             f"retention={retention_hours}h, auto_purge={enable_auto_purge}"
@@ -281,7 +281,7 @@ class PDFExportService:
             logger.info(f"Generating PDF: {pdf_filename}")
             html_doc = HTML(string=enhanced_html)
             css_doc = CSS(string=self.pdf_css, font_config=self.font_config)
-            
+
             html_doc.write_pdf(
                 target=str(pdf_path),
                 stylesheets=[css_doc],
@@ -335,18 +335,20 @@ class PDFExportService:
         """
         # Add report date for header
         report_date = datetime.now().strftime("%Y-%m-%d %H:%M")
-        
+
         # Build metadata section
         metadata_html = ""
         if metadata:
             metadata_html = '<div class="metadata-table">'
             metadata_html += "<h3>Report Metadata</h3>"
             metadata_html += "<table>"
-            
+
             for key, value in metadata.items():
                 if value is not None:
-                    metadata_html += f"<tr><td><strong>{key}:</strong></td><td>{value}</td></tr>"
-            
+                    metadata_html += (
+                        f"<tr><td><strong>{key}:</strong></td><td>{value}</td></tr>"
+                    )
+
             metadata_html += "</table></div>"
 
         # Add footer disclaimer
@@ -399,7 +401,7 @@ class PDFExportService:
         """
         # Remove file extension if present
         name = Path(filename).stem
-        
+
         # Replace unsafe characters
         safe_chars = []
         for char in name:
@@ -407,13 +409,13 @@ class PDFExportService:
                 safe_chars.append(char)
             elif char.isspace():
                 safe_chars.append("_")
-        
+
         safe_name = "".join(safe_chars)
-        
+
         # Limit length
         if len(safe_name) > 50:
             safe_name = safe_name[:50]
-        
+
         return safe_name or "document"
 
     def purge_old_pdfs(self) -> Dict[str, Any]:
@@ -437,10 +439,8 @@ class PDFExportService:
 
             for pdf_file in self.output_dir.glob("*.pdf"):
                 # Check file modification time
-                file_mtime = datetime.fromtimestamp(
-                    pdf_file.stat().st_mtime, tz=UTC
-                )
-                
+                file_mtime = datetime.fromtimestamp(pdf_file.stat().st_mtime, tz=UTC)
+
                 if file_mtime < cutoff_time:
                     file_size = pdf_file.stat().st_size
                     pdf_file.unlink()
@@ -474,12 +474,12 @@ class PDFExportService:
             Dict with PDF metadata or None if file doesn't exist
         """
         path = Path(pdf_path)
-        
+
         if not path.exists():
             return None
 
         stat = path.stat()
-        
+
         return {
             "filename": path.name,
             "path": str(path),
@@ -497,7 +497,7 @@ class PDFExportService:
             List of PDF file information dicts
         """
         pdfs = []
-        
+
         for pdf_file in sorted(
             self.output_dir.glob("*.pdf"),
             key=lambda p: p.stat().st_mtime,
@@ -506,5 +506,5 @@ class PDFExportService:
             info = self.get_pdf_info(str(pdf_file))
             if info:
                 pdfs.append(info)
-        
+
         return pdfs

@@ -45,7 +45,9 @@ class PhiScrubberService:
             anonymized_result = self.anonymizer.anonymize(
                 text=text,
                 analyzer_results=analyzer_results,
-                operators={"DEFAULT": OperatorConfig("replace", {"new_value": "<PHI>"})}
+                operators={
+                    "DEFAULT": OperatorConfig("replace", {"new_value": "<PHI>"})
+                },
             )
 
             return anonymized_result.text

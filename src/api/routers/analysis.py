@@ -53,6 +53,7 @@ def run_analysis_and_save(
         analysis_mode: Analysis mode to use
         analysis_service: Analysis service instance
     """
+
     async def _job() -> None:
         try:
             result = await analysis_service.analyze_document(
@@ -128,7 +129,7 @@ async def analyze_document(
     destination = temp_dir / f"{task_id}_{safe_filename}"
 
     content = await file.read()
-    
+
     # Security: Validate file size
     is_valid, error_msg = SecurityValidator.validate_file_size(len(content))
     if not is_valid:
@@ -136,7 +137,7 @@ async def analyze_document(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=error_msg,
         )
-    
+
     destination.write_bytes(content)
 
     # Security: Validate discipline parameter
@@ -147,7 +148,7 @@ async def analyze_document(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=error_msg,
         )
-    
+
     # Security: Validate analysis_mode parameter
     is_valid, error_msg = SecurityValidator.validate_analysis_mode(analysis_mode)
     if not is_valid:
@@ -275,9 +276,7 @@ async def export_report_to_pdf(
         raise
     except Exception as e:
         logger.exception("PDF export failed", task_id=task_id, error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"PDF export failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"PDF export failed: {str(e)}")
 
 
 @router.get("/pdfs")

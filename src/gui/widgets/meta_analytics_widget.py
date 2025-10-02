@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 class MetaAnalyticsWidget(QWidget):
     """
     Widget for displaying organizational-level analytics and insights.
-    
+
     Features:
     - Team performance overview
     - Training needs identification
@@ -58,19 +58,19 @@ class MetaAnalyticsWidget(QWidget):
 
         # Main content tabs
         self.tabs = QTabWidget()
-        
+
         # Overview tab
         self.overview_tab = self.create_overview_tab()
         self.tabs.addTab(self.overview_tab, "Team Overview")
-        
+
         # Training needs tab
         self.training_tab = self.create_training_tab()
         self.tabs.addTab(self.training_tab, "Training Needs")
-        
+
         # Trends tab
         self.trends_tab = self.create_trends_tab()
         self.tabs.addTab(self.trends_tab, "Performance Trends")
-        
+
         # Benchmarks tab
         self.benchmarks_tab = self.create_benchmarks_tab()
         self.tabs.addTab(self.benchmarks_tab, "Benchmarks")
@@ -111,30 +111,30 @@ class MetaAnalyticsWidget(QWidget):
 
         # Metrics cards
         metrics_layout = QGridLayout()
-        
+
         self.total_users_label = QLabel("Total Users: --")
         self.avg_score_label = QLabel("Avg Compliance: --%")
         self.total_findings_label = QLabel("Total Findings: --")
         self.total_analyses_label = QLabel("Total Analyses: --")
-        
+
         metrics_layout.addWidget(self.total_users_label, 0, 0)
         metrics_layout.addWidget(self.avg_score_label, 0, 1)
         metrics_layout.addWidget(self.total_findings_label, 1, 0)
         metrics_layout.addWidget(self.total_analyses_label, 1, 1)
-        
+
         layout.addLayout(metrics_layout)
 
         # Charts
         charts_layout = QHBoxLayout()
-        
+
         # Discipline breakdown chart
         self.discipline_canvas = MplCanvas(width=6, height=4)
         charts_layout.addWidget(self.discipline_canvas)
-        
+
         # Habit distribution chart
         self.habits_canvas = MplCanvas(width=6, height=4)
         charts_layout.addWidget(self.habits_canvas)
-        
+
         layout.addLayout(charts_layout)
 
         # Insights section
@@ -190,56 +190,63 @@ class MetaAnalyticsWidget(QWidget):
         """Create the insights display widget."""
         scroll_area = QScrollArea()
         scroll_area.setMaximumHeight(200)
-        
+
         self.insights_content = QWidget()
         self.insights_layout = QVBoxLayout(self.insights_content)
-        
+
         scroll_area.setWidget(self.insights_content)
         scroll_area.setWidgetResizable(True)
-        
+
         return scroll_area
 
     def request_refresh(self):
         """Request data refresh with current parameters."""
         params = {
             "days_back": self.days_spinbox.value(),
-            "discipline": None if self.discipline_combo.currentText() == "All Disciplines" 
-                         else self.discipline_combo.currentText()
+            "discipline": None
+            if self.discipline_combo.currentText() == "All Disciplines"
+            else self.discipline_combo.currentText(),
         }
         self.refresh_requested.emit(params)
 
     def update_data(self, data: Dict[str, Any]):
         """Update the widget with new analytics data."""
         self.current_data = data
-        
+
         # Update overview tab
         self.update_overview_tab(data)
-        
+
         # Update training tab
         self.update_training_tab(data)
-        
+
         # Update trends tab
         self.update_trends_tab(data)
-        
+
         # Update benchmarks tab
         self.update_benchmarks_tab(data)
 
     def update_overview_tab(self, data: Dict[str, Any]):
         """Update the overview tab with new data."""
         metrics = data.get("organizational_metrics", {})
-        
+
         # Update metric labels
         self.total_users_label.setText(f"Total Users: {metrics.get('total_users', 0)}")
-        self.avg_score_label.setText(f"Avg Compliance: {metrics.get('avg_compliance_score', 0):.1f}%")
-        self.total_findings_label.setText(f"Total Findings: {metrics.get('total_findings', 0)}")
-        self.total_analyses_label.setText(f"Total Analyses: {metrics.get('total_analyses', 0)}")
-        
+        self.avg_score_label.setText(
+            f"Avg Compliance: {metrics.get('avg_compliance_score', 0):.1f}%"
+        )
+        self.total_findings_label.setText(
+            f"Total Findings: {metrics.get('total_findings', 0)}"
+        )
+        self.total_analyses_label.setText(
+            f"Total Analyses: {metrics.get('total_analyses', 0)}"
+        )
+
         # Update discipline breakdown chart
         self.update_discipline_chart(metrics.get("discipline_breakdown", {}))
-        
+
         # Update habits distribution chart
         self.update_habits_chart(metrics.get("team_habit_breakdown", {}))
-        
+
         # Update insights
         self.update_insights(data.get("insights", []))
 
@@ -247,106 +254,168 @@ class MetaAnalyticsWidget(QWidget):
         """Update the discipline breakdown chart."""
         ax = self.discipline_canvas.axes
         ax.clear()
-        
+
         if not discipline_data:
-            ax.text(0.5, 0.5, "No discipline data available", 
-                   ha="center", va="center", transform=ax.transAxes)
+            ax.text(
+                0.5,
+                0.5,
+                "No discipline data available",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+            )
         else:
             disciplines = list(discipline_data.keys())
-            scores = [data.get("avg_compliance_score", 0) for data in discipline_data.values()]
-            user_counts = [data.get("user_count", 0) for data in discipline_data.values()]
-            
+            scores = [
+                data.get("avg_compliance_score", 0) for data in discipline_data.values()
+            ]
+            user_counts = [
+                data.get("user_count", 0) for data in discipline_data.values()
+            ]
+
             # Create bar chart
             x = np.arange(len(disciplines))
             width = 0.35
-            
-            bars1 = ax.bar(x - width/2, scores, width, label='Avg Compliance Score', alpha=0.8)
+
+            bars1 = ax.bar(
+                x - width / 2, scores, width, label="Avg Compliance Score", alpha=0.8
+            )
             ax2 = ax.twinx()
-            bars2 = ax2.bar(x + width/2, user_counts, width, label='User Count', alpha=0.8, color='orange')
-            
-            ax.set_xlabel('Discipline')
-            ax.set_ylabel('Compliance Score (%)', color='blue')
-            ax2.set_ylabel('User Count', color='orange')
-            ax.set_title('Performance by Discipline')
+            bars2 = ax2.bar(
+                x + width / 2,
+                user_counts,
+                width,
+                label="User Count",
+                alpha=0.8,
+                color="orange",
+            )
+
+            ax.set_xlabel("Discipline")
+            ax.set_ylabel("Compliance Score (%)", color="blue")
+            ax2.set_ylabel("User Count", color="orange")
+            ax.set_title("Performance by Discipline")
             ax.set_xticks(x)
             ax.set_xticklabels(disciplines)
-            
+
             # Add value labels on bars
             for bar in bars1:
                 height = bar.get_height()
-                ax.text(bar.get_x() + bar.get_width()/2., height + 1,
-                       f'{height:.1f}%', ha='center', va='bottom')
-            
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2.0,
+                    height + 1,
+                    f"{height:.1f}%",
+                    ha="center",
+                    va="bottom",
+                )
+
             for bar in bars2:
                 height = bar.get_height()
-                ax2.text(bar.get_x() + bar.get_width()/2., height + 0.1,
-                        f'{int(height)}', ha='center', va='bottom')
-            
-            ax.legend(loc='upper left')
-            ax2.legend(loc='upper right')
-        
+                ax2.text(
+                    bar.get_x() + bar.get_width() / 2.0,
+                    height + 0.1,
+                    f"{int(height)}",
+                    ha="center",
+                    va="bottom",
+                )
+
+            ax.legend(loc="upper left")
+            ax2.legend(loc="upper right")
+
         self.discipline_canvas.draw()
 
     def update_habits_chart(self, habits_data: Dict[str, Any]):
         """Update the habits distribution pie chart."""
         ax = self.habits_canvas.axes
         ax.clear()
-        
+
         if not habits_data:
-            ax.text(0.5, 0.5, "No habits data available", 
-                   ha="center", va="center", transform=ax.transAxes)
+            ax.text(
+                0.5,
+                0.5,
+                "No habits data available",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+            )
         else:
             # Get top 5 habits by percentage
             sorted_habits = sorted(
-                habits_data.items(), 
-                key=lambda x: x[1].get("percentage", 0), 
-                reverse=True
+                habits_data.items(),
+                key=lambda x: x[1].get("percentage", 0),
+                reverse=True,
             )[:5]
-            
-            labels = [f"Habit {item[1]['habit_number']}: {item[1]['habit_name'][:20]}..." 
-                     for _, item in sorted_habits]
+
+            labels = [
+                f"Habit {item[1]['habit_number']}: {item[1]['habit_name'][:20]}..."
+                for _, item in sorted_habits
+            ]
             sizes = [item[1].get("percentage", 0) for _, item in sorted_habits]
-            
+
             if sum(sizes) > 0:
-                ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
-                ax.set_title('Top 5 Habits Distribution')
+                ax.pie(sizes, labels=labels, autopct="%1.1f%%", startangle=90)
+                ax.set_title("Top 5 Habits Distribution")
             else:
-                ax.text(0.5, 0.5, "No habit distribution data", 
-                       ha="center", va="center", transform=ax.transAxes)
-        
+                ax.text(
+                    0.5,
+                    0.5,
+                    "No habit distribution data",
+                    ha="center",
+                    va="center",
+                    transform=ax.transAxes,
+                )
+
         self.habits_canvas.draw()
 
     def update_training_tab(self, data: Dict[str, Any]):
         """Update the training needs tab."""
         training_needs = data.get("training_needs", [])
-        
+
         # Update training chart
         ax = self.training_canvas.axes
         ax.clear()
-        
+
         if not training_needs:
-            ax.text(0.5, 0.5, "No training needs identified", 
-                   ha="center", va="center", transform=ax.transAxes)
+            ax.text(
+                0.5,
+                0.5,
+                "No training needs identified",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+            )
         else:
             # Create horizontal bar chart of training needs
-            habits = [need["habit_name"][:30] + "..." if len(need["habit_name"]) > 30 
-                     else need["habit_name"] for need in training_needs[:10]]
-            percentages = [need["percentage_of_findings"] for need in training_needs[:10]]
-            colors = ['red' if need["priority"] == "high" else 'orange' 
-                     for need in training_needs[:10]]
-            
+            habits = [
+                need["habit_name"][:30] + "..."
+                if len(need["habit_name"]) > 30
+                else need["habit_name"]
+                for need in training_needs[:10]
+            ]
+            percentages = [
+                need["percentage_of_findings"] for need in training_needs[:10]
+            ]
+            colors = [
+                "red" if need["priority"] == "high" else "orange"
+                for need in training_needs[:10]
+            ]
+
             bars = ax.barh(habits, percentages, color=colors, alpha=0.7)
-            ax.set_xlabel('Percentage of Findings')
-            ax.set_title('Training Needs by Habit Area')
+            ax.set_xlabel("Percentage of Findings")
+            ax.set_title("Training Needs by Habit Area")
             ax.set_xlim(0, max(percentages) * 1.1 if percentages else 1)
-            
+
             # Add percentage labels
             for i, (bar, pct) in enumerate(zip(bars, percentages)):
-                ax.text(bar.get_width() + 0.5, bar.get_y() + bar.get_height()/2,
-                       f'{pct:.1f}%', ha='left', va='center')
-        
+                ax.text(
+                    bar.get_width() + 0.5,
+                    bar.get_y() + bar.get_height() / 2,
+                    f"{pct:.1f}%",
+                    ha="left",
+                    va="center",
+                )
+
         self.training_canvas.draw()
-        
+
         # Update recommendations text
         if training_needs:
             recommendations = []
@@ -357,96 +426,125 @@ class MetaAnalyticsWidget(QWidget):
                     f"  Affected users: {need['affected_users']}\n"
                     f"  Focus: {need['training_focus']}\n"
                 )
-            
+
             self.training_recommendations.setText(
                 "Top Training Recommendations:\n\n" + "\n".join(recommendations)
             )
         else:
-            self.training_recommendations.setText("No specific training needs identified.")
+            self.training_recommendations.setText(
+                "No specific training needs identified."
+            )
 
     def update_trends_tab(self, data: Dict[str, Any]):
         """Update the performance trends tab."""
         trends = data.get("team_trends", [])
-        
+
         ax = self.trends_canvas.axes
         ax.clear()
-        
+
         if not trends:
-            ax.text(0.5, 0.5, "No trend data available", 
-                   ha="center", va="center", transform=ax.transAxes)
+            ax.text(
+                0.5,
+                0.5,
+                "No trend data available",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+            )
         else:
             # Extract data for plotting
-            weeks = [f"Week {i+1}" for i in range(len(trends))]
+            weeks = [f"Week {i + 1}" for i in range(len(trends))]
             scores = [trend.get("avg_compliance_score", 0) for trend in trends]
             findings = [trend.get("total_findings", 0) for trend in trends]
-            
+
             # Create dual-axis plot
             ax2 = ax.twinx()
-            
-            line1 = ax.plot(weeks, scores, 'b-o', label='Avg Compliance Score', linewidth=2)
-            line2 = ax2.plot(weeks, findings, 'r-s', label='Total Findings', linewidth=2)
-            
-            ax.set_xlabel('Time Period')
-            ax.set_ylabel('Compliance Score (%)', color='blue')
-            ax2.set_ylabel('Total Findings', color='red')
-            ax.set_title('Team Performance Trends Over Time')
-            
+
+            line1 = ax.plot(
+                weeks, scores, "b-o", label="Avg Compliance Score", linewidth=2
+            )
+            line2 = ax2.plot(
+                weeks, findings, "r-s", label="Total Findings", linewidth=2
+            )
+
+            ax.set_xlabel("Time Period")
+            ax.set_ylabel("Compliance Score (%)", color="blue")
+            ax2.set_ylabel("Total Findings", color="red")
+            ax.set_title("Team Performance Trends Over Time")
+
             # Rotate x-axis labels for better readability
-            plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
-            
+            plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+
             # Add legends
             lines = line1 + line2
             labels = [line.get_label() for line in lines]
-            ax.legend(lines, labels, loc='upper left')
-            
+            ax.legend(lines, labels, loc="upper left")
+
             # Add trend line for compliance scores
             if len(scores) > 1:
                 z = np.polyfit(range(len(scores)), scores, 1)
                 p = np.poly1d(z)
-                ax.plot(weeks, p(range(len(scores))), "b--", alpha=0.5, label='Trend')
-        
+                ax.plot(weeks, p(range(len(scores))), "b--", alpha=0.5, label="Trend")
+
         self.trends_canvas.draw()
 
     def update_benchmarks_tab(self, data: Dict[str, Any]):
         """Update the benchmarks tab."""
         benchmarks = data.get("benchmarks", {})
-        
+
         ax = self.benchmarks_canvas.axes
         ax.clear()
-        
+
         if not benchmarks:
-            ax.text(0.5, 0.5, "No benchmark data available", 
-                   ha="center", va="center", transform=ax.transAxes)
+            ax.text(
+                0.5,
+                0.5,
+                "No benchmark data available",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+            )
         else:
             # Create box plot style visualization of percentiles
             compliance_percentiles = benchmarks.get("compliance_score_percentiles", {})
-            
+
             if compliance_percentiles:
-                percentiles = ['25th', '50th', '75th', '90th']
+                percentiles = ["25th", "50th", "75th", "90th"]
                 values = [
                     compliance_percentiles.get("p25", 0),
                     compliance_percentiles.get("p50", 0),
                     compliance_percentiles.get("p75", 0),
-                    compliance_percentiles.get("p90", 0)
+                    compliance_percentiles.get("p90", 0),
                 ]
-                
-                bars = ax.bar(percentiles, values, color=['lightcoral', 'lightblue', 'lightgreen', 'gold'])
-                ax.set_ylabel('Compliance Score (%)')
-                ax.set_title('Team Compliance Score Percentiles')
+
+                bars = ax.bar(
+                    percentiles,
+                    values,
+                    color=["lightcoral", "lightblue", "lightgreen", "gold"],
+                )
+                ax.set_ylabel("Compliance Score (%)")
+                ax.set_title("Team Compliance Score Percentiles")
                 ax.set_ylim(0, 100)
-                
+
                 # Add value labels on bars
                 for bar, value in zip(bars, values):
-                    ax.text(bar.get_x() + bar.get_width()/2., bar.get_height() + 1,
-                           f'{value:.1f}%', ha='center', va='bottom')
-        
+                    ax.text(
+                        bar.get_x() + bar.get_width() / 2.0,
+                        bar.get_height() + 1,
+                        f"{value:.1f}%",
+                        ha="center",
+                        va="bottom",
+                    )
+
         self.benchmarks_canvas.draw()
-        
+
         # Update summary text
         if benchmarks:
             total_users = benchmarks.get("total_users_in_benchmark", 0)
-            compliance_p50 = benchmarks.get("compliance_score_percentiles", {}).get("p50", 0)
-            
+            compliance_p50 = benchmarks.get("compliance_score_percentiles", {}).get(
+                "p50", 0
+            )
+
             summary_text = f"""
 Benchmark Summary (based on {total_users} users):
 
@@ -456,7 +554,7 @@ Benchmark Summary (based on {total_users} users):
 
 This data represents anonymous performance distribution across your organization.
             """.strip()
-            
+
             self.benchmarks_summary.setText(summary_text)
         else:
             self.benchmarks_summary.setText("No benchmark data available.")
@@ -466,7 +564,7 @@ This data represents anonymous performance distribution across your organization
         # Clear existing insights
         for i in reversed(range(self.insights_layout.count())):
             self.insights_layout.itemAt(i).widget().setParent(None)
-        
+
         if not insights:
             no_insights_label = QLabel("No insights available")
             self.insights_layout.addWidget(no_insights_label)
@@ -479,18 +577,18 @@ This data represents anonymous performance distribution across your organization
         """Create a widget for displaying a single insight."""
         widget = QGroupBox(insight.get("title", "Insight"))
         layout = QVBoxLayout(widget)
-        
+
         # Description
         description = QLabel(insight.get("description", ""))
         description.setWordWrap(True)
         layout.addWidget(description)
-        
+
         # Recommendation
         recommendation = QLabel(f"Recommendation: {insight.get('recommendation', '')}")
         recommendation.setWordWrap(True)
         recommendation.setStyleSheet("font-weight: bold; color: #2E8B57;")
         layout.addWidget(recommendation)
-        
+
         # Style based on level
         level = insight.get("level", "neutral")
         if level == "positive":
@@ -499,7 +597,7 @@ This data represents anonymous performance distribution across your organization
             widget.setStyleSheet("QGroupBox { border: 2px solid red; }")
         elif level == "action_required":
             widget.setStyleSheet("QGroupBox { border: 2px solid orange; }")
-        
+
         return widget
 
 

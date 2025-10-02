@@ -310,7 +310,10 @@ class HelpSystem:
             # Create tooltip
             tooltip_text = f"<b>{help_info['title']}</b><br><br>{help_info['content']}"
             parent_widget = widget.parent()
-            tooltip = HelpTooltip(tooltip_text, parent_widget if isinstance(parent_widget, QWidget) else None)
+            tooltip = HelpTooltip(
+                tooltip_text,
+                parent_widget if isinstance(parent_widget, QWidget) else None,
+            )
 
             # Position tooltip near widget
             widget_pos = widget.mapToGlobal(QPoint(0, widget.height() + 5))

@@ -171,10 +171,13 @@ class HabitTrendPoint(BaseModel):
     date: datetime.date
     count: int
 
+
 # Habit Progression Schemas
+
 
 class HabitGoalBase(BaseModel):
     """Base schema for habit goals."""
+
     title: str
     description: Optional[str] = None
     habit_number: Optional[int] = None
@@ -184,11 +187,13 @@ class HabitGoalBase(BaseModel):
 
 class HabitGoalCreate(HabitGoalBase):
     """Schema for creating habit goals."""
+
     pass
 
 
 class HabitGoalUpdate(BaseModel):
     """Schema for updating habit goals."""
+
     title: Optional[str] = None
     description: Optional[str] = None
     progress: Optional[int] = None
@@ -198,6 +203,7 @@ class HabitGoalUpdate(BaseModel):
 
 class HabitGoal(HabitGoalBase):
     """Schema for habit goal responses."""
+
     id: int
     user_id: int
     current_value: Optional[float] = None
@@ -212,6 +218,7 @@ class HabitGoal(HabitGoalBase):
 
 class HabitAchievementBase(BaseModel):
     """Base schema for habit achievements."""
+
     achievement_id: str
     title: str
     description: str
@@ -221,11 +228,13 @@ class HabitAchievementBase(BaseModel):
 
 class HabitAchievementCreate(HabitAchievementBase):
     """Schema for creating habit achievements."""
+
     pass
 
 
 class HabitAchievement(HabitAchievementBase):
     """Schema for habit achievement responses."""
+
     id: int
     user_id: int
     earned_at: datetime.datetime
@@ -235,6 +244,7 @@ class HabitAchievement(HabitAchievementBase):
 
 class HabitProgressData(BaseModel):
     """Schema for individual habit progression data."""
+
     total_findings: int
     analysis_period_days: int
     habit_breakdown: Dict[str, Any]
@@ -252,6 +262,7 @@ class HabitProgressData(BaseModel):
 
 class WeeklyHabitTrend(BaseModel):
     """Schema for weekly habit trend data."""
+
     week_start: str
     week_end: str
     total_findings: int
@@ -261,6 +272,7 @@ class WeeklyHabitTrend(BaseModel):
 
 class HabitRecommendation(BaseModel):
     """Schema for habit recommendations."""
+
     type: str  # focus_area, improvement, consistency
     priority: str  # high, medium, low
     title: str
@@ -271,6 +283,7 @@ class HabitRecommendation(BaseModel):
 
 class UserProgressSummary(BaseModel):
     """Schema for user progress summary."""
+
     user_id: int
     overall_progress_percentage: float
     overall_status: str  # New, Developing, Intermediate, Advanced, Expert

@@ -76,7 +76,9 @@ class LLMService:
             )
             logger.info("LLM loaded successfully")
         except Exception as e:
-            logger.critical("Fatal error: Failed to load LLM", error=str(e), exc_info=True)
+            logger.critical(
+                "Fatal error: Failed to load LLM", error=str(e), exc_info=True
+            )
             self.llm = None
         finally:
             self.is_loading = False
@@ -114,7 +116,9 @@ class LLMService:
             A string containing the generated text or an error message.
         """
         if not self.is_ready():
-            logger.error("LLM is not available or failed to load. Cannot generate text.")
+            logger.error(
+                "LLM is not available or failed to load. Cannot generate text."
+            )
             return "Error: LLM service is not available."
 
         try:
@@ -126,7 +130,7 @@ class LLMService:
             if self.llm is None:
                 logger.error("LLM model is not loaded")
                 return "Error: LLM model is not available."
-            
+
             response = self.llm(prompt, **gen_params)
             return response
         except Exception as e:
@@ -138,11 +142,11 @@ class LLMService:
     def generate_analysis(self, prompt: str, **kwargs) -> str:
         """
         Alias for generate method to maintain compatibility with other services.
-        
+
         Args:
             prompt (str): The input text prompt for analysis.
             **kwargs: Additional generation parameters.
-            
+
         Returns:
             A string containing the generated analysis.
         """

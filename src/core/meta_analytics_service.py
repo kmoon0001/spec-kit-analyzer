@@ -176,9 +176,7 @@ class MetaAnalyticsService:
                 if report["compliance_score"] > 0:
                     all_scores.append(report["compliance_score"])
 
-        avg_compliance_score = (
-            sum(all_scores) / len(all_scores) if all_scores else 0
-        )
+        avg_compliance_score = sum(all_scores) / len(all_scores) if all_scores else 0
 
         # Discipline breakdown
         discipline_stats = {}
@@ -205,9 +203,7 @@ class MetaAnalyticsService:
         # Calculate averages for each discipline
         for discipline, stats in discipline_stats.items():
             scores = stats["compliance_scores"]
-            stats["avg_compliance_score"] = (
-                sum(scores) / len(scores) if scores else 0
-            )
+            stats["avg_compliance_score"] = sum(scores) / len(scores) if scores else 0
             stats["avg_findings_per_user"] = (
                 stats["total_findings"] / stats["user_count"]
             )
@@ -370,9 +366,7 @@ class MetaAnalyticsService:
 
         return training_needs
 
-    def _calculate_benchmarks(
-        self, users_data: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def _calculate_benchmarks(self, users_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate benchmarking data for peer comparison."""
 
         if not users_data:

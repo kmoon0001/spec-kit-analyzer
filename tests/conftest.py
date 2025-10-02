@@ -18,9 +18,6 @@ from sqlalchemy.orm import Session, sessionmaker
 from src.database.models import User
 from src.database.crud import create_user
 from src.database.schemas import UserCreate
-import src.database.models as models
-import src.database.crud as crud
-import src.database.schemas as schemas
 from src.api.main import app
 from src.core.compliance_analyzer import ComplianceAnalyzer
 from src.core.explanation import ExplanationEngine
@@ -74,8 +71,12 @@ def mock_ner_analyzer() -> MagicMock:
     service.extract_entities.return_value = []
     service.extract_clinician_name.return_value = []
     service.extract_medical_entities.return_value = {
-        'conditions': [], 'medications': [], 'procedures': [], 
-        'anatomy': [], 'measurements': [], 'other': []
+        "conditions": [],
+        "medications": [],
+        "procedures": [],
+        "anatomy": [],
+        "measurements": [],
+        "other": [],
     }
     return service
 

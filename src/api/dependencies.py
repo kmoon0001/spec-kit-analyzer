@@ -49,7 +49,7 @@ async def get_retriever() -> Any:
         try:
             retriever_instance = HybridRetriever()
             # Check if the retriever has an initialize method
-            if hasattr(retriever_instance, 'initialize'):
+            if hasattr(retriever_instance, "initialize"):
                 await retriever_instance.initialize()
             app_state["retriever"] = retriever_instance
             logger.info("New retriever instance created and initialized.")

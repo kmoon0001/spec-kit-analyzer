@@ -29,7 +29,7 @@ class ReportGenerator:
 
     Produces HTML reports with executive summary, detailed findings table, AI transparency
     section, regulatory citations, and action planning recommendations.
-    
+
     Now includes enhanced 7 Habits Personal Development Framework integration.
     """
 
@@ -40,16 +40,15 @@ class ReportGenerator:
         self.model_limitations_html = self._load_and_convert_markdown(
             os.path.join(ROOT_DIR, "src", "resources", "model_limitations.md")
         )
-        
+
         # Initialize habits framework
         self.settings = get_settings()
         self.habits_enabled = self.settings.habits_framework.enabled
-        
+
         if self.habits_enabled:
             use_ai = self.settings.habits_framework.ai_features.use_ai_mapping
             self.habits_framework = SevenHabitsFramework(
-                use_ai_mapping=use_ai,
-                llm_service=llm_service
+                use_ai_mapping=use_ai, llm_service=llm_service
             )
         else:
             self.habits_framework = None
@@ -130,10 +129,15 @@ class ReportGenerator:
         report_html = report_html.replace(
             "<!-- Placeholder for model limitations -->", self.model_limitations_html
         )
-        
+
         # Add Personal Development section (if habits enabled)
-        if self.habits_enabled and self.settings.habits_framework.report_integration.show_personal_development_section:
-            personal_dev_html = self._generate_personal_development_section(findings, analysis_result)
+        if (
+            self.habits_enabled
+            and self.settings.habits_framework.report_integration.show_personal_development_section
+        ):
+            personal_dev_html = self._generate_personal_development_section(
+                findings, analysis_result
+            )
             report_html = report_html.replace(
                 "<!-- Placeholder for personal development -->", personal_dev_html
             )
@@ -187,7 +191,9 @@ class ReportGenerator:
 
         return report_html
 
-    def _generate_findings_table(self, findings: list, analysis_result: dict = None) -> str:
+    def _generate_findings_table(
+        self, findings: list, analysis_result: dict = None
+    ) -> str:
         """Generate the detailed findings analysis table."""
         if not findings:
             return '<tr><td colspan="6">No compliance findings identified.</td></tr>'
@@ -283,47 +289,55 @@ class ReportGenerator:
             issue_html += f"<br><small>{severity_reason}</small>"
 
         # Add habit tag if habits enabled and configured to show
-        if (self.habits_enabled and 
-            self.settings.habits_framework.report_integration.show_habit_tags):
-            
+        if (
+            self.habits_enabled
+            and self.settings.habits_framework.report_integration.show_habit_tags
+        ):
             habit_info = self._get_habit_info_for_finding(finding, analysis_result)
-            
+
             if habit_info:
                 habit_html = self._generate_habit_tag_html(habit_info)
                 issue_html += habit_html
 
         return issue_html
 
-    def _get_habit_info_for_finding(self, finding: dict, analysis_result: dict = None) -> Optional[Dict[str, Any]]:
+    def _get_habit_info_for_finding(
+        self, finding: dict, analysis_result: dict = None
+    ) -> Optional[Dict[str, Any]]:
         """
         Get habit information for a finding with proper context.
-        
+
         Args:
             finding: The compliance finding
             analysis_result: Optional analysis result for context
-            
+
         Returns:
             Habit information dictionary or None
         """
         if self.habits_framework:
             # Use enhanced framework with proper context
             context = {
-                "document_type": analysis_result.get("document_type", "Unknown") if analysis_result else "Unknown",
-                "discipline": analysis_result.get("discipline", "Unknown") if analysis_result else "Unknown",
+                "document_type": analysis_result.get("document_type", "Unknown")
+                if analysis_result
+                else "Unknown",
+                "discipline": analysis_result.get("discipline", "Unknown")
+                if analysis_result
+                else "Unknown",
                 "risk_level": finding.get("risk", "Unknown"),
-                "issue_category": finding.get("issue_category", "General")
+                "issue_category": finding.get("issue_category", "General"),
             }
             return self.habits_framework.map_finding_to_habit(finding, context)
         else:
             # Fallback to legacy function
             try:
                 from .habit_mapper import get_habit_for_finding
+
                 legacy_habit = get_habit_for_finding(finding)
                 return {
                     "habit_number": 1,  # Default to Habit 1
                     "name": legacy_habit["name"],
                     "explanation": legacy_habit["explanation"],
-                    "confidence": 0.5  # Default confidence for legacy
+                    "confidence": 0.5,  # Default confidence for legacy
                 }
             except ImportError:
                 logger.warning("Legacy habit mapper not available")
@@ -332,10 +346,10 @@ class ReportGenerator:
     def _generate_habit_tag_html(self, habit_info: Dict[str, Any]) -> str:
         """
         Generate HTML for habit tag based on visibility settings.
-        
+
         Args:
             habit_info: Habit information dictionary
-            
+
         Returns:
             HTML string for habit tag
         """
@@ -343,22 +357,27 @@ class ReportGenerator:
         habit_name = sanitize_human_text(habit_info.get("name", "Unknown Habit"))
         explanation = sanitize_human_text(habit_info.get("explanation", ""))
         confidence = habit_info.get("confidence", 0.0)
-        
+
         # Only show if confidence meets threshold
-        if confidence < self.settings.habits_framework.advanced.habit_confidence_threshold:
+        if (
+            confidence
+            < self.settings.habits_framework.advanced.habit_confidence_threshold
+        ):
             return ""
-        
+
         # Generate appropriate HTML based on visibility level
         if self.settings.habits_framework.is_prominent():
             # Prominent: Large, detailed badge with confidence indicator
-            confidence_indicator = f" ({confidence:.0%} confidence)" if confidence < 0.9 else ""
+            confidence_indicator = (
+                f" ({confidence:.0%} confidence)" if confidence < 0.9 else ""
+            )
             habit_html = f'''
             <div class="habit-tag prominent" data-confidence="{confidence:.2f}">
                 <div class="habit-badge">
                     🎯 HABIT {habit_number}: {habit_name.upper()}{confidence_indicator}
                 </div>
                 <div class="habit-quick-tip">
-                    {explanation[:120]}{'...' if len(explanation) > 120 else ''}
+                    {explanation[:120]}{"..." if len(explanation) > 120 else ""}
                 </div>
             </div>
             '''
@@ -377,7 +396,7 @@ class ReportGenerator:
                 💡 Habit {habit_number}: {habit_name}
             </div>
             '''
-        
+
         return habit_html
 
     def _generate_recommendation_cell(self, finding: dict) -> str:
@@ -394,34 +413,42 @@ class ReportGenerator:
 
         return recommendation
 
-    def _generate_prevention_cell(self, finding: dict, analysis_result: dict = None) -> str:
+    def _generate_prevention_cell(
+        self, finding: dict, analysis_result: dict = None
+    ) -> str:
         """Generate prevention strategies cell using enhanced habit mapper."""
         if not self.habits_enabled:
             # Fallback to basic prevention text
             return '<div class="habit-explanation">Review documentation practices regularly</div>'
-        
+
         # Get habit info with proper context
         habit_info = self._get_habit_info_for_finding(finding, analysis_result)
         if not habit_info:
             return '<div class="habit-explanation">Review documentation practices regularly</div>'
-        
+
         habit_name = sanitize_human_text(habit_info["name"])
         habit_explanation = sanitize_human_text(habit_info["explanation"])
-        
+
         # Build HTML based on visibility level
         html = f'<div class="habit-name">{habit_name}</div>'
         html += f'<div class="habit-explanation">{habit_explanation}</div>'
-        
+
         # Add strategies if moderate or prominent visibility
-        if self.settings.habits_framework.is_moderate() or self.settings.habits_framework.is_prominent():
+        if (
+            self.settings.habits_framework.is_moderate()
+            or self.settings.habits_framework.is_prominent()
+        ):
             strategies = habit_info.get("improvement_strategies", [])
-            if strategies and self.settings.habits_framework.education.show_improvement_strategies:
+            if (
+                strategies
+                and self.settings.habits_framework.education.show_improvement_strategies
+            ):
                 html += '<div class="habit-strategies">'
-                html += '<strong>Quick Tips:</strong><ul>'
+                html += "<strong>Quick Tips:</strong><ul>"
                 for strategy in strategies[:2]:  # Show top 2 strategies
-                    html += f'<li>{sanitize_human_text(strategy)}</li>'
-                html += '</ul></div>'
-        
+                    html += f"<li>{sanitize_human_text(strategy)}</li>"
+                html += "</ul></div>"
+
         return html
 
     def _generate_confidence_cell(self, finding: dict) -> str:
@@ -524,43 +551,47 @@ class ReportGenerator:
         )
         return f"<ul>{list_items}</ul>"
 
-
     def _generate_personal_development_section(
         self, findings: List[Dict[str, Any]], analysis_result: Dict[str, Any]
     ) -> str:
         """
         Generate the Personal Development Insights section with habit analysis.
-        
+
         This section provides personalized growth recommendations based on
         the 7 Habits framework.
         """
         if not self.habits_framework or not findings:
             return ""
-        
+
         # Map all findings to habits
         habit_findings = []
         for finding in findings:
             context = {
                 "document_type": analysis_result.get("document_type", "Unknown"),
-                "discipline": analysis_result.get("discipline", "Unknown")
+                "discipline": analysis_result.get("discipline", "Unknown"),
             }
             habit_info = self.habits_framework.map_finding_to_habit(finding, context)
-            habit_findings.append({
-                "finding": finding,
-                "habit": habit_info
-            })
-        
+            habit_findings.append({"finding": finding, "habit": habit_info})
+
         # Calculate habit progression metrics
         metrics = self.habits_framework.get_habit_progression_metrics(
             [{"habit_id": hf["habit"]["habit_id"]} for hf in habit_findings]
         )
-        
+
         # Determine if section should be expanded by default
-        expanded_class = "expanded" if self.settings.habits_framework.report_integration.habit_section_expanded_by_default else "collapsed"
-        expand_icon = "▼" if self.settings.habits_framework.report_integration.habit_section_expanded_by_default else "▶"
-        
+        expanded_class = (
+            "expanded"
+            if self.settings.habits_framework.report_integration.habit_section_expanded_by_default
+            else "collapsed"
+        )
+        expand_icon = (
+            "▼"
+            if self.settings.habits_framework.report_integration.habit_section_expanded_by_default
+            else "▶"
+        )
+
         # Build HTML
-        html = f'''
+        html = f"""
         <div class="personal-development-section {expanded_class}">
             <h2 class="section-header" onclick="togglePersonalDevelopment()">
                 <span class="expand-icon">{expand_icon}</span>
@@ -573,14 +604,14 @@ class ReportGenerator:
                     Based on your {len(findings)} finding(s), here are personalized growth opportunities 
                     using Stephen Covey's 7 Habits framework:
                 </p>
-        '''
-        
+        """
+
         # Add primary focus area
         if metrics["top_focus_areas"]:
             primary_habit_id, primary_metrics = metrics["top_focus_areas"][0]
             primary_habit = self.habits_framework.get_habit_details(primary_habit_id)
-            
-            html += f'''
+
+            html += f"""
                 <div class="primary-focus">
                     <h3>🎯 Primary Focus Area</h3>
                     <div class="focus-card">
@@ -597,53 +628,55 @@ class ReportGenerator:
                         <div class="habit-description">
                             {primary_habit["description"].strip()}
                         </div>
-            '''
-            
+            """
+
             # Add improvement strategies if enabled
             if self.settings.habits_framework.education.show_improvement_strategies:
-                html += '''
+                html += """
                         <div class="improvement-strategies">
                             <h4>💡 Recommended Actions:</h4>
                             <ul>
-                '''
+                """
                 for strategy in primary_habit["improvement_strategies"][:3]:
-                    html += f'<li>{sanitize_human_text(strategy)}</li>'
-                html += '''
+                    html += f"<li>{sanitize_human_text(strategy)}</li>"
+                html += """
                             </ul>
                         </div>
-                '''
-            
+                """
+
             # Add clinical examples if enabled
             if self.settings.habits_framework.education.show_clinical_examples:
-                html += '''
+                html += """
                         <div class="clinical-examples">
                             <h4>📋 Clinical Applications:</h4>
                             <ul>
-                '''
+                """
                 for example in primary_habit["clinical_examples"][:2]:
-                    html += f'<li>{sanitize_human_text(example)}</li>'
-                html += '''
+                    html += f"<li>{sanitize_human_text(example)}</li>"
+                html += """
                             </ul>
                         </div>
-                '''
-            
-            html += '''
+                """
+
+            html += """
                     </div>
                 </div>
-            '''
-        
+            """
+
         # Add habit profile chart
-        html += '''
+        html += """
             <div class="habit-profile">
                 <h3>📊 Your Habit Profile</h3>
                 <div class="habit-bars">
-        '''
-        
-        for habit_id in sorted(metrics["habit_breakdown"].keys(), key=lambda x: int(x.split("_")[1])):
+        """
+
+        for habit_id in sorted(
+            metrics["habit_breakdown"].keys(), key=lambda x: int(x.split("_")[1])
+        ):
             habit_data = metrics["habit_breakdown"][habit_id]
             percentage = habit_data["percentage"]
             mastery = habit_data["mastery_level"]
-            
+
             # Determine bar color based on mastery
             if mastery == "Mastered":
                 bar_class = "mastery-mastered"
@@ -653,8 +686,8 @@ class ReportGenerator:
                 bar_class = "mastery-developing"
             else:
                 bar_class = "mastery-needs-focus"
-            
-            html += f'''
+
+            html += f"""
                 <div class="habit-bar-row">
                     <div class="habit-label">Habit {habit_data["habit_number"]}</div>
                     <div class="habit-bar-container">
@@ -662,9 +695,9 @@ class ReportGenerator:
                     </div>
                     <div class="habit-mastery">{mastery}</div>
                 </div>
-            '''
-        
-        html += '''
+            """
+
+        html += """
                 </div>
                 <div class="mastery-legend">
                     <span class="legend-item"><span class="legend-color mastery-mastered"></span> Mastered (&lt;5%)</span>
@@ -673,10 +706,10 @@ class ReportGenerator:
                     <span class="legend-item"><span class="legend-color mastery-needs-focus"></span> Needs Focus (&gt;25%)</span>
                 </div>
             </div>
-        '''
-        
+        """
+
         # Add action items
-        html += '''
+        html += """
             <div class="action-items">
                 <h3>✅ Next Steps</h3>
                 <ol>
@@ -686,11 +719,11 @@ class ReportGenerator:
                     <li>Celebrate improvements and adjust focus as needed</li>
                 </ol>
             </div>
-        '''
-        
+        """
+
         # Add resources link if enabled
         if self.settings.habits_framework.education.show_habit_resources:
-            html += '''
+            html += """
             <div class="resources-link">
                 <p>
                     <strong>Want to learn more?</strong> 
@@ -698,9 +731,9 @@ class ReportGenerator:
                     training modules, and progress tracking.
                 </p>
             </div>
-            '''
-        
-        html += '''
+            """
+
+        html += """
             </div>
         </div>
         
@@ -961,6 +994,6 @@ class ReportGenerator:
             color: #2980b9;
         }
         </style>
-        '''
-        
+        """
+
         return html

@@ -38,4 +38,6 @@ def clear_temp_uploads(temp_dir: str):
                 shutil.rmtree(file_path)
             logger.info("Successfully removed temporary file/directory", path=file_path)
         except (OSError, PermissionError) as e:
-            logger.error("Failed to delete temporary file", path=file_path, error=str(e))
+            logger.error(
+                "Failed to delete temporary file", path=file_path, error=str(e)
+            )

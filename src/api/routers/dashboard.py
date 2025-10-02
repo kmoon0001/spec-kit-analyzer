@@ -28,6 +28,7 @@ report_generator = ReportGenerator()
 # Assuming 'Settings' is available, or you'd import it like 'from src.config import Settings'
 # Assuming 'HTTPException' is available, or you'd import it like 'from fastapi import HTTPException'
 
+
 def _resolve_generator_model(
     settings: Settings,
 ) -> Tuple[str, str, Optional[str]]:
@@ -52,7 +53,10 @@ def _resolve_generator_model(
         )
 
     # 3. Raise an error if neither is found
-    raise HTTPException(status_code=500, detail="Generator model configuration not found in 'generator_profiles' or 'chat'.")
+    raise HTTPException(
+        status_code=500,
+        detail="Generator model configuration not found in 'generator_profiles' or 'chat'.",
+    )
 
     if settings.models.generator and settings.models.generator_filename:
         return settings.models.generator, settings.models.generator_filename
@@ -81,7 +85,7 @@ async def read_report(
     if db_report is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Report not found"
-)
+        )
 
     report_html = report_generator.generate_html_report(
         analysis_result=db_report.analysis_result,

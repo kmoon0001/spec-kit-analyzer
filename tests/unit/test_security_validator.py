@@ -5,8 +5,6 @@ Tests all security validation functions including file validation,
 input sanitization, and password strength checking.
 """
 
-import pytest
-
 from src.core.security_validator import SecurityValidator
 
 
@@ -331,7 +329,9 @@ class TestPasswordValidation:
 
     def test_password_with_special_chars(self):
         """Test password with special characters is valid."""
-        is_valid, error = SecurityValidator.validate_password_strength("Secure@Pass123!")
+        is_valid, error = SecurityValidator.validate_password_strength(
+            "Secure@Pass123!"
+        )
         assert is_valid is True
         assert error is None
 

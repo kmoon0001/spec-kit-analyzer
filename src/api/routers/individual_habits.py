@@ -36,32 +36,31 @@ async def get_personal_habit_profile(
     personalized recommendations based on the user's analysis history.
     """
     settings = get_settings()
-    
+
     if not settings.habits_framework.enabled:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Habits framework is not enabled"
+            detail="Habits framework is not enabled",
         )
-    
+
     # Initialize habits framework and tracker
     habits_framework = SevenHabitsFramework(
         use_ai_mapping=settings.habits_framework.ai_features.use_ai_mapping
     )
-    
+
     tracker = IndividualHabitTracker(
-        user_id=current_user.id,
-        habits_framework=habits_framework
+        user_id=current_user.id, habits_framework=habits_framework
     )
-    
+
     try:
         profile = await tracker.get_personal_habit_profile(db, days_back)
         return profile
-    
+
     except Exception as e:
         logger.exception(f"Failed to get habit profile for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate habit profile: {str(e)}"
+            detail=f"Failed to generate habit profile: {str(e)}",
         )
 
 
@@ -79,36 +78,37 @@ async def get_habit_timeline(
     for the specified habit over the requested time period.
     """
     settings = get_settings()
-    
+
     if not settings.habits_framework.enabled:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Habits framework is not enabled"
+            detail="Habits framework is not enabled",
         )
-    
+
     # Validate habit_id
     valid_habits = [f"habit_{i}" for i in range(1, 8)]
     if habit_id not in valid_habits:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid habit_id. Must be one of: {valid_habits}"
+            detail=f"Invalid habit_id. Must be one of: {valid_habits}",
         )
-    
+
     habits_framework = SevenHabitsFramework()
     tracker = IndividualHabitTracker(
-        user_id=current_user.id,
-        habits_framework=habits_framework
+        user_id=current_user.id, habits_framework=habits_framework
     )
-    
+
     try:
         timeline = await tracker.get_habit_timeline(db, habit_id, days_back)
         return timeline
-    
+
     except Exception as e:
-        logger.exception(f"Failed to get habit timeline for user {current_user.id}, habit {habit_id}")
+        logger.exception(
+            f"Failed to get habit timeline for user {current_user.id}, habit {habit_id}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate habit timeline: {str(e)}"
+            detail=f"Failed to generate habit timeline: {str(e)}",
         )
 
 
@@ -120,16 +120,16 @@ async def get_personal_goals(
 ) -> Dict[str, Any]:
     """Get user's personal habit improvement goals."""
     settings = get_settings()
-    
+
     if not settings.habits_framework.enabled:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Habits framework is not enabled"
+            detail="Habits framework is not enabled",
         )
-    
+
     try:
         goals = await crud.get_user_habit_goals(db, current_user.id, active_only)
-        
+
         return {
             "user_id": current_user.id,
             "goals": [
@@ -140,22 +140,28 @@ async def get_personal_goals(
                     "goal_type": goal.goal_type,
                     "target_value": goal.target_value,
                     "current_value": goal.current_value,
-                    "progress_percentage": (goal.current_value / goal.target_value * 100) if goal.target_value > 0 else 0,
+                    "progress_percentage": (
+                        goal.current_value / goal.target_value * 100
+                    )
+                    if goal.target_value > 0
+                    else 0,
                     "target_date": goal.target_date.isoformat(),
                     "created_at": goal.created_at.isoformat(),
                     "status": goal.status,
-                    "days_remaining": (goal.target_date - datetime.now()).days if goal.target_date > datetime.now() else 0
+                    "days_remaining": (goal.target_date - datetime.now()).days
+                    if goal.target_date > datetime.now()
+                    else 0,
                 }
                 for goal in goals
             ],
-            "total_goals": len(goals)
+            "total_goals": len(goals),
         }
-    
+
     except Exception as e:
         logger.exception(f"Failed to get goals for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get goals: {str(e)}"
+            detail=f"Failed to get goals: {str(e)}",
         )
 
 
@@ -177,38 +183,40 @@ async def create_personal_goal(
     }
     """
     settings = get_settings()
-    
+
     if not settings.habits_framework.enabled:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Habits framework is not enabled"
+            detail="Habits framework is not enabled",
         )
-    
+
     # Validate required fields
     required_fields = ["habit_id", "goal_type", "target_value", "target_date"]
     for field in required_fields:
         if field not in goal_data:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Missing required field: {field}"
+                detail=f"Missing required field: {field}",
             )
-    
+
     # Validate habit_id
     valid_habits = [f"habit_{i}" for i in range(1, 8)]
     if goal_data["habit_id"] not in valid_habits:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid habit_id. Must be one of: {valid_habits}"
+            detail=f"Invalid habit_id. Must be one of: {valid_habits}",
         )
-    
+
     # Get habit name
     habits_framework = SevenHabitsFramework()
     habit_details = habits_framework.get_habit_details(goal_data["habit_id"])
-    
+
     try:
         # Parse target date
-        target_date = datetime.fromisoformat(goal_data["target_date"].replace("Z", "+00:00"))
-        
+        target_date = datetime.fromisoformat(
+            goal_data["target_date"].replace("Z", "+00:00")
+        )
+
         goal_create_data = {
             "habit_id": goal_data["habit_id"],
             "habit_name": habit_details["name"],
@@ -216,11 +224,13 @@ async def create_personal_goal(
             "target_value": float(goal_data["target_value"]),
             "target_date": target_date,
             "current_value": 0.0,
-            "status": "active"
+            "status": "active",
         }
-        
-        goal = await crud.create_personal_habit_goal(db, current_user.id, goal_create_data)
-        
+
+        goal = await crud.create_personal_habit_goal(
+            db, current_user.id, goal_create_data
+        )
+
         return {
             "message": "Personal goal created successfully",
             "goal": {
@@ -230,20 +240,20 @@ async def create_personal_goal(
                 "goal_type": goal.goal_type,
                 "target_value": goal.target_value,
                 "target_date": goal.target_date.isoformat(),
-                "status": goal.status
-            }
+                "status": goal.status,
+            },
         }
-    
+
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid data format: {str(e)}"
+            detail=f"Invalid data format: {str(e)}",
         )
     except Exception as e:
         logger.exception(f"Failed to create goal for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create goal: {str(e)}"
+            detail=f"Failed to create goal: {str(e)}",
         )
 
 
@@ -255,50 +265,55 @@ async def get_personal_achievements(
 ) -> Dict[str, Any]:
     """Get user's personal achievements and badges."""
     settings = get_settings()
-    
-    if not settings.habits_framework.enabled or not settings.habits_framework.gamification.enabled:
+
+    if (
+        not settings.habits_framework.enabled
+        or not settings.habits_framework.gamification.enabled
+    ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Achievements system is not enabled"
+            detail="Achievements system is not enabled",
         )
-    
+
     try:
         achievements = await crud.get_user_achievements(db, current_user.id, category)
-        
+
         # Group by category
         by_category = {}
         total_points = 0
-        
+
         for achievement in achievements:
             cat = achievement.category
             if cat not in by_category:
                 by_category[cat] = []
-            
-            by_category[cat].append({
-                "id": achievement.achievement_id,
-                "name": achievement.achievement_name,
-                "description": achievement.achievement_description,
-                "icon": achievement.achievement_icon,
-                "points": achievement.points_earned,
-                "earned_date": achievement.earned_date.isoformat(),
-                "metadata": achievement.metadata
-            })
-            
+
+            by_category[cat].append(
+                {
+                    "id": achievement.achievement_id,
+                    "name": achievement.achievement_name,
+                    "description": achievement.achievement_description,
+                    "icon": achievement.achievement_icon,
+                    "points": achievement.points_earned,
+                    "earned_date": achievement.earned_date.isoformat(),
+                    "metadata": achievement.metadata,
+                }
+            )
+
             total_points += achievement.points_earned
-        
+
         return {
             "user_id": current_user.id,
             "total_achievements": len(achievements),
             "total_points": total_points,
             "achievements_by_category": by_category,
-            "categories": list(by_category.keys())
+            "categories": list(by_category.keys()),
         }
-    
+
     except Exception as e:
         logger.exception(f"Failed to get achievements for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get achievements: {str(e)}"
+            detail=f"Failed to get achievements: {str(e)}",
         )
 
 
@@ -310,22 +325,22 @@ async def get_personal_statistics(
 ) -> Dict[str, Any]:
     """Get comprehensive personal habit statistics."""
     settings = get_settings()
-    
+
     if not settings.habits_framework.enabled:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Habits framework is not enabled"
+            detail="Habits framework is not enabled",
         )
-    
+
     try:
         stats = await crud.get_user_habit_statistics(db, current_user.id, days_back)
         return stats
-    
+
     except Exception as e:
         logger.exception(f"Failed to get statistics for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get statistics: {str(e)}"
+            detail=f"Failed to get statistics: {str(e)}",
         )
 
 
@@ -335,16 +350,16 @@ async def get_all_habits_info(
 ) -> Dict[str, Any]:
     """Get information about all 7 habits for reference."""
     settings = get_settings()
-    
+
     if not settings.habits_framework.enabled:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Habits framework is not enabled"
+            detail="Habits framework is not enabled",
         )
-    
+
     habits_framework = SevenHabitsFramework()
     all_habits = habits_framework.get_all_habits()
-    
+
     return {
         "habits": all_habits,
         "total_habits": len(all_habits),
@@ -354,9 +369,9 @@ async def get_all_habits_info(
             "categories": [
                 {"name": "Private Victory", "habits": [1, 2, 3]},
                 {"name": "Public Victory", "habits": [4, 5, 6]},
-                {"name": "Renewal", "habits": [7]}
-            ]
-        }
+                {"name": "Renewal", "habits": [7]},
+            ],
+        },
     }
 
 
@@ -367,51 +382,62 @@ async def create_progress_snapshot(
 ) -> Dict[str, Any]:
     """
     Create a progress snapshot for trend tracking.
-    
+
     This is typically called automatically by the system, but can be
     triggered manually for immediate snapshot creation.
     """
     settings = get_settings()
-    
-    if not settings.habits_framework.enabled or not settings.habits_framework.privacy.track_progression:
+
+    if (
+        not settings.habits_framework.enabled
+        or not settings.habits_framework.privacy.track_progression
+    ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Progress tracking is not enabled"
+            detail="Progress tracking is not enabled",
         )
-    
+
     try:
         # Get current habit profile
         habits_framework = SevenHabitsFramework()
         tracker = IndividualHabitTracker(
-            user_id=current_user.id,
-            habits_framework=habits_framework
+            user_id=current_user.id, habits_framework=habits_framework
         )
-        
+
         profile = await tracker.get_personal_habit_profile(db, days_back=90)
-        
+
         # Create snapshot data
         snapshot_data = {
             "habit_breakdown": profile["habit_progression"]["habit_breakdown"],
             "total_findings": profile["habit_progression"]["total_findings"],
             "total_analyses": profile["analysis_period"]["total_reports"],
-            "primary_focus_habit": profile["habit_progression"]["top_focus_areas"][0][0] if profile["habit_progression"]["top_focus_areas"] else None,
-            "mastery_score": 100 - (profile["habit_progression"]["total_findings"] / max(profile["analysis_period"]["total_reports"], 1) * 10),  # Simple mastery calculation
-            "improvement_trend": profile["personal_insights"]["improvement_trend"]
+            "primary_focus_habit": profile["habit_progression"]["top_focus_areas"][0][0]
+            if profile["habit_progression"]["top_focus_areas"]
+            else None,
+            "mastery_score": 100
+            - (
+                profile["habit_progression"]["total_findings"]
+                / max(profile["analysis_period"]["total_reports"], 1)
+                * 10
+            ),  # Simple mastery calculation
+            "improvement_trend": profile["personal_insights"]["improvement_trend"],
         }
-        
-        snapshot = await crud.create_habit_progress_snapshot(db, current_user.id, snapshot_data)
-        
+
+        snapshot = await crud.create_habit_progress_snapshot(
+            db, current_user.id, snapshot_data
+        )
+
         return {
             "message": "Progress snapshot created successfully",
             "snapshot_id": snapshot.id,
             "snapshot_date": snapshot.snapshot_date.isoformat(),
             "mastery_score": snapshot.mastery_score,
-            "primary_focus": snapshot.primary_focus_habit
+            "primary_focus": snapshot.primary_focus_habit,
         }
-    
+
     except Exception as e:
         logger.exception(f"Failed to create snapshot for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create snapshot: {str(e)}"
+            detail=f"Failed to create snapshot: {str(e)}",
         )

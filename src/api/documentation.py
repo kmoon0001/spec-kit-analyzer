@@ -27,10 +27,12 @@ def setup_api_documentation(app: FastAPI) -> None:
     Args:
         app: FastAPI application instance
     """
+
     # Set custom OpenAPI schema
     def custom_openapi():
         return create_custom_openapi(app)
-    setattr(app, 'openapi', custom_openapi)
+
+    setattr(app, "openapi", custom_openapi)
 
     # Add custom documentation endpoint
     @app.get("/docs/api", include_in_schema=False)

@@ -6,6 +6,7 @@ import uuid
 
 # --- Correlation ID Middleware ---
 
+
 class CorrelationIdMiddleware:
     def __init__(self, app):
         self.app = app
@@ -26,7 +27,9 @@ class CorrelationIdMiddleware:
         with structlog.contextvars.bound_contextvars(correlation_id=correlation_id):
             await self.app(scope, receive, send_wrapper)
 
+
 # --- Structlog Configuration ---
+
 
 def setup_logging():
     """
@@ -42,7 +45,8 @@ def setup_logging():
     ]
 
     structlog.configure(
-        processors=shared_processors + [
+        processors=shared_processors
+        + [
             structlog.stdlib.PositionalArgumentsFormatter(),
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,

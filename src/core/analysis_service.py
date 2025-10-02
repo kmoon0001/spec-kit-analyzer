@@ -42,7 +42,8 @@ class AnalysisOutput(dict):
 def get_settings():
     """Legacy helper retained for tests that patch this symbol."""
     return _get_settings()
-  
+
+
 class AnalysisService:
     """Orchestrates the document analysis process."""
 
@@ -64,10 +65,8 @@ class AnalysisService:
     ):
         settings = _get_settings()
 
-# Select generator profile based on system memory
-        repo_id, filename = self._select_generator_profile(
-            settings.models.model_dump()
-        )
+        # Select generator profile based on system memory
+        repo_id, filename = self._select_generator_profile(settings.models.model_dump())
 
         self.llm_service = llm_service or LLMService(
             model_repo_id=repo_id,
@@ -338,7 +337,9 @@ class AnalysisService:
                     profile_name=chosen_name,
                     system_memory_gb=round(mem_gb, 1),
                 )
-                return chosen_profile.get("repo", ""), chosen_profile.get("filename", "")
+                return chosen_profile.get("repo", ""), chosen_profile.get(
+                    "filename", ""
+                )
             # Fall back to the first profile if none matched
             first_name, first_profile = next(iter(profiles.items()))
             logger.warning(
@@ -386,8 +387,6 @@ class AnalysisService:
             return psutil.virtual_memory().total / (1024**3)
         except Exception:  # pragma: no cover - defensive fallback
             return 16.0
-
-
 
 
 __all__ = ["AnalysisService", "AnalysisOutput", "get_settings"]

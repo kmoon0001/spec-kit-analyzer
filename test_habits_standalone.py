@@ -20,22 +20,52 @@ def test_all_features():
 
     # Test 2: Rule-based mapping
     print("2. Testing rule-based habit mapping...")
-    
+
     test_cases = [
-        ({"issue_title": "Missing signature", "text": "Not signed"}, 3, "Put First Things First"),
-        ({"issue_title": "Goals not measurable", "text": "Lacks specificity"}, 2, "Begin with the End"),
-        ({"issue_title": "Poor collaboration", "text": "Team communication"}, 4, "Think Win-Win"),
-        ({"issue_title": "Medical necessity unclear", "text": "Skilled service"}, 5, "Seek First to Understand"),
-        ({"issue_title": "Inconsistent documentation", "text": "Alignment issues"}, 6, "Synergize"),
-        ({"issue_title": "Need training", "text": "Continuing education required"}, 7, "Sharpen the Saw"),
+        (
+            {"issue_title": "Missing signature", "text": "Not signed"},
+            3,
+            "Put First Things First",
+        ),
+        (
+            {"issue_title": "Goals not measurable", "text": "Lacks specificity"},
+            2,
+            "Begin with the End",
+        ),
+        (
+            {"issue_title": "Poor collaboration", "text": "Team communication"},
+            4,
+            "Think Win-Win",
+        ),
+        (
+            {"issue_title": "Medical necessity unclear", "text": "Skilled service"},
+            5,
+            "Seek First to Understand",
+        ),
+        (
+            {"issue_title": "Inconsistent documentation", "text": "Alignment issues"},
+            6,
+            "Synergize",
+        ),
+        (
+            {"issue_title": "Need training", "text": "Continuing education required"},
+            7,
+            "Sharpen the Saw",
+        ),
     ]
-    
+
     for finding, expected_number, expected_name_part in test_cases:
         result = framework.map_finding_to_habit(finding)
-        print(f"   Finding: {finding['issue_title']} -> Habit {result['habit_number']}: {result['name']}")
-        assert result["habit_number"] == expected_number, f"Expected habit {expected_number}, got {result['habit_number']} for '{finding['issue_title']}'"
-        assert expected_name_part in result["name"], f"Expected '{expected_name_part}' in name"
-    
+        print(
+            f"   Finding: {finding['issue_title']} -> Habit {result['habit_number']}: {result['name']}"
+        )
+        assert result["habit_number"] == expected_number, (
+            f"Expected habit {expected_number}, got {result['habit_number']} for '{finding['issue_title']}'"
+        )
+        assert expected_name_part in result["name"], (
+            f"Expected '{expected_name_part}' in name"
+        )
+
     print("   ✓ Rule-based mapping works correctly")
 
     # Test 3: Habit details
@@ -60,7 +90,7 @@ def test_all_features():
         {"habit_id": "habit_5"},
         {"habit_id": "habit_5"},
     ]
-    
+
     metrics = framework.get_habit_progression_metrics(findings_history)
     assert metrics["total_findings"] == 6
     assert metrics["habit_breakdown"]["habit_1"]["finding_count"] == 2
@@ -74,11 +104,16 @@ def test_all_features():
     findings_mastered = [{"habit_id": "habit_1"}] + [{"habit_id": "habit_2"}] * 99
     metrics_mastered = framework.get_habit_progression_metrics(findings_mastered)
     assert metrics_mastered["habit_breakdown"]["habit_1"]["mastery_level"] == "Mastered"
-    
+
     # Needs Focus: >25%
-    findings_needs_focus = [{"habit_id": "habit_1"}] * 30 + [{"habit_id": "habit_2"}] * 70
+    findings_needs_focus = [{"habit_id": "habit_1"}] * 30 + [
+        {"habit_id": "habit_2"}
+    ] * 70
     metrics_needs_focus = framework.get_habit_progression_metrics(findings_needs_focus)
-    assert metrics_needs_focus["habit_breakdown"]["habit_1"]["mastery_level"] == "Needs Focus"
+    assert (
+        metrics_needs_focus["habit_breakdown"]["habit_1"]["mastery_level"]
+        == "Needs Focus"
+    )
     print("   ✓ Mastery levels calculated correctly")
 
     # Test 6: Backward compatibility
@@ -105,11 +140,11 @@ def test_all_features():
     habit_4 = framework.get_habit_details("habit_4")
     assert habit_4["name"] == "Think Win-Win"
     assert "Interpersonal Leadership" in habit_4["principle"]
-    
+
     habit_6 = framework.get_habit_details("habit_6")
     assert habit_6["name"] == "Synergize"
     assert "Creative Cooperation" in habit_6["principle"]
-    
+
     habit_7 = framework.get_habit_details("habit_7")
     assert habit_7["name"] == "Sharpen the Saw"
     assert "Continuous Improvement" in habit_7["principle"]
@@ -117,12 +152,15 @@ def test_all_features():
 
     # Test 9: Confidence scoring
     print("9. Testing confidence scoring...")
-    strong_match = {"issue_title": "Missing signature and date", "text": "Not signed timely"}
+    strong_match = {
+        "issue_title": "Missing signature and date",
+        "text": "Not signed timely",
+    }
     weak_match = {"issue_title": "Random issue", "text": "No keywords"}
-    
+
     result_strong = framework.map_finding_to_habit(strong_match)
     result_weak = framework.map_finding_to_habit(weak_match)
-    
+
     assert result_strong["confidence"] > result_weak["confidence"]
     print("   ✓ Confidence scoring works correctly")
 
@@ -131,14 +169,14 @@ def test_all_features():
     empty_finding = {}
     result_empty = framework.map_finding_to_habit(empty_finding)
     assert result_empty["habit_number"] in range(1, 8)
-    
+
     none_finding = {"issue_title": None, "text": None}
     result_none = framework.map_finding_to_habit(none_finding)
     assert result_none["habit_number"] in range(1, 8)
     print("   ✓ Edge cases handled correctly")
 
     print("\n=== All Enhanced 7 Habits Framework tests passed! ===\n")
-    
+
     # Print summary
     print("Summary:")
     print("  ✓ All 7 habits implemented")

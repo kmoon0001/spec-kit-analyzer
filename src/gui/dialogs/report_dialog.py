@@ -56,7 +56,9 @@ class ReportDialog(QDialog):
         """Handles clicks on links within the report, specifically for chat."""
         if url.scheme() == "chat":
             if not self.token:
-                QMessageBox.critical(self, "Error", "Authentication token is not available.")
+                QMessageBox.critical(
+                    self, "Error", "Authentication token is not available."
+                )
                 return
 
             initial_context = urllib.parse.unquote(url.path())

@@ -36,7 +36,9 @@ def create_enhanced_openapi(app: FastAPI) -> Dict[str, Any]:
 
 def setup_documentation(app: FastAPI) -> None:
     """Setup API documentation with enhanced features."""
+
     def enhanced_openapi():
         return create_enhanced_openapi(app)
-    setattr(app, 'openapi', enhanced_openapi)
+
+    setattr(app, "openapi", enhanced_openapi)
     logger.info("Enhanced API documentation configured")

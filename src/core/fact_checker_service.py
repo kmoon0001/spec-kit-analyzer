@@ -63,11 +63,11 @@ class FactCheckerService:
     def is_finding_plausible(self, finding: dict, rule: dict) -> bool:
         """
         Check if a finding is plausible given the associated rule.
-        
+
         Args:
             finding: Dictionary containing finding details
             rule: Dictionary containing rule details
-            
+
         Returns:
             True if the finding is plausible, False otherwise
         """
@@ -75,14 +75,14 @@ class FactCheckerService:
             # Extract relevant text from finding and rule
             finding_text = finding.get("problematic_text", "")
             rule_text = rule.get("content", "") or rule.get("regulation", "")
-            
+
             if not finding_text or not rule_text:
                 logger.warning("Missing text for fact-checking, assuming plausible")
                 return True
-            
+
             # Use the consistency checker to validate the finding against the rule
             return self.check_consistency(rule_text, finding_text)
-            
+
         except Exception as e:
             logger.error(f"Error checking finding plausibility: {e}")
             return True  # Fail open
