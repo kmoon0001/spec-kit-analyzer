@@ -6,12 +6,10 @@ and personalized recommendations in the dashboard.
 """
 
 import logging
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
-import requests
-from PyQt6.QtCore import QThread, QTimer, pyqtSignal
-from PyQt6.QtGui import QFont, QPainter, QPen
+from PyQt6.QtCore import QTimer
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QFrame, QGridLayout, QHBoxLayout, QLabel, QProgressBar, 
     QPushButton, QScrollArea, QVBoxLayout, QWidget

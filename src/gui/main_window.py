@@ -40,7 +40,9 @@ from src.gui.workers.folder_analysis_worker import FolderAnalysisWorker
 from src.gui.workers.single_analysis_polling_worker import SingleAnalysisPollingWorker
 from src.gui.workers.ai_loader_worker import AILoaderWorker
 from src.gui.workers.dashboard_worker import DashboardWorker
+from src.gui.workers.meta_analytics_worker import MetaAnalyticsWorker
 from src.gui.widgets.dashboard_widget import DashboardWidget
+from src.gui.widgets.meta_analytics_widget import MetaAnalyticsWidget
 from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
 from src.gui.dialogs.performance_settings_dialog import PerformanceSettingsDialog
 from src.core.report_generator import ReportGenerator
@@ -94,6 +96,8 @@ class MainApplicationWindow(QMainWindow):
         self.ai_loader_worker = None
         self.dashboard_thread = None
         self.dashboard_worker = None
+        self.meta_analytics_thread = None
+        self.meta_analytics_worker = None
         self.report_generator = ReportGenerator()
         self.model_status = {
             "Generator": False,
@@ -189,10 +193,22 @@ class MainApplicationWindow(QMainWindow):
         self.dashboard_widget = DashboardWidget()
         self.tabs.addTab(self.dashboard_widget, "Dashboard")
         self.dashboard_widget.refresh_requested.connect(self.load_dashboard_data)
+        
+        # Add meta analytics tab for admin users
+        if self.is_admin:
+            self.meta_analytics_widget = MetaAnalyticsWidget()
+            self.tabs.addTab(self.meta_analytics_widget, "Team Analytics")
+            self.meta_analytics_widget.refresh_requested.connect(self.load_meta_analytics_data)
+        
         if self.is_admin:
             self.admin_menu = self.menu_bar.addMenu("Admin")
             self.admin_menu.addAction("Open Admin Dashboard", self.open_admin_dashboard)
         self.load_dashboard_data()
+        
+        # Load meta analytics for admin users
+        if self.is_admin:
+            self.load_meta_analytics_data()
+        
         theme = self.load_theme_setting()
         self.apply_stylesheet(theme)
 
@@ -580,6 +596,67 @@ class MainApplicationWindow(QMainWindow):
     def on_dashboard_data_loaded(self, data):
         self.dashboard_widget.update_dashboard(data)
         self.status_bar.showMessage("Dashboard updated.", 3000)
+
+    def load_meta_analytics_data(self, params=None):
+        """Load meta analytics data for admin users."""
+        if not self.access_token:
+            self.status_bar.showMessage("Login required to load team analytics.", 5000)
+            return
+
+        if not self.is_admin:
+            self.status_bar.showMessage("Admin access required for team analytics.", 5000)
+            return
+
+        self.status_bar.showMessage("Loading team analytics...")
+        
+        # Stop any existing meta analytics worker
+        if hasattr(self, 'meta_analytics_thread') and self.meta_analytics_thread and self.meta_analytics_thread.isRunning():
+            self.meta_analytics_thread.requestInterruption()
+            self.meta_analytics_thread.quit()
+            self.meta_analytics_thread.wait(2000)
+
+        # Create new worker thread
+        self.meta_analytics_thread = QThread()
+        self.meta_analytics_worker = MetaAnalyticsWorker(
+            base_url=f"http://localhost:{self.api_port}",
+            token=self.access_token
+        )
+        
+        # Set parameters if provided
+        if params:
+            self.meta_analytics_worker.set_parameters(
+                days_back=params.get("days_back", 90),
+                discipline=params.get("discipline"),
+                load_type="overview"
+            )
+        
+        self.meta_analytics_worker.moveToThread(self.meta_analytics_thread)
+        
+        # Connect signals
+        self.meta_analytics_thread.started.connect(self.meta_analytics_worker.run)
+        self.meta_analytics_worker.data_loaded.connect(self.on_meta_analytics_data_loaded)
+        self.meta_analytics_worker.error_occurred.connect(
+            lambda msg: self.status_bar.showMessage(f"Team Analytics Error: {msg}", 5000)
+        )
+        self.meta_analytics_worker.progress_updated.connect(
+            lambda msg: self.status_bar.showMessage(msg, 2000)
+        )
+        self.meta_analytics_worker.finished.connect(self.meta_analytics_thread.quit)
+        self.meta_analytics_thread.finished.connect(self.meta_analytics_worker.deleteLater)
+        self.meta_analytics_thread.finished.connect(self._clear_meta_analytics_worker)
+        
+        self.meta_analytics_thread.start()
+
+    def _clear_meta_analytics_worker(self):
+        """Clean up meta analytics worker references."""
+        self.meta_analytics_worker = None
+        self.meta_analytics_thread = None
+
+    def on_meta_analytics_data_loaded(self, data):
+        """Handle loaded meta analytics data."""
+        if hasattr(self, 'meta_analytics_widget'):
+            self.meta_analytics_widget.update_data(data)
+            self.status_bar.showMessage("Team analytics updated.", 3000)
 
     def run_analysis(self):
         if self._analysis_running:

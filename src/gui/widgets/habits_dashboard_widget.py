@@ -6,14 +6,13 @@ weekly focus, and personalized coaching recommendations.
 """
 
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont, QPainter, QPen, QBrush, QColor
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QProgressBar, QScrollArea, QFrame, QGridLayout, QTextEdit,
+    QScrollArea, QFrame, QTextEdit,
     QTabWidget, QGroupBox, QSplitter
 )
 

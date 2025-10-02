@@ -25,7 +25,6 @@ report_generator = ReportGenerator()
 # --- Helper Functions ---#
 
 
-from typing import Tuple, Optional
 # Assuming 'Settings' is available, or you'd import it like 'from src.config import Settings'
 # Assuming 'HTTPException' is available, or you'd import it like 'from fastapi import HTTPException'
 
@@ -62,7 +61,7 @@ def _resolve_generator_model(
     raise ValueError("Could not resolve a generator model from the settings.")
 
 
-@router.get("/reports", response_model=List[schemas.AnalysisReport])
+@router.get("/reports", response_model=List[schemas.Report])
 async def read_reports(
     skip: int = 0,
     limit: int = 100,

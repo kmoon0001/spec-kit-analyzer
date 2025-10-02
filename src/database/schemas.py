@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional, List
+from pydantic import BaseModel, ConfigDict
+from typing import Optional, List, Dict, Any, Tuple
 import datetime
 
 # --- Schemas for Reports and Findings (Dashboard) ---

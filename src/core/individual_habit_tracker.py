@@ -9,9 +9,9 @@ This is separate from organizational analytics and maintains user privacy.
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
-from ..database import crud, models
+from ..database import crud
 from .enhanced_habit_mapper import SevenHabitsFramework
 
 logger = logging.getLogger(__name__)

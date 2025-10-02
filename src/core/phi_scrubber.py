@@ -1,24 +1,8 @@
 import logging
-<<<<<<< HEAD
-import re
-from typing import List, Tuple, Set
-from threading import Lock
 
-import spacy
-from spacy.language import Language
-||||||| ab2d9e5
-import re
-from typing import List, Tuple, Set
-from threading import Lock
-
-import spacy
-import spacy_transformers
-from spacy.language import Language
-=======
 from presidio_analyzer import AnalyzerEngine
 from presidio_anonymizer import AnonymizerEngine
 from presidio_anonymizer.entities import OperatorConfig
->>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
 
 logger = logging.getLogger(__name__)
 

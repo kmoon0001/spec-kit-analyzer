@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional
 
 import markdown
 
-from .enhanced_habit_mapper import SevenHabitsFramework, get_habit_for_finding
+from .enhanced_habit_mapper import SevenHabitsFramework
 from .text_utils import sanitize_human_text
 from ..config import get_settings
 

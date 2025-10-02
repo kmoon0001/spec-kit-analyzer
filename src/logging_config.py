@@ -2,7 +2,7 @@ import logging
 import sys
 import structlog
 import uuid
-from fastapi import Request
+
 
 # --- Correlation ID Middleware ---
 

@@ -27,7 +27,7 @@ from src.core.explanation import ExplanationEngine
 from src.core.fact_checker_service import FactCheckerService
 from src.core.hybrid_retriever import HybridRetriever
 from src.core.llm_service import LLMService
-from src.core.ner import NERPipeline
+from src.core.ner import NERPipeline, NERAnalyzer
 from src.core.nlg_service import NLGService
 from src.core.prompt_manager import PromptManager
 from src.database.database import Base, get_async_db
@@ -64,6 +64,19 @@ def mock_ner_pipeline() -> MagicMock:
     """Stub the NER pipeline to avoid model downloads."""
     service = MagicMock(spec=NERPipeline)
     service.extract_entities.return_value = []
+    return service
+
+
+@pytest.fixture(scope="session")
+def mock_ner_analyzer() -> MagicMock:
+    """Stub the NER analyzer to avoid model downloads."""
+    service = MagicMock(spec=NERAnalyzer)
+    service.extract_entities.return_value = []
+    service.extract_clinician_name.return_value = []
+    service.extract_medical_entities.return_value = {
+        'conditions': [], 'medications': [], 'procedures': [], 
+        'anatomy': [], 'measurements': [], 'other': []
+    }
     return service
 
 

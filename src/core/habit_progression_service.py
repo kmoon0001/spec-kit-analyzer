@@ -7,12 +7,11 @@ Provides individual analytics, goal setting, and achievement tracking.
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
-from sqlalchemy import and_, desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..database import crud, models, schemas
+from ..database import crud
 from .enhanced_habit_mapper import SevenHabitsFramework
 
 logger = logging.getLogger(__name__)
@@ -314,7 +313,7 @@ class HabitProgressionService:
         """Get total analysis count for user."""
         # This would need to be implemented in crud.py
         # For now, return a placeholder
-        return len(all_findings) if 'all_findings' in locals() else 0
+        return 0  # Placeholder - would query actual analysis count
 
     async def _get_user_goals(self, db: AsyncSession, user_id: int) -> List[Dict[str, Any]]:
         """Get user's current goals."""

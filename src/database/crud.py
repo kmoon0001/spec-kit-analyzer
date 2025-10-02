@@ -5,7 +5,7 @@ Provides async database operations for users, rubrics, reports, and findings.
 """
 
 import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -323,9 +323,9 @@ async def get_user_reports_with_findings(
 
 async def create_personal_habit_goal(
     db: AsyncSession, user_id: int, goal_data: Dict[str, Any]
-) -> models.PersonalHabitGoal:
+) -> models.HabitGoal:
     """Create a personal habit improvement goal."""
-    goal = models.PersonalHabitGoal(
+    goal = models.HabitGoal(
         user_id=user_id,
         **goal_data
     )
@@ -337,14 +337,14 @@ async def create_personal_habit_goal(
 
 async def get_user_habit_goals(
     db: AsyncSession, user_id: int, active_only: bool = True
-) -> List[models.PersonalHabitGoal]:
+) -> List[models.HabitGoal]:
     """Get user's habit goals."""
-    query = select(models.PersonalHabitGoal).filter(
-        models.PersonalHabitGoal.user_id == user_id
+    query = select(models.HabitGoal).filter(
+        models.HabitGoal.user_id == user_id
     )
     
     if active_only:
-        query = query.filter(models.PersonalHabitGoal.status == "active")
+        query = query.filter(models.HabitGoal.status == "active")
     
     result = await db.execute(query)
     return list(result.scalars().all())
@@ -352,9 +352,9 @@ async def get_user_habit_goals(
 
 async def update_habit_goal_progress(
     db: AsyncSession, goal_id: int, current_value: float, status: Optional[str] = None
-) -> Optional[models.PersonalHabitGoal]:
+) -> Optional[models.HabitGoal]:
     """Update progress on a habit goal."""
-    query = select(models.PersonalHabitGoal).filter(models.PersonalHabitGoal.id == goal_id)
+    query = select(models.HabitGoal).filter(models.HabitGoal.id == goal_id)
     result = await db.execute(query)
     goal = result.scalar_one_or_none()
     
@@ -365,7 +365,7 @@ async def update_habit_goal_progress(
         if status:
             goal.status = status
             if status == "completed":
-                goal.completion_date = datetime.datetime.now(datetime.timezone.utc)
+                goal.completed_at = datetime.datetime.now(datetime.timezone.utc)
         
         await db.commit()
         await db.refresh(goal)
@@ -375,9 +375,9 @@ async def update_habit_goal_progress(
 
 async def create_personal_achievement(
     db: AsyncSession, user_id: int, achievement_data: Dict[str, Any]
-) -> models.PersonalAchievement:
+) -> models.HabitAchievement:
     """Create a personal achievement record."""
-    achievement = models.PersonalAchievement(
+    achievement = models.HabitAchievement(
         user_id=user_id,
         **achievement_data
     )
@@ -389,16 +389,16 @@ async def create_personal_achievement(
 
 async def get_user_achievements(
     db: AsyncSession, user_id: int, category: Optional[str] = None
-) -> List[models.PersonalAchievement]:
+) -> List[models.HabitAchievement]:
     """Get user's achievements."""
-    query = select(models.PersonalAchievement).filter(
-        models.PersonalAchievement.user_id == user_id
+    query = select(models.HabitAchievement).filter(
+        models.HabitAchievement.user_id == user_id
     )
     
     if category:
-        query = query.filter(models.PersonalAchievement.category == category)
+        query = query.filter(models.HabitAchievement.category == category)
     
-    query = query.order_by(models.PersonalAchievement.earned_date.desc())
+    query = query.order_by(models.HabitAchievement.earned_at.desc())
     
     result = await db.execute(query)
     return list(result.scalars().all())
@@ -480,9 +480,9 @@ async def get_user_habit_statistics(
     total_points = sum(a.points_earned for a in achievements)
     
     # Get active goals count
-    goals_query = select(models.PersonalHabitGoal).filter(
-        models.PersonalHabitGoal.user_id == user_id,
-        models.PersonalHabitGoal.status == "active"
+    goals_query = select(models.HabitGoal).filter(
+        models.HabitGoal.user_id == user_id,
+        models.HabitGoal.status == "active"
     )
     goals_result = await db.execute(goals_query)
     active_goals = len(list(goals_result.scalars().all()))
@@ -502,52 +502,6 @@ async def get_user_habit_statistics(
 
 # Habit Progression CRUD Operations
 
-async def get_user_reports_with_findings(
-    db: AsyncSession,
-    user_id: int,
-    since_date: Optional[datetime.datetime] = None,
-    limit: int = 100
-) -> List[models.AnalysisReport]:
-    """
-    Get user's analysis reports with findings for habit progression tracking.
-    
-    Args:
-        db: Database session
-        user_id: User ID
-        since_date: Optional date filter
-        limit: Maximum number of reports
-        
-    Returns:
-        List of AnalysisReport with findings loaded
-    """
-    query = select(models.AnalysisReport).options(
-        selectinload(models.AnalysisReport.findings)
-    ).filter(models.AnalysisReport.user_id == user_id)
-    
-    if since_date:
-        query = query.filter(models.AnalysisReport.analysis_date >= since_date)
-    
-    query = query.order_by(desc(models.AnalysisReport.analysis_date)).limit(limit)
-    
-    result = await db.execute(query)
-    return list(result.scalars().all())
-
-
-async def get_user_habit_goals(
-    db: AsyncSession,
-    user_id: int,
-    active_only: bool = True
-) -> List[models.HabitGoal]:
-    """Get user's habit goals."""
-    query = select(models.HabitGoal).filter(models.HabitGoal.user_id == user_id)
-    
-    if active_only:
-        query = query.filter(models.HabitGoal.status == "active")
-    
-    query = query.order_by(desc(models.HabitGoal.created_at))
-    
-    result = await db.execute(query)
-    return list(result.scalars().all())
 
 
 async def create_habit_goal(
@@ -566,75 +520,6 @@ async def create_habit_goal(
     return db_goal
 
 
-async def update_habit_goal_progress(
-    db: AsyncSession,
-    goal_id: int,
-    progress: int,
-    user_id: int
-) -> Optional[models.HabitGoal]:
-    """Update habit goal progress."""
-    result = await db.execute(
-        select(models.HabitGoal).filter(
-            and_(
-                models.HabitGoal.id == goal_id,
-                models.HabitGoal.user_id == user_id
-            )
-        )
-    )
-    goal = result.scalars().first()
-    
-    if goal:
-        goal.progress = progress
-        goal.updated_at = datetime.datetime.now(datetime.timezone.utc)
-        
-        # Mark as completed if progress reaches 100%
-        if progress >= 100:
-            goal.status = "completed"
-            goal.completed_at = datetime.datetime.now(datetime.timezone.utc)
-        
-        await db.commit()
-        await db.refresh(goal)
-    
-    return goal
 
 
-async def get_user_achievements(
-    db: AsyncSession,
-    user_id: int
-) -> List[models.HabitAchievement]:
-    """Get user's habit achievements."""
-    result = await db.execute(
-        select(models.HabitAchievement)
-        .filter(models.HabitAchievement.user_id == user_id)
-        .order_by(desc(models.HabitAchievement.earned_at))
-    )
-    return list(result.scalars().all())
 
-
-async def award_achievement(
-    db: AsyncSession,
-    user_id: int,
-    achievement_data: schemas.HabitAchievementCreate
-) -> models.HabitAchievement:
-    """Award an achievement to a user."""
-    # Check if already awarded
-    existing = await db.execute(
-        select(models.HabitAchievement).filter(
-            and_(
-                models.HabitAchievement.user_id == user_id,
-                models.HabitAchievement.achievement_id == achievement_data.achievement_id
-            )
-        )
-    )
-    
-    if existing.scalars().first():
-        return existing.scalars().first()  # Already awarded
-    
-    db_achievement = models.HabitAchievement(
-        user_id=user_id,
-        **achievement_data.model_dump()
-    )
-    db.add(db_achievement)
-    await db.commit()
-    await db.refresh(db_achievement)
-    return db_achievement

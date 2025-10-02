@@ -6,9 +6,9 @@ achievement tracking, and habit analytics.
 """
 
 import logging
-from typing import List, Optional
+from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth import get_current_active_user
@@ -56,7 +56,7 @@ async def get_habit_progression(
         
         return schemas.HabitProgressData(**progression_data)
         
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to get habit progression for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -125,7 +125,7 @@ async def get_progress_summary(
             next_milestone=next_milestone
         )
         
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to get progress summary for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -152,7 +152,7 @@ async def get_user_goals(
         goals = await crud.get_user_habit_goals(db, current_user.id, active_only)
         return [schemas.HabitGoal.model_validate(goal) for goal in goals]
         
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to get goals for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -179,7 +179,7 @@ async def create_goal(
         goal = await crud.create_habit_goal(db, current_user.id, goal_data)
         return schemas.HabitGoal.model_validate(goal)
         
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to create goal for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -218,7 +218,7 @@ async def update_goal_progress(
         
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to update goal progress for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -244,7 +244,7 @@ async def get_user_achievements(
         achievements = await crud.get_user_achievements(db, current_user.id)
         return [schemas.HabitAchievement.model_validate(ach) for ach in achievements]
         
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to get achievements for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -279,7 +279,7 @@ async def get_weekly_trends(
         weekly_trends = progression_data["weekly_trends"]
         return [schemas.WeeklyHabitTrend(**trend) for trend in weekly_trends]
         
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to get weekly trends for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -313,7 +313,7 @@ async def get_habit_recommendations(
         recommendations = progression_data["recommendations"]
         return [schemas.HabitRecommendation(**rec) for rec in recommendations]
         
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to get recommendations for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -323,7 +323,7 @@ async def get_habit_recommendations(
 
 @router.get("/habit-details/{habit_number}")
 async def get_habit_details(
-    habit_number: int = Query(..., ge=1, le=7, description="Habit number (1-7)"),
+    habit_number: int = Path(..., ge=1, le=7, description="Habit number (1-7)"),
     current_user: models.User = Depends(get_current_active_user),
 ) -> dict:
     """Get detailed information about a specific habit."""
@@ -344,7 +344,7 @@ async def get_habit_details(
             **habit_details
         }
         
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to get habit details for habit {habit_number}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

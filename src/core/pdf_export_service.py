@@ -10,10 +10,9 @@ Converts HTML reports to professional, audit-ready PDF documents with:
 """
 
 import logging
-import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration

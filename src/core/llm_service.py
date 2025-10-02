@@ -122,23 +122,17 @@ class LLMService:
             gen_params = self.settings.get("generation_params", {}).copy()
             gen_params.update(kwargs)
 
-<<<<<<< HEAD
-            logger.debug("Generating text with params: %s", gen_params)
+            logger.debug("Generating text with params", params=gen_params)
             if self.llm is None:
                 logger.error("LLM model is not loaded")
                 return "Error: LLM model is not available."
-||||||| ab2d9e5
-            logger.debug("Generating text with params: %s", gen_params)
-=======
-            logger.debug("Generating text with params", params=gen_params)
->>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
+            
             response = self.llm(prompt, **gen_params)
             return response
         except Exception as e:
             logger.error(
                 "An error occurred during text generation", error=str(e), exc_info=True
             )
-<<<<<<< HEAD
             return "An error occurred during text generation."
 
     def generate_analysis(self, prompt: str, **kwargs) -> str:
@@ -153,8 +147,3 @@ class LLMService:
             A string containing the generated analysis.
         """
         return self.generate(prompt, **kwargs)
-||||||| ab2d9e5
-            return "An error occurred during text generation."
-=======
-            return "An error occurred during text generation."
->>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da

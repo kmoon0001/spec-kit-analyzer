@@ -48,11 +48,10 @@ class AnalysisService:
 
     def __init__(
         self,
-<<<<<<< HEAD
+        retriever: Optional[HybridRetriever] = None,
         phi_scrubber: Optional[PhiScrubberService] = None,
         preprocessing: Optional[PreprocessingService] = None,
         document_classifier: Optional[DocumentClassifier] = None,
-        retriever: Optional[HybridRetriever] = None,
         llm_service: Optional[LLMService] = None,
         report_generator: Optional[ReportGenerator] = None,
         compliance_analyzer: Optional[ComplianceAnalyzer] = None,
@@ -62,35 +61,6 @@ class AnalysisService:
         prompt_manager: Optional[PromptManager] = None,
         fact_checker_service: Optional[FactCheckerService] = None,
         nlg_service: Optional[NLGService] = None,
-||||||| ab2d9e5
-        phi_scrubber: PhiScrubberService = None,
-        preprocessing: PreprocessingService = None,
-        document_classifier: DocumentClassifier = None,
-        retriever: HybridRetriever = None,
-        llm_service: LLMService = None,
-        report_generator: ReportGenerator = None,
-        compliance_analyzer: ComplianceAnalyzer = None,
-        checklist_service: ChecklistService = None,
-        ner_pipeline: NERPipeline = None,
-        explanation_engine: ExplanationEngine = None,
-        prompt_manager: PromptManager = None,
-        fact_checker_service: FactCheckerService = None,
-        nlg_service: NLGService = None,
-=======
-        retriever: HybridRetriever,
-        phi_scrubber: PhiScrubberService = None,
-        preprocessing: PreprocessingService = None,
-        document_classifier: DocumentClassifier = None,
-        llm_service: LLMService = None,
-        report_generator: ReportGenerator = None,
-        compliance_analyzer: ComplianceAnalyzer = None,
-        checklist_service: ChecklistService = None,
-        ner_pipeline: NERPipeline = None,
-        explanation_engine: ExplanationEngine = None,
-        prompt_manager: PromptManager = None,
-        fact_checker_service: FactCheckerService = None,
-        nlg_service: NLGService = None,
->>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
     ):
         settings = _get_settings()
 

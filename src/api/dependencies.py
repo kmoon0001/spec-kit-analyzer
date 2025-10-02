@@ -1,16 +1,6 @@
 """Dependency injection and singleton service management for FastAPI application."""
-<<<<<<< HEAD
 
-import logging
-||||||| ab2d9e5
-
-import logging
-"""Dependency injection and singleton service management for FastAPI application."""
-
-import logging
-=======
 import structlog
->>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
 from typing import Any, Dict
 
 from fastapi import Depends, HTTPException, status

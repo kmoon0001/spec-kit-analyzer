@@ -1,9 +1,7 @@
-import os
 from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
 import yaml
-from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 
