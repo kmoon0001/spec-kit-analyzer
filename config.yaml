@@ -1,7 +1,7 @@
 # Lightweight Configuration for Therapy Compliance Analyzer
 # Optimized for reliable startup and core functionality
 
-use_ai_mocks: false  # Use real models but lightweight ones
+use_ai_mocks: true  # Use mocks to avoid LLM loading issues
 enable_director_dashboard: true
 
 database:
@@ -30,23 +30,23 @@ paths:
   medical_dictionary: "src/resources/medical_dictionary.txt"
 
 models:
-  # Use much smaller, faster models
+  # Use GGUF format models compatible with ctransformers
   generator_profiles:
     standard:
-      repo: "microsoft/DialoGPT-small"  # Much smaller model
-      filename: "pytorch_model.bin"
+      repo: "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF"  # Tiny, fast GGUF model
+      filename: "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
       revision: "main"
       max_system_gb: 2.0  # Very light
     enhanced:
-      repo: "microsoft/DialoGPT-medium"  # Still reasonable size
-      filename: "pytorch_model.bin" 
+      repo: "TheBloke/Phi-2-GGUF"  # Small but capable GGUF model
+      filename: "phi-2.Q4_K_M.gguf"
       revision: "main"
       min_system_gb: 4.0
   chat:
-    repo: "microsoft/DialoGPT-small"
-    filename: "pytorch_model.bin"
+    repo: "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF"
+    filename: "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
     revision: "main"
-    model_type: "gpt2"
+    model_type: "llama"
     context_length: 1024
   retriever: "sentence-transformers/all-MiniLM-L6-v2"  # Keep this - it's good
   fact_checker: "google/flan-t5-small"  # Use small version
@@ -60,7 +60,7 @@ models:
   nlg_prompt_template: "src/resources/prompts/nlg_prompt_template.txt"
 
 llm:
-  model_type: "gpt2"  # Lighter model type
+  model_type: "llama"  # Use llama for GGUF models
   context_length: 1024  # Smaller context
   generation_params:
     temperature: 0.1
