@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import MagicMock, patch
 from src.core.phi_scrubber import PhiScrubberService
 
 
@@ -9,7 +10,25 @@ def scrubber_service() -> PhiScrubberService:
     This fixture is scoped to the module to avoid re-initializing the service
     for every single test function, making the test suite more efficient.
     """
-    return PhiScrubberService()
+import pytest
+from unittest.mock import MagicMock, patch
+from src.core.phi_scrubber import PhiScrubberService
+
+@pytest.fixture(scope="module")
+def scrubber_service() -> PhiScrubberService:
+    """
+    Provides a reusable, lazy-loaded instance of the PhiScrubberService.
+    Sets known-installed spacy model names to avoid download errors during test runs.
+    """
+    mock_settings = MagicMock()
+    # Use a model known to be installed to avoid download errors.
+    # The tests expect real scrubbing, so we let the models load.
+    mock_settings.models.phi_scrubber.general = "en_core_sci_sm"
+    mock_settings.models.phi_scrubber.biomedical = "en_core_sci_sm"
+
+    with patch("src.core.phi_scrubber.get_settings", return_value=mock_settings):
+        service = PhiScrubberService()
+        return service
 
 
 @pytest.mark.skip(

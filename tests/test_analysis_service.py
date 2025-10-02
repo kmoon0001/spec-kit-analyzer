@@ -25,9 +25,18 @@ def mock_dependencies():
 
     with (
         patch("src.core.analysis_service.get_settings", return_value=mock_config),
-        patch("src.core.analysis_service.LLMService"),
-        patch("src.core.analysis_service.ReportGenerator"),
-        patch("src.core.analysis_service.DocumentClassifier") as mock_doc_classifier,
+with (
+    patch("src.core.analysis_service.LLMService"),
+    patch("src.core.compliance_analyzer.FactCheckerService"),
+    patch("src.core.compliance_analyzer.NERPipeline"),
+    patch("src.core.analysis_service.ReportGenerator"),
+    patch("src.core.compliance_analyzer.ExplanationEngine"),
+    patch("src.core.analysis_service.DocumentClassifier") as mock_doc_classifier,
+    patch("src.core.compliance_analyzer.PromptManager"),
+    patch("src.core.analysis_service.ComplianceAnalyzer") as mock_analyzer,
+    patch("src.core.analysis_service.parse_document_content") as mock_parse,
+):
+    # ...test code...
         patch("src.core.analysis_service.ComplianceAnalyzer") as mock_analyzer,
         patch("src.core.analysis_service.parse_document_content") as mock_parse,
     ):

@@ -25,21 +25,44 @@ report_generator = ReportGenerator()
 # --- Helper Functions ---#
 
 
+from typing import Tuple, Optional
+# Assuming 'Settings' is available, or you'd import it like 'from src.config import Settings'
+# Assuming 'HTTPException' is available, or you'd import it like 'from fastapi import HTTPException'
+
 def _resolve_generator_model(
     settings: Settings,
 ) -> Tuple[str, str, Optional[str]]:
-    """Placeholder for resolving the generator model."""
-    # In a real scenario, this could involve more complex logic
+    """
+    Resolves the generator model from settings, preferring generator_profiles.
+
+    Falls back to the generic 'chat' model configuration if profiles are not found.
+    """
+    # 1. Prefer generator_profiles (from 'main' branch logic)
+    if settings.models.generator_profiles:
+        # Using the first available profile as the 'main' branch did.
+        profile = next(iter(settings.models.generator_profiles.values()))
+        # The profile likely doesn't have a 'revision', so we return None for the third value.
+        return profile.repo, profile.filename, None
+
+    # 2. Fallback to generic chat model (from 'production-readiness-improvements' branch logic)
     if settings.models.chat:
         return (
             settings.models.chat.repo,
             settings.models.chat.filename,
             settings.models.chat.revision,
         )
-    raise HTTPException(status_code=500, detail="Chat model configuration not found.")
+
+    # 3. Raise an error if neither is found
+    raise HTTPException(status_code=500, detail="Generator model configuration not found in 'generator_profiles' or 'chat'.")
+
+    if settings.models.generator and settings.models.generator_filename:
+        return settings.models.generator, settings.models.generator_filename
+
+    # If no generator model is configured, something is wrong.
+    raise ValueError("Could not resolve a generator model from the settings.")
 
 
-@router.get("/reports", response_model=List[schemas.Report])
+@router.get("/reports", response_model=List[schemas.AnalysisReport])
 async def read_reports(
     skip: int = 0,
     limit: int = 100,
@@ -59,7 +82,7 @@ async def read_report(
     if db_report is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Report not found"
-        )
+)
 
     report_html = report_generator.generate_html_report(
         analysis_result=db_report.analysis_result,

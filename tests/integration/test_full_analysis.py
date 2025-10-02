@@ -5,6 +5,7 @@ from pathlib import Path
 from src.core.analysis_service import AnalysisService
 from src.config import (
     Settings,
+    ModelsSettings,
     LLMSettings,
     PathsSettings,
     DatabaseSettings,
@@ -35,13 +36,25 @@ def mock_settings(tmp_path: Path) -> Settings:
     analysis_prompt_path.touch()
     nlg_prompt_path.touch()
     doc_classifier_prompt_path.touch()
+@pytest.fixture
+def mock_settings(tmp_path: Path) -> Settings:
+    """Provides a fully-structured mock Settings object for integration testing."""
+    # Create dummy prompt files
+    prompts_dir = tmp_path / "prompts"
+    prompts_dir.mkdir()
+    analysis_prompt_path = prompts_dir / "analysis.txt"
+    nlg_prompt_path = prompts_dir / "nlg.txt"
+    doc_classifier_prompt_path = prompts_dir / "doc_classifier.txt"
+    analysis_prompt_path.touch()
+    nlg_prompt_path.touch()
+    doc_classifier_prompt_path.touch()
 
+    # Explicitly create uploads and rules directories
     uploads_dir = tmp_path / "uploads"
     uploads_dir.mkdir()
     rules_dir = tmp_path / "rules"
     rules_dir.mkdir()
 
-    # This import is necessary to access the ModelsSettings for the mock
     from src.config import ModelsSettings
 
     return Settings(
@@ -49,16 +62,49 @@ def mock_settings(tmp_path: Path) -> Settings:
         enable_director_dashboard=True,
         database=DatabaseSettings(url="sqlite+aiosqlite:///./test.db", echo=False),
         auth=AuthSettings(
-            secret_key="test_secret", algorithm="HS256", access_token_expire_minutes=30
+            secret_key="test_secret",
+            algorithm="HS256",
+            access_token_expire_minutes=30,
         ),
         paths=PathsSettings(
             temp_upload_dir=str(uploads_dir),
             rule_dir=str(rules_dir),
             api_url="http://test.com",
         ),
+        models=ModelsSettings(
+            retriever="test-retriever",
+            fact_checker="test-fact-checker",
+            ner_ensemble=["test-ner"],
+            doc_classifier_prompt=str(doc_classifier_prompt_path),
+            analysis_prompt_template=str(analysis_prompt_path),
+            nlg_prompt_template=str(nlg_prompt_path),
+            generator_profiles={
+                "standard": {
+                    "repo": "test-repo",
+                    "filename": "test.gguf",
+                }
+            },
+        ),
         llm=LLMSettings(
             model_type="llama",
-            context_length=2048,
+            context_length=4096,
+            generation_params={"temperature": 0.1},
+        ),
+        retrieval=RetrievalSettings(
+            dense_model_name="test-retriever",
+            similarity_top_k=3,
+            rrf_k=50,
+        ),
+        analysis=AnalysisSettings(
+            confidence_threshold=0.6,
+            deterministic_focus="Test focus",
+        ),
+        maintenance=MaintenanceSettings(
+            purge_retention_days=30,
+            purge_interval_days=1,
+        ),
+    )
+
             generation_params={"temperature": 0.1},
         ),
         retrieval=RetrievalSettings(

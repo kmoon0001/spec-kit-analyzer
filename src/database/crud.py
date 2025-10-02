@@ -53,19 +53,20 @@ async def change_user_password(
 async def create_rubric(
     db: AsyncSession, rubric: schemas.RubricCreate
 ) -> models.ComplianceRubric:
-    db_rubric = models.ComplianceRubric(**rubric.model_dump())
+db_rubric = models.ComplianceRubric(**rubric.model_dump())
     db.add(db_rubric)
     await db.commit()
     await db.refresh(db_rubric)
     return db_rubric
 
 
-async def get_rubric(db: AsyncSession, rubric_id: int) -> Optional[models.ComplianceRubric]:
+async def get_rubric(
+    db: AsyncSession, rubric_id: int
+) -> Optional[models.ComplianceRubric]:
     result = await db.execute(
         select(models.ComplianceRubric).filter(models.ComplianceRubric.id == rubric_id)
     )
     return result.scalars().first()
-
 
 async def get_rubrics(
     db: AsyncSession, skip: int = 0, limit: int = 100
@@ -87,7 +88,9 @@ async def update_rubric(
 
 
 async def delete_rubric(db: AsyncSession, rubric_id: int) -> None:
-    await db.execute(delete(models.ComplianceRubric).where(models.ComplianceRubric.id == rubric_id))
+await db.execute(
+        delete(models.ComplianceRubric).where(models.ComplianceRubric.id == rubric_id)
+    )
     await db.commit()
 
 
@@ -101,7 +104,9 @@ async def create_report(
     return db_report
 
 
-async def get_report(db: AsyncSession, report_id: int) -> Optional[models.AnalysisReport]:
+async def get_report(
+    db: AsyncSession, report_id: int
+) -> Optional[models.AnalysisReport]:
     result = await db.execute(
         select(models.AnalysisReport).filter(models.AnalysisReport.id == report_id)
     )
@@ -131,14 +136,20 @@ async def get_reports(
     Returns:
         A list of Report model instances.
     """
-    query = select(models.AnalysisReport).options(selectinload(models.AnalysisReport.findings))
+query = select(models.AnalysisReport).options(
+        selectinload(models.AnalysisReport.findings)
+    )
 
     if document_type:
         query = query.where(models.AnalysisReport.document_type == document_type)
     if min_score is not None:
         query = query.where(models.AnalysisReport.compliance_score >= min_score)
 
-    query = query.order_by(models.AnalysisReport.analysis_date.desc()).offset(skip).limit(limit)
+    query = (
+        query.order_by(models.AnalysisReport.analysis_date.desc())
+        .offset(skip)
+        .limit(limit)
+    )
 
     result = await db.execute(query)
     return result.scalars().all()
@@ -148,7 +159,9 @@ async def delete_report(db: AsyncSession, report_id: int) -> None:
     await db.execute(
         delete(models.Finding).where(models.Finding.report_id == report_id)
     )
-    await db.execute(delete(models.AnalysisReport).where(models.AnalysisReport.id == report_id))
+    await db.execute(
+        delete(models.AnalysisReport).where(models.AnalysisReport.id == report_id)
+    )
     await db.commit()
 
 
@@ -171,7 +184,9 @@ async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
         )
         # Then delete the reports
         result = await db.execute(
-            delete(models.AnalysisReport).filter(models.AnalysisReport.analysis_date < cutoff_date)
+delete(models.AnalysisReport).filter(
+                models.AnalysisReport.analysis_date < cutoff_date
+            )
         )
         await db.commit()
         return result.rowcount

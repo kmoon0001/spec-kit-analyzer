@@ -11,6 +11,8 @@ from src.core.hybrid_retriever import HybridRetriever
 from src.core.mock_analysis_service import MockAnalysisService
 from src.database import models
 
+settings = get_settings()
+
 # Configure logger
 logger = structlog.get_logger(__name__)
 
