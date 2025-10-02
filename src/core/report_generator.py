@@ -5,6 +5,7 @@ Generates comprehensive HTML reports following the structure defined in REPORT_E
 Includes executive summary, detailed findings, AI transparency, and regulatory citations.
 """
 
+import logging
 import os
 import urllib.parse
 from datetime import UTC, datetime
@@ -16,6 +17,8 @@ import markdown
 from .enhanced_habit_mapper import SevenHabitsFramework, get_habit_for_finding
 from .text_utils import sanitize_human_text
 from ..config import get_settings
+
+logger = logging.getLogger(__name__)
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -108,7 +111,7 @@ class ReportGenerator:
 
         # Generate findings table
         findings = analysis_result.get("findings", [])
-        findings_rows_html = self._generate_findings_table(findings)
+        findings_rows_html = self._generate_findings_table(findings, analysis_result)
 
         report_html = report_html.replace(
             "<!-- Placeholder for findings rows -->", findings_rows_html
@@ -184,7 +187,7 @@ class ReportGenerator:
 
         return report_html
 
-    def _generate_findings_table(self, findings: list) -> str:
+    def _generate_findings_table(self, findings: list, analysis_result: dict = None) -> str:
         """Generate the detailed findings analysis table."""
         if not findings:
             return '<tr><td colspan="6">No compliance findings identified.</td></tr>'
@@ -197,9 +200,9 @@ class ReportGenerator:
             # Generate table cells
             risk_cell = self._generate_risk_cell(finding)
             text_cell = self._generate_text_cell(finding)
-            issue_cell = self._generate_issue_cell(finding)
+            issue_cell = self._generate_issue_cell(finding, analysis_result)
             recommendation_cell = self._generate_recommendation_cell(finding)
-            prevention_cell = self._generate_prevention_cell(finding)
+            prevention_cell = self._generate_prevention_cell(finding, analysis_result)
             confidence_cell = self._generate_confidence_cell(finding)
 
             findings_rows_html += f"""
@@ -261,8 +264,8 @@ class ReportGenerator:
 
         return f'<a href="highlight://{encoded_payload}" class="highlight-link">{problematic_text}</a>'
 
-    def _generate_issue_cell(self, finding: dict) -> str:
-        """Generate compliance issue cell with regulatory citations."""
+    def _generate_issue_cell(self, finding: dict, analysis_result: dict = None) -> str:
+        """Generate compliance issue cell with regulatory citations and habit tags."""
         issue_title = sanitize_human_text(
             finding.get("issue_title", "Compliance Issue")
         )
@@ -279,7 +282,103 @@ class ReportGenerator:
         if severity_reason:
             issue_html += f"<br><small>{severity_reason}</small>"
 
+        # Add habit tag if habits enabled and configured to show
+        if (self.habits_enabled and 
+            self.settings.habits_framework.report_integration.show_habit_tags):
+            
+            habit_info = self._get_habit_info_for_finding(finding, analysis_result)
+            
+            if habit_info:
+                habit_html = self._generate_habit_tag_html(habit_info)
+                issue_html += habit_html
+
         return issue_html
+
+    def _get_habit_info_for_finding(self, finding: dict, analysis_result: dict = None) -> Optional[Dict[str, Any]]:
+        """
+        Get habit information for a finding with proper context.
+        
+        Args:
+            finding: The compliance finding
+            analysis_result: Optional analysis result for context
+            
+        Returns:
+            Habit information dictionary or None
+        """
+        if self.habits_framework:
+            # Use enhanced framework with proper context
+            context = {
+                "document_type": analysis_result.get("document_type", "Unknown") if analysis_result else "Unknown",
+                "discipline": analysis_result.get("discipline", "Unknown") if analysis_result else "Unknown",
+                "risk_level": finding.get("risk", "Unknown"),
+                "issue_category": finding.get("issue_category", "General")
+            }
+            return self.habits_framework.map_finding_to_habit(finding, context)
+        else:
+            # Fallback to legacy function
+            try:
+                from .habit_mapper import get_habit_for_finding
+                legacy_habit = get_habit_for_finding(finding)
+                return {
+                    "habit_number": 1,  # Default to Habit 1
+                    "name": legacy_habit["name"],
+                    "explanation": legacy_habit["explanation"],
+                    "confidence": 0.5  # Default confidence for legacy
+                }
+            except ImportError:
+                logger.warning("Legacy habit mapper not available")
+                return None
+
+    def _generate_habit_tag_html(self, habit_info: Dict[str, Any]) -> str:
+        """
+        Generate HTML for habit tag based on visibility settings.
+        
+        Args:
+            habit_info: Habit information dictionary
+            
+        Returns:
+            HTML string for habit tag
+        """
+        habit_number = habit_info.get("habit_number", 1)
+        habit_name = sanitize_human_text(habit_info.get("name", "Unknown Habit"))
+        explanation = sanitize_human_text(habit_info.get("explanation", ""))
+        confidence = habit_info.get("confidence", 0.0)
+        
+        # Only show if confidence meets threshold
+        if confidence < self.settings.habits_framework.advanced.habit_confidence_threshold:
+            return ""
+        
+        # Generate appropriate HTML based on visibility level
+        if self.settings.habits_framework.is_prominent():
+            # Prominent: Large, detailed badge with confidence indicator
+            confidence_indicator = f" ({confidence:.0%} confidence)" if confidence < 0.9 else ""
+            habit_html = f'''
+            <div class="habit-tag prominent" data-confidence="{confidence:.2f}">
+                <div class="habit-badge">
+                    🎯 HABIT {habit_number}: {habit_name.upper()}{confidence_indicator}
+                </div>
+                <div class="habit-quick-tip">
+                    {explanation[:120]}{'...' if len(explanation) > 120 else ''}
+                </div>
+            </div>
+            '''
+        elif self.settings.habits_framework.is_subtle():
+            # Subtle: Small icon with tooltip only
+            habit_html = f'''
+            <div class="habit-tag subtle" title="Habit {habit_number}: {habit_name} - {explanation}" data-confidence="{confidence:.2f}">
+                💡
+            </div>
+            '''
+        else:
+            # Moderate: Visible tag with name (default)
+            tooltip_text = f"{explanation} (Confidence: {confidence:.0%})"
+            habit_html = f'''
+            <div class="habit-tag moderate" title="{tooltip_text}" data-confidence="{confidence:.2f}">
+                💡 Habit {habit_number}: {habit_name}
+            </div>
+            '''
+        
+        return habit_html
 
     def _generate_recommendation_cell(self, finding: dict) -> str:
         """Generate actionable recommendations cell."""
@@ -295,23 +394,16 @@ class ReportGenerator:
 
         return recommendation
 
-    def _generate_prevention_cell(self, finding: dict, context: Optional[Dict] = None) -> str:
+    def _generate_prevention_cell(self, finding: dict, analysis_result: dict = None) -> str:
         """Generate prevention strategies cell using enhanced habit mapper."""
         if not self.habits_enabled:
             # Fallback to basic prevention text
             return '<div class="habit-explanation">Review documentation practices regularly</div>'
         
-        # Use enhanced framework if available
-        if self.habits_framework:
-            habit_info = self.habits_framework.map_finding_to_habit(finding, context)
-        else:
-            # Fallback to legacy function
-            habit = get_habit_for_finding(finding)
-            habit_info = {
-                "name": habit["name"],
-                "explanation": habit["explanation"],
-                "improvement_strategies": []
-            }
+        # Get habit info with proper context
+        habit_info = self._get_habit_info_for_finding(finding, analysis_result)
+        if not habit_info:
+            return '<div class="habit-explanation">Review documentation practices regularly</div>'
         
         habit_name = sanitize_human_text(habit_info["name"])
         habit_explanation = sanitize_human_text(habit_info["explanation"])

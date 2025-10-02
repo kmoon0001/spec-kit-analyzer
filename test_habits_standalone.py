@@ -27,12 +27,13 @@ def test_all_features():
         ({"issue_title": "Poor collaboration", "text": "Team communication"}, 4, "Think Win-Win"),
         ({"issue_title": "Medical necessity unclear", "text": "Skilled service"}, 5, "Seek First to Understand"),
         ({"issue_title": "Inconsistent documentation", "text": "Alignment issues"}, 6, "Synergize"),
-        ({"issue_title": "Outdated practices", "text": "Need training"}, 7, "Sharpen the Saw"),
+        ({"issue_title": "Need training", "text": "Continuing education required"}, 7, "Sharpen the Saw"),
     ]
     
     for finding, expected_number, expected_name_part in test_cases:
         result = framework.map_finding_to_habit(finding)
-        assert result["habit_number"] == expected_number, f"Expected habit {expected_number}, got {result['habit_number']}"
+        print(f"   Finding: {finding['issue_title']} -> Habit {result['habit_number']}: {result['name']}")
+        assert result["habit_number"] == expected_number, f"Expected habit {expected_number}, got {result['habit_number']} for '{finding['issue_title']}'"
         assert expected_name_part in result["name"], f"Expected '{expected_name_part}' in name"
     
     print("   ✓ Rule-based mapping works correctly")

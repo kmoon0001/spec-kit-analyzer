@@ -118,7 +118,9 @@ class SevenHabitsFramework:
             """,
             "keywords": [
                 "signature",
+                "signed",
                 "date",
+                "dated",
                 "timely",
                 "certification",
                 "recertification",
@@ -348,8 +350,8 @@ class SevenHabitsFramework:
         Returns:
             Dict with habit information
         """
-        issue_title = finding.get("issue_title", "").lower()
-        issue_text = finding.get("text", "").lower()
+        issue_title = (finding.get("issue_title") or "").lower()
+        issue_text = (finding.get("text") or "").lower()
         combined_text = f"{issue_title} {issue_text}"
 
         # Score each habit based on keyword matches
