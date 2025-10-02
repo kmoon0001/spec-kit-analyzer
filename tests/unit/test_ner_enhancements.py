@@ -21,9 +21,10 @@ from src.core.ner import NERAnalyzer
 # Legacy mock classes - kept for compatibility but no longer used
 # since we removed spaCy dependency
 
+
 class MockToken:
     """Mock token class for legacy test compatibility."""
-    
+
     def __init__(self, text, i, head=None):
         self.lower_ = text.lower()
         self.i = i
@@ -33,14 +34,15 @@ class MockToken:
 
 class MockSpan:
     """Mock span class for legacy test compatibility."""
-    
+
     def __init__(self, text, label_, start_char=0, end_char=0, tokens=None):
         self.text = text
         self.label_ = label_
         self.start_char = start_char
         self.end_char = end_char
         self.tokens = (
-            tokens if tokens is not None
+            tokens
+            if tokens is not None
             else [MockToken(t, i) for i, t in enumerate(text.split())]
         )
         if self.tokens:
@@ -54,7 +56,7 @@ class MockSpan:
 
 class MockDoc:
     """Mock document class for legacy test compatibility."""
-    
+
     def __init__(self, spans, all_tokens=None):
         self.ents = spans
         self.text = " ".join([span.text for span in spans])
@@ -78,8 +80,13 @@ class MockDoc:
     def __len__(self):
         return len(self.tokens)
 
-    def char_span(self, start_char: int, end_char: int, label: str = "", 
-                  alignment_mode: str = "strict"):
+    def char_span(
+        self,
+        start_char: int,
+        end_char: int,
+        label: str = "",
+        alignment_mode: str = "strict",
+    ):
         """Simplified mock of SpaCy's char_span method."""
         _ = alignment_mode  # Unused parameter
         span_text = self.text[start_char:end_char]
@@ -168,23 +175,28 @@ def test_extract_medical_entities(ner_analyzer):
     """Test extraction and categorization of medical entities."""
     # Mock the NER pipeline to return medical entities
     mock_entities = [
-        {'entity_group': 'DISEASE', 'word': 'diabetes', 'start': 0, 'end': 8},
-        {'entity_group': 'MEDICATION', 'word': 'insulin', 'start': 20, 'end': 27},
-        {'entity_group': 'PROCEDURE', 'word': 'physical therapy', 
-         'start': 40, 'end': 56},
-        {'entity_group': 'ANATOMY', 'word': 'shoulder', 'start': 70, 'end': 78}
+        {"entity_group": "DISEASE", "word": "diabetes", "start": 0, "end": 8},
+        {"entity_group": "MEDICATION", "word": "insulin", "start": 20, "end": 27},
+        {
+            "entity_group": "PROCEDURE",
+            "word": "physical therapy",
+            "start": 40,
+            "end": 56,
+        },
+        {"entity_group": "ANATOMY", "word": "shoulder", "start": 70, "end": 78},
     ]
 
     ner_analyzer.ner_pipeline.extract_entities.return_value = mock_entities
 
-    text = ("Patient has diabetes, takes insulin, needs physical therapy "
-            "for shoulder pain")
+    text = (
+        "Patient has diabetes, takes insulin, needs physical therapy for shoulder pain"
+    )
     result = ner_analyzer.extract_medical_entities(text)
 
-    assert 'diabetes' in result['conditions']
-    assert 'insulin' in result['medications']
-    assert 'physical therapy' in result['procedures']
-    assert 'shoulder' in result['anatomy']
+    assert "diabetes" in result["conditions"]
+    assert "insulin" in result["medications"]
+    assert "physical therapy" in result["procedures"]
+    assert "shoulder" in result["anatomy"]
 
 
 def test_extract_entities_empty_text(ner_analyzer):
