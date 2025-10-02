@@ -104,10 +104,88 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Clinical Compliance Analyzer API",
-    description="API for analyzing clinical documents for compliance.",
+    title="Therapy Compliance Analyzer API",
+    description="""
+## Overview
+
+The Therapy Compliance Analyzer API provides comprehensive endpoints for analyzing clinical 
+therapy documentation for compliance with Medicare and regulatory guidelines.
+
+### Key Features
+
+* **🔒 Secure Authentication**: JWT-based authentication with role-based access control
+* **📄 Document Analysis**: Multi-format support (PDF, DOCX, TXT) with OCR capabilities
+* **🤖 AI-Powered Analysis**: Local LLM processing for compliance checking
+* **📊 Dashboard Analytics**: Historical compliance trends and performance metrics
+* **💬 AI Chat Assistant**: Contextual compliance guidance and clarification
+* **📋 Rubric Management**: Custom compliance rule creation and management
+* **🔐 HIPAA Compliant**: All processing occurs locally, no external data transmission
+
+### Security
+
+All endpoints require authentication via JWT Bearer token except for:
+- `/` (root)
+- `/health` (health check)
+- `/auth/token` (login)
+- `/docs` and `/redoc` (API documentation)
+
+### Rate Limiting
+
+API requests are rate-limited to **100 requests per minute** per IP address to prevent abuse.
+
+### Data Privacy
+
+- All AI/ML processing occurs locally
+- No patient data is transmitted to external services
+- Automatic PHI scrubbing and redaction
+- Configurable data retention and auto-purge
+
+### Support
+
+For technical support or questions, please refer to the project documentation or contact 
+the development team.
+    """,
     version="1.0.0",
     lifespan=lifespan,
+    contact={
+        "name": "Therapy Compliance Analyzer Support",
+        "email": "support@example.com",
+    },
+    license_info={
+        "name": "Proprietary",
+        "url": "https://example.com/license",
+    },
+    terms_of_service="https://example.com/terms",
+    openapi_tags=[
+        {
+            "name": "Health",
+            "description": "System health and status monitoring endpoints",
+        },
+        {
+            "name": "Authentication",
+            "description": "User authentication and session management",
+        },
+        {
+            "name": "Analysis",
+            "description": "Document upload and compliance analysis operations",
+        },
+        {
+            "name": "Dashboard",
+            "description": "Analytics and historical compliance data",
+        },
+        {
+            "name": "Chat",
+            "description": "AI-powered compliance assistance and guidance",
+        },
+        {
+            "name": "Compliance",
+            "description": "Rubric management and compliance rule operations",
+        },
+        {
+            "name": "Admin",
+            "description": "Administrative operations (admin users only)",
+        },
+    ],
 )
 
 

@@ -198,3 +198,147 @@ async def get_analysis_status(
         return tasks.pop(task_id)
 
     return task
+
+
+@router.post("/export-pdf/{task_id}")
+async def export_report_to_pdf(
+    task_id: str,
+    _current_user=Depends(get_current_active_user),
+) -> Dict[str, Any]:
+    """
+    Export analysis report to PDF format.
+
+    Args:
+        task_id: Task ID of completed analysis
+        _current_user: Authenticated user (for authorization)
+
+    Returns:
+        Dict with PDF file information
+
+    Raises:
+        HTTPException: If task not found or PDF generation fails
+    """
+    from ...core.pdf_export_service import PDFExportService
+    from ...core.report_generator import ReportGenerator
+
+    # Get completed task
+    task = tasks.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if task["status"] != "completed":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Task is not completed. Current status: {task['status']}",
+        )
+
+    try:
+        # Get analysis result
+        analysis_result = task.get("result", {})
+        document_name = task.get("filename", "document")
+
+        # Generate HTML report
+        report_gen = ReportGenerator()
+        report_data = report_gen.generate_report(
+            analysis_result=analysis_result,
+            document_name=document_name,
+        )
+
+        # Export to PDF
+        pdf_service = PDFExportService()
+        pdf_result = pdf_service.export_to_pdf(
+            html_content=report_data["report_html"],
+            document_name=document_name,
+            metadata={
+                "Document": document_name,
+                "Analysis Date": report_data["generated_at"],
+                "Compliance Score": analysis_result.get("compliance_score", "N/A"),
+                "Total Findings": len(analysis_result.get("findings", [])),
+                "Document Type": analysis_result.get("document_type", "Unknown"),
+                "Discipline": analysis_result.get("discipline", "Unknown"),
+            },
+        )
+
+        if not pdf_result.get("success"):
+            raise HTTPException(
+                status_code=500,
+                detail=f"PDF generation failed: {pdf_result.get('error')}",
+            )
+
+        return {
+            "task_id": task_id,
+            "pdf_info": pdf_result,
+            "message": "PDF exported successfully",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("PDF export failed", task_id=task_id, error=str(e))
+        raise HTTPException(
+            status_code=500, detail=f"PDF export failed: {str(e)}"
+        )
+
+
+@router.get("/pdfs")
+async def list_exported_pdfs(
+    _current_user=Depends(get_current_active_user),
+) -> Dict[str, Any]:
+    """
+    List all exported PDF reports.
+
+    Args:
+        _current_user: Authenticated user (for authorization)
+
+    Returns:
+        Dict with list of PDF files
+
+    Raises:
+        HTTPException: If listing fails
+    """
+    from ...core.pdf_export_service import PDFExportService
+
+    try:
+        pdf_service = PDFExportService()
+        pdfs = pdf_service.list_pdfs()
+
+        return {
+            "pdfs": pdfs,
+            "count": len(pdfs),
+        }
+
+    except Exception as e:
+        logger.exception("Failed to list PDFs", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to list PDFs: {str(e)}")
+
+
+@router.post("/purge-old-pdfs")
+async def purge_old_pdfs(
+    _current_user=Depends(get_current_active_user),
+) -> Dict[str, Any]:
+    """
+    Manually trigger purge of old PDF reports.
+
+    Args:
+        _current_user: Authenticated user (for authorization)
+
+    Returns:
+        Dict with purge statistics
+
+    Raises:
+        HTTPException: If purge fails
+    """
+    from ...core.pdf_export_service import PDFExportService
+
+    try:
+        pdf_service = PDFExportService()
+        result = pdf_service.purge_old_pdfs()
+
+        return {
+            "message": "Purge completed",
+            "statistics": result,
+        }
+
+    except Exception as e:
+        logger.exception("Failed to purge PDFs", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to purge PDFs: {str(e)}")
