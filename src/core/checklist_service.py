@@ -5,12 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional
 
-try:
-    import spacy
-    from spacy.language import Language
-except Exception:  # pragma: no cover - spaCy is optional at runtime
-    spacy = None  # type: ignore[assignment]
-    Language = None  # type: ignore[assignment,misc]
+# Removed spaCy dependency - using simple text processing instead
+import re
 
 from .text_utils import sanitize_human_text
 
@@ -28,13 +24,8 @@ class DeterministicChecklistService:
     """Run lightweight heuristics to highlight must-have documentation elements."""
 
     def __init__(self) -> None:
-        self._nlp: Optional[Language]
-        if spacy is None:
-            self._nlp = None
-        else:
-            self._nlp = spacy.blank("en")
-            if "sentencizer" not in self._nlp.pipe_names:
-                self._nlp.add_pipe("sentencizer")
+        # Using simple regex-based sentence splitting instead of spaCy
+        self.sentence_pattern = re.compile(r'[.!?]+\s+')
 
         self._checks: List[ChecklistItem] = [
             ChecklistItem(
@@ -146,10 +137,11 @@ class DeterministicChecklistService:
         return results
 
     def _split_sentences(self, text: str) -> List[str]:
-        if self._nlp is None:
-            return [segment.strip() for segment in text.split(".") if segment.strip()]
-        doc = self._nlp(text)
-        return [sent.text.strip() for sent in doc.sents if sent.text.strip()]
+        """Split text into sentences using regex patterns."""
+        # Split on sentence endings followed by whitespace
+        sentences = self.sentence_pattern.split(text)
+        # Clean up and filter empty sentences
+        return [sent.strip() for sent in sentences if sent.strip()]
 
     @staticmethod
     def _locate_sentence(

@@ -16,7 +16,7 @@ from src.core.parsing import parse_document_content
 from src.core.phi_scrubber import PhiScrubberService
 from src.core.preprocessing_service import PreprocessingService
 from src.core.text_utils import sanitize_bullets, sanitize_human_text
-from src.core.ner import NERPipeline
+from src.core.ner import NERAnalyzer
 from src.core.prompt_manager import PromptManager
 from src.core.explanation import ExplanationEngine
 from src.core.fact_checker_service import FactCheckerService
@@ -56,7 +56,7 @@ class AnalysisService:
         report_generator: Optional[ReportGenerator] = None,
         compliance_analyzer: Optional[ComplianceAnalyzer] = None,
         checklist_service: Optional[ChecklistService] = None,
-        ner_pipeline: Optional[NERPipeline] = None,
+        ner_analyzer: Optional[NERAnalyzer] = None,
         explanation_engine: Optional[ExplanationEngine] = None,
         prompt_manager: Optional[PromptManager] = None,
         fact_checker_service: Optional[FactCheckerService] = None,
@@ -75,7 +75,7 @@ class AnalysisService:
             llm_settings=settings.llm.model_dump(),
         )
         self.retriever = retriever or HybridRetriever()
-        self.ner_pipeline = ner_pipeline or NERPipeline(settings.models.ner_ensemble)
+        self.ner_analyzer = ner_analyzer or NERAnalyzer(settings.models.ner_ensemble)
         self.prompt_manager = prompt_manager or PromptManager(
             template_path=settings.models.analysis_prompt_template
         )
@@ -90,7 +90,7 @@ class AnalysisService:
 
         self.compliance_analyzer = compliance_analyzer or ComplianceAnalyzer(
             retriever=self.retriever,
-            ner_pipeline=self.ner_pipeline,
+            ner_analyzer=self.ner_analyzer,
             llm_service=self.llm_service,
             explanation_engine=self.explanation_engine,
             prompt_manager=self.prompt_manager,

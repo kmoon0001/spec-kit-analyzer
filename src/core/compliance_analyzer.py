@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from src.core.llm_service import LLMService
 from src.core.nlg_service import NLGService
-from src.core.ner import NERPipeline
+from src.core.ner import NERAnalyzer
 from src.core.explanation import ExplanationEngine
 from src.core.prompt_manager import PromptManager
 from src.core.fact_checker_service import FactCheckerService
@@ -21,7 +21,7 @@ class ComplianceAnalyzer:
     def __init__(
         self,
         retriever: HybridRetriever,
-        ner_pipeline: NERPipeline,
+        ner_analyzer: NERAnalyzer,
         llm_service: LLMService,
         explanation_engine: ExplanationEngine,
         prompt_manager: PromptManager,
@@ -30,7 +30,7 @@ class ComplianceAnalyzer:
         deterministic_focus: Optional[str] = None,
     ) -> None:
         self.retriever = retriever
-        self.ner_pipeline = ner_pipeline
+        self.ner_analyzer = ner_analyzer
         self.llm_service = llm_service
         self.explanation_engine = explanation_engine
         self.prompt_manager = prompt_manager
@@ -51,7 +51,7 @@ class ComplianceAnalyzer:
     ) -> Dict[str, Any]:
         logger.info("Starting compliance analysis for document type: %s", doc_type)
 
-        entities = self.ner_pipeline.extract_entities(document_text)
+        entities = self.ner_analyzer.extract_entities(document_text)
         entity_list_str = (
             ", ".join(
                 f"{entity['entity_group']}: {entity['word']}" for entity in entities

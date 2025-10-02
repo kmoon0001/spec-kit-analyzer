@@ -1,22 +1,22 @@
 """
 Named Entity Recognition (NER) module for medical document analysis.
 
-This module provides NER capabilities using both spaCy and Hugging Face transformers
+This module provides NER capabilities using Hugging Face transformers and presidio
 for extracting clinical entities from therapy documentation. It includes specialized
-functionality for identifying clinician names and medical terminology.
+functionality for identifying clinician names and medical terminology without spaCy.
 """
 
 import logging
+import re
 from typing import List, Dict, Any, Optional
 
-try:
-    import spacy
-    import spacy.cli
-    SPACY_AVAILABLE = True
-except ImportError:
-    SPACY_AVAILABLE = False
-    
 from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
+
+try:
+    from presidio_analyzer import AnalyzerEngine
+    PRESIDIO_AVAILABLE = True
+except ImportError:
+    PRESIDIO_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -101,47 +101,39 @@ class NERAnalyzer:
     """
     Advanced NER analyzer for clinical documents with specialized medical entity extraction.
     
-    Combines spaCy's general NER capabilities with specialized biomedical models
-    for comprehensive entity recognition in therapy documentation.
+    Uses Hugging Face transformers, presidio, and regex patterns for comprehensive 
+    entity recognition in therapy documentation without spaCy dependencies.
     """
+
     def __init__(self, model_names: Optional[List[str]] = None):
         """
-        Initialize the NER analyzer with spaCy and transformer models.
+        Initialize the NER analyzer with transformer models and presidio.
         
         Args:
             model_names: List of Hugging Face model names for biomedical NER.
                         If None, uses default models optimized for clinical text.
         """
-        self.spacy_nlp = None
-        self.ner_pipeline = None
-        
-        # Initialize spaCy if available
-        if SPACY_AVAILABLE:
-            self._initialize_spacy()
-        else:
-            logger.warning("spaCy not available, some NER features will be limited")
-        
-        # Initialize transformer-based NER pipeline
         self.ner_pipeline = NERPipeline(model_names)
-    
-    def _initialize_spacy(self) -> None:
-        """Initialize spaCy model with error handling."""
-        try:
-            self.spacy_nlp = spacy.load("en_core_web_sm")
-            logger.info("Successfully loaded spaCy model: en_core_web_sm")
-        except OSError:
-            logger.warning("en_core_web_sm not found, attempting to download...")
+        self.presidio_analyzer = None
+        
+        # Initialize presidio if available
+        if PRESIDIO_AVAILABLE:
             try:
-                spacy.cli.download("en_core_web_sm")
-                self.spacy_nlp = spacy.load("en_core_web_sm")
-                logger.info("Successfully downloaded and loaded spaCy model")
+                self.presidio_analyzer = AnalyzerEngine()
+                logger.info("Successfully initialized Presidio analyzer")
             except Exception as e:
-                logger.error("Failed to download spaCy model: %s", str(e))
-                self.spacy_nlp = None
+                logger.warning("Failed to initialize Presidio: %s", str(e))
+        
+        # Clinical name patterns for regex-based extraction
+        self.clinical_patterns = {
+            'titles': r'\b(?:Dr\.?|Doctor|PT|OT|SLP|COTA|PTA|RN|LPN|MD|DPT|OTR|CCC-SLP)\b',
+            'signature_keywords': r'\b(?:signature|signed|therapist|by|clinician|provider|treating)\b',
+            'name_pattern': r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]*\.?)*\s+[A-Z][a-z]+\b'
+        }
 
     def extract_entities(self, text: str) -> List[Dict[str, Any]]:
         """
-        Extract entities from text using both spaCy and transformer models.
+        Extract entities from text using transformer models and presidio.
         
         Args:
             text: Input text to analyze for named entities
@@ -159,29 +151,29 @@ class NERAnalyzer:
             transformer_entities = self.ner_pipeline.extract_entities(text)
             entities.extend(transformer_entities)
         
-        # Extract entities using spaCy (if available)
-        if self.spacy_nlp:
-            spacy_entities = self._extract_spacy_entities(text)
-            entities.extend(spacy_entities)
+        # Extract entities using presidio (if available)
+        if self.presidio_analyzer:
+            presidio_entities = self._extract_presidio_entities(text)
+            entities.extend(presidio_entities)
         
         return self._deduplicate_entities(entities)
     
-    def _extract_spacy_entities(self, text: str) -> List[Dict[str, Any]]:
-        """Extract entities using spaCy model."""
+    def _extract_presidio_entities(self, text: str) -> List[Dict[str, Any]]:
+        """Extract entities using Presidio analyzer."""
         try:
-            doc = self.spacy_nlp(text)
+            results = self.presidio_analyzer.analyze(text=text, language='en')
             entities = []
-            for ent in doc.ents:
+            for result in results:
                 entities.append({
-                    'entity_group': ent.label_,
-                    'score': 1.0,  # spaCy doesn't provide confidence scores
-                    'word': ent.text,
-                    'start': ent.start_char,
-                    'end': ent.end_char
+                    'entity_group': result.entity_type,
+                    'score': result.score,
+                    'word': text[result.start:result.end],
+                    'start': result.start,
+                    'end': result.end
                 })
             return entities
         except Exception as e:
-            logger.warning("spaCy entity extraction failed: %s", str(e))
+            logger.warning("Presidio entity extraction failed: %s", str(e))
             return []
     
     def _deduplicate_entities(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -199,7 +191,7 @@ class NERAnalyzer:
 
     def extract_clinician_name(self, text: str) -> List[str]:
         """
-        Extract clinician names from text by looking for PERSON entities near clinical keywords.
+        Extract clinician names from text using regex patterns and context analysis.
         
         Args:
             text: Input text to search for clinician names
@@ -207,29 +199,53 @@ class NERAnalyzer:
         Returns:
             List of unique clinician names found in the text
         """
-        if not text or not self.spacy_nlp:
+        if not text:
             return []
         
         try:
-            doc = self.spacy_nlp(text)
             clinician_names = []
-            clinical_keywords = {
-                "signature", "therapist", "by", "dr", "pt", "ot", "slp", 
-                "cota", "pta", "signed", "clinician", "provider", "treating"
-            }
             
-            for ent in doc.ents:
-                if ent.label_ == "PERSON":
-                    # Check surrounding context for clinical keywords
-                    context_start = max(0, ent.start - 5)
-                    context_end = min(len(doc), ent.end + 5)
-                    
-                    for token in doc[context_start:context_end]:
-                        if token.text.lower().strip(".:,()") in clinical_keywords:
-                            clinician_names.append(ent.text)
-                            break
+            # Method 1: Look for names near clinical keywords
+            clinical_keywords_pattern = self.clinical_patterns['signature_keywords']
+            name_pattern = self.clinical_patterns['name_pattern']
             
-            return list(set(clinician_names))
+            # Find all clinical keyword positions
+            for keyword_match in re.finditer(clinical_keywords_pattern, text, re.IGNORECASE):
+                # Look for names within 50 characters of the keyword
+                start_pos = max(0, keyword_match.start() - 50)
+                end_pos = min(len(text), keyword_match.end() + 50)
+                context = text[start_pos:end_pos]
+                
+                # Find names in this context
+                for name_match in re.finditer(name_pattern, context):
+                    name = name_match.group().strip()
+                    if len(name.split()) >= 2:  # At least first and last name
+                        clinician_names.append(name)
+            
+            # Method 2: Look for names with clinical titles
+            title_pattern = self.clinical_patterns['titles']
+            title_name_pattern = rf"({title_pattern})\s+({name_pattern})"
+            
+            for match in re.finditer(title_name_pattern, text, re.IGNORECASE):
+                full_name = match.group().strip()
+                clinician_names.append(full_name)
+            
+            # Method 3: Use presidio to find PERSON entities near clinical context
+            if self.presidio_analyzer:
+                presidio_entities = self._extract_presidio_entities(text)
+                for entity in presidio_entities:
+                    if entity.get('entity_group') == 'PERSON':
+                        # Check if this person is in clinical context
+                        start = entity.get('start', 0)
+                        end = entity.get('end', 0)
+                        context_start = max(0, start - 50)
+                        context_end = min(len(text), end + 50)
+                        context = text[context_start:context_end]
+                        
+                        if re.search(clinical_keywords_pattern, context, re.IGNORECASE):
+                            clinician_names.append(entity.get('word', ''))
+            
+            return list(set(clinician_names))  # Remove duplicates
             
         except Exception as e:
             logger.warning("Clinician name extraction failed: %s", str(e))
@@ -252,6 +268,7 @@ class NERAnalyzer:
             'procedures': [],
             'anatomy': [],
             'measurements': [],
+            'persons': [],
             'other': []
         }
         
@@ -259,6 +276,7 @@ class NERAnalyzer:
         label_mapping = {
             'DISEASE': 'conditions',
             'SYMPTOM': 'conditions',
+            'CONDITION': 'conditions',
             'MEDICATION': 'medications',
             'DRUG': 'medications',
             'PROCEDURE': 'procedures',
@@ -266,7 +284,11 @@ class NERAnalyzer:
             'ANATOMY': 'anatomy',
             'BODY_PART': 'anatomy',
             'MEASUREMENT': 'measurements',
-            'DOSAGE': 'measurements'
+            'DOSAGE': 'measurements',
+            'PERSON': 'persons',
+            'PHONE_NUMBER': 'other',
+            'EMAIL_ADDRESS': 'other',
+            'DATE_TIME': 'other'
         }
         
         for entity in entities:
