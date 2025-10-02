@@ -92,15 +92,11 @@ class Finding(Base):
     problematic_text: Mapped[str] = mapped_column(Text)
     confidence_score: Mapped[float] = mapped_column(Float, default=0.0)
 
-<<<<<<< HEAD
-    report: Mapped["AnalysisReport"] = relationship("AnalysisReport", back_populates="findings")
+    report: Mapped["AnalysisReport"] = relationship(
+        "AnalysisReport", back_populates="findings"
+    )
 
 
 # Backward compatibility aliases
 Rubric = ComplianceRubric
 Report = AnalysisReport
-||||||| ab2d9e5
-    report = relationship("Report", back_populates="findings")
-=======
-    report = relationship("AnalysisReport", back_populates="findings")
->>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da

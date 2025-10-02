@@ -1,18 +1,19 @@
-<<<<<<< HEAD
+"""
+Database configuration and session management.
+
+Provides async database engine, session factory, and utility functions
+for database initialization and connection management.
+"""
+
 import logging
-from typing import AsyncGenerator, Dict, Any
-||||||| ab2d9e5
-import logging
-from typing import AsyncGenerator
-=======
-import structlog
-from typing import AsyncGenerator
->>>>>>> af9f01e9fb80fb61c6c17e6a507c04377780f1da
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from typing import Any, AsyncGenerator, Dict
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
+
 from ..config import get_settings
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # --- Database Configuration ---
 settings = get_settings()
