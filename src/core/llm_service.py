@@ -62,27 +62,24 @@ class LLMService:
                 model_repo_id=self.model_repo_id,
             )
 
-            # Use a very small, fast model for CPU
-            # distilgpt2 is tiny (82MB) and fast enough for basic text generation
-            model_id = "distilgpt2"  # 82MB, very fast on CPU
+            # Use FLAN-T5-small - excellent for instruction-following and Q&A
+            # 308MB, optimized for tasks like compliance analysis
+            model_id = "google/flan-t5-small"  # 308MB, great for instructions
+
+            # Import T5 models
+            from transformers import T5ForConditionalGeneration, T5Tokenizer
 
             # Load tokenizer and model
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                model_id,
-                trust_remote_code=True,
-            )
+            self.tokenizer = T5Tokenizer.from_pretrained(model_id)
 
-            self.llm = AutoModelForCausalLM.from_pretrained(
+            self.llm = T5ForConditionalGeneration.from_pretrained(
                 model_id,
                 torch_dtype=torch.float32,  # Use float32 for CPU
                 device_map="cpu",
-                trust_remote_code=True,
                 low_cpu_mem_usage=True,
             )
 
-            # Set pad token if not set
-            if self.tokenizer.pad_token is None:
-                self.tokenizer.pad_token = self.tokenizer.eos_token
+            # T5 doesn't need pad token setup like GPT models
 
             logger.info("LLM loaded successfully with transformers")
         except Exception as e:
@@ -151,25 +148,25 @@ class LLMService:
                 logger.error("LLM model or tokenizer is not loaded")
                 return "Error: LLM model is not available."
 
-            # Tokenize input
+            # Tokenize input (T5 uses encoder-decoder architecture)
             inputs = self.tokenizer(
-                prompt, return_tensors="pt", truncation=True, max_length=2048
+                prompt, return_tensors="pt", truncation=True, max_length=512
             )
 
-            # Generate
+            # Generate with T5
             with torch.no_grad():
                 outputs = self.llm.generate(
                     **inputs,
-                    max_new_tokens=max_new_tokens,
-                    temperature=temperature,
+                    max_length=max_new_tokens,  # T5 uses max_length not max_new_tokens
+                    temperature=temperature if temperature > 0 else 1.0,
                     do_sample=temperature > 0,
-                    pad_token_id=self.tokenizer.pad_token_id,
-                    eos_token_id=self.tokenizer.eos_token_id,
+                    top_p=0.9,
+                    num_beams=2,  # Use beam search for better quality
                 )
 
-            # Decode only the new tokens
+            # Decode the output (T5 generates full sequence)
             generated_text = self.tokenizer.decode(
-                outputs[0][inputs["input_ids"].shape[1] :], skip_special_tokens=True
+                outputs[0], skip_special_tokens=True
             ).strip()
 
             return generated_text
