@@ -1,10 +1,10 @@
-import logging
+import structlog
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from ..config import get_settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # --- Database Configuration ---
 settings = get_settings()
@@ -22,17 +22,17 @@ try:
 
     perf_config = get_performance_config()
     pool_size = perf_config.connection_pool_size
-    logger.info("Applying performance-tuned connection pool size: %d", pool_size)
+    logger.info("Applying performance-tuned connection pool size", pool_size=pool_size)
 except (ImportError, AttributeError):
     pool_size = 10  # Sensible default
-    logger.info("Using default connection pool size: %d", pool_size)
+    logger.info("Using default connection pool size", pool_size=pool_size)
 
 engine_args = {"echo": settings.database.echo}
 
 # Connection pooling is not supported by aiosqlite in the same way as other drivers.
 # We apply these settings only for non-SQLite databases.
 if "sqlite" not in DATABASE_URL:
-    logger.info("Applying performance-tuned connection pooling settings.")
+    logger.info("Applying performance-tuned connection pooling settings")
     engine_args.update(
         {
             "pool_size": pool_size,
@@ -45,7 +45,7 @@ else:
     # For SQLite, we might want to ensure we are using a specific pool implementation
     # if the defaults are not suitable, but for now, we avoid unsupported args.
     logger.info(
-        "SQLite database detected. Skipping advanced connection pooling settings."
+        "SQLite database detected, skipping advanced connection pooling settings"
     )
 
 
@@ -87,10 +87,10 @@ async def init_db():
     Initializes the database by creating all tables defined by Base's metadata.
     This is typically called once on application startup.
     """
-    logger.info("Initializing database and creating tables...")
+    logger.info("Initializing database and creating tables")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database initialization complete.")
+    logger.info("Database initialization complete")
 
 
 async def close_db_connections():
@@ -98,6 +98,6 @@ async def close_db_connections():
     Gracefully disposes of the database engine's connection pool.
     This should be called on application shutdown.
     """
-    logger.info("Closing database connections...")
+    logger.info("Closing database connections")
     await engine.dispose()
-    logger.info("Database connections closed.")
+    logger.info("Database connections closed")

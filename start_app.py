@@ -9,18 +9,25 @@ import subprocess
 import atexit
 import time
 import os
-import logging
+import structlog
+
+from src.logging_config import setup_logging
 
 # --- Path Setup ---
 project_root = os.path.dirname(os.path.abspath(__file__))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+# --- Hugging Face Cache Setup ---
+# Set a local cache directory for Hugging Face models to improve deployment.
+cache_dir = os.path.join(project_root, ".cache")
+os.environ["HF_HUB_CACHE"] = cache_dir
+os.makedirs(cache_dir, exist_ok=True)
+
+# --- Logging ---
+# Configure structured logging for the application
+setup_logging()
+logger = structlog.get_logger(__name__)
 
 # Global variable to hold the API process
 api_process = None

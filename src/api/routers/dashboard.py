@@ -1,5 +1,5 @@
 import datetime
-import logging
+import structlog
 from time import perf_counter
 from typing import List, Optional, Tuple
 
@@ -17,7 +17,7 @@ from src.core.llm_service import LLMService
 from src.core.report_generator import ReportGenerator
 from src.database.database import get_async_db
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 router = APIRouter()
 report_generator = ReportGenerator()
 
@@ -25,13 +25,18 @@ report_generator = ReportGenerator()
 # --- Helper Functions ---#
 
 
-def _resolve_generator_model(settings: Settings) -> Tuple[str, str]:
+def _resolve_generator_model(
+    settings: Settings,
+) -> Tuple[str, str, Optional[str]]:
     """Placeholder for resolving the generator model."""
     # In a real scenario, this could involve more complex logic
-    return (
-        settings.llm.repo,
-        settings.llm.filename,
-    )
+    if settings.models.chat:
+        return (
+            settings.models.chat.repo,
+            settings.models.chat.filename,
+            settings.models.chat.revision,
+        )
+    raise HTTPException(status_code=500, detail="Chat model configuration not found.")
 
 
 @router.get("/reports", response_model=List[schemas.Report])
@@ -132,10 +137,11 @@ async def generate_coaching_focus(
             detail="Director Dashboard feature is not enabled.",
         )
 
-    repo_id, filename = _resolve_generator_model(settings)
+    repo_id, filename, revision = _resolve_generator_model(settings)
     llm_service = LLMService(
         model_repo_id=repo_id,
         model_filename=filename,
+        revision=revision,
         llm_settings={
             "model_type": settings.llm.model_type,
             "context_length": settings.llm.context_length,
@@ -183,13 +189,13 @@ async def generate_coaching_focus(
     """
     try:
         start = perf_counter()
-        raw_response = llm_service.generate_analysis(prompt)
+        raw_response = llm_service.generate(prompt)
         duration = perf_counter() - start
-        logger.info("LLM coaching focus generation took %.2fs", duration)
+        logger.info("LLM coaching focus generation complete", duration_s=duration)
         coaching_data = llm_service.parse_json_output(raw_response)
         return CoachingFocus(**coaching_data)
     except Exception as e:
-        logger.exception("Failed to generate coaching focus")
+        logger.exception("Failed to generate coaching focus", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate coaching focus: {e}",

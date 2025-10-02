@@ -1,5 +1,5 @@
 import asyncio
-import logging
+import structlog
 from collections.abc import Awaitable
 from pathlib import Path
 from typing import Any, Dict, List
@@ -24,7 +24,7 @@ from src.core.fact_checker_service import FactCheckerService
 from src.core.nlg_service import NLGService
 from src.core.checklist_service import DeterministicChecklistService as ChecklistService
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
@@ -67,13 +67,15 @@ class AnalysisService:
         settings = _get_settings()
 
         # Select generator profile based on system memory
-        repo_id, filename = self._select_generator_profile(settings.models.dict())
+        repo_id, filename = self._select_generator_profile(
+            settings.models.model_dump()
+        )
 
         # Initialize core services if not provided
         self.llm_service = llm_service or LLMService(
             model_repo_id=repo_id,
             model_filename=filename,
-            llm_settings=settings.llm.dict(),
+            llm_settings=settings.llm.model_dump(),
         )
         self.retriever = retriever or HybridRetriever(settings=settings)
         self.ner_pipeline = ner_pipeline or NERPipeline(settings.models.ner_ensemble)
@@ -118,7 +120,7 @@ class AnalysisService:
         analysis_mode: str | None = None,
     ) -> Any:
         async def _run() -> Dict[str, Any]:
-            logger.info("Starting analysis for document: %s", file_path)
+            logger.info("Starting analysis for document", file_path=file_path)
             chunks = parse_document_content(file_path)
             document_text = " ".join(
                 chunk.get("sentence", "") for chunk in chunks if isinstance(chunk, dict)
@@ -332,17 +334,17 @@ class AnalysisService:
                         chosen_profile = profile
             if chosen_profile:
                 logger.info(
-                    "Selected generator profile '%s' (system memory %.1f GB).",
-                    chosen_name,
-                    mem_gb,
+                    "Selected generator profile",
+                    profile_name=chosen_name,
+                    system_memory_gb=round(mem_gb, 1),
                 )
                 return chosen_profile.get("repo"), chosen_profile.get("filename")
             # Fall back to the first profile if none matched
             first_name, first_profile = next(iter(profiles.items()))
             logger.warning(
-                "No generator profile matched %.1f GB; falling back to '%s'.",
-                mem_gb,
-                first_name,
+                "No generator profile matched system memory, falling back",
+                system_memory_gb=round(mem_gb, 1),
+                fallback_profile=first_name,
             )
             return first_profile.get("repo"), first_profile.get("filename")
         # Legacy single-entry configuration
@@ -359,7 +361,7 @@ class AnalysisService:
         filename = chat_cfg.get("filename")
         if not repo or not filename:
             logger.warning(
-                "Chat model configuration incomplete; reusing primary generator for chat."
+                "Chat model configuration incomplete, reusing primary generator for chat"
             )
             return self.llm_service
         chat_settings = dict(base_llm_settings)
@@ -371,7 +373,7 @@ class AnalysisService:
         for key, value in (chat_cfg.get("generation_params") or {}).items():
             generation_params[key] = value
         chat_settings["generation_params"] = generation_params
-        logger.info("Loading chat model from %s/%s", repo, filename)
+        logger.info("Loading chat model", repo=repo, filename=filename)
         return LLMService(
             model_repo_id=repo,
             model_filename=filename,

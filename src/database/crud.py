@@ -52,34 +52,34 @@ async def change_user_password(
 
 async def create_rubric(
     db: AsyncSession, rubric: schemas.RubricCreate
-) -> models.Rubric:
-    db_rubric = models.Rubric(**rubric.dict())
+) -> models.ComplianceRubric:
+    db_rubric = models.ComplianceRubric(**rubric.model_dump())
     db.add(db_rubric)
     await db.commit()
     await db.refresh(db_rubric)
     return db_rubric
 
 
-async def get_rubric(db: AsyncSession, rubric_id: int) -> Optional[models.Rubric]:
+async def get_rubric(db: AsyncSession, rubric_id: int) -> Optional[models.ComplianceRubric]:
     result = await db.execute(
-        select(models.Rubric).filter(models.Rubric.id == rubric_id)
+        select(models.ComplianceRubric).filter(models.ComplianceRubric.id == rubric_id)
     )
     return result.scalars().first()
 
 
 async def get_rubrics(
     db: AsyncSession, skip: int = 0, limit: int = 100
-) -> List[models.Rubric]:
-    result = await db.execute(select(models.Rubric).offset(skip).limit(limit))
+) -> List[models.ComplianceRubric]:
+    result = await db.execute(select(models.ComplianceRubric).offset(skip).limit(limit))
     return result.scalars().all()
 
 
 async def update_rubric(
     db: AsyncSession, rubric_id: int, rubric: schemas.RubricCreate
-) -> Optional[models.Rubric]:
+) -> Optional[models.ComplianceRubric]:
     db_rubric = await get_rubric(db, rubric_id)
     if db_rubric:
-        for key, value in rubric.dict().items():
+        for key, value in rubric.model_dump().items():
             setattr(db_rubric, key, value)
         await db.commit()
         await db.refresh(db_rubric)
@@ -87,23 +87,23 @@ async def update_rubric(
 
 
 async def delete_rubric(db: AsyncSession, rubric_id: int) -> None:
-    await db.execute(delete(models.Rubric).where(models.Rubric.id == rubric_id))
+    await db.execute(delete(models.ComplianceRubric).where(models.ComplianceRubric.id == rubric_id))
     await db.commit()
 
 
 async def create_report(
     db: AsyncSession, report: schemas.ReportCreate
-) -> models.Report:
-    db_report = models.Report(**report.dict())
+) -> models.AnalysisReport:
+    db_report = models.AnalysisReport(**report.model_dump())
     db.add(db_report)
     await db.commit()
     await db.refresh(db_report)
     return db_report
 
 
-async def get_report(db: AsyncSession, report_id: int) -> Optional[models.Report]:
+async def get_report(db: AsyncSession, report_id: int) -> Optional[models.AnalysisReport]:
     result = await db.execute(
-        select(models.Report).filter(models.Report.id == report_id)
+        select(models.AnalysisReport).filter(models.AnalysisReport.id == report_id)
     )
     return result.scalars().first()
 
@@ -114,7 +114,7 @@ async def get_reports(
     limit: int = 100,
     document_type: Optional[str] = None,
     min_score: Optional[float] = None,
-) -> List[models.Report]:
+) -> List[models.AnalysisReport]:
     """
     Retrieves a paginated and filtered list of reports from the database.
 
@@ -131,14 +131,14 @@ async def get_reports(
     Returns:
         A list of Report model instances.
     """
-    query = select(models.Report).options(selectinload(models.Report.findings))
+    query = select(models.AnalysisReport).options(selectinload(models.AnalysisReport.findings))
 
     if document_type:
-        query = query.where(models.Report.document_type == document_type)
+        query = query.where(models.AnalysisReport.document_type == document_type)
     if min_score is not None:
-        query = query.where(models.Report.compliance_score >= min_score)
+        query = query.where(models.AnalysisReport.compliance_score >= min_score)
 
-    query = query.order_by(models.Report.analysis_date.desc()).offset(skip).limit(limit)
+    query = query.order_by(models.AnalysisReport.analysis_date.desc()).offset(skip).limit(limit)
 
     result = await db.execute(query)
     return result.scalars().all()
@@ -148,16 +148,16 @@ async def delete_report(db: AsyncSession, report_id: int) -> None:
     await db.execute(
         delete(models.Finding).where(models.Finding.report_id == report_id)
     )
-    await db.execute(delete(models.Report).where(models.Report.id == report_id))
+    await db.execute(delete(models.AnalysisReport).where(models.AnalysisReport.id == report_id))
     await db.commit()
 
 
 async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
-    cutoff_date = datetime.datetime.utcnow() - datetime.timedelta(days=days)
+    cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)
     # Delete associated findings first due to foreign key constraints
     # Find report IDs to delete
-    reports_to_delete_query = select(models.Report.id).filter(
-        models.Report.analysis_date < cutoff_date
+    reports_to_delete_query = select(models.AnalysisReport.id).filter(
+        models.AnalysisReport.analysis_date < cutoff_date
     )
     reports_to_delete_result = await db.execute(reports_to_delete_query)
     report_ids_to_delete = reports_to_delete_result.scalars().all()
@@ -171,7 +171,7 @@ async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
         )
         # Then delete the reports
         result = await db.execute(
-            delete(models.Report).filter(models.Report.analysis_date < cutoff_date)
+            delete(models.AnalysisReport).filter(models.AnalysisReport.analysis_date < cutoff_date)
         )
         await db.commit()
         return result.rowcount
@@ -180,7 +180,7 @@ async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
 
 async def find_similar_report(
     db: AsyncSession, embedding: bytes, threshold: float = 0.9
-) -> Optional[models.Report]:
+) -> Optional[models.AnalysisReport]:
     # This is a placeholder for actual similarity search logic.
     # In a real application, this would involve a vector database or a more sophisticated similarity search.
     # For now, we'll return None, simulating no similar report found.
@@ -191,8 +191,8 @@ async def create_report_and_findings(
     db: AsyncSession,
     report_data: schemas.ReportCreate,
     findings_data: List[schemas.FindingCreate],
-) -> models.Report:
-    db_report = models.Report(
+) -> models.AnalysisReport:
+    db_report = models.AnalysisReport(
         document_name=report_data.document_name,
         compliance_score=report_data.compliance_score,
         analysis_result=report_data.analysis_result,

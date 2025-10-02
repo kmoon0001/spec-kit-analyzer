@@ -72,4 +72,4 @@ class Finding(Base):
     personalized_tip = Column(Text)
     problematic_text = Column(Text)
 
-    report = relationship("Report", back_populates="findings")
+    report = relationship("AnalysisReport", back_populates="findings")

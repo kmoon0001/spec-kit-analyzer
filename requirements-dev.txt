@@ -1,8 +1,7 @@
 # Development and Testing Dependencies
-pytest
-pytest-mock
-pytest-qt
-pytest-asyncio
-ruff
-spacy
-bandit
+pytest==8.4.2
+pytest-mock==3.15.1
+pytest-qt==4.5.0
+pytest-asyncio==1.2.0
+ruff==0.13.2
+bandit==1.8.6

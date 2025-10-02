@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import yaml
 from pydantic import BaseModel, Field
-from dotenv import load_dotenv
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class PathsSettings(BaseModel):
@@ -32,6 +32,7 @@ class MaintenanceSettings(BaseModel):
 class GeneratorProfile(BaseModel):
     repo: str
     filename: str
+    revision: Optional[str] = None
     min_system_gb: Optional[float] = None
     max_system_gb: Optional[float] = None
 
@@ -39,6 +40,7 @@ class GeneratorProfile(BaseModel):
 class ChatModelSettings(BaseModel):
     repo: str
     filename: str
+    revision: Optional[str] = None
     model_type: Optional[str] = None
     context_length: Optional[int] = None
     generation_params: Optional[Dict[str, Any]] = None
@@ -61,7 +63,6 @@ class ModelsSettings(BaseModel):
     analysis_prompt_template: str
     nlg_prompt_template: str
     phi_scrubber: Optional[PhiScrubberModelSettings] = None
-
 
 
 class LLMSettings(BaseModel):
@@ -87,7 +88,11 @@ class AnalysisSettings(BaseModel):
     )
 
 
-class Settings(BaseModel):
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
+
     enable_director_dashboard: bool = False
     database: DatabaseSettings
     auth: AuthSettings
@@ -99,20 +104,26 @@ class Settings(BaseModel):
     models: ModelsSettings
     use_ai_mocks: bool = False
 
+    # This field will be populated from the SECRET_KEY in the .env file
+    SECRET_KEY: Optional[str] = None
+
 
 @lru_cache()
 def get_settings() -> Settings:
-    # Load environment variables from .env file
-    load_dotenv()
+    """
+    Initializes and returns the application settings.
 
-    # Using a relative path from the project root is safer.
+    It loads a base configuration from 'config.yaml' and then overrides
+    it with any settings defined in a .env file or environment variables.
+    """
     with open("config.yaml", "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
+        config_data = yaml.safe_load(f)
 
-    # Override secret_key from environment variable if it exists
-    secret_key = os.environ.get("SECRET_KEY")
-    if secret_key:
-        config["auth"]["secret_key"] = secret_key
+    # Initialize settings. pydantic-settings will load from .env and environment
+    settings = Settings(**config_data)
 
-    print(config)
-    return Settings(**config)
+    # Manually override the secret key if it was loaded from the environment
+    if settings.SECRET_KEY:
+        settings.auth.secret_key = settings.SECRET_KEY
+
+    return settings

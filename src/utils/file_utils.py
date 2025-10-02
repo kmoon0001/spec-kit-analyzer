@@ -6,9 +6,9 @@ This module contains helper functions for file and directory operations.
 
 import os
 import shutil
-import logging
+import structlog
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def clear_temp_uploads(temp_dir: str):
@@ -20,15 +20,15 @@ def clear_temp_uploads(temp_dir: str):
     """
     if not os.path.exists(temp_dir):
         logger.warning(
-            "Temporary directory '%s' does not exist. Skipping cleanup.", temp_dir
+            "Temporary directory does not exist. Skipping cleanup.", path=temp_dir
         )
         return
 
     if not os.path.isdir(temp_dir):
-        logger.error("Path '%s' is not a directory. Aborting cleanup.", temp_dir)
+        logger.error("Path is not a directory. Aborting cleanup.", path=temp_dir)
         return
 
-    logger.info("Clearing temporary upload directory: %s", temp_dir)
+    logger.info("Clearing temporary upload directory", path=temp_dir)
     for filename in os.listdir(temp_dir):
         file_path = os.path.join(temp_dir, filename)
         try:
@@ -36,6 +36,6 @@ def clear_temp_uploads(temp_dir: str):
                 os.unlink(file_path)
             elif os.path.isdir(file_path):
                 shutil.rmtree(file_path)
-            logger.info("Successfully removed temporary file/directory: %s", file_path)
+            logger.info("Successfully removed temporary file/directory", path=file_path)
         except (OSError, PermissionError) as e:
-            logger.error("Failed to delete %s. Reason: %s", file_path, e)
+            logger.error("Failed to delete temporary file", path=file_path, error=str(e))

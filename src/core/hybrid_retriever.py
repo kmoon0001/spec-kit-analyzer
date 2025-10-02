@@ -7,7 +7,7 @@ from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import cos_sim
 
 try:  # pragma: no cover - optional dependency during tests
-    from src import crud
+    from src.database import crud
 except Exception:  # pragma: no cover - fallback when database layer unavailable
     crud = None
 

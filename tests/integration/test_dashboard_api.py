@@ -1,18 +1,11 @@
 import pytest
 from unittest.mock import MagicMock
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.api.main import app
 from src.auth import get_current_active_user
-<<<<<<< HEAD
-from src import schemas
-from src.config import get_settings
-||||||| parent of 40e7f4c (Fix test suite and format with black)
-from src import schemas
-
-=======
 from src.database import schemas
->>>>>>> 40e7f4c (Fix test suite and format with black)
+from src.config import get_settings
 
 
 @pytest.mark.asyncio
@@ -26,8 +19,7 @@ async def test_get_director_dashboard_data_unauthorized(async_client):
         username="testuser",
         is_active=True,
         is_admin=False,
-        hashed_password="$2b$12$mockhashedpasswordstringforetesting12345678901234567890",
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     try:
         app.dependency_overrides[get_current_active_user] = lambda: mock_user
@@ -56,8 +48,7 @@ async def test_get_director_dashboard_data_as_admin(async_client, mocker):
         username="testuser",
         is_active=True,
         is_admin=True,
-        hashed_password="$2b$12$mockhashedpasswordstringforetesting12345678901234567890",
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     try:
         app.dependency_overrides[get_current_active_user] = lambda: mock_user
@@ -98,8 +89,7 @@ async def test_generate_coaching_focus_as_admin(async_client, mocker):
         username="testuser",
         is_active=True,
         is_admin=True,
-        hashed_password="$2b$12$mockhashedpasswordstringforetesting12345678901234567890",
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     try:
         app.dependency_overrides[get_current_active_user] = lambda: mock_user
