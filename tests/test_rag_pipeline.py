@@ -101,23 +101,12 @@ async def test_full_analysis_pipeline_orchestration(mock_dependencies):
 
         service = AnalysisService(retriever=mock_retriever)
 
-<<<<<<< HEAD
-    # Verify that the final report is generated and returned
-    mock_dependencies["reporter"].generate_report.assert_awaited_once()
-    assert "summary" in result
-    assert result["analysis"]["findings"] == [{"issue_title": "test finding"}]
-||||||| ab2d9e5
-    # Verify that the final report is generated and returned
-    mock_dependencies["reporter"].generate_report.assert_awaited_once()
-    assert "summary" in result
-    assert result["analysis"]["findings"] == [{"issue_title": "test finding"}]
-=======
-test_file_path = "/fake/path/to/doc.txt"
+        test_file_path = "/fake/path/to/doc.txt"
 
-# Act
-result = await service.analyze_document(test_file_path, discipline="PT")
+        # Act
+        result = await service.analyze_document(test_file_path, discipline="PT")
 
-# Assert – Verify the initial calls and pipeline orchestration
+        # Assert – Verify the initial calls and pipeline orchestration
 mock_dependencies["parser"].assert_called_once_with(test_file_path)
 mock_dependencies["classifier"].classify_document.assert_awaited_once()
 
