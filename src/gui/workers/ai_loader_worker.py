@@ -46,9 +46,9 @@ class AILoaderWorker(QObject):
                 ),
                 "Retriever": True,
                 "Fact Checker": bool(
-                    getattr(analyzer_service.fact_checker, "pipeline", None)
+                    getattr(analyzer_service.fact_checker_service, "pipeline", None)
                 ),
-                "NER": bool(getattr(analyzer_service.ner_pipeline, "pipelines", [])),
+                "NER": bool(getattr(analyzer_service.ner_analyzer, "ner_pipeline", None)),
                 "Checklist": True,
                 "Chat": chat_ready,
             }

@@ -9,11 +9,20 @@ class PathsSettings(BaseModel):
     temp_upload_dir: str
     api_url: str
     rule_dir: str
+    medical_dictionary: str = "src/resources/medical_dictionary.txt"
 
 
 class DatabaseSettings(BaseModel):
     url: str
     echo: bool = False
+    # Connection pool settings
+    pool_size: int = 10
+    max_overflow: int = 20
+    pool_timeout: int = 30
+    pool_recycle: int = 3600
+    # SQLite-specific settings
+    sqlite_optimizations: bool = True
+    connection_timeout: int = 20
 
 
 class AuthSettings(BaseModel):

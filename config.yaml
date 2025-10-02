@@ -8,6 +8,14 @@ enable_director_dashboard: true
 database:
   url: "sqlite:///./compliance.db"
   echo: false
+  # Performance and reliability settings
+  pool_size: 10
+  max_overflow: 20
+  pool_timeout: 30
+  pool_recycle: 3600
+  # SQLite-specific optimizations
+  sqlite_optimizations: true
+  connection_timeout: 20
 
 auth:
   secret_key: "your_secret_key_here"  # Should be overridden by environment variable in production
