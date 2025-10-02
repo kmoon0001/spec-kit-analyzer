@@ -115,12 +115,12 @@ class PerformanceStatusWidget(QWidget):
             logger.warning("Performance manager not available")
 
     def update_status(self):
-        """Update performance status display."""
+        """Update performance status display with error handling."""
         if not self.performance_manager:
             return
 
         try:
-            # Get current performance data
+            # Get current performance data with timeout protection
             memory_stats = self.performance_manager.get_memory_usage()
             current_profile = self.performance_manager.current_profile
 
