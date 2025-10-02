@@ -10,6 +10,7 @@ from typing import List, Optional
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -26,7 +27,7 @@ from .database import Base
 
 class User(Base):
     """User model for authentication and authorization."""
-    
+
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -34,16 +35,31 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
-    license_key: Mapped[Optional[str]] = mapped_column(String, unique=True, index=True, nullable=True)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    license_key: Mapped[Optional[str]] = mapped_column(
+        String, unique=True, index=True, nullable=True
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow
+    )
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
+    )
+
+    # Habit tracking relationships
+    habit_goals: Mapped[List["HabitGoal"]] = relationship(
+        "HabitGoal", back_populates="user", cascade="all, delete-orphan"
+    )
+    habit_achievements: Mapped[List["HabitAchievement"]] = relationship(
+        "HabitAchievement", back_populates="user", cascade="all, delete-orphan"
+    )
+    habit_progress_snapshots: Mapped[List["HabitProgressSnapshot"]] = relationship(
+        "HabitProgressSnapshot", back_populates="user", cascade="all, delete-orphan"
     )
 
 
 class ComplianceRubric(Base):
     """Compliance rubric model for storing regulatory guidelines and rules."""
-    
+
     __tablename__ = "rubrics"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -53,7 +69,9 @@ class ComplianceRubric(Base):
     common_pitfalls: Mapped[str] = mapped_column(Text)
     best_practice: Mapped[str] = mapped_column(Text)
     category: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow
+    )
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
     )
@@ -61,7 +79,7 @@ class ComplianceRubric(Base):
 
 class AnalysisReport(Base):
     """Analysis report model for storing document analysis results."""
-    
+
     __tablename__ = "reports"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -70,9 +88,13 @@ class AnalysisReport(Base):
         DateTime, default=datetime.datetime.utcnow, index=True
     )
     compliance_score: Mapped[float] = mapped_column(Float, index=True)
-    document_type: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
+    document_type: Mapped[Optional[str]] = mapped_column(
+        String, index=True, nullable=True
+    )
     analysis_result: Mapped[dict] = mapped_column(JSON)
-    document_embedding: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    document_embedding: Mapped[Optional[bytes]] = mapped_column(
+        LargeBinary, nullable=True
+    )
 
     findings: Mapped[List["Finding"]] = relationship(
         "Finding", back_populates="report", cascade="all, delete-orphan"
@@ -81,11 +103,13 @@ class AnalysisReport(Base):
 
 class Finding(Base):
     """Finding model for storing individual compliance issues found in documents."""
-    
+
     __tablename__ = "findings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    report_id: Mapped[int] = mapped_column(Integer, ForeignKey("reports.id"), index=True)
+    report_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("reports.id"), index=True
+    )
     rule_id: Mapped[str] = mapped_column(String, index=True)
     risk: Mapped[str] = mapped_column(String, index=True)  # High, Medium, Low
     personalized_tip: Mapped[str] = mapped_column(Text)
@@ -100,3 +124,93 @@ class Finding(Base):
 # Backward compatibility aliases
 Rubric = ComplianceRubric
 Report = AnalysisReport
+
+
+class HabitGoal(Base):
+    """User's personal habit goals."""
+
+    __tablename__ = "habit_goals"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    habit_number: Mapped[Optional[int]] = mapped_column(Integer)  # 1-7 for habits
+    target_value: Mapped[Optional[float]] = mapped_column(Float)
+    current_value: Mapped[Optional[float]] = mapped_column(Float, default=0.0)
+    progress: Mapped[int] = mapped_column(Integer, default=0)  # 0-100 percentage
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    target_date: Mapped[Optional[datetime.datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+    )
+    updated_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
+    )
+    completed_at: Mapped[Optional[datetime.datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship("User", back_populates="habit_goals")
+
+
+class HabitAchievement(Base):
+    """User's habit achievements and badges."""
+
+    __tablename__ = "habit_achievements"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    achievement_id: Mapped[str] = mapped_column(String(100), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text)
+    icon: Mapped[str] = mapped_column(String(10), default="🏆")
+    category: Mapped[str] = mapped_column(String(50))
+    earned_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship("User", back_populates="habit_achievements")
+
+
+class HabitProgressSnapshot(Base):
+    """Periodic snapshots of user's habit progression for trend analysis."""
+
+    __tablename__ = "habit_progress_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    snapshot_date: Mapped[datetime.date] = mapped_column(Date, index=True)
+
+    # Habit breakdown percentages
+    habit_1_percentage: Mapped[float] = mapped_column(Float, default=0.0)
+    habit_2_percentage: Mapped[float] = mapped_column(Float, default=0.0)
+    habit_3_percentage: Mapped[float] = mapped_column(Float, default=0.0)
+    habit_4_percentage: Mapped[float] = mapped_column(Float, default=0.0)
+    habit_5_percentage: Mapped[float] = mapped_column(Float, default=0.0)
+    habit_6_percentage: Mapped[float] = mapped_column(Float, default=0.0)
+    habit_7_percentage: Mapped[float] = mapped_column(Float, default=0.0)
+
+    # Overall metrics
+    total_findings: Mapped[int] = mapped_column(Integer, default=0)
+    overall_progress_score: Mapped[float] = mapped_column(Float, default=0.0)
+    consistency_score: Mapped[float] = mapped_column(Float, default=0.0)
+    improvement_rate: Mapped[float] = mapped_column(Float, default=0.0)
+
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship(
+        "User", back_populates="habit_progress_snapshots"
+    )

@@ -21,7 +21,7 @@ from src.api.dependencies import (
     shutdown_event as api_shutdown,
     startup_event as api_startup,
 )
-from src.api.routers import admin, analysis, auth, chat, compliance, dashboard, health
+from src.api.routers import admin, analysis, auth, chat, compliance, dashboard, health, habits
 from src.api.global_exception_handler import global_exception_handler, http_exception_handler
 from src.core.database_maintenance_service import DatabaseMaintenanceService
 from src.config import get_settings
@@ -204,6 +204,7 @@ app.include_router(analysis.router, tags=["Analysis"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 app.include_router(compliance.router, tags=["Compliance"])
+app.include_router(habits.router, tags=["Habits"])
 
 
 @app.get("/")
