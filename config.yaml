@@ -30,18 +30,18 @@ paths:
   medical_dictionary: "src/resources/medical_dictionary.txt"
 
 models:
-  # Use GGUF format models compatible with ctransformers
+  # Use GGUF format models compatible with llama-cpp-python
   generator_profiles:
     standard:
-      repo: "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF"  # Tiny, fast GGUF model
+      repo: "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF"  # Tiny, fast GGUF model (637MB)
       filename: "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
       revision: "main"
-      max_system_gb: 2.0  # Very light
+      max_system_gb: 8.0  # Use for systems with less than 8GB
     enhanced:
-      repo: "TheBloke/Phi-2-GGUF"  # Small but capable GGUF model
-      filename: "phi-2.Q4_K_M.gguf"
+      repo: "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF"  # Same model for now - fast and reliable
+      filename: "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
       revision: "main"
-      min_system_gb: 4.0
+      min_system_gb: 8.0  # Use for systems with 8GB+
   chat:
     repo: "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF"
     filename: "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"

@@ -125,8 +125,15 @@ class AILoaderWorker(QObject):
                 llm_service and getattr(llm_service, "is_ready", lambda: False)()
             )
 
-            # Check fact checker
-            fact_checker = getattr(self._analysis_service, "fact_checker_service", None)
+            # Check fact checker (it's inside compliance_analyzer)
+            compliance_analyzer = getattr(
+                self._analysis_service, "compliance_analyzer", None
+            )
+            fact_checker = (
+                getattr(compliance_analyzer, "fact_checker_service", None)
+                if compliance_analyzer
+                else None
+            )
             health_map["Fact Checker"] = bool(
                 fact_checker and getattr(fact_checker, "pipeline", None)
             )
