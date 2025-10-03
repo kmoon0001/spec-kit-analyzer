@@ -120,30 +120,18 @@ class MainApplicationWindow(QMainWindow):
         self.show()
 
     def init_base_ui(self):
-        self.setWindowTitle("Therapy Compliance Analyzer")
-        self.setGeometry(100, 100, 1200, 800)
-        self.setMinimumSize(800, 600)  # Allow smaller scaling
+        self.setWindowTitle("THERAPY DOCUMENTATION ANALYZER")
+        self.setGeometry(100, 100, 1400, 900)  # Larger default size for better proportions
+        self.setMinimumSize(1000, 700)  # Larger minimum for better layout
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
         self.file_menu = self.menu_bar.addMenu("File")
-        self.file_menu.addAction("Logout", self.logout)
-        self.file_menu.addSeparator()
         self.file_menu.addAction("Exit", self.close)
-        self.tools_menu = self.menu_bar.addMenu("Tools")
-        self.tools_menu.addAction("Manage Rubrics", self.manage_rubrics)
-        self.tools_menu.addAction(
-            "Performance Settings", self.show_performance_settings
-        )
-        self.tools_menu.addAction("Change Password", self.show_change_password_dialog)
-        self.settings_menu = self.menu_bar.addMenu("Settings")
-        self.settings_menu.addAction("Preferences", self.show_preferences)
-        self.settings_menu.addAction("Theme Settings", self.show_theme_settings)
-        self.settings_menu.addAction("Analysis Settings", self.show_analysis_settings)
-        self.theme_menu = self.menu_bar.addMenu("Theme")
-        self.theme_menu.addAction("Light", self.set_light_theme)
-        self.theme_menu.addAction("Dark", self.set_dark_theme)
-        self.help_menu = self.menu_bar.addMenu("Help")
-        self.help_menu.addAction("About", self.show_about)
+        
+        # Keep only developer options in menu (if admin)
+        if hasattr(self, 'is_admin') and self.is_admin:
+            self.dev_menu = self.menu_bar.addMenu("Developer")
+            self.dev_menu.addAction("Admin Dashboard", self.open_admin_dashboard)
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ready")
@@ -199,9 +187,13 @@ class MainApplicationWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.setCentralWidget(self.tabs)
         analysis_tab = self._create_analysis_tab()
-        self.tabs.addTab(analysis_tab, "Analysis")
+        self.tabs.addTab(analysis_tab, "📋 Analysis")
         self.dashboard_widget = DashboardWidget()
-        self.tabs.addTab(self.dashboard_widget, "Dashboard")
+        self.tabs.addTab(self.dashboard_widget, "📊 Dashboard")
+        
+        # Add Settings tab
+        settings_tab = self._create_settings_tab()
+        self.tabs.addTab(settings_tab, "⚙️ Settings")
         self.dashboard_widget.refresh_requested.connect(self.load_dashboard_data)
 
         # Add meta analytics tab for admin users
@@ -262,13 +254,6 @@ class MainApplicationWindow(QMainWindow):
         self.selected_source_label.setMinimumWidth(240)
         source_layout.addWidget(self.selected_source_label, 1)
         
-        # Add analyze button to document upload area
-        self.run_analysis_button = QPushButton("Run Analysis")
-        self.run_analysis_button.setEnabled(False)
-        self.run_analysis_button.setFixedHeight(34)
-        self.run_analysis_button.clicked.connect(self.run_analysis)
-        source_layout.addWidget(self.run_analysis_button)
-        
         controls_group_layout.addLayout(source_layout)
 
         rubric_layout = QHBoxLayout()
@@ -284,6 +269,24 @@ class MainApplicationWindow(QMainWindow):
             self._filter_rubrics_by_type
         )
         rubric_layout.addWidget(self.rubric_type_selector)
+        
+        # Add rubric management button inside rubric area
+        self.manage_rubrics_button_inline = QPushButton("⚙️ Manage")
+        self.manage_rubrics_button_inline.setFixedHeight(32)
+        self.manage_rubrics_button_inline.clicked.connect(self.manage_rubrics)
+        self.manage_rubrics_button_inline.setStyleSheet("""
+            QPushButton {
+                background: #17a2b8;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                font-weight: bold;
+                padding: 6px 12px;
+            }
+            QPushButton:hover { background: #138496; }
+        """)
+        rubric_layout.addWidget(self.manage_rubrics_button_inline)
+        
         controls_group_layout.addLayout(rubric_layout)
 
         self.rubric_description_label = QLabel(
@@ -298,16 +301,61 @@ class MainApplicationWindow(QMainWindow):
         splitter.setObjectName("analysisSplitter")
         main_layout.addWidget(splitter, 1)
 
-        document_group = QGroupBox("Document")
+        document_group = QGroupBox("Document Upload & Analysis")
         document_group.setObjectName("documentPane")
         document_layout = QVBoxLayout()
         document_group.setLayout(document_layout)
+        
+        # Document display area
         self.document_display_area = QTextEdit()
         self.document_display_area.setPlaceholderText(
             "Upload a document to see its content here."
         )
         self.document_display_area.setReadOnly(True)
         document_layout.addWidget(self.document_display_area)
+        
+        # Analysis controls inside document window
+        doc_controls_layout = QHBoxLayout()
+        doc_controls_layout.setSpacing(8)
+        
+        # Move analyze button here with better styling
+        self.run_analysis_button_doc = QPushButton("🔍 Run Analysis")
+        self.run_analysis_button_doc.setEnabled(False)
+        self.run_analysis_button_doc.setFixedHeight(40)
+        self.run_analysis_button_doc.clicked.connect(self.run_analysis)
+        self.run_analysis_button_doc.setStyleSheet("""
+            QPushButton {
+                background: #28a745;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            QPushButton:hover { background: #218838; }
+            QPushButton:disabled { background: #6c757d; }
+        """)
+        doc_controls_layout.addWidget(self.run_analysis_button_doc)
+        
+        self.stop_analysis_button_doc = QPushButton("⏹ Stop")
+        self.stop_analysis_button_doc.setEnabled(False)
+        self.stop_analysis_button_doc.setFixedHeight(40)
+        self.stop_analysis_button_doc.clicked.connect(self.stop_analysis)
+        self.stop_analysis_button_doc.setStyleSheet("""
+            QPushButton {
+                background: #dc3545;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background: #c82333; }
+        """)
+        doc_controls_layout.addWidget(self.stop_analysis_button_doc)
+        
+        doc_controls_layout.addStretch()
+        document_layout.addLayout(doc_controls_layout)
+        
         splitter.addWidget(document_group)
 
         results_group = QGroupBox("Analysis Results")
@@ -337,38 +385,21 @@ class MainApplicationWindow(QMainWindow):
 
         actions_layout = QHBoxLayout()
         actions_layout.setSpacing(8)
-        
-        # Add rubric management button where analyze button was
-        self.manage_rubrics_button = QPushButton("Manage Rubrics")
-        self.manage_rubrics_button.setFixedHeight(34)
-        self.manage_rubrics_button.clicked.connect(self.manage_rubrics)
-        actions_layout.addWidget(self.manage_rubrics_button)
 
-        self.stop_analysis_button = QPushButton("Stop Analysis")
-        self.stop_analysis_button.setEnabled(False)
-        self.stop_analysis_button.setFixedHeight(34)
-        self.stop_analysis_button.clicked.connect(self.stop_analysis)
-        actions_layout.addWidget(self.stop_analysis_button)
-
-        self.document_preview_button = QPushButton("Document Preview")
+        self.document_preview_button = QPushButton("📄 Preview")
         self.document_preview_button.setEnabled(False)
-        self.document_preview_button.setFixedHeight(34)
+        self.document_preview_button.setFixedHeight(36)
         self.document_preview_button.clicked.connect(self.show_document_preview)
         actions_layout.addWidget(self.document_preview_button)
 
-        self.analytics_button = QPushButton("Analytics")
-        self.analytics_button.setFixedHeight(34)
-        self.analytics_button.clicked.connect(self.open_analytics_dashboard)
-        actions_layout.addWidget(self.analytics_button)
-
-        self.export_report_button = QPushButton("Export Report")
+        self.export_report_button = QPushButton("📊 Export Report")
         self.export_report_button.setEnabled(False)
-        self.export_report_button.setFixedHeight(34)
+        self.export_report_button.setFixedHeight(36)
         self.export_report_button.clicked.connect(self.export_report)
         actions_layout.addWidget(self.export_report_button)
 
-        self.clear_button = QPushButton("Clear Display")
-        self.clear_button.setFixedHeight(34)
+        self.clear_button = QPushButton("🗑️ Clear")
+        self.clear_button.setFixedHeight(36)
         self.clear_button.clicked.connect(self.clear_display)
         actions_layout.addWidget(self.clear_button)
 
@@ -417,6 +448,72 @@ class MainApplicationWindow(QMainWindow):
                 return {"raw_result": result}
         return {"raw_result": result}
 
+    def _create_settings_tab(self) -> QWidget:
+        """Create the settings tab with all configuration options"""
+        settings_widget = QWidget()
+        main_layout = QVBoxLayout(settings_widget)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(20)
+        
+        # Theme Settings Group
+        theme_group = QGroupBox("🎨 Theme & Appearance")
+        theme_layout = QVBoxLayout(theme_group)
+        
+        theme_buttons_layout = QHBoxLayout()
+        light_btn = QPushButton("☀️ Light Theme")
+        light_btn.clicked.connect(self.set_light_theme)
+        dark_btn = QPushButton("🌙 Dark Theme")
+        dark_btn.clicked.connect(self.set_dark_theme)
+        theme_buttons_layout.addWidget(light_btn)
+        theme_buttons_layout.addWidget(dark_btn)
+        theme_buttons_layout.addStretch()
+        theme_layout.addLayout(theme_buttons_layout)
+        
+        main_layout.addWidget(theme_group)
+        
+        # User Settings Group
+        user_group = QGroupBox("👤 User Settings")
+        user_layout = QVBoxLayout(user_group)
+        
+        change_password_btn = QPushButton("🔐 Change Password")
+        change_password_btn.clicked.connect(self.show_change_password_dialog)
+        user_layout.addWidget(change_password_btn)
+        
+        main_layout.addWidget(user_group)
+        
+        # Performance Settings Group
+        perf_group = QGroupBox("⚡ Performance")
+        perf_layout = QVBoxLayout(perf_group)
+        
+        perf_settings_btn = QPushButton("🔧 Performance Settings")
+        perf_settings_btn.clicked.connect(self.show_performance_settings)
+        perf_layout.addWidget(perf_settings_btn)
+        
+        main_layout.addWidget(perf_group)
+        
+        # Analysis Settings Group
+        analysis_group = QGroupBox("🔍 Analysis Configuration")
+        analysis_layout = QVBoxLayout(analysis_group)
+        
+        analysis_settings_btn = QPushButton("⚙️ Analysis Settings")
+        analysis_settings_btn.clicked.connect(self.show_analysis_settings)
+        analysis_layout.addWidget(analysis_settings_btn)
+        
+        main_layout.addWidget(analysis_group)
+        
+        # About Section
+        about_group = QGroupBox("ℹ️ About")
+        about_layout = QVBoxLayout(about_group)
+        
+        about_btn = QPushButton("📖 About Application")
+        about_btn.clicked.connect(self.show_about)
+        about_layout.addWidget(about_btn)
+        
+        main_layout.addWidget(about_group)
+        
+        main_layout.addStretch()
+        return settings_widget
+
     def _update_action_states(self) -> None:
         has_source = bool(self._current_file_path or self._current_folder_path)
         active_rubric = (
@@ -427,10 +524,14 @@ class MainApplicationWindow(QMainWindow):
         has_preview = bool(self._current_document_text)
         has_report = bool(self._current_report_payload)
         can_run = bool(has_source and active_rubric and not self._analysis_running)
-        if hasattr(self, "run_analysis_button"):
-            self.run_analysis_button.setEnabled(can_run)
-        if hasattr(self, "stop_analysis_button"):
-            self.stop_analysis_button.setEnabled(self._analysis_running)
+        
+        # Update new analyze button in document area
+        if hasattr(self, "run_analysis_button_doc"):
+            self.run_analysis_button_doc.setEnabled(can_run)
+        if hasattr(self, "stop_analysis_button_doc"):
+            self.stop_analysis_button_doc.setEnabled(self._analysis_running)
+            
+        # Update other buttons
         if hasattr(self, "document_preview_button"):
             self.document_preview_button.setEnabled(has_preview)
         if hasattr(self, "export_report_button"):
@@ -1267,8 +1368,8 @@ QMessageBox QPushButton { min-width: 90px; }
     def position_chat_button(self):
         """Position floating chat button"""
         if hasattr(self, 'chat_button'):
-            # Position in bottom left to avoid Pacific Coast easter egg
-            self.chat_button.move(20, self.height() - 80)
+            # Position in top right to avoid Pacific Coast easter egg completely
+            self.chat_button.move(self.width() - 70, 80)
             
     def chat_button_mouse_press(self, event):
         """Handle chat button mouse press for dragging"""
