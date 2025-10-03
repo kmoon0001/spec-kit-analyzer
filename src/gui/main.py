@@ -1,6 +1,6 @@
 import sys
 import asyncio
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from src.gui.main_window import MainApplicationWindow
 from src.gui.dialogs.login_dialog import LoginDialog
