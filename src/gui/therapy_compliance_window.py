@@ -638,7 +638,7 @@ class TherapyComplianceWindow(QMainWindow):
         ])
         self.discipline_combo.currentIndexChanged.connect(self.on_discipline_changed)
         
-        # Set Medicare Guidelines as default
+        # Set Medicare Guidelines as default (will trigger load_medicare_guidelines)
         self.discipline_combo.setCurrentIndex(1)
         discipline_layout.addWidget(self.discipline_combo)
         
@@ -656,7 +656,22 @@ class TherapyComplianceWindow(QMainWindow):
         self.detection_label.setMaximumHeight(25)
         rubric_layout.addWidget(self.detection_label)
         
-        # Rub
+        # Rubric display area
+        self.rubric_display = QTextEdit()
+        self.rubric_display.setMaximumHeight(120)
+        self.rubric_display.setPlaceholderText("Selected rubric details will appear here...")
+        self.rubric_display.setReadOnly(True)
+        self.rubric_display.setStyleSheet("""
+            QTextEdit {
+                border: 2px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 8px;
+                background-color: #f8fafc;
+                font-size: 12px;
+            }
+        """)
+        rubric_layout.addWidget(self.rubric_display)
+        
         # Rubric buttons
         rubric_btn_layout = QHBoxLayout()
         self.upload_rubric_btn = QPushButton("📤 Upload Rubric")
@@ -1037,11 +1052,15 @@ class TherapyComplianceWindow(QMainWindow):
         """Handle discipline selection change."""
         if index == 0:
             self.status_bar.showMessage("Auto-detect mode enabled")
-        elif index == 4:
+        elif index == 1:
+            # Medicare Guidelines selected
+            self.load_medicare_guidelines()
+            self.status_bar.showMessage("📋 Medicare Benefits Policy Manual - Comprehensive compliance guidelines")
+        elif index == 5:
             self.status_bar.showMessage("Multi-discipline analysis mode")
         else:
             disciplines = ["PT", "OT", "SLP"]
-            discipline = disciplines[index - 1]  # Adjust for auto-detect option
+            discipline = disciplines[index - 2]  # Adjust for auto-detect and Medicare options
             self.status_bar.showMessage(f"Selected discipline: {discipline}")
     
     def auto_detect_discipline(self):
@@ -2167,4 +2186,93 @@ class TherapyComplianceWindow(QMainWindow):
     def polish_status_messages(self):
         """Add polish to status messages throughout the app."""
         # This can be called to enhance status messages
-        pass
+        pass    
+
+    def load_medicare_guidelines(self):
+        """Load and display Medicare Benefits Policy Manual."""
+        # Check if rubric display widget exists
+        if not hasattr(self, 'rubric_display'):
+            print("Rubric display not ready yet, skipping Medicare load")
+            return
+            
+        try:
+            medicare_file = "src/resources/medicare_benefits_policy_manual.md"
+            if os.path.exists(medicare_file):
+                with open(medicare_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                # Convert markdown to HTML for better display
+                html_content = self.markdown_to_html(content)
+                self.rubric_display.setHtml(html_content)
+                
+                self.status_bar.showMessage("📋 Medicare Benefits Policy Manual loaded as default rubric")
+            else:
+                # Fallback content if file doesn't exist
+                fallback_content = """
+                <h2>📋 Medicare Benefits Policy Manual - Therapy Services</h2>
+                <h3>Key Requirements:</h3>
+                <ul>
+                    <li><strong>Physician Plan of Care:</strong> Required for all therapy services</li>
+                    <li><strong>Medical Necessity:</strong> Services must be reasonable and necessary</li>
+                    <li><strong>Skilled Services:</strong> Require expertise of qualified therapist</li>
+                    <li><strong>Measurable Goals:</strong> Specific, time-bound functional outcomes</li>
+                    <li><strong>Progress Documentation:</strong> Objective measures of improvement</li>
+                    <li><strong>Signatures:</strong> All notes signed and dated with credentials</li>
+                </ul>
+                <h3>Compliance Standards:</h3>
+                <ul>
+                    <li>PT/SLP Combined Cap: $2,230 annually</li>
+                    <li>OT Cap: $2,230 annually</li>
+                    <li>Functional reporting with G-codes required</li>
+                    <li>Progress reports every 10 treatment days (SLP)</li>
+                </ul>
+                """
+                self.rubric_display.setHtml(fallback_content)
+                self.status_bar.showMessage("📋 Medicare Guidelines loaded (default content)")
+                
+        except Exception as e:
+            print(f"Error loading Medicare guidelines: {e}")
+            self.rubric_display.setPlainText("Medicare Benefits Policy Manual - Loading...")
+    
+    def markdown_to_html(self, markdown_text: str) -> str:
+        """Convert markdown text to HTML for display."""
+        # Simple markdown to HTML conversion
+        html = markdown_text
+        
+        # Convert headers
+        html = html.replace('### ', '<h3>').replace('\n\n', '</h3>\n\n')
+        html = html.replace('## ', '<h2>').replace('\n\n', '</h2>\n\n')
+        html = html.replace('# ', '<h1>').replace('\n\n', '</h1>\n\n')
+        
+        # Convert bold text
+        import re
+        html = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', html)
+        
+        # Convert bullet points
+        lines = html.split('\n')
+        in_list = False
+        result_lines = []
+        
+        for line in lines:
+            if line.strip().startswith('- '):
+                if not in_list:
+                    result_lines.append('<ul>')
+                    in_list = True
+                result_lines.append(f'<li>{line.strip()[2:]}</li>')
+            else:
+                if in_list:
+                    result_lines.append('</ul>')
+                    in_list = False
+                result_lines.append(line)
+        
+        if in_list:
+            result_lines.append('</ul>')
+        
+        # Add basic styling
+        styled_html = f"""
+        <div style='font-family: Arial, sans-serif; line-height: 1.6; color: #334155;'>
+            {'<br>'.join(result_lines)}
+        </div>
+        """
+        
+        return styled_html
