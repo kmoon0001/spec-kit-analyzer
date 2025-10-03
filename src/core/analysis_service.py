@@ -122,18 +122,18 @@ class AnalysisService:
             # Handle both file path and direct document text input
             if document_text is not None:
                 # Use provided document text directly
-                doc_text = self._trim_document_text(document_text)
+                processed_text = self._trim_document_text(document_text)
             elif file_path is not None:
                 # Parse document from file path
                 chunks = parse_document_content(file_path)
-                doc_text = " ".join(
+                processed_text = " ".join(
                     chunk.get("sentence", "") for chunk in chunks if isinstance(chunk, dict)
                 ).strip()
-                doc_text = self._trim_document_text(doc_text)
+                processed_text = self._trim_document_text(processed_text)
             else:
                 raise ValueError("Either file_path or document_text must be provided")
             
-            document_text = doc_text
+            document_text = processed_text
 
             document_text = await self._maybe_await(
                 self.preprocessing.correct_text(document_text)
