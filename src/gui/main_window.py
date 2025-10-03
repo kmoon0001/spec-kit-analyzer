@@ -3,6 +3,7 @@ import json
 import requests
 import urllib.parse
 import webbrowser
+from datetime import datetime
 from typing import Dict
 from PyQt6.QtCore import Qt, QThread, QUrl
 from PyQt6.QtGui import QTextDocument
@@ -27,6 +28,7 @@ from PyQt6.QtWidgets import (
     QTabWidget,
     QTextBrowser,
     QComboBox,
+    QApplication,
 )
 
 from src.config import get_settings
@@ -121,7 +123,16 @@ class MainApplicationWindow(QMainWindow):
 
     def init_base_ui(self):
         self.setWindowTitle("Therapy Compliance Analyzer")
-        self.setGeometry(100, 100, 1200, 800)
+        # Better default size with minimum constraints for scalability
+        self.setMinimumSize(800, 600)
+        self.resize(1200, 800)
+        
+        # Center window on screen
+        screen = QApplication.primaryScreen().geometry()
+        x = (screen.width() - self.width()) // 2
+        y = (screen.height() - self.height()) // 2
+        self.move(x, y)
+        
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
         self.file_menu = self.menu_bar.addMenu("File")
@@ -137,6 +148,7 @@ class MainApplicationWindow(QMainWindow):
         self.theme_menu = self.menu_bar.addMenu("Theme")
         self.theme_menu.addAction("Light", self.set_light_theme)
         self.theme_menu.addAction("Dark", self.set_dark_theme)
+        
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ready")
@@ -223,18 +235,22 @@ class MainApplicationWindow(QMainWindow):
         main_layout.setContentsMargins(12, 12, 12, 12)
         main_layout.setSpacing(12)
 
+        # Compact controls group with better scaling
         controls_group = QGroupBox("Analysis Setup")
+        controls_group.setMaximumHeight(120)  # Limit height for better scaling
         controls_group_layout = QVBoxLayout()
-        controls_group_layout.setContentsMargins(10, 8, 10, 8)
-        controls_group_layout.setSpacing(6)
+        controls_group_layout.setContentsMargins(8, 6, 8, 6)
+        controls_group_layout.setSpacing(4)
         controls_group.setLayout(controls_group_layout)
         main_layout.addWidget(controls_group)
 
+        # Source selection row
         source_layout = QHBoxLayout()
         source_layout.setSpacing(8)
         self.upload_button = QToolButton()
         self.upload_button.setText("Upload Source")
-        self.upload_button.setFixedHeight(34)
+        self.upload_button.setMinimumHeight(28)
+        self.upload_button.setMaximumHeight(32)
         self.upload_button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
         self.upload_button.clicked.connect(self.open_file_dialog)
         self.upload_button_menu = QMenu(self.upload_button)
@@ -249,64 +265,89 @@ class MainApplicationWindow(QMainWindow):
 
         self.selected_source_label = QLabel("No document selected.")
         self.selected_source_label.setObjectName("selectedSourceLabel")
-        self.selected_source_label.setMinimumWidth(240)
+        self.selected_source_label.setMinimumWidth(200)
         source_layout.addWidget(self.selected_source_label, 1)
         controls_group_layout.addLayout(source_layout)
 
+        # Rubric selection row
         rubric_layout = QHBoxLayout()
         rubric_layout.setSpacing(8)
-        rubric_layout.addWidget(QLabel("Rubric"))
+        rubric_label = QLabel("Rubric:")
+        rubric_label.setMinimumWidth(50)
+        rubric_layout.addWidget(rubric_label)
+        
         self.rubric_selector = QComboBox()
-        self.rubric_selector.setPlaceholderText("Select a Rubric")
+        self.rubric_selector.setPlaceholderText("Medicare Benefits Policy Manual (Default)")
+        self.rubric_selector.setMinimumHeight(28)
+        self.rubric_selector.setMaximumHeight(32)
         self.rubric_selector.currentIndexChanged.connect(self._on_rubric_selected)
-        rubric_layout.addWidget(self.rubric_selector, 1)
+        rubric_layout.addWidget(self.rubric_selector, 2)
+        
         self.rubric_type_selector = QComboBox()
         self.rubric_type_selector.addItem("All Disciplines", None)
+        self.rubric_type_selector.setMinimumHeight(28)
+        self.rubric_type_selector.setMaximumHeight(32)
         self.rubric_type_selector.currentIndexChanged.connect(
             self._filter_rubrics_by_type
         )
         rubric_layout.addWidget(self.rubric_type_selector)
         controls_group_layout.addLayout(rubric_layout)
 
+        # Compact description with limited height
         self.rubric_description_label = QLabel(
-            "Description of selected rubric will appear here."
+            "Medicare Benefits Policy Manual - Default compliance rubric for PT, OT, and SLP services"
         )
         self.rubric_description_label.setWordWrap(True)
+        self.rubric_description_label.setMaximumHeight(30)
+        self.rubric_description_label.setStyleSheet("color: #666; font-size: 11px;")
         controls_group_layout.addWidget(self.rubric_description_label)
 
+        # Main content splitter with better scaling
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setChildrenCollapsible(False)
-        splitter.setHandleWidth(10)
+        splitter.setHandleWidth(8)
         splitter.setObjectName("analysisSplitter")
         main_layout.addWidget(splitter, 1)
 
-        document_group = QGroupBox("Document")
+        # Document panel with compact header
+        document_group = QGroupBox("Document Details")
         document_group.setObjectName("documentPane")
         document_layout = QVBoxLayout()
+        document_layout.setContentsMargins(8, 6, 8, 8)
+        document_layout.setSpacing(6)
         document_group.setLayout(document_layout)
+        
         self.document_display_area = QTextEdit()
         self.document_display_area.setPlaceholderText(
             "Upload a document to see its content here."
         )
         self.document_display_area.setReadOnly(True)
+        self.document_display_area.setMinimumWidth(300)  # Ensure minimum readable width
         document_layout.addWidget(self.document_display_area)
         splitter.addWidget(document_group)
 
-        results_group = QGroupBox("Analysis Results")
+        # Results panel with compact header
+        results_group = QGroupBox("Report")
         results_group.setObjectName("resultsPane")
         results_layout = QVBoxLayout()
+        results_layout.setContentsMargins(8, 6, 8, 8)
+        results_layout.setSpacing(6)
         results_group.setLayout(results_layout)
+        
         self.analysis_results_area = QTextBrowser()
         self.analysis_results_area.setPlaceholderText(
             "Analysis results will appear here."
         )
         self.analysis_results_area.setReadOnly(True)
         self.analysis_results_area.setOpenExternalLinks(True)
+        self.analysis_results_area.setMinimumWidth(400)  # Ensure minimum readable width
         self.analysis_results_area.anchorClicked.connect(self.handle_anchor_click)
         results_layout.addWidget(self.analysis_results_area)
         splitter.addWidget(results_group)
-        splitter.setStretchFactor(0, 3)
-        splitter.setStretchFactor(1, 2)
+        
+        # Better proportions for scaling: 40% document, 60% results
+        splitter.setStretchFactor(0, 2)
+        splitter.setStretchFactor(1, 3)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setObjectName("analysisProgress")
@@ -317,39 +358,47 @@ class MainApplicationWindow(QMainWindow):
         self.progress_bar.hide()
         main_layout.addWidget(self.progress_bar)
 
+        # Action buttons with better scaling
         actions_layout = QHBoxLayout()
-        actions_layout.setSpacing(8)
+        actions_layout.setSpacing(6)
+        
         self.run_analysis_button = QPushButton("Run Analysis")
         self.run_analysis_button.setEnabled(False)
-        self.run_analysis_button.setFixedHeight(34)
+        self.run_analysis_button.setMinimumHeight(32)
+        self.run_analysis_button.setMaximumHeight(36)
         self.run_analysis_button.clicked.connect(self.run_analysis)
         actions_layout.addWidget(self.run_analysis_button)
 
-        self.stop_analysis_button = QPushButton("Stop Analysis")
+        self.stop_analysis_button = QPushButton("Stop")
         self.stop_analysis_button.setEnabled(False)
-        self.stop_analysis_button.setFixedHeight(34)
+        self.stop_analysis_button.setMinimumHeight(32)
+        self.stop_analysis_button.setMaximumHeight(36)
         self.stop_analysis_button.clicked.connect(self.stop_analysis)
         actions_layout.addWidget(self.stop_analysis_button)
 
-        self.document_preview_button = QPushButton("Document Preview")
+        self.document_preview_button = QPushButton("Preview")
         self.document_preview_button.setEnabled(False)
-        self.document_preview_button.setFixedHeight(34)
+        self.document_preview_button.setMinimumHeight(32)
+        self.document_preview_button.setMaximumHeight(36)
         self.document_preview_button.clicked.connect(self.show_document_preview)
         actions_layout.addWidget(self.document_preview_button)
 
         self.analytics_button = QPushButton("Analytics")
-        self.analytics_button.setFixedHeight(34)
+        self.analytics_button.setMinimumHeight(32)
+        self.analytics_button.setMaximumHeight(36)
         self.analytics_button.clicked.connect(self.open_analytics_dashboard)
         actions_layout.addWidget(self.analytics_button)
 
-        self.export_report_button = QPushButton("Export Report")
+        self.export_report_button = QPushButton("Export")
         self.export_report_button.setEnabled(False)
-        self.export_report_button.setFixedHeight(34)
+        self.export_report_button.setMinimumHeight(32)
+        self.export_report_button.setMaximumHeight(36)
         self.export_report_button.clicked.connect(self.export_report)
         actions_layout.addWidget(self.export_report_button)
 
-        self.clear_button = QPushButton("Clear Display")
-        self.clear_button.setFixedHeight(34)
+        self.clear_button = QPushButton("Clear")
+        self.clear_button.setMinimumHeight(32)
+        self.clear_button.setMaximumHeight(36)
         self.clear_button.clicked.connect(self.clear_display)
         actions_layout.addWidget(self.clear_button)
 
@@ -982,16 +1031,133 @@ class MainApplicationWindow(QMainWindow):
             )
             return
 
-        payload_str = json.dumps(self._current_report_payload)
-        success, message = generate_pdf_report(payload_str, parent=self)
-        if success:
-            QMessageBox.information(
+        # Get current report HTML
+        report_html = self.analysis_results_area.toHtml()
+        if not report_html.strip():
+            QMessageBox.warning(
                 self,
-                "Export Complete",
-                f"Report saved to:\n{message}",
+                "No Report Content",
+                "No report content available for export.",
             )
-        else:
-            QMessageBox.warning(self, "Export Failed", message)
+            return
+
+        # Ask user for export format and location
+        file_dialog = QFileDialog()
+        file_dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+        file_dialog.setNameFilters([
+            "PDF Files (*.pdf)",
+            "HTML Files (*.html)",
+            "All Files (*.*)"
+        ])
+        file_dialog.setDefaultSuffix("pdf")
+        
+        # Set default filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        default_name = f"compliance_report_{timestamp}"
+        file_dialog.selectFile(default_name)
+        
+        if file_dialog.exec():
+            file_path = file_dialog.selectedFiles()[0]
+            file_extension = os.path.splitext(file_path)[1].lower()
+            
+            try:
+                if file_extension == ".pdf":
+                    self._export_pdf_report(report_html, file_path)
+                elif file_extension == ".html":
+                    self._export_html_report(report_html, file_path)
+                else:
+                    # Default to HTML
+                    if not file_path.endswith(('.pdf', '.html')):
+                        file_path += '.html'
+                    self._export_html_report(report_html, file_path)
+                    
+                QMessageBox.information(
+                    self,
+                    "Export Complete",
+                    f"Report exported successfully to:\n{file_path}",
+                )
+                
+            except Exception as e:
+                QMessageBox.critical(
+                    self,
+                    "Export Failed",
+                    f"Failed to export report:\n{str(e)}",
+                )
+
+    def _export_pdf_report(self, html_content: str, file_path: str) -> None:
+        """Export report as PDF using the PDF export service."""
+        try:
+            from src.core.pdf_export_service import export_compliance_report_to_pdf
+            
+            # Get document name for metadata
+            document_name = None
+            if self._current_file_path:
+                document_name = os.path.basename(self._current_file_path)
+            elif self._current_folder_path:
+                document_name = f"Folder: {os.path.basename(self._current_folder_path)}"
+            
+            success = export_compliance_report_to_pdf(
+                html_content, 
+                file_path, 
+                document_name
+            )
+            
+            if not success:
+                raise Exception("PDF export service failed. Please check that weasyprint or pdfkit is installed.")
+                
+        except ImportError:
+            raise Exception("PDF export not available. Please install weasyprint or pdfkit:\npip install weasyprint")
+
+    def _export_html_report(self, html_content: str, file_path: str) -> None:
+        """Export report as standalone HTML file."""
+        # Create a complete HTML document with embedded CSS
+        complete_html = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Therapy Compliance Analysis Report</title>
+            <style>
+                body {{ 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                    margin: 20px; 
+                    background-color: #f8f9fa; 
+                    line-height: 1.6; 
+                }}
+                .container {{ 
+                    max-width: 1000px; 
+                    margin: auto; 
+                    background-color: #fff; 
+                    padding: 30px; 
+                    border-radius: 8px; 
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+                }}
+                .export-info {{
+                    background-color: #e3f2fd;
+                    border: 1px solid #2196f3;
+                    border-radius: 4px;
+                    padding: 10px;
+                    margin-bottom: 20px;
+                    font-size: 12px;
+                    color: #1565c0;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="export-info">
+                    <strong>Exported Report</strong> - Generated on {datetime.now().strftime("%B %d, %Y at %I:%M %p")} 
+                    by Therapy Compliance Analyzer
+                </div>
+                {html_content}
+            </div>
+        </body>
+        </html>
+        """
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(complete_html)
 
     def load_ai_models(self):
         if self.ai_loader_thread and self.ai_loader_thread.isRunning():
@@ -1033,6 +1199,22 @@ class MainApplicationWindow(QMainWindow):
             return
 
         rubrics = self.compliance_service.get_available_rubrics() or []
+        
+        # Add Medicare Benefits Policy Manual as default if not present
+        medicare_rubric = {
+            "id": "medicare_benefits_policy_manual",
+            "name": "Medicare Benefits Policy Manual",
+            "description": "Default Medicare compliance rubric for PT, OT, and SLP services covering documentation requirements, medical necessity, and billing standards",
+            "discipline": "All",
+            "category": "Medicare Compliance",
+            "is_default": True
+        }
+        
+        # Check if Medicare rubric already exists
+        has_medicare = any(r.get("name") == "Medicare Benefits Policy Manual" for r in rubrics)
+        if not has_medicare:
+            rubrics.insert(0, medicare_rubric)  # Add as first option
+        
         self._all_rubrics = rubrics
 
         disciplines = sorted(
@@ -1054,6 +1236,14 @@ class MainApplicationWindow(QMainWindow):
             self.rubric_type_selector.blockSignals(False)
 
         self._apply_rubric_filter()
+        
+        # Set Medicare Benefits Policy Manual as default selection
+        if hasattr(self, "rubric_selector"):
+            for i in range(self.rubric_selector.count()):
+                rubric_data = self.rubric_selector.itemData(i)
+                if rubric_data and rubric_data.get("name") == "Medicare Benefits Policy Manual":
+                    self.rubric_selector.setCurrentIndex(i)
+                    break
 
     def _on_rubric_selected(self, index):
         selected_rubric = self.rubric_selector.itemData(index)

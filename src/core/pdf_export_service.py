@@ -1,21 +1,30 @@
 """
-PDF Export Service for Clinical Compliance Reports.
+PDF Export Service for Compliance Reports
 
-Converts HTML reports to professional, audit-ready PDF documents with:
-- Professional formatting and styling
-- Headers and footers with metadata
-- Page numbers and timestamps
-- Digital signature support (optional)
-- Auto-purge after configurable retention period
+Converts HTML compliance reports to professional PDF documents with proper formatting,
+headers, footers, and medical document styling.
 """
 
 import logging
-from datetime import UTC, datetime, timedelta
+import os
+import tempfile
+from datetime import datetime
+from typing import Dict, Optional, Any
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
-from weasyprint import HTML, CSS
-from weasyprint.text.fonts import FontConfiguration
+# PDF generation imports with fallback
+try:
+    from weasyprint import HTML, CSS
+    from weasyprint.text.fonts import FontConfiguration
+    PDF_AVAILABLE = True
+except ImportError:
+    try:
+        import pdfkit
+        PDF_AVAILABLE = True
+        WEASYPRINT_AVAILABLE = False
+    except ImportError:
+        PDF_AVAILABLE = False
+        WEASYPRINT_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -23,488 +32,403 @@ logger = logging.getLogger(__name__)
 class PDFExportService:
     """
     Service for exporting compliance reports to PDF format.
-
-    Features:
-    - HTML to PDF conversion with professional styling
-    - Custom headers/footers with metadata
-    - Page numbering and timestamps
-    - Configurable retention and auto-purge
-    - HIPAA-compliant file handling
+    
+    Supports multiple PDF generation backends:
+    - WeasyPrint (preferred) - Better CSS support and medical document formatting
+    - wkhtmltopdf (fallback) - Requires system installation
     """
-
-    def __init__(
-        self,
-        output_dir: Optional[str] = None,
-        retention_hours: int = 24,
-        enable_auto_purge: bool = True,
-    ):
+    
+    def __init__(self):
+        self.pdf_available = PDF_AVAILABLE
+        self.use_weasyprint = PDF_AVAILABLE and 'weasyprint' in globals()
+        
+        if not self.pdf_available:
+            logger.warning("PDF export not available. Install weasyprint or pdfkit for PDF functionality.")
+    
+    def export_report_to_pdf(
+        self, 
+        html_content: str, 
+        output_path: str, 
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> bool:
         """
-        Initialize PDF export service.
-
+        Export HTML report to PDF with professional medical document formatting.
+        
         Args:
-            output_dir: Directory for PDF output (default: temp/reports)
-            retention_hours: Hours to retain PDFs before auto-purge (default: 24)
-            enable_auto_purge: Enable automatic purging of old PDFs
+            html_content: HTML content of the compliance report
+            output_path: Path where PDF should be saved
+            metadata: Optional metadata for PDF properties
+            
+        Returns:
+            bool: True if export successful, False otherwise
         """
-        self.output_dir = Path(output_dir or "temp/reports")
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-
-        self.retention_hours = retention_hours
-        self.enable_auto_purge = enable_auto_purge
-
-        # Font configuration for better rendering
-        self.font_config = FontConfiguration()
-
-        # Custom CSS for PDF styling
-        self.pdf_css = self._load_pdf_styles()
-
-        logger.info(
-            f"PDF Export Service initialized: output_dir={self.output_dir}, "
-            f"retention={retention_hours}h, auto_purge={enable_auto_purge}"
-        )
-
-    def _load_pdf_styles(self) -> str:
-        """Load custom CSS styles for PDF rendering."""
-        return """
+        if not self.pdf_available:
+            logger.error("PDF export not available. Please install weasyprint or pdfkit.")
+            return False
+        
+        try:
+            # Ensure output directory exists
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            
+            # Add PDF-specific styling
+            styled_html = self._add_pdf_styling(html_content, metadata)
+            
+            if self.use_weasyprint:
+                return self._export_with_weasyprint(styled_html, output_path, metadata)
+            else:
+                return self._export_with_pdfkit(styled_html, output_path, metadata)
+                
+        except Exception as e:
+            logger.error(f"PDF export failed: {e}")
+            return False
+    
+    def _add_pdf_styling(self, html_content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
+        """Add PDF-specific CSS styling for professional medical documents."""
+        
+        # Professional medical document CSS
+        pdf_css = """
+        <style>
         @page {
-            size: Letter;
-            margin: 1in 0.75in;
-            
+            size: A4;
+            margin: 1in 0.75in 1in 0.75in;
             @top-left {
-                content: "Therapy Compliance Report";
-                font-size: 9pt;
+                content: "Therapy Compliance Analysis Report";
+                font-size: 10px;
                 color: #666;
+                font-family: Arial, sans-serif;
             }
-            
             @top-right {
-                content: "Generated: " string(report-date);
-                font-size: 9pt;
-                color: #666;
-            }
-            
-            @bottom-center {
                 content: "Page " counter(page) " of " counter(pages);
-                font-size: 9pt;
+                font-size: 10px;
                 color: #666;
+                font-family: Arial, sans-serif;
             }
-            
-            @bottom-right {
-                content: "CONFIDENTIAL - HIPAA Protected";
-                font-size: 8pt;
-                color: #999;
-                font-style: italic;
+            @bottom-center {
+                content: "Generated on """ + datetime.now().strftime("%B %d, %Y at %I:%M %p") + """";
+                font-size: 9px;
+                color: #888;
+                font-family: Arial, sans-serif;
             }
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Times New Roman', Times, serif;
             font-size: 11pt;
-            line-height: 1.6;
+            line-height: 1.4;
             color: #333;
+            margin: 0;
+            padding: 0;
         }
         
-        h1 {
-            color: #2c3e50;
-            border-bottom: 3px solid #3498db;
-            padding-bottom: 10px;
+        .pdf-header {
+            text-align: center;
+            border-bottom: 2px solid #1e40af;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .pdf-header h1 {
+            color: #1e40af;
+            font-size: 24pt;
+            margin: 0 0 10px 0;
+            font-weight: bold;
+        }
+        
+        .pdf-header .subtitle {
+            color: #666;
+            font-size: 12pt;
+            font-style: italic;
+        }
+        
+        .executive-summary {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            page-break-inside: avoid;
+        }
+        
+        .score-dashboard {
+            display: flex;
+            justify-content: space-around;
+            margin: 15px 0;
+            text-align: center;
+        }
+        
+        .score-item {
+            flex: 1;
+            padding: 10px;
+        }
+        
+        .score-value {
+            font-size: 18pt;
+            font-weight: bold;
+            display: block;
+            color: #1e40af;
+        }
+        
+        .score-label {
+            font-size: 9pt;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .finding {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #cbd5e1;
+            page-break-inside: avoid;
+            background-color: #fafafa;
+        }
+        
+        .finding.high {
+            border-left-color: #ef4444;
+            background-color: #fef2f2;
+        }
+        
+        .finding.medium {
+            border-left-color: #f59e0b;
+            background-color: #fffbeb;
+        }
+        
+        .finding.low {
+            border-left-color: #10b981;
+            background-color: #f0fdf4;
+        }
+        
+        .severity {
+            font-weight: bold;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 9pt;
+            color: white;
+        }
+        
+        .severity.high { background-color: #ef4444; }
+        .severity.medium { background-color: #f59e0b; }
+        .severity.low { background-color: #10b981; }
+        
+        .suggestion {
+            background-color: #f1f5f9;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 8px;
+            border-left: 3px solid #0ea5e9;
+            font-style: italic;
+        }
+        
+        .evidence {
+            font-style: italic;
+            color: #64748b;
+            margin-top: 8px;
+            font-size: 10pt;
+        }
+        
+        h1, h2, h3 {
+            color: #1e40af;
             page-break-after: avoid;
         }
         
-        h2 {
-            color: #34495e;
-            border-bottom: 2px solid #95a5a6;
-            padding-bottom: 5px;
-            margin-top: 30px;
-            page-break-after: avoid;
+        h1 { font-size: 18pt; margin: 25px 0 15px 0; }
+        h2 { font-size: 14pt; margin: 20px 0 10px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
+        h3 { font-size: 12pt; margin: 15px 0 8px 0; }
+        
+        .page-break {
+            page-break-before: always;
         }
         
-        h3 {
-            color: #7f8c8d;
-            margin-top: 20px;
-            page-break-after: avoid;
+        .no-break {
+            page-break-inside: avoid;
         }
         
         table {
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
-            page-break-inside: avoid;
+            margin: 15px 0;
+            font-size: 10pt;
+        }
+        
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
         }
         
         th {
-            background-color: #3498db;
-            color: white;
-            padding: 12px;
-            text-align: left;
+            background-color: #f1f5f9;
             font-weight: bold;
+            color: #1e40af;
         }
         
-        td {
-            padding: 10px;
-            border: 1px solid #ddd;
-        }
-        
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        
-        .risk-high {
-            color: #e74c3c;
-            font-weight: bold;
-        }
-        
-        .risk-medium {
-            color: #f39c12;
-            font-weight: bold;
-        }
-        
-        .risk-low {
-            color: #27ae60;
-        }
-        
-        .high-confidence {
-            background-color: #d5f4e6;
-        }
-        
-        .medium-confidence {
-            background-color: #fff3cd;
-        }
-        
-        .low-confidence {
-            background-color: #f8d7da;
-        }
-        
-        .disputed {
-            background-color: #ffebee;
-            text-decoration: line-through;
-        }
-        
-        .confidence-indicator {
-            font-size: 9pt;
-            color: #666;
-        }
-        
-        .habit-name {
-            font-weight: bold;
-            color: #2980b9;
-        }
-        
-        .habit-explanation {
-            font-size: 9pt;
-            color: #555;
-            margin-top: 5px;
-        }
-        
-        .executive-summary {
-            background-color: #ecf0f1;
-            padding: 20px;
-            border-left: 5px solid #3498db;
+        .disclaimer {
+            background-color: #f9fafb;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 15px;
             margin: 20px 0;
+            font-size: 9pt;
+            color: #374151;
             page-break-inside: avoid;
         }
         
-        .compliance-score {
-            font-size: 36pt;
-            font-weight: bold;
-            color: #2c3e50;
-            text-align: center;
-        }
-        
-        .metadata-table {
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            padding: 15px;
-            margin: 20px 0;
-        }
-        
-        .footer-disclaimer {
-            font-size: 8pt;
-            color: #999;
-            text-align: center;
+        .footer-info {
             margin-top: 30px;
-            padding-top: 10px;
-            border-top: 1px solid #ddd;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 9pt;
+            color: #666;
+            text-align: center;
         }
         
         /* Remove interactive elements for PDF */
-        a[href^="highlight://"],
-        a[href^="chat://"],
-        a[href^="dispute://"] {
-            color: #3498db;
+        a[href^="chat://"], a[href^="highlight://"] {
+            color: #1e40af;
             text-decoration: none;
-            pointer-events: none;
+            font-weight: normal;
         }
         
-        /* Print-friendly adjustments */
-        @media print {
-            body {
-                background: white;
-            }
-            
-            .no-print {
-                display: none;
-            }
+        a[href^="chat://"]:after {
+            content: " (AI Chat)";
+            font-size: 8pt;
+            color: #666;
         }
+        
+        a[href^="highlight://"]:after {
+            content: " (See Document)";
+            font-size: 8pt;
+            color: #666;
+        }
+        </style>
         """
-
-    def export_to_pdf(
-        self,
-        html_content: str,
-        document_name: str,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        """
-        Export HTML report to PDF format.
-
-        Args:
-            html_content: HTML content of the report
-            document_name: Name of the source document
-            metadata: Optional metadata to include in PDF
-
-        Returns:
-            Dict with PDF file path, size, and metadata
-
-        Raises:
-            Exception: If PDF generation fails
-        """
-        try:
-            # Generate unique filename
-            timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-            safe_doc_name = self._sanitize_filename(document_name)
-            pdf_filename = f"compliance_report_{safe_doc_name}_{timestamp}.pdf"
-            pdf_path = self.output_dir / pdf_filename
-
-            # Enhance HTML with metadata
-            enhanced_html = self._enhance_html_for_pdf(html_content, metadata)
-
-            # Convert to PDF
-            logger.info(f"Generating PDF: {pdf_filename}")
-            html_doc = HTML(string=enhanced_html)
-            css_doc = CSS(string=self.pdf_css, font_config=self.font_config)
-
-            html_doc.write_pdf(
-                target=str(pdf_path),
-                stylesheets=[css_doc],
-                font_config=self.font_config,
-            )
-
-            # Get file size
-            file_size = pdf_path.stat().st_size
-
-            # Schedule auto-purge if enabled
-            purge_time = None
-            if self.enable_auto_purge:
-                purge_time = datetime.now(UTC) + timedelta(hours=self.retention_hours)
-                logger.info(f"PDF will be auto-purged at: {purge_time}")
-
-            result = {
-                "success": True,
-                "pdf_path": str(pdf_path),
-                "filename": pdf_filename,
-                "file_size": file_size,
-                "file_size_mb": round(file_size / (1024 * 1024), 2),
-                "generated_at": datetime.now(UTC).isoformat(),
-                "purge_at": purge_time.isoformat() if purge_time else None,
-            }
-
-            logger.info(
-                f"PDF generated successfully: {pdf_filename} ({result['file_size_mb']}MB)"
-            )
-            return result
-
-        except Exception as e:
-            logger.exception(f"Failed to generate PDF: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "pdf_path": None,
-            }
-
-    def _enhance_html_for_pdf(
-        self, html_content: str, metadata: Optional[Dict[str, Any]]
-    ) -> str:
-        """
-        Enhance HTML content with PDF-specific elements.
-
-        Args:
-            html_content: Original HTML content
-            metadata: Optional metadata to include
-
-        Returns:
-            Enhanced HTML with PDF-specific styling and metadata
-        """
-        # Add report date for header
-        report_date = datetime.now().strftime("%Y-%m-%d %H:%M")
-
-        # Build metadata section
-        metadata_html = ""
-        if metadata:
-            metadata_html = '<div class="metadata-table">'
-            metadata_html += "<h3>Report Metadata</h3>"
-            metadata_html += "<table>"
-
-            for key, value in metadata.items():
-                if value is not None:
-                    metadata_html += (
-                        f"<tr><td><strong>{key}:</strong></td><td>{value}</td></tr>"
-                    )
-
-            metadata_html += "</table></div>"
-
-        # Add footer disclaimer
-        footer_html = """
-        <div class="footer-disclaimer">
-            <p><strong>CONFIDENTIAL - HIPAA Protected Health Information</strong></p>
-            <p>This report contains Protected Health Information (PHI) and is intended solely for 
-            authorized healthcare professionals. Unauthorized disclosure, copying, or distribution 
-            is strictly prohibited and may violate federal and state laws.</p>
-            <p>This analysis was generated using AI-assisted technology. All findings should be 
-            reviewed and validated by qualified healthcare professionals before making clinical 
-            or compliance decisions.</p>
-            <p>Report generated by Therapy Compliance Analyzer - 
-            © 2025 All Rights Reserved</p>
+        
+        # Add PDF header
+        pdf_header = f"""
+        <div class="pdf-header">
+            <h1>Clinical Compliance Analysis Report</h1>
+            <div class="subtitle">Medicare & Regulatory Compliance Assessment</div>
+            {f'<div class="subtitle">Document: {metadata.get("document_name", "Unknown")}</div>' if metadata else ''}
         </div>
         """
-
-        # Wrap content with PDF-specific structure
-        enhanced_html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>Compliance Report - {report_date}</title>
-            <style>
-                {self.pdf_css}
-            </style>
-        </head>
-        <body>
-            <div style="string-set: report-date '{report_date}';">
-                {metadata_html}
-                {html_content}
-                {footer_html}
-            </div>
-        </body>
-        </html>
+        
+        # Add disclaimer footer
+        disclaimer = """
+        <div class="disclaimer">
+            <strong>Important Disclaimer:</strong> This AI-generated report is for informational purposes only and does not constitute professional medical, legal, or compliance advice. All findings should be reviewed by qualified healthcare professionals. Patient health information has been automatically redacted to protect privacy.
+        </div>
+        
+        <div class="footer-info">
+            <p>Generated by Therapy Compliance Analyzer | Local AI Processing | HIPAA Compliant</p>
+        </div>
         """
-
-        return enhanced_html
-
-    def _sanitize_filename(self, filename: str) -> str:
-        """
-        Sanitize filename for safe file system operations.
-
-        Args:
-            filename: Original filename
-
-        Returns:
-            Sanitized filename safe for file system
-        """
-        # Remove file extension if present
-        name = Path(filename).stem
-
-        # Replace unsafe characters
-        safe_chars = []
-        for char in name:
-            if char.isalnum() or char in ("-", "_"):
-                safe_chars.append(char)
-            elif char.isspace():
-                safe_chars.append("_")
-
-        safe_name = "".join(safe_chars)
-
-        # Limit length
-        if len(safe_name) > 50:
-            safe_name = safe_name[:50]
-
-        return safe_name or "document"
-
-    def purge_old_pdfs(self) -> Dict[str, Any]:
-        """
-        Purge PDFs older than retention period.
-
-        Returns:
-            Dict with purge statistics
-
-        Raises:
-            Exception: If purge operation fails
-        """
-        if not self.enable_auto_purge:
-            logger.info("Auto-purge is disabled")
-            return {"purged": 0, "message": "Auto-purge disabled"}
-
+        
+        # Inject styling and structure
+        if '<head>' in html_content:
+            html_content = html_content.replace('<head>', f'<head>{pdf_css}')
+        else:
+            html_content = f'<html><head>{pdf_css}</head><body>' + html_content + '</body></html>'
+        
+        # Add header after body tag
+        if '<body>' in html_content:
+            html_content = html_content.replace('<body>', f'<body>{pdf_header}')
+        
+        # Add disclaimer before closing body tag
+        if '</body>' in html_content:
+            html_content = html_content.replace('</body>', f'{disclaimer}</body>')
+        
+        return html_content
+    
+    def _export_with_weasyprint(self, html_content: str, output_path: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
+        """Export using WeasyPrint (preferred method)."""
         try:
-            cutoff_time = datetime.now(UTC) - timedelta(hours=self.retention_hours)
-            purged_count = 0
-            purged_size = 0
-
-            for pdf_file in self.output_dir.glob("*.pdf"):
-                # Check file modification time
-                file_mtime = datetime.fromtimestamp(pdf_file.stat().st_mtime, tz=UTC)
-
-                if file_mtime < cutoff_time:
-                    file_size = pdf_file.stat().st_size
-                    pdf_file.unlink()
-                    purged_count += 1
-                    purged_size += file_size
-                    logger.info(f"Purged old PDF: {pdf_file.name}")
-
-            result = {
-                "purged": purged_count,
-                "total_size_mb": round(purged_size / (1024 * 1024), 2),
-                "cutoff_time": cutoff_time.isoformat(),
-            }
-
-            logger.info(
-                f"Purge complete: {purged_count} files, {result['total_size_mb']}MB freed"
+            # Configure fonts
+            font_config = FontConfiguration()
+            
+            # Create HTML document
+            html_doc = HTML(string=html_content)
+            
+            # Generate PDF
+            html_doc.write_pdf(
+                output_path,
+                font_config=font_config,
+                optimize_images=True
             )
-            return result
-
+            
+            logger.info(f"PDF exported successfully using WeasyPrint: {output_path}")
+            return True
+            
         except Exception as e:
-            logger.exception(f"Failed to purge old PDFs: {e}")
-            return {"error": str(e), "purged": 0}
-
-    def get_pdf_info(self, pdf_path: str) -> Optional[Dict[str, Any]]:
-        """
-        Get information about a PDF file.
-
-        Args:
-            pdf_path: Path to PDF file
-
-        Returns:
-            Dict with PDF metadata or None if file doesn't exist
-        """
-        path = Path(pdf_path)
-
-        if not path.exists():
-            return None
-
-        stat = path.stat()
-
+            logger.error(f"WeasyPrint export failed: {e}")
+            return False
+    
+    def _export_with_pdfkit(self, html_content: str, output_path: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
+        """Export using pdfkit/wkhtmltopdf (fallback method)."""
+        try:
+            options = {
+                'page-size': 'A4',
+                'margin-top': '1in',
+                'margin-right': '0.75in',
+                'margin-bottom': '1in',
+                'margin-left': '0.75in',
+                'encoding': "UTF-8",
+                'no-outline': None,
+                'enable-local-file-access': None,
+                'print-media-type': None,
+            }
+            
+            # Add header and footer
+            if metadata:
+                options['header-left'] = 'Therapy Compliance Analysis Report'
+                options['header-right'] = '[page] of [topage]'
+                options['header-font-size'] = '9'
+                options['footer-center'] = f'Generated on {datetime.now().strftime("%B %d, %Y at %I:%M %p")}'
+                options['footer-font-size'] = '8'
+            
+            pdfkit.from_string(html_content, output_path, options=options)
+            
+            logger.info(f"PDF exported successfully using pdfkit: {output_path}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"pdfkit export failed: {e}")
+            return False
+    
+    def get_export_info(self) -> Dict[str, Any]:
+        """Get information about PDF export capabilities."""
         return {
-            "filename": path.name,
-            "path": str(path),
-            "size_bytes": stat.st_size,
-            "size_mb": round(stat.st_size / (1024 * 1024), 2),
-            "created_at": datetime.fromtimestamp(stat.st_ctime, tz=UTC).isoformat(),
-            "modified_at": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat(),
+            "pdf_available": self.pdf_available,
+            "backend": "weasyprint" if self.use_weasyprint else "pdfkit" if PDF_AVAILABLE else "none",
+            "features": {
+                "professional_formatting": True,
+                "headers_footers": True,
+                "medical_styling": True,
+                "page_breaks": True,
+                "interactive_elements_converted": True,
+            } if self.pdf_available else {}
         }
 
-    def list_pdfs(self) -> List[Dict[str, Any]]:
-        """
-        List all PDF files in output directory.
 
-        Returns:
-            List of PDF file information dicts
-        """
-        pdfs = []
+# Global service instance
+pdf_export_service = PDFExportService()
 
-        for pdf_file in sorted(
-            self.output_dir.glob("*.pdf"),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
-        ):
-            info = self.get_pdf_info(str(pdf_file))
-            if info:
-                pdfs.append(info)
 
-        return pdfs
+def export_compliance_report_to_pdf(
+    html_content: str, 
+    output_path: str, 
+    document_name: Optional[str] = None
+) -> bool:
+    """
+    Convenience function to export compliance report to PDF.
+    
+    Args:
+        html_content: HTML content of the compliance report
+        output_path: Path where PDF should be saved
+        document_name: Name of the original document being analyzed
+        
+    Returns:
+        bool: True if export successful, False otherwise
+    """
+    metadata = {"document_name": document_name} if document_name else None
+    return pdf_export_service.export_report_to_pdf(html_content, output_path, metadata)

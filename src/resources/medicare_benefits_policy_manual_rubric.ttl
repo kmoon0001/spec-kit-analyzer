@@ -1,0 +1,223 @@
+@prefix : <http://example.com/speckit/ontology#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# Medicare Benefits Policy Manual - Default Compliance Rubric
+# Comprehensive compliance rules for PT, OT, and SLP services
+
+:MedicareSignatureRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Provider signature/date missing or incomplete" ;
+    :hasIssueDetail "All therapy services must be signed and dated by the treating therapist with professional credentials. Missing signatures can result in claim denials." ;
+    :hasDiscipline "All" ;
+    :hasDocumentType "All" ;
+    :hasSeverity "High" ;
+    :hasFinancialImpact "75" ;
+    :hasSuggestion "Ensure all notes are signed with full name, credentials (PT, OT, SLP, etc.), and date. Use electronic signatures if available." .
+
+:MedicareMedicalNecessityRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Medical necessity not clearly documented" ;
+    :hasIssueDetail "Services must be medically necessary and skilled in nature. Documentation must justify why professional therapy services are required." ;
+    :hasDiscipline "All" ;
+    :hasDocumentType "All" ;
+    :hasSeverity "High" ;
+    :hasFinancialImpact "100" ;
+    :hasSuggestion "Document specific skilled interventions, link treatments to functional limitations, and explain why therapy expertise is required." .
+
+:MedicareGoalsRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Goals not specific, measurable, or time-bound" ;
+    :hasIssueDetail "Treatment goals must be SMART (Specific, Measurable, Achievable, Relevant, Time-bound) to demonstrate medical necessity and progress." ;
+    :hasDiscipline "All" ;
+    :hasDocumentType "Evaluation" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "50" ;
+    :hasSuggestion "Use objective measurements, functional outcomes, and specific timeframes. Example: 'Patient will increase right shoulder flexion from 90° to 120° within 3 weeks.'" .
+
+:MedicarePlanOfCareRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Physician plan of care missing or incomplete" ;
+    :hasIssueDetail "All therapy services require a physician's plan of care with specific frequency, duration, and treatment goals." ;
+    :hasDiscipline "All" ;
+    :hasDocumentType "All" ;
+    :hasSeverity "High" ;
+    :hasFinancialImpact "100" ;
+    :hasSuggestion "Ensure physician plan of care includes specific frequency (e.g., 3x/week), duration (e.g., 4 weeks), and treatment focus areas." .
+
+:MedicareProgressDocumentationRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Progress documentation insufficient or missing" ;
+    :hasIssueDetail "Progress notes must document objective improvements, response to treatment, and functional changes at least every 10 treatment days." ;
+    :hasDiscipline "All" ;
+    :hasDocumentType "Progress Note" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "40" ;
+    :hasSuggestion "Include objective measurements, functional improvements, patient response to treatment, and any barriers to progress." .
+
+:MedicareFunctionalOutcomesRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Functional outcomes not documented" ;
+    :hasIssueDetail "Documentation must demonstrate how therapy services improve patient's functional abilities and quality of life." ;
+    :hasDiscipline "All" ;
+    :hasDocumentType "All" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "60" ;
+    :hasSuggestion "Link all interventions to functional improvements in ADLs, mobility, communication, or work-related tasks." .
+
+:MedicareRecertificationRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Recertification requirements not met" ;
+    :hasIssueDetail "Physician recertification is required every 90 days for continued therapy services." ;
+    :hasDiscipline "All" ;
+    :hasDocumentType "All" ;
+    :hasSeverity "High" ;
+    :hasFinancialImpact "75" ;
+    :hasSuggestion "Track certification dates and obtain physician recertification before 90-day expiration." .
+
+:MedicareAssistantSupervisionRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Assistant supervision not properly documented" ;
+    :hasIssueDetail "Services provided by assistants (PTA, COTA, SLPA) must have proper supervision documentation per state regulations." ;
+    :hasDiscipline "All" ;
+    :hasDocumentType "All" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "50" ;
+    :hasSuggestion "Document supervising therapist oversight, co-signature requirements, and compliance with state supervision ratios." .
+
+# Physical Therapy Specific Rules
+
+:PTStrengthMeasurementRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Strength measurements not objective or standardized" ;
+    :hasIssueDetail "PT evaluations must include objective strength measurements using standardized scales (e.g., manual muscle testing, dynamometry)." ;
+    :hasDiscipline "PT" ;
+    :hasDocumentType "Evaluation" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "30" ;
+    :hasSuggestion "Use standardized strength testing (0-5 scale), document specific muscle groups, and include functional strength assessments." .
+
+:PTRangeOfMotionRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Range of motion measurements missing or imprecise" ;
+    :hasIssueDetail "PT documentation must include precise ROM measurements using goniometry when appropriate." ;
+    :hasDiscipline "PT" ;
+    :hasDocumentType "Evaluation" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "25" ;
+    :hasSuggestion "Document ROM in degrees using goniometer, specify active vs. passive ROM, and note any limitations or pain." .
+
+:PTFunctionalMobilityRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Functional mobility assessment incomplete" ;
+    :hasIssueDetail "PT evaluations must assess functional mobility including transfers, gait, balance, and safety awareness." ;
+    :hasDiscipline "PT" ;
+    :hasDocumentType "Evaluation" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "35" ;
+    :hasSuggestion "Document transfer abilities, gait parameters, balance assessment, and assistive device needs with specific functional levels." .
+
+# Occupational Therapy Specific Rules
+
+:OTADLAssessmentRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Activities of Daily Living assessment incomplete" ;
+    :hasIssueDetail "OT evaluations must thoroughly assess ADL performance including self-care, home management, and work-related tasks." ;
+    :hasDiscipline "OT" ;
+    :hasDocumentType "Evaluation" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "40" ;
+    :hasSuggestion "Document specific ADL deficits, level of assistance required, adaptive equipment needs, and safety concerns." .
+
+:OTCognitiveAssessmentRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Cognitive-perceptual assessment missing" ;
+    :hasIssueDetail "OT evaluations must assess cognitive and perceptual skills when relevant to functional performance." ;
+    :hasDiscipline "OT" ;
+    :hasDocumentType "Evaluation" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "35" ;
+    :hasSuggestion "Include assessment of attention, memory, problem-solving, visual-perceptual skills, and their impact on function." .
+
+:OTAdaptiveEquipmentRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Adaptive equipment recommendations not justified" ;
+    :hasIssueDetail "Recommendations for adaptive equipment must be medically necessary and linked to specific functional deficits." ;
+    :hasDiscipline "OT" ;
+    :hasDocumentType "All" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "30" ;
+    :hasSuggestion "Justify equipment needs based on specific functional limitations, document training provided, and expected outcomes." .
+
+# Speech-Language Pathology Specific Rules
+
+:SLPCommunicationAssessmentRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Communication assessment incomplete or non-standardized" ;
+    :hasIssueDetail "SLP evaluations must include comprehensive assessment of speech, language, voice, and/or swallowing using standardized tools when appropriate." ;
+    :hasDiscipline "SLP" ;
+    :hasDocumentType "Evaluation" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "45" ;
+    :hasSuggestion "Use standardized assessment tools, document baseline abilities, and specify communication deficits with objective measures." .
+
+:SLPSwallowingAssessmentRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Swallowing assessment safety concerns not addressed" ;
+    :hasIssueDetail "Dysphagia evaluations must address aspiration risk, diet recommendations, and safety precautions." ;
+    :hasDiscipline "SLP" ;
+    :hasDocumentType "Evaluation" ;
+    :hasSeverity "High" ;
+    :hasFinancialImpact "60" ;
+    :hasSuggestion "Document aspiration risk level, specific diet texture recommendations, compensatory strategies, and safety precautions." .
+
+:SLPFunctionalCommunicationRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Functional communication outcomes not specified" ;
+    :hasIssueDetail "SLP treatment must focus on functional communication improvements relevant to patient's daily activities." ;
+    :hasDiscipline "SLP" ;
+    :hasDocumentType "All" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "35" ;
+    :hasSuggestion "Link treatment goals to functional communication needs in home, work, or social environments." .
+
+# Billing and Documentation Rules
+
+:MedicareBillingAccuracyRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Billing codes not supported by documentation" ;
+    :hasIssueDetail "CPT codes billed must be supported by documented services and time spent." ;
+    :hasDiscipline "All" ;
+    :hasDocumentType "All" ;
+    :hasSeverity "High" ;
+    :hasFinancialImpact "100" ;
+    :hasSuggestion "Ensure documentation supports billed CPT codes, include time spent on services, and verify code accuracy." .
+
+:MedicareTherapyCapRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Therapy cap considerations not addressed" ;
+    :hasIssueDetail "Documentation must support medical necessity when approaching or exceeding annual therapy caps ($2,230 for PT/SLP combined, $2,230 for OT)." ;
+    :hasDiscipline "All" ;
+    :hasDocumentType "All" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "50" ;
+    :hasSuggestion "Monitor therapy cap amounts, document exceptional medical necessity when exceeding caps, and consider alternative treatment options." .
+
+:MedicareFunctionalReportingRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Functional reporting G-codes missing or incorrect" ;
+    :hasIssueDetail "Functional limitation reporting using G-codes is required for Medicare therapy claims." ;
+    :hasDiscipline "All" ;
+    :hasDocumentType "All" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "40" ;
+    :hasSuggestion "Include appropriate G-codes for functional limitations, severity modifiers, and discharge status codes." .
+
+# Quality and Safety Rules
+
+:MedicareInfectionControlRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Infection control procedures not documented" ;
+    :hasIssueDetail "Documentation must reflect compliance with infection control standards and safety protocols." ;
+    :hasDiscipline "All" ;
+    :hasDocumentType "All" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "25" ;
+    :hasSuggestion "Document hand hygiene, equipment sanitization, and adherence to facility infection control policies." .
+
+:MedicareFallRiskRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Fall risk assessment and precautions not documented" ;
+    :hasIssueDetail "Patient safety requires assessment and documentation of fall risk factors and appropriate precautions." ;
+    :hasDiscipline "All" ;
+    :hasDocumentType "Evaluation" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "30" ;
+    :hasSuggestion "Include fall risk assessment, environmental modifications, and safety education in documentation." .
+
+:MedicareDischargeRule rdf:type :ComplianceRule ;
+    :hasIssueTitle "Discharge planning and summary incomplete" ;
+    :hasIssueDetail "Discharge documentation must include goal achievement, functional status, home program, and follow-up recommendations." ;
+    :hasDiscipline "All" ;
+    :hasDocumentType "Discharge Summary" ;
+    :hasSeverity "Medium" ;
+    :hasFinancialImpact "35" ;
+    :hasSuggestion "Document goal achievement, current functional level, home exercise program, equipment needs, and follow-up care recommendations." .

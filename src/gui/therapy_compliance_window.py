@@ -1238,8 +1238,20 @@ class TherapyComplianceWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Therapy Compliance Analyzer - PT | OT | SLP")
-        self.setGeometry(100, 100, 1800, 1200)
-        self.setMinimumSize(1200, 800)  # Set minimum size for proper scaling
+        
+        # Better scaling with minimum constraints
+        self.setMinimumSize(800, 600)
+        self.resize(1400, 900)
+        
+        # Center window on screen
+        try:
+            from PyQt6.QtWidgets import QApplication
+            screen = QApplication.primaryScreen().geometry()
+            x = (screen.width() - self.width()) // 2
+            y = (screen.height() - self.height()) // 2
+            self.move(x, y)
+        except:
+            self.setGeometry(100, 100, 1400, 900)
         
         # Initialize basic services
         self.analyzer = ComplianceAnalyzer()
@@ -1276,6 +1288,49 @@ class TherapyComplianceWindow(QMainWindow):
         
         # Initialize AI model health check
         self.check_ai_model_health()
+        
+        # Initialize default Medicare rubric
+        self.initialize_default_rubric()
+    
+    def initialize_default_rubric(self):
+        """Initialize Medicare Benefits Policy Manual as the default rubric."""
+        self.default_rubric = {
+            "name": "Medicare Benefits Policy Manual",
+            "description": "Comprehensive Medicare compliance rubric for PT, OT, and SLP services covering documentation requirements, medical necessity, billing standards, and regulatory compliance.",
+            "discipline": "All",
+            "category": "Medicare Compliance",
+            "is_default": True,
+            "rules": [
+                "Provider signature and credentials required",
+                "Medical necessity must be clearly documented", 
+                "Goals must be specific, measurable, and time-bound",
+                "Physician plan of care required with frequency and duration",
+                "Progress documentation required every 10 treatment days",
+                "Functional outcomes must be documented",
+                "Recertification required every 90 days"
+            ]
+        }
+        
+        # Set default rubric text for display
+        self.current_rubric_text = f"""
+**{self.default_rubric['name']}**
+
+{self.default_rubric['description']}
+
+**Key Requirements:**
+• Provider signature and credentials required on all documentation
+• Medical necessity must be clearly documented and justified
+• Treatment goals must be SMART (Specific, Measurable, Achievable, Relevant, Time-bound)
+• Physician plan of care required with specific frequency and duration
+• Progress documentation required at least every 10 treatment days
+• Functional outcomes must be documented and linked to interventions
+• Physician recertification required every 90 days for continued services
+• Assistant supervision must be properly documented per state regulations
+
+**Disciplines Covered:** Physical Therapy (PT), Occupational Therapy (OT), Speech-Language Pathology (SLP)
+
+**Compliance Areas:** Documentation, Medical Necessity, Billing, Quality Standards, Safety
+        """.strip()
     
     def _initialize_professional_services(self) -> Dict:
         """Initialize professional services when available."""
@@ -1396,7 +1451,7 @@ class TherapyComplianceWindow(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
-        # Header with enhanced styling
+        # Compact header for better scaling
         header = QLabel("🏥 THERAPY COMPLIANCE ANALYZER")
         header.setObjectName("headerLabel")
         header.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1405,30 +1460,30 @@ class TherapyComplianceWindow(QMainWindow):
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                     stop:0 #1e40af, stop:0.5 #3b82f6, stop:1 #2563eb);
                 color: white;
-                padding: 20px;
-                font-size: 28px;
+                padding: 12px;
+                font-size: 20px;
                 font-weight: 700;
-                border-bottom: 4px solid #1d4ed8;
-                min-height: 60px;
-                max-height: 80px;
+                border-bottom: 3px solid #1d4ed8;
+                min-height: 40px;
+                max-height: 50px;
             }
         """)
         main_layout.addWidget(header)
         
-        # Enhanced subtitle with emojis
-        subtitle = QLabel("🏃‍♂️ Physical Therapy • 🖐️ Occupational Therapy • 🗣️ Speech-Language Pathology")
+        # Compact subtitle
+        subtitle = QLabel("🏃‍♂️ PT • 🖐️ OT • 🗣️ SLP | Medicare Benefits Policy Manual (Default)")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle.setStyleSheet("""
             QLabel {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                     stop:0 #dbeafe, stop:0.5 #bfdbfe, stop:1 #dbeafe);
                 color: #1e40af;
-                padding: 8px;
-                font-size: 13px;
+                padding: 6px;
+                font-size: 11px;
                 font-weight: 600;
                 border-bottom: 2px solid #93c5fd;
-                min-height: 30px;
-                max-height: 40px;
+                min-height: 20px;
+                max-height: 30px;
             }
         """)
         main_layout.addWidget(subtitle)
@@ -1520,7 +1575,11 @@ class TherapyComplianceWindow(QMainWindow):
         """)
         self.status_bar.addPermanentWidget(pct_label)
         
-        self.status_bar.showMessage("🚀 Ready for analysis - Select discipline and upload documentation to begin")
+        self.status_bar.showMessage("🚀 Ready for analysis - Medicare Benefits Policy Manual loaded as default rubric")
+        
+        # Load default Medicare rubric into display
+        if hasattr(self, 'current_rubric_text') and hasattr(self, 'rubric_display'):
+            self.rubric_display.setPlainText(self.current_rubric_text)
     
     def create_menu_bar(self):
         """Create menu bar with all options."""
@@ -1622,33 +1681,40 @@ class TherapyComplianceWindow(QMainWindow):
         self.detection_label.setMaximumHeight(25)
         rubric_layout.addWidget(self.detection_label)
         
-        # Rubric display area
+        # Rubric display area with default Medicare rubric
         self.rubric_display = QTextEdit()
-        self.rubric_display.setMaximumHeight(120)
-        self.rubric_display.setPlaceholderText("Selected rubric details will appear here...")
+        self.rubric_display.setMaximumHeight(100)  # More compact for scaling
         self.rubric_display.setReadOnly(True)
         self.rubric_display.setStyleSheet("""
             QTextEdit {
                 border: 2px solid #e2e8f0;
                 border-radius: 8px;
-                padding: 8px;
+                padding: 6px;
                 background-color: #f8fafc;
-                font-size: 12px;
+                font-size: 11px;
             }
         """)
+        # Set default Medicare rubric text
+        if hasattr(self, 'current_rubric_text'):
+            self.rubric_display.setPlainText(self.current_rubric_text)
+        else:
+            self.rubric_display.setPlaceholderText("Medicare Benefits Policy Manual (Default) - Loading...")
         rubric_layout.addWidget(self.rubric_display)
         
-        # Rubric buttons
+        # Compact rubric buttons
         rubric_btn_layout = QHBoxLayout()
-        self.upload_rubric_btn = QPushButton("📤 Upload Rubric")
+        self.upload_rubric_btn = QPushButton("📤 Upload")
+        self.upload_rubric_btn.setMaximumHeight(32)
         self.upload_rubric_btn.clicked.connect(self.upload_rubric)
         rubric_btn_layout.addWidget(self.upload_rubric_btn)
         
-        self.preview_rubric_btn = QPushButton("👁️ Preview Rubric")
+        self.preview_rubric_btn = QPushButton("👁️ Preview")
+        self.preview_rubric_btn.setMaximumHeight(32)
         self.preview_rubric_btn.clicked.connect(self.preview_rubric)
         rubric_btn_layout.addWidget(self.preview_rubric_btn)
         
         self.clear_rubric_btn = QPushButton("🗑️ Clear")
+        self.clear_rubric_btn.setMaximumHeight(32)
         self.clear_rubric_btn.clicked.connect(self.clear_rubric)
         rubric_btn_layout.addWidget(self.clear_rubric_btn)
         rubric_layout.addLayout(rubric_btn_layout)
@@ -1660,13 +1726,15 @@ class TherapyComplianceWindow(QMainWindow):
         upload_group = QGroupBox("📄 Document Upload")
         upload_layout = QVBoxLayout()
         
-        # Upload buttons
+        # Compact upload buttons
         upload_btn_layout = QHBoxLayout()
-        self.upload_btn = QPushButton("📄 Upload Document")
+        self.upload_btn = QPushButton("📄 Document")
+        self.upload_btn.setMaximumHeight(32)
         self.upload_btn.clicked.connect(self.upload_document)
         upload_btn_layout.addWidget(self.upload_btn)
         
-        self.upload_folder_btn = QPushButton("📁 Upload Folder")
+        self.upload_folder_btn = QPushButton("📁 Folder")
+        self.upload_folder_btn.setMaximumHeight(32)
         self.upload_folder_btn.clicked.connect(self.upload_folder)
         upload_btn_layout.addWidget(self.upload_folder_btn)
         upload_layout.addLayout(upload_btn_layout)
@@ -1983,8 +2051,8 @@ Plan: Continue current treatment...""")
         """)
         layout.addWidget(self.integrated_chat_input)
         
-        # Send button
-        send_btn = QPushButton("📤 Send Message")
+        # Send button with Enter key support
+        send_btn = QPushButton("📤 Send Message (Press Ctrl+Enter)")
         send_btn.clicked.connect(self.send_integrated_message)
         send_btn.setStyleSheet("""
             QPushButton {
@@ -2001,6 +2069,11 @@ Plan: Continue current treatment...""")
             }
         """)
         layout.addWidget(send_btn)
+        
+        # Add keyboard shortcuts for sending messages
+        from PyQt6.QtGui import QKeySequence, QShortcut
+        enter_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self.integrated_chat_input)
+        enter_shortcut.activated.connect(self.send_integrated_message)
         
         # Welcome message
         self.integrated_chat_history.setHtml("""
