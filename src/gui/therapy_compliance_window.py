@@ -411,6 +411,9 @@ class TherapyComplianceWindow(QMainWindow):
         self.setStyleSheet(MAIN_STYLESHEET)
         
         self.setup_ui()
+        
+        # Initialize AI model health check
+        self.check_ai_model_health()
     
     def setup_ui(self):
         """Set up the complete user interface."""
@@ -2081,4 +2084,79 @@ class TherapyComplianceWindow(QMainWindow):
             self.status_bar.showMessage("7 Habits Framework disabled - standard compliance analysis only")
         
         # Update habits button visibility
-        self.update_habits_integration()
+        self.update_habits_integration()  
+  
+    def update_ai_model_status(self, model_type: str, status: str, is_ready: bool = True):
+        """Update individual AI model status indicators."""
+        color = "#10b981" if is_ready else "#ef4444"  # Green or Red
+        bg_color = "#d1fae5" if is_ready else "#fecaca"  # Light green or light red
+        
+        status_text = f"{status}: {'Ready' if is_ready else 'Error'}"
+        
+        style = f"""
+            QLabel {{
+                color: {color};
+                font-weight: 600;
+                padding: 2px 6px;
+                background-color: {bg_color};
+                border-radius: 3px;
+                margin: 1px;
+                font-size: 10px;
+            }}
+        """
+        
+        if model_type == "llm":
+            self.llm_status_label.setText(f"🧠 {status_text}")
+            self.llm_status_label.setStyleSheet(style)
+        elif model_type == "ner":
+            self.ner_status_label.setText(f"🏷️ {status_text}")
+            self.ner_status_label.setStyleSheet(style)
+        elif model_type == "embeddings":
+            self.embeddings_status_label.setText(f"🔗 {status_text}")
+            self.embeddings_status_label.setStyleSheet(style)
+        elif model_type == "chat":
+            self.chat_status_label.setText(f"💬 {status_text}")
+            self.chat_status_label.setStyleSheet(style)
+    
+    def simulate_model_loading(self):
+        """Simulate AI model loading with status updates."""
+        # This would be called during actual model loading
+        self.update_ai_model_status("llm", "LLM", True)
+        self.update_ai_model_status("ner", "NER", True)
+        self.update_ai_model_status("embeddings", "Embeddings", True)
+        self.update_ai_model_status("chat", "Chat", True)
+        
+        # Update main status
+        self.status_bar.showMessage("All AI models loaded successfully - Ready for analysis")
+    
+    def check_ai_model_health(self):
+        """Check and update AI model health status."""
+        try:
+            # Check LLM
+            if self.analyzer:
+                self.update_ai_model_status("llm", "LLM", True)
+            else:
+                self.update_ai_model_status("llm", "LLM", False)
+            
+            # Check NER
+            if self.discipline_detector:
+                self.update_ai_model_status("ner", "NER", True)
+            else:
+                self.update_ai_model_status("ner", "NER", False)
+            
+            # Check Embeddings (assume ready if discipline detector works)
+            if self.discipline_detector:
+                self.update_ai_model_status("embeddings", "Embeddings", True)
+            else:
+                self.update_ai_model_status("embeddings", "Embeddings", False)
+            
+            # Check Chat (always ready since it's rule-based)
+            self.update_ai_model_status("chat", "Chat", True)
+            
+        except Exception as e:
+            print(f"Error checking AI model health: {e}")
+    
+    def polish_status_messages(self):
+        """Add polish to status messages throughout the app."""
+        # This can be called to enhance status messages
+        pass
