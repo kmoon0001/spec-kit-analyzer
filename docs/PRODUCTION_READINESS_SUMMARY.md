@@ -82,9 +82,9 @@ This document summarizes the high-priority production readiness features impleme
 - `docs/API_DOCUMENTATION.md` (800+ lines)
 
 **Interactive Documentation:**
-- Swagger UI: http://localhost:8001/docs
-- ReDoc: http://localhost:8001/redoc
-- OpenAPI Schema: http://localhost:8001/openapi.json
+- Swagger UI: http://localhost:9000/docs
+- ReDoc: http://localhost:9000/redoc
+- OpenAPI Schema: http://localhost:9000/openapi.json
 
 ---
 
@@ -342,9 +342,9 @@ def setup_keyboard_shortcuts(self):
 - Implementation Details: `SECURITY_VALIDATOR_IMPLEMENTATION.md`
 
 ### Interactive Resources
-- Swagger UI: http://localhost:8001/docs
-- ReDoc: http://localhost:8001/redoc
-- Health Check: http://localhost:8001/health
+- Swagger UI: http://localhost:9000/docs
+- ReDoc: http://localhost:9000/redoc
+- Health Check: http://localhost:9000/health
 
 ### Testing
 ```bash

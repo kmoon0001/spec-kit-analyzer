@@ -45,7 +45,7 @@ def start_api_server():
             "uvicorn",
             "src.api.main:app",
             "--port",
-            "8001",
+            "9000",
         ]
 
         # Open log files for stdout and stderr
