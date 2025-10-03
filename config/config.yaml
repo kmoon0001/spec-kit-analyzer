@@ -25,7 +25,7 @@ maintenance:
 
 paths:
   temp_upload_dir: "tmp/uploads"
-  api_url: "http://127.0.0.1:9000"
+  api_url: "http://127.0.0.1:9001"
   rule_dir: "src/resources/rules"
   medical_dictionary: "src/resources/medical_dictionary.txt"
 

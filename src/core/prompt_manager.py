@@ -1,8 +1,8 @@
 import os
-import structlog
+import logging
 from typing import Any
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class PromptManager:
@@ -26,7 +26,7 @@ class PromptManager:
     def _load_template(self) -> str:
         """Loads the prompt template from the file system."""
         if not os.path.exists(self.template_path):
-            logger.error("Prompt template not found", path=self.template_path)
+            logger.error("Prompt template not found: %s", self.template_path)
             raise FileNotFoundError(f"Prompt template not found: {self.template_path}")
 
         with open(self.template_path, "r", encoding="utf-8") as f:
