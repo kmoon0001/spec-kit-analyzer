@@ -10,14 +10,13 @@ import logging
 from datetime import datetime
 from typing import Dict, Optional, List
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
-    QPushButton, QLabel, QTextEdit, QComboBox, QSplitter, QTableWidget,
-    QTableWidgetItem, QProgressBar, QMenuBar, QMenu, QFileDialog,
-    QMessageBox, QGroupBox, QTextBrowser, QHeaderView, QStatusBar,
-    QToolButton, QFrame, QDialog, QScrollArea, QApplication
+    QDialog, QFileDialog, QGroupBox, QHBoxLayout, QHeaderView, QLabel,
+    QLineEdit, QMainWindow, QMessageBox, QProgressBar, QPushButton, QSplitter,
+    QStatusBar, QTabWidget, QTableWidget, QTableWidgetItem, QTextBrowser,
+    QTextEdit, QVBoxLayout, QWidget, QComboBox
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QUrl
-from PyQt6.QtGui import QColor, QAction, QFont, QKeySequence
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QColor, QKeySequence
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -948,14 +947,47 @@ Try asking about specific findings from your report, or ask about signature requ
         """Export report as HTML."""
         file_path, _ = QFileDialog.getSaveFileName(self, "Export HTML Report", "", "HTML Files (*.html)")
         if file_path:
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(self.report_browser.toHtml())
-            QMessageBox.information(self, "Success", f"Report exported to: {file_path}")
-    
+            try:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(self.report_browser.toHtml())
+                QMessageBox.information(self, "Success", f"Report exported to: {file_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Export Error", f"Failed to export HTML: {e}")
+
+    def export_pdf(self):
+        """Export report as PDF."""
+        file_path, _ = QFileDialog.getSaveFileName(self, "Export PDF Report", "", "PDF Files (*.pdf)")
+        if file_path:
+            try:
+                from src.core.pdf_export_service import pdf_export_service
+                html_content = self.report_browser.toHtml()
+                
+                metadata = {
+                    "document_name": getattr(self, 'document_name', 'Clinical Document'),
+                    "analysis_date": datetime.now().isoformat(),
+                    "discipline": self.results.get('discipline', 'Unknown'),
+                    "compliance_score": self.results.get('compliance_score', 'N/A')
+                }
+
+                success = pdf_export_service.export_report_to_pdf(
+                    html_content,
+                    file_path,
+                    metadata
+                )
+
+                if success:
+                    QMessageBox.information(self, "Success", f"PDF report exported to: {file_path}")
+                else:
+                    QMessageBox.warning(self, "Export Failed", "PDF export failed. Check logs for details.")
+            except ImportError:
+                QMessageBox.warning(self, "PDF Export Unavailable", "PDF export functionality requires the `pdf_export_service`.")
+            except Exception as e:
+                QMessageBox.critical(self, "Export Error", f"Failed to export PDF: {e}")
+
     def print_report(self):
         """Print the report."""
-        if not self.current_results:
-            QMessageBox.warning(self, "No Report", "Run an analysis first to generate a report.")
+        if not self.results:
+            QMessageBox.warning(self, "No Report", "No results available to print.")
             return
         
         try:
@@ -966,13 +998,12 @@ Try asking about specific findings from your report, or ask about signature requ
             dialog = QPrintDialog(printer, self)
             
             if dialog.exec() == QPrintDialog.DialogCode.Accepted:
-                # Create a document from the HTML content
                 document = QTextDocument()
-                document.setHtml(self.report_viewer.toHtml())
+                document.setHtml(self.report_browser.toHtml())
                 document.print(printer)
-                QMessageBox.information(self, "Success", "Report printed successfully!")
+                QMessageBox.information(self, "Success", "Report sent to printer.")
         except ImportError:
-            QMessageBox.warning(self, "Print Unavailable", "Print functionality requires PyQt6 print support.")
+            QMessageBox.warning(self, "Print Unavailable", "Printing requires the PyQt6.QtPrintSupport module.")
         except Exception as e:
             QMessageBox.critical(self, "Print Error", f"Failed to print report:\n{str(e)}")
 
@@ -1057,13 +1088,13 @@ class ComplianceAnalyzer:
                     "severity": rule["severity"],
                     "financial_impact": rule["financial_impact"],
                     "suggestion": rule["suggestion"],
-                    "evidence": f"Found goal-related content but missing measurable criteria"
+                    "evidence": "Found goal-related content but missing measurable criteria"
                 }
         
         # Handle required keyword rules (signature, medical necessity, etc.)
         elif "keywords" in rule:
-            keywords = rule.get("keywords", [])
-            found_keywords = [kw for kw in keywords if kw in text_lower]
+
+
             
             # More realistic checking - flag if missing critical elements
             if rule_id == "signature":
@@ -1308,7 +1339,7 @@ class TherapyComplianceWindow(QMainWindow):
             x = (screen.width() - self.width()) // 2
             y = (screen.height() - self.height()) // 2
             self.move(x, y)
-        except:
+        except Exception:
             self.setGeometry(100, 100, 1400, 900)
         
         # Initialize basic services
@@ -2120,9 +2151,19 @@ Plan: Continue current treatment...""")
         
         # Export buttons
         export_layout = QHBoxLayout()
-        export_layout.addWidget(QPushButton("📥 Export as PDF"))
-        export_layout.addWidget(QPushButton("📥 Export as HTML"))
-        export_layout.addWidget(QPushButton("📥 Export as JSON"))
+        
+        pdf_btn = QPushButton("📥 Export as PDF")
+        pdf_btn.clicked.connect(self.export_pdf)
+        export_layout.addWidget(pdf_btn)
+
+        html_btn = QPushButton("📥 Export as HTML")
+        html_btn.clicked.connect(self.export_html)
+        export_layout.addWidget(html_btn)
+
+        json_btn = QPushButton("📥 Export as JSON")
+        json_btn.clicked.connect(self.export_json)
+        export_layout.addWidget(json_btn)
+        
         export_layout.addStretch()
         layout.addLayout(export_layout)
         
@@ -2202,7 +2243,7 @@ Plan: Continue current treatment...""")
         layout.addWidget(send_btn)
         
         # Add keyboard shortcuts for sending messages
-        from PyQt6.QtGui import QKeySequence, QShortcut
+        from PyQt6.QtGui import QShortcut
         enter_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self.integrated_chat_input)
         enter_shortcut.activated.connect(self.send_integrated_message)
         
@@ -2377,8 +2418,8 @@ Plan: Continue current treatment...""")
                 self.selected_file_label.setText(f"📄 {file_name}")
                 
                 # Update upload report with detailed information
-                from datetime import datetime
-                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
                 
                 # Determine file type description
                 format_descriptions = {
@@ -2418,13 +2459,7 @@ Plan: Continue current treatment...""")
                 self.auto_detect_discipline()
                     
             except Exception as e:
-                error_info = f"""❌ Error loading file: {str(e)}
 
-🔧 Troubleshooting:
-• Ensure the file is not corrupted
-• Try saving as .txt format if possible
-• Check file permissions
-• For PDFs/Word docs, copy-paste text content instead"""
                 
                 # Show error status above document
                 self.upload_status_label.setText(f"❌ Error: {str(e)}")
@@ -2541,7 +2576,7 @@ For scanned PDFs, OCR with pytesseract would be needed."""
                     
             except Exception as e:
                 QMessageBox.warning(self, "Folder Processing Error", f"Error processing folder: {e}")
-                self.statusBar().showMessage(f"❌ Error processing folder")
+                self.statusBar().showMessage("❌ Error processing folder")
     
     def _process_batch_files(self, file_paths: List[str]):
         """Process multiple files in batch."""
@@ -2624,7 +2659,7 @@ For scanned PDFs, OCR with pytesseract would be needed."""
                 document_sections = parse_document_into_sections(text)
                 if len(document_sections) > 1:
                     # Document has structured sections
-                    section_info = f"📋 Document Structure Detected:\n"
+                    section_info = "📋 Document Structure Detected:\n"
                     for section_name, section_content in document_sections.items():
                         word_count = len(section_content.split())
                         section_info += f"• {section_name}: {word_count} words\n"
@@ -2632,7 +2667,7 @@ For scanned PDFs, OCR with pytesseract would be needed."""
                     self.statusBar().showMessage("📋 Structured document detected - enhanced analysis available")
                 else:
                     self.statusBar().showMessage("📄 Unstructured document - standard analysis mode")
-            except Exception as e:
+            except Exception:
                 # Fall back to treating as single document
                 document_sections = {"full_text": text}
                 self.statusBar().showMessage("📄 Document parsing unavailable - using full text")
@@ -2713,10 +2748,10 @@ For scanned PDFs, OCR with pytesseract would be needed."""
             self.statusBar().showMessage("⚠️ Running basic analysis (professional services unavailable)...")
             # Start worker with mock analyzer
             self.analysis_worker = AnalysisWorker(text, discipline, self.analyzer)
-        self.analysis_worker.finished.connect(self.on_analysis_complete)
-        self.analysis_worker.error.connect(self.on_analysis_error)
-        self.analysis_worker.progress.connect(self.on_analysis_progress)
-        self.analysis_worker.start()
+            self.analysis_worker.finished.connect(self.on_analysis_complete)
+            self.analysis_worker.error.connect(self.on_analysis_error)
+            self.analysis_worker.progress.connect(self.on_analysis_progress)
+            self.analysis_worker.start()
     
     def stop_analysis(self):
         """Stop running analysis."""
@@ -2822,8 +2857,15 @@ For scanned PDFs, OCR with pytesseract would be needed."""
             }
             
             # Generate comprehensive HTML report
-            html_report = report_generator.generate_report(report_data)
-            
+            report_dict = report_generator.generate_report(report_data)
+            html_report = report_dict.get("report_html", "")
+
+            if not html_report:
+                # Fallback if HTML content is not in the dictionary
+                self._generate_basic_report_fallback(results)
+                logger.warning("Comprehensive report generation failed to produce HTML. Using fallback.")
+                return
+
             # Store current results for export
             self.current_results = results
             self.current_document_name = report_data['document_name']
@@ -2965,9 +3007,27 @@ For scanned PDFs, OCR with pytesseract would be needed."""
         
         file_path, _ = QFileDialog.getSaveFileName(self, "Save HTML Report", "", "HTML Files (*.html)")
         if file_path:
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(self.report_viewer.toHtml())
-            QMessageBox.information(self, "Success", f"Report exported to: {file_path}")
+            try:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(self.report_viewer.toHtml())
+                QMessageBox.information(self, "Success", f"Report exported to: {file_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Export Error", f"Failed to export HTML: {e}")
+
+    def export_json(self):
+        """Export analysis results as JSON."""
+        if not self.current_results:
+            QMessageBox.warning(self, "No Report", "Run an analysis first to generate a report.")
+            return
+        
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save JSON Report", "", "JSON Files (*.json)")
+        if file_path:
+            try:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(self.current_results, f, indent=4)
+                QMessageBox.information(self, "Success", f"Report exported to: {file_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Export Error", f"Failed to export JSON: {e}")
     
     def manage_rubrics(self):
         """Open rubric management dialog."""
@@ -3423,7 +3483,7 @@ Compliance Settings:
         layout.addWidget(QLabel("<h2>🗄️ Database Maintenance</h2>"))
         
         # Maintenance options
-        maintenance_layout = QVBoxLayout()
+
         
         # Database info
         info_text = QTextEdit()
@@ -3684,15 +3744,15 @@ Maintenance Status:
     
     def generate_multi_discipline_report(self, results: Dict):
         """Generate HTML report for multi-discipline analysis."""
-        html = f"""
+        html = """
         <html>
         <head>
             <style>
-                body {{ font-family: Arial, sans-serif; padding: 20px; }}
-                h1 {{ color: #1e40af; }}
-                h2 {{ color: #3b82f6; margin-top: 24px; }}
-                .score {{ font-size: 24px; font-weight: bold; color: #10b981; }}
-                .discipline-badge {{ 
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h1 { color: #1e40af; }
+                h2 { color: #3b82f6; margin-top: 24px; }
+                .score { font-size: 24px; font-weight: bold; color: #10b981; }
+                .discipline-badge { 
                     display: inline-block;
                     background-color: #dbeafe;
                     color: #1e40af;
@@ -3700,15 +3760,15 @@ Maintenance Status:
                     border-radius: 12px;
                     margin: 4px;
                     font-weight: 600;
-                }}
-                table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
-                th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
-                th {{ background-color: #dbeafe; }}
-                .high {{ background-color: #fecaca; }}
-                .medium {{ background-color: #fed7aa; }}
-                .pt {{ background-color: #dbeafe; }}
-                .ot {{ background-color: #fef3c7; }}
-                .slp {{ background-color: #d1fae5; }}
+                }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+                th { background-color: #dbeafe; }
+                .high { background-color: #fecaca; }
+                .medium { background-color: #fed7aa; }
+                .pt { background-color: #dbeafe; }
+                .ot { background-color: #fef3c7; }
+                .slp { background-color: #d1fae5; }
             </style>
         </head>
         <body>
@@ -4246,25 +4306,7 @@ Maintenance Status:
             </ul>
         </div>
         """ 
-   
-    def toggle_habits_framework(self):
-        """Toggle 7 Habits framework on/off."""
-        self.habits_enabled = not self.habits_enabled
-        
-        if self.habits_enabled:
-            self.habits_action.setText("Disable Framework")
-            if hasattr(self, 'habits_btn'):
-                self.habits_btn.show()
-            self.status_bar.showMessage("7 Habits Framework enabled - personalized improvement strategies activated")
-        else:
-            self.habits_action.setText("Enable Framework")
-            if hasattr(self, 'habits_btn'):
-                self.habits_btn.hide()
-            self.status_bar.showMessage("7 Habits Framework disabled - standard compliance analysis only")
-        
-        # Update habits button visibility
-        self.update_habits_integration()  
-  
+
     def update_ai_model_status(self, model_type: str, status: str, is_ready: bool = True):
         """Update individual AI model status indicators."""
         color = "#10b981" if is_ready else "#ef4444"  # Green or Red

@@ -1,0 +1,129 @@
+# Lightweight Configuration for Therapy Compliance Analyzer
+# Avoids T5/sentencepiece conflicts by using only BERT-based models
+
+use_ai_mocks: false  # Use real models but lightweight ones
+enable_director_dashboard: true
+
+database:
+  url: "sqlite:///./compliance.db"
+  echo: false
+  pool_size: 3
+  max_overflow: 5
+  pool_timeout: 20
+  pool_recycle: 1800
+  sqlite_optimizations: true
+  connection_timeout: 15
+
+auth:
+  secret_key: "your_secret_key_here"
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
+
+maintenance:
+  purge_retention_days: 60
+  purge_interval_days: 1
+
+paths:
+  temp_upload_dir: "tmp/uploads"
+  api_url: "http://127.0.0.1:8000"
+  rule_dir: "src/resources/rules"
+  medical_dictionary: "src/resources/medical_dictionary.txt"
+
+# OCR Configuration
+ocr:
+  enabled: true
+  preprocessing: true
+  deskew: true
+  resolution: 300
+  tesseract_config: "--oem 3 --psm 6"
+  supported_image_formats: [".png", ".jpg", ".jpeg", ".tiff", ".bmp"]
+  max_image_size_mb: 50
+
+models:
+  # Use only BERT-based models to avoid T5/sentencepiece conflicts
+  generator_profiles:
+    standard:
+      repo: "distilbert-base-uncased"  # Lightweight BERT model
+      filename: ""
+      revision: "main"
+      max_system_gb: 8.0
+    enhanced:
+      repo: "bert-base-uncased"  # Standard BERT model
+      filename: ""
+      revision: "main"
+      min_system_gb: 8.0
+  chat:
+    repo: "distilbert-base-uncased"
+    filename: ""
+    revision: "main"
+    model_type: "bert"
+    context_length: 512
+  retriever: "sentence-transformers/all-MiniLM-L6-v2"
+  fact_checker: "microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext"  # Medical BERT
+  ner_ensemble:
+    - "Clinical-AI-Apollo/Medical-NER"
+  phi_scrubber:
+    general: "beki/en_spacy_pii_fast"
+    biomedical: "bigcode/starpii"
+  doc_classifier_prompt: "src/resources/prompts/doc_classifier_prompt.txt"
+  analysis_prompt_template: "src/resources/prompts/analysis_prompt_template.txt"
+  nlg_prompt_template: "src/resources/prompts/nlg_prompt_template.txt"
+
+llm:
+  model_type: "bert"  # Use BERT instead of llama/T5
+  context_length: 512
+  generation_params:
+    temperature: 0.1
+    max_new_tokens: 256
+
+retrieval:
+  dense_model_name: "sentence-transformers/all-MiniLM-L6-v2"
+  similarity_top_k: 3
+  rrf_k: 60
+
+analysis:
+  confidence_threshold: 0.7
+  deterministic_focus: |
+    - Treatment frequency documented
+    - Goals reviewed or adjusted
+    - Medical necessity justified
+
+# Simplified habits framework
+habits_framework:
+  enabled: true
+  visibility_level: "moderate"
+  report_integration:
+    show_habit_tags: true
+    show_personal_development_section: true
+    show_habit_tooltips: true
+    habit_section_expanded_by_default: false
+  dashboard_integration:
+    show_growth_journey_tab: true
+    show_weekly_focus_widget: true
+    show_habit_progression_charts: true
+    show_peer_comparison: false
+  ai_features:
+    use_ai_mapping: false
+    use_ai_coaching: false
+    personalized_strategies: true
+  gamification:
+    enabled: true
+    show_badges: true
+    show_streaks: true
+    show_milestones: true
+    notifications_enabled: false
+  education:
+    show_habit_resources: true
+    show_clinical_examples: true
+    show_improvement_strategies: true
+    show_templates: true
+  privacy:
+    track_progression: true
+    anonymous_analytics: true
+    share_achievements: false
+  advanced:
+    habit_confidence_threshold: 0.6
+    focus_area_threshold: 0.20
+    mastery_threshold: 0.05
+    weekly_focus_enabled: true
+    auto_suggest_templates: true

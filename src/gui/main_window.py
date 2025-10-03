@@ -48,7 +48,6 @@ from src.gui.widgets.meta_analytics_widget import MetaAnalyticsWidget
 from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
 from src.gui.dialogs.performance_settings_dialog import PerformanceSettingsDialog
 from src.core.report_generator import ReportGenerator
-from src.gui.export import generate_pdf_report
 
 # Add project root to path for imports
 project_root = os.path.dirname(

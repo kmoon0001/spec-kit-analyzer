@@ -4,7 +4,7 @@ Detects PT, OT, SLP, or multi-discipline records using pattern matching
 """
 
 import re
-from typing import List, Dict, Set
+from typing import List, Dict
 from dataclasses import dataclass
 
 
@@ -98,7 +98,7 @@ class DisciplineDetector:
         Returns:
             DisciplineDetectionResult with detected disciplines and confidence
         """
-        text_lower = text.lower()
+
         
         # Calculate scores for each discipline
         pt_score, pt_evidence = self._calculate_discipline_score(text, self.pt_patterns)
@@ -189,7 +189,7 @@ class DisciplineDetector:
         lines.append("=== Discipline Detection Report ===\n")
         
         if result.is_multi_discipline:
-            lines.append(f"Type: Multi-Discipline Record")
+            lines.append("Type: Multi-Discipline Record")
             lines.append(f"Disciplines: {', '.join(result.detected_disciplines)}\n")
         else:
             lines.append(f"Primary Discipline: {result.primary_discipline}\n")

@@ -1,0 +1,25 @@
+{
+  "timestamp": "2025-10-02",
+  "overall_status": "error",
+  "config_validation": {
+    "valid": true,
+    "errors": [],
+    "warnings": []
+  },
+  "environment_check": {
+    "valid": false,
+    "missing_variables": [
+      "Recommended environment variable not set: SECRET_KEY",
+      "Recommended environment variable not set: DATABASE_URL"
+    ]
+  },
+  "permissions_check": {
+    "valid": false,
+    "errors": [
+      "No write permission for logs directory: logs"
+    ]
+  },
+  "recommendations": [
+    "Set recommended environment variables for production use"
+  ]
+}

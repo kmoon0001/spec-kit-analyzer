@@ -7,7 +7,6 @@ headers, footers, and medical document styling.
 
 import logging
 import os
-import tempfile
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Any
 from pathlib import Path
@@ -19,23 +18,19 @@ logger = logging.getLogger(__name__)
 try:
     from weasyprint import HTML, CSS
     from weasyprint.text.fonts import FontConfiguration
-    PDF_AVAILABLE = True
     WEASYPRINT_AVAILABLE = True
 except (ImportError, OSError) as e:
-    # Handle both import errors and library loading errors
-    logger.warning(f"WeasyPrint not available: {e}")
-    # Create dummy classes for testing
-    HTML = None
-    CSS = None
-    FontConfiguration = None
-    try:
-        import pdfkit
-        PDF_AVAILABLE = True
-        WEASYPRINT_AVAILABLE = False
-    except ImportError:
-        logger.warning("pdfkit also not available, PDF export will be disabled")
-        PDF_AVAILABLE = False
-        WEASYPRINT_AVAILABLE = False
+    logger.warning(f"WeasyPrint not available: {e}. WeasyPrint is the preferred PDF generation backend.")
+    WEASYPRINT_AVAILABLE = False
+
+try:
+    import pdfkit
+    PDFKIT_AVAILABLE = True
+except ImportError:
+    logger.warning("pdfkit not available. This is a fallback PDF generation backend.")
+    PDFKIT_AVAILABLE = False
+
+PDF_AVAILABLE = WEASYPRINT_AVAILABLE or PDFKIT_AVAILABLE
 
 
 class PDFExportService:
@@ -49,7 +44,7 @@ class PDFExportService:
     
     def __init__(self, output_dir: str = "temp/reports", retention_hours: int = 24, enable_auto_purge: bool = True):
         self.pdf_available = PDF_AVAILABLE
-        self.use_weasyprint = PDF_AVAILABLE and WEASYPRINT_AVAILABLE
+        self.use_weasyprint = WEASYPRINT_AVAILABLE
         self.output_dir = Path(output_dir)
         self.retention_hours = retention_hours
         self.enable_auto_purge = enable_auto_purge
@@ -99,11 +94,7 @@ class PDFExportService:
         Returns:
             Dict with export results including success status, file path, etc.
         """
-        # Allow testing with mocked HTML even when PDF libraries aren't available
-        import sys
-        is_testing = 'pytest' in sys.modules
-        
-        if not self.pdf_available and not is_testing:
+        if not self.pdf_available:
             return {
                 "success": False,
                 "error": "PDF export not available. Please install weasyprint or pdfkit.",
@@ -131,16 +122,10 @@ class PDFExportService:
             styled_html = self._add_pdf_styling(html_content, metadata, document_name)
             
             success = False
-            if self.use_weasyprint or (is_testing and HTML is not None):
+            if self.use_weasyprint:
                 success = self._export_with_weasyprint(styled_html, str(output_path), metadata)
-            elif 'pdfkit' in globals():
+            elif PDFKIT_AVAILABLE:
                 success = self._export_with_pdfkit(styled_html, str(output_path), metadata)
-            else:
-                # In testing mode, simulate success
-                if is_testing:
-                    # Create a dummy file for testing
-                    output_path.touch()
-                    success = True
             
             if success:
                 file_size = output_path.stat().st_size if output_path.exists() else 0
@@ -162,7 +147,7 @@ class PDFExportService:
             else:
                 return {
                     "success": False,
-                    "error": "PDF generation failed",
+                    "error": "PDF generation failed. No suitable backend was available or it failed.",
                     "pdf_path": None,
                     "file_size": 0
                 }
@@ -502,17 +487,8 @@ class PDFExportService:
     def _export_with_weasyprint(self, html_content: str, output_path: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
         """Export using WeasyPrint (preferred method)."""
         try:
-            import sys
-            is_testing = 'pytest' in sys.modules
-            
-            # Create HTML document (this will use the mocked HTML in tests)
+            # Create HTML document
             html_doc = HTML(string=html_content)
-            
-            if is_testing:
-                # In testing mode, just create a dummy file after calling HTML
-                Path(output_path).touch()
-                logger.info(f"PDF exported successfully using WeasyPrint (test mode): {output_path}")
-                return True
             
             # Configure fonts
             font_config = FontConfiguration()

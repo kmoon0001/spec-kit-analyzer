@@ -10,7 +10,6 @@ import logging
 import os
 import platform
 import psutil
-from pathlib import Path
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)

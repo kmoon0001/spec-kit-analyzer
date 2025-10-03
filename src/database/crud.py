@@ -5,13 +5,16 @@ Provides async database operations for users, rubrics, reports, and findings.
 """
 
 import datetime
+import logging
 from typing import List, Optional, Dict, Any
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from . import models, schemas
+
+logger = logging.getLogger(__name__)
 
 
 async def get_user_by_username(
@@ -175,6 +178,16 @@ async def get_reports(
     return list(result.scalars().all())
 
 
+async def get_user_analysis_count(db: AsyncSession, user_id: int) -> int:
+    """Get total analysis count for a user."""
+    result = await db.execute(
+        select(func.count(models.AnalysisReport.id)).where(
+            models.AnalysisReport.user_id == user_id
+        )
+    )
+    return result.scalar() or 0
+
+
 async def delete_report(db: AsyncSession, report_id: int) -> None:
     """Delete a report and its associated findings."""
     await db.execute(
@@ -227,42 +240,41 @@ async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
 
 
 async def find_similar_report(
-    db: AsyncSession, embedding: bytes, threshold: float = 0.9
+    db: AsyncSession,
+    document_type: str,
+    exclude_report_id: int,
+    embedding: Optional[bytes] = None,
+    threshold: float = 0.9,
 ) -> Optional[models.AnalysisReport]:
     """
-    Find similar report based on embedding similarity.
+    Find a similar report based on document type.
 
     This is a placeholder for actual similarity search logic.
-    In production, this would use a vector database.
+    In production, this would use a vector database and the 'embedding' parameter.
 
     Args:
         db: Database session
-        embedding: Document embedding bytes
-        threshold: Similarity threshold
+        document_type: The type of the document to find a similar one for.
+        exclude_report_id: The ID of the report to exclude from the search.
+        embedding: Document embedding bytes (currently unused).
+        threshold: Similarity threshold (currently unused).
 
     Returns:
-        Similar report if found, None otherwise
+        A similar report if found, None otherwise.
     """
-    # Implement basic similarity search based on document content and findings
     try:
-        # Get recent reports for comparison
-        recent_reports = await db.execute(
-            select(AnalysisReport)
-            .where(AnalysisReport.created_at >= datetime.now() - timedelta(days=30))
-            .order_by(AnalysisReport.created_at.desc())
-            .limit(10)
+        # Get the most recent report of the same type, excluding the current one.
+        query = (
+            select(models.AnalysisReport)
+            .where(
+                models.AnalysisReport.document_type == document_type,
+                models.AnalysisReport.id != exclude_report_id,
+            )
+            .order_by(models.AnalysisReport.analysis_date.desc())
+            .limit(1)
         )
-        
-        reports = recent_reports.scalars().all()
-        
-        # Simple similarity based on document type and discipline
-        for report in reports:
-            if (report.document_type == document_type and 
-                report.discipline == discipline and
-                report.id != exclude_report_id):
-                return report
-                
-        return None
+        result = await db.execute(query)
+        return result.scalars().first()
     except Exception as e:
         logger.error(f"Error finding similar report: {e}")
         return None

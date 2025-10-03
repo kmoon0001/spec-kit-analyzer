@@ -3,7 +3,6 @@ import os
 import re
 from typing import Dict, List
 from PIL import Image
-import io
 
 import pdfplumber
 import yaml

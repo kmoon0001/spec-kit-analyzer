@@ -122,35 +122,33 @@ class AnalysisService:
             # Handle both file path and direct document text input
             if document_text is not None:
                 # Use provided document text directly
-                processed_text = self._trim_document_text(document_text)
+                text_to_process = self._trim_document_text(document_text)
             elif file_path is not None:
                 # Parse document from file path
                 chunks = parse_document_content(file_path)
-                processed_text = " ".join(
+                text_to_process = " ".join(
                     chunk.get("sentence", "") for chunk in chunks if isinstance(chunk, dict)
                 ).strip()
-                processed_text = self._trim_document_text(processed_text)
+                text_to_process = self._trim_document_text(text_to_process)
             else:
                 raise ValueError("Either file_path or document_text must be provided")
-            
-            document_text = processed_text
 
-            document_text = await self._maybe_await(
-                self.preprocessing.correct_text(document_text)
+            corrected_text = await self._maybe_await(
+                self.preprocessing.correct_text(text_to_process)
             )
 
             # Scrub PHI from the document before any further processing
-            document_text = self.phi_scrubber.scrub(document_text)
+            scrubbed_text = self.phi_scrubber.scrub(corrected_text)
 
             discipline_clean = sanitize_human_text(discipline or "Unknown")
             doc_type_raw = await self._maybe_await(
-                self.document_classifier.classify_document(document_text)
+                self.document_classifier.classify_document(scrubbed_text)
             )
             doc_type_clean = sanitize_human_text(doc_type_raw or "Unknown")
 
             analysis_result = await self._maybe_await(
                 self.compliance_analyzer.analyze_document(
-                    document_text=document_text,
+                    document_text=scrubbed_text,
                     discipline=discipline_clean,
                     doc_type=doc_type_clean,
                 )
@@ -158,7 +156,7 @@ class AnalysisService:
 
             analysis_result = self._enrich_analysis_result(
                 analysis_result,
-                document_text=document_text,
+                document_text=scrubbed_text,
                 discipline=discipline_clean,
                 doc_type=doc_type_clean,
             )

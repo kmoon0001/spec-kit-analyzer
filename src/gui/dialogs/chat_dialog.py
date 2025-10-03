@@ -5,10 +5,9 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QTextEdit,
     QPushButton,
-    QDialogButtonBox,
     QLabel,
 )
-from PyQt6.QtCore import QThread, Qt
+from PyQt6.QtCore import QThread
 from PyQt6.QtGui import QKeySequence, QShortcut
 from typing import List, Dict
 

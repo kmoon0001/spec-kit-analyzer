@@ -83,9 +83,11 @@ class PreprocessingService:
                 # Use the cache to avoid re-computing known corrections.
                 if token not in self.correction_cache:
                     correction = self.spell.correction(token)
-                    self.correction_cache[token] = (
-                        correction if correction != token else token
-                    )
+                    # If correction is None, or it's the same as the token, cache the original token
+                    if correction is None or correction == token:
+                        self.correction_cache[token] = token
+                    else:
+                        self.correction_cache[token] = correction
 
                 corrected_word = self.correction_cache[token]
                 if corrected_word != token:

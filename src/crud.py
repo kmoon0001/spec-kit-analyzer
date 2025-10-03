@@ -2,8 +2,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from typing import Optional
 import datetime
+import logging
+from sqlalchemy import func
+
 from src.database import models
 from src import schemas
+
+logger = logging.getLogger(__name__)
 
 
 async def get_user(db: AsyncSession, user_id: int):
@@ -79,17 +84,23 @@ async def get_report(db: AsyncSession, report_id: int):
 
 
 async def get_findings_summary(db: AsyncSession):
-    # This is a placeholder implementation. A real implementation would involve
-    # more complex aggregation queries.
-    result = await db.execute(select(models.AnalysisReport))
-    reports = result.scalars().all()
-    summary: dict[str, int] = {}
-    for report in reports:
-        if report.findings:
-            for finding in report.findings:
-                title = finding.get("issue_title", "Unknown Issue")
-                summary[title] = summary.get(title, 0) + 1
-    return [{"issue_title": title, "count": count} for title, count in summary.items()]
+    """
+    Get a summary of findings by grouping them by rule_id and counting them.
+    """
+    try:
+        query = (
+            select(models.Finding.rule_id, func.count(models.Finding.id).label("count"))
+            .group_by(models.Finding.rule_id)
+            .order_by(func.count(models.Finding.id).desc())
+        )
+        result = await db.execute(query)
+        # The result will be a list of tuples (rule_id, count).
+        # We need to format it as a list of dictionaries.
+        summary = [{"issue_title": rule_id, "count": count} for rule_id, count in result]
+        return summary
+    except Exception as e:
+        logger.error(f"Error getting findings summary: {e}")
+        return []
 
 
 async def get_all_rubrics(db: AsyncSession):

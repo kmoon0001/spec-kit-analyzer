@@ -17,6 +17,8 @@ from typing import Any, Dict, List
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.database.crud import delete_reports_older_than
+
 logger = logging.getLogger(__name__)
 
 
@@ -151,13 +153,16 @@ class DatabaseOptimizer:
         cutoff_date = datetime.now() - timedelta(days=days_to_keep)
 
         try:
-            # This would implement actual cleanup logic
-            # For now, return a placeholder
+            # Call the existing CRUD function to delete old reports
+            num_deleted = await delete_reports_older_than(db, days=days_to_keep)
+            
+            logger.info(f"Successfully cleaned up {num_deleted} old reports.")
+            
             return {
                 "cleanup_date": cutoff_date.isoformat(),
                 "days_kept": days_to_keep,
                 "status": "completed",
-                "records_cleaned": 0,
+                "records_cleaned": num_deleted,
             }
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")

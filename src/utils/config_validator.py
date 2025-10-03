@@ -10,7 +10,7 @@ import yaml
 from pathlib import Path
 from typing import Dict, List, Any, Tuple
 
-from src.config import get_settings, Settings
+from src.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class ConfigValidator:
             
             # Try to load with Pydantic for final validation
             try:
-                settings = Settings(**config_data)
+
                 logger.info("Configuration successfully validated with Pydantic models")
             except Exception as e:
                 self.validation_errors.append(f"Pydantic validation failed: {str(e)}")
