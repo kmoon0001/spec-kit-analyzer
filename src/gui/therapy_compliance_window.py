@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QLabel, QTextEdit, QComboBox, QSplitter, QTableWidget,
     QTableWidgetItem, QProgressBar, QMenuBar, QMenu, QFileDialog,
     QMessageBox, QGroupBox, QTextBrowser, QHeaderView, QStatusBar,
-    QToolButton, QFrame
+    QToolButton, QFrame, QDialog
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QUrl
 from PyQt6.QtGui import QColor, QAction, QFont
@@ -428,7 +428,7 @@ class TherapyComplianceWindow(QMainWindow):
         main_layout.setSpacing(0)
         
         # Header with enhanced styling
-        header = QLabel("🏥 Therapy Compliance Analyzer")
+        header = QLabel("🏥 THERAPY COMPLIANCE ANALYZER")
         header.setObjectName("headerLabel")
         header.setAlignment(Qt.AlignmentFlag.AlignCenter)
         header.setStyleSheet("""
@@ -436,11 +436,12 @@ class TherapyComplianceWindow(QMainWindow):
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                     stop:0 #1e40af, stop:0.5 #3b82f6, stop:1 #2563eb);
                 color: white;
-                padding: 24px;
-                font-size: 32px;
+                padding: 20px;
+                font-size: 28px;
                 font-weight: 700;
                 border-bottom: 4px solid #1d4ed8;
-                text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                min-height: 60px;
+                max-height: 80px;
             }
         """)
         main_layout.addWidget(header)
@@ -453,10 +454,12 @@ class TherapyComplianceWindow(QMainWindow):
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                     stop:0 #dbeafe, stop:0.5 #bfdbfe, stop:1 #dbeafe);
                 color: #1e40af;
-                padding: 12px;
-                font-size: 14px;
+                padding: 8px;
+                font-size: 13px;
                 font-weight: 600;
                 border-bottom: 2px solid #93c5fd;
+                min-height: 30px;
+                max-height: 40px;
             }
         """)
         main_layout.addWidget(subtitle)
@@ -612,15 +615,19 @@ class TherapyComplianceWindow(QMainWindow):
         
         # Top section with rubric and upload controls
         top_splitter = QSplitter(Qt.Orientation.Horizontal)
+        top_splitter.setMinimumHeight(280)
+        top_splitter.setMaximumHeight(320)
         
         # Left: Rubric Management
         rubric_group = QGroupBox("📚 Compliance Rubric")
         rubric_layout = QVBoxLayout()
+        rubric_layout.setSpacing(8)
         
         # Discipline selector with auto-detect
         discipline_layout = QHBoxLayout()
         discipline_layout.addWidget(QLabel("Discipline:"))
         self.discipline_combo = QComboBox()
+        self.discipline_combo.setMinimumHeight(32)
         self.discipline_combo.addItems([
             "🔍 Auto-Detect",
             "📋 Medicare Guidelines (All)",
@@ -634,6 +641,7 @@ class TherapyComplianceWindow(QMainWindow):
         
         # Auto-detect button
         self.auto_detect_btn = QPushButton("🔍 Detect Now")
+        self.auto_detect_btn.setMinimumHeight(32)
         self.auto_detect_btn.clicked.connect(self.auto_detect_discipline)
         self.auto_detect_btn.setToolTip("Automatically detect discipline from document")
         discipline_layout.addWidget(self.auto_detect_btn)
@@ -642,15 +650,10 @@ class TherapyComplianceWindow(QMainWindow):
         # Detection result label
         self.detection_label = QLabel("")
         self.detection_label.setStyleSheet("color: #10b981; font-weight: 600; padding: 4px;")
+        self.detection_label.setMaximumHeight(25)
         rubric_layout.addWidget(self.detection_label)
         
-        # Rubric display
-        self.rubric_display = QTextEdit()
-        self.rubric_display.setMaximumHeight(120)
-        self.rubric_display.setPlaceholderText("Selected rubric details will appear here...")
-        self.rubric_display.setReadOnly(True)
-        rubric_layout.addWidget(self.rubric_display)
-        
+        # Rub
         # Rubric buttons
         rubric_btn_layout = QHBoxLayout()
         self.upload_rubric_btn = QPushButton("📤 Upload Rubric")
