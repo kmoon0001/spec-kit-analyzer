@@ -112,7 +112,7 @@ class MainApplicationWindow(QMainWindow):
         # Extract port from API_URL for MetaAnalyticsWorker
         from urllib.parse import urlparse
         parsed_url = urlparse(API_URL)
-        self.api_port = parsed_url.port or 8003
+        self.api_port = parsed_url.port or 9000
         self.init_base_ui()
 
     def start(self):
