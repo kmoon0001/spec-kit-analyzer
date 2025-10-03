@@ -8,7 +8,7 @@ class ApiAnalysisWorker(QObject):
     finished = pyqtSignal(dict)
     error = pyqtSignal(str)
 
-    def __init__(self, file_path: str, api_url: str = "http://127.0.0.1:8000/analyze"):
+    def __init__(self, file_path: str, api_url: str = "http://127.0.0.1:8001/analyze"):
         super().__init__()
         self.file_path = file_path
         self.api_url = api_url

@@ -2,7 +2,7 @@ import requests
 from PyQt6.QtCore import QObject, pyqtSignal as Signal
 from typing import List, Dict
 
-API_URL = "http://127.0.0.1:8000"
+API_URL = "http://127.0.0.1:8001"
 
 
 class ChatWorker(QObject):

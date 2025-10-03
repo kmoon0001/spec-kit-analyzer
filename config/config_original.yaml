@@ -28,7 +28,7 @@ maintenance:
 
 paths:
   temp_upload_dir: "/tmp/uploads"
-  api_url: "http://127.0.0.1:8000"
+  api_url: "http://127.0.0.1:8001"
   rule_dir: "src/resources/rules"
 
 models:
