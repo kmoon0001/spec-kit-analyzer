@@ -637,6 +637,9 @@ class TherapyComplianceWindow(QMainWindow):
             "Multi-Discipline (All)"
         ])
         self.discipline_combo.currentIndexChanged.connect(self.on_discipline_changed)
+        
+        # Set Medicare Guidelines as default
+        self.discipline_combo.setCurrentIndex(1)
         discipline_layout.addWidget(self.discipline_combo)
         
         # Auto-detect button
