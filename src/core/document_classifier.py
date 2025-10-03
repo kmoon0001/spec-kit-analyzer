@@ -17,7 +17,10 @@ class DocumentClassifier:
             prompt_template_path: The path to the prompt template for classification.
         """
         self.llm_service = llm_service
-        self.prompt_manager = PromptManager(template_path=prompt_template_path)
+        # Extract just the filename from the path for PromptManager
+        import os
+        template_name = os.path.basename(prompt_template_path)
+        self.prompt_manager = PromptManager(template_name=template_name)
         self.possible_types = [
             "Progress Note",
             "Evaluation",

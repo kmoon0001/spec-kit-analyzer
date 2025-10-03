@@ -56,6 +56,19 @@ class DatabaseOptimizer:
     async def analyze_table_statistics(
         self, db: AsyncSession, table_name: str
     ) -> Dict[str, Any]:
+        """Analyzes statistics for a given database table.
+
+        Retrieves row count, table size, and average row size to identify
+        tables that might benefit from optimization.
+
+        Args:
+            db (AsyncSession): The asynchronous database session.
+            table_name (str): The name of the table to analyze.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the table's statistics and
+                            an indication if it needs optimization.
+        """
         """
         Analyze table statistics for optimization insights.
 
@@ -104,6 +117,18 @@ class DatabaseOptimizer:
     async def get_optimization_recommendations(
         self, db: AsyncSession
     ) -> List[Dict[str, Any]]:
+        """Generates a list of database optimization recommendations.
+
+        These recommendations can include suggestions for regular maintenance tasks
+        like VACUUM and advice on index usage.
+
+        Args:
+            db (AsyncSession): The asynchronous database session.
+
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries, each representing an
+                                  optimization recommendation.
+        """
         """
         Get database optimization recommendations.
 
@@ -145,6 +170,20 @@ class DatabaseOptimizer:
     async def cleanup_old_data(
         self, db: AsyncSession, days_to_keep: int = 90
     ) -> Dict[str, Any]:
+        """Cleans up old data from the database based on a retention policy.
+
+        This method deletes records older than a specified number of days,
+        primarily targeting old reports.
+
+        Args:
+            db (AsyncSession): The asynchronous database session.
+            days_to_keep (int): The number of days to retain data. Records older
+                                than this will be deleted.
+
+        Returns:
+            Dict[str, Any]: A dictionary summarizing the cleanup operation, including
+                            the number of records cleaned.
+        """
         """
         Clean up old data based on retention policy.
 
