@@ -2,7 +2,7 @@
   "profile": "balanced",
   "system_info": {
     "total_memory_gb": 15,
-    "available_memory_gb": 4,
+    "available_memory_gb": 3,
     "cpu_count": 14,
     "cuda_available": false,
     "gpu_memory_gb": 0,
