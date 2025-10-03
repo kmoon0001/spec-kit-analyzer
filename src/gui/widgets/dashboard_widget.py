@@ -1,5 +1,5 @@
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QPushButton
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QPushButton
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.dates as mdates
@@ -9,7 +9,7 @@ class DashboardWidget(QWidget):
     """A widget to display compliance trends and other visualizations."""
 
     # Add the custom signal
-    refresh_requested = pyqtSignal()
+    refresh_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)

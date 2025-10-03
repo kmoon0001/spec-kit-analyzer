@@ -1,6 +1,6 @@
 import logging
 import urllib.parse
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QTextBrowser,
@@ -9,8 +9,8 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QMessageBox,
 )
-from PyQt6.QtPrintSupport import QPrinter
-from PyQt6.QtCore import QUrl
+from PySide6.QtPrintSupport import QPrinter
+from PySide6.QtCore import QUrl
 
 # Local imports
 from .chat_dialog import ChatDialog

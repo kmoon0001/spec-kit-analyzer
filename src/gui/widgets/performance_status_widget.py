@@ -5,9 +5,9 @@ Provides quick access to performance settings and system monitoring.
 
 import logging
 from typing import Dict, Any, Optional
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QProgressBar
-from PyQt6.QtCore import QTimer, pyqtSignal
-from PyQt6.QtGui import QFont
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QProgressBar
+from PySide6.QtCore import QTimer, Signal
+from PySide6.QtGui import QFont
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class PerformanceStatusWidget(QWidget):
     Shows key metrics and provides quick access to performance settings.
     """
 
-    settings_requested = pyqtSignal()
+    settings_requested = Signal()
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)

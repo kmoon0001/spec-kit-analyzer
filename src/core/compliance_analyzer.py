@@ -83,8 +83,16 @@ class ComplianceAnalyzer:
             logger.error("LLM returned non-JSON payload: %s", raw_analysis_result)
             initial_analysis = {"raw_output": raw_analysis_result}
 
+        # Create explanation context with discipline and document type
+        from src.core.explanation import ExplanationContext
+        explanation_context = ExplanationContext(
+            document_type=doc_type,
+            discipline=discipline,
+            rubric_name=f"{discipline.upper()} Compliance Rubric"
+        )
+        
         explained_analysis = self.explanation_engine.add_explanations(
-            initial_analysis, document_text
+            initial_analysis, document_text, explanation_context, retrieved_rules
         )
 
         final_analysis = await self._post_process_findings(

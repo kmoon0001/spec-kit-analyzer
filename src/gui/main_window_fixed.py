@@ -10,9 +10,9 @@ import sys
 from typing import Any, Dict
 
 import requests
-from PyQt6.QtCore import QThread, QTimer, Qt, pyqtSignal as Signal
-from PyQt6.QtGui import QFont
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QThread, QTimer, Qt, Signal as Signal
+from PySide6.QtGui import QFont
+from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QFrame,

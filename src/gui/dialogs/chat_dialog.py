@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QHBoxLayout,
@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QDialogButtonBox,
 )
-from PyQt6.QtCore import QThread
+from PySide6.QtCore import QThread
 from typing import List, Dict
 
 from ..workers.chat_worker import ChatWorker

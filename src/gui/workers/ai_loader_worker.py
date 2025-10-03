@@ -4,7 +4,7 @@ import asyncio
 import logging
 from typing import Dict, Optional
 
-from PyQt6.QtCore import QObject, pyqtSignal as Signal
+from PySide6.QtCore import QObject, Signal as Signal
 
 from src.core.analysis_service import AnalysisService
 from src.core.compliance_service import ComplianceService

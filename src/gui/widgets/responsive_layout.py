@@ -2,15 +2,15 @@
 Responsive Layout System - Adaptive UI that scales to different screen sizes.
 """
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QGridLayout, QSplitter, QScrollArea
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer
-from PyQt6.QtGui import QResizeEvent, QFont
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QGridLayout, QSplitter, QScrollArea
+from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtGui import QResizeEvent, QFont
 
 
 class ResponsiveWidget(QWidget):
     """Base widget that adapts to screen size changes."""
 
-    breakpoint_changed = pyqtSignal(str)  # 'mobile', 'tablet', 'desktop', 'large'
+    breakpoint_changed = Signal(str)  # 'mobile', 'tablet', 'desktop', 'large'
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -139,7 +139,7 @@ class VirtualScrollArea(QScrollArea):
 
     def create_item_widget(self, item_data, index: int) -> QWidget:
         """Override in subclasses to create item widgets."""
-        from PyQt6.QtWidgets import QLabel
+        from PySide6.QtWidgets import QLabel
 
         widget = QLabel(f"Item {index}: {str(item_data)}")
         widget.setFixedHeight(self.item_height)

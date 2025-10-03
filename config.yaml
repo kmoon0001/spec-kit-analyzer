@@ -1,7 +1,7 @@
 # Lightweight Configuration for Therapy Compliance Analyzer
 # Avoids T5/sentencepiece conflicts by using only BERT-based models
 
-use_ai_mocks: false  # Use real models but lightweight ones
+use_ai_mocks: true  # Use mocks for faster startup during development
 enable_director_dashboard: true
 
 database:
@@ -25,7 +25,7 @@ maintenance:
 
 paths:
   temp_upload_dir: "tmp/uploads"
-  api_url: "http://127.0.0.1:8000"
+  api_url: "http://127.0.0.1:8001"
   rule_dir: "src/resources/rules"
   medical_dictionary: "src/resources/medical_dictionary.txt"
 

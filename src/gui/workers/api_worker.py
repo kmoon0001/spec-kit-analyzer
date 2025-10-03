@@ -1,12 +1,12 @@
 import requests
-from PyQt6.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 
 
 class ApiAnalysisWorker(QObject):
     """A QThread worker for calling the backend analysis API."""
 
-    finished = pyqtSignal(dict)
-    error = pyqtSignal(str)
+    finished = Signal(dict)
+    error = Signal(str)
 
     def __init__(self, file_path: str, api_url: str = "http://127.0.0.1:8000/analyze"):
         super().__init__()

@@ -4,9 +4,9 @@ import requests
 import urllib.parse
 import webbrowser
 from typing import Dict
-from PyQt6.QtCore import Qt, QThread, QUrl
-from PyQt6.QtGui import QTextDocument
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, QThread, QUrl
+from PySide6.QtGui import QTextDocument
+from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QDialog,

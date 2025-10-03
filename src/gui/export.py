@@ -3,7 +3,7 @@ import os
 from typing import Any, Dict, List
 
 from jinja2 import Template
-from PyQt6.QtWidgets import QFileDialog
+from PySide6.QtWidgets import QFileDialog
 from xhtml2pdf import pisa
 
 

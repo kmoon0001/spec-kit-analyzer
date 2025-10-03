@@ -3,7 +3,7 @@ Modern Main Window - Redesigned with medical theme and your exact layout specifi
 """
 
 import os
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QTextBrowser,
     QComboBox,
 )
-from PyQt6.QtCore import QThread
+from PySide6.QtCore import QThread
 
 # Import our new modern components
 from src.gui.widgets.modern_card import ModernCard

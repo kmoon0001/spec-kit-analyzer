@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QPushButton,
     QVBoxLayout,
     QHBoxLayout,
@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QGroupBox,
 )
-from PyQt6.QtCore import Qt
+from PySide6.QtCore import Qt
 
 
 class ControlPanel(QGroupBox):

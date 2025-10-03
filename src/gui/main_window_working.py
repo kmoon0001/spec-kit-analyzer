@@ -2,7 +2,7 @@
 
 import os
 import sys
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
@@ -19,8 +19,8 @@ from PyQt6.QtWidgets import (
     QDialog,
     QTextBrowser,
 )
-from PyQt6.QtCore import QTimer
-from PyQt6.QtGui import QFont
+from PySide6.QtCore import QTimer
+from PySide6.QtGui import QFont
 
 # Add project root to path for imports
 project_root = os.path.dirname(

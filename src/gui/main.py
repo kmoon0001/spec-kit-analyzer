@@ -1,6 +1,6 @@
 import sys
 import asyncio
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 # Import the main window and the database initializer
 from src.gui.main_window import MainApplicationWindow

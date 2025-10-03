@@ -8,8 +8,8 @@ training needs identification, and benchmarking data for administrators.
 import logging
 from typing import Any, Dict, List
 
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (
     QComboBox,
     QGridLayout,
     QGroupBox,
@@ -41,7 +41,7 @@ class MetaAnalyticsWidget(QWidget):
     - Performance trends and alerts
     """
 
-    refresh_requested = pyqtSignal(dict)  # Emits parameters for refresh
+    refresh_requested = Signal(dict)  # Emits parameters for refresh
 
     def __init__(self, parent=None):
         super().__init__(parent)

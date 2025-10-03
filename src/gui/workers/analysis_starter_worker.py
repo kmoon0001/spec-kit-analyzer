@@ -1,6 +1,6 @@
 import requests
 import os
-from PyQt6.QtCore import QObject, pyqtSignal as Signal
+from PySide6.QtCore import QObject, Signal as Signal
 
 from src.config import get_settings
 
