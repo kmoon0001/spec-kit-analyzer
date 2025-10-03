@@ -22,19 +22,44 @@ class ComplianceService:
         analysis_service: Optional[Any] = None,
         **_unused: Any,
     ) -> None:
+        """Initializes the ComplianceService.
+
+        Args:
+            rules: An optional iterable of ComplianceRule objects to use. If None, default rules are loaded.
+            analysis_service: An optional analysis service instance to be used.
+            **_unused: Unused keyword arguments.
+        """
         provided_rules = list(rules or [])
         self.rules: List[ComplianceRule] = provided_rules or self._default_rules()
         self.analysis_service = analysis_service
 
     def get_available_rubrics(self) -> List[dict]:
+        """Returns a list of available compliance rules/rubrics for UI consumption.
+
+        Returns:
+            A list of dictionaries, each representing a compliance rule.
+        """
         """Return available rules/rubrics for UI consumption."""
         return [asdict(rule) for rule in self.rules]
 
     def get_analysis_service(self) -> Optional[Any]:
+        """Exposes the underlying analysis service when available.
+
+        Returns:
+            The analysis service instance, or None if not set.
+        """
         """Expose the underlying analysis service when available."""
         return self.analysis_service
 
     def evaluate_document(self, document: TherapyDocument) -> ComplianceResult:
+        """Evaluates a given document against the loaded compliance rules.
+
+        Args:
+            document: The TherapyDocument object to evaluate.
+
+        Returns:
+            A ComplianceResult object containing the document and any compliance findings.
+        """
         logger.info("Evaluating compliance for document %s", document.id)
         findings: List[ComplianceFinding] = []
         normalized_text = document.text.lower()
@@ -65,6 +90,14 @@ class ComplianceService:
         return result
 
     def _default_rules(self) -> List[ComplianceRule]:
+        """Loads a set of default Medicare Benefits Policy Manual compliance rules.
+
+        These rules serve as a baseline for compliance checking when no specific
+        rule set is provided.
+
+        Returns:
+            A list of default ComplianceRule objects.
+        """
         """Load default Medicare Benefits Policy Manual compliance rules."""
         return [
             # High-priority Medicare compliance rules
@@ -156,6 +189,15 @@ class ComplianceService:
 
     @staticmethod
     def _rule_matches_context(rule: ComplianceRule, document: TherapyDocument) -> bool:
+        """Checks if a given rule is applicable to the document's discipline and type.
+
+        Args:
+            rule: The ComplianceRule to check.
+            document: The TherapyDocument to check against.
+
+        Returns:
+            True if the rule applies to the document's context, False otherwise.
+        """
         # Check if rule applies to this discipline
         discipline_ok = (
             rule.discipline.lower() in {"any", "*", "all"} or
@@ -172,9 +214,31 @@ class ComplianceService:
 
     @staticmethod
     def _contains_any(keywords: Iterable[str], text: str) -> bool:
+        """Checks if the given text contains any of the specified keywords (case-insensitive).
+
+        Args:
+            keywords: An iterable of keywords to search for.
+            text: The text to search within.
+
+        Returns:
+            True if any keyword is found in the text, False otherwise.
+        """
         return any(keyword.lower() in text for keyword in keywords)
 
     def _violates_rule(self, rule: ComplianceRule, normalized_text: str) -> bool:
+        """Determines if the document text violates a given compliance rule.
+
+        A rule is violated if:
+        - It has positive keywords and none of them are found in the text, OR
+        - It has negative keywords and all of them are found in the text.
+
+        Args:
+            rule: The ComplianceRule to check.
+            normalized_text: The document text, already normalized (e.g., lowercase).
+
+        Returns:
+            True if the rule is violated, False otherwise.
+        """
         has_positive_context = True
         if rule.positive_keywords:
             has_positive_context = self._contains_any(
@@ -192,6 +256,14 @@ class ComplianceService:
 
     @staticmethod
     def _build_snippet(rule: ComplianceRule) -> str:
+        """Constructs a text snippet explaining the rule violation.
+
+        Args:
+            rule: The ComplianceRule that was violated.
+
+        Returns:
+            A string snippet describing the violation.
+        """
         if rule.negative_keywords:
             return "Required documentation terms were not detected: " + ", ".join(
                 rule.negative_keywords
@@ -204,6 +276,14 @@ class ComplianceService:
 
     @staticmethod
     def to_dict(result: ComplianceResult) -> dict:
+        """Converts a ComplianceResult object into a dictionary.
+
+        Args:
+            result: The ComplianceResult object to convert.
+
+        Returns:
+            A dictionary representation of the ComplianceResult.
+        """
         document = asdict(result.document)
         findings = [
             {

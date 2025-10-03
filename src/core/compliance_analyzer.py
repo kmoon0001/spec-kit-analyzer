@@ -7,7 +7,7 @@ from src.core.llm_service import LLMService
 from src.core.nlg_service import NLGService
 from src.core.ner import NERAnalyzer
 from src.core.explanation import ExplanationEngine
-from src.core.prompt_manager import PromptManager
+from src.utils.prompt_manager import PromptManager
 from src.core.fact_checker_service import FactCheckerService
 from src.core.hybrid_retriever import HybridRetriever
 
@@ -29,6 +29,18 @@ class ComplianceAnalyzer:
         nlg_service: Optional[NLGService] = None,
         deterministic_focus: Optional[str] = None,
     ) -> None:
+        """Initializes the ComplianceAnalyzer.
+
+        Args:
+            retriever: An instance of HybridRetriever for rule retrieval.
+            ner_analyzer: An instance of NERAnalyzer for entity extraction.
+            llm_service: An instance of LLMService for core analysis.
+            explanation_engine: An instance of ExplanationEngine for adding explanations.
+            prompt_manager: An instance of PromptManager for generating prompts.
+            fact_checker_service: An instance of FactCheckerService for verifying findings.
+            nlg_service: An optional instance of NLGService for generating tips.
+            deterministic_focus: Optional string for deterministic focus areas.
+        """
         self.retriever = retriever
         self.ner_analyzer = ner_analyzer
         self.llm_service = llm_service
@@ -49,6 +61,24 @@ class ComplianceAnalyzer:
     async def analyze_document(
         self, document_text: str, discipline: str, doc_type: str
     ) -> Dict[str, Any]:
+        """Analyzes a given document for compliance based on discipline and document type.
+
+        This method orchestrates the compliance analysis process:
+        1. Extracts entities from the document using NER.
+        2. Retrieves relevant compliance rules using a hybrid retriever.
+        3. Constructs a prompt for the LLM with document text, entities, and rules.
+        4. Generates an initial analysis using the LLM.
+        5. Adds explanations to the analysis findings.
+        6. Post-processes findings, including fact-checking and personalized tip generation.
+
+        Args:
+            document_text: The content of the document to analyze.
+            discipline: The clinical discipline relevant to the document (e.g., "pt", "ot").
+            doc_type: The type of the document (e.g., "progress_note", "evaluation").
+
+        Returns:
+            A dictionary containing the comprehensive analysis result, including findings, explanations, and tips.
+        """
         logger.info("Starting compliance analysis for document type: %s", doc_type)
 
         entities = self.ner_analyzer.extract_entities(document_text)
@@ -67,7 +97,7 @@ class ComplianceAnalyzer:
         logger.info("Retrieved %d rules for analysis.", len(retrieved_rules))
 
         formatted_rules = self._format_rules_for_prompt(retrieved_rules)
-        prompt = self.prompt_manager.build_prompt(
+        prompt = self.prompt_manager.get_prompt(
             document_text=document_text,
             entity_list=entity_list_str,
             context=formatted_rules,
@@ -96,6 +126,20 @@ class ComplianceAnalyzer:
     async def _post_process_findings(
         self, explained_analysis: Dict[str, Any], retrieved_rules: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
+        """Post-processes the LLM-generated findings.
+
+        This includes:
+        - Fact-checking findings against retrieved rules.
+        - Marking findings with low confidence.
+        - Generating personalized tips using NLG (if enabled).
+
+        Args:
+            explained_analysis: The analysis result with explanations.
+            retrieved_rules: The list of rules retrieved for the analysis.
+
+        Returns:
+            The analysis result with post-processed findings.
+        """
         findings = explained_analysis.get("findings")
         if not isinstance(findings, list):
             return explained_analysis
@@ -133,6 +177,14 @@ class ComplianceAnalyzer:
 
     @staticmethod
     def _format_rules_for_prompt(rules: List[Dict[str, Any]]) -> str:
+        """Formats a list of compliance rules into a string suitable for an LLM prompt.
+
+        Args:
+            rules: A list of dictionaries, each representing a compliance rule.
+
+        Returns:
+            A formatted string containing the rule names, details, and suggestions.
+        """
         if not rules:
             return (
                 "No specific compliance rules were retrieved. Analyze based on general "

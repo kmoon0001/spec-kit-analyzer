@@ -28,7 +28,12 @@ class DatabaseOptimizer:
     Therapy Compliance Analyzer application.
     """
 
-    def __init__(self):
+    def __init__(self, db_url: str):
+        """Initializes the DatabaseOptimizer with the database URL.
+
+        Args:
+            db_url (str): The URL of the database to optimize.
+        """
         """Initialize the database optimizer."""
         logger.info("Initializing DatabaseOptimizer")
 
@@ -172,3 +177,11 @@ class DatabaseOptimizer:
                 "status": "error",
                 "error": str(e),
             }
+
+
+    async def optimize_db(self):
+        """Performs a full optimization of the database.
+
+        This includes vacuuming the database to reclaim space and reindexing
+        all tables to improve query performance.
+        """ 

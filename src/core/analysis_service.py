@@ -17,7 +17,7 @@ from src.core.phi_scrubber import PhiScrubberService
 from src.core.preprocessing_service import PreprocessingService
 from src.core.text_utils import sanitize_bullets, sanitize_human_text
 from src.core.ner import NERAnalyzer
-from src.core.prompt_manager import PromptManager
+from src.utils.prompt_manager import PromptManager
 from src.core.explanation import ExplanationEngine
 from src.core.fact_checker_service import FactCheckerService
 from src.core.nlg_service import NLGService
@@ -63,6 +63,28 @@ class AnalysisService:
         fact_checker_service: Optional[FactCheckerService] = None,
         nlg_service: Optional[NLGService] = None,
     ):
+        """
+        Initializes the AnalysisService with all necessary components.
+
+        This method sets up the analysis pipeline by initializing various services
+        such as the language model, retriever, scrubbers, and analyzers. It allows
+        for dependency injection, making the service highly configurable and testable.
+
+        Args:
+            retriever (Optional[HybridRetriever]): Service for retrieving relevant information.
+            phi_scrubber (Optional[PhiScrubberService]): Service for scrubbing PHI from text.
+            preprocessing (Optional[PreprocessingService]): Service for text preprocessing.
+            document_classifier (Optional[DocumentClassifier]): Service for classifying documents.
+            llm_service (Optional[LLMService]): The core language model service.
+            report_generator (Optional[ReportGenerator]): Service for generating reports.
+            compliance_analyzer (Optional[ComplianceAnalyzer]): Service for analyzing compliance.
+            checklist_service (Optional[ChecklistService]): Service for deterministic checks.
+            ner_analyzer (Optional[NERAnalyzer]): Service for Named Entity Recognition.
+            explanation_engine (Optional[ExplanationEngine]): Service for generating explanations.
+            prompt_manager (Optional[PromptManager]): Service for managing prompts.
+            fact_checker_service (Optional[FactCheckerService]): Service for checking facts.
+            nlg_service (Optional[NLGService]): Service for natural language generation.
+        """
         settings = _get_settings()
 
         # Select generator profile based on system memory
@@ -75,8 +97,9 @@ class AnalysisService:
         )
         self.retriever = retriever or HybridRetriever()
         self.ner_analyzer = ner_analyzer or NERAnalyzer(settings.models.ner_ensemble)
+        template_path = Path(settings.models.analysis_prompt_template)
         self.prompt_manager = prompt_manager or PromptManager(
-            template_path=settings.models.analysis_prompt_template
+            template_name=template_path.name
         )
         self.explanation_engine = explanation_engine or ExplanationEngine()
         self.fact_checker_service = fact_checker_service or FactCheckerService(
@@ -116,6 +139,25 @@ class AnalysisService:
         analysis_mode: str | None = None,
         document_text: Optional[str] = None,
     ) -> Any:
+        """
+        Analyzes a document for compliance and other metrics.
+
+        This is the main entry point for the analysis process. It takes a file path
+        or document text, preprocesses it, scrubs it for PHI, classifies it, and
+        then runs the compliance analysis. It returns a rich analysis output object.
+
+        Args:
+            file_path (Optional[str]): The path to the document to analyze.
+            discipline (str): The clinical discipline (e.g., 'pt', 'ot').
+            analysis_mode (Optional[str]): The mode of analysis (not currently used).
+            document_text (Optional[str]): The text of the document to analyze.
+
+        Returns:
+            Any: An AnalysisOutput object containing the results of the analysis.
+
+        Raises:
+            ValueError: If neither file_path nor document_text is provided.
+        """
         async def _run() -> Dict[str, Any]:
             logger.info("Starting analysis for document", file_path=file_path)
             
@@ -316,6 +358,19 @@ class AnalysisService:
         return overall
 
     def _select_generator_profile(self, models_cfg: Dict[str, Any]) -> tuple[str, str]:
+        """
+        Selects the appropriate generator profile based on system memory.
+
+        This method reads the available generator profiles from the configuration
+        and selects the best one based on the system's available RAM. This allows
+        the application to use different models on different hardware.
+
+        Args:
+            models_cfg (Dict[str, Any]): The models configuration.
+
+        Returns:
+            tuple[str, str]: A tuple containing the repository ID and filename of the selected model.
+        """
         profiles = models_cfg.get("generator_profiles") or {}
         if isinstance(profiles, dict) and profiles:
             mem_gb = self._system_memory_gb()
@@ -366,6 +421,20 @@ class AnalysisService:
         chat_cfg: Dict[str, Any],
         base_llm_settings: Dict[str, Any],
     ) -> LLMService:
+        """
+        Builds a dedicated LLMService for the chat feature.
+
+        This method creates a separate language model service instance for the chat
+        functionality, potentially using a different model or configuration than the
+        main analysis service.
+
+        Args:
+            chat_cfg (Dict[str, Any]): The chat model configuration.
+            base_llm_settings (Dict[str, Any]): The base LLM settings.
+
+        Returns:
+            LLMService: An instance of LLMService configured for chat.
+        """
         if not chat_cfg:
             return self.llm_service
         repo = chat_cfg.get("repo")
@@ -393,6 +462,12 @@ class AnalysisService:
 
     @staticmethod
     def _system_memory_gb() -> float:
+        """
+        Gets the total system memory in gigabytes.
+
+        Returns:
+            float: The total system memory in GB.
+        """
         try:
             return psutil.virtual_memory().total / (1024**3)
         except Exception:  # pragma: no cover - defensive fallback
