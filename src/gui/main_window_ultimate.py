@@ -2137,7 +2137,7 @@ Ready for debug commands...
         <html>
         <head>
             <style>
-                body { font-family: 'Segoe UI', sans-serif; margin: 20px; line-height: 1.6; }
+                body {{ font-family: 'Segoe UI', sans-serif; margin: 20px; line-height: 1.6; }}
                 .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; text-align: center; }
                 .score-card { display: flex; justify-content: space-around; margin: 20px 0; }
                 .score-item { text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px; min-width: 120px; }
