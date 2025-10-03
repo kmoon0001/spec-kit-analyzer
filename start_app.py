@@ -108,20 +108,20 @@ def main():
     logger.info("Waiting for API server to be ready...")
     time.sleep(5)  # Adjust as needed
 
-    # 3. Start the GUI application
+    # 3. Start the PTside GUI application
     try:
-        logger.info("Starting GUI application...")
+        logger.info("Starting PTside GUI application...")
         from PyQt6.QtWidgets import QApplication
-        from src.gui.main_window import MainApplicationWindow
+        from src.gui.ptside_window import PTsideWindow
 
         app = QApplication(sys.argv)
-        app.setApplicationName("Therapy Compliance Analyzer")
+        app.setApplicationName("PTside - Physical Therapy Compliance Analyzer")
 
-        main_win = MainApplicationWindow()
-        main_win.start()  # This should handle login and then show the window
+        main_win = PTsideWindow()
+        main_win.show()
 
         exit_code = app.exec()
-        logger.info(f"GUI application exited with code {exit_code}.")
+        logger.info(f"PTside application exited with code {exit_code}.")
         return exit_code
 
     except Exception as e:
