@@ -427,34 +427,36 @@ class TherapyComplianceWindow(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
-        # Header
+        # Header with enhanced styling
         header = QLabel("🏥 Therapy Compliance Analyzer")
         header.setObjectName("headerLabel")
         header.setAlignment(Qt.AlignmentFlag.AlignCenter)
         header.setStyleSheet("""
             QLabel {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #1e40af, stop:1 #3b82f6);
+                    stop:0 #1e40af, stop:0.5 #3b82f6, stop:1 #2563eb);
                 color: white;
-                padding: 20px;
-                font-size: 28px;
+                padding: 24px;
+                font-size: 32px;
                 font-weight: 700;
-                border-bottom: 3px solid #2563eb;
+                border-bottom: 4px solid #1d4ed8;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
             }
         """)
         main_layout.addWidget(header)
         
-        # Subtitle
-        subtitle = QLabel("Physical Therapy • Occupational Therapy • Speech-Language Pathology")
+        # Enhanced subtitle with emojis
+        subtitle = QLabel("🏃‍♂️ Physical Therapy • 🖐️ Occupational Therapy • 🗣️ Speech-Language Pathology")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle.setStyleSheet("""
             QLabel {
-                background-color: #dbeafe;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #dbeafe, stop:0.5 #bfdbfe, stop:1 #dbeafe);
                 color: #1e40af;
-                padding: 8px;
-                font-size: 13px;
+                padding: 12px;
+                font-size: 14px;
                 font-weight: 600;
-                border-bottom: 1px solid #93c5fd;
+                border-bottom: 2px solid #93c5fd;
             }
         """)
         main_layout.addWidget(subtitle)
@@ -546,7 +548,7 @@ class TherapyComplianceWindow(QMainWindow):
         """)
         self.status_bar.addPermanentWidget(pct_label)
         
-        self.status_bar.showMessage("Ready - Select discipline and upload documentation")
+        self.status_bar.showMessage("🚀 Ready for analysis - Select discipline and upload documentation to begin")
     
     def create_menu_bar(self):
         """Create menu bar with all options."""
@@ -1655,7 +1657,7 @@ class TherapyComplianceWindow(QMainWindow):
         elif "kevin moon" in message_lower:
             return "💝 Kevin Moon is the amazing developer who created this system with love and dedication! 🫶🫶🫶 He poured his heart into making compliance analysis easier for therapists everywhere!"
         elif "pacific coast therapy" in message_lower:
-            return "Pacific Coast Therapy - providing excellent rehabilitation services! 🌊"
+            return "🌴 Pacific Coast Therapy - providing excellent rehabilitation services by the beautiful coast! 🌊 Where healing meets the ocean breeze! 🏖️"
         else:
             return "I can help with compliance questions about:<br>• Documentation requirements<br>• Medicare guidelines<br>• SMART goals<br>• Medical necessity<br>• Progress notes<br>• Signatures and dates<br>• Discipline-specific requirements<br><br>Try asking about any of these topics!"
     
