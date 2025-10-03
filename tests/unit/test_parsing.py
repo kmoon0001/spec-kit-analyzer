@@ -6,8 +6,9 @@ from src.core.parsing import parse_document_content, parse_document_into_section
 # --- Tests for parse_document_content --- #
 
 
+@patch("src.core.parsing.os.path.exists", return_value=True)
 @patch("src.core.parsing.pdfplumber.open")
-def test_parse_pdf_content(mock_pdf_open):
+def test_parse_pdf_content(mock_pdf_open, mock_exists):
     """Tests that the parser correctly calls the pdfplumber library for .pdf files."""
     # Arrange: Mock the pdfplumber library to simulate reading a PDF
     mock_page = MagicMock()

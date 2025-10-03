@@ -79,7 +79,7 @@ class ComplianceService:
                 document_type="all",
                 suggestion="Ensure all notes are signed with full name, credentials (PT, OT, SLP, etc.), and date. Use electronic signatures if available.",
                 financial_impact=75,
-                positive_keywords=["therapy", "treatment", "intervention"],
+                positive_keywords=[],  # Apply to all documents
                 negative_keywords=["signature", "signed", "date", "credentials"],
             ),
             ComplianceRule(
@@ -104,7 +104,7 @@ class ComplianceService:
                 issue_detail="Treatment goals must be SMART (Specific, Measurable, Achievable, Relevant, Time-bound) to demonstrate medical necessity and progress.",
                 issue_category="goals",
                 discipline="all",
-                document_type="evaluation",
+                document_type="all",
                 suggestion="Use objective measurements, functional outcomes, and specific timeframes. Example: 'Patient will increase right shoulder flexion from 90° to 120° within 3 weeks.'",
                 financial_impact=50,
                 positive_keywords=["goal", "objective", "outcome"],
@@ -156,15 +156,17 @@ class ComplianceService:
 
     @staticmethod
     def _rule_matches_context(rule: ComplianceRule, document: TherapyDocument) -> bool:
-        discipline_ok = rule.discipline.lower() in {
-            "any",
-            "*",
-            document.discipline.lower(),
-        }
+        # Check if rule applies to this discipline
+        discipline_ok = (
+            rule.discipline.lower() in {"any", "*", "all"} or
+            rule.discipline.lower() == document.discipline.lower()
+        )
 
-        document_type = document.document_type.lower()
-        rule_doc_type = rule.document_type.lower()
-        doc_type_ok = rule_doc_type in {"any", "*", document_type}
+        # Check if rule applies to this document type
+        doc_type_ok = (
+            rule.document_type.lower() in {"any", "*", "all"} or
+            rule.document_type.lower() == document.document_type.lower()
+        )
 
         return discipline_ok and doc_type_ok
 

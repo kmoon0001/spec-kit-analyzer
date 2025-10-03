@@ -354,11 +354,13 @@ class SevenHabitsFramework:
         issue_text = (finding.get("text") or "").lower()
         combined_text = f"{issue_title} {issue_text}"
 
-        # Score each habit based on keyword matches
+        # Score each habit based on keyword matches (using word boundaries)
+        import re
         habit_scores = {}
         for habit_id, habit_info in self.HABITS.items():
             score = sum(
-                1 for keyword in habit_info["keywords"] if keyword in combined_text
+                1 for keyword in habit_info["keywords"] 
+                if re.search(r'\b' + re.escape(keyword) + r'\b', combined_text)
             )
             habit_scores[habit_id] = score
 

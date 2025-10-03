@@ -277,16 +277,6 @@ def _split_into_sentences(text: str) -> List[str]:
         merged_sentences.append(current_sentence)
     
     return merged_sentences
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.exception("Failed to parse %s", file_path)
-        return [
-            {
-                "sentence": f"Error parsing document '{os.path.basename(file_path)}': {exc}",
-                "source": "parser",
-            }
-        ]
-
-    return []
 
 
 def _parse_pdf(file_path: str) -> List[Dict[str, str]]:

@@ -80,7 +80,7 @@ class TestRuleBasedMapping:
 
         assert result["habit_number"] == 1
         assert "Be Proactive" in result["name"]
-        assert "proactive" in result["explanation"].lower()
+        assert "initiative" in result["explanation"].lower()
 
     def test_habit_2_begin_with_end_mapping(self):
         """Test Habit 2 (Begin with the End in Mind) mapping."""

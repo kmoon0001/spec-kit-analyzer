@@ -17,12 +17,16 @@ try:
     from weasyprint import HTML, CSS
     from weasyprint.text.fonts import FontConfiguration
     PDF_AVAILABLE = True
-except ImportError:
+    WEASYPRINT_AVAILABLE = True
+except (ImportError, OSError) as e:
+    # Handle both import errors and library loading errors
+    logger.warning(f"WeasyPrint not available: {e}")
     try:
         import pdfkit
         PDF_AVAILABLE = True
         WEASYPRINT_AVAILABLE = False
     except ImportError:
+        logger.warning("pdfkit also not available, PDF export will be disabled")
         PDF_AVAILABLE = False
         WEASYPRINT_AVAILABLE = False
 
