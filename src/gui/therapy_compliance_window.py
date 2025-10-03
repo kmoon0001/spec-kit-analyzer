@@ -15,7 +15,14 @@ from PyQt6.QtWidgets import (
     QToolButton, QFrame
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QUrl
-from PyQt6.QtGui import QColor, QAction
+from PyQt6.QtGui import QColor, QAction, QFont
+
+# Import styles
+try:
+    from src.gui.styles import MAIN_STYLESHEET, DARK_THEME
+except ImportError:
+    MAIN_STYLESHEET = ""
+    DARK_THEME = ""
 
 
 class AnalysisWorker(QThread):
@@ -44,52 +51,120 @@ class ChatDialog(QWidget):
     """AI Chat assistant dialog."""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("AI Chat Assistant")
-        self.resize(600, 500)
+        self.setWindowTitle("💬 AI Chat Assistant")
+        self.resize(700, 600)
+        self.setStyleSheet(MAIN_STYLESHEET)
         self.setup_ui()
     
     def setup_ui(self):
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(16)
+        
+        # Header
+        header = QLabel("💬 AI Compliance Assistant")
+        header.setStyleSheet("""
+            QLabel {
+                font-size: 20px;
+                font-weight: 700;
+                color: #1e40af;
+                padding: 12px;
+                background-color: #dbeafe;
+                border-radius: 8px;
+            }
+        """)
+        layout.addWidget(header)
         
         # Chat history
         self.chat_history = QTextBrowser()
         self.chat_history.setStyleSheet("""
             QTextBrowser {
-                border: 2px solid #93c5fd;
-                border-radius: 8px;
-                padding: 10px;
-                background-color: white;
+                border: 2px solid #e2e8f0;
+                border-radius: 12px;
+                padding: 16px;
+                background-color: #f8fafc;
+                font-size: 14px;
+                line-height: 1.6;
             }
         """)
-        layout.addWidget(QLabel("💬 Chat History:"))
         layout.addWidget(self.chat_history)
         
         # Input area
+        input_label = QLabel("💭 Your Question:")
+        input_label.setStyleSheet("font-weight: 600; color: #475569; font-size: 13px;")
+        layout.addWidget(input_label)
+        
         self.chat_input = QTextEdit()
         self.chat_input.setMaximumHeight(100)
         self.chat_input.setPlaceholderText("Ask about compliance, documentation tips, or specific findings...")
-        layout.addWidget(QLabel("Your Question:"))
+        self.chat_input.setStyleSheet("""
+            QTextEdit {
+                border: 2px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 12px;
+                background-color: white;
+                font-size: 13px;
+            }
+        """)
         layout.addWidget(self.chat_input)
         
         # Send button
-        send_btn = QPushButton("Send Message")
+        send_btn = QPushButton("📤 Send Message")
         send_btn.clicked.connect(self.send_message)
+        send_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #10b981;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 12px 24px;
+                font-size: 14px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #059669;
+            }
+        """)
         layout.addWidget(send_btn)
         
         # Welcome message
-        self.chat_history.append("<b>AI Assistant:</b> Hello! I can help you with compliance questions, documentation tips, and clarify specific findings. What would you like to know?")
+        self.chat_history.setHtml("""
+            <div style='background-color: #dbeafe; padding: 16px; border-radius: 8px; margin-bottom: 12px;'>
+                <strong style='color: #1e40af;'>🤖 AI Assistant:</strong><br>
+                <span style='color: #334155;'>Hello! I can help you with compliance questions, documentation tips, and clarify specific findings. What would you like to know?</span>
+            </div>
+        """)
     
     def send_message(self):
         message = self.chat_input.toPlainText().strip()
         if not message:
             return
         
-        self.chat_history.append(f"<br><b>You:</b> {message}")
+        # Add user message
+        current_html = self.chat_history.toHtml()
+        user_msg = f"""
+            <div style='background-color: #f1f5f9; padding: 12px; border-radius: 8px; margin: 8px 0; margin-left: 40px;'>
+                <strong style='color: #475569;'>👤 You:</strong><br>
+                <span style='color: #1e293b;'>{message}</span>
+            </div>
+        """
+        self.chat_history.setHtml(current_html + user_msg)
         self.chat_input.clear()
         
         # Simulate AI response (in real app, call LLM service)
         response = self.generate_response(message)
-        self.chat_history.append(f"<br><b>AI Assistant:</b> {response}")
+        current_html = self.chat_history.toHtml()
+        ai_msg = f"""
+            <div style='background-color: #dbeafe; padding: 12px; border-radius: 8px; margin: 8px 0; margin-right: 40px;'>
+                <strong style='color: #1e40af;'>🤖 AI Assistant:</strong><br>
+                <span style='color: #334155;'>{response}</span>
+            </div>
+        """
+        self.chat_history.setHtml(current_html + ai_msg)
+        
+        # Scroll to bottom
+        scrollbar = self.chat_history.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
     
     def generate_response(self, message: str) -> str:
         """Generate AI response (placeholder - integrate with LLM service)."""
@@ -309,6 +384,10 @@ class TherapyComplianceWindow(QMainWindow):
         self.analysis_worker = None
         self.chat_dialog = None
         self.is_admin = True  # Set based on user role
+        self.current_theme = "light"
+        
+        # Apply stylesheet
+        self.setStyleSheet(MAIN_STYLESHEET)
         
         self.setup_ui()
     
@@ -321,9 +400,44 @@ class TherapyComplianceWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        # Header
+        header = QLabel("🏥 Therapy Compliance Analyzer")
+        header.setObjectName("headerLabel")
+        header.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        header.setStyleSheet("""
+            QLabel {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #1e40af, stop:1 #3b82f6);
+                color: white;
+                padding: 20px;
+                font-size: 28px;
+                font-weight: 700;
+                border-bottom: 3px solid #2563eb;
+            }
+        """)
+        main_layout.addWidget(header)
+        
+        # Subtitle
+        subtitle = QLabel("Physical Therapy • Occupational Therapy • Speech-Language Pathology")
+        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        subtitle.setStyleSheet("""
+            QLabel {
+                background-color: #dbeafe;
+                color: #1e40af;
+                padding: 8px;
+                font-size: 13px;
+                font-weight: 600;
+                border-bottom: 1px solid #93c5fd;
+            }
+        """)
+        main_layout.addWidget(subtitle)
         
         # Tab widget
         self.tabs = QTabWidget()
+        self.tabs.setContentsMargins(16, 16, 16, 16)
         main_layout.addWidget(self.tabs)
         
         # Create tabs
@@ -463,12 +577,13 @@ class TherapyComplianceWindow(QMainWindow):
         
         self.analyze_btn = QPushButton("🔍 Run Analysis")
         self.analyze_btn.clicked.connect(self.run_analysis)
-        self.analyze_btn.setStyleSheet("QPushButton { background-color: #2563eb; color: white; padding: 10px; font-weight: bold; }")
+        self.analyze_btn.setObjectName("primaryButton")
         actions_layout.addWidget(self.analyze_btn)
         
         self.stop_btn = QPushButton("⏹️ Stop")
         self.stop_btn.clicked.connect(self.stop_analysis)
         self.stop_btn.setEnabled(False)
+        self.stop_btn.setObjectName("dangerButton")
         actions_layout.addWidget(self.stop_btn)
         
         self.chat_btn = QPushButton("💬 AI Chat")
@@ -822,6 +937,11 @@ class TherapyComplianceWindow(QMainWindow):
     
     def set_theme(self, theme: str):
         """Set application theme."""
+        self.current_theme = theme
+        if theme == "dark":
+            self.setStyleSheet(DARK_THEME)
+        else:
+            self.setStyleSheet(MAIN_STYLESHEET)
         self.status_bar.showMessage(f"Theme changed to: {theme}")
     
     def show_document_preview(self):

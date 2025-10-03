@@ -34,17 +34,17 @@ models:
   generator_profiles:
     standard:
       repo: "distilbert-base-uncased"  # Lightweight BERT model
-      filename: null
+      filename: ""
       revision: "main"
       max_system_gb: 8.0
     enhanced:
       repo: "bert-base-uncased"  # Standard BERT model
-      filename: null
+      filename: ""
       revision: "main"
       min_system_gb: 8.0
   chat:
     repo: "distilbert-base-uncased"
-    filename: null
+    filename: ""
     revision: "main"
     model_type: "bert"
     context_length: 512

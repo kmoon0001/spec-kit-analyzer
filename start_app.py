@@ -85,32 +85,12 @@ def cleanup_api_server():
 
 def main():
     """Main application entry point."""
-    # Set the Qt platform plugin for headless environments
-    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    # Remove Qt platform override to allow normal GUI
+    # os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
-    # 1. Initialize the database first
-    logger.info("Initializing database schema...")
+    # Start the Therapy Compliance Analyzer GUI (standalone mode)
     try:
-        subprocess.run([sys.executable, "initialize_db.py"], check=True)
-        logger.info("Database initialized successfully.")
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to initialize database: {e}")
-        return 1
-
-    # 2. Start the backend server
-    if not start_api_server():
-        logger.error(
-            "Could not start the backend API. The application cannot continue."
-        )
-        return 1
-
-    # 2. Give the server a moment to initialize
-    logger.info("Waiting for API server to be ready...")
-    time.sleep(5)  # Adjust as needed
-
-    # 3. Start the Therapy Compliance Analyzer GUI
-    try:
-        logger.info("Starting Therapy Compliance Analyzer GUI...")
+        logger.info("Starting Therapy Compliance Analyzer GUI (Standalone Mode)...")
         from PyQt6.QtWidgets import QApplication
         from src.gui.therapy_compliance_window import TherapyComplianceWindow
 
@@ -130,9 +110,6 @@ def main():
 
         traceback.print_exc()
         return 1
-    finally:
-        # Ensure cleanup is called, even if atexit fails
-        cleanup_api_server()
 
 
 if __name__ == "__main__":
