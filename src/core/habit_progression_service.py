@@ -331,7 +331,13 @@ class HabitProgressionService:
         """Get total analysis count for user."""
         # This would need to be implemented in crud.py
         # For now, return a placeholder
-        return 0  # Placeholder - would query actual analysis count
+        # Query actual analysis count from database
+        try:
+            from ..database.crud import get_user_analysis_count
+            return await get_user_analysis_count(self.db, user_id)
+        except Exception as e:
+            logger.error(f"Error getting user analysis count: {e}")
+            return 0
 
     async def _get_user_goals(
         self, db: AsyncSession, user_id: int

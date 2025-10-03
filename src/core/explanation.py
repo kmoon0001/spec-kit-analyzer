@@ -20,7 +20,15 @@ class ExplanationEngine:
                     problematic_text, full_document_text
                 )
             if "confidence" not in finding:
-                finding["confidence"] = round(random.uniform(0.85, 0.98), 2)
+                # Use a deterministic confidence based on finding characteristics
+                confidence = 0.90  # Default high confidence
+                if finding.get("severity") == "HIGH":
+                    confidence = 0.95
+                elif finding.get("severity") == "MEDIUM":
+                    confidence = 0.85
+                elif finding.get("severity") == "LOW":
+                    confidence = 0.80
+                finding["confidence"] = confidence
         return analysis_result
 
     @staticmethod

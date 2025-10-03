@@ -36,17 +36,14 @@ from PySide6.QtGui import (
 # Import core services
 try:
     from src.core.analysis_service import AnalysisService
-    from src.core.document_analysis_service import DocumentAnalysisService
     from src.core.compliance_analyzer import ComplianceAnalyzer
     from src.core.parsing import parse_document_content
-    from src.core.mock_analysis_service import MockAnalysisService
+    # Remove mock service import - using real services now
 except ImportError as e:
     print(f"Warning: Could not import core services: {e}")
     AnalysisService = None
-    DocumentAnalysisService = None
     ComplianceAnalyzer = None
     parse_document_content = None
-    MockAnalysisService = None
 
 
 class ModernTheme:
@@ -342,10 +339,10 @@ class AnalysisWorker(QThread):
                 
             self.progress.emit(30, "Analyzing compliance...")
             
-            # Run analysis using mock service for now
-            if MockAnalysisService:
-                mock_service = MockAnalysisService()
-                results = mock_service.analyze_document(
+            # Run analysis using professional service
+            if AnalysisService:
+                analysis_service = AnalysisService()
+                results = analysis_service.analyze_document(
                     document_text=document_text,
                     discipline=self.discipline
                 )

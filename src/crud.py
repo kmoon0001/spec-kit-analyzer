@@ -48,8 +48,22 @@ async def get_total_findings_count(
     discipline: Optional[str] = None,
 ) -> int:
     """Retrieve the total count of findings, optionally filtered by date and discipline."""
-    # Placeholder for actual database query
-    return 0
+    # Implement actual database query for findings count
+    try:
+        query = select(func.count(models.Finding.id))
+        
+        if start_date:
+            query = query.where(models.Finding.created_at >= start_date)
+        if end_date:
+            query = query.where(models.Finding.created_at <= end_date)
+        if discipline:
+            query = query.where(models.Finding.discipline == discipline)
+            
+        result = await db.execute(query)
+        return result.scalar() or 0
+    except Exception as e:
+        logger.error(f"Error getting findings count: {e}")
+        return 0
 
 
 async def get_reports(db: AsyncSession, skip: int = 0, limit: int = 100):

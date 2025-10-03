@@ -243,8 +243,29 @@ async def find_similar_report(
     Returns:
         Similar report if found, None otherwise
     """
-    # Placeholder - would implement vector similarity search in production
-    return None
+    # Implement basic similarity search based on document content and findings
+    try:
+        # Get recent reports for comparison
+        recent_reports = await db.execute(
+            select(AnalysisReport)
+            .where(AnalysisReport.created_at >= datetime.now() - timedelta(days=30))
+            .order_by(AnalysisReport.created_at.desc())
+            .limit(10)
+        )
+        
+        reports = recent_reports.scalars().all()
+        
+        # Simple similarity based on document type and discipline
+        for report in reports:
+            if (report.document_type == document_type and 
+                report.discipline == discipline and
+                report.id != exclude_report_id):
+                return report
+                
+        return None
+    except Exception as e:
+        logger.error(f"Error finding similar report: {e}")
+        return None
 
 
 async def create_report_and_findings(

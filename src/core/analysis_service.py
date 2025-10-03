@@ -111,17 +111,29 @@ class AnalysisService:
 
     def analyze_document(
         self,
-        file_path: str,
-        discipline: str,
+        file_path: Optional[str] = None,
+        discipline: str = "pt",
         analysis_mode: str | None = None,
+        document_text: Optional[str] = None,
     ) -> Any:
         async def _run() -> Dict[str, Any]:
             logger.info("Starting analysis for document", file_path=file_path)
-            chunks = parse_document_content(file_path)
-            document_text = " ".join(
-                chunk.get("sentence", "") for chunk in chunks if isinstance(chunk, dict)
-            ).strip()
-            document_text = self._trim_document_text(document_text)
+            
+            # Handle both file path and direct document text input
+            if document_text is not None:
+                # Use provided document text directly
+                doc_text = self._trim_document_text(document_text)
+            elif file_path is not None:
+                # Parse document from file path
+                chunks = parse_document_content(file_path)
+                doc_text = " ".join(
+                    chunk.get("sentence", "") for chunk in chunks if isinstance(chunk, dict)
+                ).strip()
+                doc_text = self._trim_document_text(doc_text)
+            else:
+                raise ValueError("Either file_path or document_text must be provided")
+            
+            document_text = doc_text
 
             document_text = await self._maybe_await(
                 self.preprocessing.correct_text(document_text)
