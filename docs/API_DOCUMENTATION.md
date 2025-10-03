@@ -16,14 +16,14 @@ The Therapy Compliance Analyzer API is a RESTful API built with FastAPI that pro
 ### Base URL
 
 ```
-http://localhost:9000/api
+http://localhost:8004/api
 ```
 
 ### Interactive Documentation
 
-- **Swagger UI**: http://localhost:9000/docs
-- **ReDoc**: http://localhost:9000/redoc
-- **OpenAPI Schema**: http://localhost:9000/openapi.json
+- **Swagger UI**: http://localhost:8004/docs
+- **ReDoc**: http://localhost:8004/redoc
+- **OpenAPI Schema**: http://localhost:8004/openapi.json
 
 ### Key Features
 
@@ -596,7 +596,7 @@ import requests
 from pathlib import Path
 
 # Base URL
-BASE_URL = "http://localhost:9000/api"
+BASE_URL = "http://localhost:8004/api"
 
 # 1. Login
 login_response = requests.post(
@@ -667,14 +667,14 @@ print(f"AI Response: {chat_response.json()['response']}")
 
 #### Login
 ```bash
-curl -X POST "http://localhost:9000/api/auth/token" \
+curl -X POST "http://localhost:8004/api/auth/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "username=therapist1&password=SecurePass123"
 ```
 
 #### Upload Document
 ```bash
-curl -X POST "http://localhost:9000/api/analysis/analyze" \
+curl -X POST "http://localhost:8004/api/analysis/analyze" \
   -H "Authorization: Bearer <token>" \
   -F "file=@patient_note.pdf" \
   -F "discipline=pt" \
@@ -683,13 +683,13 @@ curl -X POST "http://localhost:9000/api/analysis/analyze" \
 
 #### Check Status
 ```bash
-curl -X GET "http://localhost:9000/api/analysis/status/abc123" \
+curl -X GET "http://localhost:8004/api/analysis/status/abc123" \
   -H "Authorization: Bearer <token>"
 ```
 
 #### Export PDF
 ```bash
-curl -X POST "http://localhost:9000/api/analysis/export-pdf/abc123" \
+curl -X POST "http://localhost:8004/api/analysis/export-pdf/abc123" \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -698,7 +698,7 @@ curl -X POST "http://localhost:9000/api/analysis/export-pdf/abc123" \
 ```typescript
 // API Client
 class ComplianceAnalyzerAPI {
-  private baseURL = 'http://localhost:9000/api';
+  private baseURL = 'http://localhost:8004/api';
   private token: string | null = null;
 
   async login(username: string, password: string): Promise<void> {
@@ -827,8 +827,8 @@ if not is_valid:
 ## Support
 
 For additional help:
-- Interactive API docs: http://localhost:9000/docs
-- ReDoc documentation: http://localhost:9000/redoc
+- Interactive API docs: http://localhost:8004/docs
+- ReDoc documentation: http://localhost:8004/redoc
 - GitHub Issues: [Project Repository]
 - Email: support@example.com
 
