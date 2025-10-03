@@ -1,8 +1,8 @@
 # Therapy Compliance Analyzer
 
-This project is an advanced, AI-powered desktop application designed to help clinical therapists analyze documentation for compliance with Medicare and other regulatory guidelines. It uses a suite of local AI models to provide in-depth analysis, personalized feedback, and historical trend tracking, all while ensuring data privacy by processing everything on the user's machine.
+This document provides a comprehensive overview of the Therapy Compliance Analyzer application, including its features, architecture, and instructions for getting started.
 
-## 🌟 Key Features
+## 🌟 Features Overview
 
 - **Secure User Authentication**: A robust login system with password management ensures secure access.
 - **Interactive Dashboard**: Visualize compliance trends over time with a historical score chart and see a breakdown of the most common compliance issues.
@@ -17,17 +17,20 @@ This project is an advanced, AI-powered desktop application designed to help cli
     - **Formalized Limitations**: Every report includes a clear disclaimer about the capabilities and limitations of the AI models.
 - **Database-Backed Rubric Manager**: A full GUI for adding, editing, and deleting compliance rubrics, with all changes immediately reflected in the analysis engine.
 - **Automated Database Maintenance**: The application automatically purges old reports to manage disk space usage.
+- **PDF Export**: Generates professional, audit-ready PDF reports of compliance analyses, complete with custom headers, footers, and HIPAA-compliant disclaimers. For more details, see the **[PDF Export Guide](docs/PDF_EXPORT_GUIDE.md)**.
+- **Personal Development Framework**: Integrates the "7 Habits" framework to provide personalized feedback and track professional growth. This feature is fully configurable; see the **[Habits Framework Settings Guide](docs/HABITS_FRAMEWORK_SETTINGS.md)** for details.
 
-
-
-3
 ## 📂 Project Architecture
 
-The application is composed of a Python backend API and a desktop GUI.
+The application is designed with a modular, service-oriented architecture that separates concerns and promotes maintainability.
 
-- **Backend**: A modular API built with **FastAPI** that handles the AI analysis, database interactions, and user authentication.
-- **Frontend**: A desktop application built with **PyQt6** that provides the user interface for document analysis and dashboard visualization.
+- **Backend**: A robust backend API built with **FastAPI**. It handles all the heavy lifting, including AI analysis, database interactions, and user authentication.
+- **Frontend**: A native desktop application built with **PyQt6**. This provides a responsive and feature-rich user interface.
 - **Database**: Uses **SQLAlchemy** with a SQLite database to store user data, rubrics, and historical analysis reports.
+
+### Directory Structure
+
+The `src` directory is organized into modules, each with a specific responsibility:
 
 ```
 .
@@ -36,12 +39,17 @@ The application is composed of a Python backend API and a desktop GUI.
 │   │   ├── routers/
 │   │   └── main.py
 │   ├── core/                # Core services (Analysis, AI models, etc.)
+│   ├── database/            # All database-related code (models, schemas, crud)
+│   │   ├── crud.py
+│   │   ├── database.py
+│   │   ├── models.py
+│   │   └── schemas.py
 │   ├── gui/                 # PyQt6 GUI application code
 │   ├── resources/           # Data files (dictionaries, prompts, etc.)
-│   ├── crud.py              # Database CRUD functions
-│   ├── database.py          # SQLAlchemy setup
-│   ├── models.py            # SQLAlchemy database models
-│   └── schemas.py           # Pydantic data validation schemas
+│   ├── utils/               # Shared utility functions
+│   ├── auth.py              # User authentication and JWT management
+│   ├── config.py            # Application configuration management
+│   └── logging_config.py    # Logging setup
 ├── tests/                   # A comprehensive suite of fast, isolated unit tests
 ├── config.yaml              # Main application configuration
 └── requirements.txt         # Project dependencies
@@ -65,7 +73,7 @@ The application is composed of a Python backend API and a desktop GUI.
 
 ### 1. Installation
 
-Clone the repository and install the required dependencies for running the application:
+Clone the repository and install the required dependencies:
 
 ```bash
 pip install -r requirements.txt
@@ -76,40 +84,83 @@ For development, which includes running tests and linters, install the additiona
 pip install -r requirements-dev.txt
 ```
 
-### 2. Configuration (Crucial Step)
+### 2. Configuration and Setup
 
-The application uses `config.yaml` for most settings, but sensitive data like the `SECRET_KEY` should be handled securely using environment variables.
+The application uses `config.yaml` for most settings, but sensitive data like the `SECRET_KEY` must be handled securely using environment variables.
 
-1.  **Set the Secret Key**: For production, set the `SECRET_KEY` as an environment variable. For local development, you can create a `.env` file in the project root. The application uses `python-dotenv` to load this file automatically.
-
-2.  **Create a `.env` file** with the following content:
+1.  **Create a `.env` file**: In the project root, create a `.env` file to store your secret key. The application uses `python-dotenv` to load this file automatically.
     ```.env
-    # A secret key for encoding JWT tokens. Generate a new one for your instance.
-    # You can generate one with: openssl rand -hex 32
+    # Generate a new key for your instance using: openssl rand -hex 32
     SECRET_KEY="YOUR_SUPER_SECRET_KEY_HERE"
     ```
-    **Note**: The `secret_key` value in `config.yaml` is a placeholder and should not be used for production. The environment variable will always take precedence.
+    **Note**: The environment variable will always take precedence over the `secret_key` value in `config.yaml`.
 
-3.  **Create a default user**: The application requires at least one user to log in. You will need to create one manually in the database for the first run.
+2.  **Initialize the Database**: Run the initialization script to set up the database schema.
+    ```bash
+    python initialize_db.py
+    ```
+
+3.  **Create a Default User**: Create a default user to log in to the application for the first time.
+    ```bash
+    python create_default_user.py
+    ```
 
 ### 3. Running the Application
 
-The application is launched using a single script that starts both the backend API server and the frontend GUI.
+Launch the application using the main script, which starts both the backend API server and the frontend GUI.
 
-Run the following command from the project root:
 ```bash
 python start_app.py
 ```
-The GUI application will start, and you will be prompted to log in. The backend API will run in the background, and its logs will be saved to `api_server.log` and `api_server.err.log`.
+The GUI application will start, and you can log in with the default user credentials. The backend API will run in the background, with logs saved to `api_server.log` and `api_server.err.log`.
 
 ## 🧪 Running Tests
 
-To run the full suite of fast, isolated unit tests, use `pytest`:
+The project includes a comprehensive suite of unit, integration, and GUI tests to ensure code quality and stability.
 
+To run the full test suite, use `pytest`:
 ```bash
-pytest
+python -m pytest
 ```
+
+For more detailed information on the testing strategy, including how to run specific tests, generate coverage reports, or write new tests, please refer to the **[Comprehensive Testing Guide](docs/TESTING_GUIDE_COMPREHENSIVE.md)**.
+
+## ⚙️ Performance Optimization
+
+The application automatically detects your system and applies optimal settings based on available RAM:
+
+- **6-8GB RAM**: Conservative mode (CPU-only, small cache)
+- **8-12GB RAM**: Balanced mode (GPU optional, moderate cache)
+- **12-16GB+ RAM**: Aggressive mode (full GPU, large cache)
+
+You can access and change performance settings via the application menu: `Tools → Performance Settings`.
+
+## 🤔 Troubleshooting
+
+### App Won't Start
+- **Check Python Version**: Ensure you are using Python 3.10 or newer (`python --version`).
+- **Reinstall Dependencies**: If you suspect a corrupted package, you can force a re-installation:
+  ```bash
+  pip install -r requirements.txt --force-reinstall
+  ```
+
+### "AI Models Failed" Error
+- **Internet Connection**: The first time you run the app, it needs to download the AI models. Ensure you have an internet connection.
+- **Restart the App**: Subsequent runs use a local cache. If you see this error, try restarting the application.
+
+### Performance Issues
+- **High Memory Usage**: Switch to the "Conservative" profile in `Tools → Performance Settings`.
+- **Slow Analysis**: If you have a dedicated GPU, ensure GPU acceleration is enabled in the performance settings.
+- **UI Freezing**: Close other resource-intensive applications and restart the app.
+
+### Import Errors
+- **Virtual Environment**: Ensure your virtual environment is activated before running the application.
+- **Verify Installation**: You can run these commands to quickly check if the core packages are installed correctly:
+  ```bash
+  python -c "import PyQt6; print('✅ GUI ready')"
+  python -c "import fastapi; print('✅ API ready')"
+  ```
 
 ## 📖 API Documentation
 
-The API documentation is automatically generated by FastAPI and is available at `http://127.0.0.1:8004/docs` after you have started the backend API.
+The API documentation is automatically generated by FastAPI and is available at `http://127.0.0.1:8000/docs` after you have started the application.
