@@ -4,7 +4,7 @@ import requests
 import urllib.parse
 import webbrowser
 from typing import Dict
-from PySide6.QtCore import Qt, QThread, QUrl
+from PySide6.QtCore import Qt, QThread, QUrl, QPoint
 from PySide6.QtGui import QTextDocument
 from PySide6.QtWidgets import (
     QWidget,
@@ -122,6 +122,7 @@ class MainApplicationWindow(QMainWindow):
     def init_base_ui(self):
         self.setWindowTitle("Therapy Compliance Analyzer")
         self.setGeometry(100, 100, 1200, 800)
+        self.setMinimumSize(800, 600)  # Allow smaller scaling
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
         self.file_menu = self.menu_bar.addMenu("File")
@@ -134,9 +135,15 @@ class MainApplicationWindow(QMainWindow):
             "Performance Settings", self.show_performance_settings
         )
         self.tools_menu.addAction("Change Password", self.show_change_password_dialog)
+        self.settings_menu = self.menu_bar.addMenu("Settings")
+        self.settings_menu.addAction("Preferences", self.show_preferences)
+        self.settings_menu.addAction("Theme Settings", self.show_theme_settings)
+        self.settings_menu.addAction("Analysis Settings", self.show_analysis_settings)
         self.theme_menu = self.menu_bar.addMenu("Theme")
         self.theme_menu.addAction("Light", self.set_light_theme)
         self.theme_menu.addAction("Dark", self.set_dark_theme)
+        self.help_menu = self.menu_bar.addMenu("Help")
+        self.help_menu.addAction("About", self.show_about)
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ready")
@@ -160,6 +167,9 @@ class MainApplicationWindow(QMainWindow):
         self.progress_bar = QProgressBar(self.status_bar)
         self.status_bar.addPermanentWidget(self.progress_bar)
         self.progress_bar.hide()
+        
+        # Create floating chat button
+        self.create_floating_chat_button()
 
     def _format_model_status_text(self) -> str:
         badges = []
@@ -251,6 +261,14 @@ class MainApplicationWindow(QMainWindow):
         self.selected_source_label.setObjectName("selectedSourceLabel")
         self.selected_source_label.setMinimumWidth(240)
         source_layout.addWidget(self.selected_source_label, 1)
+        
+        # Add analyze button to document upload area
+        self.run_analysis_button = QPushButton("Run Analysis")
+        self.run_analysis_button.setEnabled(False)
+        self.run_analysis_button.setFixedHeight(34)
+        self.run_analysis_button.clicked.connect(self.run_analysis)
+        source_layout.addWidget(self.run_analysis_button)
+        
         controls_group_layout.addLayout(source_layout)
 
         rubric_layout = QHBoxLayout()
@@ -319,11 +337,12 @@ class MainApplicationWindow(QMainWindow):
 
         actions_layout = QHBoxLayout()
         actions_layout.setSpacing(8)
-        self.run_analysis_button = QPushButton("Run Analysis")
-        self.run_analysis_button.setEnabled(False)
-        self.run_analysis_button.setFixedHeight(34)
-        self.run_analysis_button.clicked.connect(self.run_analysis)
-        actions_layout.addWidget(self.run_analysis_button)
+        
+        # Add rubric management button where analyze button was
+        self.manage_rubrics_button = QPushButton("Manage Rubrics")
+        self.manage_rubrics_button.setFixedHeight(34)
+        self.manage_rubrics_button.clicked.connect(self.manage_rubrics)
+        actions_layout.addWidget(self.manage_rubrics_button)
 
         self.stop_analysis_button = QPushButton("Stop Analysis")
         self.stop_analysis_button.setEnabled(False)
@@ -1210,6 +1229,127 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { background: n
 QMessageBox { background-color: #2b2b2b; color: #e6e6e6; }
 QMessageBox QPushButton { min-width: 90px; }
 """
+
+    def create_floating_chat_button(self):
+        """Create moveable floating chat button"""
+        self.chat_button = QPushButton("💬")
+        self.chat_button.setParent(self)
+        self.chat_button.setFixedSize(50, 50)
+        self.chat_button.setToolTip("Chat with AI Assistant")
+        self.chat_button.clicked.connect(self.open_chat_assistant)
+        self.chat_button.setStyleSheet("""
+            QPushButton {
+                background: #007acc;
+                color: white;
+                border: none;
+                border-radius: 25px;
+                font-size: 20px;
+                font-weight: bold;
+            }
+            QPushButton:hover { 
+                background: #005a9e; 
+            }
+            QPushButton:pressed { 
+                background: #004080; 
+            }
+        """)
+        
+        # Make it draggable
+        self.chat_button.mousePressEvent = self.chat_button_mouse_press
+        self.chat_button.mouseMoveEvent = self.chat_button_mouse_move
+        self.chat_button.mouseReleaseEvent = self.chat_button_mouse_release
+        self.chat_button_dragging = False
+        self.chat_button_offset = None
+        
+        # Position it away from Pacific Coast easter egg (bottom left instead of bottom right)
+        self.position_chat_button()
+        
+    def position_chat_button(self):
+        """Position floating chat button"""
+        if hasattr(self, 'chat_button'):
+            # Position in bottom left to avoid Pacific Coast easter egg
+            self.chat_button.move(20, self.height() - 80)
+            
+    def chat_button_mouse_press(self, event):
+        """Handle chat button mouse press for dragging"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.chat_button_dragging = True
+            self.chat_button_offset = event.position().toPoint()
+            
+    def chat_button_mouse_move(self, event):
+        """Handle chat button mouse move for dragging"""
+        if self.chat_button_dragging and self.chat_button_offset:
+            # Calculate new position
+            new_pos = self.mapFromGlobal(event.globalPosition().toPoint()) - self.chat_button_offset
+            
+            # Keep button within window bounds
+            max_x = self.width() - self.chat_button.width()
+            max_y = self.height() - self.chat_button.height()
+            
+            new_x = max(0, min(new_pos.x(), max_x))
+            new_y = max(0, min(new_pos.y(), max_y))
+            
+            self.chat_button.move(new_x, new_y)
+            
+    def chat_button_mouse_release(self, event):
+        """Handle chat button mouse release"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.chat_button_dragging = False
+            self.chat_button_offset = None
+            
+    def open_chat_assistant(self):
+        """Open the chat assistant dialog"""
+        chat_dialog = ChatDialog("Hello! How can I help you with compliance today?", self.access_token or "", self)
+        chat_dialog.exec()
+        
+    def show_preferences(self):
+        """Show preferences dialog"""
+        QMessageBox.information(self, "Preferences", "Preferences dialog - Coming soon!")
+        
+    def show_theme_settings(self):
+        """Show theme settings dialog"""
+        QMessageBox.information(self, "Theme Settings", "Advanced theme settings - Coming soon!")
+        
+    def show_analysis_settings(self):
+        """Show analysis settings dialog"""
+        QMessageBox.information(self, "Analysis Settings", "Analysis configuration settings - Coming soon!")
+        
+    def show_about(self):
+        """Show about dialog with Kevin Moon and emoji"""
+        about_text = """
+        <h2>Therapy Compliance Analyzer</h2>
+        <p><b>Version:</b> 1.0.0</p>
+        <p><b>AI-Powered Clinical Documentation Analysis</b></p>
+        <br>
+        <p>This application helps healthcare professionals ensure their documentation 
+        meets Medicare and regulatory compliance standards using advanced AI technology.</p>
+        <br>
+        <p><b>Features:</b></p>
+        <ul>
+        <li>Local AI processing for privacy</li>
+        <li>Multi-format document support</li>
+        <li>Interactive compliance reports</li>
+        <li>Real-time chat assistance</li>
+        </ul>
+        <br>
+        <p><b>Developed by:</b> Kevin Moon 🤝💖</p>
+        <p><i>Pacific Coast Development 🌴</i></p>
+        <br>
+        <p>© 2024 All rights reserved</p>
+        """
+        
+        msg = QMessageBox(self)
+        msg.setWindowTitle("About Therapy Compliance Analyzer")
+        msg.setText(about_text)
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.exec()
+
+    def resizeEvent(self, event):
+        """Handle window resize to reposition floating button"""
+        super().resizeEvent(event)
+        if hasattr(self, 'chat_button') and not self.chat_button_dragging:
+            # Only auto-reposition if not being dragged
+            self.position_chat_button()
 
     def closeEvent(self, event):
         """Handle application close event with proper cleanup."""
