@@ -1190,7 +1190,8 @@ class UltimateMainWindow(QMainWindow):
         """Initialize complete UI"""
         self.setWindowTitle("THERAPY DOCUMENTATION COMPLIANCE ANALYSIS")
         self.setGeometry(100, 100, 1400, 900)
-        self.setMinimumSize(800, 600)  # Better minimum for scaling
+        self.setMinimumSize(1000, 700)  # Better minimum for content visibility
+        self.setSizePolicy(QWidget.SizePolicy.Expanding, QWidget.SizePolicy.Expanding)
 
         # Enable better scaling behavior
         from PySide6.QtWidgets import QSizePolicy
@@ -1457,10 +1458,16 @@ class UltimateMainWindow(QMainWindow):
         self.tab_widget.addTab(analysis_widget, "Analysis")
 
     def create_left_panel(self):
-        """Create left panel with Medicare Part B rubric selection"""
+        """Create responsive left panel with Medicare Part B rubric selection"""
         panel = QFrame()
         panel.setFrameStyle(QFrame.Shape.StyledPanel)
+        panel.setMinimumWidth(300)
+        panel.setMaximumWidth(400)
+        panel.setSizePolicy(QWidget.SizePolicy.Preferred, QWidget.SizePolicy.Expanding)
+        
         layout = QVBoxLayout(panel)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
 
         # Document upload
         upload_group = QGroupBox("Document Upload")
@@ -1468,14 +1475,18 @@ class UltimateMainWindow(QMainWindow):
 
         self.drop_area = QLabel("Drag & Drop Document Here\nor Click to Browse")
         self.drop_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.drop_area.setMinimumHeight(100)
+        self.drop_area.setMinimumHeight(80)
+        self.drop_area.setMaximumHeight(120)
+        self.drop_area.setSizePolicy(QWidget.SizePolicy.Expanding, QWidget.SizePolicy.Fixed)
+        self.drop_area.setWordWrap(True)
         self.drop_area.setStyleSheet("""
             QLabel {
                 border: 2px dashed #ccc;
                 border-radius: 10px;
                 background: #f9f9f9;
                 color: #666;
-                font-size: 14px;
+                font-size: 12px;
+                padding: 10px;
             }
             QLabel:hover {
                 border-color: #007acc;
@@ -1578,6 +1589,30 @@ class UltimateMainWindow(QMainWindow):
             ]
         )
         self.rubric_combo.currentTextChanged.connect(self.update_rubric_description)
+        self.rubric_combo.setSizePolicy(QWidget.SizePolicy.Expanding, QWidget.SizePolicy.Fixed)
+        self.rubric_combo.setStyleSheet("""
+            QComboBox {
+                padding: 6px 10px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                background: white;
+                font-size: 11px;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+            QComboBox::down-arrow {
+                width: 12px;
+                height: 12px;
+            }
+            QComboBox QAbstractItemView {
+                border: 1px solid #ccc;
+                background: white;
+                selection-background-color: #007acc;
+                font-size: 11px;
+            }
+        """)
         rubric_layout.addWidget(self.rubric_combo)
 
         self.rubric_description = QLabel(
