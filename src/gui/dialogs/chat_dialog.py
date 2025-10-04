@@ -1,13 +1,14 @@
-from PySide6.QtWidgets import (
+from PyQt6.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QHBoxLayout,
     QLineEdit,
     QTextEdit,
     QPushButton,
-    QDialogButtonBox,
+    QLabel,
 )
-from PySide6.QtCore import QThread
+from PyQt6.QtCore import QThread
+from PyQt6.QtGui import QKeySequence, QShortcut
 from typing import List, Dict
 
 from ..workers.chat_worker import ChatWorker
@@ -21,8 +22,9 @@ API_URL = settings.paths.api_url
 class ChatDialog(QDialog):
     def __init__(self, initial_context: str, token: str, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Chat with AI Assistant")
-        self.setMinimumSize(500, 400)
+        self.setWindowTitle("💬 AI Compliance Assistant")
+        self.setMinimumSize(600, 500)
+        self.resize(700, 600)  # Better default size
         self.token = token
         self.history: List[Dict[str, str]] = [
             {
@@ -34,26 +36,121 @@ class ChatDialog(QDialog):
 
         # --- UI Setup ---
         self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(16, 16, 16, 16)
+        self.main_layout.setSpacing(12)
 
+        # Header
+        header_label = QLabel("💬 AI Compliance Assistant")
+        header_label.setStyleSheet("""
+            QLabel {
+                font-size: 18px;
+                font-weight: bold;
+                color: #1e40af;
+                padding: 12px;
+                background-color: #dbeafe;
+                border-radius: 8px;
+                margin-bottom: 8px;
+            }
+        """)
+        self.main_layout.addWidget(header_label)
+
+        # Chat display with better styling
         self.chat_display = QTextEdit()
         self.chat_display.setReadOnly(True)
+        self.chat_display.setStyleSheet("""
+            QTextEdit {
+                border: 2px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 12px;
+                background-color: #f8fafc;
+                font-size: 13px;
+                line-height: 1.5;
+            }
+        """)
         self.main_layout.addWidget(self.chat_display)
 
-        input_layout = QHBoxLayout()
-        self.message_input = QLineEdit()
-        self.message_input.setPlaceholderText("Type your message...")
-        self.send_button = QPushButton("Send")
+        # Input section with label
+        input_label = QLabel("💭 Your message (Press Enter to send):")
+        input_label.setStyleSheet("font-weight: 600; color: #475569; font-size: 13px;")
+        self.main_layout.addWidget(input_label)
 
-        input_layout.addWidget(self.message_input)
+        # Input layout with proper scaling
+        input_layout = QHBoxLayout()
+        input_layout.setSpacing(8)
+        
+        self.message_input = QLineEdit()
+        self.message_input.setPlaceholderText("Ask about compliance, documentation tips, or specific findings...")
+        self.message_input.setMinimumHeight(36)
+        self.message_input.setStyleSheet("""
+            QLineEdit {
+                border: 2px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 8px 12px;
+                background-color: white;
+                font-size: 13px;
+            }
+            QLineEdit:focus {
+                border-color: #3b82f6;
+            }
+        """)
+        
+        self.send_button = QPushButton("📤 Send")
+        self.send_button.setMinimumHeight(36)
+        self.send_button.setMinimumWidth(80)
+        self.send_button.setStyleSheet("""
+            QPushButton {
+                background-color: #10b981;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #059669;
+            }
+            QPushButton:disabled {
+                background-color: #cbd5e1;
+                color: #94a3b8;
+            }
+        """)
+
+        input_layout.addWidget(self.message_input, 1)
         input_layout.addWidget(self.send_button)
         self.main_layout.addLayout(input_layout)
 
-        self.close_button = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-        self.main_layout.addWidget(self.close_button)
+        # Close button with proper label
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        close_button = QPushButton("✅ Close Chat")
+        close_button.setMinimumHeight(36)
+        close_button.setStyleSheet("""
+            QPushButton {
+                background-color: #64748b;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #475569;
+            }
+        """)
+        close_button.clicked.connect(self.accept)
+        button_layout.addWidget(close_button)
+        self.main_layout.addLayout(button_layout)
 
         # --- Connections ---
         self.send_button.clicked.connect(self.send_message)
-        self.close_button.rejected.connect(self.reject)
+        self.message_input.returnPressed.connect(self.send_message)  # Enter key support
+        
+        # Add Ctrl+Enter shortcut as alternative
+        enter_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
+        enter_shortcut.activated.connect(self.send_message)
 
         self.worker_thread: QThread | None = None
         self.worker: ChatWorker | None = None

@@ -1,3 +1,4 @@
+import os
 import logging
 from typing import Any
 
@@ -5,29 +6,60 @@ logger = logging.getLogger(__name__)
 
 
 class PromptManager:
-    def __init__(self, template_path: str):
-        self.template_path = template_path
-        self.template = ""
+    """
+    Manages loading and formatting of prompt templates from the resources directory.
+    """
+
+    def __init__(self, template_name: str):
+        """
+        Initializes the PromptManager by loading a specific prompt template.
+
+        Args:
+            template_name: The filename of the prompt template in the prompts directory.
+        """
+        prompts_dir = os.path.join(
+            os.path.dirname(__file__), "..", "resources", "prompts"
+        )
+        self.template_path = os.path.join(prompts_dir, template_name)
+        self.template_string = self._load_template()
+
+    def _load_template(self) -> str:
+        """Loads the prompt template from the file system."""
+        if not os.path.exists(self.template_path):
+            logger.error("Prompt template not found: %s", self.template_path)
+            raise FileNotFoundError(f"Prompt template not found: {self.template_path}")
+
+        with open(self.template_path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    def get_prompt(self, **kwargs: Any) -> str:
+        """
+        Formats the loaded prompt template with the given keyword arguments.
+
+        Args:
+            **kwargs: The variables to substitute into the prompt template.
+
+        Returns:
+            The formatted prompt string.
+        """
         try:
-            with open(template_path, "r", encoding="utf-8") as f:
-                self.template = f.read()
-            logger.info(f"Successfully loaded prompt template from {template_path}")
-        except FileNotFoundError:
-            logger.error(f"Prompt template file not found at: {template_path}")
-        except Exception as e:
-            logger.error(f"Error loading prompt template from {template_path}: {e}")
+            return self.template_string.format(**kwargs)
+        except KeyError as e:
+            logger.error(
+                "Missing variable in prompt template",
+                template=self.template_path,
+                error=str(e),
+            )
+            raise
 
     def build_prompt(self, **kwargs: Any) -> str:
-        if not self.template:
-            logger.error(
-                f"Cannot build prompt; template from {self.template_path} is empty or was not loaded."
-            )
-            return ""
-        try:
-            return self.template.format(**kwargs)
-        except KeyError as e:
-            logger.error(f"Missing key in prompt template '{self.template_path}': {e}")
-            return ""
-        except Exception as e:
-            logger.error(f"An unexpected error occurred during prompt building: {e}")
-            return ""
+        """
+        Alias for get_prompt to maintain backward compatibility.
+        
+        Args:
+            **kwargs: The variables to substitute into the prompt template.
+
+        Returns:
+            The formatted prompt string.
+        """
+        return self.get_prompt(**kwargs)

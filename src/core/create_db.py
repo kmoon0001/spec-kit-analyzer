@@ -19,6 +19,15 @@ ITERATIONS = 100000
 
 
 def hash_password(password, salt):
+    """Hashes a password using PBKDF2HMAC.
+
+    Args:
+        password (str): The password to hash.
+        salt (bytes): The salt to use for hashing.
+
+    Returns:
+        bytes: The hashed password.
+    """
     kdf = PBKDF2HMAC(
         algorithm=HASH_ALGORITHM,
         length=32,
@@ -30,6 +39,13 @@ def hash_password(password, salt):
 
 
 def add_user(cursor, username, password):
+    """Adds a new user to the database.
+
+    Args:
+        cursor: The database cursor object.
+        username (str): The username of the new user.
+        password (str): The password of the new user.
+    """
     # Check if user already exists
     cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
     if cursor.fetchone():
@@ -47,12 +63,22 @@ def add_user(cursor, username, password):
 
 
 def generate_random_password(length=12):
+    """Generates a random password.
+
+    Args:
+        length (int): The length of the password to generate.
+
+    Returns:
+        str: The generated random password.
+    """
     alphabet = string.ascii_letters + string.digits + string.punctuation
     password = "".join(secrets.choice(alphabet) for i in range(length))
     return password
 
 
 def main():
+    """Main function to create and initialize the database with an admin user.
+    """
     # --- Create data directory if it doesn't exist ---
     os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
 

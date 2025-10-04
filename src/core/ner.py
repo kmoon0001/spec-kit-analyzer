@@ -37,10 +37,13 @@ class NERPipeline:
                         If None, uses default biomedical models.
         """
         self.pipelines = []
-        self.model_names = model_names or [
-            "d4data/biomedical-ner-all",
-            "Clinical-AI-Apollo/Medical-NER",
-        ]
+        if model_names is None:
+            self.model_names = [
+                "d4data/biomedical-ner-all",
+                "Clinical-AI-Apollo/Medical-NER",
+            ]
+        else:
+            self.model_names = model_names
         self._initialize_pipelines()
 
     def _initialize_pipelines(self) -> None:
@@ -221,7 +224,8 @@ class NERAnalyzer:
             name_pattern = self.clinical_patterns["name_pattern"]
 
             # Pattern: Title + Name (e.g., "Dr. John Smith", "PT Jane Doe")
-            title_name_pattern = rf"({title_pattern})\s+({name_pattern})"
+            # Allow for punctuation and spaces between title and name
+            title_name_pattern = rf"({title_pattern}).*?({name_pattern})"
             for match in re.finditer(title_name_pattern, text, re.IGNORECASE):
                 # Extract just the name part (remove title)
                 name_part = match.group(2).strip()

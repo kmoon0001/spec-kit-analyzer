@@ -2,31 +2,44 @@ import logging
 import os
 import re
 from typing import Dict, List
+from PIL import Image
 
 import pdfplumber
 import yaml
 from docx import Document
 
+# OCR imports with fallback
+try:
+    import pytesseract
+    import cv2
+    import numpy as np
+    OCR_AVAILABLE = True
+except ImportError:
+    OCR_AVAILABLE = False
+    pytesseract = None
+    cv2 = None
+    np = None
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_EXTENSIONS = {".pdf", ".txt", ".docx"}
+SUPPORTED_EXTENSIONS = {".pdf", ".txt", ".docx", ".png", ".jpg", ".jpeg", ".tiff", ".bmp"}
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".tiff", ".bmp"}
 
 
 def parse_document_content(file_path: str) -> List[Dict[str, str]]:
-    """Parse supported documents into sentence chunks."""
+    """Parse supported documents into sentence chunks with OCR support."""
     extension = os.path.splitext(file_path)[1].lower()
 
     if extension not in SUPPORTED_EXTENSIONS:
+        supported_list = ", ".join(sorted(SUPPORTED_EXTENSIONS))
         return [
             {
-                "sentence": f"Error: Unsupported file type '{extension}'. Only PDF, TXT, and DOCX are supported.",
+                "sentence": f"Error: Unsupported file type '{extension}'. Supported formats: {supported_list}",
                 "source": "parser",
             }
         ]
 
-    file_exists = os.path.exists(file_path)
-    if extension in {".txt", ".docx"} and not file_exists:
+    if not os.path.exists(file_path):
         return [
             {
                 "sentence": f"Error: File not found at {file_path}",
@@ -36,11 +49,13 @@ def parse_document_content(file_path: str) -> List[Dict[str, str]]:
 
     try:
         if extension == ".pdf":
-            return _parse_pdf(file_path)
-        if extension == ".txt":
+            return _parse_pdf_with_ocr(file_path)
+        elif extension == ".txt":
             return _parse_txt(file_path)
-        if extension == ".docx":
+        elif extension == ".docx":
             return _parse_docx(file_path)
+        elif extension in IMAGE_EXTENSIONS:
+            return _parse_image_with_ocr(file_path)
     except FileNotFoundError:
         return [
             {
@@ -48,31 +63,224 @@ def parse_document_content(file_path: str) -> List[Dict[str, str]]:
                 "source": "parser",
             }
         ]
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.exception("Failed to parse %s", file_path)
+    except Exception as e:
+        logger.error(f"Error parsing {file_path}: {e}")
         return [
             {
-                "sentence": f"Error parsing document '{os.path.basename(file_path)}': {exc}",
+                "sentence": f"Error parsing file: {str(e)}",
                 "source": "parser",
             }
         ]
 
-    return []
+
+def _preprocess_image_for_ocr(image):
+    """Preprocess image for better OCR accuracy."""
+    if not OCR_AVAILABLE:
+        return image
+    
+    try:
+        # Convert PIL Image to OpenCV format
+        if isinstance(image, Image.Image):
+            image_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        else:
+            image_cv = image
+        
+        # Convert to grayscale
+        gray = cv2.cvtColor(image_cv, cv2.COLOR_BGR2GRAY)
+        
+        # Apply deskewing
+        coords = np.column_stack(np.where(gray > 0))
+        if len(coords) > 0:
+            angle = cv2.minAreaRect(coords)[-1]
+            if angle < -45:
+                angle = -(90 + angle)
+            else:
+                angle = -angle
+            
+            if abs(angle) > 0.5:  # Only deskew if angle is significant
+                (h, w) = gray.shape[:2]
+                center = (w // 2, h // 2)
+                M = cv2.getRotationMatrix2D(center, angle, 1.0)
+                gray = cv2.warpAffine(gray, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+        
+        # Noise removal
+        gray = cv2.medianBlur(gray, 3)
+        
+        # Thresholding to get better contrast
+        gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+        
+        return gray
+        
+    except Exception as e:
+        logger.warning(f"Image preprocessing failed: {e}, using original image")
+        return image
+
+
+def _parse_image_with_ocr(file_path: str) -> List[Dict[str, str]]:
+    """Parse image files using OCR."""
+    if not OCR_AVAILABLE:
+        return [
+            {
+                "sentence": "Error: OCR functionality not available. Please install pytesseract and opencv-python.",
+                "source": "parser",
+            }
+        ]
+    
+    try:
+        # Load image
+        image = Image.open(file_path)
+        
+        # Preprocess image for better OCR
+        processed_image = _preprocess_image_for_ocr(image)
+        
+        # Perform OCR with medical-optimized settings
+        custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:!?()[]{}"-/\n '
+        
+        text = pytesseract.image_to_string(processed_image, config=custom_config)
+        
+        if not text.strip():
+            return [
+                {
+                    "sentence": "Warning: No text could be extracted from the image. The image may be too low quality or contain no readable text.",
+                    "source": "ocr",
+                }
+            ]
+        
+        # Split into sentences and clean up
+        sentences = _split_into_sentences(text)
+        
+        return [
+            {
+                "sentence": sentence.strip(),
+                "source": "ocr",
+            }
+            for sentence in sentences
+            if sentence.strip()
+        ]
+        
+    except Exception as e:
+        logger.error(f"OCR processing failed for {file_path}: {e}")
+        return [
+            {
+                "sentence": f"Error: OCR processing failed - {str(e)}",
+                "source": "parser",
+            }
+        ]
+
+
+def _parse_pdf_with_ocr(file_path: str) -> List[Dict[str, str]]:
+    """Parse PDF with OCR fallback for scanned documents."""
+    try:
+        # First try regular text extraction
+        with pdfplumber.open(file_path) as pdf:
+            text_content = []
+            ocr_pages = []
+            
+            for page_num, page in enumerate(pdf.pages):
+                page_text = page.extract_text()
+                
+                if page_text and page_text.strip():
+                    # Page has extractable text
+                    sentences = _split_into_sentences(page_text)
+                    for sentence in sentences:
+                        if sentence.strip():
+                            text_content.append({
+                                "sentence": sentence.strip(),
+                                "source": f"pdf_page_{page_num + 1}",
+                            })
+                else:
+                    # Page appears to be scanned, try OCR
+                    if OCR_AVAILABLE:
+                        try:
+                            # Convert page to image
+                            page_image = page.to_image(resolution=300)
+                            pil_image = page_image.original
+                            
+                            # Preprocess and OCR
+                            processed_image = _preprocess_image_for_ocr(pil_image)
+                            custom_config = r'--oem 3 --psm 6'
+                            ocr_text = pytesseract.image_to_string(processed_image, config=custom_config)
+                            
+                            if ocr_text.strip():
+                                sentences = _split_into_sentences(ocr_text)
+                                for sentence in sentences:
+                                    if sentence.strip():
+                                        text_content.append({
+                                            "sentence": sentence.strip(),
+                                            "source": f"ocr_page_{page_num + 1}",
+                                        })
+                                ocr_pages.append(page_num + 1)
+                            
+                        except Exception as e:
+                            logger.warning(f"OCR failed for page {page_num + 1}: {e}")
+                            text_content.append({
+                                "sentence": f"Warning: Page {page_num + 1} could not be processed (may be scanned image without OCR capability)",
+                                "source": "parser",
+                            })
+                    else:
+                        text_content.append({
+                            "sentence": f"Warning: Page {page_num + 1} appears to be scanned but OCR is not available. Install pytesseract for scanned document support.",
+                            "source": "parser",
+                        })
+            
+            if ocr_pages:
+                logger.info(f"OCR was used for pages: {ocr_pages}")
+                text_content.insert(0, {
+                    "sentence": f"Note: OCR was used to extract text from scanned pages: {', '.join(map(str, ocr_pages))}",
+                    "source": "ocr_info",
+                })
+            
+            return text_content if text_content else [
+                {
+                    "sentence": "Error: No text could be extracted from the PDF.",
+                    "source": "parser",
+                }
+            ]
+            
+    except Exception as e:
+        logger.error(f"PDF parsing failed for {file_path}: {e}")
+        return [
+            {
+                "sentence": f"Error parsing PDF: {str(e)}",
+                "source": "parser",
+            }
+        ]
+
+
+def _split_into_sentences(text: str) -> List[str]:
+    """Split text into sentences with medical document awareness."""
+    # Clean up the text
+    text = re.sub(r'\s+', ' ', text)  # Normalize whitespace
+    text = re.sub(r'([.!?])\s*([A-Z])', r'\1\n\2', text)  # Split on sentence boundaries
+    
+    # Handle medical abbreviations that shouldn't be split
+    medical_abbrevs = ['Dr.', 'Mr.', 'Mrs.', 'Ms.', 'PT.', 'OT.', 'SLP.', 'etc.', 'vs.', 'i.e.', 'e.g.']
+    for abbrev in medical_abbrevs:
+        text = text.replace(abbrev + '\n', abbrev + ' ')
+    
+    sentences = [s.strip() for s in text.split('\n') if s.strip()]
+    
+    # Merge very short sentences (likely fragments)
+    merged_sentences = []
+    current_sentence = ""
+    
+    for sentence in sentences:
+        if len(sentence) < 20 and current_sentence:
+            current_sentence += " " + sentence
+        else:
+            if current_sentence:
+                merged_sentences.append(current_sentence)
+            current_sentence = sentence
+    
+    if current_sentence:
+        merged_sentences.append(current_sentence)
+    
+    return merged_sentences
 
 
 def _parse_pdf(file_path: str) -> List[Dict[str, str]]:
-    chunks: List[Dict[str, str]] = []
-    with pdfplumber.open(file_path) as pdf:
-        for index, page in enumerate(pdf.pages, start=1):
-            text = page.extract_text() or ""
-            if text.strip():
-                chunks.append(
-                    {
-                        "sentence": text,
-                        "source": f"{os.path.basename(file_path)} (Page {index})",
-                    }
-                )
-    return chunks
+    """Legacy PDF parser - redirects to OCR-enabled version."""
+    return _parse_pdf_with_ocr(file_path)
 
 
 def _parse_txt(file_path: str) -> List[Dict[str, str]]:

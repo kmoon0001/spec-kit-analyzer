@@ -329,34 +329,34 @@ class HabitProgressionService:
 
     async def _get_user_analysis_count(self, db: AsyncSession, user_id: int) -> int:
         """Get total analysis count for user."""
-        # This would need to be implemented in crud.py
-        # For now, return a placeholder
-        return 0  # Placeholder - would query actual analysis count
+        try:
+            return await crud.get_user_analysis_count(db, user_id)
+        except Exception as e:
+            logger.error(f"Error getting user analysis count: {e}")
+            return 0
 
     async def _get_user_goals(
         self, db: AsyncSession, user_id: int
     ) -> List[Dict[str, Any]]:
-        """Get user's current goals."""
-        # This would be stored in a user_goals table
-        # For now, return sample goals
-        return [
-            {
-                "id": 1,
-                "title": "Master Habit 3: Put First Things First",
-                "description": "Reduce signature and timing findings to under 5%",
-                "target_date": (datetime.now(UTC) + timedelta(days=30)).isoformat(),
-                "progress": 65,
-                "status": "in_progress",
-            },
-            {
-                "id": 2,
-                "title": "Improve Overall Compliance Score",
-                "description": "Achieve 90% average compliance score",
-                "target_date": (datetime.now(UTC) + timedelta(days=60)).isoformat(),
-                "progress": 78,
-                "status": "in_progress",
-            },
-        ]
+        """Get user's current goals from the database."""
+        try:
+            goals = await crud.get_user_habit_goals(db, user_id=user_id, active_only=True)
+            
+            # Format goals into the dictionary structure expected by the frontend
+            return [
+                {
+                    "id": goal.id,
+                    "title": goal.title,
+                    "description": goal.description,
+                    "target_date": goal.target_date.isoformat() if goal.target_date else None,
+                    "progress": goal.progress,
+                    "status": goal.status,
+                }
+                for goal in goals
+            ]
+        except Exception as e:
+            logger.error(f"Error getting user goals: {e}")
+            return []
 
     def _generate_recommendations(self, progression_data: Dict) -> List[Dict[str, Any]]:
         """Generate personalized recommendations based on progression data."""

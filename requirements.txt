@@ -6,9 +6,9 @@ slowapi==0.1.9
 requests==2.32.5
 httpx==0.28.1
 
-# GUI
-PyQt6==6.9.1
-PyQt6-WebEngine==6.9.0
+# GUI - PyQt6 for desktop application
+PyQt6==6.8.0
+PyQt6-WebEngine==6.8.0
 matplotlib==3.10.6
 pytesseract==0.3.13
 
@@ -71,3 +71,4 @@ tenacity==9.1.2
 # Configuration
 pydantic-settings==2.11.0
 structlog==25.4.0
+pytest-asyncio

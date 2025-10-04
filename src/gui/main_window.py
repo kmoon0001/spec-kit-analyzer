@@ -1,11 +1,13 @@
 import os
 import json
+import requests
 import urllib.parse
 import webbrowser
+from datetime import datetime
 from typing import Dict
-from PySide6.QtCore import Qt, QThread, QUrl, QTimer
-from PySide6.QtGui import QTextDocument, QKeySequence, QShortcut
-from PySide6.QtWidgets import (
+from PyQt6.QtCore import Qt, QThread, QUrl
+from PyQt6.QtGui import QTextDocument
+from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QDialog,
@@ -26,11 +28,12 @@ from PySide6.QtWidgets import (
     QTabWidget,
     QTextBrowser,
     QComboBox,
-    QSizePolicy,
+    QApplication,
 )
 
 from src.config import get_settings
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
+from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
 
@@ -45,7 +48,6 @@ from src.gui.widgets.meta_analytics_widget import MetaAnalyticsWidget
 from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
 from src.gui.dialogs.performance_settings_dialog import PerformanceSettingsDialog
 from src.core.report_generator import ReportGenerator
-from src.gui.export import generate_pdf_report
 
 # Add project root to path for imports
 project_root = os.path.dirname(
@@ -77,10 +79,9 @@ class DocumentPreviewDialog(QDialog):
 class MainApplicationWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        # Simplified authentication - direct access mode
-        self.access_token = "direct_access"  # Default token for local-only mode
-        self.username = "local_user"
-        self.is_admin = True  # Enable all features in local mode
+        self.access_token = None
+        self.username = None
+        self.is_admin = False
         self._current_file_path = None
         self._current_folder_path = None
         self._current_folder_files = []
@@ -99,7 +100,6 @@ class MainApplicationWindow(QMainWindow):
         self.meta_analytics_thread = None
         self.meta_analytics_worker = None
         self.report_generator = ReportGenerator()
-        self.api_port = 8000  # Default API port
         self.model_status = {
             "Generator": False,
             "Retriever": False,
@@ -108,54 +108,57 @@ class MainApplicationWindow(QMainWindow):
             "Checklist": False,
             "Chat": False,
         }
+        
+        # Extract port from API_URL for MetaAnalyticsWorker
+        from urllib.parse import urlparse
+        parsed_url = urlparse(API_URL)
+        self.api_port = parsed_url.port or 8004
         self.init_base_ui()
 
     def start(self):
         """
-        Starts the application's main logic with direct access mode.
+        Starts the application's main logic, including loading models and showing the login dialog.
         This is called after the window is created to avoid blocking the constructor,
         which makes the main window testable.
         """
-        self._load_user_preferences()  # Load saved preferences first
         self.load_ai_models()
         self.load_main_ui()  # Load main UI directly
         self.show()
 
     def init_base_ui(self):
-        self.setWindowTitle("THERAPY DOCUMENTATION ANALYZER")
-        self.setGeometry(
-            100, 100, 1400, 900
-        )  # Larger default size for better proportions
-        self.setMinimumSize(900, 650)  # Better minimum for scaling
-
-        # Enable better scaling behavior
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-
-        # Setup keyboard shortcuts for better accessibility
-        self._setup_keyboard_shortcuts()
-
+        self.setWindowTitle("Therapy Compliance Analyzer")
+        # Better default size with minimum constraints for scalability
+        self.setMinimumSize(800, 600)
+        self.resize(1200, 800)
+        
+        # Center window on screen
+        screen = QApplication.primaryScreen().geometry()
+        x = (screen.width() - self.width()) // 2
+        y = (screen.height() - self.height()) // 2
+        self.move(x, y)
+        
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
         self.file_menu = self.menu_bar.addMenu("File")
-        self.file_menu.addAction("Open Document (Ctrl+O)", self.open_file_dialog)
-        self.file_menu.addAction("Open Folder (Ctrl+Shift+O)", self.open_folder_dialog)
+        self.file_menu.addAction("Logout", self.logout)
         self.file_menu.addSeparator()
         self.file_menu.addAction("Exit", self.close)
-
-        # Add Help menu for better discoverability
-        self.help_menu = self.menu_bar.addMenu("Help")
-        self.help_menu.addAction("Keyboard Shortcuts", self.show_keyboard_shortcuts)
-        self.help_menu.addAction("Chat Assistant (Ctrl+H)", self.open_chat_assistant)
-        self.help_menu.addSeparator()
-        self.help_menu.addAction("About", self.show_about)
-
-        # Keep only essential menu items - settings moved to Settings tab
+        self.tools_menu = self.menu_bar.addMenu("Tools")
+        self.tools_menu.addAction("Manage Rubrics", self.manage_rubrics)
+        self.tools_menu.addAction(
+            "Performance Settings", self.show_performance_settings
+        )
+        self.tools_menu.addAction("Change Password", self.show_change_password_dialog)
+        self.theme_menu = self.menu_bar.addMenu("Theme")
+        self.theme_menu.addAction("Light", self.set_light_theme)
+        self.theme_menu.addAction("Dark", self.set_dark_theme)
+        
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ready")
         self.ai_status_label = QLabel("Loading AI models...")
         self.status_bar.addPermanentWidget(self.ai_status_label)
-        self.user_status_label = QLabel("Local User")
+        self.user_status_label = QLabel("")
         self.status_bar.addPermanentWidget(self.user_status_label)
 
         self.model_health_label = QLabel(self._format_model_status_text())
@@ -170,21 +173,9 @@ class MainApplicationWindow(QMainWindow):
         )
         self.status_bar.addPermanentWidget(self.performance_status)
 
-        # Add auto-save indicator
-        self.auto_save_label = QLabel("💾")
-        self.auto_save_label.setToolTip("Auto-save active")
-        self.auto_save_label.setStyleSheet("color: #28a745; font-size: 14px;")
-        self.status_bar.addPermanentWidget(self.auto_save_label)
-
         self.progress_bar = QProgressBar(self.status_bar)
         self.status_bar.addPermanentWidget(self.progress_bar)
         self.progress_bar.hide()
-
-        # Create floating chat button
-        self.create_floating_chat_button()
-
-        # Setup auto-save timer for user preferences
-        self._setup_auto_save_timer()
 
     def _format_model_status_text(self) -> str:
         badges = []
@@ -200,17 +191,23 @@ class MainApplicationWindow(QMainWindow):
         if hasattr(self, "model_health_label"):
             self.model_health_label.setText(self._format_model_status_text())
 
+    def logout(self):
+        self.access_token = None
+        self.username = None
+        self.is_admin = False
+        self.user_status_label.setText("")
+        self.setCentralWidget(None)
+        QMessageBox.information(self, "Logged Out", "You have been logged out.")
+        # Since login is removed, we can just close or show a message.
+        # For now, let's just clear the UI. A real implementation might close the app.
+
     def load_main_ui(self):
         self.tabs = QTabWidget()
         self.setCentralWidget(self.tabs)
         analysis_tab = self._create_analysis_tab()
-        self.tabs.addTab(analysis_tab, "📋 Analysis")
+        self.tabs.addTab(analysis_tab, "Analysis")
         self.dashboard_widget = DashboardWidget()
-        self.tabs.addTab(self.dashboard_widget, "📊 Dashboard")
-
-        # Add Settings tab
-        settings_tab = self._create_settings_tab()
-        self.tabs.addTab(settings_tab, "⚙️ Settings")
+        self.tabs.addTab(self.dashboard_widget, "Dashboard")
         self.dashboard_widget.refresh_requested.connect(self.load_dashboard_data)
 
         # Add meta analytics tab for admin users
@@ -221,12 +218,9 @@ class MainApplicationWindow(QMainWindow):
                 self.load_meta_analytics_data
             )
 
-        # Add admin options to Settings tab instead of menu
         if self.is_admin:
-            # Admin functionality will be in Settings tab
-            pass
-            pass
-
+            self.admin_menu = self.menu_bar.addMenu("Admin")
+            self.admin_menu.addAction("Open Admin Dashboard", self.open_admin_dashboard)
         self.load_dashboard_data()
 
         # Load meta analytics for admin users
@@ -236,32 +230,31 @@ class MainApplicationWindow(QMainWindow):
         theme = self.load_theme_setting()
         self.apply_stylesheet(theme)
 
-        # Ensure chat button is visible after UI is loaded
-        if hasattr(self, "chat_button"):
-            self.chat_button.show()
-            self.chat_button.raise_()
-
     def open_admin_dashboard(self):
         webbrowser.open(f"{API_URL}/admin/dashboard?token={self.access_token}")
 
     def _create_analysis_tab(self) -> QWidget:
         analysis_widget = QWidget()
         main_layout = QVBoxLayout(analysis_widget)
-        main_layout.setContentsMargins(8, 8, 8, 8)  # Smaller margins for better scaling
-        main_layout.setSpacing(8)  # Reduced spacing
+        main_layout.setContentsMargins(12, 12, 12, 12)
+        main_layout.setSpacing(12)
 
+        # Compact controls group with better scaling
         controls_group = QGroupBox("Analysis Setup")
+        controls_group.setMaximumHeight(120)  # Limit height for better scaling
         controls_group_layout = QVBoxLayout()
-        controls_group_layout.setContentsMargins(8, 6, 8, 6)  # Smaller margins
-        controls_group_layout.setSpacing(4)  # Reduced spacing
+        controls_group_layout.setContentsMargins(8, 6, 8, 6)
+        controls_group_layout.setSpacing(4)
         controls_group.setLayout(controls_group_layout)
         main_layout.addWidget(controls_group)
 
+        # Source selection row
         source_layout = QHBoxLayout()
         source_layout.setSpacing(8)
         self.upload_button = QToolButton()
         self.upload_button.setText("Upload Source")
-        self.upload_button.setFixedHeight(34)
+        self.upload_button.setMinimumHeight(28)
+        self.upload_button.setMaximumHeight(32)
         self.upload_button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
         self.upload_button.clicked.connect(self.open_file_dialog)
         self.upload_button_menu = QMenu(self.upload_button)
@@ -276,158 +269,140 @@ class MainApplicationWindow(QMainWindow):
 
         self.selected_source_label = QLabel("No document selected.")
         self.selected_source_label.setObjectName("selectedSourceLabel")
-        self.selected_source_label.setMinimumWidth(240)
+        self.selected_source_label.setMinimumWidth(200)
         source_layout.addWidget(self.selected_source_label, 1)
-
         controls_group_layout.addLayout(source_layout)
 
+        # Rubric selection row
         rubric_layout = QHBoxLayout()
         rubric_layout.setSpacing(8)
-        rubric_layout.addWidget(QLabel("Rubric"))
+        rubric_label = QLabel("Rubric:")
+        rubric_label.setMinimumWidth(50)
+        rubric_layout.addWidget(rubric_label)
+        
         self.rubric_selector = QComboBox()
-        self.rubric_selector.setPlaceholderText("Select a Rubric")
+        self.rubric_selector.setPlaceholderText("Medicare Benefits Policy Manual (Default)")
+        self.rubric_selector.setMinimumHeight(28)
+        self.rubric_selector.setMaximumHeight(32)
         self.rubric_selector.currentIndexChanged.connect(self._on_rubric_selected)
-        rubric_layout.addWidget(self.rubric_selector, 1)
+        rubric_layout.addWidget(self.rubric_selector, 2)
+        
         self.rubric_type_selector = QComboBox()
         self.rubric_type_selector.addItem("All Disciplines", None)
+        self.rubric_type_selector.setMinimumHeight(28)
+        self.rubric_type_selector.setMaximumHeight(32)
         self.rubric_type_selector.currentIndexChanged.connect(
             self._filter_rubrics_by_type
         )
         rubric_layout.addWidget(self.rubric_type_selector)
-
-        # Add rubric management button inside rubric area
-        self.manage_rubrics_button_inline = QPushButton("⚙️ Manage")
-        self.manage_rubrics_button_inline.setFixedHeight(32)
-        self.manage_rubrics_button_inline.clicked.connect(self.manage_rubrics)
-        self.manage_rubrics_button_inline.setStyleSheet("""
-            QPushButton {
-                background: #17a2b8;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                font-weight: bold;
-                padding: 6px 12px;
-            }
-            QPushButton:hover { background: #138496; }
-        """)
-        rubric_layout.addWidget(self.manage_rubrics_button_inline)
-
         controls_group_layout.addLayout(rubric_layout)
 
+        # Compact description with limited height
         self.rubric_description_label = QLabel(
-            "Description of selected rubric will appear here."
+            "Medicare Benefits Policy Manual - Default compliance rubric for PT, OT, and SLP services"
         )
         self.rubric_description_label.setWordWrap(True)
+        self.rubric_description_label.setMaximumHeight(30)
+        self.rubric_description_label.setStyleSheet("color: #666; font-size: 11px;")
         controls_group_layout.addWidget(self.rubric_description_label)
 
+        # Main content splitter with better scaling
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setChildrenCollapsible(True)  # Allow collapsing for small windows
-        splitter.setHandleWidth(8)  # Smaller handle for more space
+        splitter.setChildrenCollapsible(False)
+        splitter.setHandleWidth(8)
         splitter.setObjectName("analysisSplitter")
-
-        # Set size policy for better scaling
-        from PySide6.QtWidgets import QSizePolicy
-
-        splitter.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
-
         main_layout.addWidget(splitter, 1)
 
-        document_group = QGroupBox("Document Upload & Analysis")
+        # Document panel with compact header
+        document_group = QGroupBox("Document Details")
         document_group.setObjectName("documentPane")
         document_layout = QVBoxLayout()
+        document_layout.setContentsMargins(8, 6, 8, 8)
+        document_layout.setSpacing(6)
         document_group.setLayout(document_layout)
-
-        # Document display area
+        
         self.document_display_area = QTextEdit()
         self.document_display_area.setPlaceholderText(
             "Upload a document to see its content here."
         )
         self.document_display_area.setReadOnly(True)
+        self.document_display_area.setMinimumWidth(300)  # Ensure minimum readable width
         document_layout.addWidget(self.document_display_area)
-
-        # Analysis controls inside document window
-        doc_controls_layout = QHBoxLayout()
-        doc_controls_layout.setSpacing(8)
-
-        # Move analyze button here with better styling
-        self.run_analysis_button_doc = QPushButton("🔍 Run Analysis")
-        self.run_analysis_button_doc.setEnabled(False)
-        self.run_analysis_button_doc.setFixedHeight(40)
-        self.run_analysis_button_doc.clicked.connect(self.run_analysis)
-        self.run_analysis_button_doc.setStyleSheet("""
-            QPushButton {
-                background: #28a745;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                font-weight: bold;
-                font-size: 14px;
-            }
-            QPushButton:hover { background: #218838; }
-            QPushButton:disabled { background: #6c757d; }
-        """)
-        doc_controls_layout.addWidget(self.run_analysis_button_doc)
-
-        self.stop_analysis_button_doc = QPushButton("⏹ Stop")
-        self.stop_analysis_button_doc.setEnabled(False)
-        self.stop_analysis_button_doc.setFixedHeight(40)
-        self.stop_analysis_button_doc.clicked.connect(self.stop_analysis)
-        self.stop_analysis_button_doc.setStyleSheet("""
-            QPushButton {
-                background: #dc3545;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                font-weight: bold;
-            }
-            QPushButton:hover { background: #c82333; }
-        """)
-        doc_controls_layout.addWidget(self.stop_analysis_button_doc)
-
-        doc_controls_layout.addStretch()
-        document_layout.addLayout(doc_controls_layout)
-
         splitter.addWidget(document_group)
 
-        results_group = QGroupBox("Analysis Results")
+        # Results panel with compact header
+        results_group = QGroupBox("Report")
         results_group.setObjectName("resultsPane")
         results_layout = QVBoxLayout()
+        results_layout.setContentsMargins(8, 6, 8, 8)
+        results_layout.setSpacing(6)
         results_group.setLayout(results_layout)
+        
         self.analysis_results_area = QTextBrowser()
         self.analysis_results_area.setPlaceholderText(
             "Analysis results will appear here."
         )
         self.analysis_results_area.setReadOnly(True)
         self.analysis_results_area.setOpenExternalLinks(True)
+        self.analysis_results_area.setMinimumWidth(400)  # Ensure minimum readable width
         self.analysis_results_area.anchorClicked.connect(self.handle_anchor_click)
         results_layout.addWidget(self.analysis_results_area)
         splitter.addWidget(results_group)
-        # Better stretch factors for scaling - more balanced
-        splitter.setStretchFactor(0, 2)  # Document area
-        splitter.setStretchFactor(1, 3)  # Results area (slightly larger)
+        
+        # Better proportions for scaling: 40% document, 60% results
+        splitter.setStretchFactor(0, 2)
+        splitter.setStretchFactor(1, 3)
 
-        # Use the existing progress bar from status bar instead of creating duplicate
-        # self.progress_bar is already created in init_base_ui()
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setObjectName("analysisProgress")
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setFixedHeight(8)
+        self.progress_bar.hide()
+        main_layout.addWidget(self.progress_bar)
 
+        # Action buttons with better scaling
         actions_layout = QHBoxLayout()
-        actions_layout.setSpacing(8)
+        actions_layout.setSpacing(6)
+        
+        self.run_analysis_button = QPushButton("Run Analysis")
+        self.run_analysis_button.setEnabled(False)
+        self.run_analysis_button.setMinimumHeight(32)
+        self.run_analysis_button.setMaximumHeight(36)
+        self.run_analysis_button.clicked.connect(self.run_analysis)
+        actions_layout.addWidget(self.run_analysis_button)
 
-        self.document_preview_button = QPushButton("📄 Preview")
+        self.stop_analysis_button = QPushButton("Stop")
+        self.stop_analysis_button.setEnabled(False)
+        self.stop_analysis_button.setMinimumHeight(32)
+        self.stop_analysis_button.setMaximumHeight(36)
+        self.stop_analysis_button.clicked.connect(self.stop_analysis)
+        actions_layout.addWidget(self.stop_analysis_button)
+
+        self.document_preview_button = QPushButton("Preview")
         self.document_preview_button.setEnabled(False)
-        self.document_preview_button.setFixedHeight(36)
+        self.document_preview_button.setMinimumHeight(32)
+        self.document_preview_button.setMaximumHeight(36)
         self.document_preview_button.clicked.connect(self.show_document_preview)
         actions_layout.addWidget(self.document_preview_button)
 
-        self.export_report_button = QPushButton("📊 Export Report")
+        self.analytics_button = QPushButton("Analytics")
+        self.analytics_button.setMinimumHeight(32)
+        self.analytics_button.setMaximumHeight(36)
+        self.analytics_button.clicked.connect(self.open_analytics_dashboard)
+        actions_layout.addWidget(self.analytics_button)
+
+        self.export_report_button = QPushButton("Export")
         self.export_report_button.setEnabled(False)
-        self.export_report_button.setFixedHeight(36)
+        self.export_report_button.setMinimumHeight(32)
+        self.export_report_button.setMaximumHeight(36)
         self.export_report_button.clicked.connect(self.export_report)
         actions_layout.addWidget(self.export_report_button)
 
-        self.clear_button = QPushButton("🗑️ Clear")
-        self.clear_button.setFixedHeight(36)
+        self.clear_button = QPushButton("Clear")
+        self.clear_button.setMinimumHeight(32)
+        self.clear_button.setMaximumHeight(36)
         self.clear_button.clicked.connect(self.clear_display)
         actions_layout.addWidget(self.clear_button)
 
@@ -476,85 +451,6 @@ class MainApplicationWindow(QMainWindow):
                 return {"raw_result": result}
         return {"raw_result": result}
 
-    def _create_settings_tab(self) -> QWidget:
-        """Create the settings tab with all configuration options"""
-        settings_widget = QWidget()
-        main_layout = QVBoxLayout(settings_widget)
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(20)
-
-        # Theme Settings Group
-        theme_group = QGroupBox("🎨 Theme & Appearance")
-        theme_layout = QVBoxLayout(theme_group)
-
-        theme_buttons_layout = QHBoxLayout()
-        light_btn = QPushButton("☀️ Light Theme")
-        light_btn.clicked.connect(self.set_light_theme)
-        dark_btn = QPushButton("🌙 Dark Theme")
-        dark_btn.clicked.connect(self.set_dark_theme)
-        theme_buttons_layout.addWidget(light_btn)
-        theme_buttons_layout.addWidget(dark_btn)
-        theme_buttons_layout.addStretch()
-        theme_layout.addLayout(theme_buttons_layout)
-
-        main_layout.addWidget(theme_group)
-
-        # User Settings Group
-        user_group = QGroupBox("👤 User Settings")
-        user_layout = QVBoxLayout(user_group)
-
-        user_info_label = QLabel(
-            "Running in Direct Access Mode\nNo authentication required for local analysis"
-        )
-        user_info_label.setStyleSheet("color: #666; font-style: italic;")
-        user_layout.addWidget(user_info_label)
-
-        main_layout.addWidget(user_group)
-
-        # Performance Settings Group
-        perf_group = QGroupBox("⚡ Performance")
-        perf_layout = QVBoxLayout(perf_group)
-
-        perf_settings_btn = QPushButton("🔧 Performance Settings")
-        perf_settings_btn.clicked.connect(self.show_performance_settings)
-        perf_layout.addWidget(perf_settings_btn)
-
-        main_layout.addWidget(perf_group)
-
-        # Analysis Settings Group
-        analysis_group = QGroupBox("🔍 Analysis Configuration")
-        analysis_layout = QVBoxLayout(analysis_group)
-
-        analysis_settings_btn = QPushButton("⚙️ Analysis Settings")
-        analysis_settings_btn.clicked.connect(self.show_analysis_settings)
-        analysis_layout.addWidget(analysis_settings_btn)
-
-        main_layout.addWidget(analysis_group)
-
-        # Admin Section (if admin user)
-        if hasattr(self, "is_admin") and self.is_admin:
-            admin_group = QGroupBox("👑 Administrator")
-            admin_layout = QVBoxLayout(admin_group)
-
-            admin_dashboard_btn = QPushButton("🔧 Admin Dashboard")
-            admin_dashboard_btn.clicked.connect(self.open_admin_dashboard)
-            admin_layout.addWidget(admin_dashboard_btn)
-
-            main_layout.addWidget(admin_group)
-
-        # About Section
-        about_group = QGroupBox("ℹ️ About")
-        about_layout = QVBoxLayout(about_group)
-
-        about_btn = QPushButton("📖 About Application")
-        about_btn.clicked.connect(self.show_about)
-        about_layout.addWidget(about_btn)
-
-        main_layout.addWidget(about_group)
-
-        main_layout.addStretch()
-        return settings_widget
-
     def _update_action_states(self) -> None:
         has_source = bool(self._current_file_path or self._current_folder_path)
         active_rubric = (
@@ -565,14 +461,10 @@ class MainApplicationWindow(QMainWindow):
         has_preview = bool(self._current_document_text)
         has_report = bool(self._current_report_payload)
         can_run = bool(has_source and active_rubric and not self._analysis_running)
-
-        # Update new analyze button in document area
-        if hasattr(self, "run_analysis_button_doc"):
-            self.run_analysis_button_doc.setEnabled(can_run)
-        if hasattr(self, "stop_analysis_button_doc"):
-            self.stop_analysis_button_doc.setEnabled(self._analysis_running)
-
-        # Update other buttons
+        if hasattr(self, "run_analysis_button"):
+            self.run_analysis_button.setEnabled(can_run)
+        if hasattr(self, "stop_analysis_button"):
+            self.stop_analysis_button.setEnabled(self._analysis_running)
         if hasattr(self, "document_preview_button"):
             self.document_preview_button.setEnabled(has_preview)
         if hasattr(self, "export_report_button"):
@@ -670,13 +562,31 @@ class MainApplicationWindow(QMainWindow):
         dialog.exec()
 
     def show_change_password_dialog(self):
-        # Password change not available in direct access mode
-        QMessageBox.information(
-            self,
-            "Direct Access Mode",
-            "Password management is not available in direct access mode.\n"
-            "This application runs locally without user authentication.",
-        )
+        dialog = ChangePasswordDialog(self)
+        if dialog.exec():
+            current_password, new_password = dialog.get_passwords()
+            try:
+                headers = {"Authorization": f"Bearer {self.access_token}"}
+                payload = {
+                    "current_password": current_password,
+                    "new_password": new_password,
+                }
+                response = requests.post(
+                    f"{API_URL}/auth/users/change-password",
+                    json=payload,
+                    headers=headers,
+                )
+                response.raise_for_status()
+                QMessageBox.information(
+                    self, "Success", "Password changed successfully."
+                )
+            except requests.exceptions.RequestException as e:
+                detail = (
+                    e.response.json().get("detail", str(e)) if e.response else str(e)
+                )
+                QMessageBox.critical(
+                    self, "Error", f"Failed to change password: {detail}"
+                )
 
     def show_performance_settings(self):
         """Show the performance settings dialog."""
@@ -711,7 +621,9 @@ class MainApplicationWindow(QMainWindow):
             print(f"Error handling performance settings change: {e}")
 
     def load_dashboard_data(self):
-        # Direct access mode - no authentication check needed
+        if not self.access_token:
+            self.status_bar.showMessage("Login required to load analytics.", 5000)
+            return
 
         self.status_bar.showMessage("Refreshing dashboard data...")
         if self.dashboard_thread and self.dashboard_thread.isRunning():
@@ -742,7 +654,15 @@ class MainApplicationWindow(QMainWindow):
 
     def load_meta_analytics_data(self, params=None):
         """Load meta analytics data for admin users."""
-        # Direct access mode - all features available
+        if not self.access_token:
+            self.status_bar.showMessage("Login required to load team analytics.", 5000)
+            return
+
+        if not self.is_admin:
+            self.status_bar.showMessage(
+                "Admin access required for team analytics.", 5000
+            )
+            return
 
         self.status_bar.showMessage("Loading team analytics...")
 
@@ -810,44 +730,39 @@ class MainApplicationWindow(QMainWindow):
 
         source_path = self._current_file_path or self._current_folder_path
         if not source_path:
-            self.show_user_notification(
+            QMessageBox.warning(
+                self,
                 "No Source Selected",
                 "Please upload a document or folder before running analysis.",
-                "warning",
             )
             return
 
         selected_rubric = self.rubric_selector.currentData()
         if not selected_rubric:
-            self.show_user_notification(
+            QMessageBox.warning(
+                self,
                 "No Rubric Selected",
                 "Please select a rubric before running analysis.",
-                "warning",
             )
             return
 
         discipline = selected_rubric.get("discipline", "Unknown")
         rubric_id = selected_rubric.get("id")
 
-        self.show_progress_notification("Optimizing performance...")
+        self.status_bar.showMessage("Optimizing performance...")
         try:
             from src.core.performance_integration import optimize_for_analysis
 
             optimization_results = optimize_for_analysis()
             if optimization_results.get("recommendations"):
                 recommendations = "\n".join(optimization_results["recommendations"])
-                self.show_user_notification(
-                    "Performance Optimization Complete",
+                QMessageBox.information(
+                    self,
+                    "Performance Recommendations",
                     f"Performance optimization completed:\n\n{recommendations}",
-                    "success",
                 )
         except Exception as exc:
             print(f"Performance optimization failed: {exc}")
-            self.show_user_notification(
-                "Performance Optimization Failed",
-                f"Performance optimization encountered an issue: {exc}",
-                "warning",
-            )
 
         self.progress_bar.setRange(0, 0)
         self.progress_bar.setValue(0)
@@ -1120,16 +1035,133 @@ class MainApplicationWindow(QMainWindow):
             )
             return
 
-        payload_str = json.dumps(self._current_report_payload)
-        success, message = generate_pdf_report(payload_str, parent=self)
-        if success:
-            QMessageBox.information(
+        # Get current report HTML
+        report_html = self.analysis_results_area.toHtml()
+        if not report_html.strip():
+            QMessageBox.warning(
                 self,
-                "Export Complete",
-                f"Report saved to:\n{message}",
+                "No Report Content",
+                "No report content available for export.",
             )
-        else:
-            QMessageBox.warning(self, "Export Failed", message)
+            return
+
+        # Ask user for export format and location
+        file_dialog = QFileDialog()
+        file_dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+        file_dialog.setNameFilters([
+            "PDF Files (*.pdf)",
+            "HTML Files (*.html)",
+            "All Files (*.*)"
+        ])
+        file_dialog.setDefaultSuffix("pdf")
+        
+        # Set default filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        default_name = f"compliance_report_{timestamp}"
+        file_dialog.selectFile(default_name)
+        
+        if file_dialog.exec():
+            file_path = file_dialog.selectedFiles()[0]
+            file_extension = os.path.splitext(file_path)[1].lower()
+            
+            try:
+                if file_extension == ".pdf":
+                    self._export_pdf_report(report_html, file_path)
+                elif file_extension == ".html":
+                    self._export_html_report(report_html, file_path)
+                else:
+                    # Default to HTML
+                    if not file_path.endswith(('.pdf', '.html')):
+                        file_path += '.html'
+                    self._export_html_report(report_html, file_path)
+                    
+                QMessageBox.information(
+                    self,
+                    "Export Complete",
+                    f"Report exported successfully to:\n{file_path}",
+                )
+                
+            except Exception as e:
+                QMessageBox.critical(
+                    self,
+                    "Export Failed",
+                    f"Failed to export report:\n{str(e)}",
+                )
+
+    def _export_pdf_report(self, html_content: str, file_path: str) -> None:
+        """Export report as PDF using the PDF export service."""
+        try:
+            from src.core.pdf_export_service import export_compliance_report_to_pdf
+            
+            # Get document name for metadata
+            document_name = None
+            if self._current_file_path:
+                document_name = os.path.basename(self._current_file_path)
+            elif self._current_folder_path:
+                document_name = f"Folder: {os.path.basename(self._current_folder_path)}"
+            
+            success = export_compliance_report_to_pdf(
+                html_content, 
+                file_path, 
+                document_name
+            )
+            
+            if not success:
+                raise Exception("PDF export service failed. Please check that weasyprint or pdfkit is installed.")
+                
+        except ImportError:
+            raise Exception("PDF export not available. Please install weasyprint or pdfkit:\npip install weasyprint")
+
+    def _export_html_report(self, html_content: str, file_path: str) -> None:
+        """Export report as standalone HTML file."""
+        # Create a complete HTML document with embedded CSS
+        complete_html = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Therapy Compliance Analysis Report</title>
+            <style>
+                body {{ 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                    margin: 20px; 
+                    background-color: #f8f9fa; 
+                    line-height: 1.6; 
+                }}
+                .container {{ 
+                    max-width: 1000px; 
+                    margin: auto; 
+                    background-color: #fff; 
+                    padding: 30px; 
+                    border-radius: 8px; 
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+                }}
+                .export-info {{
+                    background-color: #e3f2fd;
+                    border: 1px solid #2196f3;
+                    border-radius: 4px;
+                    padding: 10px;
+                    margin-bottom: 20px;
+                    font-size: 12px;
+                    color: #1565c0;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="export-info">
+                    <strong>Exported Report</strong> - Generated on {datetime.now().strftime("%B %d, %Y at %I:%M %p")} 
+                    by Therapy Compliance Analyzer
+                </div>
+                {html_content}
+            </div>
+        </body>
+        </html>
+        """
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(complete_html)
 
     def load_ai_models(self):
         if self.ai_loader_thread and self.ai_loader_thread.isRunning():
@@ -1171,6 +1203,22 @@ class MainApplicationWindow(QMainWindow):
             return
 
         rubrics = self.compliance_service.get_available_rubrics() or []
+        
+        # Add Medicare Benefits Policy Manual as default if not present
+        medicare_rubric = {
+            "id": "medicare_benefits_policy_manual",
+            "name": "Medicare Benefits Policy Manual",
+            "description": "Default Medicare compliance rubric for PT, OT, and SLP services covering documentation requirements, medical necessity, and billing standards",
+            "discipline": "All",
+            "category": "Medicare Compliance",
+            "is_default": True
+        }
+        
+        # Check if Medicare rubric already exists
+        has_medicare = any(r.get("name") == "Medicare Benefits Policy Manual" for r in rubrics)
+        if not has_medicare:
+            rubrics.insert(0, medicare_rubric)  # Add as first option
+        
         self._all_rubrics = rubrics
 
         disciplines = sorted(
@@ -1192,6 +1240,14 @@ class MainApplicationWindow(QMainWindow):
             self.rubric_type_selector.blockSignals(False)
 
         self._apply_rubric_filter()
+        
+        # Set Medicare Benefits Policy Manual as default selection
+        if hasattr(self, "rubric_selector"):
+            for i in range(self.rubric_selector.count()):
+                rubric_data = self.rubric_selector.itemData(i)
+                if rubric_data and rubric_data.get("name") == "Medicare Benefits Policy Manual":
+                    self.rubric_selector.setCurrentIndex(i)
+                    break
 
     def _on_rubric_selected(self, index):
         selected_rubric = self.rubric_selector.itemData(index)
@@ -1349,166 +1405,6 @@ QMessageBox { background-color: #2b2b2b; color: #e6e6e6; }
 QMessageBox QPushButton { min-width: 90px; }
 """
 
-    def create_floating_chat_button(self):
-        """Create moveable floating chat button"""
-        self.chat_button = QPushButton("💬")
-        self.chat_button.setParent(self)
-        self.chat_button.setFixedSize(50, 50)
-        self.chat_button.setToolTip("Chat with AI Assistant")
-        self.chat_button.clicked.connect(self.open_chat_assistant)
-        self.chat_button.setStyleSheet("""
-            QPushButton {
-                background: #007acc;
-                color: white;
-                border: none;
-                border-radius: 25px;
-                font-size: 20px;
-                font-weight: bold;
-            }
-            QPushButton:hover { 
-                background: #005a9e; 
-            }
-            QPushButton:pressed { 
-                background: #004080; 
-            }
-        """)
-
-        # Make it draggable
-        self.chat_button.mousePressEvent = self.chat_button_mouse_press
-        self.chat_button.mouseMoveEvent = self.chat_button_mouse_move
-        self.chat_button.mouseReleaseEvent = self.chat_button_mouse_release
-        self.chat_button_dragging = False
-        self.chat_button_offset = None
-
-        # Position it away from Pacific Coast easter egg and show it
-        self.position_chat_button()
-        self.chat_button.show()  # Make sure it's visible
-        self.chat_button.raise_()  # Bring to front
-
-    def position_chat_button(self):
-        """Position floating chat button"""
-        if hasattr(self, "chat_button"):
-            # Position in top right to avoid Pacific Coast easter egg completely
-            self.chat_button.move(self.width() - 70, 80)
-
-    def chat_button_mouse_press(self, event):
-        """Handle chat button mouse press for dragging"""
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.chat_button_dragging = True
-            self.chat_button_offset = event.position().toPoint()
-
-    def chat_button_mouse_move(self, event):
-        """Handle chat button mouse move for dragging"""
-        if self.chat_button_dragging and self.chat_button_offset:
-            # Calculate new position
-            new_pos = (
-                self.mapFromGlobal(event.globalPosition().toPoint())
-                - self.chat_button_offset
-            )
-
-            # Keep button within window bounds
-            max_x = self.width() - self.chat_button.width()
-            max_y = self.height() - self.chat_button.height()
-
-            new_x = max(0, min(new_pos.x(), max_x))
-            new_y = max(0, min(new_pos.y(), max_y))
-
-            self.chat_button.move(new_x, new_y)
-
-    def chat_button_mouse_release(self, event):
-        """Handle chat button mouse release"""
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.chat_button_dragging = False
-            self.chat_button_offset = None
-
-    def open_chat_assistant(self):
-        """Open the chat assistant dialog"""
-        chat_dialog = ChatDialog(
-            "Hello! How can I help you with compliance today?",
-            self.access_token or "",
-            self,
-        )
-        chat_dialog.exec()
-
-    def show_analysis_settings(self):
-        """Show analysis settings dialog"""
-        QMessageBox.information(
-            self, "Analysis Settings", "Analysis configuration settings - Coming soon!"
-        )
-
-    def show_about(self):
-        """Show about dialog with Kevin Moon and emoji"""
-        about_text = f"""
-        <h2>Therapy Compliance Analyzer</h2>
-        <p><b>Version:</b> 1.0.0</p>
-        <p><b>AI-Powered Clinical Documentation Analysis</b></p>
-        <br>
-        <p>This application helps healthcare professionals ensure their documentation 
-        meets Medicare and regulatory compliance standards using advanced AI technology.</p>
-        <br>
-        <p><b>Features:</b></p>
-        <ul>
-        <li>Local AI processing for privacy</li>
-        <li>Multi-format document support</li>
-        <li>Interactive compliance reports</li>
-        <li>Real-time chat assistance</li>
-        <li>Keyboard shortcuts for efficiency</li>
-        </ul>
-        <br>
-        {self.get_keyboard_shortcuts_help()}
-        <br>
-        <p><b>Developed by:</b> Kevin Moon 🤝💖</p>
-        <p><i>Pacific Coast Development 🌴</i></p>
-        <br>
-        <p>© 2024 All rights reserved</p>
-        """
-
-        msg = QMessageBox(self)
-        msg.setWindowTitle("About Therapy Compliance Analyzer")
-        msg.setText(about_text)
-        msg.setIcon(QMessageBox.Icon.Information)
-        msg.exec()
-
-    def show_keyboard_shortcuts(self):
-        """Show keyboard shortcuts help dialog."""
-        shortcuts_text = self.get_keyboard_shortcuts_help()
-
-        msg = QMessageBox(self)
-        msg.setWindowTitle("Keyboard Shortcuts")
-        msg.setText(shortcuts_text)
-        msg.setIcon(QMessageBox.Icon.Information)
-        msg.exec()
-
-    def resizeEvent(self, event):
-        """Handle window resize to reposition floating button and adjust layout"""
-        super().resizeEvent(event)
-
-        # Reposition chat button if not being dragged
-        if hasattr(self, "chat_button") and not self.chat_button_dragging:
-            self.position_chat_button()
-
-        # Adjust layout based on window size for better scaling
-        window_width = self.width()
-
-        # For very small windows, adjust splitter orientation
-        if hasattr(self, "tabs") and self.tabs.currentIndex() == 0:  # Analysis tab
-            try:
-                # Find the splitter in the current tab
-                analysis_widget = self.tabs.widget(0)
-                if analysis_widget:
-                    splitters = analysis_widget.findChildren(QSplitter)
-                    for splitter in splitters:
-                        if window_width < 1000:
-                            # For small windows, make document area smaller
-                            splitter.setStretchFactor(0, 1)
-                            splitter.setStretchFactor(1, 2)
-                        else:
-                            # For larger windows, restore balanced layout
-                            splitter.setStretchFactor(0, 2)
-                            splitter.setStretchFactor(1, 3)
-            except Exception:
-                pass  # Ignore errors during resize
-
     def closeEvent(self, event):
         """Handle application close event with proper cleanup."""
         try:
@@ -1543,165 +1439,3 @@ QMessageBox QPushButton { min-width: 90px; }
         except Exception as e:
             print(f"Error during application cleanup: {e}")
             event.accept()  # Still close even if cleanup fails
-
-    def _setup_keyboard_shortcuts(self):
-        """Setup keyboard shortcuts for improved accessibility and workflow efficiency."""
-        # Analysis shortcuts
-        self.shortcut_run_analysis = QShortcut(QKeySequence("Ctrl+R"), self)
-        self.shortcut_run_analysis.activated.connect(self.run_analysis)
-
-        self.shortcut_stop_analysis = QShortcut(QKeySequence("Ctrl+S"), self)
-        self.shortcut_stop_analysis.activated.connect(self.stop_analysis)
-
-        # File operations
-        self.shortcut_open_file = QShortcut(QKeySequence("Ctrl+O"), self)
-        self.shortcut_open_file.activated.connect(self.open_file_dialog)
-
-        self.shortcut_open_folder = QShortcut(QKeySequence("Ctrl+Shift+O"), self)
-        self.shortcut_open_folder.activated.connect(self.open_folder_dialog)
-
-        # UI navigation
-        self.shortcut_analysis_tab = QShortcut(QKeySequence("Ctrl+1"), self)
-        self.shortcut_analysis_tab.activated.connect(
-            lambda: self.tabs.setCurrentIndex(0) if hasattr(self, "tabs") else None
-        )
-
-        self.shortcut_dashboard_tab = QShortcut(QKeySequence("Ctrl+2"), self)
-        self.shortcut_dashboard_tab.activated.connect(
-            lambda: self.tabs.setCurrentIndex(1) if hasattr(self, "tabs") else None
-        )
-
-        self.shortcut_settings_tab = QShortcut(QKeySequence("Ctrl+3"), self)
-        self.shortcut_settings_tab.activated.connect(
-            lambda: self.tabs.setCurrentIndex(2) if hasattr(self, "tabs") else None
-        )
-
-        # Chat and help
-        self.shortcut_chat = QShortcut(QKeySequence("Ctrl+H"), self)
-        self.shortcut_chat.activated.connect(self.open_chat_assistant)
-
-        # Theme switching
-        self.shortcut_light_theme = QShortcut(QKeySequence("Ctrl+L"), self)
-        self.shortcut_light_theme.activated.connect(self.set_light_theme)
-
-        self.shortcut_dark_theme = QShortcut(QKeySequence("Ctrl+D"), self)
-        self.shortcut_dark_theme.activated.connect(self.set_dark_theme)
-
-        # Export and clear
-        self.shortcut_export = QShortcut(QKeySequence("Ctrl+E"), self)
-        self.shortcut_export.activated.connect(self.export_report)
-
-        self.shortcut_clear = QShortcut(QKeySequence("Ctrl+K"), self)
-        self.shortcut_clear.activated.connect(self.clear_display)
-
-    def _setup_auto_save_timer(self):
-        """Setup auto-save timer for user preferences and session state."""
-        self.auto_save_timer = QTimer()
-        self.auto_save_timer.timeout.connect(self._auto_save_preferences)
-        self.auto_save_timer.start(30000)  # Auto-save every 30 seconds
-
-    def _auto_save_preferences(self):
-        """Auto-save user preferences and session state."""
-        try:
-            preferences = {
-                "window_geometry": {
-                    "x": self.x(),
-                    "y": self.y(),
-                    "width": self.width(),
-                    "height": self.height(),
-                },
-                "current_tab": self.tabs.currentIndex() if hasattr(self, "tabs") else 0,
-                "theme": self.load_theme_setting(),
-                "chat_button_position": {
-                    "x": self.chat_button.x() if hasattr(self, "chat_button") else 0,
-                    "y": self.chat_button.y() if hasattr(self, "chat_button") else 0,
-                },
-            }
-
-            # Save to preferences file
-            with open("user_preferences.json", "w", encoding="utf-8") as f:
-                json.dump(preferences, f, indent=2)
-
-            # Show brief visual feedback
-            if hasattr(self, "auto_save_label"):
-                original_text = self.auto_save_label.text()
-                self.auto_save_label.setText("💾✓")
-                QTimer.singleShot(
-                    1000, lambda: self.auto_save_label.setText(original_text)
-                )
-
-        except Exception as e:
-            # Silent fail for auto-save to avoid disrupting user workflow
-            print(f"Auto-save preferences failed: {e}")
-            if hasattr(self, "auto_save_label"):
-                self.auto_save_label.setText("💾❌")
-                QTimer.singleShot(2000, lambda: self.auto_save_label.setText("💾"))
-
-    def _load_user_preferences(self):
-        """Load user preferences and restore session state."""
-        try:
-            with open("user_preferences.json", "r", encoding="utf-8") as f:
-                preferences = json.load(f)
-
-            # Restore window geometry
-            if "window_geometry" in preferences:
-                geom = preferences["window_geometry"]
-                self.setGeometry(geom["x"], geom["y"], geom["width"], geom["height"])
-
-            # Restore current tab
-            if "current_tab" in preferences and hasattr(self, "tabs"):
-                self.tabs.setCurrentIndex(preferences["current_tab"])
-
-            # Restore chat button position
-            if "chat_button_position" in preferences and hasattr(self, "chat_button"):
-                pos = preferences["chat_button_position"]
-                self.chat_button.move(pos["x"], pos["y"])
-
-        except (FileNotFoundError, json.JSONDecodeError, KeyError):
-            # Use defaults if preferences file doesn't exist or is corrupted
-            pass
-
-    def get_keyboard_shortcuts_help(self) -> str:
-        """Return formatted help text for keyboard shortcuts."""
-        return """
-        <h3>Keyboard Shortcuts</h3>
-        <table>
-        <tr><td><b>Ctrl+R</b></td><td>Run Analysis</td></tr>
-        <tr><td><b>Ctrl+S</b></td><td>Stop Analysis</td></tr>
-        <tr><td><b>Ctrl+O</b></td><td>Open File</td></tr>
-        <tr><td><b>Ctrl+Shift+O</b></td><td>Open Folder</td></tr>
-        <tr><td><b>Ctrl+1</b></td><td>Analysis Tab</td></tr>
-        <tr><td><b>Ctrl+2</b></td><td>Dashboard Tab</td></tr>
-        <tr><td><b>Ctrl+3</b></td><td>Settings Tab</td></tr>
-        <tr><td><b>Ctrl+H</b></td><td>Open Chat Assistant</td></tr>
-        <tr><td><b>Ctrl+L</b></td><td>Light Theme</td></tr>
-        <tr><td><b>Ctrl+D</b></td><td>Dark Theme</td></tr>
-        <tr><td><b>Ctrl+E</b></td><td>Export Report</td></tr>
-        <tr><td><b>Ctrl+K</b></td><td>Clear Display</td></tr>
-        </table>
-        """
-
-    def show_user_notification(
-        self, title: str, message: str, notification_type: str = "info"
-    ):
-        """Show user notification with improved styling and options."""
-        if notification_type == "error":
-            icon = QMessageBox.Icon.Critical
-        elif notification_type == "warning":
-            icon = QMessageBox.Icon.Warning
-        elif notification_type == "success":
-            icon = QMessageBox.Icon.Information
-            title = f"✅ {title}"
-        else:
-            icon = QMessageBox.Icon.Information
-
-        msg = QMessageBox(self)
-        msg.setWindowTitle(title)
-        msg.setText(message)
-        msg.setIcon(icon)
-        msg.exec()
-
-    def show_progress_notification(self, message: str, duration: int = 3000):
-        """Show temporary progress notification in status bar."""
-        if hasattr(self, "status_bar"):
-            self.status_bar.showMessage(f"🔄 {message}", duration)

@@ -3,10 +3,10 @@
 from threading import Lock
 from typing import Any, Dict, Optional
 
-import structlog
+import logging
 import torch
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class LLMService:

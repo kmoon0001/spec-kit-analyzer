@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
@@ -286,7 +287,9 @@ def get_settings() -> Settings:
     It loads a base configuration from 'config.yaml' and then overrides
     it with any settings defined in a .env file or environment variables.
     """
-    with open("config.yaml", "r", encoding="utf-8") as f:
+    # Construct the path to the config file relative to this file's location
+    config_path = Path(__file__).parent.parent / "config.yaml"
+    with open(config_path, "r", encoding="utf-8") as f:
         config_data = yaml.safe_load(f)
 
     # Initialize settings. pydantic-settings will load from .env and environment

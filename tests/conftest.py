@@ -26,7 +26,7 @@ from src.core.hybrid_retriever import HybridRetriever
 from src.core.llm_service import LLMService
 from src.core.ner import NERPipeline, NERAnalyzer
 from src.core.nlg_service import NLGService
-from src.core.prompt_manager import PromptManager
+from src.utils.prompt_manager import PromptManager
 from src.database.database import Base, get_async_db
 
 # Ensure the project root is in the Python path
@@ -101,7 +101,7 @@ def mock_fact_checker_service() -> MagicMock:
 def mock_prompt_manager() -> MagicMock:
     """Provide a prompt manager that never reads template files."""
     service = MagicMock(spec=PromptManager)
-    service.build_prompt.return_value = ""
+    service.get_prompt.return_value = ""
     return service
 
 

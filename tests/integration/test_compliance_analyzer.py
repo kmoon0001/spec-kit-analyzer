@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 # Import the class we are testing
 from src.core.llm_analyzer import LLMComplianceAnalyzer
 from src.core.llm_service import LLMService
-from src.core.prompt_manager import PromptManager
+from src.utils.prompt_manager import PromptManager
 
 # --- Mocks and Fixtures ---
 
@@ -13,7 +13,7 @@ from src.core.prompt_manager import PromptManager
 def mock_prompt_manager():
     """A mock for the PromptManager."""
     pm = MagicMock(spec=PromptManager)
-    pm.build_prompt.return_value = "This is a formatted prompt."
+    pm.get_prompt.return_value = "This is a formatted prompt."
     return pm
 
 
@@ -60,7 +60,7 @@ def test_analyze_document_orchestration(mock_llm_service, mock_prompt_manager):
 
     # Assert
     # 1. Verify that the prompt was built
-    mock_prompt_manager.build_prompt.assert_called_once_with(
+    mock_prompt_manager.get_prompt.assert_called_once_with(
         context="Test context", document_text="Test document text"
     )
 

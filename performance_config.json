@@ -1,5 +1,5 @@
 {
-  "profile": "conservative",
+  "profile": "balanced",
   "system_info": {
     "total_memory_gb": 15,
     "available_memory_gb": 3,
@@ -9,17 +9,17 @@
     "gpu_name": "None"
   },
   "config": {
-    "max_cache_memory_mb": 1024,
-    "embedding_cache_size": 500,
-    "ner_cache_size": 200,
+    "max_cache_memory_mb": 2048,
+    "embedding_cache_size": 1000,
+    "ner_cache_size": 500,
     "use_gpu": false,
     "model_quantization": true,
     "batch_size": 1,
-    "max_sequence_length": 512,
-    "connection_pool_size": 5,
-    "async_operations": false,
-    "chunk_size": 1000,
-    "parallel_processing": false,
-    "max_workers": 2
+    "max_sequence_length": 1024,
+    "connection_pool_size": 10,
+    "async_operations": true,
+    "chunk_size": 2000,
+    "parallel_processing": true,
+    "max_workers": 4
   }
 }

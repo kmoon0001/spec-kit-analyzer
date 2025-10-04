@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.core.pdf_export_service import PDFExportService
+from src.core.pdf_export_service import PDFExportService, WEASYPRINT_AVAILABLE
 
 
 @pytest.fixture
@@ -128,6 +128,7 @@ class TestFilenameSanitization:
         assert result == "document"
 
 
+@pytest.mark.skipif(not WEASYPRINT_AVAILABLE, reason="weasyprint not installed")
 class TestPDFGeneration:
     """Tests for PDF generation functionality."""
 
@@ -385,6 +386,7 @@ class TestPDFStyles:
         assert ".disputed" in css
 
 
+@pytest.mark.skipif(not WEASYPRINT_AVAILABLE, reason="weasyprint not installed")
 class TestRetentionAndPurge:
     """Tests for retention policy and purge scheduling."""
 

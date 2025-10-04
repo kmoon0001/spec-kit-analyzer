@@ -32,7 +32,7 @@ def compliance_analyzer() -> ComplianceAnalyzer:
 
     return ComplianceAnalyzer(
         retriever=retriever,
-        ner_pipeline=ner_pipeline,
+        ner_analyzer=ner_pipeline,
         llm_service=llm_service,
         explanation_engine=explanation_engine,
         prompt_manager=prompt_manager,
@@ -52,7 +52,7 @@ async def test_analyze_document_orchestration(compliance_analyzer: ComplianceAna
     )
 
     compliance_analyzer.retriever.retrieve.assert_awaited_once()
-    compliance_analyzer.ner_pipeline.extract_entities.assert_called_once_with(
+    compliance_analyzer.ner_analyzer.extract_entities.assert_called_once_with(
         document_text
     )
     compliance_analyzer.prompt_manager.build_prompt.assert_called_once()
