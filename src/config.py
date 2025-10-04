@@ -288,7 +288,7 @@ def get_settings() -> Settings:
     it with any settings defined in a .env file or environment variables.
     """
     # Construct the path to the config file relative to this file's location
-    config_path = Path(__file__).parent.parent / "config" / "config.yaml"
+    config_path = Path(__file__).parent.parent / "config.yaml"
     with open(config_path, "r", encoding="utf-8") as f:
         config_data = yaml.safe_load(f)
 
