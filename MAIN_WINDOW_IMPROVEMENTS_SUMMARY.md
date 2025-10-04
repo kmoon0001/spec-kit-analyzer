@@ -66,7 +66,7 @@ Enhanced the `MainApplicationWindow` class in `src/gui/main_window.py` with sign
 - **Follows modular architecture** patterns from steering rules
 - **Maintains separation of concerns** between UI and business logic
 - **Uses dependency injection** patterns where appropriate
-- **Preserves existing FastAPI + PyQt6** hybrid architecture
+- **Preserves existing FastAPI + PySide6** hybrid architecture
 
 ### Code Quality Improvements
 - **Added type hints** for better code maintainability

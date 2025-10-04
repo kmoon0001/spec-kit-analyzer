@@ -144,6 +144,6 @@ document_reanalyzed = Signal(str) # Emit when reanalysis is requested
 
 ## Conclusion
 
-The QListWidget integration significantly enhances the Therapy Compliance Analyzer's user interface and functionality. The implementation follows best practices for PyQt6/PySide6 development, maintains the application's medical domain focus, and provides a solid foundation for future enhancements.
+The QListWidget integration significantly enhances the Therapy Compliance Analyzer's user interface and functionality. The implementation follows best practices for PySide6 development, maintains the application's medical domain focus, and provides a solid foundation for future enhancements.
 
 The interactive list widgets transform static data display into dynamic, user-friendly interfaces that support clinical workflows and improve compliance documentation efficiency.

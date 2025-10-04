@@ -222,7 +222,7 @@ class PluginManager:
 - **Total**: 5 weeks (200 hours)
 
 #### Tools & Dependencies
-- PyQt6/PySide6 for UI framework
+- PySide6 for UI framework
 - pytest for testing framework
 - ruff for code quality
 - mypy for type checking

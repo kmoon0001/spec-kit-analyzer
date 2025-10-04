@@ -25,7 +25,7 @@ This document provides a comprehensive overview of the Therapy Compliance Analyz
 The application is designed with a modular, service-oriented architecture that separates concerns and promotes maintainability.
 
 - **Backend**: A robust backend API built with **FastAPI**. It handles all the heavy lifting, including AI analysis, database interactions, and user authentication.
-- **Frontend**: A native desktop application built with **PyQt6**. This provides a responsive and feature-rich user interface.
+- **Frontend**: A native desktop application built with **PySide6**. This provides a responsive and feature-rich user interface.
 - **Database**: Uses **SQLAlchemy** with a SQLite database to store user data, rubrics, and historical analysis reports.
 
 ### Directory Structure
@@ -44,7 +44,7 @@ The `src` directory is organized into modules, each with a specific responsibili
 │   │   ├── database.py
 │   │   ├── models.py
 │   │   └── schemas.py
-│   ├── gui/                 # PyQt6 GUI application code
+│   ├── gui/                 # PySide6 GUI application code
 │   ├── resources/           # Data files (dictionaries, prompts, etc.)
 │   ├── utils/               # Shared utility functions
 │   ├── auth.py              # User authentication and JWT management
@@ -157,7 +157,7 @@ You can access and change performance settings via the application menu: `Tools 
 - **Virtual Environment**: Ensure your virtual environment is activated before running the application.
 - **Verify Installation**: You can run these commands to quickly check if the core packages are installed correctly:
   ```bash
-  python -c "import PyQt6; print('✅ GUI ready')"
+  python -c "import PySide6; print('✅ GUI ready')"
   python -c "import fastapi; print('✅ API ready')"
   ```
 
