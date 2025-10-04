@@ -61,7 +61,7 @@ class ConfigValidator:
 
             # Try to load with Pydantic for final validation
             try:
-
+                Settings(**config_data)  # Just validate, don't store
                 logger.info("Configuration successfully validated with Pydantic models")
             except Exception as e:
                 self.validation_errors.append(f"Pydantic validation failed: {str(e)}")
