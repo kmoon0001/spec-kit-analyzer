@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QSpinBox,
     QLineEdit,
+    QListWidget,
 )
 
 from src.config import get_settings
@@ -189,6 +190,200 @@ class EasterEggManager:
         fade_animation.start()
 
         dialog.exec()
+
+
+class ComplianceFindingsListWidget(QListWidget):
+    """Enhanced list widget for displaying compliance findings with interactive features"""
+    
+    finding_selected = Signal(dict)  # Emit when a finding is selected
+    finding_disputed = Signal(str)   # Emit when a finding is disputed
+    
+    def __init__(self):
+        super().__init__()
+        self.findings_data = []
+        self.init_ui()
+        self.setup_context_menu()
+    
+    def init_ui(self):
+        """Initialize the findings list widget"""
+        self.setStyleSheet("""
+            QListWidget {
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                background: white;
+                alternate-background-color: #f8f9fa;
+                selection-background-color: #007acc;
+                selection-color: white;
+                padding: 5px;
+            }
+            QListWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid #eee;
+                border-radius: 4px;
+                margin: 2px;
+            }
+            QListWidget::item:hover {
+                background-color: #e3f2fd;
+            }
+            QListWidget::item:selected {
+                background-color: #007acc;
+                color: white;
+            }
+        """)
+        
+        self.setAlternatingRowColors(True)
+        self.itemClicked.connect(self.on_finding_clicked)
+        self.itemDoubleClicked.connect(self.on_finding_double_clicked)
+    
+    def setup_context_menu(self):
+        """Setup right-click context menu for findings"""
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.show_context_menu)
+    
+    def add_finding(self, finding_data: dict):
+        """Add a compliance finding to the list"""
+        self.findings_data.append(finding_data)
+        
+        # Create formatted display text
+        risk_emoji = {"High": "🔴", "Medium": "🟡", "Low": "🟢"}.get(finding_data.get('risk_level', 'Low'), "⚪")
+        confidence = finding_data.get('confidence', 0.0)
+        confidence_emoji = "🎯" if confidence > 0.8 else "⚠️" if confidence > 0.5 else "❓"
+        
+        display_text = f"{risk_emoji} {finding_data.get('title', 'Compliance Issue')} {confidence_emoji}"
+        
+        item = QListWidgetItem(display_text)
+        item.setData(Qt.ItemDataRole.UserRole, finding_data)
+        
+        # Color coding based on risk level
+        if finding_data.get('risk_level') == 'High':
+            item.setBackground(QColor(255, 235, 235))  # Light red
+        elif finding_data.get('risk_level') == 'Medium':
+            item.setBackground(QColor(255, 248, 220))  # Light yellow
+        else:
+            item.setBackground(QColor(235, 255, 235))  # Light green
+            
+        self.addItem(item)
+    
+    def on_finding_clicked(self, item):
+        """Handle finding selection"""
+        finding_data = item.data(Qt.ItemDataRole.UserRole)
+        if finding_data:
+            self.finding_selected.emit(finding_data)
+    
+    def on_finding_double_clicked(self, item):
+        """Handle finding double-click for detailed view"""
+        finding_data = item.data(Qt.ItemDataRole.UserRole)
+        if finding_data:
+            self.show_finding_details(finding_data)
+    
+    def show_context_menu(self, position):
+        """Show context menu for findings"""
+        item = self.itemAt(position)
+        if not item:
+            return
+            
+        menu = QMenu(self)
+        
+        # Add context menu actions
+        view_details_action = menu.addAction("📋 View Details")
+        highlight_text_action = menu.addAction("🔍 Highlight in Document")
+        chat_about_action = menu.addAction("💬 Discuss with AI")
+        menu.addSeparator()
+        dispute_action = menu.addAction("⚠️ Dispute Finding")
+        mark_reviewed_action = menu.addAction("✅ Mark as Reviewed")
+        
+        action = menu.exec(self.mapToGlobal(position))
+        finding_data = item.data(Qt.ItemDataRole.UserRole)
+        
+        if action == view_details_action:
+            self.show_finding_details(finding_data)
+        elif action == highlight_text_action:
+            self.highlight_finding_in_document(finding_data)
+        elif action == chat_about_action:
+            self.open_ai_chat_for_finding(finding_data)
+        elif action == dispute_action:
+            self.dispute_finding(finding_data)
+        elif action == mark_reviewed_action:
+            self.mark_finding_reviewed(finding_data)
+    
+    def show_finding_details(self, finding_data):
+        """Show detailed view of a finding"""
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"📋 Finding Details: {finding_data.get('title', 'Compliance Issue')}")
+        dialog.setFixedSize(600, 400)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Finding details
+        details_text = f"""
+        <h3>{finding_data.get('title', 'Compliance Issue')}</h3>
+        <p><strong>Risk Level:</strong> {finding_data.get('risk_level', 'Unknown')}</p>
+        <p><strong>Confidence:</strong> {finding_data.get('confidence', 0.0):.1%}</p>
+        <p><strong>Description:</strong> {finding_data.get('description', 'No description available')}</p>
+        <p><strong>Recommendation:</strong> {finding_data.get('recommendation', 'No recommendation available')}</p>
+        <p><strong>Regulatory Citation:</strong> {finding_data.get('citation', 'No citation available')}</p>
+        """
+        
+        details_label = QLabel(details_text)
+        details_label.setWordWrap(True)
+        layout.addWidget(details_label)
+        
+        # Close button
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+        
+        dialog.exec()
+    
+    def highlight_finding_in_document(self, finding_data):
+        """Highlight the finding in the source document"""
+        # This would integrate with the document viewer
+        print(f"Highlighting finding: {finding_data.get('title')}")
+    
+    def open_ai_chat_for_finding(self, finding_data):
+        """Open AI chat with context about this finding"""
+        # This would integrate with the chat system
+        print(f"Opening AI chat for: {finding_data.get('title')}")
+    
+    def dispute_finding(self, finding_data):
+        """Mark a finding as disputed"""
+        finding_id = finding_data.get('id')
+        if finding_id:
+            self.finding_disputed.emit(finding_id)
+            # Update visual indication
+            for i in range(self.count()):
+                item = self.item(i)
+                if item.data(Qt.ItemDataRole.UserRole).get('id') == finding_id:
+                    item.setText(f"⚠️ DISPUTED: {item.text()}")
+                    item.setBackground(QColor(255, 200, 200))
+                    break
+    
+    def mark_finding_reviewed(self, finding_data):
+        """Mark a finding as reviewed"""
+        finding_id = finding_data.get('id')
+        if finding_id:
+            # Update visual indication
+            for i in range(self.count()):
+                item = self.item(i)
+                if item.data(Qt.ItemDataRole.UserRole).get('id') == finding_id:
+                    item.setText(f"✅ {item.text()}")
+                    item.setBackground(QColor(200, 255, 200))
+                    break
+    
+    def clear_findings(self):
+        """Clear all findings from the list"""
+        self.clear()
+        self.findings_data.clear()
+    
+    def filter_findings_by_risk(self, risk_level: str):
+        """Filter findings by risk level"""
+        for i in range(self.count()):
+            item = self.item(i)
+            finding_data = item.data(Qt.ItemDataRole.UserRole)
+            if risk_level == "All" or finding_data.get('risk_level') == risk_level:
+                item.setHidden(False)
+            else:
+                item.setHidden(True)
 
 
 class AIModelStatusWidget(QWidget):
@@ -1159,14 +1354,14 @@ class UltimateMainWindow(QMainWindow):
         progress_group = QGroupBox("Analysis Progress")
         progress_group.setMinimumHeight(150)
         progress_layout = QVBoxLayout(progress_group)
-        options_layout.setSpacing(8)
+        progress_layout.setSpacing(8)
 
         self.analysis_mode = QComboBox()
         self.analysis_mode.addItems(
             ["Standard Analysis", "Quick Check", "Deep Analysis", "Custom"]
         )
-        options_layout.addWidget(QLabel("Analysis Mode:"))
-        options_layout.addWidget(self.analysis_mode)
+        progress_layout.addWidget(QLabel("Analysis Mode:"))
+        progress_layout.addWidget(self.analysis_mode)
 
         self.confidence_slider = QSlider(Qt.Orientation.Horizontal)
         self.confidence_slider.setRange(50, 95)
@@ -1175,8 +1370,8 @@ class UltimateMainWindow(QMainWindow):
         self.confidence_slider.valueChanged.connect(
             lambda v: self.confidence_label.setText(f"Confidence Threshold: {v}%")
         )
-        options_layout.addWidget(self.confidence_label)
-        options_layout.addWidget(self.confidence_slider)
+        progress_layout.addWidget(self.confidence_label)
+        progress_layout.addWidget(self.confidence_slider)
 
         # Analysis status display
         self.analysis_status = QLabel("Ready to analyze")
