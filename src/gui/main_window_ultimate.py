@@ -6,6 +6,7 @@ Complete integration of all features, easter eggs, and functionality
 import os
 import webbrowser
 import time
+from datetime import datetime
 from PySide6.QtCore import Qt, QTimer, Signal, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QFont, QAction, QKeySequence
 from PySide6.QtWidgets import (
