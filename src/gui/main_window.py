@@ -138,7 +138,11 @@ class MainApplicationWindow(QMainWindow):
         self.move(x, y)
 
         self.setGeometry(100, 100, 1400, 900)  # Larger default size for better proportions
-        self.setMinimumSize(1000, 700)  # Larger minimum for better layout
+        self.setMinimumSize(900, 650)  # Better minimum for scaling
+
+        # Enable better scaling behavior
+        from PySide6.QtWidgets import QSizePolicy
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
         self.file_menu = self.menu_bar.addMenu("File")
@@ -238,15 +242,15 @@ class MainApplicationWindow(QMainWindow):
     def _create_analysis_tab(self) -> QWidget:
         analysis_widget = QWidget()
         main_layout = QVBoxLayout(analysis_widget)
-        main_layout.setContentsMargins(12, 12, 12, 12)
-        main_layout.setSpacing(12)
+        main_layout.setContentsMargins(8, 8, 8, 8)  # Smaller margins for better scaling
+        main_layout.setSpacing(8)  # Reduced spacing
 
         # Compact controls group with better scaling
         controls_group = QGroupBox("Analysis Setup")
         controls_group.setMaximumHeight(120)  # Limit height for better scaling
         controls_group_layout = QVBoxLayout()
-        controls_group_layout.setContentsMargins(8, 6, 8, 6)
-        controls_group_layout.setSpacing(4)
+        controls_group_layout.setContentsMargins(8, 6, 8, 6)  # Smaller margins
+        controls_group_layout.setSpacing(4)  # Reduced spacing
         controls_group.setLayout(controls_group_layout)
         main_layout.addWidget(controls_group)
 
@@ -329,9 +333,14 @@ class MainApplicationWindow(QMainWindow):
 
         # Main content splitter with better scaling
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setChildrenCollapsible(False)
-        splitter.setHandleWidth(8)
+        splitter.setChildrenCollapsible(True)  # Allow collapsing for small windows
+        splitter.setHandleWidth(8)  # Smaller handle for more space
         splitter.setObjectName("analysisSplitter")
+
+        # Set size policy for better scaling
+        from PySide6.QtWidgets import QSizePolicy
+        splitter.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
         main_layout.addWidget(splitter, 1)
 
         document_group = QGroupBox("Document Upload & Analysis")
@@ -415,10 +424,8 @@ class MainApplicationWindow(QMainWindow):
         self.analysis_results_area.anchorClicked.connect(self.handle_anchor_click)
         results_layout.addWidget(self.analysis_results_area)
         splitter.addWidget(results_group)
-
-        # Better proportions for scaling: 40% document, 60% results
-        splitter.setStretchFactor(0, 2)
-        splitter.setStretchFactor(1, 3)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setObjectName("analysisProgress")
@@ -1664,11 +1671,35 @@ QMessageBox QPushButton { min-width: 90px; }
         msg.exec()
 
     def resizeEvent(self, event):
-        """Handle window resize to reposition floating button"""
+        """Handle window resize to reposition floating button and adjust layout"""
         super().resizeEvent(event)
+
+        # Reposition chat button if not being dragged
         if hasattr(self, 'chat_button') and not self.chat_button_dragging:
-            # Only auto-reposition if not being dragged
             self.position_chat_button()
+
+        # Adjust layout based on window size for better scaling
+        window_width = self.width()
+        window_height = self.height()
+
+        # For very small windows, adjust splitter orientation
+        if hasattr(self, 'tabs') and self.tabs.currentIndex() == 0:  # Analysis tab
+            try:
+                # Find the splitter in the current tab
+                analysis_widget = self.tabs.widget(0)
+                if analysis_widget:
+                    splitters = analysis_widget.findChildren(QSplitter)
+                    for splitter in splitters:
+                        if window_width < 1000:
+                            # For small windows, make document area smaller
+                            splitter.setStretchFactor(0, 1)
+                            splitter.setStretchFactor(1, 2)
+                        else:
+                            # For larger windows, restore balanced layout
+                            splitter.setStretchFactor(0, 2)
+                            splitter.setStretchFactor(1, 3)
+            except:
+                pass  # Ignore errors during resize
 
     def closeEvent(self, event):
         """Handle application close event with proper cleanup."""
