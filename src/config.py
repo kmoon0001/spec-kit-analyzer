@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, BaseSettings
 
 
 class PathsSettings(BaseModel):
@@ -258,25 +258,21 @@ class FeatureSettings(BaseModel):
     enable_dashboard_analytics: bool = True
 
 
-class Settings(BaseModel):
-    enable_director_dashboard: bool = False
-    database: DatabaseSettings
-    auth: AuthSettings
-    maintenance: MaintenanceSettings
-    paths: PathsSettings
-    llm: LLMSettings
-    retrieval: RetrievalSettings
-    analysis: AnalysisSettings
-    models: ModelsSettings
-    habits_framework: HabitsFrameworkSettings = HabitsFrameworkSettings()
-    performance: PerformanceSettings = PerformanceSettings()
-    logging: LoggingSettings = LoggingSettings()
-    security: SecuritySettings = SecuritySettings()
-    features: FeatureSettings = FeatureSettings()
+class Settings(BaseSettings):
     use_ai_mocks: bool = False
+    database_url: str = "sqlite:///./letsgo.db"
+    host: str = "127.0.0.1"
+    port: int = 8001
+    log_level: str = "INFO"
+    # Add other environment-driven settings here as needed
 
-    # This field will be populated from the SECRET_KEY in the .env file
-    SECRET_KEY: Optional[str] = None
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
+
+# Create the single settings instance used across the app
+settings = Settings()
 
 
 @lru_cache()
