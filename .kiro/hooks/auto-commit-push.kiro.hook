@@ -1,0 +1,21 @@
+{
+  "enabled": true,
+  "name": "Auto Commit & Push",
+  "description": "Automatically commits, pushes, and adds changes to git at every major development milestone completion, with memory updates as needed",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "src/**/*.py",
+      "tests/**/*.py",
+      "config.yaml",
+      "requirements.txt",
+      "README.md",
+      "docs/**/*.md"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A significant development milestone has been completed in the Therapy Compliance Analyzer project. Please:\n\n1. Review the changes made to determine if this represents a \"big step completion\"\n2. If yes, perform the following git operations:\n   - `git add .` to stage all changes\n   - `git commit -m \"feat: [describe the milestone completed]\"` with a meaningful commit message\n   - `git push` to push changes to remote repository\n3. Update your memory/knowledge base with:\n   - What milestone was completed\n   - Key technical decisions made\n   - Any architectural changes\n   - Important implementation details to remember\n4. Provide a brief summary of what was accomplished and committed\n\nFocus on major milestones like:\n- New feature implementations (AI analysis, GUI components, API endpoints)\n- Architecture changes or refactoring\n- Database schema updates\n- Security enhancements\n- Testing framework additions\n- Documentation updates\n- Configuration changes\n\nUse conventional commit format (feat:, fix:, refactor:, docs:, test:) and ensure commit messages are descriptive and follow the project's standards."
+  }
+}
