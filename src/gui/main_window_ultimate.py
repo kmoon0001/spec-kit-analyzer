@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMenu,
+    QSizePolicy,
 )
 
 from src.config import get_settings
@@ -755,7 +756,7 @@ class EnhancedChatBot(QDialog):
             }
         """)
 
-
+        voice_btn = QPushButton("🎤")
         voice_btn.setFixedSize(40, 40)
         voice_btn.setStyleSheet("""
             QPushButton {
@@ -1191,7 +1192,7 @@ class UltimateMainWindow(QMainWindow):
         self.setWindowTitle("THERAPY DOCUMENTATION COMPLIANCE ANALYSIS")
         self.setGeometry(100, 100, 1400, 900)
         self.setMinimumSize(1000, 700)  # Better minimum for content visibility
-        self.setSizePolicy(QWidget.SizePolicy.Expanding, QWidget.SizePolicy.Expanding)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # Enable better scaling behavior
         from PySide6.QtWidgets import QSizePolicy
@@ -1333,7 +1334,7 @@ class UltimateMainWindow(QMainWindow):
         header_frame = QFrame()
         header_frame.setMinimumHeight(80)
         header_frame.setMaximumHeight(120)
-        header_frame.setSizePolicy(QWidget.SizePolicy.Expanding, QWidget.SizePolicy.Fixed)
+        header_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         header_frame.setStyleSheet("""
             QFrame {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
@@ -1399,7 +1400,7 @@ class UltimateMainWindow(QMainWindow):
         """Create responsive tab widget with optimal space usage"""
         self.tab_widget = QTabWidget()
         self.tab_widget.setTabPosition(QTabWidget.TabPosition.North)
-        self.tab_widget.setSizePolicy(QWidget.SizePolicy.Expanding, QWidget.SizePolicy.Expanding)
+        self.tab_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
         # Style tabs for better scaling
         self.tab_widget.setStyleSheet("""
@@ -1463,7 +1464,7 @@ class UltimateMainWindow(QMainWindow):
         panel.setFrameStyle(QFrame.Shape.StyledPanel)
         panel.setMinimumWidth(300)
         panel.setMaximumWidth(400)
-        panel.setSizePolicy(QWidget.SizePolicy.Preferred, QWidget.SizePolicy.Expanding)
+        panel.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -1589,7 +1590,7 @@ class UltimateMainWindow(QMainWindow):
             ]
         )
         self.rubric_combo.currentTextChanged.connect(self.update_rubric_description)
-        self.rubric_combo.setSizePolicy(QWidget.SizePolicy.Expanding, QWidget.SizePolicy.Fixed)
+        self.rubric_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.rubric_combo.setStyleSheet("""
             QComboBox {
                 padding: 6px 10px;
@@ -1972,7 +1973,7 @@ class UltimateMainWindow(QMainWindow):
             )
             chart_placeholder.setMinimumHeight(200)
             chart_placeholder.setMaximumHeight(300)
-            chart_placeholder.setSizePolicy(QWidget.SizePolicy.Expanding, QWidget.SizePolicy.Fixed)
+            chart_placeholder.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             trends_layout.addWidget(chart_placeholder)
 
             content_tabs.addTab(trends_tab, "📈 Trends")

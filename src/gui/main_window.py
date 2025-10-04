@@ -14,7 +14,6 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QStatusBar,
     QMenuBar,
-    QMenu,
     QFileDialog,
     QSplitter,
     QTextEdit,
@@ -22,13 +21,13 @@ from PySide6.QtWidgets import (
     QLabel,
     QGroupBox,
     QProgressBar,
-    QToolButton,
     QPushButton,
     QTabWidget,
     QTextBrowser,
     QComboBox,
     QSizePolicy,
     QApplication,
+    QCheckBox,
 )
 
 from src.config import get_settings
@@ -43,7 +42,7 @@ from src.gui.workers.ai_loader_worker import AILoaderWorker
 from src.gui.workers.dashboard_worker import DashboardWorker
 from src.gui.workers.meta_analytics_worker import MetaAnalyticsWorker
 from src.gui.widgets.dashboard_widget import DashboardWidget
-from src.gui.widgets.meta_analytics_widget import MetaAnalyticsWidget
+
 from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
 from src.gui.dialogs.performance_settings_dialog import PerformanceSettingsDialog
 from src.core.report_generator import ReportGenerator
@@ -128,7 +127,7 @@ class MainApplicationWindow(QMainWindow):
         self.show()
 
     def init_base_ui(self):
-        self.setWindowTitle("THERAPY DOCUMENTATION ANALYZER")
+        self.setWindowTitle("THERAPY DOCUMENT COMPLIANCE ANALYSIS")
         # Better default size with minimum constraints for scalability
         self.setMinimumSize(800, 600)
         self.resize(1200, 800)
@@ -158,16 +157,21 @@ class MainApplicationWindow(QMainWindow):
         self.file_menu.addSeparator()
         self.file_menu.addAction("Exit", self.close)
 
-        # Add Help menu for better discoverability
+        # Theme menu
+        self.theme_menu = self.menu_bar.addMenu("Theme")
+        self.theme_menu.addAction("☀️ Light Mode", self.set_light_theme)
+        self.theme_menu.addAction("🌙 Dark Mode", self.set_dark_theme)
+        self.theme_menu.addSeparator()
+        self.theme_menu.addAction("🔄 Toggle Theme (Ctrl+T)", self.toggle_theme)
+
+        # Help menu
         self.help_menu = self.menu_bar.addMenu("Help")
-        self.help_menu.addAction("Keyboard Shortcuts", self.show_keyboard_shortcuts)
         self.help_menu.addAction("Chat Assistant (Ctrl+H)", self.open_chat_assistant)
-        self.help_menu.addSeparator()
         self.help_menu.addAction("About", self.show_about)
         # Keep only essential menu items - settings moved to Settings tab
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("Ready")
+        self.status_bar.showMessage("Ready - THERAPY DOCUMENT COMPLIANCE ANALYSIS")
         self.ai_status_label = QLabel("Loading AI models...")
         self.status_bar.addPermanentWidget(self.ai_status_label)
         self.user_status_label = QLabel("Local User")
@@ -216,40 +220,31 @@ class MainApplicationWindow(QMainWindow):
             self.model_health_label.setText(self._format_model_status_text())
 
     def load_main_ui(self):
-        self.tabs = QTabWidget()
-        self.setCentralWidget(self.tabs)
-        analysis_tab = self._create_analysis_tab()
-        self.tabs.addTab(analysis_tab, "📋 Analysis")
-        self.dashboard_widget = DashboardWidget()
-        self.tabs.addTab(self.dashboard_widget, "📊 Dashboard")
+        """Load the medical-themed layout: 3 left panels + main tabbed window"""
+        # Create main horizontal splitter (left panels + right main window)
+        main_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.setCentralWidget(main_splitter)
 
-        # Add Settings tab
-        settings_tab = self._create_settings_tab()
-        self.tabs.addTab(settings_tab, "⚙️ Settings")
-        self.dashboard_widget.refresh_requested.connect(self.load_dashboard_data)
+        # Left side: 3 stacked panels
+        left_panels = self._create_left_panels()
+        
+        # Right side: Main tabbed window
+        right_main_window = self._create_right_main_window()
 
-        # Add meta analytics tab for admin users
-        if self.is_admin:
-            self.meta_analytics_widget = MetaAnalyticsWidget()
-            self.tabs.addTab(self.meta_analytics_widget, "Team Analytics")
-            self.meta_analytics_widget.refresh_requested.connect(
-                self.load_meta_analytics_data
-            )
-
-        # Add admin options to Settings tab instead of menu
-        if self.is_admin:
-            # Admin functionality will be in Settings tab
-            pass
-            pass
-
+        # Add to splitter with medical layout proportions
+        main_splitter.addWidget(left_panels)
+        main_splitter.addWidget(right_main_window)
+        main_splitter.setSizes([350, 850])  # Left panels smaller, main window larger
+        
+        # Load rubrics first
+        self.load_rubrics()
+        
+        # Load dashboard data
         self.load_dashboard_data()
 
-        # Load meta analytics for admin users
-        if self.is_admin:
-            self.load_meta_analytics_data()
-
-        theme = self.load_theme_setting()
-        self.apply_stylesheet(theme)
+        # Apply theme (default to dark, but support both)
+        self.current_theme = "dark"  # Default theme
+        self.apply_medical_theme(self.current_theme)
 
         # Ensure chat button is visible after UI is loaded
         if hasattr(self, "chat_button"):
@@ -259,256 +254,7 @@ class MainApplicationWindow(QMainWindow):
     def open_admin_dashboard(self):
         webbrowser.open(f"{API_URL}/admin/dashboard?token={self.access_token}")
 
-    def _create_analysis_tab(self) -> QWidget:
-        analysis_widget = QWidget()
-        main_layout = QVBoxLayout(analysis_widget)
-        main_layout.setContentsMargins(8, 8, 8, 8)  # Smaller margins for better scaling
-        main_layout.setSpacing(8)  # Reduced spacing
 
-        # Compact controls group with better scaling
-        controls_group = QGroupBox("Analysis Setup")
-        controls_group.setMaximumHeight(120)  # Limit height for better scaling
-        controls_group_layout = QVBoxLayout()
-        controls_group_layout.setContentsMargins(8, 6, 8, 6)  # Smaller margins
-        controls_group_layout.setSpacing(4)  # Reduced spacing
-        controls_group.setLayout(controls_group_layout)
-        main_layout.addWidget(controls_group)
-
-        # Source selection row
-        source_layout = QHBoxLayout()
-        source_layout.setSpacing(8)
-        self.upload_button = QToolButton()
-        self.upload_button.setText("Upload Source")
-        self.upload_button.setMinimumHeight(28)
-        self.upload_button.setMaximumHeight(32)
-        self.upload_button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
-        self.upload_button.clicked.connect(self.open_file_dialog)
-        self.upload_button_menu = QMenu(self.upload_button)
-        file_action = self.upload_button_menu.addAction("Upload Document")
-        if file_action:
-            file_action.triggered.connect(self.open_file_dialog)
-        folder_action = self.upload_button_menu.addAction("Upload Folder")
-        if folder_action:
-            folder_action.triggered.connect(self.open_folder_dialog)
-        self.upload_button.setMenu(self.upload_button_menu)
-        source_layout.addWidget(self.upload_button)
-
-        self.selected_source_label = QLabel("No document selected.")
-        self.selected_source_label.setObjectName("selectedSourceLabel")
-        self.selected_source_label.setMinimumWidth(200)
-        source_layout.addWidget(self.selected_source_label, 1)
-
-        controls_group_layout.addLayout(source_layout)
-
-        # Rubric selection row
-        rubric_layout = QHBoxLayout()
-        rubric_layout.setSpacing(8)
-        rubric_label = QLabel("Rubric:")
-        rubric_label.setMinimumWidth(50)
-        rubric_layout.addWidget(rubric_label)
-
-        self.rubric_selector = QComboBox()
-        self.rubric_selector.setPlaceholderText("Medicare Benefits Policy Manual (Default)")
-        self.rubric_selector.setMinimumHeight(28)
-        self.rubric_selector.setMaximumHeight(32)
-        self.rubric_selector.currentIndexChanged.connect(self._on_rubric_selected)
-        rubric_layout.addWidget(self.rubric_selector, 2)
-
-        self.rubric_type_selector = QComboBox()
-        self.rubric_type_selector.addItem("All Disciplines", None)
-        self.rubric_type_selector.setMinimumHeight(28)
-        self.rubric_type_selector.setMaximumHeight(32)
-        self.rubric_type_selector.currentIndexChanged.connect(
-            self._filter_rubrics_by_type
-        )
-        rubric_layout.addWidget(self.rubric_type_selector)
-
-        # Add rubric management button inside rubric area
-        self.manage_rubrics_button_inline = QPushButton("⚙️ Manage")
-        self.manage_rubrics_button_inline.setFixedHeight(32)
-        self.manage_rubrics_button_inline.clicked.connect(self.manage_rubrics)
-        self.manage_rubrics_button_inline.setStyleSheet("""
-            QPushButton {
-                background: #17a2b8;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                font-weight: bold;
-                padding: 6px 12px;
-            }
-            QPushButton:hover { background: #138496; }
-        """)
-        rubric_layout.addWidget(self.manage_rubrics_button_inline)
-
-        controls_group_layout.addLayout(rubric_layout)
-
-        # Compact description with limited height
-        self.rubric_description_label = QLabel(
-            "Medicare Benefits Policy Manual - Default compliance rubric for PT, OT, and SLP services"
-        )
-        self.rubric_description_label.setWordWrap(True)
-        self.rubric_description_label.setMaximumHeight(30)
-        self.rubric_description_label.setStyleSheet("color: #666; font-size: 11px;")
-        controls_group_layout.addWidget(self.rubric_description_label)
-
-        # Main content splitter with better scaling
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setChildrenCollapsible(True)  # Allow collapsing for small windows
-        splitter.setHandleWidth(8)  # Smaller handle for more space
-        splitter.setObjectName("analysisSplitter")
-
-        # Set size policy for better scaling
-        from PySide6.QtWidgets import QSizePolicy
-
-        splitter.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-)
-        main_layout.addWidget(splitter, 1)
-
-        document_group = QGroupBox("Document Upload & Analysis")
-        # Document panel with compact header
-        document_group = QGroupBox("Document Details")
-        document_group.setObjectName("documentPane")
-        document_layout = QVBoxLayout()
-        document_layout.setContentsMargins(8, 6, 8, 8)
-        document_layout.setSpacing(6)
-        document_group.setLayout(document_layout)
-
-        # Document display area
-
-        self.document_display_area = QTextEdit()
-        self.document_display_area.setPlaceholderText(
-            "Upload a document to see its content here."
-        )
-        self.document_display_area.setReadOnly(True)
-        self.document_display_area.setMinimumWidth(300)  # Ensure minimum readable width
-        document_layout.addWidget(self.document_display_area)
-
-        # Analysis controls inside document window
-        doc_controls_layout = QHBoxLayout()
-        doc_controls_layout.setSpacing(8)
-
-        # Move analyze button here with better styling
-        self.run_analysis_button_doc = QPushButton("🔍 Run Analysis")
-        self.run_analysis_button_doc.setEnabled(False)
-        self.run_analysis_button_doc.setFixedHeight(40)
-        self.run_analysis_button_doc.clicked.connect(self.run_analysis)
-        self.run_analysis_button_doc.setStyleSheet("""
-            QPushButton {
-                background: #28a745;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                font-weight: bold;
-                font-size: 14px;
-            }
-            QPushButton:hover { background: #218838; }
-            QPushButton:disabled { background: #6c757d; }
-        """)
-        doc_controls_layout.addWidget(self.run_analysis_button_doc)
-
-        self.stop_analysis_button_doc = QPushButton("⏹ Stop")
-        self.stop_analysis_button_doc.setEnabled(False)
-        self.stop_analysis_button_doc.setFixedHeight(40)
-        self.stop_analysis_button_doc.clicked.connect(self.stop_analysis)
-        self.stop_analysis_button_doc.setStyleSheet("""
-            QPushButton {
-                background: #dc3545;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                font-weight: bold;
-            }
-            QPushButton:hover { background: #c82333; }
-        """)
-        doc_controls_layout.addWidget(self.stop_analysis_button_doc)
-
-        doc_controls_layout.addStretch()
-        document_layout.addLayout(doc_controls_layout)
-
-        splitter.addWidget(document_group)
-
-        # Results panel with compact header
-        results_group = QGroupBox("Report")
-        results_group.setObjectName("resultsPane")
-        results_layout = QVBoxLayout()
-        results_layout.setContentsMargins(8, 6, 8, 8)
-        results_layout.setSpacing(6)
-        results_group.setLayout(results_layout)
-
-        self.analysis_results_area = QTextBrowser()
-        self.analysis_results_area.setPlaceholderText(
-            "Analysis results will appear here."
-        )
-        self.analysis_results_area.setReadOnly(True)
-        self.analysis_results_area.setOpenExternalLinks(True)
-        self.analysis_results_area.setMinimumWidth(400)  # Ensure minimum readable width
-        self.analysis_results_area.anchorClicked.connect(self.handle_anchor_click)
-        results_layout.addWidget(self.analysis_results_area)
-        splitter.addWidget(results_group)
-        splitter.setStretchFactor(0, 3)
-        splitter.setStretchFactor(1, 2)
-
-        # Use the existing progress bar from status bar instead of creating duplicate
-        # self.progress_bar is already created in init_base_ui()
-
-        # Action buttons with better scaling
-        actions_layout = QHBoxLayout()
-        actions_layout.setSpacing(8)
-        actions_layout.setSpacing(6)
-
-
-        # Add rubric management button where analyze button was
-        self.manage_rubrics_button = QPushButton("Manage Rubrics")
-        self.manage_rubrics_button.setMinimumHeight(32)
-        self.run_analysis_button.setMaximumHeight(36)
-        self.manage_rubrics_button.clicked.connect(self.manage_rubrics)
-        actions_layout.addWidget(self.manage_rubrics_button)
-
-        self.document_preview_button = QPushButton("📄 Preview")
-        self.stop_analysis_button = QPushButton("Stop")
-        self.stop_analysis_button.setEnabled(False)
-        self.stop_analysis_button.setMinimumHeight(32)
-        self.stop_analysis_button.setMaximumHeight(36)
-        self.stop_analysis_button.clicked.connect(self.stop_analysis)
-        actions_layout.addWidget(self.stop_analysis_button)
-
-        self.document_preview_button = QPushButton("Preview")
-        self.document_preview_button.setEnabled(False)
-        self.document_preview_button.setFixedHeight(36)
-        self.document_preview_button.setMinimumHeight(32)
-        self.document_preview_button.setMaximumHeight(36)
-        self.document_preview_button.clicked.connect(self.show_document_preview)
-        actions_layout.addWidget(self.document_preview_button)
-
-        self.export_report_button = QPushButton("📊 Export Report")
-        self.analytics_button = QPushButton("Analytics")
-        self.analytics_button.setMinimumHeight(32)
-        self.analytics_button.setMaximumHeight(36)
-        self.analytics_button.clicked.connect(self.open_analytics_dashboard)
-        actions_layout.addWidget(self.analytics_button)
-
-        self.export_report_button = QPushButton("Export")
-        self.export_report_button.setEnabled(False)
-        self.export_report_button.setFixedHeight(36)
-        self.export_report_button.setMinimumHeight(32)
-        self.export_report_button.setMaximumHeight(36)
-        self.export_report_button.clicked.connect(self.export_report)
-        actions_layout.addWidget(self.export_report_button)
-
-        self.clear_button = QPushButton("🗑️ Clear")
-        self.clear_button.setFixedHeight(36)
-        self.clear_button = QPushButton("Clear")
-        self.clear_button.setMinimumHeight(32)
-        self.clear_button.setMaximumHeight(36)
-        self.clear_button.clicked.connect(self.clear_display)
-        actions_layout.addWidget(self.clear_button)
-
-        actions_layout.addStretch()
-        main_layout.addLayout(actions_layout)
-
-        self._update_action_states()
-        return analysis_widget
 
     def _summarize_folder_contents(self, folder_path: str) -> str:
         preview_lines = [f"Selected folder: {folder_path}", ""]
@@ -639,19 +385,73 @@ class MainApplicationWindow(QMainWindow):
         has_report = bool(self._current_report_payload)
         can_run = bool(has_source and active_rubric and not self._analysis_running)
 
-        # Update new analyze button in document area
-        if hasattr(self, "run_analysis_button_doc"):
-            self.run_analysis_button_doc.setEnabled(can_run)
-        if hasattr(self, "stop_analysis_button_doc"):
-            self.stop_analysis_button_doc.setEnabled(self._analysis_running)
+        # Update main analyze button
+        if hasattr(self, "analyze_doc_btn"):
+            self.analyze_doc_btn.setEnabled(can_run)
 
         # Update other buttons
         if hasattr(self, "document_preview_button"):
             self.document_preview_button.setEnabled(has_preview)
         if hasattr(self, "export_report_button"):
             self.export_report_button.setEnabled(has_report)
-        if hasattr(self, "clear_button"):
-            self.clear_button.setEnabled(has_source or has_preview or has_report)
+
+        # Update file info display
+        if hasattr(self, "file_info_label"):
+            if self._current_file_path:
+                filename = os.path.basename(self._current_file_path)
+                self.file_info_label.setText(f"📄 {filename}")
+            elif self._current_folder_path:
+                folder_name = os.path.basename(self._current_folder_path)
+                file_count = len(self._current_folder_files) if self._current_folder_files else 0
+                self.file_info_label.setText(f"📁 {folder_name} ({file_count} files)")
+            else:
+                self.file_info_label.setText("No document selected")
+
+    def load_rubrics(self):
+        """Load available rubrics from the API"""
+        try:
+            import requests
+            response = requests.get(f"{API_URL}/compliance/rubrics", 
+                                  headers={"Authorization": f"Bearer {self.access_token}"},
+                                  timeout=5)
+            if response.status_code == 200:
+                self._all_rubrics = response.json()
+                self._apply_rubric_filter()
+            else:
+                # Fallback to default rubrics if API is not available
+                self._all_rubrics = [
+                    {
+                        "id": "default_pt",
+                        "name": "PT Compliance Rubric",
+                        "discipline": "PT",
+                        "description": "Physical Therapy Medicare compliance guidelines"
+                    },
+                    {
+                        "id": "default_ot", 
+                        "name": "OT Compliance Rubric",
+                        "discipline": "OT",
+                        "description": "Occupational Therapy Medicare compliance guidelines"
+                    },
+                    {
+                        "id": "default_slp",
+                        "name": "SLP Compliance Rubric", 
+                        "discipline": "SLP",
+                        "description": "Speech-Language Pathology Medicare compliance guidelines"
+                    }
+                ]
+                self._apply_rubric_filter()
+        except Exception as e:
+            print(f"Failed to load rubrics: {e}")
+            # Use default rubrics
+            self._all_rubrics = [
+                {
+                    "id": "default_medicare",
+                    "name": "Medicare Benefits Policy Manual",
+                    "discipline": None,
+                    "description": "Default Medicare compliance rubric for PT, OT, and SLP services"
+                }
+            ]
+            self._apply_rubric_filter()
 
     def _filter_rubrics_by_type(self, _index: int) -> None:
         self._apply_rubric_filter()
@@ -1151,18 +951,7 @@ class MainApplicationWindow(QMainWindow):
         self.status_bar.showMessage("Analysis cancelled.", 4000)
         self._on_analysis_finished()
 
-    def clear_display(self):
-        self.document_display_area.clear()
-        self.analysis_results_area.clear()
-        self._current_file_path = None
-        self._current_folder_path = None
-        self._current_folder_files = []
-        self._current_document_text = ""
-        self._current_report_payload = None
-        self.selected_source_label.setText("No document selected.")
-        self.status_bar.showMessage("Display cleared.")
-        self._analysis_running = False
-        self._update_action_states()
+
 
     def show_document_preview(self) -> None:
         if not self._current_document_text:
@@ -1442,13 +1231,7 @@ class MainApplicationWindow(QMainWindow):
         except FileNotFoundError:
             return "dark"
 
-    def set_light_theme(self) -> None:
-        self.apply_stylesheet("light")
-        self.save_theme_setting("light")
 
-    def set_dark_theme(self) -> None:
-        self.apply_stylesheet("dark")
-        self.save_theme_setting("dark")
 
     @staticmethod
     def get_light_theme_stylesheet() -> str:
@@ -1570,22 +1353,7 @@ QMessageBox QPushButton { min-width: 90px; }
         self.chat_button.setFixedSize(50, 50)
         self.chat_button.setToolTip("Chat with AI Assistant")
         self.chat_button.clicked.connect(self.open_chat_assistant)
-        self.chat_button.setStyleSheet("""
-            QPushButton {
-                background: #007acc;
-                color: white;
-                border: none;
-                border-radius: 25px;
-                font-size: 20px;
-                font-weight: bold;
-            }
-            QPushButton:hover { 
-                background: #005a9e; 
-            }
-            QPushButton:pressed { 
-                background: #004080; 
-            }
-        """)
+        self.chat_button.setObjectName("chatButton")
 
         # Make it draggable
         self.chat_button.mousePressEvent = self.chat_button_mouse_press
@@ -1596,7 +1364,7 @@ QMessageBox QPushButton { min-width: 90px; }
 
         # Position it away from Pacific Coast easter egg and show it
         self.position_chat_button()
-self.chat_button.show()  # Make sure it's visible
+        self.chat_button.show()  # Make sure it's visible
         self.chat_button.raise_()  # Bring to front
 
     def position_chat_button(self):
@@ -1916,3 +1684,960 @@ self.chat_button.show()  # Make sure it's visible
         """Show temporary progress notification in status bar."""
         if hasattr(self, "status_bar"):
             self.status_bar.showMessage(f"🔄 {message}", duration)
+    def _create_left_panels(self):
+        """Create the 3 stacked panels on the left side"""
+        left_container = QWidget()
+        left_container.setMinimumWidth(320)
+        left_container.setMaximumWidth(400)
+        
+        layout = QVBoxLayout(left_container)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
+
+        # Panel 1: Rubric Selection
+        rubric_panel = self._create_rubric_panel()
+        layout.addWidget(rubric_panel)
+
+        # Panel 2: Document Upload  
+        upload_panel = self._create_upload_panel()
+        layout.addWidget(upload_panel)
+
+        # Panel 3: Analysis Controls
+        controls_panel = self._create_analysis_controls_panel()
+        layout.addWidget(controls_panel)
+
+        # Add stretch to push panels to top
+        layout.addStretch()
+
+        return left_container
+
+    def _create_rubric_panel(self):
+        """Create the rubric selection panel"""
+        panel = QGroupBox("📋 Compliance Rubric")
+        panel.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                font-size: 14px;
+                color: #2c3e50;
+                border: 2px solid #bdc3c7;
+                border-radius: 8px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 8px 0 8px;
+                background: white;
+            }
+        """)
+        
+        layout = QVBoxLayout(panel)
+        layout.setSpacing(10)
+
+        # Rubric selector
+        self.rubric_selector = QComboBox()
+        self.rubric_selector.setPlaceholderText("Select Medicare Compliance Rubric")
+        self.rubric_selector.setMinimumHeight(35)
+
+        self.rubric_selector.currentIndexChanged.connect(self._on_rubric_selected)
+        layout.addWidget(self.rubric_selector)
+
+        # Discipline filter
+        discipline_layout = QHBoxLayout()
+        discipline_label = QLabel("Discipline:")
+        discipline_label.setStyleSheet("color: #34495e; font-weight: bold;")
+        
+        self.rubric_type_selector = QComboBox()
+        self.rubric_type_selector.addItem("All Disciplines", None)
+        self.rubric_type_selector.addItem("Physical Therapy", "PT")
+        self.rubric_type_selector.addItem("Occupational Therapy", "OT") 
+        self.rubric_type_selector.addItem("Speech-Language Pathology", "SLP")
+        self.rubric_type_selector.setMinimumHeight(30)
+        self.rubric_type_selector.currentIndexChanged.connect(self._filter_rubrics_by_type)
+        
+        discipline_layout.addWidget(discipline_label)
+        discipline_layout.addWidget(self.rubric_type_selector, 1)
+        layout.addLayout(discipline_layout)
+
+        # Rubric description
+        self.rubric_description_label = QLabel("Medicare Benefits Policy Manual - Default compliance rubric for PT, OT, and SLP services")
+        self.rubric_description_label.setObjectName("description")
+        self.rubric_description_label.setWordWrap(True)
+        layout.addWidget(self.rubric_description_label)
+
+        # Manage rubrics button
+        manage_btn = QPushButton("⚙️ Manage Rubrics")
+        manage_btn.setObjectName("infoButton")
+        manage_btn.setMinimumHeight(32)
+        manage_btn.clicked.connect(self.manage_rubrics)
+        layout.addWidget(manage_btn)
+
+        return panel
+
+    def _create_upload_panel(self):
+        """Create the document upload panel"""
+        panel = QGroupBox("📄 Document Upload")
+        panel.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                font-size: 14px;
+                color: #2c3e50;
+                border: 2px solid #bdc3c7;
+                border-radius: 8px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 8px 0 8px;
+                background: white;
+            }
+        """)
+        
+        layout = QVBoxLayout(panel)
+        layout.setSpacing(10)
+
+        # Drop area
+        self.drop_area = QLabel("📁 Drag & Drop Document Here\nor Click to Browse")
+        self.drop_area.setObjectName("dropArea")
+        self.drop_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.drop_area.setMinimumHeight(100)
+        self.drop_area.setWordWrap(True)
+        self.drop_area.mousePressEvent = lambda e: self.open_file_dialog()
+        layout.addWidget(self.drop_area)
+
+        # File info
+        self.file_info_label = QLabel("No document selected")
+        self.file_info_label.setObjectName("fileInfo")
+        self.file_info_label.setWordWrap(True)
+        layout.addWidget(self.file_info_label)
+
+        # Upload buttons
+        button_layout = QHBoxLayout()
+        
+        upload_file_btn = QPushButton("📄 File")
+        upload_file_btn.setObjectName("successButton")
+        upload_file_btn.clicked.connect(self.open_file_dialog)
+        upload_file_btn.setMinimumHeight(32)
+        
+        upload_folder_btn = QPushButton("📁 Folder")
+        upload_folder_btn.setObjectName("successButton")
+        upload_folder_btn.clicked.connect(self.open_folder_dialog)
+        upload_folder_btn.setMinimumHeight(32)
+        
+        button_layout.addWidget(upload_file_btn)
+        button_layout.addWidget(upload_folder_btn)
+        layout.addLayout(button_layout)
+
+        return panel
+
+    def _create_analysis_controls_panel(self):
+        """Create the analysis controls/report components panel"""
+        panel = QGroupBox("🔍 Analysis Controls")
+        panel.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                font-size: 14px;
+                color: #2c3e50;
+                border: 2px solid #bdc3c7;
+                border-radius: 8px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 8px 0 8px;
+                background: white;
+            }
+        """)
+        
+        layout = QVBoxLayout(panel)
+        layout.setSpacing(12)
+
+        # Main analyze button
+        self.analyze_doc_btn = QPushButton("🔍 Run Compliance Analysis")
+        self.analyze_doc_btn.setObjectName("primaryButton")
+        self.analyze_doc_btn.setEnabled(False)
+        self.analyze_doc_btn.setMinimumHeight(45)
+        self.analyze_doc_btn.clicked.connect(self.run_analysis)
+        layout.addWidget(self.analyze_doc_btn)
+
+        # Analysis options
+        options_label = QLabel("Analysis Options:")
+        options_label.setStyleSheet("color: #34495e; font-weight: bold; margin-top: 10px;")
+        layout.addWidget(options_label)
+
+        # Checkboxes for analysis components
+        self.enable_fact_check = QCheckBox("✓ Fact Checking")
+        self.enable_fact_check.setChecked(True)
+        self.enable_suggestions = QCheckBox("💡 Improvement Suggestions") 
+        self.enable_suggestions.setChecked(True)
+        self.enable_citations = QCheckBox("📚 Regulatory Citations")
+        self.enable_citations.setChecked(True)
+        
+        for checkbox in [self.enable_fact_check, self.enable_suggestions, self.enable_citations]:
+            checkbox.setStyleSheet("""
+                QCheckBox {
+                    color: #34495e;
+                    font-size: 12px;
+                    spacing: 8px;
+                }
+                QCheckBox::indicator {
+                    width: 16px;
+                    height: 16px;
+                }
+                QCheckBox::indicator:unchecked {
+                    border: 2px solid #bdc3c7;
+                    border-radius: 3px;
+                    background: white;
+                }
+                QCheckBox::indicator:checked {
+                    border: 2px solid #27ae60;
+                    border-radius: 3px;
+                    background: #27ae60;
+                }
+            """)
+            layout.addWidget(checkbox)
+
+        # Action buttons
+        button_layout = QHBoxLayout()
+        
+        preview_btn = QPushButton("👁 Preview")
+        preview_btn.setObjectName("secondaryButton")
+        preview_btn.setEnabled(False)
+        preview_btn.clicked.connect(self.show_document_preview)
+        preview_btn.setMinimumHeight(32)
+        
+        clear_btn = QPushButton("🗑 Clear")
+        clear_btn.setObjectName("warningButton")
+        clear_btn.clicked.connect(self.clear_display)
+        clear_btn.setMinimumHeight(32)
+        
+        button_layout.addWidget(preview_btn)
+        button_layout.addWidget(clear_btn)
+        layout.addLayout(button_layout)
+
+        # Store references for state updates
+        self.document_preview_button = preview_btn
+
+        return panel
+
+    def _create_right_main_window(self):
+        """Create the main tabbed window on the right side"""
+        # Create tab widget for the main window
+        self.main_tabs = QTabWidget()
+        self.main_tabs.setTabPosition(QTabWidget.TabPosition.North)
+        
+        # Analysis Tab - Main report display
+        analysis_tab = self._create_analysis_tab_content()
+        self.main_tabs.addTab(analysis_tab, "📊 Analysis")
+        
+        # Dashboard/Trending Tab
+        self.dashboard_widget = DashboardWidget()
+        self.main_tabs.addTab(self.dashboard_widget, "📈 Dashboard")
+        self.dashboard_widget.refresh_requested.connect(self.load_dashboard_data)
+        
+        # Settings Tab
+        settings_tab = self._create_settings_tab()
+        self.main_tabs.addTab(settings_tab, "⚙️ Settings")
+        
+        # Easter Egg Tab (hidden by default, activated by special sequence)
+        self.easter_egg_tab = self._create_easter_egg_tab()
+        # Don't add it yet - it will be added when easter egg is triggered
+        
+        return self.main_tabs
+
+    def _create_analysis_tab_content(self):
+        """Create the main analysis/report display area"""
+        analysis_widget = QWidget()
+        layout = QVBoxLayout(analysis_widget)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
+
+        # Header with title and controls
+        header_layout = QHBoxLayout()
+        
+        title_label = QLabel("📊 Compliance Analysis Report")
+        title_label.setObjectName("titleLabel")
+        header_layout.addWidget(title_label)
+        
+        header_layout.addStretch()
+        
+        # Export button
+        export_btn = QPushButton("📤 Export Report")
+        export_btn.setObjectName("successButton")
+        export_btn.setEnabled(False)
+        export_btn.clicked.connect(self.export_report)
+        export_btn.setMinimumHeight(35)
+        header_layout.addWidget(export_btn)
+        self.export_report_button = export_btn
+        
+        layout.addLayout(header_layout)
+
+        # Main report display
+        self.analysis_results_area = QTextBrowser()
+        self.analysis_results_area.setPlaceholderText("""
+        🏥 Welcome to the Therapy Compliance Analyzer
+        
+        📋 Select a compliance rubric from the left panel
+        📄 Upload a therapy document (Progress Note, Evaluation, etc.)
+        🔍 Click 'Run Compliance Analysis' to begin
+        
+        Your comprehensive compliance report will appear here with:
+        • Detailed findings and recommendations
+        • Regulatory citations and references  
+        • Interactive links to source document
+        • Actionable improvement suggestions
+        """)
+        self.analysis_results_area.setReadOnly(True)
+        self.analysis_results_area.setOpenExternalLinks(True)
+        self.analysis_results_area.anchorClicked.connect(self.handle_anchor_click)
+        layout.addWidget(self.analysis_results_area, 1)
+
+        return analysis_widget
+
+    def _create_easter_egg_tab(self):
+        """Create the hidden easter egg tab with Pacific Coast Development theme"""
+        easter_widget = QWidget()
+        layout = QVBoxLayout(easter_widget)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+        
+        # Pacific Coast header
+        header_label = QLabel("🌴 Pacific Coast Development 🌴")
+        header_label.setObjectName("easterEggHeader")
+        header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(header_label)
+        
+        # Developer info
+        dev_info = QLabel("""
+        <div style='text-align: center; line-height: 1.6;'>
+        <h3>Kevin Moon - Lead Developer</h3>
+        <p>🏥 Therapy Compliance Analyzer</p>
+        <p>🌊 Crafted with care on the Pacific Coast</p>
+        <p>☕ Powered by coffee and ocean views</p>
+        <br>
+        <p><em>"Making healthcare compliance as smooth as Pacific waves"</em></p>
+        </div>
+        """)
+        dev_info.setObjectName("easterEggContent")
+        dev_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(dev_info)
+        
+        # Fun stats
+        stats_label = QLabel("""
+        <div style='background: rgba(74, 158, 255, 0.1); padding: 15px; border-radius: 8px;'>
+        <h4>🎯 Project Stats</h4>
+        <p>📝 Lines of Code: 15,000+</p>
+        <p>🧠 AI Models: 5 specialized medical models</p>
+        <p>🔍 Compliance Rules: 200+ Medicare guidelines</p>
+        <p>☕ Coffee Consumed: Countless cups</p>
+        <p>🌅 Sunrises Coded Through: Many</p>
+        </div>
+        """)
+        stats_label.setObjectName("easterEggStats")
+        layout.addWidget(stats_label)
+        
+        # Close button
+        close_btn = QPushButton("🌊 Back to Analysis")
+        close_btn.setObjectName("easterEggButton")
+        close_btn.clicked.connect(self.hide_easter_egg)
+        layout.addWidget(close_btn)
+        
+        layout.addStretch()
+        return easter_widget
+
+    def trigger_easter_egg(self):
+        """Trigger the Pacific Coast easter egg"""
+        if not hasattr(self, 'easter_egg_active'):
+            self.easter_egg_active = True
+            self.main_tabs.addTab(self.easter_egg_tab, "🌴 Pacific Coast")
+            self.main_tabs.setCurrentWidget(self.easter_egg_tab)
+            self.status_bar.showMessage("🌴 Welcome to Pacific Coast Development! 🌊", 5000)
+
+    def hide_easter_egg(self):
+        """Hide the easter egg tab"""
+        if hasattr(self, 'easter_egg_active'):
+            index = self.main_tabs.indexOf(self.easter_egg_tab)
+            if index >= 0:
+                self.main_tabs.removeTab(index)
+            self.easter_egg_active = False
+            self.main_tabs.setCurrentIndex(0)  # Go back to Analysis tab
+
+    def _on_rubric_selected(self, index):
+        """Handle rubric selection"""
+        if hasattr(self, "rubric_selector") and index >= 0:
+            rubric_data = self.rubric_selector.currentData()
+            if rubric_data:
+                description = rubric_data.get("description", "No description available")
+                self.rubric_description_label.setText(description)
+            else:
+                self.rubric_description_label.setText("Select a rubric to see its description")
+        self._update_action_states()
+
+    def clear_display(self):
+        """Clear all displays and reset state"""
+        self._current_file_path = None
+        self._current_folder_path = None
+        self._current_folder_files = []
+        self._current_document_text = ""
+        self._current_report_payload = None
+        
+        # Clear UI elements
+        if hasattr(self, "analysis_results_area"):
+            self.analysis_results_area.clear()
+            self.analysis_results_area.setPlaceholderText("""
+        🏥 Welcome to the Therapy Compliance Analyzer
+        
+        📋 Select a compliance rubric from the left panel
+        📄 Upload a therapy document (Progress Note, Evaluation, etc.)
+        🔍 Click 'Run Compliance Analysis' to begin
+        
+        Your comprehensive compliance report will appear here with:
+        • Detailed findings and recommendations
+        • Regulatory citations and references  
+        • Interactive links to source document
+        • Actionable improvement suggestions
+            """)
+        
+        if hasattr(self, "file_info_label"):
+            self.file_info_label.setText("No document selected")
+            
+        self._update_action_states()
+        self.status_bar.showMessage("Display cleared", 2000)
+
+    def apply_medical_theme(self, theme_mode="dark"):
+        """Apply medical theme in light or dark mode"""
+        self.current_theme = theme_mode
+        
+        if theme_mode == "dark":
+            theme_css = self._get_dark_theme()
+        else:
+            theme_css = self._get_light_theme()
+            
+        self.setStyleSheet(theme_css)
+
+    def _get_dark_theme(self):
+        """Get dark medical theme CSS"""
+        return """
+        /* Main Application - Dark Mode */
+        QMainWindow {
+            background-color: #2b2b2b;
+            color: #ffffff;
+        }
+        
+        /* Tabs */
+        QTabWidget::pane {
+            border: 1px solid #4a9eff;
+            background-color: #353535;
+        }
+        QTabBar::tab {
+            background-color: #404040;
+            border: 1px solid #4a9eff;
+            padding: 8px 16px;
+            margin-right: 2px;
+            color: #ffffff;
+            font-weight: bold;
+        }
+        QTabBar::tab:selected {
+            background-color: #4a9eff;
+            color: #ffffff;
+        }
+        QTabBar::tab:hover {
+            background-color: #555555;
+        }
+        
+        /* Group Boxes */
+        QGroupBox {
+            color: #ffffff;
+            border: 1px solid #4a9eff;
+            border-radius: 6px;
+            margin-top: 12px;
+            padding-top: 10px;
+            background-color: #353535;
+            font-weight: bold;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 10px;
+            padding: 0 8px;
+            background-color: #2b2b2b;
+            color: #4a9eff;
+        }
+        
+        /* Labels */
+        QLabel {
+            color: #ffffff;
+            background: transparent;
+        }
+        QLabel#titleLabel {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4a9eff;
+        }
+        QLabel#easterEggHeader {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4a9eff;
+        }
+        QLabel#easterEggContent {
+            color: #ffffff;
+            font-size: 14px;
+        }
+        QLabel#easterEggStats {
+            color: #ffffff;
+            font-size: 13px;
+        }
+        
+        /* Text Areas */
+        QTextBrowser, QTextEdit {
+            background-color: #2b2b2b;
+            border: 1px solid #4a9eff;
+            border-radius: 4px;
+            color: #ffffff;
+            padding: 8px;
+            font-size: 13px;
+        }
+        
+        /* Buttons */
+        QPushButton {
+            background-color: #4a9eff;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            padding: 8px 16px;
+            min-height: 20px;
+        }
+        QPushButton:hover {
+            background-color: #66b3ff;
+        }
+        QPushButton:pressed {
+            background-color: #3385e6;
+        }
+        QPushButton:disabled {
+            background-color: #555555;
+            color: #888888;
+        }
+        QPushButton#successButton {
+            background-color: #28a745;
+        }
+        QPushButton#successButton:hover {
+            background-color: #34ce57;
+        }
+        QPushButton#warningButton {
+            background-color: #dc3545;
+        }
+        QPushButton#warningButton:hover {
+            background-color: #e85563;
+        }
+        QPushButton#easterEggButton {
+            background-color: #17a2b8;
+            font-size: 14px;
+            padding: 12px 24px;
+        }
+        QPushButton#easterEggButton:hover {
+            background-color: #20c0db;
+        }
+        
+        /* ComboBoxes */
+        QComboBox {
+            background-color: #404040;
+            border: 1px solid #4a9eff;
+            border-radius: 4px;
+            padding: 6px;
+            color: #ffffff;
+            min-height: 20px;
+        }
+        QComboBox:hover {
+            border-color: #66b3ff;
+        }
+        QComboBox QAbstractItemView {
+            background-color: #404040;
+            border: 1px solid #4a9eff;
+            selection-background-color: #4a9eff;
+            color: #ffffff;
+        }
+        
+        /* CheckBoxes */
+        QCheckBox {
+            color: #ffffff;
+            spacing: 8px;
+        }
+        QCheckBox::indicator {
+            width: 16px;
+            height: 16px;
+        }
+        QCheckBox::indicator:unchecked {
+            border: 2px solid #4a9eff;
+            border-radius: 3px;
+            background-color: #2b2b2b;
+        }
+        QCheckBox::indicator:checked {
+            border: 2px solid #4a9eff;
+            border-radius: 3px;
+            background-color: #4a9eff;
+        }
+        
+        /* Splitters */
+        QSplitter::handle {
+            background-color: #4a9eff;
+            width: 3px;
+            height: 3px;
+        }
+        QSplitter::handle:hover {
+            background-color: #66b3ff;
+        }
+        
+        /* Status Bar */
+        QStatusBar {
+            background-color: #2b2b2b;
+            border-top: 1px solid #4a4a4a;
+            color: #ffffff;
+        }
+        
+        /* Menu Bar */
+        QMenuBar {
+            background-color: #2b2b2b;
+            color: #ffffff;
+            border-bottom: 1px solid #4a4a4a;
+            font-weight: bold;
+        }
+        QMenuBar::item {
+            padding: 6px 12px;
+        }
+        QMenuBar::item:selected {
+            background-color: #4a9eff;
+        }
+        QMenu {
+            background-color: #353535;
+            border: 1px solid #4a9eff;
+            color: #ffffff;
+        }
+        QMenu::item:selected {
+            background-color: #4a9eff;
+        }
+        
+        /* Pacific Coast Branding */
+        QLabel#pacificCoastBranding {
+            font-family: 'Brush Script MT', cursive, 'Comic Sans MS', fantasy;
+            font-size: 14px;
+            font-style: italic;
+            color: #4a9eff;
+            background: transparent;
+        }
+        
+        /* Chat Button */
+        QPushButton#chatButton {
+            background-color: #4a9eff;
+            color: #ffffff;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        QPushButton#chatButton:hover {
+            background-color: #66b3ff;
+            transform: scale(1.05);
+        }
+        """
+
+    def _get_light_theme(self):
+        """Get light medical theme CSS"""
+        return """
+        /* Main Application - Light Mode */
+        QMainWindow {
+            background-color: #f8f9fa;
+            color: #2c3e50;
+        }
+        
+        /* Tabs */
+        QTabWidget::pane {
+            border: 1px solid #007acc;
+            background-color: #ffffff;
+        }
+        QTabBar::tab {
+            background-color: #e9ecef;
+            border: 1px solid #007acc;
+            padding: 8px 16px;
+            margin-right: 2px;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        QTabBar::tab:selected {
+            background-color: #007acc;
+            color: #ffffff;
+        }
+        QTabBar::tab:hover {
+            background-color: #dee2e6;
+        }
+        
+        /* Group Boxes */
+        QGroupBox {
+            color: #2c3e50;
+            border: 1px solid #007acc;
+            border-radius: 6px;
+            margin-top: 12px;
+            padding-top: 10px;
+            background-color: #ffffff;
+            font-weight: bold;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 10px;
+            padding: 0 8px;
+            background-color: #f8f9fa;
+            color: #007acc;
+        }
+        
+        /* Labels */
+        QLabel {
+            color: #2c3e50;
+            background: transparent;
+        }
+        QLabel#titleLabel {
+            font-size: 18px;
+            font-weight: bold;
+            color: #007acc;
+        }
+        QLabel#easterEggHeader {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007acc;
+        }
+        QLabel#easterEggContent {
+            color: #2c3e50;
+            font-size: 14px;
+        }
+        QLabel#easterEggStats {
+            color: #2c3e50;
+            font-size: 13px;
+        }
+        
+        /* Text Areas */
+        QTextBrowser, QTextEdit {
+            background-color: #ffffff;
+            border: 1px solid #007acc;
+            border-radius: 4px;
+            color: #2c3e50;
+            padding: 8px;
+            font-size: 13px;
+        }
+        
+        /* Buttons */
+        QPushButton {
+            background-color: #007acc;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            padding: 8px 16px;
+            min-height: 20px;
+        }
+        QPushButton:hover {
+            background-color: #0056b3;
+        }
+        QPushButton:pressed {
+            background-color: #004085;
+        }
+        QPushButton:disabled {
+            background-color: #6c757d;
+            color: #adb5bd;
+        }
+        QPushButton#successButton {
+            background-color: #28a745;
+        }
+        QPushButton#successButton:hover {
+            background-color: #218838;
+        }
+        QPushButton#warningButton {
+            background-color: #dc3545;
+        }
+        QPushButton#warningButton:hover {
+            background-color: #c82333;
+        }
+        QPushButton#easterEggButton {
+            background-color: #17a2b8;
+            font-size: 14px;
+            padding: 12px 24px;
+        }
+        QPushButton#easterEggButton:hover {
+            background-color: #138496;
+        }
+        
+        /* ComboBoxes */
+        QComboBox {
+            background-color: #ffffff;
+            border: 1px solid #007acc;
+            border-radius: 4px;
+            padding: 6px;
+            color: #2c3e50;
+            min-height: 20px;
+        }
+        QComboBox:hover {
+            border-color: #0056b3;
+        }
+        QComboBox QAbstractItemView {
+            background-color: #ffffff;
+            border: 1px solid #007acc;
+            selection-background-color: #007acc;
+            color: #2c3e50;
+        }
+        
+        /* CheckBoxes */
+        QCheckBox {
+            color: #2c3e50;
+            spacing: 8px;
+        }
+        QCheckBox::indicator {
+            width: 16px;
+            height: 16px;
+        }
+        QCheckBox::indicator:unchecked {
+            border: 2px solid #007acc;
+            border-radius: 3px;
+            background-color: #ffffff;
+        }
+        QCheckBox::indicator:checked {
+            border: 2px solid #007acc;
+            border-radius: 3px;
+            background-color: #007acc;
+        }
+        
+        /* Splitters */
+        QSplitter::handle {
+            background-color: #007acc;
+            width: 3px;
+            height: 3px;
+        }
+        QSplitter::handle:hover {
+            background-color: #0056b3;
+        }
+        
+        /* Status Bar */
+        QStatusBar {
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            color: #2c3e50;
+        }
+        
+        /* Menu Bar */
+        QMenuBar {
+            background-color: #f8f9fa;
+            color: #2c3e50;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: bold;
+        }
+        QMenuBar::item {
+            padding: 6px 12px;
+        }
+        QMenuBar::item:selected {
+            background-color: #007acc;
+            color: #ffffff;
+        }
+        QMenu {
+            background-color: #ffffff;
+            border: 1px solid #007acc;
+            color: #2c3e50;
+        }
+        QMenu::item:selected {
+            background-color: #007acc;
+            color: #ffffff;
+        }
+        
+        /* Pacific Coast Branding */
+        QLabel#pacificCoastBranding {
+            font-family: 'Brush Script MT', cursive, 'Comic Sans MS', fantasy;
+            font-size: 14px;
+            font-style: italic;
+            color: #007acc;
+            background: transparent;
+        }
+        
+        /* Chat Button */
+        QPushButton#chatButton {
+            background-color: #007acc;
+            color: #ffffff;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        QPushButton#chatButton:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+        """
+
+    def toggle_theme(self):
+        """Toggle between light and dark themes"""
+        new_theme = "light" if self.current_theme == "dark" else "dark"
+        self.apply_medical_theme(new_theme)
+        self.status_bar.showMessage(f"Switched to {new_theme} theme", 2000)
+
+    def set_light_theme(self):
+        """Set light theme"""
+        self.apply_medical_theme("light")
+        
+    def set_dark_theme(self):
+        """Set dark theme"""
+        self.apply_medical_theme("dark")
+
+    def create_pacific_coast_branding(self):
+        """Create the Pacific Coast Development branding in bottom right corner"""
+        self.pacific_coast_label = QLabel("Pacific Coast Development 🌴")
+        self.pacific_coast_label.setParent(self)
+        self.pacific_coast_label.setObjectName("pacificCoastBranding")
+        self.pacific_coast_label.setStyleSheet("""
+            QLabel#pacificCoastBranding {
+                font-family: 'Brush Script MT', cursive, 'Comic Sans MS', fantasy;
+                font-size: 14px;
+                font-style: italic;
+                color: #4a9eff;
+                background: transparent;
+                padding: 5px 10px;
+            }
+        """)
+        
+        # Position in bottom right corner
+        self.pacific_coast_label.adjustSize()
+        self.position_pacific_coast_branding()
+        self.pacific_coast_label.show()
+
+    def position_pacific_coast_branding(self):
+        """Position Pacific Coast branding in bottom right corner"""
+        if hasattr(self, "pacific_coast_label"):
+            # Position in bottom right corner with some margin
+            x = self.width() - self.pacific_coast_label.width() - 20
+            y = self.height() - self.pacific_coast_label.height() - 40  # Above status bar
+            self.pacific_coast_label.move(x, y)
+
+    def resizeEvent(self, event):
+        """Handle window resize to reposition floating elements"""
+        super().resizeEvent(event)
+        
+        # Reposition floating elements
+        if hasattr(self, "chat_button"):
+            self.position_chat_button()
+        if hasattr(self, "pacific_coast_label"):
+            self.position_pacific_coast_branding()
+
+    def _setup_keyboard_shortcuts(self):
+        """Setup keyboard shortcuts for better accessibility"""
+        # Theme toggle shortcut
+        theme_shortcut = QShortcut(QKeySequence("Ctrl+T"), self)
+        theme_shortcut.activated.connect(self.toggle_theme)
+        
+        # Chat assistant shortcut
+        chat_shortcut = QShortcut(QKeySequence("Ctrl+H"), self)
+        chat_shortcut.activated.connect(self.open_chat_assistant)
+        
+        # File shortcuts
+        open_shortcut = QShortcut(QKeySequence("Ctrl+O"), self)
+        open_shortcut.activated.connect(self.open_file_dialog)
+        
+        folder_shortcut = QShortcut(QKeySequence("Ctrl+Shift+O"), self)
+        folder_shortcut.activated.connect(self.open_folder_dialog)

@@ -88,10 +88,10 @@ models:
   generator: "microsoft/DialoGPT-medium"
   retriever: "sentence-transformers/all-MiniLM-L6-v2"
   fact_checker: "microsoft/DialoGPT-medium"
-  ner_ensemble: ["en_core_web_sm"]
-  doc_classifier_prompt: "Classify this document type"
-  analysis_prompt_template: "Analyze for compliance"
-  nlg_prompt_template: "Generate recommendations"
+  ner_ensemble: ["d4data/biomedical-ner-all"]
+  doc_classifier_prompt: "src/resources/prompts/doc_classifier_prompt.txt"
+  analysis_prompt_template: "src/resources/prompts/analysis_prompt_template.txt"
+  nlg_prompt_template: "src/resources/prompts/nlg_prompt_template.txt"
 
 # Habits framework
 habits_framework:

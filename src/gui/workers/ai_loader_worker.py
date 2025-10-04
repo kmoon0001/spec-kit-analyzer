@@ -67,7 +67,9 @@ class AILoaderWorker(QObject):
         self.progress_updated.emit(10)
 
         logger.info("Starting database maintenance")
-        maintenance_service = DatabaseMaintenanceService()
+        from src.config import get_settings
+        settings = get_settings()
+        maintenance_service = DatabaseMaintenanceService(db_path=settings.database.url)
         maintenance_service.purge_old_reports()
         logger.info("Database maintenance completed")
 

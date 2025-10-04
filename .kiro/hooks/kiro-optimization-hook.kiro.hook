@@ -4,7 +4,7 @@
   "description": "Monitors all file changes to provide optimized, beneficial responses to Kiro's questions and choices, focusing on app improvement, advanced features, usability, and actionable solutions using best practices",
   "version": "1",
   "when": {
-    "type": "fileEdited",
+    "type": "userTriggered",
     "patterns": [
       "src/**/*.py",
       "backend/**/*.py",
