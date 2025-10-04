@@ -699,9 +699,13 @@ class UltimateMainWindow(QMainWindow):
         
     def init_ui(self):
         """Initialize complete UI"""
-        self.setWindowTitle("THERAPY DOCUMENT COMPLIANCE ANALYSIS")
+        self.setWindowTitle("THERAPY DOCUMENTATION ANALYZER")
         self.setGeometry(100, 100, 1400, 900)
-        self.setMinimumSize(1000, 700)
+        self.setMinimumSize(900, 650)  # Better minimum for scaling
+        
+        # Enable better scaling behavior
+        from PySide6.QtWidgets import QSizePolicy
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         
         self.create_menu_system()
         self.create_main_layout()

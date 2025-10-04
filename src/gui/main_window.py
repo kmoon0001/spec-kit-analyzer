@@ -1,10 +1,9 @@
 import os
 import json
-import requests
 import urllib.parse
 import webbrowser
 from typing import Dict
-from PySide6.QtCore import Qt, QThread, QUrl, QPoint
+from PySide6.QtCore import Qt, QThread, QUrl
 from PySide6.QtGui import QTextDocument
 from PySide6.QtWidgets import (
     QWidget,
@@ -31,7 +30,6 @@ from PySide6.QtWidgets import (
 
 from src.config import get_settings
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
-from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
 
@@ -78,9 +76,10 @@ class DocumentPreviewDialog(QDialog):
 class MainApplicationWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.access_token = None
-        self.username = None
-        self.is_admin = False
+        # Simplified authentication - direct access mode
+        self.access_token = "direct_access"  # Default token for local-only mode
+        self.username = "local_user"
+        self.is_admin = True  # Enable all features in local mode
         self._current_file_path = None
         self._current_folder_path = None
         self._current_folder_files = []
@@ -99,6 +98,7 @@ class MainApplicationWindow(QMainWindow):
         self.meta_analytics_thread = None
         self.meta_analytics_worker = None
         self.report_generator = ReportGenerator()
+        self.api_port = 8000  # Default API port
         self.model_status = {
             "Generator": False,
             "Retriever": False,
@@ -111,7 +111,7 @@ class MainApplicationWindow(QMainWindow):
 
     def start(self):
         """
-        Starts the application's main logic, including loading models and showing the login dialog.
+        Starts the application's main logic with direct access mode.
         This is called after the window is created to avoid blocking the constructor,
         which makes the main window testable.
         """
@@ -132,16 +132,13 @@ class MainApplicationWindow(QMainWindow):
         self.file_menu = self.menu_bar.addMenu("File")
         self.file_menu.addAction("Exit", self.close)
         
-        # Keep only developer options in menu (if admin)
-        if hasattr(self, 'is_admin') and self.is_admin:
-            self.dev_menu = self.menu_bar.addMenu("Developer")
-            self.dev_menu.addAction("Admin Dashboard", self.open_admin_dashboard)
+        # Keep only essential menu items - settings moved to Settings tab
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ready")
         self.ai_status_label = QLabel("Loading AI models...")
         self.status_bar.addPermanentWidget(self.ai_status_label)
-        self.user_status_label = QLabel("")
+        self.user_status_label = QLabel("Local User")
         self.status_bar.addPermanentWidget(self.user_status_label)
 
         self.model_health_label = QLabel(self._format_model_status_text())
@@ -177,15 +174,7 @@ class MainApplicationWindow(QMainWindow):
         if hasattr(self, "model_health_label"):
             self.model_health_label.setText(self._format_model_status_text())
 
-    def logout(self):
-        self.access_token = None
-        self.username = None
-        self.is_admin = False
-        self.user_status_label.setText("")
-        self.setCentralWidget(None)
-        QMessageBox.information(self, "Logged Out", "You have been logged out.")
-        # Since login is removed, we can just close or show a message.
-        # For now, let's just clear the UI. A real implementation might close the app.
+
 
     def load_main_ui(self):
         self.tabs = QTabWidget()
@@ -208,9 +197,12 @@ class MainApplicationWindow(QMainWindow):
                 self.load_meta_analytics_data
             )
 
+        # Add admin options to Settings tab instead of menu
         if self.is_admin:
-            self.admin_menu = self.menu_bar.addMenu("Admin")
-            self.admin_menu.addAction("Open Admin Dashboard", self.open_admin_dashboard)
+            # Admin functionality will be in Settings tab
+            pass
+            pass
+        
         self.load_dashboard_data()
 
         # Load meta analytics for admin users
@@ -219,6 +211,11 @@ class MainApplicationWindow(QMainWindow):
 
         theme = self.load_theme_setting()
         self.apply_stylesheet(theme)
+        
+        # Ensure chat button is visible after UI is loaded
+        if hasattr(self, 'chat_button'):
+            self.chat_button.show()
+            self.chat_button.raise_()
 
     def open_admin_dashboard(self):
         webbrowser.open(f"{API_URL}/admin/dashboard?token={self.access_token}")
@@ -384,14 +381,8 @@ class MainApplicationWindow(QMainWindow):
         splitter.setStretchFactor(0, 2)  # Document area
         splitter.setStretchFactor(1, 3)  # Results area (slightly larger)
 
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setObjectName("analysisProgress")
-        self.progress_bar.setRange(0, 100)
-        self.progress_bar.setValue(0)
-        self.progress_bar.setTextVisible(False)
-        self.progress_bar.setFixedHeight(8)
-        self.progress_bar.hide()
-        main_layout.addWidget(self.progress_bar)
+        # Use the existing progress bar from status bar instead of creating duplicate
+        # self.progress_bar is already created in init_base_ui()
 
         actions_layout = QHBoxLayout()
         actions_layout.setSpacing(8)
@@ -485,9 +476,9 @@ class MainApplicationWindow(QMainWindow):
         user_group = QGroupBox("👤 User Settings")
         user_layout = QVBoxLayout(user_group)
         
-        change_password_btn = QPushButton("🔐 Change Password")
-        change_password_btn.clicked.connect(self.show_change_password_dialog)
-        user_layout.addWidget(change_password_btn)
+        user_info_label = QLabel("Running in Direct Access Mode\nNo authentication required for local analysis")
+        user_info_label.setStyleSheet("color: #666; font-style: italic;")
+        user_layout.addWidget(user_info_label)
         
         main_layout.addWidget(user_group)
         
@@ -510,6 +501,17 @@ class MainApplicationWindow(QMainWindow):
         analysis_layout.addWidget(analysis_settings_btn)
         
         main_layout.addWidget(analysis_group)
+        
+        # Admin Section (if admin user)
+        if hasattr(self, 'is_admin') and self.is_admin:
+            admin_group = QGroupBox("👑 Administrator")
+            admin_layout = QVBoxLayout(admin_group)
+            
+            admin_dashboard_btn = QPushButton("🔧 Admin Dashboard")
+            admin_dashboard_btn.clicked.connect(self.open_admin_dashboard)
+            admin_layout.addWidget(admin_dashboard_btn)
+            
+            main_layout.addWidget(admin_group)
         
         # About Section
         about_group = QGroupBox("ℹ️ About")
@@ -639,31 +641,13 @@ class MainApplicationWindow(QMainWindow):
         dialog.exec()
 
     def show_change_password_dialog(self):
-        dialog = ChangePasswordDialog(self)
-        if dialog.exec():
-            current_password, new_password = dialog.get_passwords()
-            try:
-                headers = {"Authorization": f"Bearer {self.access_token}"}
-                payload = {
-                    "current_password": current_password,
-                    "new_password": new_password,
-                }
-                response = requests.post(
-                    f"{API_URL}/auth/users/change-password",
-                    json=payload,
-                    headers=headers,
-                )
-                response.raise_for_status()
-                QMessageBox.information(
-                    self, "Success", "Password changed successfully."
-                )
-            except requests.exceptions.RequestException as e:
-                detail = (
-                    e.response.json().get("detail", str(e)) if e.response else str(e)
-                )
-                QMessageBox.critical(
-                    self, "Error", f"Failed to change password: {detail}"
-                )
+        # Password change not available in direct access mode
+        QMessageBox.information(
+            self, 
+            "Direct Access Mode", 
+            "Password management is not available in direct access mode.\n"
+            "This application runs locally without user authentication."
+        )
 
     def show_performance_settings(self):
         """Show the performance settings dialog."""
@@ -698,9 +682,7 @@ class MainApplicationWindow(QMainWindow):
             print(f"Error handling performance settings change: {e}")
 
     def load_dashboard_data(self):
-        if not self.access_token:
-            self.status_bar.showMessage("Login required to load analytics.", 5000)
-            return
+        # Direct access mode - no authentication check needed
 
         self.status_bar.showMessage("Refreshing dashboard data...")
         if self.dashboard_thread and self.dashboard_thread.isRunning():
@@ -731,15 +713,7 @@ class MainApplicationWindow(QMainWindow):
 
     def load_meta_analytics_data(self, params=None):
         """Load meta analytics data for admin users."""
-        if not self.access_token:
-            self.status_bar.showMessage("Login required to load team analytics.", 5000)
-            return
-
-        if not self.is_admin:
-            self.status_bar.showMessage(
-                "Admin access required for team analytics.", 5000
-            )
-            return
+        # Direct access mode - all features available
 
         self.status_bar.showMessage("Loading team analytics...")
 
@@ -1372,8 +1346,10 @@ QMessageBox QPushButton { min-width: 90px; }
         self.chat_button_dragging = False
         self.chat_button_offset = None
         
-        # Position it away from Pacific Coast easter egg (bottom left instead of bottom right)
+        # Position it away from Pacific Coast easter egg and show it
         self.position_chat_button()
+        self.chat_button.show()  # Make sure it's visible
+        self.chat_button.raise_()  # Bring to front
         
     def position_chat_button(self):
         """Position floating chat button"""
@@ -1413,13 +1389,7 @@ QMessageBox QPushButton { min-width: 90px; }
         chat_dialog = ChatDialog("Hello! How can I help you with compliance today?", self.access_token or "", self)
         chat_dialog.exec()
         
-    def show_preferences(self):
-        """Show preferences dialog"""
-        QMessageBox.information(self, "Preferences", "Preferences dialog - Coming soon!")
-        
-    def show_theme_settings(self):
-        """Show theme settings dialog"""
-        QMessageBox.information(self, "Theme Settings", "Advanced theme settings - Coming soon!")
+
         
     def show_analysis_settings(self):
         """Show analysis settings dialog"""
