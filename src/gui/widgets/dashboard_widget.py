@@ -76,7 +76,7 @@ class DashboardWidget(QWidget):
                 "No compliance trend data to display.",
                 ha="center",
                 va="center",
-                fontsize=12
+                fontsize=12,
             )
         else:
             dates = []
@@ -95,16 +95,20 @@ class DashboardWidget(QWidget):
                     "No valid trend data to display.",
                     ha="center",
                     va="center",
-                    fontsize=12
+                    fontsize=12,
                 )
             else:
-                ax.plot(dates, scores, marker="o", linestyle="-", linewidth=2, markersize=6)
-                ax.set_title("Compliance Score Over Time", fontsize=14, fontweight='bold')
+                ax.plot(
+                    dates, scores, marker="o", linestyle="-", linewidth=2, markersize=6
+                )
+                ax.set_title(
+                    "Compliance Score Over Time", fontsize=14, fontweight="bold"
+                )
                 ax.set_xlabel("Analysis Date", fontsize=12)
                 ax.set_ylabel("Compliance Score", fontsize=12)
                 ax.grid(True, alpha=0.3)
                 ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
-                
+
         # Apply tight layout to prevent overlap
         self.trends_canvas.figure.tight_layout(pad=2.0)
         self.trends_canvas.draw()
@@ -121,27 +125,42 @@ class DashboardWidget(QWidget):
                 "No findings summary data to display.",
                 ha="center",
                 va="center",
-                fontsize=12
+                fontsize=12,
             )
         else:
             top_n = 8  # Reduce number to prevent overlap
             summary = summary[:top_n]
 
-            rule_ids = [item["rule_id"][:20] + "..." if len(item["rule_id"]) > 20 else item["rule_id"] for item in summary]
+            rule_ids = [
+                item["rule_id"][:20] + "..."
+                if len(item["rule_id"]) > 20
+                else item["rule_id"]
+                for item in summary
+            ]
             counts = [item["count"] for item in summary]
 
-            bars = ax.barh(rule_ids, counts, color='#007acc', alpha=0.7)
-            ax.set_title(f"Top {len(rule_ids)} Most Common Findings", fontsize=14, fontweight='bold')
+            bars = ax.barh(rule_ids, counts, color="#007acc", alpha=0.7)
+            ax.set_title(
+                f"Top {len(rule_ids)} Most Common Findings",
+                fontsize=14,
+                fontweight="bold",
+            )
             ax.set_xlabel("Number of Occurrences", fontsize=12)
             ax.set_ylabel("Finding Type", fontsize=12)
             ax.invert_yaxis()
-            
+
             # Add value labels on bars
             for i, bar in enumerate(bars):
                 width = bar.get_width()
-                ax.text(width + 0.1, bar.get_y() + bar.get_height()/2, 
-                       f'{counts[i]}', ha='left', va='center', fontsize=10)
-            
+                ax.text(
+                    width + 0.1,
+                    bar.get_y() + bar.get_height() / 2,
+                    f"{counts[i]}",
+                    ha="left",
+                    va="center",
+                    fontsize=10,
+                )
+
         # Apply tight layout to prevent overlap
         self.summary_canvas.figure.tight_layout(pad=2.0)
         self.summary_canvas.draw()
@@ -152,14 +171,15 @@ class MplCanvas(FigureCanvas):
 
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
-        fig.patch.set_facecolor('white')
+        fig.patch.set_facecolor("white")
         self.axes = fig.add_subplot(111)
         super(MplCanvas, self).__init__(fig)
         self.setParent(parent)
-        
+
         # Set size policy to allow proper resizing
         from PySide6.QtWidgets import QSizePolicy
+
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        
+
         # Apply tight layout with padding
         self.figure.tight_layout(pad=2.0)

@@ -85,12 +85,13 @@ class ComplianceAnalyzer:
 
         # Create explanation context with discipline and document type
         from src.core.explanation import ExplanationContext
+
         explanation_context = ExplanationContext(
             document_type=doc_type,
             discipline=discipline,
-            rubric_name=f"{discipline.upper()} Compliance Rubric"
+            rubric_name=f"{discipline.upper()} Compliance Rubric",
         )
-        
+
         explained_analysis = self.explanation_engine.add_explanations(
             initial_analysis, document_text, explanation_context, retrieved_rules
         )

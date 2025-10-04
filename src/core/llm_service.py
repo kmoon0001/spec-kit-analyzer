@@ -5,7 +5,6 @@ from typing import Any, Dict, Optional
 
 import structlog
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
 logger = structlog.get_logger(__name__)
 

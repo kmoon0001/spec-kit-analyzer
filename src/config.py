@@ -82,7 +82,7 @@ class LLMSettings(BaseModel):
         "max_new_tokens": 1024,
         "top_p": 0.9,
         "repeat_penalty": 1.1,
-        "stop_sequences": ["</analysis>", "\n\n---"]
+        "stop_sequences": ["</analysis>", "\n\n---"],
     }
 
 
@@ -208,19 +208,19 @@ class AnalysisSettings(BaseModel):
 
 class PerformanceSettings(BaseModel):
     """Performance and caching configuration."""
-    
+
     # Memory management
     max_cache_memory_mb: int = 2048
     embedding_cache_size: int = 1000
     ner_cache_size: int = 500
     llm_cache_size: int = 200
-    
+
     # Processing optimization
     use_gpu: bool = False
     model_quantization: bool = True
     batch_size: int = 4
     max_workers: int = 2
-    
+
     # Timeouts and limits
     analysis_timeout_minutes: int = 10
     model_load_timeout_minutes: int = 5
@@ -229,7 +229,7 @@ class PerformanceSettings(BaseModel):
 
 class LoggingSettings(BaseModel):
     """Logging configuration."""
-    
+
     level: str = "INFO"
     format: str = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     file_rotation: bool = True
@@ -239,7 +239,7 @@ class LoggingSettings(BaseModel):
 
 class SecuritySettings(BaseModel):
     """Security configuration."""
-    
+
     enable_rate_limiting: bool = True
     max_requests_per_minute: int = 60
     enable_cors: bool = False
@@ -249,7 +249,7 @@ class SecuritySettings(BaseModel):
 
 class FeatureSettings(BaseModel):
     """Feature flags configuration."""
-    
+
     enable_ocr: bool = True
     enable_batch_processing: bool = True
     enable_export: bool = True
