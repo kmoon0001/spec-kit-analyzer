@@ -1296,43 +1296,43 @@ class UltimateMainWindow(QMainWindow):
         about_submenu.addAction("Easter Eggs Guide", self.show_easter_eggs_guide)
 
     def create_main_layout(self):
-        """Create main layout with Pacific Coast signature"""
+        """Create optimized main layout with better space usage"""
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setContentsMargins(8, 8, 8, 8)
+        main_layout.setSpacing(5)
 
         # Header with clickable logo
         self.create_header(main_layout)
 
-        # Tab widget
+        # Tab widget - give it most of the space
         self.create_tab_widget(main_layout)
 
-        # Pacific Coast signature
+        # Compact Pacific Coast signature
         signature_layout = QHBoxLayout()
+        signature_layout.setContentsMargins(0, 0, 0, 0)
         signature_layout.addStretch()
 
-        signature_label = QLabel("Pacific Coast")
+        signature_label = QLabel("Pacific Coast 🌴")
         signature_label.setStyleSheet(
-            "font-family: 'Brush Script MT', cursive; font-size: 12px; color: #999; padding: 2px; font-style: italic;"
+            "font-family: 'Brush Script MT', cursive; font-size: 10px; color: #999; padding: 1px; font-style: italic;"
         )
-
-        palm_tree_label = QLabel("🌴")
-        palm_tree_label.setStyleSheet("font-size: 12px; color: #999;")
+        signature_label.setMaximumHeight(20)
 
         signature_layout.addWidget(signature_label)
-        signature_layout.addWidget(palm_tree_label)
         main_layout.addLayout(signature_layout)
 
         # Floating chat button
         self.create_floating_chat_button()
 
     def create_header(self, parent_layout):
-        """Create header with clickable logo"""
+        """Create responsive header with prominent title"""
         header_frame = QFrame()
-        header_frame.setMinimumHeight(90)
-        header_frame.setMaximumHeight(110)
+        header_frame.setMinimumHeight(80)
+        header_frame.setMaximumHeight(120)
+        header_frame.setSizePolicy(QWidget.SizePolicy.Expanding, QWidget.SizePolicy.Fixed)
         header_frame.setStyleSheet("""
             QFrame {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
@@ -1343,39 +1343,50 @@ class UltimateMainWindow(QMainWindow):
         """)
 
         header_layout = QHBoxLayout(header_frame)
+        header_layout.setContentsMargins(15, 10, 15, 10)
+        header_layout.setSpacing(20)
 
         # Clickable logo (7 clicks = credits)
         logo_label = QLabel("📄")
-        logo_label.setFont(QFont("Arial", 32))
+        logo_label.setFont(QFont("Arial", 28))
         logo_label.setStyleSheet(
-            "color: white; background: transparent; padding: 5px; margin: 5px;"
+            "color: white; background: transparent; padding: 8px; margin: 2px;"
         )
+        logo_label.setFixedSize(50, 50)
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo_label.mousePressEvent = (
             lambda e: self.easter_egg_manager.handle_logo_click()
         )
         logo_label.setToolTip("Click me 7 times for a surprise!")
         header_layout.addWidget(logo_label)
 
-        # Title
+        # Title - Make more prominent
         title_layout = QVBoxLayout()
-        title_label = QLabel("THERAPY DOCUMENTATION\nCOMPLIANCE ANALYSIS")
-        title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-        title_label.setStyleSheet(
-            "color: white; background: transparent; text-align: center;"
-        )
+        title_layout.setSpacing(2)
+        
+        title_label = QLabel("THERAPY DOCUMENTATION COMPLIANCE ANALYSIS")
+        title_label.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        title_label.setStyleSheet("""
+            color: white; 
+            background: transparent; 
+            text-align: center;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        """)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_label.setWordWrap(True)
 
-        subtitle_label = QLabel(
-            "AI-Powered Clinical Documentation Analysis • Kevin Moon"
-        )
-        subtitle_label.setFont(QFont("Arial", 10))
+        subtitle_label = QLabel("AI-Powered Clinical Documentation Analysis • Kevin Moon")
+        subtitle_label.setFont(QFont("Arial", 11))
         subtitle_label.setStyleSheet(
-            "color: rgba(255,255,255,0.8); background: transparent;"
+            "color: rgba(255,255,255,0.9); background: transparent; font-weight: normal;"
         )
+        subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        subtitle_label.setWordWrap(True)
 
         title_layout.addWidget(title_label)
         title_layout.addWidget(subtitle_label)
-        header_layout.addLayout(title_layout)
+        header_layout.addLayout(title_layout, 1)  # Give title more space
 
         header_layout.addStretch()
 
@@ -1384,9 +1395,32 @@ class UltimateMainWindow(QMainWindow):
 
 
     def create_tab_widget(self, parent_layout):
-        """Create proportional tab widget"""
+        """Create responsive tab widget with optimal space usage"""
         self.tab_widget = QTabWidget()
         self.tab_widget.setTabPosition(QTabWidget.TabPosition.North)
+        self.tab_widget.setSizePolicy(QWidget.SizePolicy.Expanding, QWidget.SizePolicy.Expanding)
+        
+        # Style tabs for better scaling
+        self.tab_widget.setStyleSheet("""
+            QTabWidget::pane {
+                border: 1px solid #c0c0c0;
+                background: white;
+            }
+            QTabBar::tab {
+                background: #f0f0f0;
+                border: 1px solid #c0c0c0;
+                padding: 8px 16px;
+                margin-right: 2px;
+                min-width: 80px;
+            }
+            QTabBar::tab:selected {
+                background: white;
+                border-bottom-color: white;
+            }
+            QTabBar::tab:hover {
+                background: #e0e0e0;
+            }
+        """)
 
         # Analysis Tab
         self.create_analysis_tab()
@@ -1400,7 +1434,7 @@ class UltimateMainWindow(QMainWindow):
         # Settings Tab
         self.create_settings_tab()
 
-        parent_layout.addWidget(self.tab_widget)
+        parent_layout.addWidget(self.tab_widget, 1)  # Give it stretch factor
 
     def create_analysis_tab(self):
         """Create analysis tab with Medicare Part B rubrics"""
@@ -1893,14 +1927,17 @@ class UltimateMainWindow(QMainWindow):
 
             trends_layout.addLayout(metrics_grid)
 
-            # Chart placeholder
+            # Chart placeholder with proper sizing
             chart_placeholder = QLabel(
                 "📊 Interactive Compliance Trends Chart\n\nShowing 30-day compliance score progression with predictive forecasting"
             )
             chart_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
             chart_placeholder.setStyleSheet(
-                "background: #f8f9fa; border: 2px dashed #ccc; padding: 40px; border-radius: 8px; margin: 20px;"
+                "background: #f8f9fa; border: 2px dashed #ccc; padding: 30px; border-radius: 8px; margin: 10px;"
             )
+            chart_placeholder.setMinimumHeight(200)
+            chart_placeholder.setMaximumHeight(300)
+            chart_placeholder.setSizePolicy(QWidget.SizePolicy.Expanding, QWidget.SizePolicy.Fixed)
             trends_layout.addWidget(chart_placeholder)
 
             content_tabs.addTab(trends_tab, "📈 Trends")
