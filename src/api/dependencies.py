@@ -1,21 +1,22 @@
 """Dependency injection and singleton service management for FastAPI application."""
 
-import structlog
+import logging
 from typing import Any, Dict
 
 from fastapi import Depends, HTTPException, status
 
-from src.auth import get_current_active_user
-from src.config import get_settings
-from src.core.analysis_service import AnalysisService
 from src.core.hybrid_retriever import HybridRetriever
-from src.core.mock_analysis_service import MockAnalysisService
+try:
+    from src.core.config import settings  # Ensure this path and 'settings' exist
+except ImportError:
+    from src.config import settings  # Fallback if config is not in core
 from src.database import models
-
-settings = get_settings()
+from src.auth import get_current_active_user
+from ..core.mock_analysis_service import MockAnalysisService
+from ..core.analysis_service import AnalysisService
 
 # Configure logger
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # This dictionary will hold our singleton instances
 app_state: Dict[str, Any] = {}
@@ -40,31 +41,20 @@ def get_analysis_service() -> Any:
 
 
 async def get_retriever() -> Any:
-    """
-    Dependency to get the singleton HybridRetriever instance.
-    Creates and initializes the retriever if it doesn't exist.
-    """
     if "retriever" not in app_state:
         logger.info("Retriever instance not found, creating a new one.")
-        try:
-            retriever_instance = HybridRetriever()
-            # Check if the retriever has an initialize method
-            if hasattr(retriever_instance, "initialize"):
-                await retriever_instance.initialize()
-            app_state["retriever"] = retriever_instance
-            logger.info("New retriever instance created and initialized.")
-        except Exception as e:
-            logger.error("Failed to create retriever instance: %s", e)
-            raise
+
+        retriever_instance = HybridRetriever()
+        await retriever_instance.initialize()
+        app_state["retriever"] = retriever_instance
+        logger.info("New retriever instance created and initialized.")
     return app_state["retriever"]
 
 
 async def startup_event():
     """Application startup event handler. Initializes singleton services."""
     logger.info("Application starting up...")
-    use_mocks = get_settings().use_ai_mocks
-    logger.info("AI mock status", use_ai_mocks=use_mocks)
-    if use_mocks:
+    if settings.use_ai_mocks:
         logger.warning("AI mocks are enabled. Using MockAnalysisService.")
         app_state["analysis_service"] = MockAnalysisService()
     else:
