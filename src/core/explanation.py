@@ -359,6 +359,10 @@ retrieved_rules: List of compliance rules that were matched during analysis
             return self.regulatory_citations[discipline.lower()]
 
         return self.regulatory_citations["medicare"]
+
+    def _add_context_snippets(self, findings, full_document_text):
+        """Add context snippets to findings."""
+        for finding in findings:
             problematic_text = finding.get("text")
             if problematic_text:
                 finding["context_snippet"] = self._get_context_snippet(

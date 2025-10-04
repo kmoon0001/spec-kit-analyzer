@@ -4,7 +4,6 @@ from threading import Lock
 from typing import Any, Dict, Optional
 
 import logging
-import torch
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +70,7 @@ class LLMService:
             # Load tokenizer and model
             self.tokenizer = T5Tokenizer.from_pretrained(model_id)
 
+            import torch  # Lazy import
             self.llm = T5ForConditionalGeneration.from_pretrained(
                 model_id,
                 torch_dtype=torch.float32,  # Use float32 for CPU
@@ -153,6 +153,7 @@ class LLMService:
             )
 
             # Generate with T5
+            import torch  # Lazy import
             with torch.no_grad():
                 outputs = self.llm.generate(
                     **inputs,

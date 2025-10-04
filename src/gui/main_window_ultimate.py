@@ -775,9 +775,9 @@ class UltimateMainWindow(QMainWindow):
 
     def init_ui(self):
         """Initialize complete UI"""
-        self.setWindowTitle("THERAPY DOCUMENTATION ANALYZER")
+        self.setWindowTitle("THERAPY DOCUMENTATION COMPLIANCE ANALYSIS")
         self.setGeometry(100, 100, 1400, 900)
-        self.setMinimumSize(900, 650)  # Better minimum for scaling
+        self.setMinimumSize(800, 600)  # Better minimum for scaling
 
         # Enable better scaling behavior
         from PySide6.QtWidgets import QSizePolicy
@@ -918,7 +918,8 @@ class UltimateMainWindow(QMainWindow):
     def create_header(self, parent_layout):
         """Create header with clickable logo"""
         header_frame = QFrame()
-        header_frame.setFixedHeight(80)
+        header_frame.setMinimumHeight(90)
+        header_frame.setMaximumHeight(110)
         header_frame.setStyleSheet("""
             QFrame {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
@@ -931,10 +932,10 @@ class UltimateMainWindow(QMainWindow):
         header_layout = QHBoxLayout(header_frame)
 
         # Clickable logo (7 clicks = credits)
-        logo_label = QLabel("🏥")
+        logo_label = QLabel("📄")
         logo_label.setFont(QFont("Arial", 32))
         logo_label.setStyleSheet(
-            "color: white; background: transparent; padding: 10px;"
+            "color: white; background: transparent; padding: 5px; margin: 5px;"
         )
         logo_label.mousePressEvent = (
             lambda e: self.easter_egg_manager.handle_logo_click()
@@ -944,7 +945,7 @@ class UltimateMainWindow(QMainWindow):
 
         # Title
         title_layout = QVBoxLayout()
-        title_label = QLabel("THERAPY DOCUMENT\nCOMPLIANCE ANALYSIS")
+        title_label = QLabel("THERAPY DOCUMENTATION\nCOMPLIANCE ANALYSIS")
         title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         title_label.setStyleSheet(
             "color: white; background: transparent; text-align: center;"
@@ -1111,9 +1112,11 @@ class UltimateMainWindow(QMainWindow):
 
         layout.addWidget(rubric_group)
 
-        # Analysis options
-        options_group = QGroupBox("Analysis Options")
-        options_layout = QVBoxLayout(options_group)
+        # Analysis progress (simplified)
+        progress_group = QGroupBox("Analysis Progress")
+        progress_group.setMinimumHeight(150)
+        progress_layout = QVBoxLayout(progress_group)
+        options_layout.setSpacing(8)
 
         self.analysis_mode = QComboBox()
         self.analysis_mode.addItems(
@@ -1132,34 +1135,14 @@ class UltimateMainWindow(QMainWindow):
         options_layout.addWidget(self.confidence_label)
         options_layout.addWidget(self.confidence_slider)
 
-        self.enable_fact_check = QCheckBox("Enable Fact Checking")
-        self.enable_fact_check.setChecked(True)
+        # Analysis status display
+        self.analysis_status = QLabel("Ready to analyze")
+        self.analysis_status.setStyleSheet("font-size: 12px; padding: 10px; color: #666;")
+        self.analysis_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.enable_suggestions = QCheckBox("Generate Improvement Suggestions")
-        self.enable_suggestions.setChecked(True)
+        progress_layout.addWidget(self.analysis_status)
 
-        self.enable_citations = QCheckBox("Include Medicare Citations & Quotations")
-        self.enable_citations.setChecked(True)
-
-        self.enable_strengths_weaknesses = QCheckBox(
-            "Include Strengths & Weaknesses Analysis"
-        )
-        self.enable_strengths_weaknesses.setChecked(True)
-
-        self.enable_7_habits = QCheckBox("Include 7 Habits Framework")
-        self.enable_7_habits.setChecked(True)
-
-        self.enable_quotations = QCheckBox("Extract Document Quotations")
-        self.enable_quotations.setChecked(True)
-
-        options_layout.addWidget(self.enable_fact_check)
-        options_layout.addWidget(self.enable_suggestions)
-        options_layout.addWidget(self.enable_citations)
-        options_layout.addWidget(self.enable_strengths_weaknesses)
-        options_layout.addWidget(self.enable_7_habits)
-        options_layout.addWidget(self.enable_quotations)
-
-        layout.addWidget(options_group)
+        layout.addWidget(progress_group)
 
         # Progress section
         progress_group = QGroupBox("Analysis Progress")
@@ -1644,7 +1627,7 @@ class UltimateMainWindow(QMainWindow):
     def position_fab(self):
         """Position floating action button"""
         if hasattr(self, "fab"):
-            self.fab.move(self.width() - 80, self.height() - 100)
+            self.fab.move(20, self.height() - 100)
 
     def resizeEvent(self, event):
         """Handle window resize"""
@@ -1731,10 +1714,14 @@ class UltimateMainWindow(QMainWindow):
                     border-radius: 10px;
                     background: #d4edda;
                     color: #155724;
-                    font-size: 14px;
+                    font-size: 12px;
                     font-weight: bold;
+                    padding: 10px;
+                    min-height: 60px;
                 }
             """)
+            self.drop_area.setWordWrap(True)
+            self.drop_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
     def upload_folder(self):
         """Upload folder - WORKING"""
