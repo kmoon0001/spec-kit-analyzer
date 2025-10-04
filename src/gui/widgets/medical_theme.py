@@ -2,13 +2,13 @@
 Medical Theme System - Professional medical UI styling with light/dark themes.
 """
 
-from PyQt6.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 
 
 class MedicalTheme(QObject):
     """Medical theme manager with light/dark mode support."""
 
-    theme_changed = pyqtSignal(str)  # Emits 'light' or 'dark'
+    theme_changed = Signal(str)  # Emits 'light' or 'dark'
 
     def __init__(self):
         super().__init__()

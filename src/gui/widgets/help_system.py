@@ -5,7 +5,7 @@ Safe, optional feature that enhances user experience without affecting core func
 
 import logging
 from typing import Dict, Optional
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget,
     QLabel,
     QVBoxLayout,
@@ -15,8 +15,8 @@ from PyQt6.QtWidgets import (
     QDialog,
     QFrame,
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint
-from PyQt6.QtGui import QFont
+from PySide6.QtCore import Qt, QTimer, Signal, QPoint
+from PySide6.QtGui import QFont
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class HelpBubble(QFrame):
     Help bubble widget that can be embedded in the UI.
     """
 
-    closed = pyqtSignal()
+    closed = Signal()
 
     def __init__(self, title: str, content: str, parent: Optional[QWidget] = None):
         super().__init__(parent)

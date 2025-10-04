@@ -5,7 +5,7 @@ Provides a unified interface for performance monitoring and optimization.
 
 import logging
 from typing import Dict, Any, Callable
-from PyQt6.QtCore import QObject, pyqtSignal, QTimer
+from PySide6.QtCore import QObject, Signal, QTimer
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +17,10 @@ class PerformanceIntegrationService(QObject):
     """
 
     # Signals for performance events
-    performance_warning = pyqtSignal(str, str)  # level, message
-    memory_pressure = pyqtSignal(float)  # memory percentage
-    profile_changed = pyqtSignal(str)  # new profile name
-    optimization_completed = pyqtSignal(dict)  # optimization results
+    performance_warning = Signal(str, str)  # level, message
+    memory_pressure = Signal(float)  # memory percentage
+    profile_changed = Signal(str)  # new profile name
+    optimization_completed = Signal(dict)  # optimization results
 
     def __init__(self):
         super().__init__()

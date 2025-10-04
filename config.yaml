@@ -1,6 +1,8 @@
 # Therapy Compliance Analyzer Configuration
 
-# Database settings
+use_ai_mocks: false  # Use real models but lightweight ones
+enable_director_dashboard: true
+
 database:
   url: "sqlite:///./compliance.db"
   echo: false
@@ -19,11 +21,41 @@ maintenance:
 # Paths settings
 paths:
   temp_upload_dir: "./temp"
-  api_url: "http://localhost:8000"
+  api_url: "http://localhost:8001"
   rule_dir: "./src/resources"
   medical_dictionary: "src/resources/medical_dictionary.txt"
   cache_dir: ".cache"
   logs_dir: "logs"
+
+models:
+  # Use only BERT-based models to avoid T5/sentencepiece conflicts
+  generator_profiles:
+    standard:
+      repo: "distilbert-base-uncased"  # Lightweight BERT model
+      filename: ""
+      revision: "main"
+      max_system_gb: 8.0
+    enhanced:
+      repo: "bert-base-uncased"  # Standard BERT model
+      filename: ""
+      revision: "main"
+      min_system_gb: 8.0
+  chat:
+    repo: "distilbert-base-uncased"
+    filename: ""
+    revision: "main"
+    model_type: "bert"
+    context_length: 512
+  retriever: "sentence-transformers/all-MiniLM-L6-v2"
+  fact_checker: "microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext"  # Medical BERT
+  ner_ensemble:
+    - "d4data/biomedical-ner-all"
+  phi_scrubber:
+    general: "beki/en_spacy_pii_fast"
+    biomedical: "bigcode/starpii"
+  doc_classifier_prompt: "src/resources/prompts/doc_classifier_prompt.txt"
+  analysis_prompt_template: "src/resources/prompts/analysis_prompt_template.txt"
+  nlg_prompt_template: "src/resources/prompts/nlg_prompt_template.txt"
 
 # LLM settings
 llm:

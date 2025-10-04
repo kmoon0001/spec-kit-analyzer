@@ -8,9 +8,9 @@ weekly focus, and personalized coaching recommendations.
 import logging
 from typing import Dict, Optional
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QFont, QPainter, QPen, QBrush, QColor
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtGui import QFont, QPainter, QPen, QBrush, QColor
+from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
@@ -238,7 +238,7 @@ class HabitsDashboardWidget(QWidget):
     and personalized coaching recommendations.
     """
 
-    habit_selected = pyqtSignal(str)  # Emitted when a habit is selected
+    habit_selected = Signal(str)  # Emitted when a habit is selected
 
     def __init__(self):
         super().__init__()

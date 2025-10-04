@@ -2,18 +2,18 @@
 Micro-interactions and Animations - Smooth transitions and visual feedback.
 """
 
-from PyQt6.QtWidgets import QPushButton, QWidget, QGraphicsOpacityEffect, QLabel
-from PyQt6.QtCore import (
+from PySide6.QtWidgets import QPushButton, QWidget, QGraphicsOpacityEffect, QLabel
+from PySide6.QtCore import (
     QPropertyAnimation,
     QEasingCurve,
     Qt,
     QSequentialAnimationGroup,
     QTimer,
-    pyqtSignal,
+    Signal,
     QRect,
     QPoint,
 )
-from PyQt6.QtGui import QColor
+from PySide6.QtGui import QColor
 
 
 class AnimatedButton(QPushButton):
@@ -108,7 +108,7 @@ class AnimatedButton(QPushButton):
 class FadeInWidget(QWidget):
     """Widget that fades in when shown."""
 
-    fade_completed = pyqtSignal()
+    fade_completed = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -147,7 +147,7 @@ class FadeInWidget(QWidget):
 class SlideInWidget(QWidget):
     """Widget that slides in from a direction."""
 
-    slide_completed = pyqtSignal()
+    slide_completed = Signal()
 
     def __init__(self, direction: str = "left", parent=None):
         super().__init__(parent)
@@ -298,7 +298,7 @@ class LoadingSpinner(QLabel):
 
     def paintEvent(self, event):
         """Paint the spinner."""
-        from PyQt6.QtGui import QPainter, QPen
+        from PySide6.QtGui import QPainter, QPen
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -347,7 +347,7 @@ class ProgressRipple(QWidget):
 
     def paintEvent(self, event):
         """Paint ripples."""
-        from PyQt6.QtGui import QPainter, QBrush
+        from PySide6.QtGui import QPainter, QBrush
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)

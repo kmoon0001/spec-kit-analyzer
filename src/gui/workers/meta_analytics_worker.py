@@ -9,7 +9,7 @@ import logging
 from typing import Any, Dict, Optional
 
 import requests
-from PyQt6.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 
 from src.config import get_settings
 
@@ -20,10 +20,10 @@ settings = get_settings()
 class MetaAnalyticsWorker(QObject):
     """Background worker for loading meta analytics data."""
 
-    success = pyqtSignal(dict)  # Consistent with other workers
-    error = pyqtSignal(str)
-    finished = pyqtSignal()  # Standard completion signal
-    progress_updated = pyqtSignal(str)
+    success = Signal(dict)  # Consistent with other workers
+    error = Signal(str)
+    finished = Signal()  # Standard completion signal
+    progress_updated = Signal(str)
 
     def __init__(self, token: str, parent=None):
         super().__init__(parent)

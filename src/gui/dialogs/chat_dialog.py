@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QHBoxLayout,
@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QLabel,
 )
-from PyQt6.QtCore import QThread
+from PySide6.QtCore import QThread
 from PyQt6.QtGui import QKeySequence, QShortcut
 from typing import List, Dict
 
@@ -77,7 +77,7 @@ class ChatDialog(QDialog):
         # Input layout with proper scaling
         input_layout = QHBoxLayout()
         input_layout.setSpacing(8)
-        
+
         self.message_input = QLineEdit()
         self.message_input.setPlaceholderText("Ask about compliance, documentation tips, or specific findings...")
         self.message_input.setMinimumHeight(36)
@@ -93,7 +93,7 @@ class ChatDialog(QDialog):
                 border-color: #3b82f6;
             }
         """)
-        
+
         self.send_button = QPushButton("📤 Send")
         self.send_button.setMinimumHeight(36)
         self.send_button.setMinimumWidth(80)
@@ -123,7 +123,7 @@ class ChatDialog(QDialog):
         # Close button with proper label
         button_layout = QHBoxLayout()
         button_layout.addStretch()
-        
+
         close_button = QPushButton("✅ Close Chat")
         close_button.setMinimumHeight(36)
         close_button.setStyleSheet("""
@@ -147,7 +147,7 @@ class ChatDialog(QDialog):
         # --- Connections ---
         self.send_button.clicked.connect(self.send_message)
         self.message_input.returnPressed.connect(self.send_message)  # Enter key support
-        
+
         # Add Ctrl+Enter shortcut as alternative
         enter_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
         enter_shortcut.activated.connect(self.send_message)

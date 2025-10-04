@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from PyQt6.QtCore import QObject, pyqtSignal as Signal
+from PySide6.QtCore import QObject, Signal as Signal
 
 from src.core.analysis_service import AnalysisService
 

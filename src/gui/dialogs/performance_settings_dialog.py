@@ -5,7 +5,7 @@ Integrates with the performance manager and help system for optimal user experie
 
 import logging
 from typing import Dict, Any, Optional
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QHBoxLayout,
@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
     QWidget,
     QMessageBox,
 )
-from PyQt6.QtCore import QTimer, pyqtSignal, QThread
+from PySide6.QtCore import QTimer, Signal, QThread
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 class SystemInfoWorker(QThread):
     """Background worker to gather system information without blocking UI."""
 
-    info_ready = pyqtSignal(dict)
+    info_ready = Signal(dict)
 
     def run(self):
         """Gather comprehensive system information."""
@@ -50,7 +50,7 @@ class PerformanceSettingsDialog(QDialog):
     Provides user-friendly interface for optimizing system performance.
     """
 
-    settings_changed = pyqtSignal(dict)
+    settings_changed = Signal(dict)
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)

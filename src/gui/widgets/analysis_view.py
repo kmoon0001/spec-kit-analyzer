@@ -1,4 +1,4 @@
-from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebEngineWidgets import QWebEngineView
 
 
 class AnalysisView(QWebEngineView):

@@ -1,5 +1,5 @@
 import requests
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QListWidget,
@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QFormLayout,
 )
-from PyQt6.QtCore import Qt
+from PySide6.QtCore import Qt
 
 from src.config import get_settings
 

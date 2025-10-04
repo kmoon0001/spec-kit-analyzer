@@ -2,7 +2,7 @@
 Performance Settings Dialog - Simplified version for system configuration.
 """
 
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QHBoxLayout,
@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QSpinBox,
     QCheckBox,
 )
-from PyQt6.QtCore import QTimer, pyqtSignal
+from PySide6.QtCore import QTimer, Signal
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class PerformanceDialog(QDialog):
     """Simplified performance settings dialog."""
 
-    settings_changed = pyqtSignal()
+    settings_changed = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)

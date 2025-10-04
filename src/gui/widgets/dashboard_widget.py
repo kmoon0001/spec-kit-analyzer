@@ -108,7 +108,18 @@ class DashboardWidget(QWidget):
                 ax.set_ylabel("Compliance Score", fontsize=12)
                 ax.grid(True, alpha=0.3)
                 ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
-
+# Apply tight layout to prevent overlap
+        self.trends_canvas.figure.tight_layout(pad=2.0)
+                ax.plot(
+                    dates, scores, marker="o", linestyle="-", linewidth=2, markersize=6
+                )
+                ax.set_title(
+                    "Compliance Score Over Time", fontsize=14, fontweight="bold"
+                )
+                ax.set_xlabel("Analysis Date", fontsize=12)
+                ax.set_ylabel("Compliance Score", fontsize=12)
+                ax.grid(True, alpha=0.3)
+                ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
         # Apply tight layout to prevent overlap
         self.trends_canvas.figure.tight_layout(pad=2.0)
         self.trends_canvas.draw()
@@ -133,7 +144,9 @@ class DashboardWidget(QWidget):
 
             rule_ids = [
                 item["rule_id"][:20] + "..."
-                if len(item["rule_id"]) > 20
+               if len(item["rule_id"]) > 20
+                else item["rule_id"]
+               [:20] + "..." if len(item["rule_id"]) > 20
                 else item["rule_id"]
                 for item in summary
             ]
@@ -160,7 +173,6 @@ class DashboardWidget(QWidget):
                     va="center",
                     fontsize=10,
                 )
-
         # Apply tight layout to prevent overlap
         self.summary_canvas.figure.tight_layout(pad=2.0)
         self.summary_canvas.draw()

@@ -2,15 +2,15 @@
 Modern Card Widget - Clean cards with shadows and medical styling.
 """
 
-from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel, QWidget
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtGui import QFont
+from PySide6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel, QWidget
+from PySide6.QtCore import Signal
+from PySide6.QtGui import QFont
 
 
 class ModernCard(QFrame):
     """Modern card widget with shadow and clean styling."""
 
-    clicked = pyqtSignal()
+    clicked = Signal()
 
     def __init__(self, title: str = "", parent=None):
         super().__init__(parent)
@@ -68,8 +68,8 @@ class ModernCard(QFrame):
         )
 
         # Add shadow effect
-        from PyQt6.QtWidgets import QGraphicsDropShadowEffect
-        from PyQt6.QtGui import QColor
+        from PySide6.QtWidgets import QGraphicsDropShadowEffect
+        from PySide6.QtGui import QColor
 
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(8)
