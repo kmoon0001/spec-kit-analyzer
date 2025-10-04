@@ -824,6 +824,8 @@ class UltimateMainWindow(QMainWindow):
         tools_menu.addAction(
             "AI Chat Assistant", self.open_chat_bot, QKeySequence("Ctrl+T")
         )
+        if ADVANCED_FEATURES_AVAILABLE:
+            tools_menu.addAction("📊 Custom Report Builder", self.open_custom_report_builder, QKeySequence("Ctrl+R"))
         tools_menu.addAction("Performance Settings", self.show_performance_settings)
         tools_menu.addAction("Change Password", self.show_change_password_dialog)
         tools_menu.addSeparator()
@@ -1802,7 +1804,7 @@ class UltimateMainWindow(QMainWindow):
 
                     # Method 1: Try weasyprint
                     try:
-                        from weasyprint import HTML, CSS
+                        from weasyprint import HTML
 
                         HTML(string=report_html).write_pdf(file_path)
                         pdf_success = True
@@ -2127,6 +2129,147 @@ class UltimateMainWindow(QMainWindow):
         else:
             self.chat_bot.show()
             self.chat_bot.raise_()
+
+    def open_custom_report_builder(self):
+        """Open custom report builder - Advanced feature"""
+        if not ADVANCED_FEATURES_AVAILABLE:
+            QMessageBox.warning(
+                self,
+                "Feature Unavailable",
+                "Custom Report Builder requires advanced features to be installed."
+            )
+            return
+        
+        try:
+            dialog = CustomReportBuilder(self)
+            dialog.report_generated.connect(self.handle_custom_report_generated)
+            dialog.template_saved.connect(self.handle_template_saved)
+            dialog.exec()
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to open Custom Report Builder:\n{str(e)}"
+            )
+
+    def handle_custom_report_generated(self, config: dict):
+        """Handle custom report generation"""
+        try:
+            # Generate custom report based on configuration
+            report_html = self.generate_custom_report(config)
+            
+            # Display in results panel
+            self.results_display.setHtml(report_html)
+            
+            # Update current report payload for saving
+            self._current_report_payload = {
+                "type": "custom",
+                "config": config,
+                "html": report_html,
+                "timestamp": time.time()
+            }
+            
+            # Enable save/export buttons
+            self.save_report_btn.setEnabled(True)
+            self.export_pdf_btn.setEnabled(True)
+            
+            self.status_bar.showMessage(f"Custom report '{config['title']}' generated successfully")
+            
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Report Generation Error",
+                f"Failed to generate custom report:\n{str(e)}"
+            )
+
+    def handle_template_saved(self, template_name: str):
+        """Handle template saved event"""
+        self.status_bar.showMessage(f"Template '{template_name}' saved successfully")
+
+    def generate_custom_report(self, config: dict) -> str:
+        """Generate custom report based on configuration"""
+        # This would integrate with the actual report generation system
+        # For now, return a placeholder that shows the configuration
+        
+        sections_html = []
+        for section_key in config["sections"]:
+            section_name = section_key.replace("_", " ").title()
+            sections_html.append(f"""
+                <div class="report-section">
+                    <h2>📊 {section_name}</h2>
+                    <p><em>This section would contain actual data based on your analysis results.</em></p>
+                    <p>Configuration applied:</p>
+                    <ul>
+                        <li>Date Range: {config['date_range']['start']} to {config['date_range']['end']}</li>
+                        <li>Detail Level: {config['formatting']['detail_level']}</li>
+                        <li>Include Charts: {'Yes' if config['formatting']['include_charts'] else 'No'}</li>
+                    </ul>
+                </div>
+            """)
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>{config['title']}</title>
+            <style>
+                body {{ 
+                    font-family: Arial, sans-serif; 
+                    margin: 40px; 
+                    line-height: 1.6;
+                    color: #333;
+                }}
+                .header {{ 
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 30px;
+                    border-radius: 10px;
+                    margin-bottom: 30px;
+                    text-align: center;
+                }}
+                .report-section {{
+                    background: white;
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    padding: 20px;
+                    margin: 20px 0;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }}
+                .report-section h2 {{
+                    color: #007acc;
+                    border-bottom: 2px solid #007acc;
+                    padding-bottom: 10px;
+                }}
+                .footer {{
+                    margin-top: 40px;
+                    padding-top: 20px;
+                    border-top: 1px solid #ddd;
+                    color: #666;
+                    font-size: 12px;
+                    text-align: center;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>📊 {config['title']}</h1>
+                <p><strong>{config['branding']['organization']}</strong></p>
+                <p>{config['branding']['department']}</p>
+                <p>Report Period: {config['date_range']['start']} to {config['date_range']['end']}</p>
+            </div>
+            
+            {''.join(sections_html)}
+            
+            <div class="footer">
+                <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} by Therapy Compliance Analyzer</p>
+                <p>Custom Report Builder - Advanced Edition</p>
+                <p>Contact: {config['branding']['contact']}</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return html
 
     def show_performance_settings(self):
         """Performance settings - WORKING"""
@@ -2837,8 +2980,8 @@ Ready for debug commands...
         include_7_habits = self.enable_7_habits.isChecked()
         include_citations = self.enable_citations.isChecked()
         include_quotations = self.enable_quotations.isChecked()
-        include_fact_check = self.enable_fact_check.isChecked()
-        include_suggestions = self.enable_suggestions.isChecked()
+        # Note: include_fact_check and include_suggestions are checked but not used yet
+        # This is for future feature implementation
 
         # Generate sections based on options
         strengths_weaknesses_section = (

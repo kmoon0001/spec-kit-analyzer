@@ -23,10 +23,8 @@ from PySide6.QtWidgets import (
 )
 
 try:
-    import matplotlib.pyplot as plt
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.figure import Figure
-    import numpy as np
 
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
