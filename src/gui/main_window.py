@@ -112,6 +112,7 @@ class MainApplicationWindow(QMainWindow):
 
         # Extract port from API_URL for MetaAnalyticsWorker
         from urllib.parse import urlparse
+
         parsed_url = urlparse(API_URL)
         self.api_port = parsed_url.port or 8004
         self.init_base_ui()
@@ -128,7 +129,7 @@ class MainApplicationWindow(QMainWindow):
         self.show()
 
     def init_base_ui(self):
-        self.setWindowTitle("THERAPY DOCUMENT COMPLIANCE ANALYSIS")
+        self.setWindowTitle("Therapy Compliance Analyzer")
         # Better default size with minimum constraints for scalability
         self.setMinimumSize(800, 600)
         self.resize(1200, 800)
@@ -164,16 +165,24 @@ class MainApplicationWindow(QMainWindow):
         # Tools menu
         self.tools_menu = self.menu_bar.addMenu("Tools")
         self.tools_menu.addAction("Manage Rubrics", self.manage_rubrics)
-        self.tools_menu.addAction("Performance Settings", self.show_performance_settings)
+        self.tools_menu.addAction(
+            "Performance Settings", self.show_performance_settings
+        )
         self.tools_menu.addAction("Analysis Settings", self.show_analysis_settings)
         self.tools_menu.addSeparator()
         self.tools_menu.addAction("Chat Assistant (Ctrl+H)", self.open_chat_assistant)
 
         # View menu
         self.view_menu = self.menu_bar.addMenu("View")
-        self.view_menu.addAction("Analysis Tab", lambda: self.main_tabs.setCurrentIndex(0))
-        self.view_menu.addAction("Dashboard Tab", lambda: self.main_tabs.setCurrentIndex(1))
-        self.view_menu.addAction("Settings Tab", lambda: self.main_tabs.setCurrentIndex(2))
+        self.view_menu.addAction(
+            "Analysis Tab", lambda: self.main_tabs.setCurrentIndex(0)
+        )
+        self.view_menu.addAction(
+            "Dashboard Tab", lambda: self.main_tabs.setCurrentIndex(1)
+        )
+        self.view_menu.addAction(
+            "Settings Tab", lambda: self.main_tabs.setCurrentIndex(2)
+        )
         self.view_menu.addSeparator()
         self.view_menu.addAction("Refresh Dashboard", self.load_dashboard_data)
 
@@ -230,8 +239,26 @@ class MainApplicationWindow(QMainWindow):
         # Create floating chat button
         self.create_floating_chat_button()
 
+        # Create Pacific Coast branding
+        self.create_pacific_coast_branding()
+
         # Setup auto-save timer for user preferences
         self._setup_auto_save_timer()
+
+        # Initialize Konami code sequence
+        self.konami_sequence = []
+        self.konami_code = [
+            Qt.Key.Key_Up,
+            Qt.Key.Key_Up,
+            Qt.Key.Key_Down,
+            Qt.Key.Key_Down,
+            Qt.Key.Key_Left,
+            Qt.Key.Key_Right,
+            Qt.Key.Key_Left,
+            Qt.Key.Key_Right,
+            Qt.Key.Key_B,
+            Qt.Key.Key_A,
+        ]
 
     def _format_model_status_text(self) -> str:
         badges = []
@@ -254,20 +281,20 @@ class MainApplicationWindow(QMainWindow):
         main_layout = QVBoxLayout(main_container)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
-        
+
         # Add title header
         title_header = self._create_title_header()
         main_layout.addWidget(title_header)
-        
+
         # Create main horizontal splitter (left panels + right main window)
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
         main_layout.addWidget(main_splitter)
-        
+
         self.setCentralWidget(main_container)
 
         # Left side: 3 stacked panels
         left_panels = self._create_left_panels()
-        
+
         # Right side: Main tabbed window
         right_main_window = self._create_right_main_window()
 
@@ -275,10 +302,10 @@ class MainApplicationWindow(QMainWindow):
         main_splitter.addWidget(left_panels)
         main_splitter.addWidget(right_main_window)
         main_splitter.setSizes([350, 850])  # Left panels smaller, main window larger
-        
+
         # Load rubrics first
         self.load_rubrics()
-        
+
         # Load dashboard data
         self.load_dashboard_data()
 
@@ -293,8 +320,6 @@ class MainApplicationWindow(QMainWindow):
 
     def open_admin_dashboard(self):
         webbrowser.open(f"{API_URL}/admin/dashboard?token={self.access_token}")
-
-
 
     def _summarize_folder_contents(self, folder_path: str) -> str:
         preview_lines = [f"Selected folder: {folder_path}", ""]
@@ -442,7 +467,9 @@ class MainApplicationWindow(QMainWindow):
                 self.file_info_label.setText(f"📄 {filename}")
             elif self._current_folder_path:
                 folder_name = os.path.basename(self._current_folder_path)
-                file_count = len(self._current_folder_files) if self._current_folder_files else 0
+                file_count = (
+                    len(self._current_folder_files) if self._current_folder_files else 0
+                )
                 self.file_info_label.setText(f"📁 {folder_name} ({file_count} files)")
             else:
                 self.file_info_label.setText("No document selected")
@@ -451,9 +478,12 @@ class MainApplicationWindow(QMainWindow):
         """Load available rubrics from the API"""
         try:
             import requests
-            response = requests.get(f"{API_URL}/compliance/rubrics", 
-                                  headers={"Authorization": f"Bearer {self.access_token}"},
-                                  timeout=5)
+
+            response = requests.get(
+                f"{API_URL}/compliance/rubrics",
+                headers={"Authorization": f"Bearer {self.access_token}"},
+                timeout=5,
+            )
             if response.status_code == 200:
                 self._all_rubrics = response.json()
                 self._apply_rubric_filter()
@@ -464,20 +494,20 @@ class MainApplicationWindow(QMainWindow):
                         "id": "default_pt",
                         "name": "PT Compliance Rubric",
                         "discipline": "PT",
-                        "description": "Physical Therapy Medicare compliance guidelines"
+                        "description": "Physical Therapy Medicare compliance guidelines",
                     },
                     {
-                        "id": "default_ot", 
+                        "id": "default_ot",
                         "name": "OT Compliance Rubric",
                         "discipline": "OT",
-                        "description": "Occupational Therapy Medicare compliance guidelines"
+                        "description": "Occupational Therapy Medicare compliance guidelines",
                     },
                     {
                         "id": "default_slp",
-                        "name": "SLP Compliance Rubric", 
+                        "name": "SLP Compliance Rubric",
                         "discipline": "SLP",
-                        "description": "Speech-Language Pathology Medicare compliance guidelines"
-                    }
+                        "description": "Speech-Language Pathology Medicare compliance guidelines",
+                    },
                 ]
                 self._apply_rubric_filter()
         except Exception as e:
@@ -488,7 +518,7 @@ class MainApplicationWindow(QMainWindow):
                     "id": "default_medicare",
                     "name": "Medicare Benefits Policy Manual",
                     "discipline": None,
-                    "description": "Default Medicare compliance rubric for PT, OT, and SLP services"
+                    "description": "Default Medicare compliance rubric for PT, OT, and SLP services",
                 }
             ]
             self._apply_rubric_filter()
@@ -991,8 +1021,6 @@ class MainApplicationWindow(QMainWindow):
         self.status_bar.showMessage("Analysis cancelled.", 4000)
         self._on_analysis_finished()
 
-
-
     def show_document_preview(self) -> None:
         if not self._current_document_text:
             QMessageBox.information(
@@ -1035,11 +1063,9 @@ class MainApplicationWindow(QMainWindow):
         # Ask user for export format and location
         file_dialog = QFileDialog()
         file_dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
-        file_dialog.setNameFilters([
-            "PDF Files (*.pdf)",
-            "HTML Files (*.html)",
-            "All Files (*.*)"
-        ])
+        file_dialog.setNameFilters(
+            ["PDF Files (*.pdf)", "HTML Files (*.html)", "All Files (*.*)"]
+        )
         file_dialog.setDefaultSuffix("pdf")
 
         # Set default filename
@@ -1058,8 +1084,8 @@ class MainApplicationWindow(QMainWindow):
                     self._export_html_report(report_html, file_path)
                 else:
                     # Default to HTML
-                    if not file_path.endswith(('.pdf', '.html')):
-                        file_path += '.html'
+                    if not file_path.endswith((".pdf", ".html")):
+                        file_path += ".html"
                     self._export_html_report(report_html, file_path)
 
                 QMessageBox.information(
@@ -1088,16 +1114,18 @@ class MainApplicationWindow(QMainWindow):
                 document_name = f"Folder: {os.path.basename(self._current_folder_path)}"
 
             success = export_compliance_report_to_pdf(
-                html_content,
-                file_path,
-                document_name
+                html_content, file_path, document_name
             )
 
             if not success:
-                raise Exception("PDF export service failed. Please check that weasyprint or pdfkit is installed.")
+                raise Exception(
+                    "PDF export service failed. Please check that weasyprint or pdfkit is installed."
+                )
 
         except ImportError:
-            raise Exception("PDF export not available. Please install weasyprint or pdfkit:\npip install weasyprint")
+            raise Exception(
+                "PDF export not available. Please install weasyprint or pdfkit:\npip install weasyprint"
+            )
 
     def _export_html_report(self, html_content: str, file_path: str) -> None:
         """Export report as standalone HTML file."""
@@ -1147,7 +1175,7 @@ class MainApplicationWindow(QMainWindow):
         </html>
         """
 
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(complete_html)
 
     def load_ai_models(self):
@@ -1198,11 +1226,13 @@ class MainApplicationWindow(QMainWindow):
             "description": "Default Medicare compliance rubric for PT, OT, and SLP services covering documentation requirements, medical necessity, and billing standards",
             "discipline": "All",
             "category": "Medicare Compliance",
-            "is_default": True
+            "is_default": True,
         }
 
         # Check if Medicare rubric already exists
-        has_medicare = any(r.get("name") == "Medicare Benefits Policy Manual" for r in rubrics)
+        has_medicare = any(
+            r.get("name") == "Medicare Benefits Policy Manual" for r in rubrics
+        )
         if not has_medicare:
             rubrics.insert(0, medicare_rubric)  # Add as first option
 
@@ -1232,7 +1262,10 @@ class MainApplicationWindow(QMainWindow):
         if hasattr(self, "rubric_selector"):
             for i in range(self.rubric_selector.count()):
                 rubric_data = self.rubric_selector.itemData(i)
-                if rubric_data and rubric_data.get("name") == "Medicare Benefits Policy Manual":
+                if (
+                    rubric_data
+                    and rubric_data.get("name") == "Medicare Benefits Policy Manual"
+                ):
                     self.rubric_selector.setCurrentIndex(i)
                     break
 
@@ -1270,8 +1303,6 @@ class MainApplicationWindow(QMainWindow):
                 return handle.read().strip()
         except FileNotFoundError:
             return "dark"
-
-
 
     @staticmethod
     def get_light_theme_stylesheet() -> str:
@@ -1444,6 +1475,34 @@ QMessageBox QPushButton { min-width: 90px; }
             self.chat_button_dragging = False
             self.chat_button_offset = None
 
+    def create_pacific_coast_branding(self):
+        """Create Pacific Coast Therapy branding in bottom right corner"""
+        self.pacific_coast_label = QLabel("Pacific Coast Therapy 🌴")
+        self.pacific_coast_label.setParent(self)
+        self.pacific_coast_label.setObjectName("pacificCoastBranding")
+        self.pacific_coast_label.setStyleSheet("""
+            QLabel#pacificCoastBranding {
+                font-family: 'Brush Script MT', 'Lucida Handwriting', cursive;
+                font-style: italic;
+                font-size: 12px;
+                color: #666;
+                background: transparent;
+                padding: 2px 5px;
+            }
+        """)
+        self.pacific_coast_label.adjustSize()
+        self.position_pacific_coast_branding()
+        self.pacific_coast_label.show()
+
+    def position_pacific_coast_branding(self):
+        """Position Pacific Coast branding in bottom right corner"""
+        if hasattr(self, "pacific_coast_label"):
+            x = self.width() - self.pacific_coast_label.width() - 20
+            y = (
+                self.height() - self.pacific_coast_label.height() - 40
+            )  # Above status bar
+            self.pacific_coast_label.move(x, y)
+
     def open_chat_assistant(self):
         """Open the chat assistant dialog"""
         chat_dialog = ChatDialog(
@@ -1457,7 +1516,8 @@ QMessageBox QPushButton { min-width: 90px; }
         """Show analysis settings dialog"""
         QMessageBox.information(
             self, "Analysis Settings", "Analysis configuration settings - Coming soon!"
-)
+        )
+
     def show_about(self):
         """Show about dialog with Kevin Moon and emoji"""
         about_text = f"""
@@ -1496,26 +1556,24 @@ QMessageBox QPushButton { min-width: 90px; }
         health_info = []
         for model, status in self.model_status.items():
             status_icon = "✅" if status else "❌"
-            health_info.append(f"{status_icon} {model}: {'Ready' if status else 'Not Ready'}")
-        
+            health_info.append(
+                f"{status_icon} {model}: {'Ready' if status else 'Not Ready'}"
+            )
+
         health_text = f"""
         <div style='line-height: 1.6;'>
         <h3>🏥 System Health Status</h3>
         <br>
         <h4>AI Models:</h4>
-        {'<br>'.join(health_info)}
+        {"<br>".join(health_info)}
         <br><br>
         <h4>API Connection:</h4>
         ✅ Local API: Connected<br>
         ✅ Database: Connected<br>
         </div>
         """
-        
-        QMessageBox.information(
-            self,
-            "System Health",
-            health_text
-        )
+
+        QMessageBox.information(self, "System Health", health_text)
 
     def show_documentation(self):
         """Show documentation dialog"""
@@ -1527,20 +1585,8 @@ QMessageBox QPushButton { min-width: 90px; }
             "• Getting started with compliance analysis\n"
             "• Understanding compliance reports\n"
             "• Advanced features and settings\n"
-            "• Troubleshooting common issues"
+            "• Troubleshooting common issues",
         )
-
-    def stop_analysis(self):
-        """Stop the current analysis"""
-        if self._analysis_running and hasattr(self, 'worker_thread'):
-            if self.worker_thread and self.worker_thread.isRunning():
-                self.worker_thread.requestInterruption()
-                self.worker_thread.quit()
-                self.worker_thread.wait(2000)
-            self._analysis_running = False
-            self._update_action_states()
-            self.status_bar.showMessage("Analysis stopped", 3000)
-            self.progress_bar.hide()
 
     def show_keyboard_shortcuts(self):
         """Show keyboard shortcuts help dialog."""
@@ -1553,12 +1599,14 @@ QMessageBox QPushButton { min-width: 90px; }
         msg.exec()
 
     def resizeEvent(self, event):
-        """Handle window resize to reposition floating button and adjust layout"""
+        """Handle window resize to reposition floating elements and adjust layout"""
         super().resizeEvent(event)
 
-        # Reposition chat button if not being dragged
+        # Reposition floating elements
         if hasattr(self, "chat_button") and not self.chat_button_dragging:
             self.position_chat_button()
+        if hasattr(self, "pacific_coast_label"):
+            self.position_pacific_coast_branding()
 
         # Adjust layout based on window size for better scaling
         window_width = self.width()
@@ -1777,12 +1825,13 @@ QMessageBox QPushButton { min-width: 90px; }
         """Show temporary progress notification in status bar."""
         if hasattr(self, "status_bar"):
             self.status_bar.showMessage(f"🔄 {message}", duration)
+
     def _create_left_panels(self):
         """Create the 3 stacked panels on the left side"""
         left_container = QWidget()
         left_container.setMinimumWidth(320)
         left_container.setMaximumWidth(400)
-        
+
         layout = QVBoxLayout(left_container)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(8)
@@ -1791,7 +1840,7 @@ QMessageBox QPushButton { min-width: 90px; }
         rubric_panel = self._create_rubric_panel()
         layout.addWidget(rubric_panel)
 
-        # Panel 2: Document Upload  
+        # Panel 2: Document Upload
         upload_panel = self._create_upload_panel()
         layout.addWidget(upload_panel)
 
@@ -1811,20 +1860,22 @@ QMessageBox QPushButton { min-width: 90px; }
         header_layout = QVBoxLayout(header_widget)
         header_layout.setContentsMargins(20, 15, 20, 15)
         header_layout.setSpacing(5)
-        
+
         # Main title
         main_title = QLabel("THERAPY DOCUMENT COMPLIANCE ANALYSIS")
         main_title.setObjectName("mainTitle")
         main_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         header_layout.addWidget(main_title)
-        
+
         # Descriptor
-        descriptor = QLabel("AI-Powered Medicare & Regulatory Compliance Analysis for Healthcare Professionals")
+        descriptor = QLabel(
+            "AI-Powered Medicare & Regulatory Compliance Analysis for Healthcare Professionals"
+        )
         descriptor.setObjectName("titleDescriptor")
         descriptor.setAlignment(Qt.AlignmentFlag.AlignCenter)
         descriptor.setWordWrap(True)
         header_layout.addWidget(descriptor)
-        
+
         return header_widget
 
     def _create_rubric_panel(self):
@@ -1847,7 +1898,7 @@ QMessageBox QPushButton { min-width: 90px; }
                 background: white;
             }
         """)
-        
+
         layout = QVBoxLayout(panel)
         layout.setSpacing(10)
 
@@ -1863,30 +1914,38 @@ QMessageBox QPushButton { min-width: 90px; }
         discipline_layout = QHBoxLayout()
         discipline_label = QLabel("Discipline:")
         discipline_label.setStyleSheet("color: #34495e; font-weight: bold;")
-        
+
         self.rubric_type_selector = QComboBox()
         self.rubric_type_selector.addItem("🤖 Auto-Detect", "AUTO")
         self.rubric_type_selector.addItem("All Disciplines", None)
         self.rubric_type_selector.addItem("Physical Therapy", "PT")
-        self.rubric_type_selector.addItem("Occupational Therapy", "OT") 
+        self.rubric_type_selector.addItem("Occupational Therapy", "OT")
         self.rubric_type_selector.addItem("Speech-Language Pathology", "SLP")
         self.rubric_type_selector.addItem("Multiple Disciplines", "MULTI")
         self.rubric_type_selector.setMinimumHeight(30)
-        self.rubric_type_selector.currentIndexChanged.connect(self._filter_rubrics_by_type)
-        
+        self.rubric_type_selector.currentIndexChanged.connect(
+            self._filter_rubrics_by_type
+        )
+
         discipline_layout.addWidget(discipline_label)
         discipline_layout.addWidget(self.rubric_type_selector, 1)
         layout.addLayout(discipline_layout)
-        
+
         # Auto-detection status
-        self.auto_detect_label = QLabel("📄 Upload document for automatic discipline detection")
+        self.auto_detect_label = QLabel(
+            "📄 Upload document for automatic discipline detection"
+        )
         self.auto_detect_label.setObjectName("autoDetectStatus")
         self.auto_detect_label.setWordWrap(True)
-        self.auto_detect_label.setStyleSheet("color: #666; font-style: italic; font-size: 11px;")
+        self.auto_detect_label.setStyleSheet(
+            "color: #666; font-style: italic; font-size: 11px;"
+        )
         layout.addWidget(self.auto_detect_label)
 
         # Rubric description
-        self.rubric_description_label = QLabel("Medicare Benefits Policy Manual - Default compliance rubric for PT, OT, and SLP services")
+        self.rubric_description_label = QLabel(
+            "Medicare Benefits Policy Manual - Default compliance rubric for PT, OT, and SLP services"
+        )
         self.rubric_description_label.setObjectName("description")
         self.rubric_description_label.setWordWrap(True)
         layout.addWidget(self.rubric_description_label)
@@ -1920,7 +1979,7 @@ QMessageBox QPushButton { min-width: 90px; }
                 background: white;
             }
         """)
-        
+
         layout = QVBoxLayout(panel)
         layout.setSpacing(10)
 
@@ -1941,17 +2000,17 @@ QMessageBox QPushButton { min-width: 90px; }
 
         # Upload buttons
         button_layout = QHBoxLayout()
-        
+
         upload_file_btn = QPushButton("📄 File")
         upload_file_btn.setObjectName("successButton")
         upload_file_btn.clicked.connect(self.open_file_dialog)
         upload_file_btn.setMinimumHeight(32)
-        
+
         upload_folder_btn = QPushButton("📁 Folder")
         upload_folder_btn.setObjectName("successButton")
         upload_folder_btn.clicked.connect(self.open_folder_dialog)
         upload_folder_btn.setMinimumHeight(32)
-        
+
         button_layout.addWidget(upload_file_btn)
         button_layout.addWidget(upload_folder_btn)
         layout.addLayout(button_layout)
@@ -1978,7 +2037,7 @@ QMessageBox QPushButton { min-width: 90px; }
                 background: white;
             }
         """)
-        
+
         layout = QVBoxLayout(panel)
         layout.setSpacing(12)
 
@@ -1992,13 +2051,15 @@ QMessageBox QPushButton { min-width: 90px; }
 
         # Analysis options
         options_label = QLabel("Analysis Options:")
-        options_label.setStyleSheet("color: #34495e; font-weight: bold; margin-top: 10px;")
+        options_label.setStyleSheet(
+            "color: #34495e; font-weight: bold; margin-top: 10px;"
+        )
         layout.addWidget(options_label)
 
         # Checkboxes for analysis components
         self.enable_fact_check = QCheckBox("✓ Fact Checking")
         self.enable_fact_check.setChecked(True)
-        self.enable_suggestions = QCheckBox("💡 Improvement Suggestions") 
+        self.enable_suggestions = QCheckBox("💡 Improvement Suggestions")
         self.enable_suggestions.setChecked(True)
         self.enable_citations = QCheckBox("📚 Regulatory Citations")
         self.enable_citations.setChecked(True)
@@ -2006,8 +2067,13 @@ QMessageBox QPushButton { min-width: 90px; }
         self.enable_7_habits.setChecked(True)
         self.enable_7_habits = QCheckBox("🎯 7 Habits Framework")
         self.enable_7_habits.setChecked(True)
-        
-        for checkbox in [self.enable_fact_check, self.enable_suggestions, self.enable_citations, self.enable_7_habits]:
+
+        for checkbox in [
+            self.enable_fact_check,
+            self.enable_suggestions,
+            self.enable_citations,
+            self.enable_7_habits,
+        ]:
             checkbox.setStyleSheet("""
                 QCheckBox {
                     color: #34495e;
@@ -2033,18 +2099,18 @@ QMessageBox QPushButton { min-width: 90px; }
 
         # Action buttons
         button_layout = QHBoxLayout()
-        
+
         preview_btn = QPushButton("👁 Preview")
         preview_btn.setObjectName("secondaryButton")
         preview_btn.setEnabled(False)
         preview_btn.clicked.connect(self.show_document_preview)
         preview_btn.setMinimumHeight(32)
-        
+
         clear_btn = QPushButton("🗑 Clear")
         clear_btn.setObjectName("warningButton")
         clear_btn.clicked.connect(self.clear_display)
         clear_btn.setMinimumHeight(32)
-        
+
         button_layout.addWidget(preview_btn)
         button_layout.addWidget(clear_btn)
         layout.addLayout(button_layout)
@@ -2059,24 +2125,20 @@ QMessageBox QPushButton { min-width: 90px; }
         # Create tab widget for the main window
         self.main_tabs = QTabWidget()
         self.main_tabs.setTabPosition(QTabWidget.TabPosition.North)
-        
+
         # Analysis Tab - Main report display
         analysis_tab = self._create_analysis_tab_content()
         self.main_tabs.addTab(analysis_tab, "📊 Analysis")
-        
+
         # Dashboard/Trending Tab
         self.dashboard_widget = DashboardWidget()
         self.main_tabs.addTab(self.dashboard_widget, "📈 Dashboard")
         self.dashboard_widget.refresh_requested.connect(self.load_dashboard_data)
-        
+
         # Settings Tab
         settings_tab = self._create_settings_tab()
         self.main_tabs.addTab(settings_tab, "⚙️ Settings")
-        
-        # Easter Egg Tab (hidden by default, activated by special sequence)
-        self.easter_egg_tab = self._create_easter_egg_tab()
-        # Don't add it yet - it will be added when easter egg is triggered
-        
+
         return self.main_tabs
 
     def _create_analysis_tab_content(self):
@@ -2089,19 +2151,21 @@ QMessageBox QPushButton { min-width: 90px; }
         # Main title header
         title_header_layout = QVBoxLayout()
         title_header_layout.setSpacing(2)
-        
+
         main_title = QLabel("THERAPY DOCUMENT COMPLIANCE ANALYSIS")
         main_title.setObjectName("mainTitle")
         main_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_header_layout.addWidget(main_title)
-        
-        subtitle = QLabel("AI-Powered Medicare & Regulatory Compliance Analysis for Clinical Documentation")
+
+        subtitle = QLabel(
+            "AI-Powered Medicare & Regulatory Compliance Analysis for Clinical Documentation"
+        )
         subtitle.setObjectName("subtitle")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_header_layout.addWidget(subtitle)
-        
+
         layout.addLayout(title_header_layout)
-        
+
         # Separator line
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
@@ -2111,13 +2175,13 @@ QMessageBox QPushButton { min-width: 90px; }
 
         # Header with controls
         header_layout = QHBoxLayout()
-        
+
         report_title_label = QLabel("📊 Compliance Analysis Report")
         report_title_label.setObjectName("reportTitleLabel")
         header_layout.addWidget(report_title_label)
-        
+
         header_layout.addStretch()
-        
+
         # Export button
         export_btn = QPushButton("📤 Export Report")
         export_btn.setObjectName("successButton")
@@ -2126,7 +2190,7 @@ QMessageBox QPushButton { min-width: 90px; }
         export_btn.setMinimumHeight(35)
         header_layout.addWidget(export_btn)
         self.export_report_button = export_btn
-        
+
         layout.addLayout(header_layout)
 
         # Main report display
@@ -2157,13 +2221,13 @@ QMessageBox QPushButton { min-width: 90px; }
         layout = QVBoxLayout(easter_widget)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
-        
+
         # Pacific Coast header
         header_label = QLabel("🌴 Pacific Coast Development 🌴")
         header_label.setObjectName("easterEggHeader")
         header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(header_label)
-        
+
         # Developer info
         dev_info = QLabel("""
         <div style='text-align: center; line-height: 1.6;'>
@@ -2178,7 +2242,7 @@ QMessageBox QPushButton { min-width: 90px; }
         dev_info.setObjectName("easterEggContent")
         dev_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(dev_info)
-        
+
         # Fun stats
         stats_label = QLabel("""
         <div style='background: rgba(74, 158, 255, 0.1); padding: 15px; border-radius: 8px;'>
@@ -2192,32 +2256,15 @@ QMessageBox QPushButton { min-width: 90px; }
         """)
         stats_label.setObjectName("easterEggStats")
         layout.addWidget(stats_label)
-        
+
         # Close button
         close_btn = QPushButton("🌊 Back to Analysis")
         close_btn.setObjectName("easterEggButton")
         close_btn.clicked.connect(self.hide_easter_egg)
         layout.addWidget(close_btn)
-        
+
         layout.addStretch()
         return easter_widget
-
-    def trigger_easter_egg(self):
-        """Trigger the Pacific Coast easter egg"""
-        if not hasattr(self, 'easter_egg_active'):
-            self.easter_egg_active = True
-            self.main_tabs.addTab(self.easter_egg_tab, "🌴 Pacific Coast")
-            self.main_tabs.setCurrentWidget(self.easter_egg_tab)
-            self.status_bar.showMessage("🌴 Welcome to Pacific Coast Development! 🌊", 5000)
-
-    def hide_easter_egg(self):
-        """Hide the easter egg tab"""
-        if hasattr(self, 'easter_egg_active'):
-            index = self.main_tabs.indexOf(self.easter_egg_tab)
-            if index >= 0:
-                self.main_tabs.removeTab(index)
-            self.easter_egg_active = False
-            self.main_tabs.setCurrentIndex(0)  # Go back to Analysis tab
 
     def _on_rubric_selected(self, index):
         """Handle rubric selection"""
@@ -2227,7 +2274,9 @@ QMessageBox QPushButton { min-width: 90px; }
                 description = rubric_data.get("description", "No description available")
                 self.rubric_description_label.setText(description)
             else:
-                self.rubric_description_label.setText("Select a rubric to see its description")
+                self.rubric_description_label.setText(
+                    "Select a rubric to see its description"
+                )
         self._update_action_states()
 
     def clear_display(self):
@@ -2237,7 +2286,7 @@ QMessageBox QPushButton { min-width: 90px; }
         self._current_folder_files = []
         self._current_document_text = ""
         self._current_report_payload = None
-        
+
         # Clear UI elements
         if hasattr(self, "analysis_results_area"):
             self.analysis_results_area.clear()
@@ -2254,22 +2303,22 @@ QMessageBox QPushButton { min-width: 90px; }
         • Interactive links to source document
         • Actionable improvement suggestions
             """)
-        
+
         if hasattr(self, "file_info_label"):
             self.file_info_label.setText("No document selected")
-            
+
         self._update_action_states()
         self.status_bar.showMessage("Display cleared", 2000)
 
     def apply_medical_theme(self, theme_mode="dark"):
         """Apply medical theme in light or dark mode"""
         self.current_theme = theme_mode
-        
+
         if theme_mode == "dark":
             theme_css = self._get_dark_theme()
         else:
             theme_css = self._get_light_theme()
-            
+
         self.setStyleSheet(theme_css)
 
     def _get_dark_theme(self):
@@ -2767,63 +2816,48 @@ QMessageBox QPushButton { min-width: 90px; }
     def set_light_theme(self):
         """Set light theme"""
         self.apply_medical_theme("light")
-        
+
     def set_dark_theme(self):
         """Set dark theme"""
         self.apply_medical_theme("dark")
 
-    def create_pacific_coast_branding(self):
-        """Create the Pacific Coast Development branding in bottom right corner"""
-        self.pacific_coast_label = QLabel("Pacific Coast Development 🌴")
-        self.pacific_coast_label.setParent(self)
-        self.pacific_coast_label.setObjectName("pacificCoastBranding")
-        self.pacific_coast_label.setStyleSheet("""
-            QLabel#pacificCoastBranding {
-                font-family: 'Brush Script MT', cursive, 'Comic Sans MS', fantasy;
-                font-size: 14px;
-                font-style: italic;
-                color: #4a9eff;
-                background: transparent;
-                padding: 5px 10px;
-            }
+    def keyPressEvent(self, event):
+        """Handle key press events for Konami code easter egg"""
+        # Handle Konami code sequence
+        self.konami_sequence.append(event.key())
+        if len(self.konami_sequence) > len(self.konami_code):
+            self.konami_sequence.pop(0)
+
+        if self.konami_sequence == self.konami_code:
+            self.unlock_developer_mode()
+            self.konami_sequence = []  # Reset sequence
+
+        super().keyPressEvent(event)
+
+    def unlock_developer_mode(self):
+        """Unlock developer mode easter egg"""
+        msg = QMessageBox(self)
+        msg.setWindowTitle("🎮 Konami Code Activated!")
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.setText("""
+        <h2>🔓 Developer Mode Unlocked!</h2>
+        <p><b>Konami Code Successfully Entered!</b></p>
+        <p>↑↑↓↓←→←→BA</p>
+        <br>
+        <p>🎉 <i>Easter egg discovered by a true gamer!</i></p>
+        <br>
+        <p><b>Developer Features:</b></p>
+        <ul>
+        <li>🔧 Advanced debugging tools</li>
+        <li>📊 Performance metrics</li>
+        <li>🎨 Theme customization</li>
+        </ul>
+        <br>
+        <p><i style="font-family: cursive;">Pacific Coast Development 🌴</i></p>
         """)
-        
-        # Position in bottom right corner
-        self.pacific_coast_label.adjustSize()
-        self.position_pacific_coast_branding()
-        self.pacific_coast_label.show()
+        msg.exec()
 
-    def position_pacific_coast_branding(self):
-        """Position Pacific Coast branding in bottom right corner"""
-        if hasattr(self, "pacific_coast_label"):
-            # Position in bottom right corner with some margin
-            x = self.width() - self.pacific_coast_label.width() - 20
-            y = self.height() - self.pacific_coast_label.height() - 40  # Above status bar
-            self.pacific_coast_label.move(x, y)
-
-    def resizeEvent(self, event):
-        """Handle window resize to reposition floating elements"""
-        super().resizeEvent(event)
-        
-        # Reposition floating elements
-        if hasattr(self, "chat_button"):
-            self.position_chat_button()
-        if hasattr(self, "pacific_coast_label"):
-            self.position_pacific_coast_branding()
-
-    def _setup_keyboard_shortcuts(self):
-        """Setup keyboard shortcuts for better accessibility"""
-        # Theme toggle shortcut
-        theme_shortcut = QShortcut(QKeySequence("Ctrl+T"), self)
-        theme_shortcut.activated.connect(self.toggle_theme)
-        
-        # Chat assistant shortcut
-        chat_shortcut = QShortcut(QKeySequence("Ctrl+H"), self)
-        chat_shortcut.activated.connect(self.open_chat_assistant)
-        
-        # File shortcuts
-        open_shortcut = QShortcut(QKeySequence("Ctrl+O"), self)
-        open_shortcut.activated.connect(self.open_file_dialog)
-        
-        folder_shortcut = QShortcut(QKeySequence("Ctrl+Shift+O"), self)
-        folder_shortcut.activated.connect(self.open_folder_dialog)
+        # Show developer message in status bar
+        self.status_bar.showMessage(
+            "🎮 Developer Mode Activated! Welcome to the matrix...", 5000
+        )
