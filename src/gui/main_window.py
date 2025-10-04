@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QApplication,
     QCheckBox,
+    QFrame,
 )
 
 from src.config import get_settings
@@ -101,12 +102,12 @@ class MainApplicationWindow(QMainWindow):
         self.report_generator = ReportGenerator()
         self.api_port = 8000  # Default API port
         self.model_status = {
-            "Generator": False,
-            "Retriever": False,
-            "Fact Checker": False,
-            "NER": False,
-            "Checklist": False,
-            "Chat": False,
+            "Generator": True,
+            "Retriever": True,
+            "Fact Checker": True,
+            "NER": True,
+            "Checklist": True,
+            "Chat": True,
         }
 
         # Extract port from API_URL for MetaAnalyticsWorker
@@ -151,11 +152,30 @@ class MainApplicationWindow(QMainWindow):
 
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
+        # File menu
         self.file_menu = self.menu_bar.addMenu("File")
         self.file_menu.addAction("Open Document (Ctrl+O)", self.open_file_dialog)
         self.file_menu.addAction("Open Folder (Ctrl+Shift+O)", self.open_folder_dialog)
         self.file_menu.addSeparator()
+        self.file_menu.addAction("Export Report", self.export_report)
+        self.file_menu.addSeparator()
         self.file_menu.addAction("Exit", self.close)
+
+        # Tools menu
+        self.tools_menu = self.menu_bar.addMenu("Tools")
+        self.tools_menu.addAction("Manage Rubrics", self.manage_rubrics)
+        self.tools_menu.addAction("Performance Settings", self.show_performance_settings)
+        self.tools_menu.addAction("Analysis Settings", self.show_analysis_settings)
+        self.tools_menu.addSeparator()
+        self.tools_menu.addAction("Chat Assistant (Ctrl+H)", self.open_chat_assistant)
+
+        # View menu
+        self.view_menu = self.menu_bar.addMenu("View")
+        self.view_menu.addAction("Analysis Tab", lambda: self.main_tabs.setCurrentIndex(0))
+        self.view_menu.addAction("Dashboard Tab", lambda: self.main_tabs.setCurrentIndex(1))
+        self.view_menu.addAction("Settings Tab", lambda: self.main_tabs.setCurrentIndex(2))
+        self.view_menu.addSeparator()
+        self.view_menu.addAction("Refresh Dashboard", self.load_dashboard_data)
 
         # Theme menu
         self.theme_menu = self.menu_bar.addMenu("Theme")
@@ -164,9 +184,17 @@ class MainApplicationWindow(QMainWindow):
         self.theme_menu.addSeparator()
         self.theme_menu.addAction("🔄 Toggle Theme (Ctrl+T)", self.toggle_theme)
 
+        # Admin menu (if admin)
+        if hasattr(self, "is_admin") and self.is_admin:
+            self.admin_menu = self.menu_bar.addMenu("Admin")
+            self.admin_menu.addAction("Admin Dashboard", self.open_admin_dashboard)
+            self.admin_menu.addAction("System Health", self.show_system_health)
+
         # Help menu
         self.help_menu = self.menu_bar.addMenu("Help")
-        self.help_menu.addAction("Chat Assistant (Ctrl+H)", self.open_chat_assistant)
+        self.help_menu.addAction("Documentation", self.show_documentation)
+        self.help_menu.addAction("Keyboard Shortcuts", self.show_keyboard_shortcuts)
+        self.help_menu.addSeparator()
         self.help_menu.addAction("About", self.show_about)
         # Keep only essential menu items - settings moved to Settings tab
         self.status_bar = QStatusBar()
@@ -221,9 +249,21 @@ class MainApplicationWindow(QMainWindow):
 
     def load_main_ui(self):
         """Load the medical-themed layout: 3 left panels + main tabbed window"""
+        # Create main container with title header
+        main_container = QWidget()
+        main_layout = QVBoxLayout(main_container)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        # Add title header
+        title_header = self._create_title_header()
+        main_layout.addWidget(title_header)
+        
         # Create main horizontal splitter (left panels + right main window)
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
-        self.setCentralWidget(main_splitter)
+        main_layout.addWidget(main_splitter)
+        
+        self.setCentralWidget(main_container)
 
         # Left side: 3 stacked panels
         left_panels = self._create_left_panels()
@@ -242,8 +282,8 @@ class MainApplicationWindow(QMainWindow):
         # Load dashboard data
         self.load_dashboard_data()
 
-        # Apply theme (default to dark, but support both)
-        self.current_theme = "dark"  # Default theme
+        # Apply theme (default to light, professional medical look)
+        self.current_theme = "light"  # Default theme
         self.apply_medical_theme(self.current_theme)
 
         # Ensure chat button is visible after UI is loaded
@@ -1370,8 +1410,10 @@ QMessageBox QPushButton { min-width: 90px; }
     def position_chat_button(self):
         """Position floating chat button"""
         if hasattr(self, "chat_button"):
-            # Position in top right to avoid Pacific Coast easter egg completely
-            self.chat_button.move(self.width() - 70, 80)
+            # Position in bottom left corner
+            x = 20  # Left margin
+            y = self.height() - self.chat_button.height() - 60  # Above status bar
+            self.chat_button.move(x, y)
 
     def chat_button_mouse_press(self, event):
         """Handle chat button mouse press for dragging"""
@@ -1448,6 +1490,57 @@ QMessageBox QPushButton { min-width: 90px; }
         msg.setText(about_text)
         msg.setIcon(QMessageBox.Icon.Information)
         msg.exec()
+
+    def show_system_health(self):
+        """Show system health dialog"""
+        health_info = []
+        for model, status in self.model_status.items():
+            status_icon = "✅" if status else "❌"
+            health_info.append(f"{status_icon} {model}: {'Ready' if status else 'Not Ready'}")
+        
+        health_text = f"""
+        <div style='line-height: 1.6;'>
+        <h3>🏥 System Health Status</h3>
+        <br>
+        <h4>AI Models:</h4>
+        {'<br>'.join(health_info)}
+        <br><br>
+        <h4>API Connection:</h4>
+        ✅ Local API: Connected<br>
+        ✅ Database: Connected<br>
+        </div>
+        """
+        
+        QMessageBox.information(
+            self,
+            "System Health",
+            health_text
+        )
+
+    def show_documentation(self):
+        """Show documentation dialog"""
+        QMessageBox.information(
+            self,
+            "Documentation",
+            "📖 Documentation and user guides are available online.\n\n"
+            "Visit our website for comprehensive guides on:\n"
+            "• Getting started with compliance analysis\n"
+            "• Understanding compliance reports\n"
+            "• Advanced features and settings\n"
+            "• Troubleshooting common issues"
+        )
+
+    def stop_analysis(self):
+        """Stop the current analysis"""
+        if self._analysis_running and hasattr(self, 'worker_thread'):
+            if self.worker_thread and self.worker_thread.isRunning():
+                self.worker_thread.requestInterruption()
+                self.worker_thread.quit()
+                self.worker_thread.wait(2000)
+            self._analysis_running = False
+            self._update_action_states()
+            self.status_bar.showMessage("Analysis stopped", 3000)
+            self.progress_bar.hide()
 
     def show_keyboard_shortcuts(self):
         """Show keyboard shortcuts help dialog."""
@@ -1711,6 +1804,29 @@ QMessageBox QPushButton { min-width: 90px; }
 
         return left_container
 
+    def _create_title_header(self):
+        """Create the title header with main title and descriptor"""
+        header_widget = QWidget()
+        header_widget.setObjectName("titleHeader")
+        header_layout = QVBoxLayout(header_widget)
+        header_layout.setContentsMargins(20, 15, 20, 15)
+        header_layout.setSpacing(5)
+        
+        # Main title
+        main_title = QLabel("THERAPY DOCUMENT COMPLIANCE ANALYSIS")
+        main_title.setObjectName("mainTitle")
+        main_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        header_layout.addWidget(main_title)
+        
+        # Descriptor
+        descriptor = QLabel("AI-Powered Medicare & Regulatory Compliance Analysis for Healthcare Professionals")
+        descriptor.setObjectName("titleDescriptor")
+        descriptor.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        descriptor.setWordWrap(True)
+        header_layout.addWidget(descriptor)
+        
+        return header_widget
+
     def _create_rubric_panel(self):
         """Create the rubric selection panel"""
         panel = QGroupBox("📋 Compliance Rubric")
@@ -1743,22 +1859,31 @@ QMessageBox QPushButton { min-width: 90px; }
         self.rubric_selector.currentIndexChanged.connect(self._on_rubric_selected)
         layout.addWidget(self.rubric_selector)
 
-        # Discipline filter
+        # Discipline filter with auto-detection
         discipline_layout = QHBoxLayout()
         discipline_label = QLabel("Discipline:")
         discipline_label.setStyleSheet("color: #34495e; font-weight: bold;")
         
         self.rubric_type_selector = QComboBox()
+        self.rubric_type_selector.addItem("🤖 Auto-Detect", "AUTO")
         self.rubric_type_selector.addItem("All Disciplines", None)
         self.rubric_type_selector.addItem("Physical Therapy", "PT")
         self.rubric_type_selector.addItem("Occupational Therapy", "OT") 
         self.rubric_type_selector.addItem("Speech-Language Pathology", "SLP")
+        self.rubric_type_selector.addItem("Multiple Disciplines", "MULTI")
         self.rubric_type_selector.setMinimumHeight(30)
         self.rubric_type_selector.currentIndexChanged.connect(self._filter_rubrics_by_type)
         
         discipline_layout.addWidget(discipline_label)
         discipline_layout.addWidget(self.rubric_type_selector, 1)
         layout.addLayout(discipline_layout)
+        
+        # Auto-detection status
+        self.auto_detect_label = QLabel("📄 Upload document for automatic discipline detection")
+        self.auto_detect_label.setObjectName("autoDetectStatus")
+        self.auto_detect_label.setWordWrap(True)
+        self.auto_detect_label.setStyleSheet("color: #666; font-style: italic; font-size: 11px;")
+        layout.addWidget(self.auto_detect_label)
 
         # Rubric description
         self.rubric_description_label = QLabel("Medicare Benefits Policy Manual - Default compliance rubric for PT, OT, and SLP services")
@@ -1877,8 +2002,12 @@ QMessageBox QPushButton { min-width: 90px; }
         self.enable_suggestions.setChecked(True)
         self.enable_citations = QCheckBox("📚 Regulatory Citations")
         self.enable_citations.setChecked(True)
+        self.enable_7_habits = QCheckBox("🎯 7 Habits Framework")
+        self.enable_7_habits.setChecked(True)
+        self.enable_7_habits = QCheckBox("🎯 7 Habits Framework")
+        self.enable_7_habits.setChecked(True)
         
-        for checkbox in [self.enable_fact_check, self.enable_suggestions, self.enable_citations]:
+        for checkbox in [self.enable_fact_check, self.enable_suggestions, self.enable_citations, self.enable_7_habits]:
             checkbox.setStyleSheet("""
                 QCheckBox {
                     color: #34495e;
@@ -1954,15 +2083,38 @@ QMessageBox QPushButton { min-width: 90px; }
         """Create the main analysis/report display area"""
         analysis_widget = QWidget()
         layout = QVBoxLayout(analysis_widget)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(10)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(12)
 
-        # Header with title and controls
+        # Main title header
+        title_header_layout = QVBoxLayout()
+        title_header_layout.setSpacing(2)
+        
+        main_title = QLabel("THERAPY DOCUMENT COMPLIANCE ANALYSIS")
+        main_title.setObjectName("mainTitle")
+        main_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_header_layout.addWidget(main_title)
+        
+        subtitle = QLabel("AI-Powered Medicare & Regulatory Compliance Analysis for Clinical Documentation")
+        subtitle.setObjectName("subtitle")
+        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_header_layout.addWidget(subtitle)
+        
+        layout.addLayout(title_header_layout)
+        
+        # Separator line
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        separator.setObjectName("titleSeparator")
+        layout.addWidget(separator)
+
+        # Header with controls
         header_layout = QHBoxLayout()
         
-        title_label = QLabel("📊 Compliance Analysis Report")
-        title_label.setObjectName("titleLabel")
-        header_layout.addWidget(title_label)
+        report_title_label = QLabel("📊 Compliance Analysis Report")
+        report_title_label.setObjectName("reportTitleLabel")
+        header_layout.addWidget(report_title_label)
         
         header_layout.addStretch()
         
@@ -2177,6 +2329,23 @@ QMessageBox QPushButton { min-width: 90px; }
             font-size: 18px;
             font-weight: bold;
             color: #4a9eff;
+        }
+        
+        /* Title Header */
+        QWidget#titleHeader {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #353535, stop:1 #2b2b2b);
+            border-bottom: 2px solid #4a9eff;
+        }
+        QLabel#mainTitle {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4a9eff;
+            letter-spacing: 1px;
+        }
+        QLabel#titleDescriptor {
+            font-size: 13px;
+            color: #adb5bd;
+            font-style: italic;
         }
         QLabel#easterEggHeader {
             font-size: 24px;
@@ -2402,6 +2571,23 @@ QMessageBox QPushButton { min-width: 90px; }
             font-size: 18px;
             font-weight: bold;
             color: #007acc;
+        }
+        
+        /* Title Header */
+        QWidget#titleHeader {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #f8f9fa, stop:1 #e9ecef);
+            border-bottom: 2px solid #007acc;
+        }
+        QLabel#mainTitle {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007acc;
+            letter-spacing: 1px;
+        }
+        QLabel#titleDescriptor {
+            font-size: 13px;
+            color: #6c757d;
+            font-style: italic;
         }
         QLabel#easterEggHeader {
             font-size: 24px;

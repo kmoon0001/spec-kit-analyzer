@@ -1,14 +1,14 @@
 {
   "window_geometry": {
-    "x": -123,
-    "y": 110,
+    "x": 0,
+    "y": -7,
     "width": 1536,
-    "height": 650
+    "height": 889
   },
   "current_tab": 0,
   "theme": "dark",
   "chat_button_position": {
-    "x": 1466,
-    "y": 80
+    "x": 20,
+    "y": 779
   }
 }
