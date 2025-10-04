@@ -29,13 +29,9 @@ if "sqlite" in DATABASE_URL and "aiosqlite" not in DATABASE_URL:
 # --- Performance Configuration ---
 def _get_performance_config() -> Optional[Any]:
     """Safely get performance configuration with fallback."""
-    try:
-        from ..core.performance_manager import get_performance_config
-
-        return get_performance_config()
-    except (ImportError, AttributeError, Exception) as e:
-        logger.debug("Performance manager not available: %s", e)
-        return None
+    # Temporarily disabled for faster startup
+    logger.debug("Performance manager disabled for faster startup")
+    return None
 
 
 # Use performance manager if available, otherwise fall back to config settings
