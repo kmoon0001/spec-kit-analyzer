@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ExplanationContext:
     """Context information for generating explanations."""
+
     document_type: Optional[str] = None
     discipline: Optional[str] = None  # PT, OT, SLP
     rubric_name: Optional[str] = None
@@ -36,7 +37,7 @@ class ExplanationEngine:
             "medicare": "Medicare Guidelines (CMS)",
             "pt": "APTA Practice Guidelines",
             "ot": "AOTA Standards of Practice",
-            "slp": "ASHA Code of Ethics"
+            "slp": "ASHA Code of Ethics",
         }
 
     def add_explanations(
@@ -44,7 +45,7 @@ class ExplanationEngine:
         analysis_result: Dict[str, Any],
         full_document_text: str,
         context: Optional[ExplanationContext] = None,
-        retrieved_rules: Optional[List[Dict[str, Any]]] = None
+        retrieved_rules: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Add comprehensive explanations to analysis findings.
@@ -72,7 +73,7 @@ retrieved_rules: List of compliance rules that were matched during analysis
             "document_type": context.document_type,
             "discipline": context.discipline,
             "rubric_applied": context.rubric_name,
-            "explanation_version": "2.0"
+            "explanation_version": "2.0",
         }
 
         return analysis_result
@@ -82,7 +83,7 @@ retrieved_rules: List of compliance rules that were matched during analysis
         finding: Dict[str, Any],
         full_document_text: str,
         context: ExplanationContext,
-        retrieved_rules: Optional[List[Dict[str, Any]]] = None
+        retrieved_rules: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         """Enhance a single finding with explanations and context."""
         problematic_text = finding.get("text", "")
@@ -99,7 +100,9 @@ retrieved_rules: List of compliance rules that were matched during analysis
         )
 
         # Add actionable recommendation
-        finding["recommendation"] = self._generate_recommendation(finding, context, retrieved_rules)
+        finding["recommendation"] = self._generate_recommendation(
+            finding, context, retrieved_rules
+        )
         # Add confidence with proper calculation (remove random generation)
         if "confidence" not in finding:
             finding["confidence"] = self._calculate_confidence(finding, context)
@@ -108,11 +111,11 @@ retrieved_rules: List of compliance rules that were matched during analysis
         finding["severity"] = self._assess_severity(finding)
 
         # Add citation information
-        finding["citation"] = self._get_regulatory_citation(finding, context, retrieved_rules)
+        finding["citation"] = self._get_regulatory_citation(
+            finding, context, retrieved_rules
+        )
     def _generate_regulatory_explanation(
-        self,
-        finding: Dict[str, Any],
-        context: ExplanationContext
+        self, finding: Dict[str, Any], context: ExplanationContext
     ) -> str:
         """Generate explanation of why this finding violates regulations."""
         issue_type = finding.get("issue_type", "compliance")
@@ -134,20 +137,20 @@ retrieved_rules: List of compliance rules that were matched during analysis
             "missing_plan": (
                 f"Treatment plan modifications must be documented to show "
                 f"clinical reasoning in {discipline} care."
-            )
+            ),
         }
 
         return explanations.get(
             issue_type,
             f"This finding may impact compliance with Medicare and "
-            f"professional {discipline} documentation standards."
+            f"professional {discipline} documentation standards.",
         )
 
     def _generate_recommendation(
         self,
         finding: Dict[str, Any],
         context: ExplanationContext,
-        retrieved_rules: Optional[List[Dict[str, Any]]] = None
+        retrieved_rules: Optional[List[Dict[str, Any]]] = None,
     ) -> str:
         """Generate specific, actionable recommendation for the finding."""
         # First, try to get specific recommendations from retrieved rules
@@ -160,11 +163,14 @@ retrieved_rules: List of compliance rules that were matched during analysis
                 rule_recommendation = rule.get("recommendation") or rule.get("guidance")
 
                 # Match by issue type or text similarity
-                if (issue_type and issue_type in rule_text) or \
-                   (finding_text and any(word in rule_text for word in finding_text.split()[:3])):
+                if (issue_type and issue_type in rule_text) or (
+                    finding_text
+                    and any(word in rule_text for word in finding_text.split()[:3])
+                ):
                     if rule_recommendation:
-                        return f"{rule_recommendation} (Based on specific compliance rule)"
-
+                        return (
+                            f"{rule_recommendation} (Based on specific compliance rule)"
+                        )
         # Fallback to general recommendations
         issue_type = finding.get("issue_type", "compliance")
         discipline = context.discipline or "therapy"
@@ -186,7 +192,7 @@ retrieved_rules: List of compliance rules that were matched during analysis
             "missing_plan": (
                 f"Clearly state treatment plan modifications with clinical "
                 f"reasoning for {discipline} care."
-            )
+            ),
         }
 
         # Discipline-specific enhancements
@@ -206,13 +212,11 @@ retrieved_rules: List of compliance rules that were matched during analysis
         return recommendations.get(
             issue_type,
             f"Review documentation against applicable {discipline} compliance "
-            f"standards and add missing elements."
+            f"standards and add missing elements.",
         )
 
     def _calculate_confidence(
-        self,
-        finding: Dict[str, Any],
-        context: ExplanationContext
+        self, finding: Dict[str, Any], context: ExplanationContext
     ) -> float:
         """Calculate confidence score based on finding characteristics."""
         base_confidence = 0.85
@@ -227,9 +231,21 @@ retrieved_rules: List of compliance rules that were matched during analysis
         # Adjust based on medical terminology presence
         text = finding.get("text", "").lower()
         medical_terms = [
-            "frequency", "goals", "progress", "treatment", "therapy",
-            "intervention", "assessment", "evaluation", "plan", "medical necessity",
-            "functional", "mobility", "strength", "range of motion", "adl"
+            "frequency",
+            "goals",
+            "progress",
+            "treatment",
+            "therapy",
+            "intervention",
+            "assessment",
+            "evaluation",
+            "plan",
+            "medical necessity",
+            "functional",
+            "mobility",
+            "strength",
+            "range of motion",
+            "adl",
         ]
         medical_term_count = sum(1 for term in medical_terms if term in text)
         if medical_term_count >= 3:
@@ -239,8 +255,11 @@ retrieved_rules: List of compliance rules that were matched during analysis
         # Adjust based on issue type specificity
         issue_type = finding.get("issue_type", "")
         high_confidence_issues = [
-            "missing_frequency", "missing_goals", "missing_progress",
-            "missing_medical_necessity", "missing_physician_orders"
+            "missing_frequency",
+            "missing_goals",
+            "missing_progress",
+            "missing_medical_necessity",
+            "missing_physician_orders",
         ]
         if issue_type in high_confidence_issues:
             base_confidence += 0.08
@@ -263,30 +282,38 @@ retrieved_rules: List of compliance rules that were matched during analysis
         """Assess the severity level of a compliance finding."""
         issue_type = finding.get("issue_type", "")
         confidence = finding.get("confidence", 0.0)
-        
+
         # Critical severity - immediate reimbursement risk
         critical_issues = [
-            "missing_medical_necessity", "missing_physician_orders",
-            "missing_certification", "invalid_authorization"
+            "missing_medical_necessity",
+            "missing_physician_orders",
+            "missing_certification",
+            "invalid_authorization",
         ]
         if issue_type in critical_issues:
             return "Critical"
 
         # High severity - significant compliance violations
         high_severity_issues = [
-            "missing_frequency", "missing_duration", "missing_goals",
-            "inadequate_progress_documentation", "missing_skilled_intervention"
+            "missing_frequency",
+            "missing_duration",
+            "missing_goals",
+            "inadequate_progress_documentation",
+            "missing_skilled_intervention",
         ]
         if issue_type in high_severity_issues and confidence > 0.85:
             return "High"
 
         # Medium severity - important but not critical
         medium_severity_issues = [
-            "missing_progress", "missing_plan", "incomplete_assessment",
-            "missing_functional_outcomes"
+            "missing_progress",
+            "missing_plan",
+            "incomplete_assessment",
+            "missing_functional_outcomes",
         ]
-        if (issue_type in medium_severity_issues and confidence > 0.75) or \
-           (issue_type in high_severity_issues and confidence > 0.70):
+        if (issue_type in medium_severity_issues and confidence > 0.75) or (
+            issue_type in high_severity_issues and confidence > 0.70
+        ):
             return "Medium"
 
         # Low severity for less critical or uncertain findings
@@ -295,11 +322,12 @@ retrieved_rules: List of compliance rules that were matched during analysis
 
         # Default to Medium for unclassified issues with reasonable confidence
         return "Medium" if confidence > 0.75 else "Low"
+
     def _get_regulatory_citation(
         self,
         finding: Dict[str, Any],
         context: ExplanationContext,
-        retrieved_rules: Optional[List[Dict[str, Any]]] = None
+        retrieved_rules: Optional[List[Dict[str, Any]]] = None,
     ) -> str:
         """Get appropriate regulatory citation for the finding."""
         # First, try to find specific citation from retrieved rules
@@ -312,8 +340,10 @@ retrieved_rules: List of compliance rules that were matched during analysis
                 rule_citation = rule.get("citation") or rule.get("source")
 
                 # Match by issue type or text similarity
-                if (issue_type and issue_type in rule_text) or \
-                   (finding_text and any(word in rule_text for word in finding_text.split()[:3])):
+                if (issue_type and issue_type in rule_text) or (
+                    finding_text
+                    and any(word in rule_text for word in finding_text.split()[:3])
+                ):
                     if rule_citation:
                         return rule_citation
 
@@ -376,30 +406,38 @@ retrieved_rules: List of compliance rules that were matched during analysis
 
             # Find word boundaries for better context
             context_start = max(0, start_index - window)
-            context_end = min(
-                len(full_text), start_index + len(text_to_find) + window
-)
+            context_end = min(len(full_text), start_index + len(text_to_find) + window)
 
             # Adjust to sentence boundaries for better medical context
             # Look for sentence endings (., !, ?) or line breaks
-            sentence_markers = '.!?\n'
-
+            sentence_markers = ".!?\n"
             # Expand context_start to beginning of sentence
-            while (context_start > 0 and
-                   full_text[context_start - 1] not in sentence_markers):
+            while (
+                context_start > 0
+                and full_text[context_start - 1] not in sentence_markers
+            ):
                 context_start -= 1
-                if context_start <= start_index - window * 2:  # Prevent excessive expansion
+                if (
+                    context_start <= start_index - window * 2
+                ):  # Prevent excessive expansion
                     break
 
             # Expand context_end to end of sentence
-            while (context_end < len(full_text) and
-                   full_text[context_end] not in sentence_markers):
+            while (
+                context_end < len(full_text)
+                and full_text[context_end] not in sentence_markers
+            ):
                 context_end += 1
-                if context_end >= start_index + len(text_to_find) + window * 2:  # Prevent excessive expansion
+                if (
+                    context_end >= start_index + len(text_to_find) + window * 2
+                ):  # Prevent excessive expansion
                     break
 
             # Include the sentence marker if we found one
-            if context_end < len(full_text) and full_text[context_end] in sentence_markers:
+            if (
+                context_end < len(full_text)
+                and full_text[context_end] in sentence_markers
+            ):
                 context_end += 1
 
             context = full_text[context_start:context_end].strip()

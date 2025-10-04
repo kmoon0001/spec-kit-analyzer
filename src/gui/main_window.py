@@ -4,8 +4,8 @@ import urllib.parse
 import webbrowser
 from datetime import datetime
 from typing import Dict
-from PySide6.QtCore import Qt, QThread, QUrl
-from PySide6.QtGui import QTextDocument
+from PySide6.QtCore import Qt, QThread, QUrl, QTimer
+from PySide6.QtGui import QTextDocument, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QTabWidget,
     QTextBrowser,
     QComboBox,
+    QSizePolicy,
     QApplication,
 )
 
@@ -121,6 +122,7 @@ class MainApplicationWindow(QMainWindow):
         This is called after the window is created to avoid blocking the constructor,
         which makes the main window testable.
         """
+        self._load_user_preferences()  # Load saved preferences first
         self.load_ai_models()
         self.load_main_ui()  # Load main UI directly
         self.show()
@@ -137,17 +139,31 @@ class MainApplicationWindow(QMainWindow):
         y = (screen.height() - self.height()) // 2
         self.move(x, y)
 
-        self.setGeometry(100, 100, 1400, 900)  # Larger default size for better proportions
+        self.setGeometry(
+            100, 100, 1400, 900
+        )  # Larger default size for better proportions
         self.setMinimumSize(900, 650)  # Better minimum for scaling
 
         # Enable better scaling behavior
-        from PySide6.QtWidgets import QSizePolicy
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        # Setup keyboard shortcuts for better accessibility
+        self._setup_keyboard_shortcuts()
+
         self.menu_bar = QMenuBar(self)
         self.setMenuBar(self.menu_bar)
         self.file_menu = self.menu_bar.addMenu("File")
+        self.file_menu.addAction("Open Document (Ctrl+O)", self.open_file_dialog)
+        self.file_menu.addAction("Open Folder (Ctrl+Shift+O)", self.open_folder_dialog)
+        self.file_menu.addSeparator()
         self.file_menu.addAction("Exit", self.close)
 
+        # Add Help menu for better discoverability
+        self.help_menu = self.menu_bar.addMenu("Help")
+        self.help_menu.addAction("Keyboard Shortcuts", self.show_keyboard_shortcuts)
+        self.help_menu.addAction("Chat Assistant (Ctrl+H)", self.open_chat_assistant)
+        self.help_menu.addSeparator()
+        self.help_menu.addAction("About", self.show_about)
         # Keep only essential menu items - settings moved to Settings tab
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
@@ -169,12 +185,21 @@ class MainApplicationWindow(QMainWindow):
         )
         self.status_bar.addPermanentWidget(self.performance_status)
 
+        # Add auto-save indicator
+        self.auto_save_label = QLabel("💾")
+        self.auto_save_label.setToolTip("Auto-save active")
+        self.auto_save_label.setStyleSheet("color: #28a745; font-size: 14px;")
+        self.status_bar.addPermanentWidget(self.auto_save_label)
+
         self.progress_bar = QProgressBar(self.status_bar)
         self.status_bar.addPermanentWidget(self.progress_bar)
         self.progress_bar.hide()
 
         # Create floating chat button
         self.create_floating_chat_button()
+
+        # Setup auto-save timer for user preferences
+        self._setup_auto_save_timer()
 
     def _format_model_status_text(self) -> str:
         badges = []
@@ -189,8 +214,6 @@ class MainApplicationWindow(QMainWindow):
         self.model_status.update(updates)
         if hasattr(self, "model_health_label"):
             self.model_health_label.setText(self._format_model_status_text())
-
-
 
     def load_main_ui(self):
         self.tabs = QTabWidget()
@@ -229,7 +252,7 @@ class MainApplicationWindow(QMainWindow):
         self.apply_stylesheet(theme)
 
         # Ensure chat button is visible after UI is loaded
-        if hasattr(self, 'chat_button'):
+        if hasattr(self, "chat_button"):
             self.chat_button.show()
             self.chat_button.raise_()
 
@@ -336,8 +359,10 @@ class MainApplicationWindow(QMainWindow):
 
         # Set size policy for better scaling
         from PySide6.QtWidgets import QSizePolicy
-        splitter.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
+        splitter.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+)
         main_layout.addWidget(splitter, 1)
 
         document_group = QGroupBox("Document Upload & Analysis")
@@ -551,9 +576,12 @@ class MainApplicationWindow(QMainWindow):
         user_group = QGroupBox("👤 User Settings")
         user_layout = QVBoxLayout(user_group)
 
-        user_info_label = QLabel("Running in Direct Access Mode\nNo authentication required for local analysis")
+        user_info_label = QLabel(
+            "Running in Direct Access Mode\nNo authentication required for local analysis"
+        )
         user_info_label.setStyleSheet("color: #666; font-style: italic;")
         user_layout.addWidget(user_info_label)
+
         main_layout.addWidget(user_group)
 
         # Performance Settings Group
@@ -577,7 +605,7 @@ class MainApplicationWindow(QMainWindow):
         main_layout.addWidget(analysis_group)
 
         # Admin Section (if admin user)
-        if hasattr(self, 'is_admin') and self.is_admin:
+        if hasattr(self, "is_admin") and self.is_admin:
             admin_group = QGroupBox("👑 Administrator")
             admin_layout = QVBoxLayout(admin_group)
 
@@ -720,7 +748,7 @@ class MainApplicationWindow(QMainWindow):
             self,
             "Direct Access Mode",
             "Password management is not available in direct access mode.\n"
-            "This application runs locally without user authentication."
+            "This application runs locally without user authentication.",
         )
 
     def show_performance_settings(self):
@@ -855,39 +883,44 @@ class MainApplicationWindow(QMainWindow):
 
         source_path = self._current_file_path or self._current_folder_path
         if not source_path:
-            QMessageBox.warning(
-                self,
+            self.show_user_notification(
                 "No Source Selected",
                 "Please upload a document or folder before running analysis.",
+                "warning",
             )
             return
 
         selected_rubric = self.rubric_selector.currentData()
         if not selected_rubric:
-            QMessageBox.warning(
-                self,
+            self.show_user_notification(
                 "No Rubric Selected",
                 "Please select a rubric before running analysis.",
+                "warning",
             )
             return
 
         discipline = selected_rubric.get("discipline", "Unknown")
         rubric_id = selected_rubric.get("id")
 
-        self.status_bar.showMessage("Optimizing performance...")
+        self.show_progress_notification("Optimizing performance...")
         try:
             from src.core.performance_integration import optimize_for_analysis
 
             optimization_results = optimize_for_analysis()
             if optimization_results.get("recommendations"):
                 recommendations = "\n".join(optimization_results["recommendations"])
-                QMessageBox.information(
-                    self,
-                    "Performance Recommendations",
+                self.show_user_notification(
+                    "Performance Optimization Complete",
                     f"Performance optimization completed:\n\n{recommendations}",
+                    "success",
                 )
         except Exception as exc:
             print(f"Performance optimization failed: {exc}")
+            self.show_user_notification(
+                "Performance Optimization Failed",
+                f"Performance optimization encountered an issue: {exc}",
+                "warning",
+            )
 
         self.progress_bar.setRange(0, 0)
         self.progress_bar.setValue(0)
@@ -1568,9 +1601,10 @@ self.chat_button.show()  # Make sure it's visible
 
     def position_chat_button(self):
         """Position floating chat button"""
-        if hasattr(self, 'chat_button'):
+        if hasattr(self, "chat_button"):
             # Position in top right to avoid Pacific Coast easter egg completely
             self.chat_button.move(self.width() - 70, 80)
+
     def chat_button_mouse_press(self, event):
         """Handle chat button mouse press for dragging"""
         if event.button() == Qt.MouseButton.LeftButton:
@@ -1581,8 +1615,10 @@ self.chat_button.show()  # Make sure it's visible
         """Handle chat button mouse move for dragging"""
         if self.chat_button_dragging and self.chat_button_offset:
             # Calculate new position
-            new_pos = self.mapFromGlobal(event.globalPosition().toPoint()) - self.chat_button_offset
-
+            new_pos = (
+                self.mapFromGlobal(event.globalPosition().toPoint())
+                - self.chat_button_offset
+            )
             # Keep button within window bounds
             max_x = self.width() - self.chat_button.width()
             max_y = self.height() - self.chat_button.height()
@@ -1600,17 +1636,21 @@ self.chat_button.show()  # Make sure it's visible
 
     def open_chat_assistant(self):
         """Open the chat assistant dialog"""
-        chat_dialog = ChatDialog("Hello! How can I help you with compliance today?", self.access_token or "", self)
+        chat_dialog = ChatDialog(
+            "Hello! How can I help you with compliance today?",
+            self.access_token or "",
+            self,
+        )
         chat_dialog.exec()
-        
 
     def show_analysis_settings(self):
         """Show analysis settings dialog"""
-        QMessageBox.information(self, "Analysis Settings", "Analysis configuration settings - Coming soon!")
-
+        QMessageBox.information(
+            self, "Analysis Settings", "Analysis configuration settings - Coming soon!"
+)
     def show_about(self):
         """Show about dialog with Kevin Moon and emoji"""
-        about_text = """
+        about_text = f"""
         <h2>Therapy Compliance Analyzer</h2>
         <p><b>Version:</b> 1.0.0</p>
         <p><b>AI-Powered Clinical Documentation Analysis</b></p>
@@ -1624,7 +1664,10 @@ self.chat_button.show()  # Make sure it's visible
         <li>Multi-format document support</li>
         <li>Interactive compliance reports</li>
         <li>Real-time chat assistance</li>
+        <li>Keyboard shortcuts for efficiency</li>
         </ul>
+        <br>
+        {self.get_keyboard_shortcuts_help()}
         <br>
         <p><b>Developed by:</b> Kevin Moon 🤝💖</p>
         <p><i>Pacific Coast Development 🌴</i></p>
@@ -1638,20 +1681,28 @@ self.chat_button.show()  # Make sure it's visible
         msg.setIcon(QMessageBox.Icon.Information)
         msg.exec()
 
+    def show_keyboard_shortcuts(self):
+        """Show keyboard shortcuts help dialog."""
+        shortcuts_text = self.get_keyboard_shortcuts_help()
+
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Keyboard Shortcuts")
+        msg.setText(shortcuts_text)
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.exec()
+
     def resizeEvent(self, event):
         """Handle window resize to reposition floating button and adjust layout"""
         super().resizeEvent(event)
 
         # Reposition chat button if not being dragged
-        if hasattr(self, 'chat_button') and not self.chat_button_dragging:
+        if hasattr(self, "chat_button") and not self.chat_button_dragging:
             self.position_chat_button()
 
         # Adjust layout based on window size for better scaling
         window_width = self.width()
-        window_height = self.height()
-
         # For very small windows, adjust splitter orientation
-        if hasattr(self, 'tabs') and self.tabs.currentIndex() == 0:  # Analysis tab
+        if hasattr(self, "tabs") and self.tabs.currentIndex() == 0:  # Analysis tab
             try:
                 # Find the splitter in the current tab
                 analysis_widget = self.tabs.widget(0)
@@ -1666,7 +1717,7 @@ self.chat_button.show()  # Make sure it's visible
                             # For larger windows, restore balanced layout
                             splitter.setStretchFactor(0, 2)
                             splitter.setStretchFactor(1, 3)
-            except:
+            except Exception:
                 pass  # Ignore errors during resize
 
     def closeEvent(self, event):
@@ -1703,3 +1754,165 @@ self.chat_button.show()  # Make sure it's visible
         except Exception as e:
             print(f"Error during application cleanup: {e}")
             event.accept()  # Still close even if cleanup fails
+
+    def _setup_keyboard_shortcuts(self):
+        """Setup keyboard shortcuts for improved accessibility and workflow efficiency."""
+        # Analysis shortcuts
+        self.shortcut_run_analysis = QShortcut(QKeySequence("Ctrl+R"), self)
+        self.shortcut_run_analysis.activated.connect(self.run_analysis)
+
+        self.shortcut_stop_analysis = QShortcut(QKeySequence("Ctrl+S"), self)
+        self.shortcut_stop_analysis.activated.connect(self.stop_analysis)
+
+        # File operations
+        self.shortcut_open_file = QShortcut(QKeySequence("Ctrl+O"), self)
+        self.shortcut_open_file.activated.connect(self.open_file_dialog)
+
+        self.shortcut_open_folder = QShortcut(QKeySequence("Ctrl+Shift+O"), self)
+        self.shortcut_open_folder.activated.connect(self.open_folder_dialog)
+
+        # UI navigation
+        self.shortcut_analysis_tab = QShortcut(QKeySequence("Ctrl+1"), self)
+        self.shortcut_analysis_tab.activated.connect(
+            lambda: self.tabs.setCurrentIndex(0) if hasattr(self, "tabs") else None
+        )
+
+        self.shortcut_dashboard_tab = QShortcut(QKeySequence("Ctrl+2"), self)
+        self.shortcut_dashboard_tab.activated.connect(
+            lambda: self.tabs.setCurrentIndex(1) if hasattr(self, "tabs") else None
+        )
+
+        self.shortcut_settings_tab = QShortcut(QKeySequence("Ctrl+3"), self)
+        self.shortcut_settings_tab.activated.connect(
+            lambda: self.tabs.setCurrentIndex(2) if hasattr(self, "tabs") else None
+        )
+
+        # Chat and help
+        self.shortcut_chat = QShortcut(QKeySequence("Ctrl+H"), self)
+        self.shortcut_chat.activated.connect(self.open_chat_assistant)
+
+        # Theme switching
+        self.shortcut_light_theme = QShortcut(QKeySequence("Ctrl+L"), self)
+        self.shortcut_light_theme.activated.connect(self.set_light_theme)
+
+        self.shortcut_dark_theme = QShortcut(QKeySequence("Ctrl+D"), self)
+        self.shortcut_dark_theme.activated.connect(self.set_dark_theme)
+
+        # Export and clear
+        self.shortcut_export = QShortcut(QKeySequence("Ctrl+E"), self)
+        self.shortcut_export.activated.connect(self.export_report)
+
+        self.shortcut_clear = QShortcut(QKeySequence("Ctrl+K"), self)
+        self.shortcut_clear.activated.connect(self.clear_display)
+
+    def _setup_auto_save_timer(self):
+        """Setup auto-save timer for user preferences and session state."""
+        self.auto_save_timer = QTimer()
+        self.auto_save_timer.timeout.connect(self._auto_save_preferences)
+        self.auto_save_timer.start(30000)  # Auto-save every 30 seconds
+
+    def _auto_save_preferences(self):
+        """Auto-save user preferences and session state."""
+        try:
+            preferences = {
+                "window_geometry": {
+                    "x": self.x(),
+                    "y": self.y(),
+                    "width": self.width(),
+                    "height": self.height(),
+                },
+                "current_tab": self.tabs.currentIndex() if hasattr(self, "tabs") else 0,
+                "theme": self.load_theme_setting(),
+                "chat_button_position": {
+                    "x": self.chat_button.x() if hasattr(self, "chat_button") else 0,
+                    "y": self.chat_button.y() if hasattr(self, "chat_button") else 0,
+                },
+            }
+
+            # Save to preferences file
+            with open("user_preferences.json", "w", encoding="utf-8") as f:
+                json.dump(preferences, f, indent=2)
+
+            # Show brief visual feedback
+            if hasattr(self, "auto_save_label"):
+                original_text = self.auto_save_label.text()
+                self.auto_save_label.setText("💾✓")
+                QTimer.singleShot(
+                    1000, lambda: self.auto_save_label.setText(original_text)
+                )
+
+        except Exception as e:
+            # Silent fail for auto-save to avoid disrupting user workflow
+            print(f"Auto-save preferences failed: {e}")
+            if hasattr(self, "auto_save_label"):
+                self.auto_save_label.setText("💾❌")
+                QTimer.singleShot(2000, lambda: self.auto_save_label.setText("💾"))
+
+    def _load_user_preferences(self):
+        """Load user preferences and restore session state."""
+        try:
+            with open("user_preferences.json", "r", encoding="utf-8") as f:
+                preferences = json.load(f)
+
+            # Restore window geometry
+            if "window_geometry" in preferences:
+                geom = preferences["window_geometry"]
+                self.setGeometry(geom["x"], geom["y"], geom["width"], geom["height"])
+
+            # Restore current tab
+            if "current_tab" in preferences and hasattr(self, "tabs"):
+                self.tabs.setCurrentIndex(preferences["current_tab"])
+
+            # Restore chat button position
+            if "chat_button_position" in preferences and hasattr(self, "chat_button"):
+                pos = preferences["chat_button_position"]
+                self.chat_button.move(pos["x"], pos["y"])
+
+        except (FileNotFoundError, json.JSONDecodeError, KeyError):
+            # Use defaults if preferences file doesn't exist or is corrupted
+            pass
+
+    def get_keyboard_shortcuts_help(self) -> str:
+        """Return formatted help text for keyboard shortcuts."""
+        return """
+        <h3>Keyboard Shortcuts</h3>
+        <table>
+        <tr><td><b>Ctrl+R</b></td><td>Run Analysis</td></tr>
+        <tr><td><b>Ctrl+S</b></td><td>Stop Analysis</td></tr>
+        <tr><td><b>Ctrl+O</b></td><td>Open File</td></tr>
+        <tr><td><b>Ctrl+Shift+O</b></td><td>Open Folder</td></tr>
+        <tr><td><b>Ctrl+1</b></td><td>Analysis Tab</td></tr>
+        <tr><td><b>Ctrl+2</b></td><td>Dashboard Tab</td></tr>
+        <tr><td><b>Ctrl+3</b></td><td>Settings Tab</td></tr>
+        <tr><td><b>Ctrl+H</b></td><td>Open Chat Assistant</td></tr>
+        <tr><td><b>Ctrl+L</b></td><td>Light Theme</td></tr>
+        <tr><td><b>Ctrl+D</b></td><td>Dark Theme</td></tr>
+        <tr><td><b>Ctrl+E</b></td><td>Export Report</td></tr>
+        <tr><td><b>Ctrl+K</b></td><td>Clear Display</td></tr>
+        </table>
+        """
+
+    def show_user_notification(
+        self, title: str, message: str, notification_type: str = "info"
+    ):
+        """Show user notification with improved styling and options."""
+        if notification_type == "error":
+            icon = QMessageBox.Icon.Critical
+        elif notification_type == "warning":
+            icon = QMessageBox.Icon.Warning
+        elif notification_type == "success":
+            icon = QMessageBox.Icon.Information
+            title = f"✅ {title}"
+        else:
+            icon = QMessageBox.Icon.Information
+
+        msg = QMessageBox(self)
+        msg.setWindowTitle(title)
+        msg.setText(message)
+        msg.setIcon(icon)
+        msg.exec()
+
+    def show_progress_notification(self, message: str, duration: int = 3000):
+        """Show temporary progress notification in status bar."""
+        if hasattr(self, "status_bar"):
+            self.status_bar.showMessage(f"🔄 {message}", duration)
