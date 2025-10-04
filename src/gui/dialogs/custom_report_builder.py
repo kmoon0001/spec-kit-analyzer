@@ -3,9 +3,9 @@ Custom Report Builder Dialog - Advanced Report Customization
 """
 
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QFont, QPixmap, QPainter, QColor
+from typing import List
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -16,22 +16,16 @@ from PySide6.QtWidgets import (
     QComboBox,
     QCheckBox,
     QGroupBox,
-    QTextEdit,
     QLineEdit,
     QDateEdit,
-    QSpinBox,
     QSlider,
     QTabWidget,
     QFrame,
     QScrollArea,
-    QProgressBar,
     QMessageBox,
-    QFileDialog,
+    QWidget,
     QListWidget,
     QListWidgetItem,
-    QSplitter,
-    QTreeWidget,
-    QTreeWidgetItem,
 )
 
 
