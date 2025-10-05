@@ -1,286 +1,153 @@
-from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel
+"""
+Dashboard widget for displaying compliance analytics and overview metrics.
+"""
+from __future__ import annotations
 
-# For now, use simple Qt-based charts until matplotlib integration is resolved
-MATPLOTLIB_AVAILABLE = False
+from typing import Any, Dict, List
 
-# Future: Will implement proper matplotlib integration
-# from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-# from matplotlib.figure import Figure
-# import matplotlib.dates as mdates
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont, QPalette
+from PySide6.QtWidgets import (
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QProgressBar,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 class DashboardWidget(QWidget):
-    """A widget to display compliance trends and other visualizations."""
+    """
+    A widget to display an overview of compliance metrics, including
+    key performance indicators and recent analysis activity.
+    """
 
-    # Add the custom signal
-    refresh_requested = Signal()
-
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        # Use a QVBoxLayout to stack the refresh button on top of the charts
-        self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(10, 10, 10, 10)
-        self.layout.setSpacing(15)
+        self._build_ui()
+        self._apply_styles()
 
-        # --- Refresh Button ---
-        self.refresh_button = QPushButton("🔄 Refresh Dashboard")
-        self.refresh_button.setFixedHeight(40)
-        self.refresh_button.setStyleSheet("""
-            QPushButton {
-                background: #007acc;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                font-weight: bold;
-                font-size: 14px;
+    def _build_ui(self) -> None:
+        """Construct the main UI components of the dashboard."""
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(15, 15, 15, 15)
+        main_layout.setSpacing(20)
+
+        title = QLabel("Compliance Dashboard", self)
+        font = title.font()
+        font.setPointSize(18)
+        font.setBold(True)
+        title.setFont(font)
+        main_layout.addWidget(title)
+
+        # --- KPIs Section ---
+        kpi_layout = QHBoxLayout()
+        kpi_layout.setSpacing(20)
+        self.total_docs_label = self._create_kpi_box("Total Documents", "0")
+        self.avg_score_label = self._create_kpi_box("Avg. Compliance", "0.0%")
+        kpi_layout.addWidget(self.total_docs_label)
+        kpi_layout.addWidget(self.avg_score_label)
+        main_layout.addLayout(kpi_layout)
+
+        # --- Compliance Breakdown Section ---
+        self.breakdown_layout = QGridLayout()
+        self.breakdown_layout.setSpacing(10)
+        main_layout.addLayout(self.breakdown_layout)
+
+        main_layout.addStretch()
+
+    def _apply_styles(self) -> None:
+        """Apply theme-aware stylesheets to the dashboard components."""
+        self.setStyleSheet("""
+            QFrame#kpiBox {
+                border: 1px solid palette(mid);
+                border-radius: 5px;
+                background-color: palette(base);
             }
-            QPushButton:hover { background: #005a9e; }
+            QProgressBar {
+                border: 1px solid palette(mid);
+                border-radius: 4px;
+                text-align: center;
+                background-color: palette(base);
+            }
+            QProgressBar::chunk {
+                background-color: palette(highlight);
+                border-radius: 3px;
+                margin: 1px;
+            }
         """)
-        self.refresh_button.clicked.connect(self.refresh_requested.emit)
 
-        # A container for the charts with proper spacing
-        charts_layout = QHBoxLayout()
-        charts_layout.setSpacing(20)
+    def _create_kpi_box(self, title: str, initial_value: str) -> QWidget:
+        """Helper to create a styled box for a key performance indicator."""
+        box = QFrame(self)
+        box.setFrameShape(QFrame.StyledPanel)
+        box.setFrameShadow(QFrame.Raised)
+        box.setObjectName("kpiBox")
+        # Removed inline stylesheet to use the widget's main stylesheet
 
-        # Create chart widgets (using Qt-native charts for now)
-        self.trends_canvas = SimpleChartWidget(self, chart_type="line")
-        self.trends_canvas.set_title("📈 Compliance Trends Over Time")
-        
-        self.summary_canvas = SimpleChartWidget(self, chart_type="bar")
-        self.summary_canvas.set_title("📊 Findings Summary")
-        
-        charts_layout.addWidget(self.trends_canvas, 1)
-        charts_layout.addWidget(self.summary_canvas, 1)
+        layout = QVBoxLayout(box)
+        title_label = QLabel(title, box)
+        title_label.setAlignment(Qt.AlignCenter)
 
-        # Add widgets to the main layout
-        self.layout.addWidget(self.refresh_button)
-        self.layout.addLayout(charts_layout, 1)
+        value_label = QLabel(initial_value, box)
+        font = value_label.font()
+        font.setPointSize(24)
+        font.setBold(True)
+        value_label.setFont(font)
+        value_label.setAlignment(Qt.AlignCenter)
+        value_label.setObjectName("kpiValueLabel")
 
-    def update_dashboard(self, data: dict):
+        layout.addWidget(title_label)
+        layout.addWidget(value_label)
+
+        # Store the value label for easy access
+        box.setProperty("value_label", value_label)
+        return box
+
+    def load_data(self, data: Dict[str, Any]) -> None:
         """
-        Updates both dashboard plots with new data from the API.
+        Populates the dashboard with data from the API.
 
         Args:
-            data: A dictionary containing 'reports' and 'summary' data.
+            data: A dictionary containing dashboard metrics.
+                  Expected keys: 'total_documents_analyzed', 'overall_compliance_score',
+                  'compliance_by_category'.
         """
-        reports_data = data.get("reports", [])
-        summary_data = data.get("summary", [])
+        # Update KPIs
+        total_docs = data.get("total_documents_analyzed", 0)
+        avg_score = data.get("overall_compliance_score", 0.0)
 
-        self._update_trends_plot(reports_data)
-        self._update_summary_plot(summary_data)
+        total_docs_value_label = self.total_docs_label.property("value_label")
+        total_docs_value_label.setText(str(total_docs))
 
-    def _update_trends_plot(self, reports):
-        """Updates the compliance score trend plot."""
-        if not reports:
-            self.trends_canvas.update_data([], "📈 Compliance Trends Over Time")
-            return
-        
-        # Extract scores for simple display
-        scores = []
-        for r in reports:
-            try:
-                score = r.get("compliance_score", 0)
-                scores.append(score)
-            except (ValueError, TypeError):
-                continue
-        
-        self.trends_canvas.update_data(scores, f"📈 Compliance Trends ({len(reports)} reports)")
-        return  # Skip matplotlib code below
-        
-        # Original matplotlib code (disabled for now)
-        ax = self.trends_canvas.axes
-        ax.clear()
+        avg_score_value_label = self.avg_score_label.property("value_label")
+        avg_score_value_label.setText(f"{avg_score:.1f}%")
 
-        if not reports:
-            ax.text(
-                0.5,
-                0.5,
-                "No compliance trend data to display.",
-                ha="center",
-                va="center",
-                fontsize=12,
-            )
-        else:
-            dates = []
-            scores = []
-            for r in reversed(reports):
-                try:
-                    dates.append(mdates.datestr2num(r["analysis_date"]))
-                    scores.append(r["compliance_score"])
-                except (ValueError, TypeError):
-                    continue
+        # Update compliance breakdown
+        self._clear_layout(self.breakdown_layout)
+        categories = data.get("compliance_by_category", {})
+        row = 0
+        for name, score in categories.items():
+            label = QLabel(name, self)
+            progress = QProgressBar(self)
+            progress.setValue(int(score))
+            progress.setFormat(f"{score:.1f}%")
+            # Alignment is now handled by the stylesheet for better consistency
+            progress.setAlignment(Qt.AlignCenter)
 
-            if not dates:
-                ax.text(
-                    0.5,
-                    0.5,
-                    "No valid trend data to display.",
-                    ha="center",
-                    va="center",
-                    fontsize=12,
-                )
-            else:
-                ax.plot(
-                    dates, scores, marker="o", linestyle="-", linewidth=2, markersize=6
-                )
-                ax.set_title(
-                    "Compliance Score Over Time", fontsize=14, fontweight="bold"
-                )
-                ax.set_xlabel("Analysis Date", fontsize=12)
-                ax.set_ylabel("Compliance Score", fontsize=12)
-                ax.grid(True, alpha=0.3)
-                ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
-                ax.plot(
-                    dates, scores, marker="o", linestyle="-", linewidth=2, markersize=6
-                )
-                ax.set_title(
-                    "Compliance Score Over Time", fontsize=14, fontweight="bold"
-                )
-                ax.set_xlabel("Analysis Date", fontsize=12)
-                ax.set_ylabel("Compliance Score", fontsize=12)
-                ax.grid(True, alpha=0.3)
-                ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
-        
-        # Apply tight layout to prevent overlap
-        self.trends_canvas.fig.tight_layout(pad=2.0)
-        self.trends_canvas.draw()
+            self.breakdown_layout.addWidget(label, row, 0)
+            self.breakdown_layout.addWidget(progress, row, 1)
+            row += 1
 
-    def _update_summary_plot(self, summary):
-        """Updates the findings summary bar chart."""
-        if not summary:
-            self.summary_canvas.update_data([], "📊 Findings Summary")
-            return
-        
-        # Extract summary data for simple display
-        summary_data = []
-        if isinstance(summary, list):
-            summary_data = summary
-        elif isinstance(summary, dict):
-            summary_data = list(summary.values())
-        
-        self.summary_canvas.update_data(summary_data, f"📊 Findings Summary ({len(summary)} items)")
-        return  # Skip matplotlib code below
-        
-        # Original matplotlib code (disabled for now)
-        ax = self.summary_canvas.axes
-        ax.clear()
-
-        if not summary:
-            ax.text(
-                0.5,
-                0.5,
-                "No findings summary data to display.",
-                ha="center",
-                va="center",
-                fontsize=12,
-            )
-        else:
-            top_n = 8  # Reduce number to prevent overlap
-            summary = summary[:top_n]
-
-            rule_ids = [
-                item["rule_id"][:20] + "..."
-               if len(item["rule_id"]) > 20
-                else item["rule_id"]
-               [:20] + "..." if len(item["rule_id"]) > 20
-                else item["rule_id"]
-                for item in summary
-            ]
-            counts = [item["count"] for item in summary]
-
-            bars = ax.barh(rule_ids, counts, color="#007acc", alpha=0.7)
-            ax.set_title(
-                f"Top {len(rule_ids)} Most Common Findings",
-                fontsize=14,
-                fontweight="bold",
-            )
-            ax.set_xlabel("Number of Occurrences", fontsize=12)
-            ax.set_ylabel("Finding Type", fontsize=12)
-            ax.invert_yaxis()
-
-            # Add value labels on bars
-            for i, bar in enumerate(bars):
-                width = bar.get_width()
-                ax.text(
-                    width + 0.1,
-                    bar.get_y() + bar.get_height() / 2,
-                    f"{counts[i]}",
-                    ha="left",
-                    va="center",
-                    fontsize=10,
-                )
-        # Apply tight layout to prevent overlap
-        self.summary_canvas.fig.tight_layout(pad=2.0)
-        self.summary_canvas.draw()
+    def _clear_layout(self, layout: QGridLayout) -> None:
+        """Removes all widgets from a QGridLayout."""
+        while layout.count():
+            child = layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
 
 
-class SimpleChartWidget(QWidget):
-    """A simple chart widget using Qt native capabilities."""
-
-    def __init__(self, parent=None, chart_type="line"):
-        super().__init__(parent)
-        self.chart_type = chart_type
-        self.data = []
-        
-        # Create layout
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        
-        # Chart title
-        self.title_label = QLabel("Chart Title")
-        self.title_label.setStyleSheet("font-weight: bold; font-size: 14px; text-align: center;")
-        layout.addWidget(self.title_label)
-        
-        # Chart area (placeholder for now)
-        self.chart_area = QLabel("📊 Chart data will be displayed here")
-        self.chart_area.setStyleSheet("""
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            padding: 20px;
-            background: white;
-            text-align: center;
-            color: #666;
-            min-height: 200px;
-        """)
-        layout.addWidget(self.chart_area, 1)
-        
-        # Status label
-        self.status_label = QLabel("Ready")
-        self.status_label.setStyleSheet("color: #666; font-size: 12px;")
-        layout.addWidget(self.status_label)
-    
-    def set_title(self, title):
-        """Set chart title."""
-        self.title_label.setText(title)
-    
-    def update_data(self, data, title="Chart"):
-        """Update chart with new data."""
-        self.data = data
-        self.set_title(title)
-        
-        if not data:
-            self.chart_area.setText("📊 No data to display")
-            self.status_label.setText("No data available")
-        else:
-            # Simple text-based representation for now
-            data_summary = f"📊 {len(data)} data points\n"
-            if isinstance(data, list) and len(data) > 0:
-                if isinstance(data[0], dict):
-                    # Handle dict data
-                    data_summary += f"Latest: {list(data[-1].values())[0] if data[-1] else 'N/A'}"
-                else:
-                    # Handle simple list
-                    data_summary += f"Range: {min(data)} - {max(data)}"
-            
-            self.chart_area.setText(data_summary)
-            self.status_label.setText(f"Updated with {len(data)} points")
-    
-    def clear(self):
-        """Clear chart data."""
-        self.data = []
-        self.chart_area.setText("📊 Chart cleared")
-        self.status_label.setText("Cleared")
-
-# Alias for compatibility
-MplCanvas = SimpleChartWidget
+__all__ = ["DashboardWidget"]
