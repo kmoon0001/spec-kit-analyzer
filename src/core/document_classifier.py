@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 class DocumentClassifier:
     """A service to classify a document into a predefined category."""
 
-    def __init__(self, llm_service: LLMService, prompt_template_path: str):
+    def __init__(self, llm_service: LLMService, prompt_template_path: str | None = None):
         """
         Initializes the DocumentClassifier.
 
@@ -17,9 +17,14 @@ class DocumentClassifier:
             prompt_template_path: The path to the prompt template for classification.
         """
         self.llm_service = llm_service
-        # Extract just the filename from the path for PromptManager
         import os
+        if not prompt_template_path:
+            from src.config import get_settings
+
+            prompt_template_path = get_settings().models.doc_classifier_prompt
         template_name = os.path.basename(prompt_template_path)
+        if not template_name:
+            raise ValueError('Prompt template name could not be determined.')
         self.prompt_manager = PromptManager(template_name=template_name)
         self.possible_types = [
             "Progress Note",

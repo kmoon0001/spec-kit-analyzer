@@ -16,7 +16,7 @@ class LLMComplianceAnalyzer:
         self.prompt_manager = prompt_manager
 
     def analyze_document(self, document_text: str, context: str) -> Dict[str, Any]:
-        prompt = self.prompt_manager.build_prompt(
+        prompt = self.prompt_manager.get_prompt(
             document_text=document_text,
             context=context,
         )

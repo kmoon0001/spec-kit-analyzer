@@ -60,7 +60,7 @@ class TestNERAnalyzer:
     def test_initialization(self, analyzer):
         """Test NERAnalyzer initialization."""
         assert analyzer.ner_pipeline is not None
-        assert hasattr(analyzer, "presidio_analyzer")
+        assert hasattr(analyzer, "presidio_wrapper")
         assert hasattr(analyzer, "clinical_patterns")
 
     def test_extract_entities_empty_text(self, analyzer):
@@ -223,7 +223,7 @@ class TestNERWithRealModels:
     def test_presidio_integration(self):
         """Test Presidio integration if available."""
         try:
-            from presidio_analyzer import AnalyzerEngine  # noqa: F401
+            from presidio_wrapper import AnalyzerEngine  # noqa: F401
 
             analyzer = NERAnalyzer([])
 

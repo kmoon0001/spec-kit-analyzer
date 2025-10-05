@@ -412,11 +412,7 @@ class AnalysisService:
                         chosen_name = name
                         chosen_profile = profile
             if chosen_profile:
-                logger.info(
-                    "Selected generator profile",
-                    profile_name=chosen_name,
-                    system_memory_gb=round(mem_gb, 1),
-                )
+                logger.info("Selected generator profile %s (system memory %.1f GB)", chosen_name, round(mem_gb, 1))
                 return (
                     chosen_profile.get("repo", ""),
                     chosen_profile.get("filename", ""),
@@ -424,12 +420,7 @@ class AnalysisService:
                 )
             # Fall back to the first profile if none matched
             first_name, first_profile = next(iter(profiles.items()))
-            logger.warning(
-                "No generator profile matched system memory, falling back. "
-                "System memory: %s GB, fallback profile: %s",
-                round(mem_gb, 1),
-                first_name,
-            )
+            logger.warning("No generator profile matched system memory (%.1f GB); falling back to %s", round(mem_gb, 1), first_name)
             return (
                 first_profile.get("repo", ""),
                 first_profile.get("filename", ""),

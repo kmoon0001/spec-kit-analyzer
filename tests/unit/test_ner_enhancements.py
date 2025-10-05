@@ -107,7 +107,8 @@ def ner_analyzer(mocker):
     mocker.patch("src.core.ner.PRESIDIO_AVAILABLE", True)
     mock_presidio = MagicMock()
     mock_presidio.analyze.return_value = []
-    mocker.patch("src.core.ner.AnalyzerEngine", return_value=mock_presidio)
+    mock_presidio.anonymize.return_value = mock_presidio
+    mocker.patch("src.core.ner.get_presidio_wrapper", return_value=mock_presidio)
 
     analyzer = NERAnalyzer(model_names=[])
     return analyzer
