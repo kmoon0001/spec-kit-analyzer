@@ -1,6 +1,7 @@
 """Primary GUI window for the Therapy Compliance Analyzer."""
 from __future__ import annotations
 
+import functools
 import json
 import os
 import webbrowser
@@ -10,6 +11,7 @@ from typing import Any, Callable, Dict, Optional, Type
 import requests
 from PySide6.QtCore import Qt, QThread, QTimer
 from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPalette
+from PySide6.QtGui import QActionGroup
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -152,10 +154,14 @@ class MainApplicationWindow(QMainWindow):
             view_menu.addAction(toggle_performance_action)
 
         theme_menu = QMenu("Theme", self)
+        self.theme_action_group = QActionGroup(self)
+        self.theme_action_group.setExclusive(True)
+
         for name in ("light", "dark"):
             action = QAction(name.capitalize(), self, checkable=True)
-            action.triggered.connect(lambda checked, theme=name: self._apply_theme(theme))
+            action.triggered.connect(functools.partial(self._apply_theme, name))
             theme_menu.addAction(action)
+            self.theme_action_group.addAction(action)
         view_menu.addMenu(theme_menu)
 
     def _build_tools_menu(self, menu_bar: QMenu) -> None:
@@ -316,23 +322,24 @@ class MainApplicationWindow(QMainWindow):
         return panel
 
     def _create_mission_control_tab(self) -> QWidget:
-    tab = QWidget(self)
-    layout = QVBoxLayout(tab)
-    layout.setContentsMargins(0, 0, 0, 0)
-    layout.setSpacing(0)
+        tab = QWidget(self)
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-    self.mission_control_widget = MissionControlWidget(tab)
-    self.mission_control_widget.start_analysis_requested.connect(self._handle_mission_control_start)
-    self.mission_control_widget.review_document_requested.connect(self._handle_mission_control_review)
-    layout.addWidget(self.mission_control_widget)
-    return tab
+        self.mission_control_widget = MissionControlWidget(tab)
+        self.mission_control_widget.start_analysis_requested.connect(self._handle_mission_control_start)
+        self.mission_control_widget.review_document_requested.connect(self._handle_mission_control_review)
+        layout.addWidget(self.mission_control_widget)
+        return tab
 
     def _handle_mission_control_start(self) -> None:
         self.tab_widget.setCurrentWidget(self.analysis_summary_tab)
         self._prompt_for_document()
 
     def _handle_mission_control_review(self, doc_info: dict) -> None:
-        doc_name = doc_info.get("title") or doc_info.get("name") or doc_info.get("document_name") or "Document"
+        doc_name = doc_info.get("title") or doc_info.get("name") \
+            or doc_info.get("document_name") or "Document"
         QMessageBox.information(
             self,
             "Review Document",
@@ -426,14 +433,14 @@ class MainApplicationWindow(QMainWindow):
         self.chat_button.setStyleSheet(
             """
             QPushButton#floatingChatButton {
-                background-color: #0ea5e9;
-                color: white;
+                background-color: palette(highlight);
+                color: palette(highlighted-text);
                 border-radius: 22px;
                 padding: 10px 20px;
                 font-weight: bold;
             }
             QPushButton#floatingChatButton:hover {
-                background-color: #0284c7;
+                background-color: palette(light);
             }
             """
         )
@@ -453,6 +460,16 @@ class MainApplicationWindow(QMainWindow):
         """Applies the selected color theme to the application."""
         palette = get_theme_palette(theme)
         QApplication.instance().setPalette(palette)
+
+        # Sync the combo box without triggering its signal
+        self.theme_combo.blockSignals(True)
+        self.theme_combo.setCurrentText(theme.capitalize())
+        self.theme_combo.blockSignals(False)
+
+        # Sync the menu actions
+        for action in self.theme_action_group.actions():
+            if action.text().lower() == theme:
+                action.setChecked(True)
 
     # ------------------------------------------------------------------
     # Control panel handlers
@@ -506,6 +523,7 @@ class MainApplicationWindow(QMainWindow):
             },
         }
 
+        self.control_panel.setEnabled(False)
         self.analysis_button.setEnabled(False)
         self.progress_bar.setRange(0, 0)
         self.progress_bar.show()
@@ -541,7 +559,7 @@ class MainApplicationWindow(QMainWindow):
 
     def _handle_worker_error(self, message: str) -> None:
         QMessageBox.critical(self, "Analysis failed", message)
-        self.analysis_button.setEnabled(True)
+        self.control_panel.setEnabled(True)
         self.progress_bar.hide()
         self.statusBar().showMessage("Analysis failed", 5000)
 
@@ -585,21 +603,21 @@ class MainApplicationWindow(QMainWindow):
         self.detailed_results_browser.setPlainText(json.dumps(payload, indent=2))
 
     def _handle_analysis_success(self, payload: Dict[str, Any]) -> None:
-        self.analysis_button.setEnabled(True)
+        self.control_panel.setEnabled(True)
         self.statusBar().showMessage("Analysis complete", 5000)
         self.progress_bar.hide()
         self._update_result_views(payload)
 
     def _handle_analysis_error(self, message: str) -> None:
         QMessageBox.critical(self, "Analysis error", message)
-        self.analysis_button.setEnabled(True)
+        self.control_panel.setEnabled(True)
         self.progress_bar.hide()
         self.statusBar().showMessage("Analysis error", 5000)
 
     def _handle_analysis_finished(self) -> None:
         self._stop_polling_worker()
         self.progress_bar.hide()
-        self.analysis_button.setEnabled(True)
+        self.control_panel.setEnabled(True)
 
     def _refresh_mission_control(self) -> None:
         """Fetches data for the main mission control dashboard."""
