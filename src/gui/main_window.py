@@ -43,6 +43,7 @@ from src.core.report_generator import ReportGenerator
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
+from src.gui.themes import get_theme_palette
 from src.gui.workers.dashboard_worker import DashboardWorker
 from src.gui.workers.single_analysis_polling_worker import SingleAnalysisPollingWorker
 
@@ -448,21 +449,8 @@ class MainApplicationWindow(QMainWindow):
         QTimer.singleShot(500, self._refresh_meta_analytics)
 
     def _apply_theme(self, theme: str) -> None:
-        palette = QPalette()
-        if theme == 'dark':
-            palette.setColor(QPalette.Window, QColor(30, 34, 43))
-            palette.setColor(QPalette.WindowText, Qt.white)
-            palette.setColor(QPalette.Base, QColor(24, 26, 32))
-            palette.setColor(QPalette.AlternateBase, QColor(30, 34, 43))
-            palette.setColor(QPalette.ToolTipBase, Qt.white)
-            palette.setColor(QPalette.ToolTipText, Qt.white)
-            palette.setColor(QPalette.Text, Qt.white)
-            palette.setColor(QPalette.Button, QColor(45, 49, 60))
-            palette.setColor(QPalette.ButtonText, Qt.white)
-            palette.setColor(QPalette.Highlight, QColor(14, 165, 233))
-            palette.setColor(QPalette.HighlightedText, Qt.white)
-        else:
-            palette = QApplication.style().standardPalette()
+        """Applies the selected color theme to the application."""
+        palette = get_theme_palette(theme)
         QApplication.instance().setPalette(palette)
 
     # ------------------------------------------------------------------
