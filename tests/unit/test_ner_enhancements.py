@@ -114,7 +114,7 @@ def ner_analyzer(mocker):
 
 
 @pytest.mark.skip(
-    reason="Skipping due to unresolved dependency conflict with spaCy models."
+    reason="Skipping because optional transformer models are unavailable in this environment."
 )
 def test_extract_clinician_with_keyword(ner_analyzer):
     """Test clinician name identification using regex patterns."""
@@ -128,7 +128,7 @@ def test_extract_clinician_with_keyword(ner_analyzer):
 
 
 @pytest.mark.skip(
-    reason="Skipping due to unresolved dependency conflict with spaCy models."
+    reason="Skipping because optional transformer models are unavailable in this environment."
 )
 def test_ignore_person_not_near_keyword(ner_analyzer):
     """Test that person names not near clinical keywords are ignored."""
@@ -140,7 +140,7 @@ def test_ignore_person_not_near_keyword(ner_analyzer):
 
 
 @pytest.mark.skip(
-    reason="Skipping due to unresolved dependency conflict with spaCy models."
+    reason="Skipping because optional transformer models are unavailable in this environment."
 )
 def test_multiple_clinicians_found_and_deduplicated(ner_analyzer):
     """Test multiple clinicians found and deduplicated using regex patterns."""
@@ -155,7 +155,7 @@ def test_multiple_clinicians_found_and_deduplicated(ner_analyzer):
 
 
 @pytest.mark.skip(
-    reason="Skipping due to unresolved dependency conflict with spaCy models."
+    reason="Skipping because optional transformer models are unavailable in this environment."
 )
 def test_deduplication_of_same_name(ner_analyzer):
     """Test that the same name found twice is deduplicated."""
@@ -169,7 +169,7 @@ def test_deduplication_of_same_name(ner_analyzer):
 
 
 @pytest.mark.skip(
-    reason="Skipping due to unresolved dependency conflict with spaCy models."
+    reason="Skipping because optional transformer models are unavailable in this environment."
 )
 def test_extract_medical_entities(ner_analyzer):
     """Test extraction and categorization of medical entities."""

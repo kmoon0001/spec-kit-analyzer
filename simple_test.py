@@ -9,8 +9,8 @@ print("Starting simple test...")
 try:
     print("1. Testing basic imports...")
     start = time.time()
-    from PyQt6.QtWidgets import QApplication
-    print(f"   PyQt6 imported in {time.time() - start:.2f}s")
+    from PySide6.QtWidgets import QApplication
+    print(f"   PySide6 imported in {time.time() - start:.2f}s")
     
     start = time.time()
     from src.config import get_settings

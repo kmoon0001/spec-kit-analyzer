@@ -6,6 +6,8 @@ from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import cos_sim
 
+from src.config import get_settings
+
 try:  # pragma: no cover - optional dependency during tests
     from src.database import crud
 except Exception:  # pragma: no cover - fallback when database layer unavailable
@@ -18,16 +20,20 @@ logger = logging.getLogger(__name__)
 class HybridRetriever:
     """Combine keyword and dense retrieval over in-memory rules."""
 
-    def __init__(self, rules: Optional[List[Dict[str, str]]] = None) -> None:
+    def __init__(self, rules: Optional[List[Dict[str, str]]] = None, model_name: Optional[str] = None) -> None:
+        settings = get_settings()
         self.rules = rules or self._load_rules_from_db()
-        self.dense_retriever = SentenceTransformer(
-            "sentence-transformers/all-MiniLM-L6-v2"
-        )
+        dense_model = model_name or getattr(settings.retrieval, "dense_model_name", None)
+        if not dense_model:
+            dense_model = getattr(settings.models, "retriever", "sentence-transformers/all-MiniLM-L6-v2")
+        self.model_name = dense_model
+        self.dense_retriever = SentenceTransformer(self.model_name)
         self._build_indices()
 
     def _build_indices(self) -> None:
         self.corpus = [f"{rule['name']}. {rule['content']}" for rule in self.rules]
         tokenized_corpus = [document.lower().split() for document in self.corpus]
+        logger.debug("Hybrid retriever using model", model=self.model_name)
         self.bm25 = BM25Okapi(tokenized_corpus) if tokenized_corpus else None
         self.corpus_embeddings = (
             self.dense_retriever.encode(self.corpus, convert_to_tensor=True)

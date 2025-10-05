@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QLabel,
 )
 from PySide6.QtCore import QThread
-from PyQt6.QtGui import QKeySequence, QShortcut
+from PySide6.QtGui import QKeySequence, QShortcut
 from typing import List, Dict
 
 from ..workers.chat_worker import ChatWorker

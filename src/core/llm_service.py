@@ -1,22 +1,16 @@
-"""LLM Service for managing local language models using transformers."""
-
-from threading import Lock
-from typing import Any, Dict, Optional
+"""LLM Service for managing local language models."""
+from __future__ import annotations
 
 import logging
+from threading import Lock
+from typing import Any, Dict, Optional
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 
 class LLMService:
-    """
-    A thread-safe, lazy-loading service for managing a local language model.
-
-    This service ensures that the large language model is only loaded into memory
-    when it is first needed, reducing the application's initial memory footprint.
-    It is designed to be thread-safe to prevent race conditions during model loading
-    in concurrent environments.
-    """
+    """Thread-safe, lazy-loading language model service."""
 
     _instance = None
     _lock = Lock()
@@ -27,165 +21,234 @@ class LLMService:
         model_filename: str,
         llm_settings: Optional[Dict[str, Any]] = None,
         revision: Optional[str] = None,
-    ):
-        """
-        Initializes the LLM Service configuration without loading the model.
-
-        Args:
-            model_repo_id (str): The Hugging Face repository ID for the model.
-            model_filename (str): Ignored for transformers (kept for compatibility).
-            llm_settings (dict, optional): A dictionary of settings for the model.
-            revision (str, optional): The specific model revision (commit hash) to use.
-        """
+        local_model_path: Optional[str] = None,
+    ) -> None:
         self.model_repo_id = model_repo_id
-        self.model_filename = model_filename  # Not used but kept for compatibility
+        self.model_filename = model_filename
         self.settings = llm_settings or {}
         self.revision = revision
-        self.llm = None  # The model will be loaded lazily.
+        self.local_model_path = Path(local_model_path).expanduser().resolve() if local_model_path else None
+
+        self.backend = (self.settings.get("model_type") or "transformers").lower()
+        self.llm = None
         self.tokenizer = None
+        self.seq2seq = False
         self.is_loading = False
 
-    def _load_model(self):
-        """
-        Loads the model using transformers library.
-        This method is intended to be called internally and is not thread-safe by itself.
-        """
+    def _resolve_model_source(self) -> tuple[str, Optional[str]]:
+        """Resolve the repository/directory and optional model file for loading."""
+        source = self.model_repo_id
+        model_file = self.model_filename or None
+        if self.local_model_path:
+            candidate = self.local_model_path
+            if candidate.is_file():
+                source = str(candidate.parent)
+                model_file = model_file or candidate.name
+            else:
+                source = str(candidate)
+        return source, model_file
+
+    def _load_model(self) -> None:
         if self.llm:
             return
 
         self.is_loading = True
         try:
+            if self.backend == "ctransformers":
+                self._load_ctransformers_model()
+            else:
+                self._load_transformers_model()
             logger.info(
-                "Loading LLM with transformers",
-                model_repo_id=self.model_repo_id,
+                "LLM loaded successfully",
+                extra={"backend": self.backend, "model": self.model_repo_id},
             )
-
-            # Use FLAN-T5-small - excellent for instruction-following and Q&A
-            # 308MB, optimized for tasks like compliance analysis
-            model_id = "google/flan-t5-small"  # 308MB, great for instructions
-
-            # Import T5 models
-            from transformers import T5ForConditionalGeneration, T5Tokenizer
-
-            # Load tokenizer and model
-            self.tokenizer = T5Tokenizer.from_pretrained(model_id)
-
-            import torch  # Lazy import
-            self.llm = T5ForConditionalGeneration.from_pretrained(
-                model_id,
-                torch_dtype=torch.float32,  # Use float32 for CPU
-                device_map="cpu",
-                low_cpu_mem_usage=True,
-            )
-
-            # T5 doesn't need pad token setup like GPT models
-
-            logger.info("LLM loaded successfully with transformers")
-        except Exception as e:
+        except Exception as exc:  # noqa: BLE001 - preserve error detail for operators
             logger.critical(
-                "Fatal error: Failed to load LLM", error=str(e), exc_info=True
+                "Fatal error: Failed to load LLM",
+                exc_info=True,
+                extra={"error": str(exc)},
             )
             self.llm = None
             self.tokenizer = None
         finally:
             self.is_loading = False
 
-    def _ensure_model_loaded(self):
-        """
-        Ensures the model is loaded before use. This method is thread-safe.
-        """
+    def _load_ctransformers_model(self) -> None:
+        try:
+            from ctransformers import AutoModelForCausalLM
+        except ImportError as exc:  # pragma: no cover - optional dependency
+            raise RuntimeError("ctransformers backend requested but not installed") from exc
+
+        if not self.model_repo_id:
+            raise ValueError("Model repository ID is required for ctransformers backend.")
+
+        source, model_file = self._resolve_model_source()
+        model_kwargs: Dict[str, Any] = {
+            "model_file": model_file,
+            "model_type": self.settings.get("hf_model_type", "llama"),
+            "context_length": self.settings.get("context_length", 2048),
+        }
+        for key in ("gpu_layers", "threads", "batch_size"):
+            value = self.settings.get(key)
+            if value is not None:
+                model_kwargs[key] = value
+        model_kwargs = {k: v for k, v in model_kwargs.items() if v not in (None, "")}
+
+        self.llm = AutoModelForCausalLM.from_pretrained(
+            source,
+            **model_kwargs,
+        )
+        self.tokenizer = None
+        self.seq2seq = False
+
+    def _load_transformers_model(self) -> None:
+        model_id, _ = self._resolve_model_source()
+        if not model_id:
+            model_id = "google/flan-t5-small"
+
+        from transformers import (
+            AutoModelForCausalLM,
+            AutoModelForSeq2SeqLM,
+            AutoTokenizer,
+        )
+
+        import torch
+
+        tokenizer_kwargs: Dict[str, Any] = {}
+        if self.revision:
+            tokenizer_kwargs["revision"] = self.revision
+
+        self.tokenizer = AutoTokenizer.from_pretrained(model_id, **tokenizer_kwargs)
+        model_kwargs: Dict[str, Any] = {"low_cpu_mem_usage": True}
+        if self.revision:
+            model_kwargs["revision"] = self.revision
+        model_kwargs["torch_dtype"] = (
+            torch.float16 if torch.cuda.is_available() else torch.float32
+        )
+
+        try:
+            self.llm = AutoModelForCausalLM.from_pretrained(model_id, **model_kwargs)
+            self.seq2seq = False
+        except Exception:  # noqa: BLE001 - fallback to seq2seq architectures
+            self.llm = AutoModelForSeq2SeqLM.from_pretrained(model_id, **model_kwargs)
+            self.seq2seq = True
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.llm.to(device)
+        self.llm.eval()
+
+    def _ensure_model_loaded(self) -> None:
         if self.llm or self.is_loading:
             return
         with self._lock:
-            # Double-check locking to prevent multiple threads from loading the model.
             if not self.llm:
                 self._load_model()
 
     def is_ready(self) -> bool:
-        """
-        Checks if the LLM is loaded and ready for inference.
-        This will trigger the model to load if it hasn't been already.
-        """
         self._ensure_model_loaded()
-        return self.llm is not None and self.tokenizer is not None
+        return self.llm is not None and (self.backend == "ctransformers" or self.tokenizer is not None)
 
     def generate(self, prompt: str, **kwargs) -> str:
-        """
-        Generates text using the loaded LLM.
-
-        If the model is not loaded, it will be loaded on the first call.
-
-        Args:
-            prompt (str): The input text prompt for the model.
-            **kwargs: Additional generation parameters to override defaults.
-
-        Returns:
-            A string containing the generated text or an error message.
-        """
         if not self.is_ready():
-            logger.error(
-                "LLM is not available or failed to load. Cannot generate text."
-            )
+            logger.error("LLM is not available or failed to load. Cannot generate text.")
             return "Error: LLM service is not available."
 
+        gen_params = dict(self.settings.get("generation_params", {}))
+        gen_params.update(kwargs)
+
+        max_new_tokens = int(gen_params.pop("max_new_tokens", 512))
+        temperature = float(gen_params.pop("temperature", 0.1))
+        top_p = float(gen_params.pop("top_p", 0.9))
+        top_k = int(gen_params.pop("top_k", 40))
+        repetition_penalty = float(gen_params.pop("repeat_penalty", 1.1))
+        stop_sequences = gen_params.pop("stop_sequences", None)
+
         try:
-            # Combine default and call-specific generation parameters.
-            gen_params = self.settings.get("generation_params", {}).copy()
-            gen_params.update(kwargs)
-
-            # Get parameters
-            max_new_tokens = gen_params.pop("max_new_tokens", 512)
-            temperature = gen_params.pop("temperature", 0.1)
-
-            logger.debug(
-                "Generating text with transformers",
-                max_new_tokens=max_new_tokens,
-                temperature=temperature,
-            )
-
-            if self.llm is None or self.tokenizer is None:
-                logger.error("LLM model or tokenizer is not loaded")
-                return "Error: LLM model is not available."
-
-            # Tokenize input (T5 uses encoder-decoder architecture)
-            inputs = self.tokenizer(
-                prompt, return_tensors="pt", truncation=True, max_length=512
-            )
-
-            # Generate with T5
-            import torch  # Lazy import
-            with torch.no_grad():
-                outputs = self.llm.generate(
-                    **inputs,
-                    max_length=max_new_tokens,  # T5 uses max_length not max_new_tokens
-                    temperature=temperature if temperature > 0 else 1.0,
-                    do_sample=temperature > 0,
-                    top_p=0.9,
-                    num_beams=2,  # Use beam search for better quality
+            if self.backend == "ctransformers":
+                output = self.llm(  # type: ignore[operator]
+                    prompt,
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                    top_k=top_k,
+                    repetition_penalty=repetition_penalty,
+                    stop=stop_sequences,
+                    **gen_params,
                 )
+                return output.strip() if isinstance(output, str) else str(output)
 
-            # Decode the output (T5 generates full sequence)
-            generated_text = self.tokenizer.decode(
-                outputs[0], skip_special_tokens=True
-            ).strip()
+            if self.tokenizer is None:
+                logger.error("Tokenizer not initialised for transformers backend")
+                return "Error: tokenizer unavailable."
 
-            return generated_text
+            import torch
 
-        except Exception as e:
-            logger.error(
-                "An error occurred during text generation", error=str(e), exc_info=True
+            inputs = self.tokenizer(
+                prompt,
+                return_tensors="pt",
+                truncation=True,
+                max_length=int(self.settings.get("context_length", 512)),
             )
+            device = next(self.llm.parameters()).device  # type: ignore[attr-defined]
+            inputs = {key: value.to(device) for key, value in inputs.items()}
+
+            generate_kwargs = {
+                "max_new_tokens": max_new_tokens,
+                "temperature": max(temperature, 1e-3),
+                "top_p": top_p,
+                "top_k": top_k,
+                "repetition_penalty": repetition_penalty,
+                "do_sample": temperature > 0,
+            }
+            stopping_criteria = None
+            if stop_sequences:
+                from transformers import StoppingCriteria, StoppingCriteriaList  # type: ignore
+
+                class _StopOnSequences(StoppingCriteria):
+                    def __init__(self, sequence_token_ids):
+                        super().__init__()
+                        self.sequence_token_ids = sequence_token_ids
+
+                    def __call__(self, input_ids, scores, **kwargs):  # type: ignore[override]
+                        tokens = input_ids[0].tolist()
+                        for sequence in self.sequence_token_ids:
+                            if len(tokens) >= len(sequence) and tokens[-len(sequence):] == sequence:
+                                return True
+                        return False
+
+                stop_token_ids = []
+                for sequence in stop_sequences:
+                    if not sequence:
+                        continue
+                    encoded = self.tokenizer(
+                        sequence,
+                        add_special_tokens=False,
+                        return_attention_mask=False,
+                        return_token_type_ids=False,
+                    )
+                    ids = encoded.get("input_ids")
+                    if not ids:
+                        continue
+                    if isinstance(ids[0], list):
+                        stop_token_ids.extend(ids)
+                    else:
+                        stop_token_ids.append(ids)
+                if stop_token_ids:
+                    stopping_criteria = StoppingCriteriaList([_StopOnSequences(stop_token_ids)])
+
+            if self.seq2seq:
+                generate_kwargs["max_length"] = max_new_tokens
+
+            if stopping_criteria is not None:
+                generate_kwargs["stopping_criteria"] = stopping_criteria
+
+            with torch.no_grad():
+                outputs = self.llm.generate(**inputs, **generate_kwargs)
+
+            return self.tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+        except Exception as exc:  # noqa: BLE001 - capture inference issues
+            logger.error("An error occurred during text generation", exc_info=True, extra={"error": str(exc)})
             return "An error occurred during text generation."
 
     def generate_analysis(self, prompt: str, **kwargs) -> str:
-        """
-        Alias for generate method to maintain compatibility with other services.
-
-        Args:
-            prompt (str): The input text prompt for analysis.
-            **kwargs: Additional generation parameters.
-
-        Returns:
-            A string containing the generated analysis.
-        """
         return self.generate(prompt, **kwargs)

@@ -119,3 +119,7 @@ api_server.log
 # Ignore compiled files from other languages if any
 *.o
 *.out
+# Local model weights
+models/
+*.gguf
+

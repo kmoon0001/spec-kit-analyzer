@@ -1,8 +1,10 @@
 import logging
-from typing import Any
+from typing import Any, Optional
 from threading import Lock
 
 from sentence_transformers import SentenceTransformer
+
+from src.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -19,14 +21,18 @@ class EmbeddingService:
     _model = None
     _lock = Lock()
 
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
+    def __init__(self, model_name: Optional[str] = None):
         """
         Initializes the EmbeddingService configuration.
 
         Args:
-            model_name (str): The name of the SentenceTransformer model to use.
+            model_name (str | None): The name of the SentenceTransformer model to use.
         """
-        self.model_name = model_name
+        settings = get_settings()
+        default_model = getattr(settings.retrieval, "dense_model_name", None)
+        if not default_model:
+            default_model = getattr(settings.models, "retriever", "sentence-transformers/all-MiniLM-L6-v2")
+        self.model_name = model_name or default_model
         self.is_loading = False
 
     def _load_model(self):

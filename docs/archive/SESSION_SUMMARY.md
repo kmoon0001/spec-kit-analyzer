@@ -24,12 +24,12 @@
 - `tests/integration/test_dashboard_api.py`
 - `tests/integration/test_full_analysis.py`
 
-### 2. **LLM Backend Replacement**
-- ✅ Replaced `ctransformers` with `transformers` library
-- ✅ Switched from GGUF models to standard PyTorch models
-- ✅ Configured to use `microsoft/phi-2` (2.7GB) - small, fast, and reliable
-- ✅ Fixed model selection logic to use appropriate models based on system RAM
-- ✅ Updated `requirements.txt` to remove incompatible dependencies
+### 2. **LLM Backend Refresh**
+- ✅ Integrated quantized `TheBloke/meditron-7B-GGUF` profiles for clinical narrative generation.
+- ✅ Confirmed Meditron GGUF is the sole generator (no fallback required).
+- ✅ Enabled dual-backend loading (ctransformers for GGUF, transformers fallback) with smarter memory gates.
+- ✅ Fixed model selection logic to use appropriate models based on system RAM.
+- ✅ Updated `requirements.txt` to keep dependencies compatible with quantized + transformer pipelines.
 
 ### 3. **Bug Fixes**
 - ✅ Fixed `fact_checker` attribute access error in AI loader worker
@@ -59,4 +59,3 @@
 - ✅ **Database maintenance** - Scheduled and running
 
 ### What Needs LLM (Currently Loading):
-- ⏳ **AI te

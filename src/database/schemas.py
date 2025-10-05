@@ -17,8 +17,7 @@ class Finding(FindingBase):
     id: int
     report_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FindingCreate(FindingBase):
@@ -42,8 +41,7 @@ class Report(ReportBase):
     analysis_date: datetime.datetime
     findings: List[Finding] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FindingSummary(BaseModel):
@@ -70,8 +68,7 @@ class RubricCreate(RubricBase):
 class Rubric(RubricBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # --- Schemas for Users and Auth ---
@@ -92,8 +89,7 @@ class User(UserBase):
     is_active: bool
     is_admin: bool = False
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserPasswordChange(BaseModel):

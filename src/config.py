@@ -3,7 +3,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
-from pydantic import BaseModel, Field, BaseSettings
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class PathsSettings(BaseModel):
@@ -65,6 +66,7 @@ class PhiScrubberModelSettings(BaseModel):
 class ModelsSettings(BaseModel):
     generator: Optional[str] = None
     generator_filename: Optional[str] = None
+    generator_local_path: Optional[str] = None
     generator_profiles: Optional[Dict[str, GeneratorProfile]] = None
     chat: Optional[ChatModelSettings] = None
     retriever: str
@@ -260,20 +262,50 @@ class FeatureSettings(BaseModel):
 
 
 class Settings(BaseSettings):
+    """Top-level application settings composed from config.yaml and environment."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="allow",
+    )
+
     use_ai_mocks: bool = False
-    database_url: str = "sqlite:///./letsgo.db"
+    enable_director_dashboard: bool = True
+    database: DatabaseSettings = Field(
+        default_factory=lambda: DatabaseSettings(url="sqlite:///./letsgo.db")
+    )
+    auth: AuthSettings = Field(
+        default_factory=lambda: AuthSettings(
+            secret_key="your-super-secret-jwt-key-change-this-in-production",
+            algorithm="HS256",
+            access_token_expire_minutes=30,
+        )
+    )
+    maintenance: MaintenanceSettings = Field(
+        default_factory=lambda: MaintenanceSettings(purge_retention_days=30)
+    )
+    paths: PathsSettings = Field(
+        default_factory=lambda: PathsSettings(
+            temp_upload_dir="./temp",
+            api_url="http://localhost:8001",
+            rule_dir="./src/resources",
+        )
+    )
+    models: ModelsSettings
+    llm: LLMSettings
+    retrieval: RetrievalSettings
+    analysis: AnalysisSettings
+    habits_framework: HabitsFrameworkSettings = Field(
+        default_factory=HabitsFrameworkSettings
+    )
+    performance: PerformanceSettings = Field(default_factory=PerformanceSettings)
+    logging: LoggingSettings = Field(default_factory=LoggingSettings)
+    security: SecuritySettings = Field(default_factory=SecuritySettings)
+    features: FeatureSettings = Field(default_factory=FeatureSettings)
     host: str = "127.0.0.1"
     port: int = 8001
     log_level: str = "INFO"
-    # Add other environment-driven settings here as needed
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-
-
-# Create the single settings instance used across the app
-settings = Settings()
 
 
 @lru_cache()
@@ -293,7 +325,13 @@ def get_settings() -> Settings:
     settings = Settings(**config_data)
 
     # Manually override the secret key if it was loaded from the environment
-    if settings.SECRET_KEY:
-        settings.auth.secret_key = settings.SECRET_KEY
+    secret_override = getattr(settings, "SECRET_KEY", None)
+    if secret_override:
+        settings.auth.secret_key = secret_override
 
     return settings
+
+
+# Create the single settings instance used across the app
+settings = get_settings()
+

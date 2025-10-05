@@ -13,10 +13,11 @@ from typing import List, Dict, Any, Optional
 from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
 
 try:
-    from presidio_analyzer import AnalyzerEngine
+    from src.core.presidio_wrapper import get_presidio_wrapper
 
     PRESIDIO_AVAILABLE = True
-except ImportError:
+except Exception:  # noqa: BLE001 - optional dependency
+    get_presidio_wrapper = None  # type: ignore
     PRESIDIO_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
@@ -91,18 +92,58 @@ class NERPipeline:
         return self._merge_entities(all_entities)
 
     def _merge_entities(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Merge overlapping entities from multiple models."""
-        # Simple deduplication - can be enhanced with more sophisticated merging
+        '''Merge overlapping entities using score- and span-aware heuristics.'''
+        if not entities:
+            return []
+
+        normalised: List[Dict[str, Any]] = []
+        for raw in entities:
+            word = (raw.get("word") or raw.get("text") or "").strip()
+            if not word:
+                continue
+            start = int(raw.get("start", 0) or 0)
+            end = int(raw.get("end", start) or start)
+            if end < start:
+                start, end = end, start
+            normalised.append({**raw,
+                                 "word": word,
+                                 "start": start,
+                                 "end": end,
+                                 "entity_group": raw.get("entity_group") or raw.get("entity"),
+                                 "score": float(raw.get("score", 0.0) or 0.0)})
+
+        normalised.sort(key=lambda item: (item["start"], -item["score"]))
+        merged: List[Dict[str, Any]] = []
+
+        for candidate in normalised:
+            match = None
+            for existing in merged:
+                if candidate["end"] <= existing["start"] or candidate["start"] >= existing["end"]:
+                    continue
+                match = existing
+                existing_span = existing["end"] - existing["start"]
+                candidate_span = candidate["end"] - candidate["start"]
+                if candidate["start"] <= existing["start"] and candidate["end"] >= existing["end"]:
+                    existing.update(candidate)
+                elif existing["start"] <= candidate["start"] and existing["end"] >= candidate["end"]:
+                    if candidate["score"] > existing["score"]:
+                        existing.update(candidate)
+                else:
+                    if candidate["score"] > existing["score"] or candidate_span > existing_span:
+                        existing.update(candidate)
+                break
+            if match is None:
+                merged.append(candidate.copy())
+
+        deduped: List[Dict[str, Any]] = []
         seen = set()
-        merged = []
-        for entity in entities:
-            key = (entity.get("start", 0), entity.get("end", 0), entity.get("word", ""))
-            if key not in seen:
-                seen.add(key)
-                merged.append(entity)
-        return merged
-
-
+        for entity in merged:
+            key = (entity["start"], entity["end"], entity["word"].lower())
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(entity)
+        return deduped
 class NERAnalyzer:
     """
     Advanced NER analyzer for clinical documents with specialized medical entity extraction.
@@ -120,15 +161,16 @@ class NERAnalyzer:
                         If None, uses default models optimized for clinical text.
         """
         self.ner_pipeline = NERPipeline(model_names)
-        self.presidio_analyzer = None
+        self.presidio_wrapper = None
 
         # Initialize presidio if available
-        if PRESIDIO_AVAILABLE:
+        if PRESIDIO_AVAILABLE and get_presidio_wrapper:
             try:
-                self.presidio_analyzer = AnalyzerEngine()
+                self.presidio_wrapper = get_presidio_wrapper("biomedical")
                 logger.info("Successfully initialized Presidio analyzer")
             except Exception as e:
                 logger.warning("Failed to initialize Presidio: %s", str(e))
+                self.presidio_wrapper = None
 
         # Enhanced clinical patterns for regex-based extraction
         self.clinical_patterns = {
@@ -162,7 +204,7 @@ class NERAnalyzer:
             entities.extend(transformer_entities)
 
         # Extract entities using presidio (if available)
-        if self.presidio_analyzer:
+        if self.presidio_wrapper:
             presidio_entities = self._extract_presidio_entities(text)
             entities.extend(presidio_entities)
 
@@ -171,7 +213,7 @@ class NERAnalyzer:
     def _extract_presidio_entities(self, text: str) -> List[Dict[str, Any]]:
         """Extract entities using Presidio analyzer."""
         try:
-            results = self.presidio_analyzer.analyze(text=text, language="en")
+            results = self.presidio_wrapper.analyze(text)
             entities = []
             for result in results:
                 entities.append(
@@ -263,7 +305,7 @@ class NERAnalyzer:
                         clinician_names.append(name)
 
             # Method 3: Use presidio to find PERSON entities near clinical context
-            if self.presidio_analyzer:
+            if self.presidio_wrapper:
                 presidio_entities = self._extract_presidio_entities(text)
                 for entity in presidio_entities:
                     if entity.get("entity_group") == "PERSON":

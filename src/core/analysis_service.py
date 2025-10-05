@@ -88,12 +88,27 @@ class AnalysisService:
         settings = _get_settings()
 
         # Select generator profile based on system memory
-        repo_id, filename = self._select_generator_profile(settings.models.model_dump())
+        repo_id, filename, revision = self._select_generator_profile(settings.models.model_dump())
+
+        local_model_path = None
+        configured_local = getattr(settings.models, 'generator_local_path', None)
+        if configured_local:
+            candidate_path = Path(configured_local)
+            if not candidate_path.is_absolute():
+                candidate_path = (ROOT_DIR / candidate_path).resolve()
+            if candidate_path.exists():
+                local_model_path = str(candidate_path)
+            else:
+                logger.warning(
+                    'Configured generator_local_path does not exist', path=str(candidate_path)
+                )
 
         self.llm_service = llm_service or LLMService(
             model_repo_id=repo_id,
             model_filename=filename,
             llm_settings=settings.llm.model_dump(),
+            revision=revision,
+            local_model_path=local_model_path,
         )
         self.retriever = retriever or HybridRetriever()
         self.ner_analyzer = ner_analyzer or NERAnalyzer(settings.models.ner_ensemble)
@@ -357,7 +372,7 @@ class AnalysisService:
         overall = max(0.0, min(1.0, base_conf - penalty))
         return overall
 
-    def _select_generator_profile(self, models_cfg: Dict[str, Any]) -> tuple[str, str]:
+    def _select_generator_profile(self, models_cfg: Dict[str, Any]) -> tuple[str, str, Optional[str]]:
         """
         Selects the appropriate generator profile based on system memory.
 
@@ -369,7 +384,7 @@ class AnalysisService:
             models_cfg (Dict[str, Any]): The models configuration.
 
         Returns:
-            tuple[str, str]: A tuple containing the repository ID and filename of the selected model.
+            tuple[str, str, Optional[str]]: Repository ID, filename, and optional revision for the selected model.
         """
         profiles = models_cfg.get("generator_profiles") or {}
         if isinstance(profiles, dict) and profiles:
@@ -402,8 +417,10 @@ class AnalysisService:
                     profile_name=chosen_name,
                     system_memory_gb=round(mem_gb, 1),
                 )
-                return chosen_profile.get("repo", ""), chosen_profile.get(
-                    "filename", ""
+                return (
+                    chosen_profile.get("repo", ""),
+                    chosen_profile.get("filename", ""),
+                    chosen_profile.get("revision"),
                 )
             # Fall back to the first profile if none matched
             first_name, first_profile = next(iter(profiles.items()))
@@ -413,9 +430,17 @@ class AnalysisService:
                 round(mem_gb, 1),
                 first_name,
             )
-            return first_profile.get("repo", ""), first_profile.get("filename", "")
+            return (
+                first_profile.get("repo", ""),
+                first_profile.get("filename", ""),
+                first_profile.get("revision"),
+            )
         # Legacy single-entry configuration
-        return models_cfg.get("generator", ""), models_cfg.get("generator_filename", "")
+        return (
+            models_cfg.get("generator", ""),
+            models_cfg.get("generator_filename", ""),
+            models_cfg.get("generator_revision"),
+        )
 
     def _build_chat_llm(
         self,

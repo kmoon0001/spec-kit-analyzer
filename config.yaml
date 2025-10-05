@@ -20,6 +20,7 @@ paths:
 models:
   generator: TheBloke/meditron-7B-GGUF
   generator_filename: meditron-7b.Q4_K_M.gguf
+  generator_local_path: models/meditron
   generator_profiles:
     clinical_q4_balanced:
       repo: TheBloke/meditron-7B-GGUF
@@ -37,16 +38,6 @@ models:
       filename: meditron-7b.Q6_K.gguf
       revision: main
       min_system_gb: 24.0
-  chat:
-    repo: TinyLlama/TinyLlama-1.1B-Chat-v1.0
-    filename: TinyLlama/TinyLlama-1.1B-Chat-v1.0
-    revision: main
-    model_type: transformers
-    context_length: 2048
-    generation_params:
-      temperature: 0.7
-      max_new_tokens: 256
-      top_p: 0.9
   retriever: sentence-transformers/all-MiniLM-L6-v2
   fact_checker: microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext
   ner_ensemble:

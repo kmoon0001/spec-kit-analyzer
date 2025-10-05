@@ -2,7 +2,7 @@
 """Minimal GUI launcher that bypasses heavy imports."""
 
 import sys
-from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QLabel, QPushButton, QTextEdit
+from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QLabel, QPushButton, QTextEdit
 
 class MinimalMainWindow(QMainWindow):
     def __init__(self):
@@ -46,7 +46,7 @@ class MinimalMainWindow(QMainWindow):
         layout.addLayout(btn_layout)
         
     def upload_document(self):
-        from PyQt6.QtWidgets import QFileDialog
+        from PySide6.QtWidgets import QFileDialog
         file_path, _ = QFileDialog.getOpenFileName(
             self, 
             "Select Document", 

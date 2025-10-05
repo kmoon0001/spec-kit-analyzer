@@ -1,57 +1,80 @@
-import logging
+"""PHI scrubbing service built on Presidio with configuration support."""
+from __future__ import annotations
 
-from presidio_analyzer import AnalyzerEngine
-from presidio_anonymizer import AnonymizerEngine
+import logging
+from typing import Optional
+
 from presidio_anonymizer.entities import OperatorConfig
+
+from src.core.presidio_wrapper import (
+    PresidioWrapper,
+    build_default_operators,
+    get_presidio_wrapper,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class PhiScrubberService:
-    """
-    A service for robustly scrubbing Protected Health Information using Presidio.
-    """
+    """A service for scrubbing Protected Health Information (PHI)."""
 
-    def __init__(self):
-        """Initializes the Presidio-based PHI Scrubber Service."""
-        logger.info("Initializing PhiScrubberService with Presidio.")
-        # Setup the analyzer
-        self.analyzer = AnalyzerEngine()
-        # Setup the anonymizer
-        self.anonymizer = AnonymizerEngine()
-        logger.info("PhiScrubberService initialized.")
+    def __init__(
+        self,
+        domain: str = "general",
+        replacement: Optional[str] = None,
+        wrapper: Optional[PresidioWrapper] = None,
+        operators: Optional[dict[str, OperatorConfig]] = None,
+    ) -> None:
+        self.domain = domain
+        configured_replacement, configured_model = self._resolve_configuration(domain)
 
-    def scrub(self, text: str) -> str:
-        """
-        Scrubs PHI from the provided text using Presidio.
+        self.replacement = replacement or configured_replacement or "<PHI>"
+        if wrapper is not None:
+            self.wrapper = wrapper
+        elif get_presidio_wrapper is not None:
+            self.wrapper = get_presidio_wrapper(domain=domain, model_name=configured_model)
+        else:
+            self.wrapper = None
+        self.operators = operators or build_default_operators(self.replacement)
 
-        Args:
-            text: The text to scrub.
+    def _resolve_configuration(self, domain: str) -> tuple[Optional[str], Optional[str]]:
+        try:
+            from src.config import get_settings
 
-        Returns:
-            The scrubbed text.
-        """
+            settings = get_settings()
+        except Exception:  # noqa: BLE001 - defensive runtime safeguard
+            return None, None
+
+        models_cfg = getattr(settings, "models", None)
+        if not models_cfg:
+            return None, None
+
+        scrubber_cfg = getattr(models_cfg, "phi_scrubber", None)
+        if not scrubber_cfg:
+            return None, None
+
+        attr = "general_model" if domain == "general" else f"{domain}_model"
+        model_name = getattr(scrubber_cfg, attr, None)
+        return getattr(scrubber_cfg, "replacement_token", None), model_name
+
+    def scrub(self, text: str):
+        """Scrub PHI from the provided text."""
         if not isinstance(text, str) or not text.strip():
             return text
 
-        try:
-            # Analyze the text to find PII
-            analyzer_results = self.analyzer.analyze(
-                text=text,
-                language="en",
-            )
-
-            # Anonymize the text, replacing all identified entities with a generic tag
-            anonymized_result = self.anonymizer.anonymize(
-                text=text,
-                analyzer_results=analyzer_results,
-                operators={
-                    "DEFAULT": OperatorConfig("replace", {"new_value": "<PHI>"})
-                },
-            )
-
-            return anonymized_result.text
-        except Exception as e:
-            logger.error(f"Error scrubbing text with Presidio: {e}", exc_info=True)
-            # Fallback to returning the original text if scrubbing fails
+        if self.wrapper is None:
+            logger.warning("Presidio wrapper unavailable; returning original text unmodified")
             return text
+
+        try:
+            analyzer_results = self.wrapper.analyze(text)
+            anonymized = self.wrapper.anonymize(
+                text=text, analyzer_results=analyzer_results, operators=self.operators
+            )
+            return getattr(anonymized, "text", anonymized)
+        except Exception as exc:  # noqa: BLE001 - log and remain lossless
+            logger.error("Error scrubbing text with Presidio: %s", exc, exc_info=True)
+            return text
+
+
+__all__ = ["PhiScrubberService"]

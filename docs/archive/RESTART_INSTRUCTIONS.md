@@ -19,7 +19,8 @@ python start_app.py
 
 ### Step 3: What Will Happen
 - ✅ App will start normally
-- ⏳ **microsoft/phi-2 will download** (2.7GB) - takes 3-5 minutes
+- 🧠 **TheBloke/meditron-7B-GGUF (Q4_K_M)** will load (~4GB) on first run
+- ✅ Expect the quantized weights at models/meditron/meditron-7b.Q4_K_M.gguf
 - ✅ Once downloaded, all AI features will work:
   - AI-generated text recommendations ✅
   - AI chat assistant ✅
@@ -41,21 +42,15 @@ python start_app.py
 - Document classifier
 
 ### Will Work After Restart ✅
-- LLM text generation (using microsoft/phi-2)
+- LLM text generation (using TheBloke/meditron-7B-GGUF quantized weights)
 - AI chat
 - Fact checker
 
 ## 🔧 If Issues Persist
 
-If phi-2 still has problems after restart, we have backup options:
+If the Meditron quantized model encounters issues, we have backup options:
 
-### Option A: Use Even Smaller Model
-Change in `src/core/llm_service.py` line 68:
-```python
-model_id = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"  # Only 1.1GB
-```
-
-### Option B: Enable Mock Mode
+### Option A: Enable Mock Mode
 Change in `config.yaml`:
 ```yaml
 use_ai_mocks: true  # Use mocks instead of real LLM
@@ -66,14 +61,14 @@ use_ai_mocks: true  # Use mocks instead of real LLM
 1. ✅ Complete codebase cleanup - removed all syntax errors
 2. ✅ Formatted 58 files with ruff
 3. ✅ Deleted 8 corrupted test files
-4. ✅ Replaced ctransformers with transformers library
+4. ✅ Hardened ctransformers + transformers dual-backend loading
 5. ✅ Fixed fact_checker attribute access bug
 6. ✅ Configured proper model selection
 7. ✅ All changes committed and pushed to GitHub
 
 ## 🎯 Next Session Goals
 
-1. Test phi-2 model loading
+1. Test Meditron quantized model loading
 2. Test AI text generation
 3. Test document analysis with AI recommendations
 4. Test chat assistant

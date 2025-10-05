@@ -1,116 +1,59 @@
+from types import SimpleNamespace
+
 import pytest
-from unittest.mock import MagicMock, patch
+
 from src.core.phi_scrubber import PhiScrubberService
 
 
-@pytest.fixture(scope="module")
-def scrubber_service() -> PhiScrubberService:
-    """
-    Provides a reusable, lazy-loaded instance of the PhiScrubberService.
-    Sets known-installed spacy model names to avoid download errors during test runs.
-    """
-    mock_settings = MagicMock()
-    # Use a model known to be installed to avoid download errors.
-    # The tests expect real scrubbing, so we let the models load.
-    mock_settings.models.phi_scrubber.general = "en_core_sci_sm"
-    mock_settings.models.phi_scrubber.biomedical = "en_core_sci_sm"
+class DummyWrapper:
+    """Simple wrapper used to simulate Presidio behaviour in tests."""
 
-    with patch("src.core.phi_scrubber.get_settings", return_value=mock_settings):
-        service = PhiScrubberService()
-        return service
+    def __init__(self, phrases_to_mask):
+        self.phrases_to_mask = phrases_to_mask
+        self.analyze_calls = []
+        self.anonymize_calls = []
+
+    def analyze(self, text: str):
+        self.analyze_calls.append(text)
+        results = []
+        for phrase in self.phrases_to_mask:
+            start = text.find(phrase)
+            if start != -1:
+                results.append(SimpleNamespace(start=start, end=start + len(phrase)))
+        return results
+
+    def anonymize(self, text: str, analyzer_results, operators):
+        self.anonymize_calls.append((text, analyzer_results, operators))
+        replacement = operators["DEFAULT"].params.get("new_value", "<MASK>")
+        for result in sorted(analyzer_results, key=lambda r: r.start, reverse=True):
+            text = text[: result.start] + replacement + text[result.end :]
+        return SimpleNamespace(text=text)
 
 
-@pytest.mark.skip(
-    reason="Skipping due to unresolved dependency conflict with spaCy models. "
-    "The required `beki/en_spacy_pii_fast` and alternative models are not installable in the current environment."
-)
-def test_scrub_comprehensive_phi(scrubber_service: PhiScrubberService):
-    """
-    Tests a complex sentence with a mix of PHI types to ensure
-    both regex and NER scrubbing are working together effectively.
-    """
-    text = (
-        "Patient John Doe, born on 1980-01-01, lives in New York. "
-        "His phone is 555-123-4567 and email is john.doe@example.com. "
-        "MRN: 12345-ABC. The patient was seen at Mercy Hospital."
+def test_scrub_replaces_configured_token():
+    wrapper = DummyWrapper(["John Doe", "555-123-4567"])
+    service = PhiScrubberService(replacement="[REDACTED]", wrapper=wrapper)
+
+    text = "Patient John Doe can be reached at 555-123-4567."
+    scrubbed = service.scrub(text)
+
+    assert "John Doe" not in scrubbed
+    assert "555-123-4567" not in scrubbed
+    assert scrubbed.count("[REDACTED]") == 2
+
+
+@pytest.mark.parametrize("value", [None, 1234, ["a", "b"], "   "])
+def test_scrub_is_noop_for_non_text(value):
+    service = PhiScrubberService(wrapper=DummyWrapper([]))
+    assert service.scrub(value) is value
+
+
+def test_scrub_logs_and_returns_original_when_wrapper_errors(mocker):
+    faulty_wrapper = DummyWrapper(["John Doe"])
+    mocker.patch.object(
+        faulty_wrapper,
+        "analyze",
+        side_effect=RuntimeError("presidio unavailable"),
     )
-    scrubbed_text = scrubber_service.scrub(text)
-
-    # --- Assertions ---
-    # The primary goal is to ensure PHI is removed. We don't need to be
-    # overly specific about which tag was used, as that can be model-dependent.
-    # The most robust check is that the original, sensitive data is gone.
-
-    # Verify that the original PHI has been removed.
-    assert "John Doe" not in scrubbed_text
-    assert "1980-01-01" not in scrubbed_text
-    assert "Mercy Hospital" not in scrubbed_text
-
-    # Check that regex-detected entities are correctly scrubbed.
-    assert "[PHONE]" in scrubbed_text
-    assert "[EMAIL]" in scrubbed_text
-    assert "[MRN]" in scrubbed_text
-
-    # Verify that the original PHI has been removed.
-    assert "John Doe" not in scrubbed_text
-    assert "1980-01-01" not in scrubbed_text
-    assert "555-123-4567" not in scrubbed_text
-    assert "john.doe@example.com" not in scrubbed_text
-    assert "12345-ABC" not in scrubbed_text
-    assert "Mercy Hospital" not in scrubbed_text
-
-
-@pytest.mark.skip(
-    reason="Skipping due to unresolved dependency conflict with spaCy models. "
-    "The required `beki/en_spacy_pii_fast` and alternative models are not installable in the current environment."
-)
-def test_scrub_no_phi_present(scrubber_service: PhiScrubberService):
-    """
-    Tests that text containing no PHI remains completely unchanged after scrubbing.
-    """
-    text = (
-        "This is a simple clinical note regarding patient's improved range of motion."
-    )
-    scrubbed_text = scrubber_service.scrub(text)
-    assert text == scrubbed_text
-
-
-@pytest.mark.skip(
-    reason="Skipping due to unresolved dependency conflict with spaCy models. "
-    "The required `beki/en_spacy_pii_fast` and alternative models are not installable in the current environment."
-)
-def test_scrub_specific_ids(scrubber_service: PhiScrubberService):
-    """
-    Tests the scrubbing of specific, structured identifiers like SSN and account numbers.
-    """
-    text = "The patient's SSN is 123-45-6789 and their account number is AB12345678."
-    scrubbed_text = scrubber_service.scrub(text)
-
-    assert "[SSN]" in scrubbed_text
-    assert "[ACCOUNT_NUMBER]" in scrubbed_text
-    assert "123-45-6789" not in scrubbed_text
-    assert "AB12345678" not in scrubbed_text
-
-
-@pytest.mark.skip(
-    reason="Skipping due to unresolved dependency conflict with spaCy models. "
-    "The required `beki/en_spacy_pii_fast` and alternative models are not installable in the current environment."
-)
-def test_scrub_edge_cases(scrubber_service: PhiScrubberService):
-    """
-    Tests edge cases like empty strings and non-string inputs to ensure
-    the scrubber is robust and does not raise errors.
-    """
-    # Test with an empty string.
-    assert scrubber_service.scrub("") == ""
-    # Test with a whitespace-only string.
-    assert scrubber_service.scrub("   ") == "   "
-    # Test with non-string inputs, which should be returned as-is.
-    assert scrubber_service.scrub(12345) == 12345
-    assert scrubber_service.scrub(None) is None
-    assert scrubber_service.scrub(["a", "list", "of", "strings"]) == [
-        "a",
-        "list",
-        "of",
-        "strings",
-    ]
+    service = PhiScrubberService(wrapper=faulty_wrapper)
+    assert service.scrub("Patient John Doe") == "Patient John Doe"
