@@ -43,13 +43,10 @@ from src.core.report_generator import ReportGenerator
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
+from src.gui.workers.dashboard_worker import DashboardWorker
 from src.gui.workers.single_analysis_polling_worker import SingleAnalysisPollingWorker
 
-try:  # Optional enhancements
-    from src.gui.widgets.dashboard_widget import DashboardWidget
-except Exception:  # pragma: no cover - optional dependency
-    DashboardWidget = None  # type: ignore
-
+from src.gui.widgets.dashboard_widget import DashboardWidget
 try:
     from src.gui.widgets.meta_analytics_widget import MetaAnalyticsWidget
 except Exception:  # pragma: no cover - optional dependency
@@ -57,7 +54,6 @@ except Exception:  # pragma: no cover - optional dependency
 
 try:
     from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
-from src.gui.widgets.mission_control_widget import MissionControlWidget
 except Exception:  # pragma: no cover - optional dependency
     PerformanceStatusWidget = None  # type: ignore
 
@@ -77,6 +73,8 @@ class MainApplicationWindow(QMainWindow):
         self.auth_token = os.environ.get("THERAPY_ANALYZER_TOKEN") or ""
         self._active_threads: list[QThread] = []
         self._poll_thread: Optional[QThread] = None
+        self._dashboard_thread: Optional[QThread] = None
+        self._dashboard_worker: Optional[DashboardWorker] = None
         self._poll_worker: Optional[SingleAnalysisPollingWorker] = None
         self._current_task_id: Optional[str] = None
         self._current_payload: Dict[str, Any] = {}
@@ -279,6 +277,7 @@ class MainApplicationWindow(QMainWindow):
 
 
 def _create_mission_control_tab(self) -> QWidget:
+    def _create_mission_control_tab(self) -> QWidget:
     tab = QWidget(self)
     layout = QVBoxLayout(tab)
     layout.setContentsMargins(0, 0, 0, 0)
@@ -290,6 +289,17 @@ def _create_mission_control_tab(self) -> QWidget:
     layout.addWidget(self.mission_control_widget)
     return tab
 
+    def _handle_mission_control_start(self) -> None:
+        self.tab_widget.setCurrentWidget(self.analysis_summary_tab)
+        self._prompt_for_document()
+
+    def _handle_mission_control_review(self, doc_info: dict) -> None:
+        doc_name = doc_info.get("title") or doc_info.get("name") or doc_info.get("document_name") or "Document"
+        QMessageBox.information(
+            self,
+            "Review Document",
+            f"Detailed replay for '{doc_name}' will be available in a future update."
+        )
     def _create_analysis_summary_tab(self) -> QWidget:
         tab = QWidget(self)
         layout = QVBoxLayout(tab)
@@ -399,6 +409,7 @@ def _create_mission_control_tab(self) -> QWidget:
     # ------------------------------------------------------------------
     def _load_initial_state(self) -> None:
         self._load_rubrics()
+        self._refresh_mission_control()
         QTimer.singleShot(250, self._refresh_dashboards)
         QTimer.singleShot(500, self._refresh_meta_analytics)
 
@@ -572,6 +583,25 @@ def _create_mission_control_tab(self) -> QWidget:
         self.progress_bar.hide()
         self.analysis_button.setEnabled(True)
 
+    def _refresh_mission_control(self) -> None:
+        """Fetches data for the main mission control dashboard."""
+        if self._dashboard_thread and self._dashboard_thread.isRunning():
+            return # Already refreshing
+
+        self.statusBar().showMessage("Loading dashboard metrics...")
+        self._dashboard_worker = DashboardWorker()
+        self._dashboard_thread = QThread(self)
+        self._dashboard_worker.moveToThread(self._dashboard_thread)
+
+        self._dashboard_thread.started.connect(self._dashboard_worker.run)
+        self._dashboard_worker.success.connect(self.mission_control_widget.update_metrics)
+        self._dashboard_worker.error.connect(lambda msg: self.statusBar().showMessage(f"Dashboard Error: {msg}", 5000))
+        self._dashboard_worker.success.connect(lambda: self.statusBar().showMessage("Dashboard updated.", 3000))
+        
+        self._dashboard_worker.finished.connect(self._dashboard_thread.quit)
+        self._dashboard_worker.finished.connect(self._dashboard_worker.deleteLater)
+        self._dashboard_thread.finished.connect(self._dashboard_thread.deleteLater)
+        self._dashboard_thread.start()
     # ------------------------------------------------------------------
 def _handle_mission_control_start(self) -> None:
     self.tab_widget.setCurrentWidget(self.analysis_summary_tab)
