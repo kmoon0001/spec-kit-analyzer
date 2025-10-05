@@ -1,3 +1,5 @@
+
+import hashlib
 import logging
 import os
 import re
@@ -7,6 +9,8 @@ from PIL import Image
 import pdfplumber
 import yaml
 from docx import Document
+
+from .cache_service import cache_service
 
 # OCR imports with fallback
 try:
@@ -25,9 +29,46 @@ logger = logging.getLogger(__name__)
 SUPPORTED_EXTENSIONS = {".pdf", ".txt", ".docx", ".png", ".jpg", ".jpeg", ".tiff", ".bmp"}
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".tiff", ".bmp"}
 
+def _get_file_hash(file_path: str) -> str:
+    """Calculates the SHA256 hash of a file's content."""
+    hasher = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        while chunk := f.read(8192):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
 
 def parse_document_content(file_path: str) -> List[Dict[str, str]]:
-    """Parse supported documents into sentence chunks with OCR support."""
+    """Parse supported documents into sentence chunks with OCR support and content-based caching."""
+    if not os.path.exists(file_path):
+        return [
+            {
+                "sentence": f"Error: File not found at {file_path}",
+                "source": "parser",
+            }
+        ]
+
+    # Use the file's content hash as a reliable cache key
+    try:
+        file_hash = _get_file_hash(file_path)
+        cache_key = f"parsed_document_{file_hash}"
+    except IOError as e:
+        logger.error(f"Could not read file for hashing: {e}")
+        return [
+            {
+                "sentence": f"Error reading file: {e}",
+                "source": "parser",
+            }
+        ]
+
+    # Try to get the result from the cache first
+    cached_result = cache_service.get_from_disk(cache_key)
+    if cached_result is not None:
+        logger.info(f"Cache hit for document: {os.path.basename(file_path)}")
+        return cached_result
+
+    logger.info(f"Cache miss for document: {os.path.basename(file_path)}. Parsing from scratch.")
+    
     extension = os.path.splitext(file_path)[1].lower()
 
     if extension not in SUPPORTED_EXTENSIONS:
@@ -39,30 +80,23 @@ def parse_document_content(file_path: str) -> List[Dict[str, str]]:
             }
         ]
 
-    if not os.path.exists(file_path):
-        return [
-            {
-                "sentence": f"Error: File not found at {file_path}",
-                "source": "parser",
-            }
-        ]
-
     try:
         if extension == ".pdf":
-            return _parse_pdf_with_ocr(file_path)
+            result = _parse_pdf_with_ocr(file_path)
         elif extension == ".txt":
-            return _parse_txt(file_path)
+            result = _parse_txt(file_path)
         elif extension == ".docx":
-            return _parse_docx(file_path)
+            result = _parse_docx(file_path)
         elif extension in IMAGE_EXTENSIONS:
-            return _parse_image_with_ocr(file_path)
-    except FileNotFoundError:
-        return [
-            {
-                "sentence": f"Error: File not found at {file_path}",
-                "source": "parser",
-            }
-        ]
+            result = _parse_image_with_ocr(file_path)
+        else:
+            # This case should not be reached due to the check above, but as a safeguard:
+            result = []
+
+        # Save the result to the cache before returning
+        cache_service.set_to_disk(cache_key, result)
+        return result
+
     except Exception as e:
         logger.error(f"Error parsing {file_path}: {e}")
         return [

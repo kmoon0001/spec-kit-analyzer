@@ -5,8 +5,6 @@ FastAPI backend for the Therapy Compliance Analyzer desktop application.
 Provides endpoints for document analysis, user management, and compliance reporting.
 """
 
-import os
-import shutil
 import structlog
 from contextlib import asynccontextmanager
 
@@ -37,90 +35,48 @@ from src.api.global_exception_handler import (
     http_exception_handler,
 )
 from src.core.database_maintenance_service import DatabaseMaintenanceService
+from src.core.data_purging_service import DataPurgingService
 from src.config import get_settings
 from src.logging_config import CorrelationIdMiddleware
 
 settings = get_settings()
 limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
 
-# --- Configuration ---
-DATABASE_PURGE_RETENTION_DAYS = settings.maintenance.purge_retention_days
-
-# --- Logging ---
 logger = structlog.get_logger(__name__)
 
-
-# --- Helper Functions ---
-def clear_temp_uploads():
-    """Clears all files from the temporary upload directory."""
-    directory_path = settings.paths.temp_upload_dir
+def run_maintenance_jobs():
+    """Instantiates and runs all scheduled maintenance services."""
+    logger.info("Scheduler triggered: Starting all maintenance jobs.")
     try:
-        if os.path.exists(directory_path):
-            for filename in os.listdir(directory_path):
-                file_path = os.path.join(directory_path, filename)
-                try:
-                    if os.path.isfile(file_path) or os.path.islink(file_path):
-                        os.unlink(file_path)
-                    elif os.path.isdir(file_path):
-                        shutil.rmtree(file_path)
-                    logger.info(
-                        "Successfully cleaned up temporary file", file_path=file_path
-                    )
-                except (OSError, PermissionError) as e:
-                    logger.error(
-                        "Failed to delete temp file", file_path=file_path, error=str(e)
-                    )
+        db_maintenance = DatabaseMaintenanceService()
+        db_maintenance.purge_old_reports(settings.maintenance.purge_retention_days)
+        
+        data_purging = DataPurgingService()
+        data_purging.purge_all()
+        
+        logger.info("Scheduler jobs completed successfully.")
     except Exception as e:
-        logger.exception(
-            "An unexpected error occurred while clearing temp uploads", error=str(e)
-        )
+        logger.exception("A maintenance job failed", error=str(e))
 
-
-def run_database_maintenance():
-    """
-    Instantiates and runs the database maintenance service.
-    Includes error handling to prevent scheduler crashes.
-    """
-    logger.info("Scheduler triggered: Starting database maintenance job.")
-    try:
-        maintenance_service = DatabaseMaintenanceService()
-        maintenance_service.purge_old_reports(
-            retention_days=DATABASE_PURGE_RETENTION_DAYS
-        )
-        logger.info("Scheduler job: Database maintenance finished.")
-    except Exception as e:
-        logger.exception("Database maintenance job failed", error=str(e))
-
-
-# --- FastAPI App Setup ---
 scheduler = BackgroundScheduler(daemon=True)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
-    # Startup
-    # 1. Run API-level startup logic (e.g., model loading)
     await api_startup()
+    
+    # Run an initial purge on startup to clear out any old data
+    run_maintenance_jobs()
 
-    # 2. Clean up any orphaned temporary files from previous runs.
-    logger.info("Clearing temporary upload directory...")
-    try:
-        clear_temp_uploads()
-    except Exception as e:
-        logger.error("An error occurred during temp file cleanup", error=str(e))
-
-    # 3. Initialize and start the background scheduler
-    scheduler.add_job(run_database_maintenance, "interval", days=1)
+    # Schedule recurring maintenance
+    scheduler.add_job(run_maintenance_jobs, "interval", days=1)
     scheduler.start()
-    logger.info("Scheduler started for daily database maintenance.")
+    logger.info("Scheduler started for daily maintenance tasks.")
 
     yield
 
-    # Shutdown
     await api_shutdown()
-    scheduler.shutdown()  # Ensure scheduler is shut down gracefully
-
+    scheduler.shutdown()
 
 app = FastAPI(
     title="Therapy Compliance Analyzer API",
@@ -148,10 +104,6 @@ All endpoints require authentication via JWT Bearer token except for:
 - `/auth/token` (login)
 - `/docs` and `/redoc` (API documentation)
 
-### Rate Limiting
-
-API requests are rate-limited to **100 requests per minute** per IP address to prevent abuse.
-
 ### Data Privacy
 
 - All AI/ML processing occurs locally
@@ -176,46 +128,22 @@ the development team.
     },
     terms_of_service="https://example.com/terms",
     openapi_tags=[
-        {
-            "name": "Health",
-            "description": "System health and status monitoring endpoints",
-        },
-        {
-            "name": "Authentication",
-            "description": "User authentication and session management",
-        },
-        {
-            "name": "Analysis",
-            "description": "Document upload and compliance analysis operations",
-        },
-        {
-            "name": "Dashboard",
-            "description": "Analytics and historical compliance data",
-        },
-        {
-            "name": "Chat",
-            "description": "AI-powered compliance assistance and guidance",
-        },
-        {
-            "name": "Compliance",
-            "description": "Rubric management and compliance rule operations",
-        },
-        {
-            "name": "Admin",
-            "description": "Administrative operations (admin users only)",
-        },
+        {"name": "Health", "description": "System health and status monitoring endpoints"},
+        {"name": "Authentication", "description": "User authentication and session management"},
+        {"name": "Analysis", "description": "Document upload and compliance analysis operations"},
+        {"name": "Dashboard", "description": "Analytics and historical compliance data"},
+        {"name": "Chat", "description": "AI-powered compliance assistance and guidance"},
+        {"name": "Compliance", "description": "Rubric management and compliance rule operations"},
+        {"name": "Admin", "description": "Administrative operations (admin users only)"},
     ],
 )
 
-
-# --- Middleware and Exception Handlers ---
 app.add_middleware(CorrelationIdMiddleware)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(Exception, global_exception_handler)
 
-# --- Routers ---
 app.include_router(health.router, tags=["Health"])
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
@@ -225,7 +153,6 @@ app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 app.include_router(compliance.router, tags=["Compliance"])
 app.include_router(habits.router, tags=["Habits"])
 app.include_router(meta_analytics.router, tags=["Meta Analytics"])
-
 
 @app.get("/")
 def read_root():

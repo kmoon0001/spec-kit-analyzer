@@ -1,3 +1,4 @@
+
 import logging
 from typing import Dict, List, Optional
 
@@ -7,6 +8,7 @@ from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import cos_sim
 
 from src.config import get_settings
+from .cache_service import cache_service
 
 try:  # pragma: no cover - optional dependency during tests
     from src.database import crud
@@ -18,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class HybridRetriever:
-    """Combine keyword and dense retrieval over in-memory rules."""
+    """Combine keyword and dense retrieval over in-memory rules with cached embeddings."""
 
     def __init__(self, rules: Optional[List[Dict[str, str]]] = None, model_name: Optional[str] = None) -> None:
         settings = get_settings()
@@ -35,11 +37,19 @@ class HybridRetriever:
         tokenized_corpus = [document.lower().split() for document in self.corpus]
         logger.debug("Hybrid retriever using model", model=self.model_name)
         self.bm25 = BM25Okapi(tokenized_corpus) if tokenized_corpus else None
+        # Corpus embeddings are a one-time cost at startup, so we don't cache them to avoid complexity
+        # with dynamic rule updates. Query embeddings, however, are cached.
         self.corpus_embeddings = (
             self.dense_retriever.encode(self.corpus, convert_to_tensor=True)
             if self.corpus
             else None
         )
+
+    @cache_service.disk_cache
+    def _get_embedding(self, text: str):
+        """Cached method to get sentence embeddings."""
+        logger.debug(f"Cache miss for embedding: '{text[:50]}...'")
+        return self.dense_retriever.encode(text, convert_to_tensor=True)
 
     async def initialize(self) -> None:
         if self.rules:
@@ -106,8 +116,8 @@ class HybridRetriever:
             for rank, doc_id in enumerate(np.argsort(bm25_scores)[::-1])
         }
 
-        # 2. Get dense retrieval scores and ranks
-        query_embedding = self.dense_retriever.encode(query, convert_to_tensor=True)
+        # 2. Get dense retrieval scores and ranks using the cached embedding function
+        query_embedding = self._get_embedding(query)
         if self.corpus_embeddings is None:
             return []
         dense_scores_tensor = cos_sim(query_embedding, self.corpus_embeddings)[0]

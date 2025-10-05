@@ -4,7 +4,8 @@ database:
   url: sqlite:///./compliance.db
   echo: false
 auth:
-  secret_key: your-super-secret-jwt-key-change-this-in-production
+  # The secret_key is NOT configured here. It MUST be set via the
+  # SECRET_KEY environment variable for security reasons.
   algorithm: HS256
   access_token_expire_minutes: 30
 maintenance:

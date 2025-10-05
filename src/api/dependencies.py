@@ -54,18 +54,16 @@ async def get_retriever() -> Any:
 async def startup_event():
     """Application startup event handler. Initializes singleton services."""
     logger.info("Application starting up...")
-    if settings.use_ai_mocks:
-        logger.warning("AI mocks are enabled. Using MockAnalysisService.")
-        app_state["analysis_service"] = MockAnalysisService()
-    else:
-        logger.info("AI mocks are disabled. Initializing real AnalysisService.")
+    
+    # Force the use of the real AnalysisService for production readiness.
+    logger.info("Initializing real AnalysisService.")
 
-        # 1. Initialize the retriever, which is a dependency for other services.
-        retriever = await get_retriever()
+    # 1. Initialize the retriever, which is a dependency for other services.
+    retriever = await get_retriever()
 
-        # 2. Initialize the analysis service, injecting the retriever.
-        analysis_service = AnalysisService(retriever=retriever)
-        app_state["analysis_service"] = analysis_service
+    # 2. Initialize the analysis service, injecting the retriever.
+    analysis_service = AnalysisService(retriever=retriever)
+    app_state["analysis_service"] = analysis_service
 
     logger.info("Application startup complete. Services are initialized.")
 

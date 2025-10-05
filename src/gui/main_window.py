@@ -1,21 +1,17 @@
 """Primary GUI window for the Therapy Compliance Analyzer."""
 from __future__ import annotations
 
-import functools # Keep this import
+import functools
 import json
-import os
 import webbrowser
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Type
 from typing import Any, Callable, Dict, Optional, Type, Protocol
 
-import requests
 from PySide6.QtCore import Qt, QThread, QTimer, QSettings
-from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPalette
+from PySide6.QtGui import QAction, QFont, QIcon
 from PySide6.QtGui import QActionGroup
 from PySide6.QtWidgets import (
     QApplication,
-    QCheckBox,
     QComboBox,
     QDockWidget,
     QFileDialog,
@@ -29,22 +25,22 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QProgressBar,
-    QSlider,
     QSplitter,
-    QSpinBox,
     QStatusBar,
     QTabWidget,
     QTextBrowser,
     QTextEdit,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
 from src.config import get_settings
+from src.database import models
 from src.core.report_generator import ReportGenerator
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
+from src.gui.dialogs.batch_analysis_dialog import BatchAnalysisDialog
+from src.gui.dialogs.settings_dialog import SettingsDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
 from src.gui.themes import get_theme_palette
 from src.gui.workers.dashboard_worker import DashboardWorker
@@ -55,31 +51,23 @@ from src.gui.widgets.mission_control_widget import MissionControlWidget
 from src.gui.widgets.dashboard_widget import DashboardWidget
 try:
     from src.gui.widgets.meta_analytics_widget import MetaAnalyticsWidget
-except ImportError:  # pragma: no cover - optional dependency
-    MetaAnalyticsWidget = None  # type: ignore
+except ImportError:
+    MetaAnalyticsWidget = None
 
 try:
     from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
-except ImportError:  # pragma: no cover - optional dependency
-    PerformanceStatusWidget = None  # type: ignore
+except ImportError:
+    PerformanceStatusWidget = None
 
 
 SETTINGS = get_settings()
 API_URL = SETTINGS.paths.api_url
 
-class BaseWorker(QThread):
-    """Base class for QThread workers to ensure `run` method exists."""
-    success = ...
-    error = ...
-    finished = ...
-    progress = ...
-
 class WorkerProtocol(Protocol):
-    """Defines the expected interface for all worker classes."""
-    success: Signal
-    error: Signal
-    finished: Signal
-    progress: Signal
+    success: Any
+    error: Any
+    finished: Any
+    progress: Any
     def run(self) -> None: ...
     def moveToThread(self, thread: QThread) -> None: ...
 
@@ -87,12 +75,14 @@ class WorkerProtocol(Protocol):
 class MainApplicationWindow(QMainWindow):
     """Modernised main window that consolidates the disparate GUI variants."""
 
-    def __init__(self) -> None:
+    def __init__(self, user: models.User, token: str) -> None:
         super().__init__()
-        self.setWindowTitle("Therapy Compliance Analyzer")
+        self.setWindowTitle(f"Therapy Compliance Analyzer - Welcome, {user.username}!")
         self.resize(1440, 920)
 
-        self.auth_token = os.environ.get("THERAPY_ANALYZER_TOKEN") or ""
+        self.current_user = user
+        self.auth_token = token
+        self.settings = QSettings("TherapyCo", "ComplianceAnalyzer")
         self._poll_thread: Optional[QThread] = None
         self._poll_worker: Optional[SingleAnalysisPollingWorker] = None
         self._current_task_id: Optional[str] = None
@@ -107,14 +97,9 @@ class MainApplicationWindow(QMainWindow):
         self._load_initial_state()
         self._load_settings()
 
-    # ------------------------------------------------------------------
-    # UI construction helpers
-    # ------------------------------------------------------------------
     def _build_ui(self) -> None:
-        settings = QSettings("TherapyCo", "ComplianceAnalyzer")
-        theme = settings.value("theme", "light", type=str)
+        theme = self.settings.value("theme", "light", type=str)
         self._apply_theme(theme)
-
         self._build_menus()
         self._build_central_layout()
         self._build_status_bar()
@@ -130,45 +115,35 @@ class MainApplicationWindow(QMainWindow):
 
     def _build_file_menu(self, menu_bar: QMenu) -> None:
         file_menu = menu_bar.addMenu("&File")
-
         open_file_action = QAction("Open Document…", self)
         open_file_action.triggered.connect(self._prompt_for_document)
         file_menu.addAction(open_file_action)
-
         open_folder_action = QAction("Open Folder…", self)
         open_folder_action.triggered.connect(self._prompt_for_folder)
         file_menu.addAction(open_folder_action)
-
         file_menu.addSeparator()
-
         export_action = QAction("Export Report…", self)
         export_action.triggered.connect(self._export_report)
         file_menu.addAction(export_action)
-
         file_menu.addSeparator()
-
         exit_action = QAction("Exit", self)
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
     def _build_view_menu(self, menu_bar: QMenu) -> None:
         view_menu = menu_bar.addMenu("&View")
-
         toggle_preview_action = QAction("Toggle Document Preview", self, checkable=True)
         toggle_preview_action.setChecked(True)
         toggle_preview_action.triggered.connect(self._toggle_document_preview)
         view_menu.addAction(toggle_preview_action)
-
         if PerformanceStatusWidget:
             toggle_performance_action = QAction("Toggle Performance Panel", self, checkable=True)
             toggle_performance_action.setChecked(True)
             toggle_performance_action.triggered.connect(self._toggle_performance_panel)
             view_menu.addAction(toggle_performance_action)
-
         theme_menu = QMenu("Theme", self)
         self.theme_action_group = QActionGroup(self)
         self.theme_action_group.setExclusive(True)
-
         for name in ("light", "dark"):
             action = QAction(name.capitalize(), self, checkable=True)
             action.triggered.connect(functools.partial(self._apply_theme, name))
@@ -178,21 +153,22 @@ class MainApplicationWindow(QMainWindow):
 
     def _build_tools_menu(self, menu_bar: QMenu) -> None:
         tools_menu = menu_bar.addMenu("&Tools")
-
         refresh_dashboards_action = QAction("Refresh Dashboards", self)
         refresh_dashboards_action.triggered.connect(self._refresh_dashboards)
         tools_menu.addAction(refresh_dashboards_action)
-
         rubrics_action = QAction("Manage Rubrics…", self)
         rubrics_action.triggered.connect(self._open_rubric_manager)
         tools_menu.addAction(rubrics_action)
+        tools_menu.addSeparator()
+        settings_action = QAction("Settings…", self)
+        settings_action.triggered.connect(self._open_settings_dialog)
+        tools_menu.addAction(settings_action)
 
     def _build_help_menu(self, menu_bar: QMenu) -> None:
         help_menu = menu_bar.addMenu("&Help")
         docs_action = QAction("Open Documentation", self)
         docs_action.triggered.connect(lambda: webbrowser.open("https://github.com/"))
         help_menu.addAction(docs_action)
-
         about_action = QAction("About", self)
         about_action.triggered.connect(self._show_about_dialog)
         help_menu.addAction(about_action)
@@ -200,100 +176,32 @@ class MainApplicationWindow(QMainWindow):
     def _build_central_layout(self) -> None:
         central = QWidget(self)
         self.setCentralWidget(central)
-
         root_layout = QVBoxLayout(central)
         root_layout.setContentsMargins(12, 12, 12, 12)
         root_layout.setSpacing(12)
-
         self.main_splitter = QSplitter(Qt.Horizontal, self)
         self.main_splitter.setChildrenCollapsible(False)
         root_layout.addWidget(self.main_splitter, stretch=1)
-
         self.control_panel = self._create_control_panel()
         self.main_splitter.addWidget(self.control_panel)
-
         self.tab_widget = QTabWidget(self)
         self.tab_widget.setDocumentMode(True)
         self.main_splitter.addWidget(self.tab_widget)
-
         self.mission_control_tab = self._create_mission_control_tab()
         self.tab_widget.addTab(self.mission_control_tab, "Mission Control")
-
         self.analysis_summary_tab = self._create_analysis_summary_tab()
         self.tab_widget.addTab(self.analysis_summary_tab, "Analysis Summary")
-
         self.detailed_results_tab = self._create_detailed_results_tab()
         self.tab_widget.addTab(self.detailed_results_tab, "Detailed Findings")
-
         self.dashboard_tab = self._create_dashboard_tab()
         self.tab_widget.addTab(self.dashboard_tab, "Dashboards")
-
         self.meta_tab = self._create_meta_tab()
         self.tab_widget.addTab(self.meta_tab, "Meta Analytics")
-
         self.report_tab = self._create_report_tab()
         self.tab_widget.addTab(self.report_tab, "Reports")
-
         self.tab_widget.setCurrentWidget(self.mission_control_tab)
-
         self.main_splitter.setStretchFactor(0, 0)
         self.main_splitter.setStretchFactor(1, 1)
-
-    def _create_file_selection_group(self, parent: QWidget) -> QWidget:
-        """Creates the file selection part of the control panel."""
-        group = QWidget(parent)
-        layout = QVBoxLayout(group)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
-
-        self.file_display = QTextEdit(group)
-        self.file_display.setReadOnly(True)
-        self.file_display.setMaximumHeight(80)
-        self.file_display.setPlaceholderText("No document selected")
-        layout.addWidget(self.file_display)
-
-        controls_row = QHBoxLayout()
-        self.open_file_button = QPushButton("Browse…", group)
-        self.open_file_button.clicked.connect(self._prompt_for_document)
-        controls_row.addWidget(self.open_file_button)
-
-        self.open_folder_button = QPushButton("Folder…", group)
-        self.open_folder_button.clicked.connect(self._prompt_for_folder)
-        controls_row.addWidget(self.open_folder_button)
-        layout.addLayout(controls_row)
-
-        return group
-
-    def _create_analysis_settings_group(self, parent: QWidget) -> QWidget:
-        """Creates the analysis settings part of the control panel."""
-        group = QWidget(parent)
-        layout = QVBoxLayout(group)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
-
-        self.rubric_selector = QComboBox(group)
-        layout.addWidget(self.rubric_selector)
-
-        settings_frame = QFrame(group)
-        settings_frame.setFrameShape(QFrame.StyledPanel)
-        settings_layout = QVBoxLayout(settings_frame)
-        settings_layout.setSpacing(6)
-
-        self.strict_mode_checkbox = QCheckBox("Enable strict compliance checks", settings_frame)
-        settings_layout.addWidget(self.strict_mode_checkbox)
-        self.generate_report_checkbox = QCheckBox("Generate printable report", settings_frame)
-        self.generate_report_checkbox.setChecked(True)
-        settings_layout.addWidget(self.generate_report_checkbox)
-
-        slider_row = QHBoxLayout()
-        slider_row.addWidget(QLabel("Sensitivity", settings_frame))
-        self.sensitivity_slider = QSlider(Qt.Horizontal, settings_frame)
-        self.sensitivity_slider.setRange(1, 10)
-        self.sensitivity_slider.setValue(5)
-        slider_row.addWidget(self.sensitivity_slider)
-        settings_layout.addLayout(slider_row)
-        layout.addWidget(settings_frame)
-        return group
 
     def _create_control_panel(self) -> QWidget:
         panel = QWidget(self)
@@ -301,21 +209,15 @@ class MainApplicationWindow(QMainWindow):
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(12)
-
         title = QLabel("Analysis Controls", panel)
         title.setFont(QFont("Segoe UI", 14, QFont.Bold))
         layout.addWidget(title)
-
         layout.addWidget(self._create_file_selection_group(panel))
-        layout.addWidget(self._create_analysis_settings_group(panel))
-
+        self.rubric_selector = QComboBox(panel)
+        layout.addWidget(self.rubric_selector)
         self.quick_actions_list = QListWidget(panel)
         self.quick_actions_list.setMaximumHeight(140)
-        for label in [
-            "Pre-check medical necessity",
-            "Verify plan of care",
-            "Audit SOAP structure",
-        ]:
+        for label in ["Pre-check medical necessity", "Verify plan of care", "Audit SOAP structure"]:
             item = QListWidgetItem(label)
             item.setCheckState(Qt.Unchecked)
             self.quick_actions_list.addItem(item)
@@ -324,16 +226,34 @@ class MainApplicationWindow(QMainWindow):
         self.analysis_button.setIcon(QIcon.fromTheme("media-playback-start"))
         self.analysis_button.clicked.connect(self._start_analysis)
         layout.addWidget(self.analysis_button)
-
         layout.addStretch(1)
         return panel
+
+    def _create_file_selection_group(self, parent: QWidget) -> QWidget:
+        group = QWidget(parent)
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        self.file_display = QTextEdit(group)
+        self.file_display.setReadOnly(True)
+        self.file_display.setMaximumHeight(80)
+        self.file_display.setPlaceholderText("No document selected")
+        layout.addWidget(self.file_display)
+        controls_row = QHBoxLayout()
+        self.open_file_button = QPushButton("Browse…", group)
+        self.open_file_button.clicked.connect(self._prompt_for_document)
+        controls_row.addWidget(self.open_file_button)
+        self.open_folder_button = QPushButton("Folder…", group)
+        self.open_folder_button.clicked.connect(self._prompt_for_folder)
+        controls_row.addWidget(self.open_folder_button)
+        layout.addLayout(controls_row)
+        return group
 
     def _create_mission_control_tab(self) -> QWidget:
         tab = QWidget(self)
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-
         self.mission_control_widget = MissionControlWidget(tab)
         self.mission_control_widget.start_analysis_requested.connect(self._handle_mission_control_start)
         self.mission_control_widget.review_document_requested.connect(self._handle_mission_control_review)
@@ -345,20 +265,14 @@ class MainApplicationWindow(QMainWindow):
         self._prompt_for_document()
 
     def _handle_mission_control_review(self, doc_info: dict) -> None:
-        doc_name = doc_info.get("title") or doc_info.get("name") \
-            or doc_info.get("document_name") or "Document"
-        QMessageBox.information(
-            self,
-            "Review Document",
-            f"Detailed replay for '{doc_name}' will be available in a future update."
-        )
+        doc_name = doc_info.get("title") or doc_info.get("name") or doc_info.get("document_name") or "Document"
+        QMessageBox.information(self, "Review Document", f"Detailed replay for '{doc_name}' will be available in a future update.")
+
     def _create_analysis_summary_tab(self) -> QWidget:
         tab, layout = self._create_tab_base_layout(spacing=8)
-
         self.analysis_summary_browser = QTextBrowser(tab)
         self.analysis_summary_browser.setOpenExternalLinks(True)
         layout.addWidget(self.analysis_summary_browser, stretch=2)
-
         self.insights_browser = QTextBrowser(tab)
         self.insights_browser.setPlaceholderText("Insights and recommendations will appear here once the analysis completes.")
         layout.addWidget(self.insights_browser, stretch=1)
@@ -370,24 +284,16 @@ class MainApplicationWindow(QMainWindow):
 
     def _create_dashboard_tab(self) -> QWidget:
         tab, layout = self._create_tab_base_layout()
-        if DashboardWidget:
-            self.dashboard_widget = DashboardWidget()
-            layout.addWidget(self.dashboard_widget)
-        else:
-            placeholder, _ = self._create_browser_tab(parent=tab)
-            placeholder.setPlainText("Dashboard component unavailable in this build.")
-            self.dashboard_widget = placeholder
+        self.dashboard_widget = DashboardWidget() if DashboardWidget else QTextBrowser()
+        if not DashboardWidget: self.dashboard_widget.setPlainText("Dashboard component unavailable.")
+        layout.addWidget(self.dashboard_widget)
         return tab
 
     def _create_meta_tab(self) -> QWidget:
         tab, layout = self._create_tab_base_layout()
-        if MetaAnalyticsWidget:
-            self.meta_widget = MetaAnalyticsWidget()
-            layout.addWidget(self.meta_widget)
-        else:
-            placeholder, _ = self._create_browser_tab(parent=tab)
-            placeholder.setPlainText("Meta analytics component unavailable in this build.")
-            self.meta_widget = placeholder
+        self.meta_widget = MetaAnalyticsWidget() if MetaAnalyticsWidget else QTextBrowser()
+        if not MetaAnalyticsWidget: self.meta_widget.setPlainText("Meta analytics component unavailable.")
+        layout.addWidget(self.meta_widget)
         return tab
 
     def _create_report_tab(self) -> QWidget:
@@ -395,7 +301,6 @@ class MainApplicationWindow(QMainWindow):
         return tab
 
     def _create_tab_base_layout(self, spacing: int = 0) -> tuple[QWidget, QVBoxLayout]:
-        """Creates a standard QWidget and QVBoxLayout for a tab."""
         tab = QWidget(self)
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -403,7 +308,6 @@ class MainApplicationWindow(QMainWindow):
         return tab, layout
 
     def _create_browser_tab(self, parent: Optional[QWidget] = None) -> tuple[QTextBrowser, QWidget]:
-        """Creates a standard tab containing a single QTextBrowser."""
         tab, layout = self._create_tab_base_layout()
         browser = QTextBrowser(tab)
         layout.addWidget(browser)
@@ -423,7 +327,6 @@ class MainApplicationWindow(QMainWindow):
         self.document_preview_browser = QTextBrowser(self.document_preview_dock)
         self.document_preview_dock.setWidget(self.document_preview_browser)
         self.addDockWidget(Qt.RightDockWidgetArea, self.document_preview_dock)
-
         if PerformanceStatusWidget:
             self.performance_dock = QDockWidget("Performance", self)
             self.performance_widget = PerformanceStatusWidget()
@@ -431,35 +334,18 @@ class MainApplicationWindow(QMainWindow):
             self.addDockWidget(Qt.RightDockWidgetArea, self.performance_dock)
         else:
             self.performance_dock = None
-            self.performance_widget = None
 
     def _build_floating_chat_button(self) -> None:
         self.chat_button = QPushButton("Ask AI Assistant", self)
         self.chat_button.setObjectName("floatingChatButton")
         self.chat_button.clicked.connect(self._open_chat_dialog)
-        self.chat_button.setStyleSheet(
-            """
-            QPushButton#floatingChatButton {
-                background-color: palette(highlight);
-                color: palette(highlighted-text);
-                background-color: palette(Highlight);
-                color: palette(ButtonText);
-                border-radius: 22px;
-                padding: 10px 20px;
-                font-weight: bold;
-            }
-            QPushButton#floatingChatButton:hover {
-                background-color: palette(light);
-                background-color: palette(Button);
-            }
-            """
-        )
+        self.chat_button.setStyleSheet("""
+            QPushButton#floatingChatButton {background-color: palette(highlight); color: palette(highlighted-text); border-radius: 22px; padding: 10px 20px; font-weight: bold;}
+            QPushButton#floatingChatButton:hover {background-color: palette(light);}
+        """)
         self.chat_button.resize(220, 44)
         self.chat_button.raise_()
 
-    # ------------------------------------------------------------------
-    # Data loading & theme
-    # ------------------------------------------------------------------
     def _load_initial_state(self) -> None:
         self._load_rubrics()
         self._refresh_mission_control()
@@ -467,128 +353,74 @@ class MainApplicationWindow(QMainWindow):
         QTimer.singleShot(500, self._refresh_meta_analytics)
 
     def _apply_theme(self, theme: str) -> None:
-        """Applies the selected color theme to the application."""
-        palette = get_theme_palette(theme)
-        QApplication.instance().setPalette(palette)
-
-        # Sync the menu actions
+        QApplication.instance().setPalette(get_theme_palette(theme))
         for action in self.theme_action_group.actions():
-            if action.text().lower() == theme:
-                action.setChecked(True)
+            if action.text().lower() == theme: action.setChecked(True)
 
     def _save_settings(self) -> None:
-        """Saves window geometry, dock, and splitter states."""
-        settings = QSettings("TherapyCo", "ComplianceAnalyzer")
-        settings.setValue("geometry", self.saveGeometry())
-        settings.setValue("windowState", self.saveState())
-        settings.setValue("mainSplitter", self.main_splitter.saveState())
-
-        # Save theme
+        self.settings.setValue("geometry", self.saveGeometry())
+        self.settings.setValue("windowState", self.saveState())
+        self.settings.setValue("mainSplitter", self.main_splitter.saveState())
         if self.theme_action_group.checkedAction():
-            settings.setValue("theme", self.theme_action_group.checkedAction().text().lower())
-
-        # Save control panel state
-        settings.setValue("analysis/rubric", self.rubric_selector.currentData())
-        settings.setValue("analysis/strict_mode", self.strict_mode_checkbox.isChecked())
-        settings.setValue("analysis/sensitivity", self.sensitivity_slider.value())
-        if self._selected_file:
-            settings.setValue("analysis/last_file", str(self._selected_file))
+            self.settings.setValue("theme", self.theme_action_group.checkedAction().text().lower())
+        self.settings.setValue("analysis/rubric", self.rubric_selector.currentData())
+        if self._selected_file: self.settings.setValue("analysis/last_file", str(self._selected_file))
 
     def _load_settings(self) -> None:
-        """Loads window geometry, dock, and splitter states."""
-        settings = QSettings("TherapyCo", "ComplianceAnalyzer")
+        if geometry := self.settings.value("geometry"): self.restoreGeometry(geometry)
+        if window_state := self.settings.value("windowState"): self.restoreState(window_state)
+        if splitter_state := self.settings.value("mainSplitter"): self.main_splitter.restoreState(splitter_state)
+        self._saved_rubric_value = self.settings.value("analysis/rubric", type=str)
+        if last_file := self.settings.value("analysis/last_file", type=str): self._set_selected_file(Path(last_file))
 
-        # Restore window state
-        if geometry := settings.value("geometry"):
-            self.restoreGeometry(geometry)
-        if window_state := settings.value("windowState"):
-            self.restoreState(window_state)
-        if splitter_state := settings.value("mainSplitter"):
-            self.main_splitter.restoreState(splitter_state)
-
-        # Restore control panel state
-        self._saved_rubric_value = settings.value("analysis/rubric", type=str)
-        self.strict_mode_checkbox.setChecked(settings.value("analysis/strict_mode", False, type=bool))
-        self.sensitivity_slider.setValue(settings.value("analysis/sensitivity", 5, type=int))
-        if last_file := settings.value("analysis/last_file", type=str):
-            self._set_selected_file(Path(last_file))
-
-    # ------------------------------------------------------------------
-    # Control panel handlers
-    # ------------------------------------------------------------------
     def _prompt_for_document(self) -> None:
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Select clinical document",
-            str(Path.home()),
-            "Documents (*.pdf *.docx *.txt *.md *.json)"
-        )
-        if not file_path:
-            return
-        self._set_selected_file(Path(file_path))
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select clinical document", str(Path.home()), "Documents (*.pdf *.docx *.txt *.md *.json)")
+        if file_path: self._set_selected_file(Path(file_path))
 
     def _set_selected_file(self, file_path: Path) -> None:
-        """Sets the selected file and updates the UI, handling potential errors."""
-        if file_path.is_file():
-            self._selected_file = file_path
-            self.file_display.setPlainText(self._selected_file.read_text(encoding='utf-8', errors='ignore')[:4000])
         if not file_path.is_file():
             self.statusBar().showMessage(f"File not found: {file_path.name}", 5000)
             self._selected_file = None
             self.file_display.clear()
-            self._update_document_preview()
+        else:
+            self._selected_file = file_path
+            self.file_display.setPlainText(self._selected_file.read_text(encoding='utf-8', errors='ignore')[:4000])
             self.statusBar().showMessage(f"Selected {self._selected_file.name}", 3000)
-            return
-        self._selected_file = file_path
-        self.file_display.setPlainText(self._selected_file.read_text(encoding='utf-8', errors='ignore')[:4000])
         self._update_document_preview()
-        self.statusBar().showMessage(f"Selected {self._selected_file.name}", 3000)
 
     def _prompt_for_folder(self) -> None:
-        folder_path = QFileDialog.getExistingDirectory(
-            self,
-            "Select folder containing documents",
-            str(Path.home())
-        )
+        folder_path = QFileDialog.getExistingDirectory(self, "Select folder for batch analysis", str(Path.home()))
         if folder_path:
-            QMessageBox.information(
-                self,
-                "Folder selected",
-                "Batch folder analysis will be supported in an upcoming revision."
-            )
+            analysis_data = {
+                "discipline": self.rubric_selector.currentData() or "",
+                "analysis_mode": "rubric",
+                "options": {
+                    "strict": self.settings.value("analysis/strict_mode", False, type=bool),
+                    "sensitivity": self.settings.value("analysis/sensitivity", 5, type=int),
+                },
+            }
+            dialog = BatchAnalysisDialog(folder_path, self.auth_token, analysis_data, self)
+            dialog.exec()
 
     def _start_analysis(self) -> None:
         if not self._selected_file:
             QMessageBox.warning(self, "No document", "Please select a document before starting the analysis.")
             return
-
         if not self.auth_token:
-            QMessageBox.warning(
-                self,
-                "Authentication required",
-                "Set the THERAPY_ANALYZER_TOKEN environment variable with a valid access token before running the analysis."
-            )
+            QMessageBox.critical(self, "Authentication Error", "Authentication token is missing. Please restart the application.")
             return
 
         request_payload = {
             "discipline": self.rubric_selector.currentData() or "",
             "analysis_mode": "rubric",
             "options": {
-                "strict": self.strict_mode_checkbox.isChecked(),
-                "sensitivity": self.sensitivity_slider.value(),
+                "strict": self.settings.value("analysis/strict_mode", False, type=bool),
+                "sensitivity": self.settings.value("analysis/sensitivity", 5, type=int),
             },
         }
         self._set_ui_busy(True)
         self.statusBar().showMessage("Submitting document for analysis…")
-
-        self._run_worker(
-            AnalysisStarterWorker,
-            on_success=self._handle_analysis_task_started,
-            on_error=self._handle_generic_worker_error,
-            file_path=str(self._selected_file),
-            data=request_payload,
-            token=self.auth_token
-        )
+        self._run_worker(AnalysisStarterWorker, on_success=self._handle_analysis_task_started, on_error=self._handle_generic_worker_error, file_path=str(self._selected_file), data=request_payload, token=self.auth_token)
 
     def _handle_analysis_task_started(self, task_id: str) -> None:
         self._current_task_id = task_id
@@ -596,22 +428,11 @@ class MainApplicationWindow(QMainWindow):
         self._start_polling_worker(task_id)
 
     def _start_polling_worker(self, task_id: str) -> None:
-        if self._poll_thread:
-            self._request_poll_worker_stop()
-
-        self._poll_worker, self._poll_thread = self._run_worker(
-            SingleAnalysisPollingWorker,
-            on_success=self._handle_analysis_success,
-            on_error=self._handle_generic_worker_error,
-            on_progress=self._update_progress_bar,
-            on_finished=self._handle_analysis_finished,
-            task_id=task_id
-        )
+        if self._poll_thread and self._poll_thread.isRunning(): self._request_poll_worker_stop()
+        self._poll_worker, self._poll_thread = self._run_worker(SingleAnalysisPollingWorker, on_success=self._handle_analysis_success, on_error=self._handle_generic_worker_error, on_progress=self._update_progress_bar, on_finished=self._handle_analysis_finished, task_id=task_id, token=self.auth_token)
 
     def _request_poll_worker_stop(self) -> None:
-        """Requests the polling worker to stop its loop gracefully."""
-        if self._poll_worker:
-            self._poll_worker.stop()
+        if self._poll_worker: self._poll_worker.stop()
 
     def _handle_generic_worker_error(self, message: str) -> None:
         QMessageBox.critical(self, "Analysis failed", message)
@@ -619,49 +440,22 @@ class MainApplicationWindow(QMainWindow):
         self.statusBar().showMessage("Analysis failed", 5000)
 
     def _set_ui_busy(self, busy: bool) -> None:
-        """Sets the UI to a busy state, disabling controls and showing progress."""
         self.control_panel.setEnabled(not busy)
-        if busy:
-            self.progress_bar.setRange(0, 0)  # Indeterminate
+        self.progress_bar.setRange(0, 0) if busy else self.progress_bar.setRange(0, 100)
         self.progress_bar.setVisible(busy)
 
     def _update_progress_bar(self, value: int) -> None:
-        if self.progress_bar.maximum() == 0:
-            self.progress_bar.setRange(0, 100)
+        if self.progress_bar.maximum() == 0: self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(value)
 
     def _update_result_views(self, payload: Dict[str, Any]) -> None:
-        """Populates the UI tabs with the analysis results."""
         self._current_payload = payload
         analysis = payload.get("analysis", {})
-
-        # 1. Generate or retrieve the main HTML report
-        report_html = payload.get("report_html")
-        if not report_html:
-            doc_name = "Document"
-            if self._selected_file:
-                doc_name = self._selected_file.name
-            doc_name = analysis.get("document_name", doc_name)
-
-            report_html = self.report_generator.generate_html_report(
-                analysis_result=analysis,
-                doc_name=doc_name,
-            )
-
-        # 2. Update summary and report tabs
-        if report_html:
-            self.analysis_summary_browser.setHtml(report_html)
-            self.report_preview_browser.setHtml(report_html)
-        else:
-            # Fallback for summary if no HTML is available
-            self.analysis_summary_browser.setPlainText(json.dumps(payload, indent=2))
-
-        # 3. Update insights tab
+        report_html = payload.get("report_html") or self.report_generator.generate_html_report(analysis_result=analysis, doc_name=self._selected_file.name if self._selected_file else "Document")
+        self.analysis_summary_browser.setHtml(report_html)
+        self.report_preview_browser.setHtml(report_html)
         insights = analysis.get("insights", {})
-        insights_text = json.dumps(insights, indent=2) if insights else "No insights generated."
-        self.insights_browser.setPlainText(insights_text)
-
-        # 4. Update detailed findings tab
+        self.insights_browser.setPlainText(json.dumps(insights, indent=2) if insights else "No insights generated.")
         self.detailed_results_browser.setPlainText(json.dumps(payload, indent=2))
 
     def _handle_analysis_success(self, payload: Dict[str, Any]) -> None:
@@ -674,54 +468,26 @@ class MainApplicationWindow(QMainWindow):
         self._set_ui_busy(False)
 
     def _refresh_mission_control(self) -> None:
-        """Fetches data for the main mission control dashboard."""
-        # Prevent multiple dashboard refreshes from running simultaneously
-        for thread in self._active_threads:
-            worker = thread.findChild(DashboardWorker)
-            if worker and thread.isRunning():
-                return  # A refresh is already in progress
-        self.statusBar().showMessage("Loading dashboard metrics...")
+        self._run_worker(DashboardWorker, on_success=self._on_dashboard_success, on_error=self._on_dashboard_error, token=self.auth_token)
 
-        def on_success(data: Any) -> None:
-            self.mission_control_widget.update_metrics(data)
-            self.statusBar().showMessage("Dashboard updated.", 3000)
+    def _on_dashboard_success(self, data: Any) -> None:
+        self.mission_control_widget.update_metrics(data)
+        self.statusBar().showMessage("Dashboard updated.", 3000)
 
-        def on_error(msg: str) -> None:
-            self.statusBar().showMessage(f"Dashboard Error: {msg}", 5000)
+    def _on_dashboard_error(self, msg: str) -> None:
+        self.statusBar().showMessage(f"Dashboard Error: {msg}", 5000)
 
-        self._run_worker(DashboardWorker, on_success, on_error)
-
-# ------------------------------------------------------------------
-    # Auxiliary actions
-    # ------------------------------------------------------------------
-    def _run_worker(
-        self,
-        worker_class: Type[BaseWorker],
-        worker_class: Type[WorkerProtocol],
-        on_success: Callable,
-        on_error: Callable,
-        on_progress: Optional[Callable] = None,
-        on_finished: Optional[Callable] = None,
-        **kwargs: Any
-    ) -> tuple[BaseWorker, QThread]:
-    ) -> tuple[WorkerProtocol, QThread]:
+    def _run_worker(self, worker_class: Type[WorkerProtocol], on_success: Callable, on_error: Callable, on_progress: Optional[Callable] = None, on_finished: Optional[Callable] = None, **kwargs: Any) -> tuple[WorkerProtocol, QThread]:
         thread = QThread(self)
         self._active_threads.append(thread)
         worker = worker_class(**kwargs)
         worker.moveToThread(thread)
-
         worker.success.connect(on_success)
         worker.error.connect(on_error)
-        if on_progress and hasattr(worker, "progress"):
-            worker.progress.connect(on_progress)
-        if on_finished:
-            worker.finished.connect(on_finished)
-
-        # Clean up thread and remove from active list when it's done
+        if on_progress and hasattr(worker, "progress"): worker.progress.connect(on_progress)
+        if on_finished: worker.finished.connect(on_finished)
         def _thread_cleanup() -> None:
-            if thread in self._active_threads:
-                self._active_threads.remove(thread)
-
+            if thread in self._active_threads: self._active_threads.remove(thread)
         worker.finished.connect(thread.quit)
         thread.finished.connect(thread.deleteLater)
         thread.finished.connect(_thread_cleanup)
@@ -730,139 +496,87 @@ class MainApplicationWindow(QMainWindow):
         return worker, thread
 
     def _update_document_preview(self) -> None:
-        if not self._selected_file:
-            self.document_preview_browser.clear()
-            return
+        if not self._selected_file: self.document_preview_browser.clear(); return
         suffix = self._selected_file.suffix.lower()
         if suffix in {'.txt', '.md', '.json', '.yaml', '.csv'}:
             content = self._selected_file.read_text(encoding='utf-8', errors='ignore')
             self.document_preview_browser.setPlainText(content[:10000])
         else:
-            self.document_preview_browser.setHtml(
-                f"<h3>Preview unavailable</h3><p>{self._selected_file.name} cannot be previewed in-app.</p>"
-            )
+            self.document_preview_browser.setHtml(f"<h3>Preview unavailable</h3><p>{self._selected_file.name} cannot be previewed in-app.</p>")
 
     def _load_rubrics(self) -> None:
-        """Loads available rubrics from the API in a background thread."""
-        def on_success(rubrics: list[dict]) -> None:
-            self.rubric_selector.clear()
-            for rubric in rubrics:
-                self.rubric_selector.addItem(rubric.get("name", "Unnamed rubric"), rubric.get("value"))
-            
-            # If after a successful fetch, there are no rubrics, use the fallback.
-            if self.rubric_selector.count() == 0:
-                on_error("API returned no rubrics.")
-            
-            # Restore last selected rubric if it exists
-            if self._saved_rubric_value:
-                index = self.rubric_selector.findData(self._saved_rubric_value)
-                if index != -1:
-                    self.rubric_selector.setCurrentIndex(index)
+        self._run_worker(GenericApiWorker, on_success=self._on_rubrics_loaded, on_error=self._on_rubrics_error, endpoint="/rubrics", token=self.auth_token)
 
-        def on_error(msg: str) -> None:
-            self.statusBar().showMessage(f"Could not load rubrics: {msg}", 5000)
-            # Populate with fallback data
-            fallback_rubrics = [
-                {"name": "Physical Therapy", "value": "pt"},
-                {"name": "Occupational Therapy", "value": "ot"},
-                {"name": "Speech Therapy", "value": "st"},
-            ]
-            on_success(fallback_rubrics)
+    def _on_rubrics_loaded(self, rubrics: list[dict]) -> None:
+        self.rubric_selector.clear()
+        if not rubrics: self._on_rubrics_error("API returned no rubrics."); return
+        for rubric in rubrics:
+            self.rubric_selector.addItem(rubric.get("name", "Unnamed rubric"), rubric.get("value"))
+        if self._saved_rubric_value:
+            index = self.rubric_selector.findData(self._saved_rubric_value)
+            if index != -1: self.rubric_selector.setCurrentIndex(index)
 
-        self._run_worker(GenericApiWorker, on_success, on_error, endpoint="/rubrics")
+    def _on_rubrics_error(self, msg: str) -> None:
+        self.statusBar().showMessage(f"Could not load rubrics: {msg}", 5000)
+        self._on_rubrics_loaded([{"name": "Physical Therapy", "value": "pt"}, {"name": "Occupational Therapy", "value": "ot"}, {"name": "Speech Therapy", "value": "st"}])
 
     def _async_update_widget(self, widget: Optional[QWidget], endpoint: str, error_message: str) -> None:
-        """
-        Generic helper to fetch data from an endpoint in a background thread
-        and update a widget.
-        """
-        if not widget:
-            return
-
+        if not widget: return
         def on_success(data: Any) -> None:
-            if hasattr(widget, "load_data"):
-                widget.load_data(data)  # type: ignore[func-attr]
-            elif isinstance(widget, QTextBrowser):
-                widget.setPlainText(json.dumps(data, indent=2))
-
+            if hasattr(widget, "load_data"): widget.load_data(data)
+            elif isinstance(widget, QTextBrowser): widget.setPlainText(json.dumps(data, indent=2))
         def on_error(msg: str) -> None:
-            if isinstance(widget, QTextBrowser):
-                widget.setPlainText(f"{error_message}\n\nDetails: {msg}")
-
-        self._run_worker(
-            GenericApiWorker, on_success, on_error, endpoint=endpoint
-        )
+            if isinstance(widget, QTextBrowser): widget.setPlainText(f"{error_message}\n\nDetails: {msg}")
+        self._run_worker(GenericApiWorker, on_success, on_error, endpoint=endpoint, token=self.auth_token)
 
     def _refresh_dashboards(self) -> None:
-        self._async_update_widget(
-            self.dashboard_widget, "/dashboard/overview", "Dashboard data unavailable."
-        )
+        self._async_update_widget(self.dashboard_widget, "/dashboard/overview", "Dashboard data unavailable.")
 
     def _refresh_meta_analytics(self) -> None:
-        self._async_update_widget(
-            self.meta_widget, "/dashboard/meta", "Meta analytics unavailable."
-        )
+        self._async_update_widget(self.meta_widget, "/dashboard/meta", "Meta analytics unavailable.")
 
     def _export_report(self) -> None:
-        if not self._current_payload:
-            QMessageBox.information(self, "No report", "Run an analysis before exporting a report.")
-            return
-        file_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Save report",
-            str(Path.home() / "compliance_report.html"),
-            "HTML Files (*.html)"
-        )
-        if not file_path:
-            return
-        html = self.report_preview_browser.toHtml()
-        Path(file_path).write_text(html, encoding='utf-8')
+        if not self._current_payload: QMessageBox.information(self, "No report", "Run an analysis before exporting a report."); return
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save report", str(Path.home() / "compliance_report.html"), "HTML Files (*.html)")
+        if not file_path: return
+        Path(file_path).write_text(self.report_preview_browser.toHtml(), encoding='utf-8')
         self.statusBar().showMessage(f"Report exported to {file_path}", 5000)
 
     def _toggle_document_preview(self, checked: bool) -> None:
         self.document_preview_dock.setVisible(checked)
 
     def _toggle_performance_panel(self, checked: bool) -> None:
-        if self.performance_dock:
-            self.performance_dock.setVisible(checked)
+        if self.performance_dock: self.performance_dock.setVisible(checked)
 
     def _open_rubric_manager(self) -> None:
-        dialog = RubricManagerDialog(self)
+        dialog = RubricManagerDialog(self.auth_token, self)
+        if dialog.exec(): self._load_rubrics()
+
+    def _open_settings_dialog(self) -> None:
+        dialog = SettingsDialog(self)
         dialog.exec()
-        self._load_rubrics()
 
     def _open_chat_dialog(self) -> None:
-        dialog = ChatDialog("Provide a compliance summary", "", self)
+        initial_context = self.analysis_summary_browser.toPlainText() or "Provide a compliance summary."
+        dialog = ChatDialog(initial_context, self.auth_token, self)
         dialog.exec()
 
     def _show_about_dialog(self) -> None:
-        QMessageBox.information(
-            self,
-            "About",
-            "Therapy Compliance Analyzer\n"
-            "Advanced GUI consolidating legacy windows into a single experience."
-        )
+        QMessageBox.information(self, "About", f"Therapy Compliance Analyzer\nWelcome, {self.current_user.username}!")
 
-    # ------------------------------------------------------------------
-    # Qt overrides
-    # ------------------------------------------------------------------
-    def resizeEvent(self, event) -> None:  # type: ignore[override]
+    def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         margin = 24
         button_width = self.chat_button.width()
         button_height = self.chat_button.height()
-        self.chat_button.move(
-            self.width() - button_width - margin,
-            self.height() - button_height - margin,
-        )
+        self.chat_button.move(self.width() - button_width - margin, self.height() - button_height - margin)
 
-    def closeEvent(self, event) -> None:  # type: ignore[override]
+    def closeEvent(self, event) -> None:
         self._save_settings()
         self._request_poll_worker_stop()
         for thread in list(self._active_threads):
             thread.quit()
             thread.wait(150)
         super().closeEvent(event)
-
 
 __all__ = ["MainApplicationWindow"]

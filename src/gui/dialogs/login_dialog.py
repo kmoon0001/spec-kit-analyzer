@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFormLayout, QLineEdit,
 
 
 class LoginDialog(QDialog):
-    """A mock dialog for user login."""
+    """Standard dialog for user authentication."""
 
     def __init__(self, parent=None):
         super().__init__(parent)

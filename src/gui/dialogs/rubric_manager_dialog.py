@@ -1,4 +1,4 @@
-import requests
+
 from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -9,19 +9,25 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QLineEdit,
     QFormLayout,
+    QLabel,
+    QPushButton,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread
+from typing import List, Dict, Any, Callable, Optional
 
 from src.config import get_settings
+from ..workers.rubric_api_worker import RubricApiWorker
 
 settings = get_settings()
 API_URL = settings.paths.api_url
 
 
 class RubricEditorDialog(QDialog):
-    def __init__(self, rubric_data, parent=None):
+    """Dialog for creating and editing a single rubric."""
+    def __init__(self, rubric_data: Dict[str, Any], parent=None):
         super().__init__(parent)
         self.setWindowTitle("Edit Rubric")
+        self.setMinimumWidth(450)
         self.layout = QFormLayout(self)
 
         self.name_editor = QLineEdit(rubric_data.get("name", ""))
@@ -44,122 +50,188 @@ class RubricEditorDialog(QDialog):
         self.button_box.rejected.connect(self.reject)
         self.layout.addWidget(self.button_box)
 
-    def get_data(self):
+    def get_data(self) -> Dict[str, Any]:
+        """Returns the data entered in the editor fields."""
         return {
             "name": self.name_editor.text(),
             "regulation": self.regulation_editor.toPlainText(),
             "common_pitfalls": self.common_pitfalls_editor.toPlainText(),
             "best_practice": self.best_practice_editor.toPlainText(),
-            "category": "default",
+            "category": "default",  # Or derive this from UI if needed
         }
 
 
 class RubricManagerDialog(QDialog):
+    """Asynchronous dialog for managing compliance rubrics."""
     def __init__(self, token: str, parent=None):
         super().__init__(parent)
         self.token = token
+        self.worker_thread: Optional[QThread] = None
+        self.worker: Optional[RubricApiWorker] = None
+
         self.setWindowTitle("Rubric Manager")
-        self.setGeometry(150, 150, 500, 400)
+        self.setMinimumSize(500, 400)
+        self.resize(600, 450)
+
+        # --- UI Setup ---
         layout = QVBoxLayout(self)
+        self.status_label = QLabel("Loading rubrics...")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.status_label)
+
         self.rubric_list = QListWidget()
         self.rubric_list.itemDoubleClicked.connect(self.edit_rubric)
         layout.addWidget(self.rubric_list)
 
-        button_box = QDialogButtonBox()
-        add_button = button_box.addButton(
+        self.button_box = QDialogButtonBox()
+        self.add_button = self.button_box.addButton(
             "Add Rubric...", QDialogButtonBox.ButtonRole.ActionRole
         )
-        edit_button = button_box.addButton(
+        self.edit_button = self.button_box.addButton(
             "Edit Selected", QDialogButtonBox.ButtonRole.ActionRole
         )
-        remove_button = button_box.addButton(
+        self.remove_button = self.button_box.addButton(
             "Remove Selected", QDialogButtonBox.ButtonRole.ActionRole
         )
-        close_button = button_box.addButton(QDialogButtonBox.StandardButton.Close)
+        self.close_button = self.button_box.addButton(QDialogButtonBox.StandardButton.Close)
 
-        if close_button:
-            close_button.clicked.connect(self.accept)
-        if add_button:
-            add_button.clicked.connect(self.add_rubric)
-        if edit_button:
-            edit_button.clicked.connect(self.edit_rubric)
-        if remove_button:
-            remove_button.clicked.connect(self.remove_rubric)
+        layout.addWidget(self.button_box)
 
-        layout.addWidget(button_box)
+        # --- Connections ---
+        self.close_button.clicked.connect(self.accept)
+        self.add_button.clicked.connect(self.add_rubric)
+        self.edit_button.clicked.connect(self.edit_rubric)
+        self.remove_button.clicked.connect(self.remove_rubric)
+
+        # --- Initial Load ---
         self.load_rubrics()
 
+    def _run_api_call(self, method: Callable, *args, on_success: Callable):
+        """Generic method to run an API call in a background thread."""
+        self.set_ui_busy(True)
+        self.worker_thread = QThread()
+        self.worker = RubricApiWorker(self.token)
+        self.worker.moveToThread(self.worker_thread)
+
+        self.worker.success.connect(on_success)
+        self.worker.error.connect(self.on_api_error)
+
+        self.worker.finished.connect(self.worker_thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        self.worker_thread.finished.connect(lambda: self.set_ui_busy(False))
+
+        worker_method = getattr(self.worker, method.__name__)
+        self.worker_thread.started.connect(lambda: worker_method(*args))
+        self.worker_thread.start()
+
+    def set_ui_busy(self, busy: bool):
+        """Disable buttons and show status while the worker is active."""
+        self.button_box.setEnabled(not busy)
+        if busy:
+            self.status_label.setText("Communicating with API...")
+        else:
+            self.status_label.setText("")
+
+    def on_api_error(self, error_message: str):
+        """Handle and display API errors."""
+        QMessageBox.critical(self, "API Error", error_message)
+        self.status_label.setText("Error occurred.")
+
+    # --- CRUD Operations ---
+
     def load_rubrics(self):
+        """Loads all rubrics from the API asynchronously."""
+        self._run_api_call(RubricApiWorker.get_all, on_success=self._on_load_success)
+
+    def _on_load_success(self, rubrics: List[Dict[str, Any]]):
+        """Populate the list widget when rubrics are loaded."""
         self.rubric_list.clear()
-        try:
-            headers = {"Authorization": f"Bearer {self.token}"}
-            response = requests.get(f"{API_URL}/rubrics/", headers=headers)
-            response.raise_for_status()
-            for rubric in response.json():
-                item = QListWidgetItem(rubric["name"])
-                item.setData(Qt.ItemDataRole.UserRole, rubric)
-                self.rubric_list.addItem(item)
-        except requests.exceptions.RequestException as e:
-            QMessageBox.critical(self, "Error", f"Failed to load rubrics: {e}")
+        if not rubrics:
+            self.status_label.setText("No rubrics found.")
+            return
+            
+        for rubric in rubrics:
+            item = QListWidgetItem(rubric.get("name", "Unnamed Rubric"))
+            item.setData(Qt.ItemDataRole.UserRole, rubric)
+            self.rubric_list.addItem(item)
+        self.status_label.setText(f"Loaded {len(rubrics)} rubrics.")
 
     def add_rubric(self):
-        dialog = RubricEditorDialog({}, self)
-        if dialog.exec():
-            new_data = dialog.get_data()
-            if not new_data.get("name"):
-                QMessageBox.warning(self, "Input Error", "Rubric name cannot be empty.")
-                return
-            try:
-                headers = {"Authorization": f"Bearer {self.token}"}
-                response = requests.post(
-                    f"{API_URL}/rubrics/",
-                    json=new_data,
-                    headers=headers,
-                )
-                response.raise_for_status()
-                self.load_rubrics()
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to add rubric: {e}")
+        """Opens the editor to add a new rubric."""
+        editor = RubricEditorDialog({}, self)
+        if not editor.exec():
+            return
+
+        new_data = editor.get_data()
+        if not new_data.get("name"):
+            QMessageBox.warning(self, "Input Error", "Rubric name cannot be empty.")
+            return
+
+        self._run_api_call(
+            RubricApiWorker.create,
+            new_data,
+            on_success=lambda _: self.load_rubrics()
+        )
 
     def edit_rubric(self):
+        """Opens the editor to modify the selected rubric."""
         selected_item = self.rubric_list.currentItem()
         if not selected_item:
+            QMessageBox.information(self, "No Selection", "Please select a rubric to edit.")
             return
 
         rubric_data = selected_item.data(Qt.ItemDataRole.UserRole)
-        dialog = RubricEditorDialog(rubric_data, self)
-        if dialog.exec():
-            new_data = dialog.get_data()
-            try:
-                headers = {"Authorization": f"Bearer {self.token}"}
-                response = requests.put(
-                    f"{API_URL}/rubrics/{rubric_data['id']}",
-                    json=new_data,
-                    headers=headers,
-                )
-                response.raise_for_status()
-                self.load_rubrics()
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to update rubric: {e}")
+        editor = RubricEditorDialog(rubric_data, self)
+        if not editor.exec():
+            return
+
+        updated_data = editor.get_data()
+        rubric_id = rubric_data.get("id")
+        if not rubric_id:
+            self.on_api_error("Cannot edit rubric: Missing ID.")
+            return
+
+        self._run_api_call(
+            RubricApiWorker.update,
+            rubric_id,
+            updated_data,
+            on_success=lambda _: self.load_rubrics()
+        )
 
     def remove_rubric(self):
+        """Removes the selected rubric after confirmation."""
         selected_item = self.rubric_list.currentItem()
         if not selected_item:
+            QMessageBox.information(self, "No Selection", "Please select a rubric to remove.")
             return
 
         rubric_data = selected_item.data(Qt.ItemDataRole.UserRole)
+        rubric_id = rubric_data.get("id")
+        rubric_name = rubric_data.get("name", "the selected rubric")
+
+        if not rubric_id:
+            self.on_api_error("Cannot remove rubric: Missing ID.")
+            return
+
         reply = QMessageBox.question(
             self,
             "Confirm Deletion",
-            f"Are you sure you want to delete '{rubric_data['name']}'?",
+            f"Are you sure you want to delete '{rubric_name}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.StandardButton.Yes:
-            try:
-                headers = {"Authorization": f"Bearer {self.token}"}
-                response = requests.delete(
-                    f"{API_URL}/rubrics/{rubric_data['id']}", headers=headers
-                )
-                response.raise_for_status()
-                self.load_rubrics()
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to delete rubric: {e}")
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        self._run_api_call(
+            RubricApiWorker.delete,
+            rubric_id,
+            on_success=lambda _: self.load_rubrics()
+        )
+
+    def closeEvent(self, event):
+        """Ensure worker thread is stopped on close."""
+        if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.quit()
+            self.worker_thread.wait(1000) # Wait up to 1s
+        super().closeEvent(event)

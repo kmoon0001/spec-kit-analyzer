@@ -33,9 +33,8 @@ router = APIRouter(prefix="/analysis", tags=["analysis"])
 
 tasks: Dict[str, Dict[str, Any]] = {}
 
-
 def run_analysis_and_save(
-    file_path: str,
+    file_content: bytes,
     task_id: str,
     original_filename: str,
     discipline: str,
@@ -43,21 +42,14 @@ def run_analysis_and_save(
     analysis_service: AnalysisService,
 ) -> None:
     """
-    Background task to run document analysis and save results.
-
-    Args:
-        file_path: Path to uploaded document
-        task_id: Unique task identifier
-        original_filename: Original filename from upload
-        discipline: Therapy discipline
-        analysis_mode: Analysis mode to use
-        analysis_service: Analysis service instance
+    Background task to run document analysis on in-memory content and save results.
     """
-
     async def _job() -> None:
         try:
+            # The analysis service now receives the raw content and filename directly
             result = await analysis_service.analyze_document(
-                file_path=file_path,
+                file_content=file_content,
+                original_filename=original_filename,
                 discipline=discipline,
                 analysis_mode=analysis_mode,
             )
@@ -73,8 +65,6 @@ def run_analysis_and_save(
                 "error": str(exc),
                 "filename": original_filename,
             }
-        finally:
-            Path(file_path).unlink(missing_ok=True)
 
     asyncio.run(_job())
 
@@ -89,21 +79,7 @@ async def analyze_document(
     analysis_service: AnalysisService = Depends(get_analysis_service),
 ) -> Dict[str, str]:
     """
-    Upload and analyze a clinical document for compliance.
-
-    Args:
-        background_tasks: FastAPI background tasks manager
-        file: Uploaded document file
-        discipline: Therapy discipline (pt, ot, slp)
-        analysis_mode: Analysis mode (rubric, checklist, hybrid)
-        _current_user: Authenticated user (for authorization)
-        analysis_service: Analysis service dependency
-
-    Returns:
-        Dict with task_id and status
-
-    Raises:
-        HTTPException: For validation errors or service unavailability
+    Upload and analyze a clinical document for compliance from in-memory content.
     """
     if analysis_service is None:
         raise HTTPException(
@@ -111,60 +87,23 @@ async def analyze_document(
             detail="Analysis service is not ready yet.",
         )
 
-    # Security: Validate filename
-    is_valid, error_msg = SecurityValidator.validate_filename(file.filename or "")
-    if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_msg,
-        )
-
-    settings = get_settings()
-    temp_dir = Path(settings.paths.temp_upload_dir)
-    temp_dir.mkdir(parents=True, exist_ok=True)
-
-    task_id = uuid.uuid4().hex
-    # Security: Sanitize filename to prevent path traversal
-    safe_filename = SecurityValidator.sanitize_filename(file.filename or "")
-    destination = temp_dir / f"{task_id}_{safe_filename}"
+    # Security validations
+    safe_filename = SecurityValidator.validate_and_sanitize_filename(file.filename or "")
+    SecurityValidator.validate_discipline(discipline)
+    SecurityValidator.validate_analysis_mode(analysis_mode)
 
     content = await file.read()
+    SecurityValidator.validate_file_size(len(content))
 
-    # Security: Validate file size
-    is_valid, error_msg = SecurityValidator.validate_file_size(len(content))
-    if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=error_msg,
-        )
-
-    destination.write_bytes(content)
-
-    # Security: Validate discipline parameter
-    is_valid, error_msg = SecurityValidator.validate_discipline(discipline)
-    if not is_valid:
-        destination.unlink(missing_ok=True)  # Clean up uploaded file
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_msg,
-        )
-
-    # Security: Validate analysis_mode parameter
-    is_valid, error_msg = SecurityValidator.validate_analysis_mode(analysis_mode)
-    if not is_valid:
-        destination.unlink(missing_ok=True)  # Clean up uploaded file
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_msg,
-        )
-
+    task_id = uuid.uuid4().hex
     tasks[task_id] = {"status": "processing", "filename": safe_filename}
 
+    # Pass file content directly to the background task, avoiding disk I/O
     background_tasks.add_task(
         run_analysis_and_save,
-        str(destination),
+        content,
         task_id,
-        file.filename,
+        safe_filename,
         discipline,
         analysis_mode,
         analysis_service,
@@ -179,23 +118,12 @@ async def get_analysis_status(
 ) -> Dict[str, Any]:
     """
     Retrieves the status of a background analysis task.
-
-    Args:
-        task_id: Unique task identifier
-        _current_user: Authenticated user (for authorization)
-
-    Returns:
-        Dict with task status and results
-
-    Raises:
-        HTTPException: If task not found
     """
     task = tasks.get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
     if task["status"] == "completed":
-        # Pop the result once it's retrieved to avoid memory bloat
         return tasks.pop(task_id)
 
     return task
@@ -208,44 +136,24 @@ async def export_report_to_pdf(
 ) -> Dict[str, Any]:
     """
     Export analysis report to PDF format.
-
-    Args:
-        task_id: Task ID of completed analysis
-        _current_user: Authenticated user (for authorization)
-
-    Returns:
-        Dict with PDF file information
-
-    Raises:
-        HTTPException: If task not found or PDF generation fails
     """
     from ...core.pdf_export_service import PDFExportService
     from ...core.report_generator import ReportGenerator
 
-    # Get completed task
     task = tasks.get(task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    if task["status"] != "completed":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Task is not completed. Current status: {task['status']}",
-        )
+    if not task or task["status"] != "completed":
+        raise HTTPException(status_code=404, detail="Completed task not found")
 
     try:
-        # Get analysis result
         analysis_result = task.get("result", {})
         document_name = task.get("filename", "document")
 
-        # Generate HTML report
         report_gen = ReportGenerator()
         report_data = report_gen.generate_report(
             analysis_result=analysis_result,
             document_name=document_name,
         )
 
-        # Export to PDF
         pdf_service = PDFExportService()
         pdf_result = pdf_service.export_to_pdf(
             html_content=report_data["report_html"],
@@ -261,83 +169,10 @@ async def export_report_to_pdf(
         )
 
         if not pdf_result.get("success"):
-            raise HTTPException(
-                status_code=500,
-                detail=f"PDF generation failed: {pdf_result.get('error')}",
-            )
+            raise HTTPException(status_code=500, detail=f"PDF generation failed: {pdf_result.get('error')}")
 
-        return {
-            "task_id": task_id,
-            "pdf_info": pdf_result,
-            "message": "PDF exported successfully",
-        }
+        return {"task_id": task_id, "pdf_info": pdf_result, "message": "PDF exported successfully"}
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.exception("PDF export failed", task_id=task_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"PDF export failed: {str(e)}")
-
-
-@router.get("/pdfs")
-async def list_exported_pdfs(
-    _current_user=Depends(get_current_active_user),
-) -> Dict[str, Any]:
-    """
-    List all exported PDF reports.
-
-    Args:
-        _current_user: Authenticated user (for authorization)
-
-    Returns:
-        Dict with list of PDF files
-
-    Raises:
-        HTTPException: If listing fails
-    """
-    from ...core.pdf_export_service import PDFExportService
-
-    try:
-        pdf_service = PDFExportService()
-        pdfs = pdf_service.list_pdfs()
-
-        return {
-            "pdfs": pdfs,
-            "count": len(pdfs),
-        }
-
-    except Exception as e:
-        logger.exception("Failed to list PDFs", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to list PDFs: {str(e)}")
-
-
-@router.post("/purge-old-pdfs")
-async def purge_old_pdfs(
-    _current_user=Depends(get_current_active_user),
-) -> Dict[str, Any]:
-    """
-    Manually trigger purge of old PDF reports.
-
-    Args:
-        _current_user: Authenticated user (for authorization)
-
-    Returns:
-        Dict with purge statistics
-
-    Raises:
-        HTTPException: If purge fails
-    """
-    from ...core.pdf_export_service import PDFExportService
-
-    try:
-        pdf_service = PDFExportService()
-        result = pdf_service.purge_old_pdfs()
-
-        return {
-            "message": "Purge completed",
-            "statistics": result,
-        }
-
-    except Exception as e:
-        logger.exception("Failed to purge PDFs", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to purge PDFs: {str(e)}")
