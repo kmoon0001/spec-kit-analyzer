@@ -12,7 +12,7 @@ import uvicorn
 
 # Add project root to the Python path to allow for `src` imports
 # This is necessary because the script is in the root directory.
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 # Global flag to control server shutdown
 server_running = True

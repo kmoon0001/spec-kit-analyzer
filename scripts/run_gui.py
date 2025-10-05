@@ -10,7 +10,7 @@ import time
 import requests
 
 # Add project root to the Python path
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 # Set matplotlib backend before importing any GUI components
 import matplotlib

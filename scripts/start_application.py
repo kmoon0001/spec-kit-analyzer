@@ -12,7 +12,7 @@ import requests
 from pathlib import Path
 
 # Add project root to Python path
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 def start_api_server():
     """Start the FastAPI server in a separate process."""
