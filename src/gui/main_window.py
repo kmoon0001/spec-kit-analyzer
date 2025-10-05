@@ -7,6 +7,7 @@ import os
 import webbrowser
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Type
+from typing import Any, Callable, Dict, Optional, Type, Protocol
 
 import requests
 from PySide6.QtCore import Qt, QThread, QTimer, QSettings
@@ -72,7 +73,15 @@ class BaseWorker(QThread):
     error = ...
     finished = ...
     progress = ...
+
+class WorkerProtocol(Protocol):
+    """Defines the expected interface for all worker classes."""
+    success: Signal
+    error: Signal
+    finished: Signal
+    progress: Signal
     def run(self) -> None: ...
+    def moveToThread(self, thread: QThread) -> None: ...
 
 
 class MainApplicationWindow(QMainWindow):
@@ -89,6 +98,7 @@ class MainApplicationWindow(QMainWindow):
         self._current_task_id: Optional[str] = None
         self._current_payload: Dict[str, Any] = {}
         self._selected_file: Optional[Path] = None
+        self._saved_rubric_value: Optional[str] = None
         self._active_threads: list[QThread] = []
 
         self.report_generator = ReportGenerator()
@@ -101,7 +111,10 @@ class MainApplicationWindow(QMainWindow):
     # UI construction helpers
     # ------------------------------------------------------------------
     def _build_ui(self) -> None:
-        self._apply_theme('light')
+        settings = QSettings("TherapyCo", "ComplianceAnalyzer")
+        theme = settings.value("theme", "light", type=str)
+        self._apply_theme(theme)
+
         self._build_menus()
         self._build_central_layout()
         self._build_status_bar()
@@ -429,12 +442,15 @@ class MainApplicationWindow(QMainWindow):
             QPushButton#floatingChatButton {
                 background-color: palette(highlight);
                 color: palette(highlighted-text);
+                background-color: palette(Highlight);
+                color: palette(ButtonText);
                 border-radius: 22px;
                 padding: 10px 20px;
                 font-weight: bold;
             }
             QPushButton#floatingChatButton:hover {
                 background-color: palette(light);
+                background-color: palette(Button);
             }
             """
         )
@@ -467,15 +483,36 @@ class MainApplicationWindow(QMainWindow):
         settings.setValue("windowState", self.saveState())
         settings.setValue("mainSplitter", self.main_splitter.saveState())
 
+        # Save theme
+        if self.theme_action_group.checkedAction():
+            settings.setValue("theme", self.theme_action_group.checkedAction().text().lower())
+
+        # Save control panel state
+        settings.setValue("analysis/rubric", self.rubric_selector.currentData())
+        settings.setValue("analysis/strict_mode", self.strict_mode_checkbox.isChecked())
+        settings.setValue("analysis/sensitivity", self.sensitivity_slider.value())
+        if self._selected_file:
+            settings.setValue("analysis/last_file", str(self._selected_file))
+
     def _load_settings(self) -> None:
         """Loads window geometry, dock, and splitter states."""
         settings = QSettings("TherapyCo", "ComplianceAnalyzer")
+
+        # Restore window state
         if geometry := settings.value("geometry"):
             self.restoreGeometry(geometry)
         if window_state := settings.value("windowState"):
             self.restoreState(window_state)
         if splitter_state := settings.value("mainSplitter"):
             self.main_splitter.restoreState(splitter_state)
+
+        # Restore control panel state
+        self._saved_rubric_value = settings.value("analysis/rubric", type=str)
+        self.strict_mode_checkbox.setChecked(settings.value("analysis/strict_mode", False, type=bool))
+        self.sensitivity_slider.setValue(settings.value("analysis/sensitivity", 5, type=int))
+        if last_file := settings.value("analysis/last_file", type=str):
+            self._set_selected_file(Path(last_file))
+
     # ------------------------------------------------------------------
     # Control panel handlers
     # ------------------------------------------------------------------
@@ -488,7 +525,21 @@ class MainApplicationWindow(QMainWindow):
         )
         if not file_path:
             return
-        self._selected_file = Path(file_path)
+        self._set_selected_file(Path(file_path))
+
+    def _set_selected_file(self, file_path: Path) -> None:
+        """Sets the selected file and updates the UI, handling potential errors."""
+        if file_path.is_file():
+            self._selected_file = file_path
+            self.file_display.setPlainText(self._selected_file.read_text(encoding='utf-8', errors='ignore')[:4000])
+        if not file_path.is_file():
+            self.statusBar().showMessage(f"File not found: {file_path.name}", 5000)
+            self._selected_file = None
+            self.file_display.clear()
+            self._update_document_preview()
+            self.statusBar().showMessage(f"Selected {self._selected_file.name}", 3000)
+            return
+        self._selected_file = file_path
         self.file_display.setPlainText(self._selected_file.read_text(encoding='utf-8', errors='ignore')[:4000])
         self._update_document_preview()
         self.statusBar().showMessage(f"Selected {self._selected_file.name}", 3000)
@@ -646,12 +697,14 @@ class MainApplicationWindow(QMainWindow):
     def _run_worker(
         self,
         worker_class: Type[BaseWorker],
+        worker_class: Type[WorkerProtocol],
         on_success: Callable,
         on_error: Callable,
         on_progress: Optional[Callable] = None,
         on_finished: Optional[Callable] = None,
         **kwargs: Any
     ) -> tuple[BaseWorker, QThread]:
+    ) -> tuple[WorkerProtocol, QThread]:
         thread = QThread(self)
         self._active_threads.append(thread)
         worker = worker_class(**kwargs)
@@ -699,6 +752,12 @@ class MainApplicationWindow(QMainWindow):
             # If after a successful fetch, there are no rubrics, use the fallback.
             if self.rubric_selector.count() == 0:
                 on_error("API returned no rubrics.")
+            
+            # Restore last selected rubric if it exists
+            if self._saved_rubric_value:
+                index = self.rubric_selector.findData(self._saved_rubric_value)
+                if index != -1:
+                    self.rubric_selector.setCurrentIndex(index)
 
         def on_error(msg: str) -> None:
             self.statusBar().showMessage(f"Could not load rubrics: {msg}", 5000)
