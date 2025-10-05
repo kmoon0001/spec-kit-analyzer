@@ -2,8 +2,27 @@ from pydantic import BaseModel, ConfigDict
 from typing import Optional, List, Dict, Any, Tuple
 import datetime
 
-# --- Schemas for Reports and Findings (Dashboard) ---
+# --- Schemas for Human-in-the-Loop Feedback ---
 
+class FeedbackAnnotationBase(BaseModel):
+    finding_id: str  # Changed from int to str to match hash
+    is_correct: bool
+    user_comment: Optional[str] = None
+    correction: Optional[str] = None
+    feedback_type: str = "finding_accuracy"
+
+class FeedbackAnnotationCreate(FeedbackAnnotationBase):
+    pass
+
+class FeedbackAnnotation(FeedbackAnnotationBase):
+    id: int
+    user_id: int
+    created_at: datetime.datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# --- Schemas for Reports and Findings (Dashboard) ---
 
 class FindingBase(BaseModel):
     rule_id: str
@@ -12,17 +31,14 @@ class FindingBase(BaseModel):
     problematic_text: str
     confidence_score: float = 0.0
 
-
 class Finding(FindingBase):
     id: int
     report_id: int
 
     model_config = ConfigDict(from_attributes=True)
 
-
 class FindingCreate(FindingBase):
     pass
-
 
 class ReportBase(BaseModel):
     document_name: str
@@ -31,10 +47,8 @@ class ReportBase(BaseModel):
     document_embedding: Optional[bytes] = None
     document_type: Optional[str] = None
 
-
 class ReportCreate(ReportBase):
     pass
-
 
 class Report(ReportBase):
     id: int
@@ -43,14 +57,11 @@ class Report(ReportBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-
 class FindingSummary(BaseModel):
     rule_id: str
     count: int
 
-
 # --- Schemas for Rubrics ---
-
 
 class RubricBase(BaseModel):
     name: str
@@ -60,29 +71,23 @@ class RubricBase(BaseModel):
     best_practice: str
     category: str | None = None
 
-
 class RubricCreate(RubricBase):
     pass
-
 
 class Rubric(RubricBase):
     id: int
 
     model_config = ConfigDict(from_attributes=True)
 
-
 # --- Schemas for Users and Auth ---
-
 
 class UserBase(BaseModel):
     username: str
-
 
 class UserCreate(UserBase):
     password: str
     is_admin: bool = False
     license_key: Optional[str] = None
-
 
 class User(UserBase):
     id: int
@@ -91,70 +96,55 @@ class User(UserBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-
 class UserPasswordChange(BaseModel):
     current_password: str
     new_password: str
-
 
 class Token(BaseModel):
     access_token: str
     token_type: str
 
-
 class TokenData(BaseModel):
     username: Optional[str] = None
 
-
 # --- Schemas for Analysis Tasks ---
-
 
 class TaskStatus(BaseModel):
     task_id: str
     status: str
     error: str | None = None
 
-
 class AnalysisResult(BaseModel):
     task_id: str
     status: str
 
-
 # --- Schemas for Conversational Chat (New) ---
-
 
 class ChatMessage(BaseModel):
     role: str
     content: str
 
-
 class ChatRequest(BaseModel):
     history: List[ChatMessage]
-
 
 class ChatResponse(BaseModel):
     response: str
 
-
 # --- Schemas for Dashboard Analytics ---
-
 
 class HabitSummary(BaseModel):
     habit_name: str
     count: int
-
 
 class ClinicianHabitBreakdown(BaseModel):
     clinician_name: str
     habit_name: str
     count: int
 
-
 class DirectorDashboardData(BaseModel):
     total_findings: int
     team_habit_summary: List[HabitSummary]
     clinician_habit_breakdown: List[ClinicianHabitBreakdown]
-
 
 class CoachingFocus(BaseModel):
     focus_title: str
@@ -162,14 +152,11 @@ class CoachingFocus(BaseModel):
     root_cause: str
     action_steps: List[str]
 
-
 class HabitTrendPoint(BaseModel):
     date: datetime.date
     count: int
 
-
 # Habit Progression Schemas
-
 
 class HabitGoalBase(BaseModel):
     """Base schema for habit goals."""
@@ -180,12 +167,10 @@ class HabitGoalBase(BaseModel):
     target_value: Optional[float] = None
     target_date: Optional[datetime.datetime] = None
 
-
 class HabitGoalCreate(HabitGoalBase):
     """Schema for creating habit goals."""
 
     pass
-
 
 class HabitGoalUpdate(BaseModel):
     """Schema for updating habit goals."""
@@ -195,7 +180,6 @@ class HabitGoalUpdate(BaseModel):
     progress: Optional[int] = None
     status: Optional[str] = None
     current_value: Optional[float] = None
-
 
 class HabitGoal(HabitGoalBase):
     """Schema for habit goal responses."""
@@ -211,7 +195,6 @@ class HabitGoal(HabitGoalBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-
 class HabitAchievementBase(BaseModel):
     """Base schema for habit achievements."""
 
@@ -221,12 +204,10 @@ class HabitAchievementBase(BaseModel):
     icon: str = "🏆"
     category: str
 
-
 class HabitAchievementCreate(HabitAchievementBase):
     """Schema for creating habit achievements."""
 
     pass
-
 
 class HabitAchievement(HabitAchievementBase):
     """Schema for habit achievement responses."""
@@ -236,7 +217,6 @@ class HabitAchievement(HabitAchievementBase):
     earned_at: datetime.datetime
 
     model_config = ConfigDict(from_attributes=True)
-
 
 class HabitProgressData(BaseModel):
     """Schema for individual habit progression data."""
@@ -255,7 +235,6 @@ class HabitProgressData(BaseModel):
     current_goals: List[Dict[str, Any]]
     recommendations: List[Dict[str, Any]]
 
-
 class WeeklyHabitTrend(BaseModel):
     """Schema for weekly habit trend data."""
 
@@ -264,7 +243,6 @@ class WeeklyHabitTrend(BaseModel):
     total_findings: int
     habit_breakdown: Dict[str, int]
     avg_confidence: float
-
 
 class HabitRecommendation(BaseModel):
     """Schema for habit recommendations."""
@@ -275,7 +253,6 @@ class HabitRecommendation(BaseModel):
     description: str
     action_items: List[str]
     habit_number: Optional[int] = None
-
 
 class UserProgressSummary(BaseModel):
     """Schema for user progress summary."""

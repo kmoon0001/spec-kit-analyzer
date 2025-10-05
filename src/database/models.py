@@ -121,6 +121,24 @@ class Finding(Base):
     )
 
 
+class FeedbackAnnotation(Base):
+    """Model for storing human-in-the-loop feedback on AI-generated findings."""
+
+    __tablename__ = "feedback_annotations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    finding_id: Mapped[int] = mapped_column(Integer, ForeignKey("findings.id"), index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    is_correct: Mapped[bool] = mapped_column(Boolean)
+    user_comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    correction: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    feedback_type: Mapped[str] = mapped_column(String, default="finding_accuracy")
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+
+    finding: Mapped["Finding"] = relationship("Finding")
+    user: Mapped["User"] = relationship("User")
+
+
 # Backward compatibility aliases
 Rubric = ComplianceRubric
 Report = AnalysisReport

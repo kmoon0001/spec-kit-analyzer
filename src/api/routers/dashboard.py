@@ -22,6 +22,14 @@ router = APIRouter()
 report_generator = ReportGenerator()
 
 
+@router.get("/statistics", response_model=Dict[str, Any])
+async def get_dashboard_statistics(
+    db: AsyncSession = Depends(get_async_db),
+    current_user: models.User = Depends(get_current_active_user),
+):
+    """Provides aggregated data for the main dashboard widget."""
+    return await crud.get_dashboard_statistics(db)
+
 # --- AI Health Service ---#
 
 class AIHealthService:

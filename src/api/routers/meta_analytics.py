@@ -7,6 +7,7 @@ and anonymous benchmarking data. Admin-only access.
 
 import logging
 from typing import Optional
+import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +20,33 @@ from ..dependencies import require_admin
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/meta-analytics", tags=["Meta Analytics"])
 
+
+@router.get("/widget_data")
+async def get_widget_meta_analytics_data(
+    days_back: int = Query(90, ge=7, le=365, description="Days to analyze (7-365)"),
+    discipline: Optional[str] = Query(
+        None, description="Filter by discipline (PT, OT, SLP)"
+    ),
+    _admin_user: models.User = Depends(require_admin),
+    db: AsyncSession = Depends(get_async_db),
+) -> dict:
+    """
+    Get comprehensive organizational analytics overview for the MetaAnalyticsWidget.
+
+    **Admin Only**
+    """
+    try:
+        meta_service = MetaAnalyticsService()
+        overview_data = await meta_service.get_organizational_overview(
+            db=db, days_back=days_back, discipline_filter=discipline
+        )
+        return overview_data
+    except Exception:
+        logger.exception("Failed to get organizational overview for widget")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve organizational analytics for widget",
+        )
 
 @router.get("/organizational-overview")
 async def get_organizational_overview(

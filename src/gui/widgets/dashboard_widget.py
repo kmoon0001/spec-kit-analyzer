@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QPalette
 from PySide6.QtWidgets import (
     QFrame,
@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QProgressBar,
+    QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
@@ -24,6 +25,7 @@ class DashboardWidget(QWidget):
     A widget to display an overview of compliance metrics, including
     key performance indicators and recent analysis activity.
     """
+    refresh_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -36,12 +38,19 @@ class DashboardWidget(QWidget):
         main_layout.setContentsMargins(15, 15, 15, 15)
         main_layout.setSpacing(20)
 
+        header_layout = QHBoxLayout()
         title = QLabel("Compliance Dashboard", self)
         font = title.font()
         font.setPointSize(18)
         font.setBold(True)
         title.setFont(font)
-        main_layout.addWidget(title)
+        header_layout.addWidget(title)
+        header_layout.addStretch()
+
+        self.refresh_button = QPushButton("Refresh")
+        self.refresh_button.clicked.connect(self.refresh_requested.emit)
+        header_layout.addWidget(self.refresh_button)
+        main_layout.addLayout(header_layout)
 
         # --- KPIs Section ---
         kpi_layout = QHBoxLayout()
@@ -86,7 +95,6 @@ class DashboardWidget(QWidget):
         box.setFrameShape(QFrame.StyledPanel)
         box.setFrameShadow(QFrame.Raised)
         box.setObjectName("kpiBox")
-        # Removed inline stylesheet to use the widget's main stylesheet
 
         layout = QVBoxLayout(box)
         title_label = QLabel(title, box)
@@ -103,20 +111,13 @@ class DashboardWidget(QWidget):
         layout.addWidget(title_label)
         layout.addWidget(value_label)
 
-        # Store the value label for easy access
         box.setProperty("value_label", value_label)
         return box
 
     def load_data(self, data: Dict[str, Any]) -> None:
         """
         Populates the dashboard with data from the API.
-
-        Args:
-            data: A dictionary containing dashboard metrics.
-                  Expected keys: 'total_documents_analyzed', 'overall_compliance_score',
-                  'compliance_by_category'.
         """
-        # Update KPIs
         total_docs = data.get("total_documents_analyzed", 0)
         avg_score = data.get("overall_compliance_score", 0.0)
 
@@ -126,16 +127,14 @@ class DashboardWidget(QWidget):
         avg_score_value_label = self.avg_score_label.property("value_label")
         avg_score_value_label.setText(f"{avg_score:.1f}%")
 
-        # Update compliance breakdown
         self._clear_layout(self.breakdown_layout)
         categories = data.get("compliance_by_category", {})
         row = 0
-        for name, score in categories.items():
+        for name, score in sorted(categories.items()):
             label = QLabel(name, self)
             progress = QProgressBar(self)
             progress.setValue(int(score))
             progress.setFormat(f"{score:.1f}%")
-            # Alignment is now handled by the stylesheet for better consistency
             progress.setAlignment(Qt.AlignCenter)
 
             self.breakdown_layout.addWidget(label, row, 0)

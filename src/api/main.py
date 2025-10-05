@@ -8,6 +8,7 @@ Provides endpoints for document analysis, user management, and compliance report
 import asyncio
 import datetime
 import logging
+import numpy as np
 import structlog
 from contextlib import asynccontextmanager
 from typing import Any, Coroutine, Dict, List
@@ -30,6 +31,7 @@ from src.api.routers import (
     chat,
     compliance,
     dashboard,
+    feedback,
     health,
     habits,
     meta_analytics,
@@ -40,7 +42,9 @@ from src.api.global_exception_handler import (
 )
 from src.core.database_maintenance_service import DatabaseMaintenanceService
 from src.core.data_purging_service import DataPurgingService
+from src.core.vector_store import get_vector_store
 from src.config import get_settings
+from src.database import crud, get_async_db
 from src.logging_config import CorrelationIdMiddleware, configure_logging
 
 settings = get_settings()
@@ -116,13 +120,43 @@ in_memory_task_purge_service = InMemoryTaskPurgeService(
     purge_interval_seconds=settings.maintenance.in_memory_purge_interval_seconds,
 )
 
+# --- Vector Store Initialization ---
+
+async def initialize_vector_store():
+    """Initializes and populates the vector store on application startup."""
+    vector_store = get_vector_store()
+    if vector_store.is_initialized:
+        return
+
+    vector_store.initialize_index()
+    logger.info("Populating vector store with existing report embeddings...")
+    
+    db_session_gen = get_async_db()
+    db = await anext(db_session_gen)
+    try:
+        reports = await crud.get_all_reports_with_embeddings(db)
+        if reports:
+            embeddings = [np.frombuffer(report.document_embedding, dtype=np.float32) for report in reports]
+            report_ids = [report.id for report in reports]
+            
+            # Ensure all embeddings have the same dimension
+            embedding_dim = embeddings[0].shape[0]
+            valid_embeddings = [emb for emb in embeddings if emb.shape[0] == embedding_dim]
+            valid_ids = [id for emb, id in zip(embeddings, report_ids) if emb.shape[0] == embedding_dim]
+
+            if valid_embeddings:
+                vector_store.add_vectors(np.array(valid_embeddings), valid_ids)
+            logger.info(f"Successfully populated vector store with {len(valid_embeddings)} embeddings.")
+        else:
+            logger.info("No existing reports with embeddings found to populate vector store.")
+    finally:
+        await db.close()
 
 # --- Application Lifespan --- #
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
-    # Configure logging and add WebSocket handler
     configure_logging(settings.log_level)
     ws_handler = WebSocketLogHandler()
     ws_handler.setLevel(logging.INFO)
@@ -131,6 +165,7 @@ async def lifespan(app: FastAPI):
     logging.getLogger().addHandler(ws_handler)
 
     await api_startup()
+    await initialize_vector_store()
     
     run_maintenance_jobs()
     scheduler.add_job(run_maintenance_jobs, "interval", days=1)
@@ -173,6 +208,7 @@ app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 app.include_router(compliance.router, tags=["Compliance"])
 app.include_router(habits.router, tags=["Habits"])
 app.include_router(meta_analytics.router, tags=["Meta Analytics"])
+app.include_router(feedback.router)
 
 
 # --- WebSocket Endpoint --- #

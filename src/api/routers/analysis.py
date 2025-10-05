@@ -22,11 +22,14 @@ from fastapi import (
     UploadFile,
     status,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth import get_current_active_user
 from ...config import get_settings
 from ...core.analysis_service import AnalysisService
 from ...core.security_validator import SecurityValidator
+from ...database import crud, schemas, models
+from ...database.database import get_async_db
 from ..dependencies import get_analysis_service
 
 logger = structlog.get_logger(__name__)
@@ -47,7 +50,6 @@ def run_analysis_and_save(
     """
     async def _job() -> None:
         try:
-            # The analysis service now receives the raw content and filename directly
             result = await analysis_service.analyze_document(
                 file_content=file_content,
                 original_filename=original_filename,
@@ -60,7 +62,7 @@ def run_analysis_and_save(
                 "filename": original_filename,
                 "timestamp": datetime.datetime.now(datetime.timezone.utc),
             }
-        except Exception as exc:  # pragma: no cover - defensive
+        except Exception as exc:
             logger.exception("Analysis task failed", task_id=task_id, error=str(exc))
             tasks[task_id] = {
                 "status": "failed",
@@ -78,19 +80,16 @@ async def analyze_document(
     file: UploadFile = File(...),
     discipline: str = Form("pt"),
     analysis_mode: str = Form("rubric"),
-    _current_user=Depends(get_current_active_user),
+    _current_user: models.User = Depends(get_current_active_user),
     analysis_service: AnalysisService = Depends(get_analysis_service),
 ) -> Dict[str, str]:
-    """
-    Upload and analyze a clinical document for compliance from in-memory content.
-    """
+    """Upload and analyze a clinical document for compliance from in-memory content."""
     if analysis_service is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Analysis service is not ready yet.",
         )
 
-    # Security validations
     safe_filename = SecurityValidator.validate_and_sanitize_filename(file.filename or "")
     SecurityValidator.validate_discipline(discipline)
     SecurityValidator.validate_analysis_mode(analysis_mode)
@@ -105,7 +104,6 @@ async def analyze_document(
         "timestamp": datetime.datetime.now(datetime.timezone.utc),
     }
 
-    # Pass file content directly to the background task, avoiding disk I/O
     background_tasks.add_task(
         run_analysis_and_save,
         content,
@@ -121,11 +119,9 @@ async def analyze_document(
 
 @router.get("/status/{task_id}")
 async def get_analysis_status(
-    task_id: str, _current_user=Depends(get_current_active_user)
+    task_id: str, _current_user: models.User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
-    """
-    Retrieves the status of a background analysis task.
-    """
+    """Retrieves the status of a background analysis task."""
     task = tasks.get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -137,21 +133,17 @@ async def get_analysis_status(
 
 
 @router.get("/all-tasks")
-async def get_all_tasks(_current_user=Depends(get_current_active_user)) -> Dict[str, Dict[str, Any]]:
-    """
-    Retrieves all current analysis tasks.
-    """
+async def get_all_tasks(_current_user: models.User = Depends(get_current_active_user)) -> Dict[str, Dict[str, Any]]:
+    """Retrieves all current analysis tasks."""
     return tasks
 
 
 @router.post("/export-pdf/{task_id}")
 async def export_report_to_pdf(
     task_id: str,
-    _current_user=Depends(get_current_active_user),
+    _current_user: models.User = Depends(get_current_active_user),
 ) -> Dict[str, Any]:
-    """
-    Export analysis report to PDF format.
-    """
+    """Export analysis report to PDF format."""
     from ...core.pdf_export_service import PDFExportService
     from ...core.report_generator import ReportGenerator
 
@@ -191,3 +183,20 @@ async def export_report_to_pdf(
     except Exception as e:
         logger.exception("PDF export failed", task_id=task_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"PDF export failed: {str(e)}")
+
+
+@router.post("/feedback", response_model=schemas.FeedbackAnnotation, status_code=status.HTTP_201_CREATED)
+async def submit_feedback(
+    feedback: schemas.FeedbackAnnotationCreate,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: models.User = Depends(get_current_active_user),
+):
+    """Endpoint to receive and store user feedback on AI findings."""
+    try:
+        return await crud.create_feedback_annotation(db=db, feedback=feedback, user_id=current_user.id)
+    except Exception as e:
+        logger.exception("Failed to save feedback", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save feedback: {e}",
+        )

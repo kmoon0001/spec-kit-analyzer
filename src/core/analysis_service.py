@@ -20,7 +20,7 @@ from src.core.parsing import parse_document_content
 from src.core.phi_scrubber import PhiScrubberService
 from src.core.preprocessing_service import PreprocessingService
 from src.core.text_utils import sanitize_bullets, sanitize_human_text
-from src.core.ner import NERAnalyzer
+from src.core.ner import ClinicalNERService
 from src.utils.prompt_manager import PromptManager
 from src.core.explanation import ExplanationEngine
 from src.core.fact_checker_service import FactCheckerService
@@ -40,32 +40,35 @@ def get_settings():
     return _get_settings()
 
 class AnalysisService:
-    """Orchestrates the document analysis process with advanced caching and security."""
+    """Orchestrates the document analysis process with a best-practices, two-stage pipeline."""
 
     def __init__(self, *args, **kwargs):
         settings = _get_settings()
         repo_id, filename, revision = self._select_generator_profile(settings.models.model_dump())
         local_model_path = self._resolve_local_model_path(settings)
 
+        # Stage 1 Service: Pure PHI Redaction
+        self.phi_scrubber = kwargs.get('phi_scrubber') or PhiScrubberService()
+
+        # Stage 2 Services: Clinical Analysis on Anonymized Text
         self.llm_service = kwargs.get('llm_service') or LLMService(
             model_repo_id=repo_id, model_filename=filename,
             llm_settings=settings.llm.model_dump(), revision=revision,
             local_model_path=local_model_path,
         )
         self.retriever = kwargs.get('retriever') or HybridRetriever()
-        self.ner_analyzer = kwargs.get('ner_analyzer') or NERAnalyzer(settings.models.ner_ensemble)
+        self.clinical_ner_service = kwargs.get('clinical_ner_service') or ClinicalNERService(model_names=settings.models.ner_ensemble)
         template_path = Path(settings.models.analysis_prompt_template)
         self.prompt_manager = kwargs.get('prompt_manager') or PromptManager(template_name=template_path.name)
         self.explanation_engine = kwargs.get('explanation_engine') or ExplanationEngine()
         self.fact_checker_service = kwargs.get('fact_checker_service') or FactCheckerService(model_name=settings.models.fact_checker)
         self.nlg_service = kwargs.get('nlg_service') or NLGService(llm_service=self.llm_service, prompt_template_path=settings.models.nlg_prompt_template)
         self.compliance_analyzer = kwargs.get('compliance_analyzer') or ComplianceAnalyzer(
-            retriever=self.retriever, ner_analyzer=self.ner_analyzer, llm_service=self.llm_service,
+            retriever=self.retriever, ner_analyzer=self.clinical_ner_service, llm_service=self.llm_service,
             explanation_engine=self.explanation_engine, prompt_manager=self.prompt_manager,
             fact_checker_service=self.fact_checker_service, nlg_service=self.nlg_service,
             deterministic_focus=settings.analysis.deterministic_focus,
         )
-        self.phi_scrubber = kwargs.get('phi_scrubber') or PhiScrubberService()
         self.preprocessing = kwargs.get('preprocessing') or PreprocessingService()
         self.document_classifier = kwargs.get('document_classifier') or DocumentClassifier(llm_service=self.llm_service, prompt_template_path=settings.models.doc_classifier_prompt)
         self.report_generator = kwargs.get('report_generator') or ReportGenerator()
@@ -118,9 +121,16 @@ class AnalysisService:
             if not text_to_process:
                 raise ValueError("Could not extract any text from the provided document.")
 
-            text_to_process = self._trim_document_text(text_to_process)
-            corrected_text = await self._maybe_await(self.preprocessing.correct_text(text_to_process))
+            # --- Start of Optimized Two-Stage Pipeline ---
+
+            # Stage 0: Initial text processing
+            trimmed_text = self._trim_document_text(text_to_process)
+            corrected_text = await self._maybe_await(self.preprocessing.correct_text(trimmed_text))
+
+            # Stage 1: PHI Redaction (Security First)
             scrubbed_text = self.phi_scrubber.scrub(corrected_text)
+
+            # Stage 2: Clinical Analysis on Anonymized Text
             discipline_clean = sanitize_human_text(discipline or "Unknown")
             doc_type_raw = await self._maybe_await(self.document_classifier.classify_document(scrubbed_text))
             doc_type_clean = sanitize_human_text(doc_type_raw or "Unknown")
@@ -130,6 +140,8 @@ class AnalysisService:
                     document_text=scrubbed_text, discipline=discipline_clean, doc_type=doc_type_clean
                 )
             )
+
+            # --- End of Pipeline ---
 
             enriched_result = self._enrich_analysis_result(
                 analysis_result, document_text=scrubbed_text, discipline=discipline_clean, doc_type=doc_type_clean
@@ -182,7 +194,7 @@ class AnalysisService:
         flagged = [item for item in checklist if item.get("status") != "pass"]
         if not flagged:
             return sanitize_human_text(base_summary + " Core documentation elements were present.")
-        focus = ", ".join(sanitize_human_text(item.get("title", "")) for item in flagged[:3G])
+        focus = ", ".join(sanitize_human_text(item.get("title", "")) for item in flagged[:3])
         return sanitize_human_text(f"{base_summary} Immediate follow-up recommended for: {focus}.")
 
     @staticmethod

@@ -14,11 +14,13 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QThread, Qt
 from typing import List, Dict, Any
 
-from ..workers.batch_analysis_worker import BatchAnalysisWorker
+from ..workers.file_scanner_worker import FileScannerWorker
 from ..workers.batch_processor_worker import BatchProcessorWorker
 
 class BatchAnalysisDialog(QDialog):
     """Dialog to manage scanning a folder and running a real-time batch analysis."""
+
+    SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".json"]
 
     def __init__(self, folder_path: str, token: str, analysis_data: Dict[str, Any], parent=None):
         super().__init__(parent)
@@ -27,7 +29,7 @@ class BatchAnalysisDialog(QDialog):
         self.analysis_data = analysis_data
         self.files_to_process: List[str] = []
         self.worker_thread: QThread | None = None
-        self.scanner_worker: BatchAnalysisWorker | None = None
+        self.scanner_worker: FileScannerWorker | None = None
         self.processor_worker: BatchProcessorWorker | None = None
 
         self.setWindowTitle("Batch Analysis")
@@ -65,7 +67,7 @@ class BatchAnalysisDialog(QDialog):
     def scan_folder(self):
         """Starts the worker to scan the folder for files."""
         self.worker_thread = QThread()
-        self.scanner_worker = BatchAnalysisWorker(self.folder_path)
+        self.scanner_worker = FileScannerWorker(self.folder_path, self.SUPPORTED_EXTENSIONS)
         self.scanner_worker.moveToThread(self.worker_thread)
 
         self.scanner_worker.file_found.connect(self.add_file_to_table)
