@@ -57,6 +57,7 @@ except Exception:  # pragma: no cover - optional dependency
 
 try:
     from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
+from src.gui.widgets.mission_control_widget import MissionControlWidget
 except Exception:  # pragma: no cover - optional dependency
     PerformanceStatusWidget = None  # type: ignore
 
@@ -177,6 +178,9 @@ class MainApplicationWindow(QMainWindow):
         self.tab_widget.setDocumentMode(True)
         self.main_splitter.addWidget(self.tab_widget)
 
+        self.mission_control_tab = self._create_mission_control_tab()
+        self.tab_widget.addTab(self.mission_control_tab, "Mission Control")
+
         self.analysis_summary_tab = self._create_analysis_summary_tab()
         self.tab_widget.addTab(self.analysis_summary_tab, "Analysis Summary")
 
@@ -191,6 +195,8 @@ class MainApplicationWindow(QMainWindow):
 
         self.report_tab = self._create_report_tab()
         self.tab_widget.addTab(self.report_tab, "Reports")
+
+        self.tab_widget.setCurrentWidget(self.mission_control_tab)
 
         self.main_splitter.setStretchFactor(0, 0)
         self.main_splitter.setStretchFactor(1, 1)
@@ -270,6 +276,19 @@ class MainApplicationWindow(QMainWindow):
 
         layout.addStretch(1)
         return panel
+
+
+def _create_mission_control_tab(self) -> QWidget:
+    tab = QWidget(self)
+    layout = QVBoxLayout(tab)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(0)
+
+    self.mission_control_widget = MissionControlWidget(tab)
+    self.mission_control_widget.start_analysis_requested.connect(self._handle_mission_control_start)
+    self.mission_control_widget.review_document_requested.connect(self._handle_mission_control_review)
+    layout.addWidget(self.mission_control_widget)
+    return tab
 
     def _create_analysis_summary_tab(self) -> QWidget:
         tab = QWidget(self)
@@ -554,6 +573,19 @@ class MainApplicationWindow(QMainWindow):
         self.analysis_button.setEnabled(True)
 
     # ------------------------------------------------------------------
+def _handle_mission_control_start(self) -> None:
+    self.tab_widget.setCurrentWidget(self.analysis_summary_tab)
+    self._prompt_for_document()
+
+def _handle_mission_control_review(self, doc_info: dict) -> None:
+    doc_name = doc_info.get("title") or doc_info.get("name") or doc_info.get("document_name") or "Document"
+    QMessageBox.information(
+        self,
+        "Review Document",
+        f"Detailed replay for '{doc_name}' will be available in a future update."
+    )
+
+# ------------------------------------------------------------------
     # Auxiliary actions
     # ------------------------------------------------------------------
     def _update_document_preview(self) -> None:
