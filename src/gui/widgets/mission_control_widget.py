@@ -1,8 +1,7 @@
 
 from __future__ import annotations
 
-import json
-from typing import Any, Dict, Iterable, Tuple
+from typing import Any, Dict
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
@@ -11,8 +10,6 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
-    QListWidget,
-    QListWidgetItem,
     QPushButton,
     QVBoxLayout,
     QWidget,

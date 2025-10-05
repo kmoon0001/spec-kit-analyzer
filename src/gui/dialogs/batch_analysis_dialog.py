@@ -4,14 +4,13 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QTableWidget,
     QTableWidgetItem,
-    QPushButton,
     QLabel,
     QProgressBar,
     QMessageBox,
     QDialogButtonBox,
     QHeaderView,
 )
-from PySide6.QtCore import QThread, Qt
+from PySide6.QtCore import QThread
 from typing import List, Dict, Any
 
 from ..workers.file_scanner_worker import FileScannerWorker

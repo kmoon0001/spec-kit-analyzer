@@ -39,7 +39,7 @@ class ChatWorker(QObject):
                 try:
                     detail = e.response.json().get("detail", str(e))
                     self.error.emit(f"API Error: {detail}")
-                except:
+                except ValueError:
                     self.error.emit(f"API Error: {e.response.status_code} {e.response.reason}")
             else:
                 self.error.emit(f"Failed to connect to the AI service: {e}")

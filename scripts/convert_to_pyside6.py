@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Convert PyQt6 imports to PySide6 imports."""
 
-import os
 import re
 from pathlib import Path
 

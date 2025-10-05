@@ -5,7 +5,6 @@ Launch the fully integrated application with all features
 """
 
 import sys
-import os
 from pathlib import Path
 import asyncio
 

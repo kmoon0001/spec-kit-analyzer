@@ -7,7 +7,6 @@ learning process, where user feedback is used to improve the models.
 
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.database import crud, get_async_db
 
 logger = logging.getLogger(__name__)
 

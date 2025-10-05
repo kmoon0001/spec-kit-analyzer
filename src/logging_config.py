@@ -74,3 +74,9 @@ def setup_logging():
 
     logger = structlog.get_logger("logging_setup")
     logger.info("Structured logging configured successfully.")
+
+
+
+def configure_logging():
+    """Backward-compatible alias for setup_logging."""
+    setup_logging()

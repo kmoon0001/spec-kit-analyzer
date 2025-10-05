@@ -29,7 +29,7 @@ def test_comprehensive_improvements():
         
         # Application creation
         print("3. 🖥️ Creating application...")
-        app = QApplication([])
+        _app = QApplication([])
         main_win = MainApplicationWindow()
         print("   ✅ Application created")
         

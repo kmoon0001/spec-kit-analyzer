@@ -20,7 +20,7 @@ async def setup_user():
         existing_user = await crud.get_user_by_username(db_session, "admin")
         
         if existing_user:
-            print(f"✅ User 'admin' already exists")
+            print("✅ User 'admin' already exists")
         else:
             print("Creating default admin user...")
             # Create default user

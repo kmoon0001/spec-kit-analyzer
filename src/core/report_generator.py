@@ -164,12 +164,18 @@ class ReportGenerator:
     def _get_finding_row_class(self, finding: dict) -> str:
         if finding.get("is_disputed"):
             return 'class="disputed"'
+
         confidence = finding.get("confidence", 0)
         if isinstance(confidence, (int, float)):
-            if confidence >= 0.8: return 'class="high-confidence"'
-            elif confidence >= 0.6: return 'class="medium-confidence"'
-            else: return 'class="low-confidence"'
-        if finding.get("is_low_confidence"): return 'class="low-confidence"'
+            if confidence >= 0.8:
+                return 'class="high-confidence"'
+            if confidence >= 0.6:
+                return 'class="medium-confidence"'
+            return 'class="low-confidence"'
+
+        if finding.get("is_low_confidence"):
+            return 'class="low-confidence"'
+
         return ""
 
     def _generate_risk_cell(self, finding: dict) -> str:
@@ -223,66 +229,116 @@ class ReportGenerator:
         habit_name = sanitize_human_text(habit_info.get("name", "Unknown Habit"))
         explanation = sanitize_human_text(habit_info.get("explanation", ""))
         confidence = habit_info.get("confidence", 0.0)
-        if confidence < self.settings.habits_framework.advanced.habit_confidence_threshold: return ""
+        threshold = self.settings.habits_framework.advanced.habit_confidence_threshold
+        if confidence < threshold:
+            return ""
+
         if self.settings.habits_framework.is_prominent():
             confidence_indicator = f" ({confidence:.0%} confidence)" if confidence < 0.9 else ""
-            habit_html = f'<div class="habit-tag prominent" data-confidence="{confidence:.2f}"><div class="habit-badge">🎯 HABIT {habit_number}: {habit_name.upper()}{confidence_indicator}</div><div class="habit-quick-tip">{explanation[:120]}{"..." if len(explanation) > 120 else ""}</div></div>'
+            habit_html = (
+                f'<div class="habit-tag prominent" data-confidence="{confidence:.2f}">'
+                f'<div class="habit-badge">?? HABIT {habit_number}: {habit_name.upper()}{confidence_indicator}</div>'
+                f'<div class="habit-quick-tip">{explanation[:120]}{"..." if len(explanation) > 120 else ""}</div>'
+                "</div>"
+            )
         elif self.settings.habits_framework.is_subtle():
-            habit_html = f'<div class="habit-tag subtle" title="Habit {habit_number}: {habit_name} - {explanation}" data-confidence="{confidence:.2f}">💡</div>'
+            habit_html = (
+                f'<div class="habit-tag subtle" title="Habit {habit_number}: {habit_name} - {explanation}" '
+                f'data-confidence="{confidence:.2f}">??</div>'
+            )
         else:
             tooltip_text = f"{explanation} (Confidence: {confidence:.0%})"
-            habit_html = f'<div class="habit-tag moderate" title="{tooltip_text}" data-confidence="{confidence:.2f}">💡 Habit {habit_number}: {habit_name}</div>'
+            habit_html = (
+                f'<div class="habit-tag moderate" title="{tooltip_text}" '
+                f'data-confidence="{confidence:.2f}">?? Habit {habit_number}: {habit_name}</div>'
+            )
         return habit_html
 
     def _generate_recommendation_cell(self, finding: dict) -> str:
-        recommendation = sanitize_human_text(finding.get("personalized_tip") or finding.get("suggestion", "Review and update documentation"))
+        recommendation = sanitize_human_text(
+            finding.get("personalized_tip") or finding.get("suggestion", "Review and update documentation")
+        )
         priority = finding.get("priority")
-        if priority: recommendation = f"<strong>Priority {sanitize_human_text(str(priority))}:</strong> {recommendation}"
+        if priority:
+            recommendation = (
+                f"<strong>Priority {sanitize_human_text(str(priority))}:</strong> {recommendation}"
+            )
         return recommendation
 
     def _generate_prevention_cell(self, finding: dict, analysis_result: dict = None) -> str:
-        if not self.habits_enabled: return '<div class="habit-explanation">Review documentation practices regularly</div>'
+        if not self.habits_enabled:
+            return '<div class="habit-explanation">Review documentation practices regularly</div>'
+
         habit_info = self._get_habit_info_for_finding(finding, analysis_result)
-        if not habit_info: return '<div class="habit-explanation">Review documentation practices regularly</div>'
+        if not habit_info:
+            return '<div class="habit-explanation">Review documentation practices regularly</div>'
+
         habit_name = sanitize_human_text(habit_info["name"])
         habit_explanation = sanitize_human_text(habit_info["explanation"])
-        html = f'<div class="habit-name">{habit_name}</div><div class="habit-explanation">{habit_explanation}</div>'
-        if self.settings.habits_framework.is_moderate() or self.settings.habits_framework.is_prominent():
+        html = (
+            f'<div class="habit-name">{habit_name}</div>'
+            f'<div class="habit-explanation">{habit_explanation}</div>'
+        )
+
+        framework = self.settings.habits_framework
+        if framework.is_moderate() or framework.is_prominent():
             strategies = habit_info.get("improvement_strategies", [])
-            if strategies and self.settings.habits_framework.education.show_improvement_strategies:
+            if strategies and framework.education.show_improvement_strategies:
                 html += '<div class="habit-strategies"><strong>Quick Tips:</strong><ul>'
-                for strategy in strategies[:2]: html += f"<li>{sanitize_human_text(strategy)}</li>"
+                for strategy in strategies[:2]:
+                    html += f"<li>{sanitize_human_text(strategy)}</li>"
                 html += "</ul></div>"
+
         return html
 
     def _generate_confidence_cell(self, finding: dict) -> str:
         confidence = finding.get("confidence", 0)
-        if isinstance(confidence, (int, float)): confidence_html = f'<div class="confidence-indicator">{confidence:.0%} confidence</div>'
-        else: confidence_html = '<div class="confidence-indicator">Confidence: Unknown</div>'
+        if isinstance(confidence, (int, float)):
+            confidence_html = f'<div class="confidence-indicator">{confidence:.0%} confidence</div>'
+        else:
+            confidence_html = '<div class="confidence-indicator">Confidence: Unknown</div>'
+
         problematic_text = sanitize_human_text(finding.get("text", "N/A"))
         issue_title = sanitize_human_text(finding.get("issue_title", "N/A"))
-        chat_context = f"Regarding the finding '{issue_title}' with text '{problematic_text}', please provide additional clarification and guidance."
+        chat_context = (
+            f"Regarding the finding '{issue_title}' with text '{problematic_text}', "
+            "please provide additional clarification and guidance."
+        )
         encoded_chat_context = urllib.parse.quote(chat_context)
         chat_link = f'<a href="chat://{encoded_chat_context}" class="chat-link">Ask AI</a>'
-        
+
         finding_id = finding.get('finding_id', '')
-        feedback_correct_link = f'<a href="feedback://correct?finding_id={finding_id}" class="feedback-link correct">👍</a>'
-        feedback_incorrect_link = f'<a href="feedback://incorrect?finding_id={finding_id}" class="feedback-link incorrect">👎</a>'
-        
-        return f"{confidence_html}<br>{chat_link}<br><div class='feedback-controls'>{feedback_correct_link} {feedback_incorrect_link}</div>"
+        feedback_correct_link = (
+            f'<a href="feedback://correct?finding_id={finding_id}" '
+            'class="feedback-link correct">??</a>'
+        )
+        feedback_incorrect_link = (
+            f'<a href="feedback://incorrect?finding_id={finding_id}" '
+            'class="feedback-link incorrect">??</a>'
+        )
+        feedback_links = (
+            f'<div class="feedback-controls">{feedback_correct_link} {feedback_incorrect_link}</div>'
+        )
+
+        return f"{confidence_html}<br>{chat_link}<br>{feedback_links}"
 
     def _inject_summary_sections(self, report_html: str, analysis_result: Dict[str, Any]) -> str:
         narrative = sanitize_human_text(analysis_result.get("narrative_summary", ""))
-        if not narrative: narrative = "No narrative summary generated."
+        if not narrative:
+            narrative = "No narrative summary generated."
         report_html = report_html.replace("<!-- Placeholder for narrative summary -->", narrative)
+
         bullet_items = analysis_result.get("bullet_highlights") or []
-        if bullet_items: bullets_html = "".join(f"<li>{sanitize_human_text(item)}</li>" for item in bullet_items)
-        else: bullets_html = "<li>No key highlights available.</li>"
+        if bullet_items:
+            bullets_html = "".join(f"<li>{sanitize_human_text(item)}</li>" for item in bullet_items)
+        else:
+            bullets_html = "<li>No key highlights available.</li>"
         report_html = report_html.replace("<!-- Placeholder for bullet highlights -->", bullets_html)
         return report_html
 
     def _inject_checklist(self, report_html: str, checklist: List[Dict[str, Any]]) -> str:
-        if not checklist: rows_html = '<tr><td colspan="4">Checklist data was not captured for this analysis.</td></tr>'
+        if not checklist:
+            rows_html = '<tr><td colspan="4">Checklist data was not captured for this analysis.</td></tr>'
         else:
             rows = []
             for item in checklist:
@@ -292,16 +348,25 @@ class ReportGenerator:
                 evidence = sanitize_human_text(item.get("evidence", "")) or "Not located in document."
                 recommendation = sanitize_human_text(item.get("recommendation", ""))
                 title = sanitize_human_text(item.get("title", item.get("id", "Checklist item")))
-                rows.append(f"<tr><td>{title}</td><td><span class='{status_class}'>{status_label}</span></td><td>{evidence}</td><td>{recommendation}</td></tr>")
+                rows.append(
+                    f"<tr><td>{title}</td><td><span class='{status_class}'>{status_label}</span></td><td>{evidence}</td><td>{recommendation}</td></tr>"
+                )
             rows_html = "".join(rows)
         return report_html.replace("<!-- Placeholder for checklist rows -->", rows_html)
 
     def _build_pattern_analysis(self, analysis_result: Dict[str, Any]) -> str:
         findings = analysis_result.get("findings") or []
-        if not findings: return "<p>No recurring compliance patterns were detected in this document.</p>"
-        categories = Counter(sanitize_human_text(finding.get("issue_category", "General")) or "General" for finding in findings)
+        if not findings:
+            return "<p>No recurring compliance patterns were detected in this document.</p>"
+
+        categories = Counter(
+            sanitize_human_text(finding.get("issue_category", "General")) or "General"
+            for finding in findings
+        )
         top_categories = categories.most_common(3)
-        list_items = "".join(f"<li>{category}: {count} finding(s)</li>" for category, count in top_categories)
+        list_items = "".join(
+            f"<li>{category}: {count} finding(s)</li>" for category, count in top_categories
+        )
         return f"<ul>{list_items}</ul>"
 
     def _generate_personal_development_section(self, findings: List[Dict[str, Any]], analysis_result: Dict[str, Any]) -> str:

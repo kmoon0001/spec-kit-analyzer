@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from src.core.llm_service import LLMService
 from src.core.nlg_service import NLGService
-from src.core.ner import NERAnalyzer
+from src.core.ner import ClinicalNERService
 from src.core.explanation import ExplanationEngine
 from src.utils.prompt_manager import PromptManager
 from src.core.fact_checker_service import FactCheckerService
@@ -21,7 +21,7 @@ class ComplianceAnalyzer:
     def __init__(
         self,
         retriever: HybridRetriever,
-        ner_analyzer: NERAnalyzer,
+        ner_service: ClinicalNERService,
         llm_service: LLMService,
         explanation_engine: ExplanationEngine,
         prompt_manager: PromptManager,
@@ -33,7 +33,7 @@ class ComplianceAnalyzer:
 
         Args:
             retriever: An instance of HybridRetriever for rule retrieval.
-            ner_analyzer: An instance of NERAnalyzer for entity extraction.
+            ner_service: An instance of ClinicalNERService for entity extraction.
             llm_service: An instance of LLMService for core analysis.
             explanation_engine: An instance of ExplanationEngine for adding explanations.
             prompt_manager: An instance of PromptManager for generating prompts.
@@ -42,7 +42,7 @@ class ComplianceAnalyzer:
             deterministic_focus: Optional string for deterministic focus areas.
         """
         self.retriever = retriever
-        self.ner_analyzer = ner_analyzer
+        self.ner_service = ner_service
         self.llm_service = llm_service
         self.explanation_engine = explanation_engine
         self.prompt_manager = prompt_manager
@@ -81,7 +81,7 @@ class ComplianceAnalyzer:
         """
         logger.info("Starting compliance analysis for document type: %s", doc_type)
 
-        entities = self.ner_analyzer.extract_entities(document_text)
+        entities = self.ner_service.extract_entities(document_text)
         entity_list_str = (
             ", ".join(
                 f"{entity['entity_group']}: {entity['word']}" for entity in entities

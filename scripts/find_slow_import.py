@@ -2,7 +2,6 @@
 """Find which specific import is causing the 2+ minute delay."""
 
 import time
-import sys
 
 def test_import(module_name, description):
     """Test a single import and time it."""

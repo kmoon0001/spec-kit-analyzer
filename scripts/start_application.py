@@ -7,7 +7,6 @@ Starts both the FastAPI backend and PySide6 GUI in the correct order.
 import sys
 import time
 import subprocess
-import threading
 import requests
 from pathlib import Path
 

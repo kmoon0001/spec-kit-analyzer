@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,7 +30,7 @@ class DatabaseSettings(BaseModel):
 
 
 class AuthSettings(BaseModel):
-    secret_key: SecretStr
+    secret_key: SecretStr | None = None
     algorithm: str
     access_token_expire_minutes: int
 
@@ -38,6 +38,8 @@ class AuthSettings(BaseModel):
 class MaintenanceSettings(BaseModel):
     purge_retention_days: int
     purge_interval_days: int = 1
+    in_memory_retention_minutes: int = 60
+    in_memory_purge_interval_seconds: int = 300
 
 
 class GeneratorProfile(BaseModel):
@@ -98,6 +100,69 @@ class RetrievalSettings(BaseModel):
     max_sequence_length: int = 512
 
 
+class AnalysisSettings(BaseModel):
+    confidence_threshold: float = 0.75
+    deterministic_focus: Optional[str] = None
+    max_document_length: int = 50000
+    chunk_overlap: int = 100
+
+
+class HabitAISettings(BaseModel):
+    use_ai_mapping: bool = True
+
+
+class HabitReportIntegrationSettings(BaseModel):
+    show_personal_development_section: bool = True
+    show_habit_tags: bool = True
+
+
+class HabitEducationSettings(BaseModel):
+    show_improvement_strategies: bool = True
+
+
+class HabitAdvancedSettings(BaseModel):
+    habit_confidence_threshold: float = 0.75
+
+
+class HabitGamificationSettings(BaseModel):
+    enabled: bool = False
+
+
+class HabitPrivacySettings(BaseModel):
+    track_progression: bool = True
+
+
+class HabitDashboardIntegrationSettings(BaseModel):
+    show_peer_comparison: bool = False
+    show_weekly_focus_widget: bool = True
+    show_habit_progression_charts: bool = True
+
+
+class HabitsFrameworkSettings(BaseModel):
+    enabled: bool = False
+    visibility_level: str = "moderate"
+    ai_features: HabitAISettings = HabitAISettings()
+    report_integration: HabitReportIntegrationSettings = HabitReportIntegrationSettings()
+    education: HabitEducationSettings = HabitEducationSettings()
+    advanced: HabitAdvancedSettings = HabitAdvancedSettings()
+    gamification: HabitGamificationSettings = HabitGamificationSettings()
+    privacy: HabitPrivacySettings = HabitPrivacySettings()
+    dashboard_integration: HabitDashboardIntegrationSettings = HabitDashboardIntegrationSettings()
+
+    def is_prominent(self) -> bool:
+        return self.visibility_level.lower() == "prominent"
+
+    def is_moderate(self) -> bool:
+        return self.visibility_level.lower() == "moderate"
+
+    def is_subtle(self) -> bool:
+        return self.visibility_level.lower() == "subtle"
+
+
+class ReportingSettings(BaseModel):
+    logo_path: Optional[str] = None
+
+
 class Settings(BaseSettings):
     """Top-level application settings composed from config.yaml and environment."""
 
@@ -117,10 +182,12 @@ class Settings(BaseSettings):
     llm: LLMSettings
     retrieval: RetrievalSettings
     analysis: AnalysisSettings
-    performance: BaseModel
-    logging: BaseModel
-    security: BaseModel
-    features: BaseModel
+    reporting: ReportingSettings = ReportingSettings()
+    habits_framework: HabitsFrameworkSettings = HabitsFrameworkSettings()
+    performance: Dict[str, Any] = {}
+    logging: Dict[str, Any] = {}
+    security: Dict[str, Any] = {}
+    features: Dict[str, Any] = {}
     host: str = "127.0.0.1"
     port: int = 8001
     log_level: str = "INFO"

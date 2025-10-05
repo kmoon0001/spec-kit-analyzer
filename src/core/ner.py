@@ -113,3 +113,8 @@ class ClinicalNERService:
 
 
 __all__ = ["ClinicalNERService"]
+
+
+# Backwards compatibility aliases
+NERPipeline = ClinicalNERService
+NERAnalyzer = ClinicalNERService

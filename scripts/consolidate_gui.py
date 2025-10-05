@@ -4,7 +4,6 @@ GUI Consolidation Script
 Helps migrate from multiple main window implementations to the unified version.
 """
 
-import os
 import shutil
 from pathlib import Path
 from datetime import datetime
@@ -74,13 +73,18 @@ def analyze_implementations():
         print(f"      Lines: {data['lines']}")
         print(f"      Classes: {data['classes']}")
         print(f"      Methods: {data['methods']}")
-        print(f"      Features: ", end="")
+        print("      Features: ", end="")
         features = []
-        if data['has_easter_eggs']: features.append("Easter Eggs")
-        if data['has_themes']: features.append("Themes")
-        if data['has_chat']: features.append("Chat")
-        if data['has_dashboard']: features.append("Dashboard")
-        if data['has_ai_status']: features.append("AI Status")
+        if data['has_easter_eggs']:
+            features.append("Easter Eggs")
+        if data['has_themes']:
+            features.append("Themes")
+        if data['has_chat']:
+            features.append("Chat")
+        if data['has_dashboard']:
+            features.append("Dashboard")
+        if data['has_ai_status']:
+            features.append("AI Status")
         print(", ".join(features) if features else "Basic")
     
     return analysis
@@ -156,7 +160,10 @@ def main():
     
     # Analyze current implementations
     analysis = analyze_implementations()
-    
+    if not analysis:
+        print("\nNo GUI implementations found to analyze.")
+        return
+
     # Create migration plan
     create_migration_plan()
     

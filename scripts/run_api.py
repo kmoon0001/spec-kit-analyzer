@@ -5,8 +5,7 @@ This script launches the FastAPI application using a Uvicorn server.
 """
 import sys
 import signal
-import os
-import time
+import importlib
 from pathlib import Path
 import uvicorn
 
@@ -27,17 +26,26 @@ def signal_handler(signum, frame):
 def check_dependencies():
     """Check if all required dependencies are available."""
     try:
-        # Test critical imports
-        from src.api.main import app
-        from src.config import get_settings
-        print("✅ All dependencies loaded successfully")
+        api_main = importlib.import_module("src.api.main")
+        config_module = importlib.import_module("src.config")
+        if not hasattr(api_main, "app"):
+            raise AttributeError("src.api.main does not expose an 'app' instance")
+        if not hasattr(config_module, "get_settings"):
+            raise AttributeError("src.config does not expose 'get_settings'")
+        config_module.get_settings()
+        print("? All dependencies loaded successfully")
         return True
     except ImportError as e:
-        print(f"❌ Missing dependency: {e}")
+        print(f"? Missing dependency: {e}")
+        return False
+    except AttributeError as e:
+        print(f"? Configuration issue: {e}")
         return False
     except Exception as e:
-        print(f"❌ Configuration error: {e}")
+        print(f"? Configuration error: {e}")
         return False
+
+
 
 if __name__ == "__main__":
     # Set up signal handlers for graceful shutdown

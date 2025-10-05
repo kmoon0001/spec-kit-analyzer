@@ -72,8 +72,10 @@ class BatchProcessorWorker(QObject):
             except requests.RequestException as e:
                 error_detail = str(e)
                 if e.response is not None:
-                    try: error_detail = e.response.json().get("detail", str(e))
-                    except: pass
+                    try:
+                        error_detail = e.response.json().get("detail", str(e))
+                    except ValueError:
+                        pass
                 self.file_completed.emit(filename, f"Error: {error_detail}")
             except Exception as e:
                 self.file_completed.emit(filename, f"Error: {str(e)}")

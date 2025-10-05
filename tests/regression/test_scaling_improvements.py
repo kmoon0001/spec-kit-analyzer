@@ -29,7 +29,7 @@ def test_scaling_improvements():
         
         # Application creation
         print("3. 🖥️ Creating application...")
-        app = QApplication([])
+        _app = QApplication([])
         main_win = MainApplicationWindow()
         print("   ✅ Application created")
         
@@ -44,7 +44,7 @@ def test_scaling_improvements():
         # Check window sizes
         default_size = main_win.size()
         min_size = main_win.minimumSize()
-        print(f"5. 📐 Window sizing:")
+        print("5. 📐 Window sizing:")
         print(f"   • Default: {default_size.width()}x{default_size.height()}")
         print(f"   • Minimum: {min_size.width()}x{min_size.height()}")
         

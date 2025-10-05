@@ -7,11 +7,9 @@ from PySide6.QtWidgets import (
     QLabel,
     QWidget,
     QHBoxLayout,
-    QSpacerItem,
-    QSizePolicy,
 )
 from PySide6.QtCore import QThread, Qt
-from PySide6.QtGui import QKeySequence, QShortcut, QColor
+from PySide6.QtGui import QKeySequence, QShortcut, QTextCursor
 from typing import List, Dict
 
 from ..workers.chat_worker import ChatWorker

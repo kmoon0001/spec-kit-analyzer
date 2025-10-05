@@ -6,13 +6,8 @@ from typing import Any, Dict
 from fastapi import Depends, HTTPException, status
 
 from src.core.hybrid_retriever import HybridRetriever
-try:
-    from src.core.config import settings  # Ensure this path and 'settings' exist
-except ImportError:
-    from src.config import settings  # Fallback if config is not in core
 from src.database import models
 from src.auth import get_current_active_user
-from ..core.mock_analysis_service import MockAnalysisService
 from ..core.analysis_service import AnalysisService
 
 # Configure logger

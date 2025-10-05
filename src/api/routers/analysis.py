@@ -9,7 +9,6 @@ import asyncio
 import datetime
 import structlog
 import uuid
-from pathlib import Path
 from typing import Any, Dict
 
 from fastapi import (
@@ -25,7 +24,6 @@ from fastapi import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...auth import get_current_active_user
-from ...config import get_settings
 from ...core.analysis_service import AnalysisService
 from ...core.security_validator import SecurityValidator
 from ...database import crud, schemas, models

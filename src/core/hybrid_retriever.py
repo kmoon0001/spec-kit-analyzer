@@ -56,10 +56,12 @@ class HybridRetriever:
 
     @staticmethod
     def _load_rules_from_db() -> List[Dict[str, str]]:
-        if crud is None: return []
+        if crud is None:
+            return []
         try:
             rubric_models = crud.get_all_rubrics()
-        except Exception: return []
+        except Exception:
+            return []
         return [
             {"id": r.id, "name": getattr(r, "name", ""), "content": getattr(r, "content", ""), "category": getattr(r, "category", "")}
             for r in rubric_models
@@ -81,14 +83,17 @@ class HybridRetriever:
         bm25_ranks = {doc_id: rank + 1 for rank, doc_id in enumerate(np.argsort(bm25_scores)[::-1])}
 
         query_embedding = self._get_embedding(query)
-        if self.corpus_embeddings is None: return []
+        if self.corpus_embeddings is None:
+            return []
         dense_scores = cos_sim(query_embedding, self.corpus_embeddings)[0].cpu().numpy()
         dense_ranks = {doc_id: rank + 1 for rank, doc_id in enumerate(np.argsort(dense_scores)[::-1])}
 
         rrf_scores = {doc_id: 0.0 for doc_id in set(bm25_ranks.keys()) | set(dense_ranks.keys())}
         for doc_id in rrf_scores:
-            if doc_id in bm25_ranks: rrf_scores[doc_id] += 1 / (k + bm25_ranks[doc_id])
-            if doc_id in dense_ranks: rrf_scores[doc_id] += 1 / (k + dense_ranks[doc_id])
+            if doc_id in bm25_ranks:
+                rrf_scores[doc_id] += 1 / (k + bm25_ranks[doc_id])
+            if doc_id in dense_ranks:
+                rrf_scores[doc_id] += 1 / (k + dense_ranks[doc_id])
 
         # Take a larger set for the reranker to work with (e.g., top 20)
         initial_top_n = min(len(rrf_scores), 20)

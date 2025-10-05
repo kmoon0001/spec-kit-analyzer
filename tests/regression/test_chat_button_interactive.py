@@ -40,7 +40,7 @@ def main():
         
         if hasattr(main_win, 'chat_button'):
             button = main_win.chat_button
-            print(f"✅ Chat button found")
+            print("✅ Chat button found")
             print(f"   📐 Size: {button.width()}x{button.height()}")
             print(f"   👁️ Visible: {button.isVisible()}")
             print(f"   ⚡ Enabled: {button.isEnabled()}")

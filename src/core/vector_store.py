@@ -9,7 +9,7 @@ This is crucial for efficiently finding similar reports based on their embedding
 import logging
 import numpy as np
 import faiss
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,6 @@
 
-from PySide6.QtCore import QObject, Signal, Slot, QThread
+from PySide6.QtCore import QObject, Signal, Slot
 from pathlib import Path
-from typing import List
 
 class BatchAnalysisWorker(QObject):
     """Scans a directory for supported files and prepares them for batch analysis."""

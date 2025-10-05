@@ -22,12 +22,10 @@ try:
     
     print("2. Testing database imports...")
     start = time.time()
-    from src.database import init_db
     print(f"   Database imports in {time.time() - start:.2f}s")
     
     print("3. Testing GUI imports...")
     start = time.time()
-    from src.gui.main_window import MainApplicationWindow
     print(f"   Main window imported in {time.time() - start:.2f}s")
     
     print("4. Creating QApplication...")

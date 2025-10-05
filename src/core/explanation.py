@@ -378,7 +378,7 @@ retrieved_rules: List of compliance rules that were matched during analysis
                 elif finding.get("severity") == "LOW":
                     confidence = 0.80
                 finding["confidence"] = confidence
-        return analysis_result
+        return findings
 
     @staticmethod
     def _get_context_snippet(

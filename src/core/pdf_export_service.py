@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # PDF generation imports with fallback
 try:
-    from weasyprint import HTML, CSS
+    from weasyprint import HTML
     from weasyprint.text.fonts import FontConfiguration
     WEASYPRINT_AVAILABLE = True
 except (ImportError, OSError) as e:

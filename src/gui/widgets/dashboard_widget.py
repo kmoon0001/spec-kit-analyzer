@@ -3,10 +3,9 @@ Dashboard widget for displaying compliance analytics and overview metrics.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont, QPalette
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
@@ -14,7 +13,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QProgressBar,
     QPushButton,
-    QScrollArea,
     QVBoxLayout,
     QWidget,
 )

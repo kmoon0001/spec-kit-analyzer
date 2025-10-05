@@ -10,8 +10,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 try:
-    from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QHBoxLayout
-    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout
     
     # Import our custom list widgets
     from src.gui.main_window_ultimate import ComplianceFindingsListWidget, DocumentHistoryListWidget

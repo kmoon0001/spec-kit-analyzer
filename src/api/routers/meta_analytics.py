@@ -7,7 +7,6 @@ and anonymous benchmarking data. Admin-only access.
 
 import logging
 from typing import Optional
-import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession

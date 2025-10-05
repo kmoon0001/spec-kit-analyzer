@@ -10,7 +10,7 @@ import yaml
 from pathlib import Path
 from typing import Dict, List, Any, Tuple
 
-from src.config import get_settings
+from src.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 

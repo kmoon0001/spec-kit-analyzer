@@ -8,7 +8,6 @@ import datetime
 import logging
 import numpy as np
 from typing import List, Optional, Dict, Any
-from collections import defaultdict
 
 from sqlalchemy import delete, select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession

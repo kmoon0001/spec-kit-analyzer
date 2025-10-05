@@ -1,7 +1,7 @@
 
 import requests
 from PySide6.QtCore import QObject, Signal, Slot
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 from src.config import get_settings
 
@@ -32,7 +32,7 @@ class RubricApiWorker(QObject):
             if e.response is not None:
                 try:
                     error_msg = e.response.json().get("detail", error_msg)
-                except:
+                except ValueError:
                     pass
             self.error.emit(f"API Error: {error_msg}")
         except Exception as e:

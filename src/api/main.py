@@ -40,8 +40,6 @@ from src.api.global_exception_handler import (
     global_exception_handler,
     http_exception_handler,
 )
-from src.core.database_maintenance_service import DatabaseMaintenanceService
-from src.core.data_purging_service import DataPurgingService
 from src.core.vector_store import get_vector_store
 from src.config import get_settings
 from src.database import crud, get_async_db
@@ -132,7 +130,7 @@ async def initialize_vector_store():
     logger.info("Populating vector store with existing report embeddings...")
     
     db_session_gen = get_async_db()
-    db = await anext(db_session_gen)
+    db = await db_session_gen.__anext__()
     try:
         reports = await crud.get_all_reports_with_embeddings(db)
         if reports:

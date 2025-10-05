@@ -10,7 +10,6 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QFormLayout,
     QLabel,
-    QPushButton,
 )
 from PySide6.QtCore import Qt, QThread
 from typing import List, Dict, Any, Callable, Optional

@@ -5,18 +5,18 @@ from __future__ import annotations
 import functools
 import json
 import webbrowser
+import requests
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Type, Protocol
 from urllib.parse import urlparse, parse_qs
 
-from PySide6.QtCore import Qt, QThread, QTimer, QSettings, QObject, Signal, QUrl
+from PySide6.QtCore import Qt, QThread, QSettings, QObject, Signal, QUrl
 from PySide6.QtGui import QAction, QFont, QIcon, QActionGroup
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
     QDockWidget,
     QFileDialog,
-    QFrame,
     QHBoxLayout,
     QLabel,
     QListWidget,
@@ -47,7 +47,6 @@ from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
 from src.gui.themes import get_theme_palette
 from src.gui.workers.generic_api_worker import GenericApiWorker, HealthCheckWorker, TaskMonitorWorker, LogStreamWorker, FeedbackWorker
 from src.gui.workers.single_analysis_polling_worker import SingleAnalysisPollingWorker
-from src.gui.workers.folder_watcher_worker import FolderWatcherWorker
 
 from src.gui.widgets.mission_control_widget import MissionControlWidget, LogViewerWidget, SettingsEditorWidget
 from src.gui.widgets.dashboard_widget import DashboardWidget
@@ -462,16 +461,20 @@ class MainApplicationWindow(QMainWindow):
     def _create_dashboard_tab(self) -> QWidget:
         tab, layout = self._create_tab_base_layout()
         self.dashboard_widget = DashboardWidget() if DashboardWidget else QTextBrowser()
-        if not DashboardWidget: self.dashboard_widget.setPlainText("Dashboard component unavailable.")
-        else: self.dashboard_widget.refresh_requested.connect(self.view_model.load_dashboard_data)
+        if not DashboardWidget:
+            self.dashboard_widget.setPlainText("Dashboard component unavailable.")
+        else:
+            self.dashboard_widget.refresh_requested.connect(self.view_model.load_dashboard_data)
         layout.addWidget(self.dashboard_widget)
         return tab
 
     def _create_meta_tab(self) -> QWidget:
         tab, layout = self._create_tab_base_layout()
         self.meta_widget = MetaAnalyticsWidget() if MetaAnalyticsWidget else QTextBrowser()
-        if not MetaAnalyticsWidget: self.meta_widget.setPlainText("Meta analytics component unavailable.")
-        else: self.meta_widget.refresh_requested.connect(self.view_model.load_meta_analytics)
+        if not MetaAnalyticsWidget:
+            self.meta_widget.setPlainText("Meta analytics component unavailable.")
+        else:
+            self.meta_widget.refresh_requested.connect(self.view_model.load_meta_analytics)
         layout.addWidget(self.meta_widget)
         return tab
 
@@ -576,7 +579,8 @@ class MainApplicationWindow(QMainWindow):
     def _apply_theme(self, theme: str) -> None:
         QApplication.instance().setPalette(get_theme_palette(theme))
         for action in self.theme_action_group.actions():
-            if action.text().lower() == theme: action.setChecked(True)
+            if action.text().lower() == theme:
+                action.setChecked(True)
 
     def _save_gui_settings(self) -> None:
         self.settings.setValue("geometry", self.saveGeometry())
@@ -585,12 +589,16 @@ class MainApplicationWindow(QMainWindow):
         if self.theme_action_group.checkedAction():
             self.settings.setValue("theme", self.theme_action_group.checkedAction().text().lower())
         self.settings.setValue("analysis/rubric", self.rubric_selector.currentData())
-        if self._selected_file: self.settings.setValue("analysis/last_file", str(self._selected_file))
+        if self._selected_file:
+            self.settings.setValue("analysis/last_file", str(self._selected_file))
 
     def _load_gui_settings(self) -> None:
-        if geometry := self.settings.value("geometry"): self.restoreGeometry(geometry)
-        if window_state := self.settings.value("windowState"): self.restoreState(window_state)
-        if splitter_state := self.settings.value("mainSplitter"): self.main_splitter.restoreState(splitter_state)
+        if geometry := self.settings.value("geometry"):
+            self.restoreGeometry(geometry)
+        if window_state := self.settings.value("windowState"):
+            self.restoreState(window_state)
+        if splitter_state := self.settings.value("mainSplitter"):
+            self.main_splitter.restoreState(splitter_state)
         
         saved_theme = self.settings.value("theme", "light", type=str)
         self._apply_theme(saved_theme)
@@ -607,7 +615,8 @@ class MainApplicationWindow(QMainWindow):
 
     def _prompt_for_document(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(self, "Select clinical document", str(Path.home()), "Documents (*.pdf *.docx *.txt *.md *.json)")
-        if file_path: self._set_selected_file(Path(file_path))
+        if file_path:
+            self._set_selected_file(Path(file_path))
 
     def _set_selected_file(self, file_path: Path) -> None:
         if not file_path.is_file():
@@ -637,15 +646,26 @@ class MainApplicationWindow(QMainWindow):
             dialog.exec()
 
     def _export_report(self) -> None:
-        if not self._current_payload: QMessageBox.information(self, "No report", "Run an analysis before exporting a report."); return
-        file_path, _ = QFileDialog.getSaveFileName(self, "Save report", str(Path.home() / "compliance_report.html"), "HTML Files (*.html)")
-        if not file_path: return
+        if not self._current_payload:
+            QMessageBox.information(self, "No report", "Run an analysis before exporting a report.")
+            return
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save report",
+            str(Path.home() / "compliance_report.html"),
+            "HTML Files (*.html)",
+        )
+        if not file_path:
+            return
+
         Path(file_path).write_text(self.report_preview_browser.toHtml(), encoding='utf-8')
         self.statusBar().showMessage(f"Report exported to {file_path}", 5000)
 
     def _open_rubric_manager(self) -> None:
         dialog = RubricManagerDialog(self.auth_token, self)
-        if dialog.exec(): self.view_model.load_rubrics()
+        if dialog.exec():
+            self.view_model.load_rubrics()
 
     def _open_settings_dialog(self) -> None:
         dialog = SettingsDialog(self)

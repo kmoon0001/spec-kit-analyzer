@@ -3,7 +3,6 @@ import asyncio
 import hashlib
 import logging
 import uuid
-from collections.abc import Awaitable
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -64,7 +63,7 @@ class AnalysisService:
         self.fact_checker_service = kwargs.get('fact_checker_service') or FactCheckerService(model_name=settings.models.fact_checker)
         self.nlg_service = kwargs.get('nlg_service') or NLGService(llm_service=self.llm_service, prompt_template_path=settings.models.nlg_prompt_template)
         self.compliance_analyzer = kwargs.get('compliance_analyzer') or ComplianceAnalyzer(
-            retriever=self.retriever, ner_analyzer=self.clinical_ner_service, llm_service=self.llm_service,
+            retriever=self.retriever, ner_service=self.clinical_ner_service, llm_service=self.llm_service,
             explanation_engine=self.explanation_engine, prompt_manager=self.prompt_manager,
             fact_checker_service=self.fact_checker_service, nlg_service=self.nlg_service,
             deterministic_focus=settings.analysis.deterministic_focus,
@@ -199,15 +198,31 @@ class AnalysisService:
 
     @staticmethod
     def _build_bullet_highlights(analysis_result: Dict, checklist: List, summary: str) -> List[str]:
-        bullets = [f"{i.get('title')}: {i.get('recommendation')}" for i in checklist if i.get("status") != "pass"]
+        bullets = [
+            f"{item.get('title')}: {item.get('recommendation')}"
+            for item in checklist
+            if item.get("status") != "pass"
+        ]
         findings = analysis_result.get("findings") or []
         for finding in findings[:4]:
             issue = finding.get("issue_title") or finding.get("rule_name")
             suggestion = finding.get("personalized_tip") or finding.get("suggestion")
-            if issue and suggestion: bullets.append(f"{issue}: {suggestion}")
-            elif issue: bullets.append(issue)
-        seen, summary_lower = set(), summary.lower()
-        return [b for b in sanitize_bullets(bullets) if b.lower() not in seen and not seen.add(b.lower()) and b.lower() not in summary_lower]
+            if issue and suggestion:
+                bullets.append(f"{issue}: {suggestion}")
+            elif issue:
+                bullets.append(issue)
+
+        summary_lower = summary.lower()
+        seen: set[str] = set()
+        sanitized: List[str] = []
+        for bullet in sanitize_bullets(bullets):
+            lowered = bullet.lower()
+            if lowered in seen or lowered in summary_lower:
+                continue
+            seen.add(lowered)
+            sanitized.append(bullet)
+        return sanitized
+
 
     @staticmethod
     def _calculate_overall_confidence(analysis_result: Dict, checklist: List) -> float:
@@ -240,15 +255,26 @@ class AnalysisService:
         return best_fit
 
     def _resolve_local_model_path(self, settings) -> Optional[str]:
-        if path_str := getattr(settings.models, 'generator_local_path', None):
-            path = Path(path_str) if Path(path_str).is_absolute() else (ROOT_DIR / path_str).resolve()
-            if path.exists(): return str(path)
-            logger.warning(f'Configured generator_local_path does not exist: {path}')
+        path_str = getattr(settings.models, "generator_local_path", None)
+        if not path_str:
+            return None
+
+        candidate = Path(path_str)
+        path = candidate if candidate.is_absolute() else (ROOT_DIR / path_str).resolve()
+        if path.exists():
+            return str(path)
+
+        logger.warning(f"Configured generator_local_path does not exist: {path}")
         return None
+
 
     @staticmethod
     def _system_memory_gb() -> float:
-        try: return psutil.virtual_memory().total / (1024**3)
-        except Exception: return 16.0
+        try:
+            return psutil.virtual_memory().total / (1024**3)
+        except Exception:
+            # Fallback to a conservative default when system inspection fails
+            return 16.0
 
 __all__ = ["AnalysisService", "AnalysisOutput", "get_settings"]
+
