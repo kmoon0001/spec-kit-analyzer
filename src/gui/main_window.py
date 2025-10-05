@@ -46,6 +46,7 @@ from src.gui.themes import get_theme_palette
 from src.gui.workers.dashboard_worker import DashboardWorker
 from src.gui.workers.generic_api_worker import GenericApiWorker
 from src.gui.workers.single_analysis_polling_worker import SingleAnalysisPollingWorker
+from src.gui.workers.folder_watcher_worker import FolderWatcherWorker
 
 from src.gui.widgets.mission_control_widget import MissionControlWidget
 from src.gui.widgets.dashboard_widget import DashboardWidget
@@ -85,6 +86,8 @@ class MainApplicationWindow(QMainWindow):
         self.settings = QSettings("TherapyCo", "ComplianceAnalyzer")
         self._poll_thread: Optional[QThread] = None
         self._poll_worker: Optional[SingleAnalysisPollingWorker] = None
+        self.folder_watcher_thread: Optional[QThread] = None
+        self.folder_watcher_worker: Optional[FolderWatcherWorker] = None
         self._current_task_id: Optional[str] = None
         self._current_payload: Dict[str, Any] = {}
         self._selected_file: Optional[Path] = None
@@ -111,6 +114,7 @@ class MainApplicationWindow(QMainWindow):
         self._build_file_menu(menu_bar)
         self._build_view_menu(menu_bar)
         self._build_tools_menu(menu_bar)
+        self._build_admin_menu(menu_bar)
         self._build_help_menu(menu_bar)
 
     def _build_file_menu(self, menu_bar: QMenu) -> None:
@@ -156,13 +160,18 @@ class MainApplicationWindow(QMainWindow):
         refresh_dashboards_action = QAction("Refresh Dashboards", self)
         refresh_dashboards_action.triggered.connect(self._refresh_dashboards)
         tools_menu.addAction(refresh_dashboards_action)
+
+    def _build_admin_menu(self, menu_bar: QMenu) -> None:
+        if not self.current_user.is_admin:
+            return
+        admin_menu = menu_bar.addMenu("&Admin")
         rubrics_action = QAction("Manage Rubrics…", self)
         rubrics_action.triggered.connect(self._open_rubric_manager)
-        tools_menu.addAction(rubrics_action)
-        tools_menu.addSeparator()
+        admin_menu.addAction(rubrics_action)
+        admin_menu.addSeparator()
         settings_action = QAction("Settings…", self)
         settings_action.triggered.connect(self._open_settings_dialog)
-        tools_menu.addAction(settings_action)
+        admin_menu.addAction(settings_action)
 
     def _build_help_menu(self, menu_bar: QMenu) -> None:
         help_menu = menu_bar.addMenu("&Help")
@@ -327,6 +336,7 @@ class MainApplicationWindow(QMainWindow):
         self.document_preview_browser = QTextBrowser(self.document_preview_dock)
         self.document_preview_dock.setWidget(self.document_preview_browser)
         self.addDockWidget(Qt.RightDockWidgetArea, self.document_preview_dock)
+
         if PerformanceStatusWidget:
             self.performance_dock = QDockWidget("Performance", self)
             self.performance_widget = PerformanceStatusWidget()
@@ -334,6 +344,26 @@ class MainApplicationWindow(QMainWindow):
             self.addDockWidget(Qt.RightDockWidgetArea, self.performance_dock)
         else:
             self.performance_dock = None
+
+        self._build_auto_analysis_dock()
+
+    def _build_auto_analysis_dock(self) -> None:
+        self.auto_analysis_dock = QDockWidget("Auto-Analysis Queue", self)
+        self.auto_analysis_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        
+        self.auto_analysis_queue_list = QListWidget()
+        layout.addWidget(self.auto_analysis_queue_list)
+        
+        process_button = QPushButton("Process Queue")
+        process_button.clicked.connect(self._process_auto_analysis_queue)
+        layout.addWidget(process_button)
+        
+        self.auto_analysis_dock.setWidget(container)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.auto_analysis_dock)
+        self.auto_analysis_dock.setVisible(False) # Initially hidden
 
     def _build_floating_chat_button(self) -> None:
         self.chat_button = QPushButton("Ask AI Assistant", self)
@@ -349,6 +379,7 @@ class MainApplicationWindow(QMainWindow):
     def _load_initial_state(self) -> None:
         self._load_rubrics()
         self._refresh_mission_control()
+        self._update_folder_watcher()
         QTimer.singleShot(250, self._refresh_dashboards)
         QTimer.singleShot(500, self._refresh_meta_analytics)
 
@@ -555,6 +586,7 @@ class MainApplicationWindow(QMainWindow):
     def _open_settings_dialog(self) -> None:
         dialog = SettingsDialog(self)
         dialog.exec()
+        self._update_folder_watcher()
 
     def _open_chat_dialog(self) -> None:
         initial_context = self.analysis_summary_browser.toPlainText() or "Provide a compliance summary."
@@ -563,6 +595,58 @@ class MainApplicationWindow(QMainWindow):
 
     def _show_about_dialog(self) -> None:
         QMessageBox.information(self, "About", f"Therapy Compliance Analyzer\nWelcome, {self.current_user.username}!")
+
+    def _update_folder_watcher(self) -> None:
+        if self.folder_watcher_thread and self.folder_watcher_thread.isRunning():
+            self.folder_watcher_worker.stop()
+            self.folder_watcher_thread.quit()
+            self.folder_watcher_thread.wait()
+
+        if self.settings.value("automation/watch_folder_enabled", False, type=bool):
+            folder_path = self.settings.value("automation/watch_folder_path", "", type=str)
+            interval = self.settings.value("automation/scan_interval", 10, type=int)
+            if Path(folder_path).is_dir():
+                self.auto_analysis_dock.setVisible(True)
+                self.folder_watcher_thread = QThread()
+                self.folder_watcher_worker = FolderWatcherWorker(folder_path, interval)
+                self.folder_watcher_worker.moveToThread(self.folder_watcher_thread)
+                self.folder_watcher_worker.new_file_found.connect(self._add_to_auto_analysis_queue)
+                self.folder_watcher_thread.started.connect(self.folder_watcher_worker.run)
+                self.folder_watcher_thread.start()
+                self.statusBar().showMessage(f"Watching folder: {folder_path}", 5000)
+            else:
+                self.auto_analysis_dock.setVisible(False)
+                self.statusBar().showMessage("Watch folder path is invalid. Automation disabled.", 5000)
+        else:
+            self.auto_analysis_dock.setVisible(False)
+
+    def _add_to_auto_analysis_queue(self, file_path: str):
+        self.auto_analysis_queue_list.addItem(file_path)
+        self.statusBar().showMessage(f"New file detected: {Path(file_path).name}", 3000)
+
+    def _process_auto_analysis_queue(self):
+        file_paths = []
+        for i in range(self.auto_analysis_queue_list.count()):
+            file_paths.append(self.auto_analysis_queue_list.item(i).text())
+        
+        if not file_paths:
+            QMessageBox.information(self, "Queue Empty", "There are no files in the auto-analysis queue.")
+            return
+
+        analysis_data = {
+            "discipline": self.rubric_selector.currentData() or "",
+            "analysis_mode": "rubric",
+            "options": {
+                "strict": self.settings.value("analysis/strict_mode", False, type=bool),
+                "sensitivity": self.settings.value("analysis/sensitivity", 5, type=int),
+            },
+        }
+        
+        # For simplicity, we reuse the BatchAnalysisDialog. A more integrated approach
+        # could use the BatchProcessorWorker directly.
+        dialog = BatchAnalysisDialog("Auto-Analysis Queue", self.auth_token, analysis_data, self, files_to_process=file_paths)
+        dialog.exec()
+        self.auto_analysis_queue_list.clear()
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
@@ -574,6 +658,8 @@ class MainApplicationWindow(QMainWindow):
     def closeEvent(self, event) -> None:
         self._save_settings()
         self._request_poll_worker_stop()
+        if self.folder_watcher_thread and self.folder_watcher_thread.isRunning():
+            self.folder_watcher_worker.stop()
         for thread in list(self._active_threads):
             thread.quit()
             thread.wait(150)

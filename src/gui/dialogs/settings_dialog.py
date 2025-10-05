@@ -1,7 +1,8 @@
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QTabWidget, QWidget, QFormLayout, 
-    QCheckBox, QSlider, QSpinBox, QPushButton, QMessageBox, QLabel, QDialogButtonBox
+    QCheckBox, QSlider, QSpinBox, QPushButton, QMessageBox, QLabel, QDialogButtonBox,
+    QHBoxLayout, QLineEdit, QFileDialog
 )
 from PySide6.QtCore import Qt, QSettings
 
@@ -50,6 +51,24 @@ class SettingsDialog(QDialog):
         self.performance_layout.addRow(self.clear_cache_button)
         self.tab_widget.addTab(self.performance_tab, "Performance")
 
+        # --- Automation Tab ---
+        self.automation_tab = QWidget()
+        self.automation_layout = QFormLayout(self.automation_tab)
+        self.watch_folder_enabled_checkbox = QCheckBox("Enable Watch Folder for automated analysis")
+        self.watch_folder_path_edit = QLineEdit()
+        self.watch_folder_path_edit.setReadOnly(True)
+        self.watch_folder_browse_button = QPushButton("Browse…")
+        watch_folder_layout = QHBoxLayout()
+        watch_folder_layout.addWidget(self.watch_folder_path_edit)
+        watch_folder_layout.addWidget(self.watch_folder_browse_button)
+        self.scan_interval_spinbox = QSpinBox()
+        self.scan_interval_spinbox.setRange(5, 300) # 5 seconds to 5 minutes
+        self.scan_interval_spinbox.setSuffix(" seconds")
+        self.automation_layout.addRow(self.watch_folder_enabled_checkbox)
+        self.automation_layout.addRow("Folder to Watch:", watch_folder_layout)
+        self.automation_layout.addRow("Scan Interval:", self.scan_interval_spinbox)
+        self.tab_widget.addTab(self.automation_tab, "Automation")
+
         # --- Buttons ---
         self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Apply)
         self.main_layout.addWidget(self.button_box)
@@ -59,6 +78,7 @@ class SettingsDialog(QDialog):
         self.button_box.rejected.connect(self.reject)
         self.button_box.button(QDialogButtonBox.StandardButton.Apply).clicked.connect(self.apply_settings)
         self.clear_cache_button.clicked.connect(self.clear_cache)
+        self.watch_folder_browse_button.clicked.connect(self._select_watch_folder)
 
         self.load_settings()
 
@@ -74,6 +94,11 @@ class SettingsDialog(QDialog):
         self.max_workers_spinbox.setValue(self.settings.value("performance/max_workers", 2, type=int))
         self.cache_size_spinbox.setValue(self.settings.value("performance/max_cache_memory_mb", 2048, type=int))
 
+        # Automation
+        self.watch_folder_enabled_checkbox.setChecked(self.settings.value("automation/watch_folder_enabled", False, type=bool))
+        self.watch_folder_path_edit.setText(self.settings.value("automation/watch_folder_path", "", type=str))
+        self.scan_interval_spinbox.setValue(self.settings.value("automation/scan_interval", 10, type=int))
+
     def apply_settings(self):
         """Save the current settings."""
         # Analysis
@@ -85,6 +110,11 @@ class SettingsDialog(QDialog):
         self.settings.setValue("performance/model_quantization", self.model_quantization_checkbox.isChecked())
         self.settings.setValue("performance/max_workers", self.max_workers_spinbox.value())
         self.settings.setValue("performance/max_cache_memory_mb", self.cache_size_spinbox.value())
+
+        # Automation
+        self.settings.setValue("automation/watch_folder_enabled", self.watch_folder_enabled_checkbox.isChecked())
+        self.settings.setValue("automation/watch_folder_path", self.watch_folder_path_edit.text())
+        self.settings.setValue("automation/scan_interval", self.scan_interval_spinbox.value())
         
         QMessageBox.information(self, "Settings Applied", "Your settings have been saved. Some changes may require an application restart to take full effect.")
 
@@ -104,3 +134,9 @@ class SettingsDialog(QDialog):
                 QMessageBox.information(self, "Cache Cleared", "The application cache has been successfully cleared.")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to clear cache: {e}")
+
+    def _select_watch_folder(self):
+        """Opens a dialog to select the watch folder."""
+        folder_path = QFileDialog.getExistingDirectory(self, "Select Watch Folder", self.watch_folder_path_edit.text())
+        if folder_path:
+            self.watch_folder_path_edit.setText(folder_path)
