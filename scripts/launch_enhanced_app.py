@@ -21,7 +21,7 @@ def main():
     try:
         # Import required modules
         from PySide6.QtWidgets import QApplication
-        from src.gui.main_window_enhanced import EnhancedMainWindow
+        from src.gui.main_window import MainApplicationWindow
         from src.database import init_db
         
         # Initialize database
@@ -38,7 +38,7 @@ def main():
         
         # Create main window
         print("🖥️ Loading enhanced interface...")
-        main_window = EnhancedMainWindow()
+        main_window = MainApplicationWindow()
         
         # Show welcome message
         print("\n🎉 Application Ready!")
