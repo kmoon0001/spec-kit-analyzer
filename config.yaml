@@ -39,7 +39,8 @@ models:
       filename: meditron-7b.Q6_K.gguf
       revision: main
       min_system_gb: 24.0
-  retriever: sentence-transformers/all-MiniLM-L6-v2
+  retriever: pritamdeka/S-PubMedBert-MS-MARCO
+  reranker: cross-encoder/ms-marco-MiniLM-L-6-v2
   fact_checker: microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext
   ner_ensemble:
   - d4data/biomedical-ner-all
@@ -63,7 +64,7 @@ llm:
     - \n\n---
 retrieval:
   similarity_top_k: 10
-  dense_model_name: sentence-transformers/all-MiniLM-L6-v2
+  dense_model_name: pritamdeka/S-PubMedBert-MS-MARCO
   rrf_k: 60
   batch_size: 16
   max_sequence_length: 512

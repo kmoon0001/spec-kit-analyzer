@@ -6,6 +6,7 @@ and retrieving analysis results.
 """
 
 import asyncio
+import datetime
 import structlog
 import uuid
 from pathlib import Path
@@ -57,6 +58,7 @@ def run_analysis_and_save(
                 "status": "completed",
                 "result": result,
                 "filename": original_filename,
+                "timestamp": datetime.datetime.now(datetime.timezone.utc),
             }
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("Analysis task failed", task_id=task_id, error=str(exc))
@@ -64,6 +66,7 @@ def run_analysis_and_save(
                 "status": "failed",
                 "error": str(exc),
                 "filename": original_filename,
+                "timestamp": datetime.datetime.now(datetime.timezone.utc),
             }
 
     asyncio.run(_job())
@@ -96,7 +99,11 @@ async def analyze_document(
     SecurityValidator.validate_file_size(len(content))
 
     task_id = uuid.uuid4().hex
-    tasks[task_id] = {"status": "processing", "filename": safe_filename}
+    tasks[task_id] = {
+        "status": "processing",
+        "filename": safe_filename,
+        "timestamp": datetime.datetime.now(datetime.timezone.utc),
+    }
 
     # Pass file content directly to the background task, avoiding disk I/O
     background_tasks.add_task(
@@ -127,6 +134,14 @@ async def get_analysis_status(
         return tasks.pop(task_id)
 
     return task
+
+
+@router.get("/all-tasks")
+async def get_all_tasks(_current_user=Depends(get_current_active_user)) -> Dict[str, Dict[str, Any]]:
+    """
+    Retrieves all current analysis tasks.
+    """
+    return tasks
 
 
 @router.post("/export-pdf/{task_id}")

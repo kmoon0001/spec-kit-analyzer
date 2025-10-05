@@ -7,9 +7,8 @@ import webbrowser
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Type, Protocol
 
-from PySide6.QtCore import Qt, QThread, QTimer, QSettings
-from PySide6.QtGui import QAction, QFont, QIcon
-from PySide6.QtGui import QActionGroup
+from PySide6.QtCore import Qt, QThread, QTimer, QSettings, QObject, Signal
+from PySide6.QtGui import QAction, QFont, QIcon, QActionGroup
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -43,13 +42,13 @@ from src.gui.dialogs.batch_analysis_dialog import BatchAnalysisDialog
 from src.gui.dialogs.settings_dialog import SettingsDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
 from src.gui.themes import get_theme_palette
-from src.gui.workers.dashboard_worker import DashboardWorker
-from src.gui.workers.generic_api_worker import GenericApiWorker
+from src.gui.workers.generic_api_worker import GenericApiWorker, HealthCheckWorker, TaskMonitorWorker, LogStreamWorker
 from src.gui.workers.single_analysis_polling_worker import SingleAnalysisPollingWorker
 from src.gui.workers.folder_watcher_worker import FolderWatcherWorker
 
-from src.gui.widgets.mission_control_widget import MissionControlWidget
+from src.gui.widgets.mission_control_widget import MissionControlWidget, LogViewerWidget, SettingsEditorWidget
 from src.gui.widgets.dashboard_widget import DashboardWidget
+
 try:
     from src.gui.widgets.meta_analytics_widget import MetaAnalyticsWidget
 except ImportError:
@@ -60,9 +59,9 @@ try:
 except ImportError:
     PerformanceStatusWidget = None
 
-
 SETTINGS = get_settings()
 API_URL = SETTINGS.paths.api_url
+
 
 class WorkerProtocol(Protocol):
     success: Any
@@ -73,8 +72,85 @@ class WorkerProtocol(Protocol):
     def moveToThread(self, thread: QThread) -> None: ...
 
 
+class MainViewModel(QObject):
+    """ViewModel for the MainApplicationWindow, handling state and business logic."""
+    status_message_changed = Signal(str)
+    api_status_changed = Signal(str, str)
+    task_list_changed = Signal(dict)
+    log_message_received = Signal(str)
+    settings_loaded = Signal(dict)
+    analysis_result_received = Signal(dict)
+    rubrics_loaded = Signal(list)
+
+    def __init__(self, auth_token: str, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self.auth_token = auth_token
+        self._active_threads: list[QThread] = []
+
+    def start_workers(self) -> None:
+        self._start_health_check_worker()
+        self._start_task_monitor_worker()
+        self._start_log_stream_worker()
+        self.load_rubrics()
+
+    def _run_worker(self, worker_class: Type[WorkerProtocol], on_success: Callable, on_error: Callable, **kwargs: Any) -> None:
+        thread = QThread()
+        worker = worker_class(**kwargs)
+        worker.moveToThread(thread)
+
+        worker.success.connect(on_success)
+        worker.error.connect(on_error)
+        worker.finished.connect(thread.quit)
+        thread.finished.connect(thread.deleteLater)
+        thread.started.connect(worker.run)
+        
+        self._active_threads.append(thread)
+        thread.start()
+
+    def _start_health_check_worker(self) -> None:
+        self._run_worker(HealthCheckWorker, on_success=self.api_status_changed.emit, on_error=lambda msg: self.status_message_changed.emit(f"Health Check Error: {msg}"))
+
+    def _start_task_monitor_worker(self) -> None:
+        self._run_worker(TaskMonitorWorker, on_success=self.task_list_changed.emit, on_error=lambda msg: self.status_message_changed.emit(f"Task Monitor Error: {msg}"), token=self.auth_token)
+
+    def _start_log_stream_worker(self) -> None:
+        self._run_worker(LogStreamWorker, on_success=self.log_message_received.emit, on_error=lambda msg: self.status_message_changed.emit(f"Log Stream: {msg}"))
+
+    def load_rubrics(self) -> None:
+        self._run_worker(GenericApiWorker, on_success=self.rubrics_loaded.emit, on_error=lambda msg: self.status_message_changed.emit(f"Could not load rubrics: {msg}"), endpoint="/rubrics", token=self.auth_token)
+
+    def start_analysis(self, file_path: str, options: dict) -> None:
+        self.status_message_changed.emit("Submitting document for analysis…")
+        self._run_worker(AnalysisStarterWorker, on_success=self._handle_analysis_task_started, on_error=lambda msg: self.status_message_changed.emit(f"Analysis failed: {msg}"), file_path=file_path, data=options, token=self.auth_token)
+
+    def _handle_analysis_task_started(self, task_id: str) -> None:
+        self.status_message_changed.emit("Analysis running…")
+        self._run_worker(SingleAnalysisPollingWorker, on_success=self.analysis_result_received.emit, on_error=lambda msg: self.status_message_changed.emit(f"Polling failed: {msg}"), task_id=task_id, token=self.auth_token)
+
+    def load_settings(self) -> None:
+        self._run_worker(GenericApiWorker, on_success=self.settings_loaded.emit, on_error=lambda msg: self.status_message_changed.emit(f"Failed to load settings: {msg}"), endpoint="/admin/settings", token=self.auth_token)
+
+    def save_settings(self, settings: dict) -> None:
+        class SettingsSaveWorker(QThread):
+            success = Signal(str)
+            error = Signal(str)
+            def run(self_worker) -> None:
+                try:
+                    response = requests.post(f"{API_URL}/admin/settings", headers={"Authorization": f"Bearer {self.auth_token}"}, json=settings, timeout=10)
+                    response.raise_for_status()
+                    self_worker.success.emit(response.json().get("message", "Success!"))
+                except Exception as e:
+                    self_worker.error.emit(str(e))
+        self._run_worker(SettingsSaveWorker, on_success=lambda msg: self.status_message_changed.emit(msg), on_error=lambda msg: self.status_message_changed.emit(f"Failed to save settings: {msg}"))
+
+    def stop_all_workers(self) -> None:
+        for thread in self._active_threads:
+            thread.quit()
+            thread.wait()
+
+
 class MainApplicationWindow(QMainWindow):
-    """Modernised main window that consolidates the disparate GUI variants."""
+    """The main application window (View)."""
 
     def __init__(self, user: models.User, token: str) -> None:
         super().__init__()
@@ -82,32 +158,71 @@ class MainApplicationWindow(QMainWindow):
         self.resize(1440, 920)
 
         self.current_user = user
-        self.auth_token = token
         self.settings = QSettings("TherapyCo", "ComplianceAnalyzer")
-        self._poll_thread: Optional[QThread] = None
-        self._poll_worker: Optional[SingleAnalysisPollingWorker] = None
-        self.folder_watcher_thread: Optional[QThread] = None
-        self.folder_watcher_worker: Optional[FolderWatcherWorker] = None
-        self._current_task_id: Optional[str] = None
+        self.report_generator = ReportGenerator()
         self._current_payload: Dict[str, Any] = {}
         self._selected_file: Optional[Path] = None
-        self._saved_rubric_value: Optional[str] = None
-        self._active_threads: list[QThread] = []
 
-        self.report_generator = ReportGenerator()
+        self.view_model = MainViewModel(token)
 
         self._build_ui()
+        self._connect_view_model()
         self._load_initial_state()
-        self._load_settings()
 
     def _build_ui(self) -> None:
-        theme = self.settings.value("theme", "light", type=str)
-        self._apply_theme(theme)
+        # ... (UI building methods remain largely the same)
         self._build_menus()
         self._build_central_layout()
         self._build_status_bar()
         self._build_docks()
         self._build_floating_chat_button()
+
+    def _connect_view_model(self) -> None:
+        self.view_model.status_message_changed.connect(self.statusBar().showMessage)
+        self.view_model.api_status_changed.connect(self.mission_control_widget.update_api_status)
+        self.view_model.task_list_changed.connect(self.mission_control_widget.update_task_list)
+        self.view_model.log_message_received.connect(self.log_viewer.add_log_message)
+        self.view_model.settings_loaded.connect(self.settings_editor.set_settings)
+        self.view_model.analysis_result_received.connect(self._handle_analysis_success)
+        self.view_model.rubrics_loaded.connect(self._on_rubrics_loaded)
+
+    def _load_initial_state(self) -> None:
+        self.view_model.start_workers()
+        if self.current_user.is_admin:
+            self.view_model.load_settings()
+
+    def _start_analysis(self) -> None:
+        if not self._selected_file:
+            QMessageBox.warning(self, "No document", "Please select a document before starting the analysis.")
+            return
+        
+        options = {
+            "discipline": self.rubric_selector.currentData() or "",
+            "analysis_mode": "rubric",
+        }
+        self.view_model.start_analysis(str(self._selected_file), options)
+
+    def _handle_analysis_success(self, payload: Dict[str, Any]) -> None:
+        self.statusBar().showMessage("Analysis complete", 5000)
+        self._current_payload = payload
+        analysis = payload.get("analysis", {})
+        doc_name = self._selected_file.name if self._selected_file else "Document"
+        report_html = payload.get("report_html") or self.report_generator.generate_html_report(analysis_result=analysis, doc_name=doc_name)
+        self.analysis_summary_browser.setHtml(report_html)
+        self.report_preview_browser.setHtml(report_html)
+        self.detailed_results_browser.setPlainText(json.dumps(payload, indent=2))
+
+    def _on_rubrics_loaded(self, rubrics: list[dict]) -> None:
+        self.rubric_selector.clear()
+        for rubric in rubrics:
+            self.rubric_selector.addItem(rubric.get("name", "Unnamed rubric"), rubric.get("value"))
+
+    def closeEvent(self, event) -> None:
+        self.view_model.stop_all_workers()
+        super().closeEvent(event)
+
+    # ... (Other UI-only methods like _build_menus, _prompt_for_document, etc. remain)
+    # Note: Methods that previously started workers now delegate to the ViewModel.
 
     def _build_menus(self) -> None:
         menu_bar = self.menuBar()
@@ -158,7 +273,7 @@ class MainApplicationWindow(QMainWindow):
     def _build_tools_menu(self, menu_bar: QMenu) -> None:
         tools_menu = menu_bar.addMenu("&Tools")
         refresh_dashboards_action = QAction("Refresh Dashboards", self)
-        refresh_dashboards_action.triggered.connect(self._refresh_dashboards)
+        refresh_dashboards_action.triggered.connect(self.view_model.load_initial_data) # Changed
         tools_menu.addAction(refresh_dashboards_action)
 
     def _build_admin_menu(self, menu_bar: QMenu) -> None:
@@ -208,6 +323,11 @@ class MainApplicationWindow(QMainWindow):
         self.tab_widget.addTab(self.meta_tab, "Meta Analytics")
         self.report_tab = self._create_report_tab()
         self.tab_widget.addTab(self.report_tab, "Reports")
+        self.log_stream_tab = self._create_log_stream_tab()
+        self.tab_widget.addTab(self.log_stream_tab, "Log Stream")
+        if self.current_user.is_admin:
+            self.admin_tab = self._create_admin_tab()
+            self.tab_widget.addTab(self.admin_tab, "Admin")
         self.tab_widget.setCurrentWidget(self.mission_control_tab)
         self.main_splitter.setStretchFactor(0, 0)
         self.main_splitter.setStretchFactor(1, 1)
@@ -267,6 +387,19 @@ class MainApplicationWindow(QMainWindow):
         self.mission_control_widget.start_analysis_requested.connect(self._handle_mission_control_start)
         self.mission_control_widget.review_document_requested.connect(self._handle_mission_control_review)
         layout.addWidget(self.mission_control_widget)
+        return tab
+
+    def _create_log_stream_tab(self) -> QWidget:
+        tab, layout = self._create_tab_base_layout()
+        self.log_viewer = LogViewerWidget(tab)
+        layout.addWidget(self.log_viewer)
+        return tab
+
+    def _create_admin_tab(self) -> QWidget:
+        tab, layout = self._create_tab_base_layout()
+        self.settings_editor = SettingsEditorWidget(tab)
+        self.settings_editor.save_requested.connect(self.view_model.save_settings)
+        layout.addWidget(self.settings_editor)
         return tab
 
     def _handle_mission_control_start(self) -> None:
@@ -376,19 +509,12 @@ class MainApplicationWindow(QMainWindow):
         self.chat_button.resize(220, 44)
         self.chat_button.raise_()
 
-    def _load_initial_state(self) -> None:
-        self._load_rubrics()
-        self._refresh_mission_control()
-        self._update_folder_watcher()
-        QTimer.singleShot(250, self._refresh_dashboards)
-        QTimer.singleShot(500, self._refresh_meta_analytics)
-
     def _apply_theme(self, theme: str) -> None:
         QApplication.instance().setPalette(get_theme_palette(theme))
         for action in self.theme_action_group.actions():
             if action.text().lower() == theme: action.setChecked(True)
 
-    def _save_settings(self) -> None:
+    def _save_gui_settings(self) -> None:
         self.settings.setValue("geometry", self.saveGeometry())
         self.settings.setValue("windowState", self.saveState())
         self.settings.setValue("mainSplitter", self.main_splitter.saveState())
@@ -397,11 +523,11 @@ class MainApplicationWindow(QMainWindow):
         self.settings.setValue("analysis/rubric", self.rubric_selector.currentData())
         if self._selected_file: self.settings.setValue("analysis/last_file", str(self._selected_file))
 
-    def _load_settings(self) -> None:
+    def _load_gui_settings(self) -> None:
         if geometry := self.settings.value("geometry"): self.restoreGeometry(geometry)
         if window_state := self.settings.value("windowState"): self.restoreState(window_state)
         if splitter_state := self.settings.value("mainSplitter"): self.main_splitter.restoreState(splitter_state)
-        self._saved_rubric_value = self.settings.value("analysis/rubric", type=str)
+        saved_rubric = self.settings.value("analysis/rubric", type=str)
         if last_file := self.settings.value("analysis/last_file", type=str): self._set_selected_file(Path(last_file))
 
     def _prompt_for_document(self) -> None:
@@ -425,146 +551,9 @@ class MainApplicationWindow(QMainWindow):
             analysis_data = {
                 "discipline": self.rubric_selector.currentData() or "",
                 "analysis_mode": "rubric",
-                "options": {
-                    "strict": self.settings.value("analysis/strict_mode", False, type=bool),
-                    "sensitivity": self.settings.value("analysis/sensitivity", 5, type=int),
-                },
             }
             dialog = BatchAnalysisDialog(folder_path, self.auth_token, analysis_data, self)
             dialog.exec()
-
-    def _start_analysis(self) -> None:
-        if not self._selected_file:
-            QMessageBox.warning(self, "No document", "Please select a document before starting the analysis.")
-            return
-        if not self.auth_token:
-            QMessageBox.critical(self, "Authentication Error", "Authentication token is missing. Please restart the application.")
-            return
-
-        request_payload = {
-            "discipline": self.rubric_selector.currentData() or "",
-            "analysis_mode": "rubric",
-            "options": {
-                "strict": self.settings.value("analysis/strict_mode", False, type=bool),
-                "sensitivity": self.settings.value("analysis/sensitivity", 5, type=int),
-            },
-        }
-        self._set_ui_busy(True)
-        self.statusBar().showMessage("Submitting document for analysis…")
-        self._run_worker(AnalysisStarterWorker, on_success=self._handle_analysis_task_started, on_error=self._handle_generic_worker_error, file_path=str(self._selected_file), data=request_payload, token=self.auth_token)
-
-    def _handle_analysis_task_started(self, task_id: str) -> None:
-        self._current_task_id = task_id
-        self.statusBar().showMessage("Analysis running…")
-        self._start_polling_worker(task_id)
-
-    def _start_polling_worker(self, task_id: str) -> None:
-        if self._poll_thread and self._poll_thread.isRunning(): self._request_poll_worker_stop()
-        self._poll_worker, self._poll_thread = self._run_worker(SingleAnalysisPollingWorker, on_success=self._handle_analysis_success, on_error=self._handle_generic_worker_error, on_progress=self._update_progress_bar, on_finished=self._handle_analysis_finished, task_id=task_id, token=self.auth_token)
-
-    def _request_poll_worker_stop(self) -> None:
-        if self._poll_worker: self._poll_worker.stop()
-
-    def _handle_generic_worker_error(self, message: str) -> None:
-        QMessageBox.critical(self, "Analysis failed", message)
-        self._set_ui_busy(False)
-        self.statusBar().showMessage("Analysis failed", 5000)
-
-    def _set_ui_busy(self, busy: bool) -> None:
-        self.control_panel.setEnabled(not busy)
-        self.progress_bar.setRange(0, 0) if busy else self.progress_bar.setRange(0, 100)
-        self.progress_bar.setVisible(busy)
-
-    def _update_progress_bar(self, value: int) -> None:
-        if self.progress_bar.maximum() == 0: self.progress_bar.setRange(0, 100)
-        self.progress_bar.setValue(value)
-
-    def _update_result_views(self, payload: Dict[str, Any]) -> None:
-        self._current_payload = payload
-        analysis = payload.get("analysis", {})
-        report_html = payload.get("report_html") or self.report_generator.generate_html_report(analysis_result=analysis, doc_name=self._selected_file.name if self._selected_file else "Document")
-        self.analysis_summary_browser.setHtml(report_html)
-        self.report_preview_browser.setHtml(report_html)
-        insights = analysis.get("insights", {})
-        self.insights_browser.setPlainText(json.dumps(insights, indent=2) if insights else "No insights generated.")
-        self.detailed_results_browser.setPlainText(json.dumps(payload, indent=2))
-
-    def _handle_analysis_success(self, payload: Dict[str, Any]) -> None:
-        self.statusBar().showMessage("Analysis complete", 5000)
-        self._update_result_views(payload)
-
-    def _handle_analysis_finished(self) -> None:
-        self._poll_worker = None
-        self._poll_thread = None
-        self._set_ui_busy(False)
-
-    def _refresh_mission_control(self) -> None:
-        self._run_worker(DashboardWorker, on_success=self._on_dashboard_success, on_error=self._on_dashboard_error, token=self.auth_token)
-
-    def _on_dashboard_success(self, data: Any) -> None:
-        self.mission_control_widget.update_metrics(data)
-        self.statusBar().showMessage("Dashboard updated.", 3000)
-
-    def _on_dashboard_error(self, msg: str) -> None:
-        self.statusBar().showMessage(f"Dashboard Error: {msg}", 5000)
-
-    def _run_worker(self, worker_class: Type[WorkerProtocol], on_success: Callable, on_error: Callable, on_progress: Optional[Callable] = None, on_finished: Optional[Callable] = None, **kwargs: Any) -> tuple[WorkerProtocol, QThread]:
-        thread = QThread(self)
-        self._active_threads.append(thread)
-        worker = worker_class(**kwargs)
-        worker.moveToThread(thread)
-        worker.success.connect(on_success)
-        worker.error.connect(on_error)
-        if on_progress and hasattr(worker, "progress"): worker.progress.connect(on_progress)
-        if on_finished: worker.finished.connect(on_finished)
-        def _thread_cleanup() -> None:
-            if thread in self._active_threads: self._active_threads.remove(thread)
-        worker.finished.connect(thread.quit)
-        thread.finished.connect(thread.deleteLater)
-        thread.finished.connect(_thread_cleanup)
-        thread.started.connect(worker.run)
-        thread.start()
-        return worker, thread
-
-    def _update_document_preview(self) -> None:
-        if not self._selected_file: self.document_preview_browser.clear(); return
-        suffix = self._selected_file.suffix.lower()
-        if suffix in {'.txt', '.md', '.json', '.yaml', '.csv'}:
-            content = self._selected_file.read_text(encoding='utf-8', errors='ignore')
-            self.document_preview_browser.setPlainText(content[:10000])
-        else:
-            self.document_preview_browser.setHtml(f"<h3>Preview unavailable</h3><p>{self._selected_file.name} cannot be previewed in-app.</p>")
-
-    def _load_rubrics(self) -> None:
-        self._run_worker(GenericApiWorker, on_success=self._on_rubrics_loaded, on_error=self._on_rubrics_error, endpoint="/rubrics", token=self.auth_token)
-
-    def _on_rubrics_loaded(self, rubrics: list[dict]) -> None:
-        self.rubric_selector.clear()
-        if not rubrics: self._on_rubrics_error("API returned no rubrics."); return
-        for rubric in rubrics:
-            self.rubric_selector.addItem(rubric.get("name", "Unnamed rubric"), rubric.get("value"))
-        if self._saved_rubric_value:
-            index = self.rubric_selector.findData(self._saved_rubric_value)
-            if index != -1: self.rubric_selector.setCurrentIndex(index)
-
-    def _on_rubrics_error(self, msg: str) -> None:
-        self.statusBar().showMessage(f"Could not load rubrics: {msg}", 5000)
-        self._on_rubrics_loaded([{"name": "Physical Therapy", "value": "pt"}, {"name": "Occupational Therapy", "value": "ot"}, {"name": "Speech Therapy", "value": "st"}])
-
-    def _async_update_widget(self, widget: Optional[QWidget], endpoint: str, error_message: str) -> None:
-        if not widget: return
-        def on_success(data: Any) -> None:
-            if hasattr(widget, "load_data"): widget.load_data(data)
-            elif isinstance(widget, QTextBrowser): widget.setPlainText(json.dumps(data, indent=2))
-        def on_error(msg: str) -> None:
-            if isinstance(widget, QTextBrowser): widget.setPlainText(f"{error_message}\n\nDetails: {msg}")
-        self._run_worker(GenericApiWorker, on_success, on_error, endpoint=endpoint, token=self.auth_token)
-
-    def _refresh_dashboards(self) -> None:
-        self._async_update_widget(self.dashboard_widget, "/dashboard/overview", "Dashboard data unavailable.")
-
-    def _refresh_meta_analytics(self) -> None:
-        self._async_update_widget(self.meta_widget, "/dashboard/meta", "Meta analytics unavailable.")
 
     def _export_report(self) -> None:
         if not self._current_payload: QMessageBox.information(self, "No report", "Run an analysis before exporting a report."); return
@@ -573,20 +562,13 @@ class MainApplicationWindow(QMainWindow):
         Path(file_path).write_text(self.report_preview_browser.toHtml(), encoding='utf-8')
         self.statusBar().showMessage(f"Report exported to {file_path}", 5000)
 
-    def _toggle_document_preview(self, checked: bool) -> None:
-        self.document_preview_dock.setVisible(checked)
-
-    def _toggle_performance_panel(self, checked: bool) -> None:
-        if self.performance_dock: self.performance_dock.setVisible(checked)
-
     def _open_rubric_manager(self) -> None:
         dialog = RubricManagerDialog(self.auth_token, self)
-        if dialog.exec(): self._load_rubrics()
+        if dialog.exec(): self.view_model.load_rubrics()
 
     def _open_settings_dialog(self) -> None:
         dialog = SettingsDialog(self)
         dialog.exec()
-        self._update_folder_watcher()
 
     def _open_chat_dialog(self) -> None:
         initial_context = self.analysis_summary_browser.toPlainText() or "Provide a compliance summary."
@@ -596,58 +578,6 @@ class MainApplicationWindow(QMainWindow):
     def _show_about_dialog(self) -> None:
         QMessageBox.information(self, "About", f"Therapy Compliance Analyzer\nWelcome, {self.current_user.username}!")
 
-    def _update_folder_watcher(self) -> None:
-        if self.folder_watcher_thread and self.folder_watcher_thread.isRunning():
-            self.folder_watcher_worker.stop()
-            self.folder_watcher_thread.quit()
-            self.folder_watcher_thread.wait()
-
-        if self.settings.value("automation/watch_folder_enabled", False, type=bool):
-            folder_path = self.settings.value("automation/watch_folder_path", "", type=str)
-            interval = self.settings.value("automation/scan_interval", 10, type=int)
-            if Path(folder_path).is_dir():
-                self.auto_analysis_dock.setVisible(True)
-                self.folder_watcher_thread = QThread()
-                self.folder_watcher_worker = FolderWatcherWorker(folder_path, interval)
-                self.folder_watcher_worker.moveToThread(self.folder_watcher_thread)
-                self.folder_watcher_worker.new_file_found.connect(self._add_to_auto_analysis_queue)
-                self.folder_watcher_thread.started.connect(self.folder_watcher_worker.run)
-                self.folder_watcher_thread.start()
-                self.statusBar().showMessage(f"Watching folder: {folder_path}", 5000)
-            else:
-                self.auto_analysis_dock.setVisible(False)
-                self.statusBar().showMessage("Watch folder path is invalid. Automation disabled.", 5000)
-        else:
-            self.auto_analysis_dock.setVisible(False)
-
-    def _add_to_auto_analysis_queue(self, file_path: str):
-        self.auto_analysis_queue_list.addItem(file_path)
-        self.statusBar().showMessage(f"New file detected: {Path(file_path).name}", 3000)
-
-    def _process_auto_analysis_queue(self):
-        file_paths = []
-        for i in range(self.auto_analysis_queue_list.count()):
-            file_paths.append(self.auto_analysis_queue_list.item(i).text())
-        
-        if not file_paths:
-            QMessageBox.information(self, "Queue Empty", "There are no files in the auto-analysis queue.")
-            return
-
-        analysis_data = {
-            "discipline": self.rubric_selector.currentData() or "",
-            "analysis_mode": "rubric",
-            "options": {
-                "strict": self.settings.value("analysis/strict_mode", False, type=bool),
-                "sensitivity": self.settings.value("analysis/sensitivity", 5, type=int),
-            },
-        }
-        
-        # For simplicity, we reuse the BatchAnalysisDialog. A more integrated approach
-        # could use the BatchProcessorWorker directly.
-        dialog = BatchAnalysisDialog("Auto-Analysis Queue", self.auth_token, analysis_data, self, files_to_process=file_paths)
-        dialog.exec()
-        self.auto_analysis_queue_list.clear()
-
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         margin = 24
@@ -656,13 +586,8 @@ class MainApplicationWindow(QMainWindow):
         self.chat_button.move(self.width() - button_width - margin, self.height() - button_height - margin)
 
     def closeEvent(self, event) -> None:
-        self._save_settings()
-        self._request_poll_worker_stop()
-        if self.folder_watcher_thread and self.folder_watcher_thread.isRunning():
-            self.folder_watcher_worker.stop()
-        for thread in list(self._active_threads):
-            thread.quit()
-            thread.wait(150)
+        self._save_gui_settings()
+        self.view_model.stop_all_workers()
         super().closeEvent(event)
 
 __all__ = ["MainApplicationWindow"]

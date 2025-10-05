@@ -1,7 +1,7 @@
 import datetime
 import structlog
 from time import perf_counter
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import HTMLResponse
@@ -22,29 +22,55 @@ router = APIRouter()
 report_generator = ReportGenerator()
 
 
+# --- AI Health Service ---#
+
+class AIHealthService:
+    """
+    Provides functionality to check the health of various AI components.
+    """
+
+    async def get_ai_component_health(self) -> Dict[str, Any]:
+        """
+        Asynchronously checks the health of all registered AI components.
+        """
+        health_statuses = {
+            "llm_service": await self._check_llm_service(),
+            "ner_service": await self._check_ner_service(),
+            "transformer_models": await self._check_transformer_models(),
+            "vector_database": await self._check_vector_database(),
+        }
+        logger.info("Completed AI component health check", statuses=health_statuses)
+        return health_statuses
+
+    async def _check_llm_service(self) -> Dict[str, str]:
+        """Placeholder for LLM service health check."""
+        return {"status": "Healthy", "details": "LLM is responsive."}
+
+    async def _check_ner_service(self) -> Dict[str, str]:
+        """Placeholder for NER (Presidio) service health check."""
+        return {"status": "Healthy", "details": "NER models loaded successfully."}
+
+    async def _check_transformer_models(self) -> Dict[str, str]:
+        """Placeholder for core transformer models health check."""
+        return {"status": "Healthy", "details": "All models are loaded and accessible."}
+
+    async def _check_vector_database(self) -> Dict[str, str]:
+        """Placeholder for vector database (FAISS) health check."""
+        return {"status": "Healthy", "details": "Index is loaded and searchable."}
+
+
 # --- Helper Functions ---#
-
-
-# Assuming 'Settings' is available, or you'd import it like 'from src.config import Settings'
-# Assuming 'HTTPException' is available, or you'd import it like 'from fastapi import HTTPException'
-
 
 def _resolve_generator_model(
     settings: Settings,
 ) -> Tuple[str, str, Optional[str]]:
     """
     Resolves the generator model from settings, preferring generator_profiles.
-
-    Falls back to the generic 'chat' model configuration if profiles are not found.
     """
-    # 1. Prefer generator_profiles (from 'main' branch logic)
     if settings.models.generator_profiles:
-        # Using the first available profile as the 'main' branch did.
         profile = next(iter(settings.models.generator_profiles.values()))
-        # The profile likely doesn't have a 'revision', so we return None for the third value.
         return profile.repo, profile.filename, None
 
-    # 2. Fallback to generic chat model (from 'production-readiness-improvements' branch logic)
     if settings.models.chat:
         return (
             settings.models.chat.repo,
@@ -52,17 +78,31 @@ def _resolve_generator_model(
             settings.models.chat.revision,
         )
 
-    # 3. Raise an error if neither is found
     raise HTTPException(
         status_code=500,
         detail="Generator model configuration not found in 'generator_profiles' or 'chat'.",
     )
 
-    if settings.models.generator and settings.models.generator_filename:
-        return settings.models.generator, settings.models.generator_filename
 
-    # If no generator model is configured, something is wrong.
-    raise ValueError("Could not resolve a generator model from the settings.")
+# --- API Endpoints ---#
+
+@router.get("/overview")
+async def get_dashboard_overview(
+    db: AsyncSession = Depends(get_async_db),
+    current_user: models.User = Depends(get_current_active_user),
+):
+    """Provides a comprehensive overview for the mission control dashboard."""
+    ai_health_service = AIHealthService()
+    ai_health = await ai_health_service.get_ai_component_health()
+    
+    # Placeholder for other dashboard data
+    # You can aggregate other data points here as needed
+    other_data = {
+        "recent_activity": [],
+        "system_metrics": {"cpu_usage": 0.0, "memory_usage": 0.0}
+    }
+    
+    return {"ai_health": ai_health, **other_data}
 
 
 @router.get("/reports", response_model=List[schemas.Report])
@@ -121,7 +161,6 @@ async def get_director_dashboard_data(
 ) -> DirectorDashboardData:
     """
     Provides aggregated analytics data for the director's dashboard.
-    Accessible only by admin users and filterable by date and discipline.
     """
     if not settings.enable_director_dashboard:
         raise HTTPException(

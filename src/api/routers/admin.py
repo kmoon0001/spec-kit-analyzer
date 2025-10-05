@@ -1,19 +1,31 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List
+from typing import List, Dict, Any
 import uuid
 import os
+import yaml
+from pydantic import ValidationError
 
 from ...database import crud, schemas, models
 from ...database import get_async_db as get_db
 from ...auth import get_current_admin_user, get_auth_service, AuthService
+from ...config import Settings, get_settings
 
 router = APIRouter()
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 ADMIN_HTML_PATH = os.path.join(ROOT_DIR, "src", "resources", "admin.html")
+CONFIG_PATH = os.path.join(ROOT_DIR, "config.yaml")
+
+
+def get_filtered_settings() -> Dict[str, Any]:
+    """Loads settings and returns them as a dict, excluding sensitive fields."""
+    settings = get_settings()
+    # Exclude sensitive or complex fields that shouldn't be edited directly
+    excluded_fields = {"auth", "database", "secret_key"}
+    return settings.model_dump(exclude=excluded_fields)
 
 
 @router.get("/dashboard", response_class=FileResponse)
@@ -25,6 +37,43 @@ async def get_admin_dashboard(
             status_code=status.HTTP_404_NOT_FOUND, detail="admin.html not found"
         )
     return FileResponse(ADMIN_HTML_PATH)
+
+
+@router.get("/settings", response_model=Dict[str, Any])
+async def get_current_settings(
+    admin_user: models.User = Depends(get_current_admin_user),
+):
+    """Endpoint to get the current, non-sensitive application settings."""
+    return get_filtered_settings()
+
+
+@router.post("/settings")
+async def update_settings(
+    new_settings: Dict[str, Any] = Body(...),
+    admin_user: models.User = Depends(get_current_admin_user),
+):
+    """Endpoint to validate and save new application settings."""
+    try:
+        # Load the current full settings to provide defaults
+        with open(CONFIG_PATH, "r") as f:
+            current_config_data = yaml.safe_load(f)
+
+        # Merge the new settings into the current ones
+        updated_data = {**current_config_data, **new_settings}
+
+        # Validate the merged data
+        Settings.model_validate(updated_data)
+
+        # Write the validated data back to the config file
+        with open(CONFIG_PATH, "w") as f:
+            yaml.dump(new_settings, f, default_flow_style=False, sort_keys=False)
+
+        return JSONResponse({"message": "Settings updated successfully. Restart the application for changes to take effect."})
+
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=e.errors())
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.get("/users", response_model=List[schemas.User])
