@@ -1,7 +1,7 @@
 """Primary GUI window for the Therapy Compliance Analyzer."""
 from __future__ import annotations
 
-import functools
+import functools # Keep this import
 import json
 import os
 import webbrowser
@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Type
 
 import requests
-from PySide6.QtCore import Qt, QThread, QTimer
+from PySide6.QtCore import Qt, QThread, QTimer, QSettings
 from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPalette
 from PySide6.QtGui import QActionGroup
 from PySide6.QtWidgets import (
@@ -95,17 +95,18 @@ class MainApplicationWindow(QMainWindow):
 
         self._build_ui()
         self._load_initial_state()
+        self._load_settings()
 
     # ------------------------------------------------------------------
     # UI construction helpers
     # ------------------------------------------------------------------
     def _build_ui(self) -> None:
+        self._apply_theme('light')
         self._build_menus()
         self._build_central_layout()
         self._build_status_bar()
         self._build_docks()
         self._build_floating_chat_button()
-        self._apply_theme('light')
 
     def _build_menus(self) -> None:
         menu_bar = self.menuBar()
@@ -311,11 +312,6 @@ class MainApplicationWindow(QMainWindow):
         self.analysis_button.clicked.connect(self._start_analysis)
         layout.addWidget(self.analysis_button)
 
-        self.theme_combo = QComboBox(panel)
-        self.theme_combo.addItems(["Light", "Dark"])
-        self.theme_combo.currentTextChanged.connect(lambda name: self._apply_theme(name.lower()))
-        layout.addWidget(self.theme_combo)
-
         layout.addStretch(1)
         return panel
 
@@ -459,16 +455,27 @@ class MainApplicationWindow(QMainWindow):
         palette = get_theme_palette(theme)
         QApplication.instance().setPalette(palette)
 
-        # Sync the combo box without triggering its signal
-        self.theme_combo.blockSignals(True)
-        self.theme_combo.setCurrentText(theme.capitalize())
-        self.theme_combo.blockSignals(False)
-
         # Sync the menu actions
         for action in self.theme_action_group.actions():
             if action.text().lower() == theme:
                 action.setChecked(True)
 
+    def _save_settings(self) -> None:
+        """Saves window geometry, dock, and splitter states."""
+        settings = QSettings("TherapyCo", "ComplianceAnalyzer")
+        settings.setValue("geometry", self.saveGeometry())
+        settings.setValue("windowState", self.saveState())
+        settings.setValue("mainSplitter", self.main_splitter.saveState())
+
+    def _load_settings(self) -> None:
+        """Loads window geometry, dock, and splitter states."""
+        settings = QSettings("TherapyCo", "ComplianceAnalyzer")
+        if geometry := settings.value("geometry"):
+            self.restoreGeometry(geometry)
+        if window_state := settings.value("windowState"):
+            self.restoreState(window_state)
+        if splitter_state := settings.value("mainSplitter"):
+            self.main_splitter.restoreState(splitter_state)
     # ------------------------------------------------------------------
     # Control panel handlers
     # ------------------------------------------------------------------
@@ -563,6 +570,8 @@ class MainApplicationWindow(QMainWindow):
     def _set_ui_busy(self, busy: bool) -> None:
         """Sets the UI to a busy state, disabling controls and showing progress."""
         self.control_panel.setEnabled(not busy)
+        if busy:
+            self.progress_bar.setRange(0, 0)  # Indeterminate
         self.progress_bar.setVisible(busy)
 
     def _update_progress_bar(self, value: int) -> None:
@@ -605,7 +614,6 @@ class MainApplicationWindow(QMainWindow):
         self.detailed_results_browser.setPlainText(json.dumps(payload, indent=2))
 
     def _handle_analysis_success(self, payload: Dict[str, Any]) -> None:
-        self._set_ui_busy(False)
         self.statusBar().showMessage("Analysis complete", 5000)
         self._update_result_views(payload)
 
@@ -687,6 +695,10 @@ class MainApplicationWindow(QMainWindow):
             self.rubric_selector.clear()
             for rubric in rubrics:
                 self.rubric_selector.addItem(rubric.get("name", "Unnamed rubric"), rubric.get("value"))
+            
+            # If after a successful fetch, there are no rubrics, use the fallback.
+            if self.rubric_selector.count() == 0:
+                on_error("API returned no rubrics.")
 
         def on_error(msg: str) -> None:
             self.statusBar().showMessage(f"Could not load rubrics: {msg}", 5000)
@@ -700,7 +712,7 @@ class MainApplicationWindow(QMainWindow):
 
         self._run_worker(GenericApiWorker, on_success, on_error, endpoint="/rubrics")
 
-    def _refresh_widget_data(self, widget: Optional[QWidget], endpoint: str, error_message: str) -> None:
+    def _async_update_widget(self, widget: Optional[QWidget], endpoint: str, error_message: str) -> None:
         """
         Generic helper to fetch data from an endpoint in a background thread
         and update a widget.
@@ -723,12 +735,12 @@ class MainApplicationWindow(QMainWindow):
         )
 
     def _refresh_dashboards(self) -> None:
-        self._refresh_widget_data(
+        self._async_update_widget(
             self.dashboard_widget, "/dashboard/overview", "Dashboard data unavailable."
         )
 
     def _refresh_meta_analytics(self) -> None:
-        self._refresh_widget_data(
+        self._async_update_widget(
             self.meta_widget, "/dashboard/meta", "Meta analytics unavailable."
         )
 
@@ -786,6 +798,7 @@ class MainApplicationWindow(QMainWindow):
         )
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
+        self._save_settings()
         self._request_poll_worker_stop()
         for thread in list(self._active_threads):
             thread.quit()

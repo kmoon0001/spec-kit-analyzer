@@ -35,6 +35,10 @@ class GenericApiWorker(QThread):
             response.raise_for_status()
             data = response.json()
             self.success.emit(data)
+        except requests.HTTPError as e:
+            self.error.emit(
+                f"API error for {self.endpoint}: {e.response.status_code} {e.response.reason}"
+            )
         except requests.RequestException as e:
             self.error.emit(f"Network error while fetching {self.endpoint}: {e}")
 

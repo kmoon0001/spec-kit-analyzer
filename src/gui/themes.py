@@ -26,7 +26,7 @@ THEMES: Dict[str, ThemeColors] = {
         QPalette.Button: QColor(45, 49, 60),
         QPalette.ButtonText: QColor(255, 255, 255),
         QPalette.Highlight: QColor(14, 165, 233),
-        QPalette.HighlightedText: QColor(255, 255, 255),
+        QPalette.HighlightedText: QColor(255, 255, 255), # Explicitly set for clarity
     }
 }
 
