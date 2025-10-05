@@ -615,7 +615,7 @@ class MainApplicationWindow(QMainWindow):
         def on_error(msg: str) -> None:
             self.statusBar().showMessage(f"Dashboard Error: {msg}", 5000)
 
-        self._dashboard_worker, self._dashboard_thread = self._run_worker(DashboardWorker, on_success, on_error, is_long_running=False)
+        self._dashboard_worker, self._dashboard_thread = self._run_worker(DashboardWorker, on_success, on_error)
 
 # ------------------------------------------------------------------
     # Auxiliary actions
@@ -649,6 +649,7 @@ class MainApplicationWindow(QMainWindow):
         thread.finished.connect(thread.deleteLater)
         thread.finished.connect(_thread_cleanup)
         thread.started.connect(worker.run)
+        thread.start()
         self._active_threads.append(thread)
         return worker, thread
 
@@ -666,19 +667,23 @@ class MainApplicationWindow(QMainWindow):
             )
 
     def _load_rubrics(self) -> None:
-        self.rubric_selector.clear()
-        try:
-            response = requests.get(f"{API_URL}/rubrics", timeout=4)
-            response.raise_for_status()
-            rubrics = response.json()
-        except requests.RequestException:
-            rubrics = [
+        """Loads available rubrics from the API in a background thread."""
+        def on_success(rubrics: list[dict]) -> None:
+            self.rubric_selector.clear()
+            for rubric in rubrics:
+                self.rubric_selector.addItem(rubric.get("name", "Unnamed rubric"), rubric.get("value"))
+
+        def on_error(msg: str) -> None:
+            self.statusBar().showMessage(f"Could not load rubrics: {msg}", 5000)
+            # Populate with fallback data
+            fallback_rubrics = [
                 {"name": "Physical Therapy", "value": "pt"},
                 {"name": "Occupational Therapy", "value": "ot"},
                 {"name": "Speech Therapy", "value": "st"},
             ]
-        for rubric in rubrics:
-            self.rubric_selector.addItem(rubric.get("name", "Unnamed rubric"), rubric.get("value"))
+            on_success(fallback_rubrics)
+
+        self._run_worker(GenericApiWorker, on_success, on_error, endpoint="/rubrics")
 
     def _refresh_widget_data(self, widget: Optional[QWidget], endpoint: str, error_message: str) -> None:
         """
