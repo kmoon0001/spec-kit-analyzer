@@ -45,6 +45,7 @@ from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
 from src.gui.themes import get_theme_palette
 from src.gui.workers.dashboard_worker import DashboardWorker
+from src.gui.workers.generic_api_worker import GenericApiWorker
 from src.gui.workers.single_analysis_polling_worker import SingleAnalysisPollingWorker
 
 from src.gui.widgets.mission_control_widget import MissionControlWidget
@@ -81,7 +82,6 @@ class MainApplicationWindow(QMainWindow):
         self.resize(1440, 920)
 
         self.auth_token = os.environ.get("THERAPY_ANALYZER_TOKEN") or ""
-        self._active_threads: list[QThread] = []
         self._poll_thread: Optional[QThread] = None
         self._dashboard_thread: Optional[QThread] = None
         self._dashboard_worker: Optional[DashboardWorker] = None
@@ -89,6 +89,7 @@ class MainApplicationWindow(QMainWindow):
         self._current_task_id: Optional[str] = None
         self._current_payload: Dict[str, Any] = {}
         self._selected_file: Optional[Path] = None
+        self._active_threads: list[QThread] = []
 
         self.report_generator = ReportGenerator()
 
@@ -626,7 +627,6 @@ class MainApplicationWindow(QMainWindow):
         on_error: Callable,
         on_progress: Optional[Callable] = None,
         on_finished: Optional[Callable] = None,
-        is_long_running: bool = True,
         **kwargs: Any
     ) -> tuple[BaseWorker, QThread]:
         thread = QThread(self)
@@ -640,10 +640,16 @@ class MainApplicationWindow(QMainWindow):
         if on_finished:
             worker.finished.connect(on_finished)
 
+        # Clean up thread and remove from active list when it's done
+        def _thread_cleanup() -> None:
+            if thread in self._active_threads:
+                self._active_threads.remove(thread)
+
         worker.finished.connect(thread.quit)
         thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(_thread_cleanup)
         thread.started.connect(worker.run)
-        thread.start()
+        self._active_threads.append(thread)
         return worker, thread
 
     def _update_document_preview(self) -> None:
@@ -675,33 +681,35 @@ class MainApplicationWindow(QMainWindow):
             self.rubric_selector.addItem(rubric.get("name", "Unnamed rubric"), rubric.get("value"))
 
     def _refresh_widget_data(self, widget: Optional[QWidget], endpoint: str, error_message: str) -> None:
-        """Generic helper to fetch data from an endpoint and update a widget."""
+        """
+        Generic helper to fetch data from an endpoint in a background thread
+        and update a widget.
+        """
         if not widget:
             return
-        try:
-            response = requests.get(f"{API_URL}{endpoint}", timeout=4)
-            response.raise_for_status()
-            data = response.json()
+
+        def on_success(data: Any) -> None:
             if hasattr(widget, "load_data"):
                 widget.load_data(data)  # type: ignore[func-attr]
             elif isinstance(widget, QTextBrowser):
                 widget.setPlainText(json.dumps(data, indent=2))
-        except requests.RequestException:
+
+        def on_error(msg: str) -> None:
             if isinstance(widget, QTextBrowser):
-                widget.setPlainText(error_message)
+                widget.setPlainText(f"{error_message}\n\nDetails: {msg}")
+
+        self._run_worker(
+            GenericApiWorker, on_success, on_error, endpoint=endpoint
+        )
 
     def _refresh_dashboards(self) -> None:
         self._refresh_widget_data(
-            self.dashboard_widget,
-            "/dashboard/overview",
-            "Dashboard data unavailable."
+            self.dashboard_widget, "/dashboard/overview", "Dashboard data unavailable."
         )
 
     def _refresh_meta_analytics(self) -> None:
         self._refresh_widget_data(
-            self.meta_widget,
-            "/dashboard/meta",
-            "Meta analytics unavailable."
+            self.meta_widget, "/dashboard/meta", "Meta analytics unavailable."
         )
 
     def _export_report(self) -> None:
