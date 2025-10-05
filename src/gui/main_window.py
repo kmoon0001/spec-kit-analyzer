@@ -85,8 +85,6 @@ class MainApplicationWindow(QMainWindow):
 
         self.auth_token = os.environ.get("THERAPY_ANALYZER_TOKEN") or ""
         self._poll_thread: Optional[QThread] = None
-        self._dashboard_thread: Optional[QThread] = None
-        self._dashboard_worker: Optional[DashboardWorker] = None
         self._poll_worker: Optional[SingleAnalysisPollingWorker] = None
         self._current_task_id: Optional[str] = None
         self._current_payload: Dict[str, Any] = {}
@@ -147,7 +145,7 @@ class MainApplicationWindow(QMainWindow):
         toggle_preview_action.triggered.connect(self._toggle_document_preview)
         view_menu.addAction(toggle_preview_action)
 
-        if self.performance_dock:
+        if PerformanceStatusWidget:
             toggle_performance_action = QAction("Toggle Performance Panel", self, checkable=True)
             toggle_performance_action.setChecked(True)
             toggle_performance_action.triggered.connect(self._toggle_performance_panel)
@@ -514,7 +512,7 @@ class MainApplicationWindow(QMainWindow):
             )
             return
 
-        payload = {
+        request_payload = {
             "discipline": self.rubric_selector.currentData() or "",
             "analysis_mode": "rubric",
             "options": {
@@ -522,14 +520,17 @@ class MainApplicationWindow(QMainWindow):
                 "sensitivity": self.sensitivity_slider.value(),
             },
         }
-
-        self.control_panel.setEnabled(False)
-        self.analysis_button.setEnabled(False)
-        self.progress_bar.setRange(0, 0)
-        self.progress_bar.show()
+        self._set_ui_busy(True)
         self.statusBar().showMessage("Submitting document for analysis…")
 
-        self._run_worker(AnalysisStarterWorker, self._handle_analysis_task_started, self._handle_worker_error, file_path=str(self._selected_file), data=payload, token=self.auth_token)
+        self._run_worker(
+            AnalysisStarterWorker,
+            on_success=self._handle_analysis_task_started,
+            on_error=self._handle_generic_worker_error,
+            file_path=str(self._selected_file),
+            data=request_payload,
+            token=self.auth_token
+        )
 
     def _handle_analysis_task_started(self, task_id: str) -> None:
         self._current_task_id = task_id
@@ -538,32 +539,33 @@ class MainApplicationWindow(QMainWindow):
 
     def _start_polling_worker(self, task_id: str) -> None:
         if self._poll_thread:
-            self._stop_polling_worker()
+            self._request_poll_worker_stop()
 
         self._poll_worker, self._poll_thread = self._run_worker(
             SingleAnalysisPollingWorker,
             on_success=self._handle_analysis_success,
-            on_error=self._handle_analysis_error,
-            on_progress=self._update_progress,
+            on_error=self._handle_generic_worker_error,
+            on_progress=self._update_progress_bar,
             on_finished=self._handle_analysis_finished,
             task_id=task_id
         )
 
-    def _stop_polling_worker(self) -> None:
+    def _request_poll_worker_stop(self) -> None:
+        """Requests the polling worker to stop its loop gracefully."""
         if self._poll_worker:
             self._poll_worker.stop()
-        if self._poll_thread:
-            self._poll_thread.deleteLater()
-        self._poll_worker = None
-        self._poll_thread = None
 
-    def _handle_worker_error(self, message: str) -> None:
+    def _handle_generic_worker_error(self, message: str) -> None:
         QMessageBox.critical(self, "Analysis failed", message)
-        self.control_panel.setEnabled(True)
-        self.progress_bar.hide()
+        self._set_ui_busy(False)
         self.statusBar().showMessage("Analysis failed", 5000)
 
-    def _update_progress(self, value: int) -> None:
+    def _set_ui_busy(self, busy: bool) -> None:
+        """Sets the UI to a busy state, disabling controls and showing progress."""
+        self.control_panel.setEnabled(not busy)
+        self.progress_bar.setVisible(busy)
+
+    def _update_progress_bar(self, value: int) -> None:
         if self.progress_bar.maximum() == 0:
             self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(value)
@@ -603,27 +605,22 @@ class MainApplicationWindow(QMainWindow):
         self.detailed_results_browser.setPlainText(json.dumps(payload, indent=2))
 
     def _handle_analysis_success(self, payload: Dict[str, Any]) -> None:
-        self.control_panel.setEnabled(True)
+        self._set_ui_busy(False)
         self.statusBar().showMessage("Analysis complete", 5000)
-        self.progress_bar.hide()
         self._update_result_views(payload)
 
-    def _handle_analysis_error(self, message: str) -> None:
-        QMessageBox.critical(self, "Analysis error", message)
-        self.control_panel.setEnabled(True)
-        self.progress_bar.hide()
-        self.statusBar().showMessage("Analysis error", 5000)
-
     def _handle_analysis_finished(self) -> None:
-        self._stop_polling_worker()
-        self.progress_bar.hide()
-        self.control_panel.setEnabled(True)
+        self._poll_worker = None
+        self._poll_thread = None
+        self._set_ui_busy(False)
 
     def _refresh_mission_control(self) -> None:
         """Fetches data for the main mission control dashboard."""
-        if self._dashboard_thread and self._dashboard_thread.isRunning():
-            return # Already refreshing
-
+        # Prevent multiple dashboard refreshes from running simultaneously
+        for thread in self._active_threads:
+            worker = thread.findChild(DashboardWorker)
+            if worker and thread.isRunning():
+                return  # A refresh is already in progress
         self.statusBar().showMessage("Loading dashboard metrics...")
 
         def on_success(data: Any) -> None:
@@ -633,7 +630,7 @@ class MainApplicationWindow(QMainWindow):
         def on_error(msg: str) -> None:
             self.statusBar().showMessage(f"Dashboard Error: {msg}", 5000)
 
-        self._dashboard_worker, self._dashboard_thread = self._run_worker(DashboardWorker, on_success, on_error)
+        self._run_worker(DashboardWorker, on_success, on_error)
 
 # ------------------------------------------------------------------
     # Auxiliary actions
@@ -648,6 +645,7 @@ class MainApplicationWindow(QMainWindow):
         **kwargs: Any
     ) -> tuple[BaseWorker, QThread]:
         thread = QThread(self)
+        self._active_threads.append(thread)
         worker = worker_class(**kwargs)
         worker.moveToThread(thread)
 
@@ -668,7 +666,6 @@ class MainApplicationWindow(QMainWindow):
         thread.finished.connect(_thread_cleanup)
         thread.started.connect(worker.run)
         thread.start()
-        self._active_threads.append(thread)
         return worker, thread
 
     def _update_document_preview(self) -> None:
@@ -789,7 +786,7 @@ class MainApplicationWindow(QMainWindow):
         )
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
-        self._stop_polling_worker()
+        self._request_poll_worker_stop()
         for thread in list(self._active_threads):
             thread.quit()
             thread.wait(150)
