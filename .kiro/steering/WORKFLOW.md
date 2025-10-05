@@ -66,7 +66,7 @@ The Therapy Compliance Analyzer uses a modular architecture with clear separatio
 
 ### Technical Components
 - `src/gui/widgets/dashboard_widget.py`: Dashboard UI components and charts
-- `src/gui/workers/dashboard_worker.py`: Background data loading
+- `src/gui/workers/dashboard_worker.py`: Background data loading for dashboard metrics
 - `src/api/routers/dashboard.py`: Dashboard data API endpoints
 
 ## 4. Document Upload & Preprocessing

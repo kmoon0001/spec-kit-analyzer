@@ -41,7 +41,7 @@
 ## Dashboard & Analytics
 
 **As a therapist**, I want a dashboard showing my historical compliance trends and performance metrics, so that I can track my improvement over time and identify recurring documentation issues.
-
+**As a therapist**, I want the application to open to a "mission control" dashboard that gives me an immediate overview of my compliance status and next steps, so I can quickly decide what to work on.
 **As a supervisor**, I want analytics dashboards with filtering capabilities by date range, document type, and compliance areas, so that I can monitor team performance and identify training needs.
 
 **As an admin**, I want to export anonymized compliance data for reporting purposes, so that I can demonstrate quality improvement efforts to regulatory bodies and facility leadership.
@@ -64,6 +64,8 @@
 
 **As a user**, I want customizable themes (light/dark mode) with persistent preferences, so that I can work comfortably in different lighting conditions.
 
+**As an admin**, I want to toggle non-essential features like gamification on or off, so I can tailor the user experience to my organization's needs.
+
 **As a clinician**, I want the system to handle errors gracefully and provide meaningful feedback, so that I understand what went wrong and how to resolve issues.
 
 ## System Administration
@@ -73,6 +75,3 @@
 **As a user**, I want the ability to change my password securely through the application interface, so that I can maintain account security without IT intervention.
 
 **As an admin**, I want role-based access controls to manage user permissions and system settings, so that I can ensure appropriate access levels for different staff members.
-
-
-

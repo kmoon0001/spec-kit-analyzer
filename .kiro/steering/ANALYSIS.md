@@ -56,7 +56,7 @@ The Therapy Compliance Analyzer is a sophisticated AI-powered desktop applicatio
 
 ### User Interface (`src/gui/`)
 - **`main_window.py`**: Primary application window with tabbed interface (Analysis, Dashboard)
-- **`dialogs/`**: Modal dialogs for rubric management, password changes, and chat interactions
+- **`dialogs/`**: Modal dialogs for rubric management, user settings, and chat interactions
 - **`widgets/`**: Custom UI components including dashboard visualizations
 - **`workers/`**: Background thread workers for non-blocking AI operations and API calls
 
@@ -89,7 +89,7 @@ The Therapy Compliance Analyzer is a sophisticated AI-powered desktop applicatio
 - **Interactive Dashboard**: Historical compliance trends with drill-down capabilities
 - **Real-time Chat**: AI-powered assistance for compliance questions and clarifications
 - **Progress Tracking**: Visual indicators for long-running analysis operations
-- **Theme Support**: Light/dark mode with persistent user preferences
+- **Theme Support**: Light/dark mode with persistent user preferences and toggleable features
 - **Rubric Management**: Full CRUD interface for custom compliance rule creation
 
 ## Database Schema & Data Flow
