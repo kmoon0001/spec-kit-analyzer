@@ -140,7 +140,7 @@ A comprehensive evaluation and remediation of the Therapy Compliance Analyzer co
 ## Remaining Tasks (Lower Priority)
 
 ### GUI Components (Medium Priority)
-- PyQt6 type compatibility issues (~15 errors)
+- PySide6 type compatibility issues (~15 errors)
 - QResizeEvent parameter type fixes
 - QTextEdit method compatibility
 - Thread assignment type issues

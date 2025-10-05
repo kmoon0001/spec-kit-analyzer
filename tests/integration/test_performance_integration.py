@@ -94,7 +94,7 @@ class TestPerformanceIntegration:
     def test_performance_status_widget_creation(self):
         """Test that performance status widget can be created."""
         try:
-            from PyQt6.QtWidgets import QApplication
+            from PySide6.QtWidgets import QApplication
             from src.gui.widgets.performance_status_widget import (
                 PerformanceStatusWidget,
             )
@@ -122,7 +122,7 @@ class TestPerformanceIntegration:
     def test_performance_settings_dialog_creation(self):
         """Test that performance settings dialog can be created."""
         try:
-            from PyQt6.QtWidgets import QApplication
+            from PySide6.QtWidgets import QApplication
             from src.gui.dialogs.performance_settings_dialog import (
                 PerformanceSettingsDialog,
             )

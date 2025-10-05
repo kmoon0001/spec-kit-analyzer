@@ -294,7 +294,7 @@ The Therapy Compliance Analyzer has undergone a comprehensive codebase assessmen
 1. **Type Safety:** Resolved complex mypy errors across multiple modules
 2. **Service Architecture:** Standardized dependency injection patterns
 3. **Security Gaps:** Identified and fixed file upload vulnerabilities
-4. **GUI Issues:** Resolved PyQt6 compatibility problems
+4. **GUI Issues:** Resolved PySide6 compatibility problems
 
 ### Best Practices Established
 1. **Input Validation:** All user inputs validated at entry points

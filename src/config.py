@@ -57,8 +57,9 @@ class ChatModelSettings(BaseModel):
 
 
 class PhiScrubberModelSettings(BaseModel):
-    general: str
-    biomedical: str
+    general_model: Optional[str] = None
+    biomedical_model: Optional[str] = None
+    replacement_token: str = "<PHI>"
 
 
 class ModelsSettings(BaseModel):

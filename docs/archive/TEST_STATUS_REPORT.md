@@ -110,6 +110,6 @@ The project uses:
 - **conftest.py**: Comprehensive fixtures for mocking AI services
 - **Test Markers**: `slow`, `stability`, `e2e` for test categorization
 - **Async Support**: pytest-asyncio for FastAPI testing
-- **GUI Testing**: pytest-qt for PyQt6 interface testing
+- **GUI Testing**: pytest-qt for PySide6 interface testing
 
 This test suite provides a solid foundation for ensuring code quality and reliability in the Therapy Compliance Analyzer.

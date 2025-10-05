@@ -39,7 +39,7 @@ tests/unit/test_document_classifier.py::test_classify_case_insensitivity PASSED 
 ### Test Configuration
 - ✅ Comprehensive `conftest.py` with mocked AI services
 - ✅ Proper async test setup for FastAPI endpoints
-- ✅ PyQt6 test configuration in `pytest.ini`
+- ✅ PySide6 test configuration in `pytest.ini`
 - ✅ Test markers for categorizing slow/fast tests
 
 ## 🚀 Recommended Test Commands
@@ -91,7 +91,7 @@ pytest --cov=src --cov-report=html tests/test_initial.py tests/test_api.py tests
 1. **Fix Merge Conflicts**: Resolve syntax errors in 6 test files
 2. **System Dependencies**: Mock WeasyPrint and cache services
 3. **Integration Tests**: Add end-to-end workflow tests
-4. **GUI Tests**: Expand PyQt6 interface testing
+4. **GUI Tests**: Expand PySide6 interface testing
 
 ### Medium Priority
 1. **Coverage Expansion**: Target 80%+ code coverage

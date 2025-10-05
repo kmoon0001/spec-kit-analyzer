@@ -182,7 +182,7 @@ This document summarizes the high-priority production readiness features impleme
 **Recommended Implementation:**
 ```python
 # Example: Add keyboard shortcuts
-from PyQt6.QtGui import QKeySequence, QShortcut
+from PySide6.QtGui import QKeySequence, QShortcut
 
 # In main_window.py
 def setup_keyboard_shortcuts(self):
