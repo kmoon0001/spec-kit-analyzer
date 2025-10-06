@@ -79,6 +79,18 @@ class SecurityValidator:
         return True, None
 
     @staticmethod
+    def validate_and_sanitize_filename(filename: str) -> str:
+        """Validate a filename and return a sanitized version safe for storage."""
+        is_valid, error = SecurityValidator.validate_filename(filename)
+        if not is_valid:
+            raise ValueError(error or "Invalid filename")
+
+        safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", Path(filename).name)
+        if not safe_name:
+            raise ValueError("Filename is invalid after sanitization")
+        return safe_name[: SecurityValidator.MAX_FILENAME_LENGTH]
+
+    @staticmethod
     def validate_file_size(file_size: int) -> tuple[bool, Optional[str]]:
         """
         Validate file size.

@@ -21,13 +21,14 @@ class ComplianceAnalyzer:
     def __init__(
         self,
         retriever: HybridRetriever,
-        ner_service: ClinicalNERService,
-        llm_service: LLMService,
-        explanation_engine: ExplanationEngine,
-        prompt_manager: PromptManager,
-        fact_checker_service: FactCheckerService,
+        ner_service: Optional[ClinicalNERService] = None,
+        llm_service: LLMService = None,
+        explanation_engine: ExplanationEngine = None,
+        prompt_manager: PromptManager = None,
+        fact_checker_service: FactCheckerService = None,
         nlg_service: Optional[NLGService] = None,
         deterministic_focus: Optional[str] = None,
+        ner_analyzer: Optional[ClinicalNERService] = None,
     ) -> None:
         """Initializes the ComplianceAnalyzer.
 
@@ -42,8 +43,11 @@ class ComplianceAnalyzer:
             deterministic_focus: Optional string for deterministic focus areas.
         """
         self.retriever = retriever
-        self.ner_service = ner_service
+        self.ner_service = ner_service or ner_analyzer
+        if self.ner_service is None:
+            raise ValueError("A ner_service or ner_analyzer instance is required")
         self.llm_service = llm_service
+        self.ner_analyzer = self.ner_service
         self.explanation_engine = explanation_engine
         self.prompt_manager = prompt_manager
         self.fact_checker_service = fact_checker_service

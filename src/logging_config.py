@@ -77,6 +77,8 @@ def setup_logging():
 
 
 
-def configure_logging():
-    """Backward-compatible alias for setup_logging."""
+def configure_logging(level: str | int | None = None):
+    """Backward-compatible alias for setup_logging with optional log level."""
     setup_logging()
+    if level is not None:
+        logging.getLogger().setLevel(level)

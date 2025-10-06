@@ -15,6 +15,7 @@ from src.config import get_settings
 settings = get_settings()
 CACHE_DIR = Path(settings.paths.cache_dir)
 
+
 class CacheService:
     """A multi-level caching service for expensive computations."""
 
@@ -22,11 +23,10 @@ class CacheService:
         self.disk_cache_dir = cache_dir
         self.disk_cache_dir.mkdir(exist_ok=True)
         self.in_memory_cache = lru_cache(maxsize=max_in_memory_size)
+        self._direct_cache: Dict[str, Any] = {}
 
     def _get_cache_key(self, func_name: str, *args, **kwargs) -> str:
         """Creates a deterministic cache key from the function and its arguments."""
-        # Serialize all arguments to ensure complex objects are handled
-        # Use pickle protocol 5 for out-of-band data (more efficient)
         hasher = hashlib.sha256()
         hasher.update(func_name.encode())
         for arg in args:
@@ -49,46 +49,68 @@ class CacheService:
         cache_file = self.disk_cache_dir / key
         if cache_file.exists():
             try:
-                with open(cache_file, "rb") as f:
-                    return pickle.load(f)
+                with open(cache_file, "rb") as handle:
+                    return pickle.load(handle)
             except (pickle.UnpicklingError, EOFError):
-                # Handle corrupted cache files gracefully
                 return None
         return None
 
-    def set_to_disk(self, key: str, value: Any):
+    def set_to_disk(self, key: str, value: Any) -> None:
         """Save an item to the disk cache."""
         cache_file = self.disk_cache_dir / key
-        with open(cache_file, "wb") as f:
-            pickle.dump(value, f, protocol=5)
+        with open(cache_file, "wb") as handle:
+            pickle.dump(value, handle, protocol=5)
 
     def disk_cache(self, func):
         """Decorator for caching function results to disk."""
+
         @wraps(func)
         def wrapper(*args, **kwargs):
             key = self._get_cache_key(func.__name__, *args, **kwargs)
             cached_result = self.get_from_disk(key)
             if cached_result is not None:
                 return cached_result
-            
             result = func(*args, **kwargs)
             self.set_to_disk(key, result)
             return result
+
         return wrapper
 
-    def clear_disk_cache(self):
+    def clear_disk_cache(self) -> None:
         """Clears all items from the disk cache."""
+        self._direct_cache.clear()
         if self.disk_cache_dir.exists():
             shutil.rmtree(self.disk_cache_dir)
         self.disk_cache_dir.mkdir(exist_ok=True)
+
+    def set(self, key: str, value: Any) -> None:
+        """Store a value in both in-memory and disk caches."""
+        self._direct_cache[key] = value
+        self.set_to_disk(key, value)
+
+    def get(self, key: str) -> Any:
+        """Retrieve a value from cache, checking memory first then disk."""
+        if key in self._direct_cache:
+            return self._direct_cache[key]
+        return self.get_from_disk(key)
+
+    def delete(self, key: str) -> None:
+        """Remove a cached value."""
+        self._direct_cache.pop(key, None)
+        cache_file = self.disk_cache_dir / key
+        if cache_file.exists():
+            try:
+                cache_file.unlink()
+            except OSError:
+                pass
 
     def memory_cache(self, func):
         """Decorator for in-memory LRU caching."""
         return self.in_memory_cache(func)
 
+
 # Singleton instance to be used across the application
 cache_service = CacheService()
-
 
 
 class MemoryAwareLRUCache:
@@ -113,7 +135,6 @@ class MemoryAwareLRUCache:
         try:
             return len(pickle.dumps(value, protocol=5))
         except Exception:
-            # Fallback to a simple heuristic when serialization fails
             return len(str(value).encode("utf-8"))
 
     def _delete_entry(self, key: str) -> None:
@@ -151,7 +172,6 @@ class MemoryAwareLRUCache:
         if entry["expires_at"] and entry["expires_at"] < datetime.now(UTC):
             self._delete_entry(key)
             return None
-        # Refresh order for LRU behaviour
         self.cache.move_to_end(key)
         return entry["value"]
 
@@ -332,20 +352,33 @@ def get_cache_stats() -> Dict[str, float]:
     ner_usage = NERCache.memory_usage_mb()
     llm_usage = LLMResponseCache.memory_usage_mb()
     doc_usage = DocumentCache.memory_usage_mb()
+    direct_entries = len(cache_service._direct_cache)
+    direct_usage = 0.0
+    for value in cache_service._direct_cache.values():
+        try:
+            direct_usage += len(pickle.dumps(value, protocol=5)) / (1024 ** 2)
+        except Exception:
+            direct_usage += len(str(value).encode("utf-8")) / (1024 ** 2)
 
-    return {
-        "total_entries": EmbeddingCache.entry_count()
+    total_entries = (
+        direct_entries
+        + EmbeddingCache.entry_count()
         + NERCache.entry_count()
         + LLMResponseCache.entry_count()
-        + DocumentCache.entry_count(),
+        + DocumentCache.entry_count()
+    )
+
+    return {
+        "total_entries": total_entries,
         "memory_usage_mb": round(
-            embedding_usage + ner_usage + llm_usage + doc_usage, 3
+            direct_usage + embedding_usage + ner_usage + llm_usage + doc_usage, 3
         ),
         "system_memory_percent": float(vm.percent),
         "embedding_entries": EmbeddingCache.entry_count(),
         "ner_entries": NERCache.entry_count(),
         "llm_entries": LLMResponseCache.entry_count(),
         "doc_entries": DocumentCache.entry_count(),
+        "direct_entries": direct_entries,
     }
 
 

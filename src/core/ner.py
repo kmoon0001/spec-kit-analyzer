@@ -7,11 +7,30 @@ resolve overlapping predictions.
 """
 
 import logging
-from typing import List, Dict, Any
+import re
+from typing import Any, Dict, List, Optional
 
 from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
 
 logger = logging.getLogger(__name__)
+
+try:
+    from presidio_analyzer import AnalyzerEngine  # type: ignore
+
+    PRESIDIO_AVAILABLE = True
+except ImportError:
+    AnalyzerEngine = None  # type: ignore
+    PRESIDIO_AVAILABLE = False
+
+def get_presidio_wrapper():
+    """Return a Presidio AnalyzerEngine if available."""
+    if PRESIDIO_AVAILABLE and AnalyzerEngine is not None:
+        try:
+            return AnalyzerEngine()
+        except Exception:
+            return None
+    return None
+
 
 
 class ClinicalNERService:
@@ -19,17 +38,14 @@ class ClinicalNERService:
     A service for high-accuracy clinical entity recognition using an ensemble of models.
     """
 
-    def __init__(self, model_names: List[str]):
+    def __init__(self, model_names: Optional[List[str]] = None):
         """
         Initializes the clinical NER ensemble.
 
         Args:
-            model_names: A list of model names from the Hugging Face Hub.
+            model_names: Optional list of model names from the Hugging Face Hub.
         """
-        if not model_names:
-            raise ValueError("At least one model name must be provided for the NER ensemble.")
-        
-        self.model_names = model_names
+        self.model_names = list(model_names or [])
         self.pipelines = self._initialize_pipelines()
 
     def _initialize_pipelines(self) -> List[pipeline]:
@@ -112,9 +128,104 @@ class ClinicalNERService:
         return merged
 
 
-__all__ = ["ClinicalNERService"]
+
+class NERPipeline(ClinicalNERService):
+    """Convenience wrapper around ClinicalNERService with sensible defaults."""
+
+    DEFAULT_MODELS = [
+        "d4data/biomedical-ner-all",
+        "Clinical-AI-Apollo/Medical-NER",
+    ]
+
+    def __init__(self, model_names: Optional[List[str]] = None) -> None:
+        if model_names is None:
+            model_names = self.DEFAULT_MODELS
+        super().__init__(model_names)
 
 
-# Backwards compatibility aliases
-NERPipeline = ClinicalNERService
-NERAnalyzer = ClinicalNERService
+class NERAnalyzer:
+    """High-level analyzer that wraps NER pipelines with helper utilities."""
+
+    def __init__(self, model_names: Optional[List[str]] = None) -> None:
+        self.ner_pipeline = NERPipeline(model_names)
+        self.presidio_wrapper = get_presidio_wrapper()
+        self.clinical_patterns: Dict[str, str] = {
+            "titles": r"(?:Dr\.|DPT|PT|OT|MD|PA|NP|RN|DO|PTA|OTA)",
+            "signature_keywords": r"(?:signed|signature|therapist|provider|attending)",
+            "name_pattern": r"(?P<name>[A-Z][a-z]+\s+[A-Z][a-z]+)",
+        }
+
+    def extract_entities(self, text: Optional[str]) -> List[Dict[str, Any]]:
+        if not isinstance(text, str) or not text.strip():
+            return []
+        try:
+            entities = self.ner_pipeline.extract_entities(text)
+        except Exception as exc:  # pragma: no cover - defensive guard
+            logger.warning("NER extraction failed: %s", exc)
+            return []
+        return self._deduplicate_entities(entities)
+
+    def extract_clinician_name(self, text: Optional[str]) -> List[str]:
+        if not isinstance(text, str) or not text.strip():
+            return []
+        titles_regex = re.compile(self.clinical_patterns["titles"], re.IGNORECASE)
+        signature_regex = re.compile(self.clinical_patterns["signature_keywords"], re.IGNORECASE)
+        name_regex = re.compile(self.clinical_patterns["name_pattern"])
+
+        matches = []
+        for match in name_regex.finditer(text):
+            window_start = max(0, match.start() - 64)
+            context_window = text[window_start:match.start()]
+            if titles_regex.search(context_window) or signature_regex.search(context_window):
+                matches.append(match.group("name").strip())
+        return matches
+
+    def extract_medical_entities(self, text: Optional[str]) -> Dict[str, List[str]]:
+        categories = {
+            "conditions": [],
+            "medications": [],
+            "procedures": [],
+            "anatomy": [],
+            "measurements": [],
+            "persons": [],
+            "other": [],
+        }
+        for entity in self.extract_entities(text):
+            group = (entity.get("entity_group") or "").lower()
+            word = entity.get("word", "").strip()
+            if not word:
+                continue
+            if "drug" in group or "med" in group:
+                categories["medications"].append(word)
+            elif any(keyword in group for keyword in ("disease", "condition", "diagnosis")):
+                categories["conditions"].append(word)
+            elif "procedure" in group or "treatment" in group:
+                categories["procedures"].append(word)
+            elif "anatom" in group or "body" in group:
+                categories["anatomy"].append(word)
+            elif "measure" in group or "value" in group:
+                categories["measurements"].append(word)
+            elif "person" in group or "name" in group:
+                categories["persons"].append(word)
+            else:
+                categories["other"].append(word)
+        return categories
+
+    def _deduplicate_entities(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        seen = set()
+        deduped: List[Dict[str, Any]] = []
+        for entity in entities:
+            key = (
+                entity.get("start"),
+                entity.get("end"),
+                entity.get("word"),
+                entity.get("entity_group"),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(entity)
+        return deduped
+
+
+__all__ = ["ClinicalNERService", "NERPipeline", "NERAnalyzer"]

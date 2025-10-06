@@ -34,8 +34,12 @@ def _get_file_hash(file_path: str) -> str:
     hasher = hashlib.sha256()
     with open(file_path, "rb") as f:
         while chunk := f.read(8192):
+            if isinstance(chunk, str):
+                chunk = chunk.encode("utf-8")
             hasher.update(chunk)
     return hasher.hexdigest()
+
+
 
 
 def parse_document_content(file_path: str) -> List[Dict[str, str]]:
@@ -48,27 +52,6 @@ def parse_document_content(file_path: str) -> List[Dict[str, str]]:
             }
         ]
 
-    # Use the file's content hash as a reliable cache key
-    try:
-        file_hash = _get_file_hash(file_path)
-        cache_key = f"parsed_document_{file_hash}"
-    except IOError as e:
-        logger.error(f"Could not read file for hashing: {e}")
-        return [
-            {
-                "sentence": f"Error reading file: {e}",
-                "source": "parser",
-            }
-        ]
-
-    # Try to get the result from the cache first
-    cached_result = cache_service.get_from_disk(cache_key)
-    if cached_result is not None:
-        logger.info(f"Cache hit for document: {os.path.basename(file_path)}")
-        return cached_result
-
-    logger.info(f"Cache miss for document: {os.path.basename(file_path)}. Parsing from scratch.")
-    
     extension = os.path.splitext(file_path)[1].lower()
 
     if extension not in SUPPORTED_EXTENSIONS:
@@ -80,6 +63,15 @@ def parse_document_content(file_path: str) -> List[Dict[str, str]]:
             }
         ]
 
+    cache_key = "parsed_document_" + hashlib.sha256(file_path.encode("utf-8")).hexdigest()
+
+    cached_result = cache_service.get_from_disk(cache_key)
+    if cached_result is not None:
+        logger.info(f"Cache hit for document: {os.path.basename(file_path)}")
+        return cached_result
+
+    logger.info(f"Cache miss for document: {os.path.basename(file_path)}. Parsing from scratch.")
+
     try:
         if extension == ".pdf":
             result = _parse_pdf_with_ocr(file_path)
@@ -90,10 +82,8 @@ def parse_document_content(file_path: str) -> List[Dict[str, str]]:
         elif extension in IMAGE_EXTENSIONS:
             result = _parse_image_with_ocr(file_path)
         else:
-            # This case should not be reached due to the check above, but as a safeguard:
             result = []
 
-        # Save the result to the cache before returning
         cache_service.set_to_disk(cache_key, result)
         return result
 
@@ -105,7 +95,6 @@ def parse_document_content(file_path: str) -> List[Dict[str, str]]:
                 "source": "parser",
             }
         ]
-
 
 def _preprocess_image_for_ocr(image):
     """Preprocess image for better OCR accuracy."""

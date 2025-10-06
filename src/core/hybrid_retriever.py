@@ -29,9 +29,21 @@ class HybridRetriever:
         dense_model_name = getattr(settings.retrieval, "dense_model_name", "pritamdeka/S-PubMedBert-MS-MARCO")
         reranker_model_name = getattr(settings.models, "reranker", "cross-encoder/ms-marco-MiniLM-L-6-v2")
 
+        features_cfg = getattr(settings, "features", {}) or {}
+        if isinstance(features_cfg, dict):
+            self.use_reranker = bool(features_cfg.get("enable_reranker", False))
+        else:
+            self.use_reranker = bool(getattr(features_cfg, "enable_reranker", False))
+
         self.dense_retriever = SentenceTransformer(dense_model_name)
-        self.reranker = CrossEncoder(reranker_model_name)
-        
+        self.reranker = None
+        if self.use_reranker and reranker_model_name:
+            try:
+                self.reranker = CrossEncoder(reranker_model_name)
+            except Exception as exc:  # pragma: no cover - optional dependency fallback
+                logger.warning("Failed to initialize reranker '%s': %s", reranker_model_name, exc)
+                self.use_reranker = False
+
         self._build_indices()
 
     def _build_indices(self) -> None:
@@ -101,11 +113,17 @@ class HybridRetriever:
         
         # 2. Reranking with Cross-Encoder
         cross_inp = [[query, self.corpus[doc_id]] for doc_id, _ in sorted_initial_docs]
-        cross_scores = self.reranker.predict(cross_inp)
 
-        # Combine initial doc IDs with new reranker scores
-        reranked_results = zip([doc_id for doc_id, _ in sorted_initial_docs], cross_scores)
-        sorted_reranked_docs = sorted(reranked_results, key=lambda item: item[1], reverse=True)
+        if self.use_reranker and self.reranker is not None:
+            try:
+                cross_scores = self.reranker.predict(cross_inp)
+                reranked_results = zip([doc_id for doc_id, _ in sorted_initial_docs], cross_scores)
+                sorted_reranked_docs = sorted(reranked_results, key=lambda item: item[1], reverse=True)
+            except Exception as exc:  # pragma: no cover - prediction errors fall back to RRF order
+                logger.warning("Reranker prediction failed; falling back to RRF order: %s", exc)
+                sorted_reranked_docs = sorted_initial_docs
+        else:
+            sorted_reranked_docs = sorted_initial_docs
 
         # 3. Final Selection and Filtering
         final_rules = [self.rules[doc_id] for doc_id, _ in sorted_reranked_docs]
