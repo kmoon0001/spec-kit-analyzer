@@ -49,6 +49,11 @@ from src.gui.themes import get_theme_palette
 from src.gui.workers.generic_api_worker import GenericApiWorker, HealthCheckWorker, TaskMonitorWorker, LogStreamWorker, FeedbackWorker
 from src.gui.workers.single_analysis_polling_worker import SingleAnalysisPollingWorker
 
+# Import beautiful medical-themed components
+from src.gui.components.header_component import HeaderComponent
+from src.gui.components.status_component import StatusComponent
+from src.gui.widgets.medical_theme import medical_theme
+
 from src.gui.widgets.mission_control_widget import MissionControlWidget, LogViewerWidget, SettingsEditorWidget
 from src.gui.widgets.dashboard_widget import DashboardWidget
 
@@ -260,12 +265,75 @@ class MainApplicationWindow(QMainWindow):
         self._load_gui_settings()
 
     def _build_ui(self) -> None:
+        self._build_header()
         self._build_docks()
         self._build_menus()
         self._build_central_layout()
         self._build_status_bar()
         self._build_floating_chat_button()
         self._setup_keyboard_shortcuts()
+        self._apply_medical_theme()
+
+    def _build_header(self) -> None:
+        """Build the beautiful medical-themed header with 🏥 emoji and theme toggle."""
+        # Create header component
+        self.header = HeaderComponent(self)
+        self.header.theme_toggle_requested.connect(self._toggle_theme)
+        self.header.logo_clicked.connect(self._on_logo_clicked)
+        
+        # Create status component for AI models
+        self.status_component = StatusComponent(self)
+        self.status_component.status_clicked.connect(self._on_model_status_clicked)
+        
+        # Apply header stylesheet
+        self.header.setStyleSheet(self.header.get_default_stylesheet())
+        
+        # Note: Header will be added to central layout in _build_central_layout
+
+    def _apply_medical_theme(self) -> None:
+        """Apply the comprehensive medical theme styling."""
+        # Apply main window stylesheet
+        self.setStyleSheet(medical_theme.get_main_window_stylesheet())
+        
+        # Update header theme
+        is_dark = medical_theme.current_theme == "dark"
+        self.header.update_theme_button(is_dark)
+        if is_dark:
+            self.header.setStyleSheet(self.header.get_dark_theme_stylesheet())
+        else:
+            self.header.setStyleSheet(self.header.get_default_stylesheet())
+
+    def _toggle_theme(self) -> None:
+        """Toggle between light and dark theme."""
+        medical_theme.toggle_theme()
+        self._apply_medical_theme()
+        
+        # Update status bar message
+        theme_name = "Dark" if medical_theme.current_theme == "dark" else "Light"
+        self.statusBar().showMessage(f"Switched to {theme_name} theme", 3000)
+
+    def _on_logo_clicked(self) -> None:
+        """Handle logo clicks for easter eggs (7 clicks triggers special message)."""
+        if self.header.click_count == 7:
+            QMessageBox.information(
+                self,
+                "🎉 Easter Egg Found!",
+                "You found the secret! 🌴\n\n"
+                "Pacific Coast Therapy - Where compliance meets excellence!\n\n"
+                "Keep up the great documentation work! 💪"
+            )
+            self.statusBar().showMessage("🎉 Easter egg activated!", 5000)
+
+    def _on_model_status_clicked(self, model_name: str) -> None:
+        """Handle clicks on AI model status indicators."""
+        status = self.status_component.models.get(model_name, False)
+        status_text = "Ready" if status else "Not Ready"
+        QMessageBox.information(
+            self,
+            f"AI Model Status: {model_name}",
+            f"Model: {model_name}\nStatus: {status_text}\n\n"
+            f"This model is used for compliance analysis and documentation review."
+        )
 
     def _connect_view_model(self) -> None:
         self.view_model.status_message_changed.connect(self.statusBar().showMessage)
