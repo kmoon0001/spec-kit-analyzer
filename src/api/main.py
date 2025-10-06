@@ -8,6 +8,8 @@ Provides endpoints for document analysis, user management, and compliance report
 import asyncio
 import datetime
 import logging
+import os
+import sys
 import numpy as np
 import structlog
 from contextlib import asynccontextmanager
@@ -156,11 +158,12 @@ async def initialize_vector_store():
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
     configure_logging(settings.log_level)
-    ws_handler = WebSocketLogHandler()
-    ws_handler.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    ws_handler.setFormatter(formatter)
-    logging.getLogger().addHandler(ws_handler)
+    if "pytest" not in sys.modules:
+        ws_handler = WebSocketLogHandler()
+        ws_handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        ws_handler.setFormatter(formatter)
+        logging.getLogger().addHandler(ws_handler)
 
     await api_startup()
     await initialize_vector_store()

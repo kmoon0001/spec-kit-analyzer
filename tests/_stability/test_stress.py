@@ -9,9 +9,9 @@ from src.gui.main_window import MainApplicationWindow
 def mock_all_backend_services():
     """Mocks all backend services to isolate the GUI for stability testing."""
     with (
-        patch("src.gui.main_window.AILoaderWorker") as _,
-        patch("src.gui.main_window.DashboardWorker") as _,
-        patch("src.gui.main_window.AnalysisStarterWorker") as _,
+        patch("src.gui.workers.ai_loader_worker.AILoaderWorker") as _,
+        patch("src.gui.workers.dashboard_worker.DashboardWorker") as _,
+        patch("src.gui.workers.analysis_starter_worker.AnalysisStarterWorker") as _,
         patch("src.gui.main_window.requests.post") as mock_post,
         patch("src.gui.main_window.QFileDialog.getOpenFileName") as mock_open_file,
         patch("src.gui.main_window.ChatDialog") as _,
@@ -56,7 +56,7 @@ def test_repeated_analysis_start(main_app_window: MainApplicationWindow, qtbot):
     main_app_window.open_file_dialog()  # Load a file to enable the button
     for _ in range(50):
         # Simulate clicking "Run Analysis"
-        with patch("src.gui.main_window.AnalysisStarterWorker") as _mock_starter:
+        with patch("src.gui.workers.analysis_starter_worker.AnalysisStarterWorker") as _mock_starter:
             qtbot.mouseClick(
                 main_app_window.run_analysis_button, qtbot.button_enum.LeftButton
             )

@@ -9,10 +9,11 @@ from src.gui.main_window import MainApplicationWindow
 @pytest.fixture(autouse=True)
 def mock_backend_services():
     """Mocks all backend services to isolate the GUI for stability testing."""
+    # Corrected patch paths for worker modules
     with (
-        patch("src.gui.main_window.AILoaderWorker"),
-        patch("src.gui.main_window.DashboardWorker"),
-        patch("src.gui.main_window.AnalysisStarterWorker"),
+        patch("src.gui.workers.ai_loader_worker.AILoaderWorker"),
+        patch("src.gui.workers.dashboard_worker.DashboardWorker"),
+        patch("src.gui.workers.analysis_starter_worker.AnalysisStarterWorker"),
         patch("src.gui.main_window.requests.post"),
         patch("src.gui.main_window.QMessageBox") as mock_msg_box,
     ):  # Mock message box to prevent popups
