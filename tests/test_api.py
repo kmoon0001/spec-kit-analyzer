@@ -13,6 +13,8 @@ from src.auth import get_current_active_user
 from src.database import models
 from src.api.dependencies import get_analysis_service
 
+pytestmark = pytest.mark.integration
+
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test_api.db"
 
 engine = create_async_engine(TEST_DATABASE_URL)

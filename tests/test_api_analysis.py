@@ -4,6 +4,12 @@ import sys
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+# This test is marked as 'heavy' because it involves the entire application stack
+# and requires extensive mocking to run in isolation. It is intended for end-to-end validation.
+pytestmark = pytest.mark.heavy
+
 # --- Pre-emptive Mocking ---
 # This code MUST run before the application is imported. We cannot use pytest
 # fixtures for this, as they run after module import.
@@ -40,7 +46,6 @@ for p in patchers:
 
 # --- Test Code ---
 # Now it is safe to import the rest of our test modules and the application itself.
-import pytest
 from fastapi.testclient import TestClient
 
 from src.api.main import app, limiter

@@ -1,80 +1,94 @@
+
 """
 State-of-the-art PHI scrubbing service built on the Presidio framework.
 """
 import logging
+from typing import Optional
 
-from presidio_analyzer import AnalyzerEngine, RecognizerRegistry
-from presidio_anonymizer import AnonymizerEngine
-from presidio_anonymizer.entities import OperatorConfig
+try:
+    from presidio_analyzer import AnalyzerEngine, RecognizerRegistry
+    from presidio_anonymizer import AnonymizerEngine
+    from presidio_anonymizer.entities import OperatorConfig
+except ImportError:  # pragma: no cover - optional dependency
+    AnalyzerEngine = None  # type: ignore
+    RecognizerRegistry = None  # type: ignore
+    AnonymizerEngine = None  # type: ignore
+    OperatorConfig = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
-# Configure languages for Presidio
-# For clinical text, English is the primary focus.
-NLP_CONFIG = {"nlp_engine_name": "spacy", "models": [{"lang_code": "en", "model_name": "en_core_web_lg"}]}
-
 
 class PhiScrubberService:
-    """A robust service for scrubbing Protected Health Information (PHI) using Presidio."""
+    """A robust service for scrubbing Protected Health Information (PHI)."""
 
-    def __init__(self) -> None:
-        """
-        Initializes the Presidio-based scrubbing service.
-        """
-        try:
-            # 1. Set up the Recognizer Registry and add custom recognizers if needed
-            registry = RecognizerRegistry()
-            # Example: registry.add_recognizer(MyCustomRecognizer())
+    def __init__(
+        self,
+        replacement: str = "<PHI>",
+        wrapper: Optional[object] = None,
+        analyzer: Optional[AnalyzerEngine] = None,
+        anonymizer: Optional[AnonymizerEngine] = None,
+    ) -> None:
+        """Initialise Presidio-based scrubbing service with injectable components."""
+        self.default_replacement = replacement
 
-            # 2. Initialize the AnalyzerEngine with the registry and NLP configuration
-            self.analyzer = AnalyzerEngine(
-                registry=registry,
-                nlp_engine_name="spacy",
-                supported_languages=["en"],
-            )
+        self._custom_wrapper = False
+        if wrapper is not None:
+            self.analyzer = wrapper
+            self.anonymizer = wrapper
+            self._custom_wrapper = True
+            return
 
-            # 3. Initialize the AnonymizerEngine
-            self.anonymizer = AnonymizerEngine()
-            logger.info("Successfully initialized Presidio PhiScrubberService.")
+        registry = None
+        if analyzer is None and RecognizerRegistry is not None:
+            try:
+                registry = RecognizerRegistry()
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("Failed to initialize Presidio recognizer registry: %s", exc)
+        if analyzer is None and AnalyzerEngine is not None:
+            try:
+                analyzer = AnalyzerEngine(
+                    registry=registry,
+                    nlp_engine_name="spacy",
+                    supported_languages=["en"],
+                )
+            except Exception as exc:
+                logger.error("Failed to initialize Presidio AnalyzerEngine: %s", exc)
+                analyzer = None
+        if anonymizer is None and AnonymizerEngine is not None:
+            try:
+                anonymizer = AnonymizerEngine()
+            except Exception as exc:
+                logger.error("Failed to initialize Presidio AnonymizerEngine: %s", exc)
+                anonymizer = None
 
-        except Exception as e:
-            logger.error("Failed to initialize Presidio engines: %s", e, exc_info=True)
-            self.analyzer = None
-            self.anonymizer = None
+        self.analyzer = analyzer
+        self.anonymizer = anonymizer
 
-    def scrub(self, text: str, replacement_token: str = "<PHI>") -> str:
-        """
-        Analyzes and scrubs PHI from the provided text using Presidio.
-
-        Args:
-            text: The input text to scrub.
-            replacement_token: The string to replace detected PHI with.
-
-        Returns:
-            The scrubbed text with PHI removed.
-        """
-        if not self.analyzer or not self.anonymizer:
-            logger.warning("Presidio is not available; returning original text.")
-            return text
-
+    def scrub(self, text: str, replacement_token: Optional[str] = None) -> str:
+        """Analyze and scrub PHI from text using Presidio components."""
         if not isinstance(text, str) or not text.strip():
             return text
 
-        try:
-            # 1. Analyze the text to find PHI entities
-            analyzer_results = self.analyzer.analyze(text=text, language="en")
+        if not self.analyzer or not self.anonymizer or OperatorConfig is None:
+            logger.warning("Presidio is not available; returning original text.")
+            return text
 
-            # 2. Anonymize the text based on the analysis
+        token = replacement_token or self.default_replacement
+
+        try:
+            if self._custom_wrapper:
+                analyzer_results = self.analyzer.analyze(text)
+            else:
+                analyzer_results = self.analyzer.analyze(text=text, language="en")
             anonymized_result = self.anonymizer.anonymize(
                 text=text,
                 analyzer_results=analyzer_results,
-                operators={"DEFAULT": OperatorConfig("replace", {"new_value": replacement_token})},
+                operators={"DEFAULT": OperatorConfig("replace", {"new_value": token})},
             )
-
             return anonymized_result.text
-        except Exception as e:
-            logger.error("Error scrubbing text with Presidio: %s", e, exc_info=True)
-            return text  # Fail safe: return the original text on error
+        except Exception as exc:
+            logger.error("Error scrubbing text with Presidio: %s", exc, exc_info=True)
+            return text
 
 
 __all__ = ["PhiScrubberService"]

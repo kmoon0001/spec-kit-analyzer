@@ -5,27 +5,33 @@ from .prompt_manager import PromptManager
 logger = logging.getLogger(__name__)
 
 
+
 class DocumentClassifier:
     """A service to classify a document into a predefined category."""
 
-    def __init__(self, llm_service: LLMService, prompt_template_path: str | None = None):
-        """
-        Initializes the DocumentClassifier.
-
-        Args:
-            llm_service: An instance of the LLMService to use for classification.
-            prompt_template_path: The path to the prompt template for classification.
-        """
-        self.llm_service = llm_service
+    def __init__(
+        self,
+        llm_service: LLMService,
+        prompt_template_path: str | None = None,
+        prompt_manager: PromptManager | None = None,
+    ):
+        """Initializes the classifier with optional prompt overrides."""
         import os
-        if not prompt_template_path:
-            from src.config import get_settings
 
-            prompt_template_path = get_settings().models.doc_classifier_prompt
-        template_name = os.path.basename(prompt_template_path)
-        if not template_name:
-            raise ValueError('Prompt template name could not be determined.')
-        self.prompt_manager = PromptManager(template_name=template_name)
+        self.llm_service = llm_service
+        if prompt_manager is not None:
+            self.prompt_manager = prompt_manager
+        else:
+            template_path = prompt_template_path or ""
+            if not template_path:
+                try:
+                    from src.config import get_settings
+
+                    template_path = get_settings().models.doc_classifier_prompt
+                except Exception:
+                    template_path = "src/resources/prompts/doc_classifier_prompt.txt"
+            template_name = os.path.basename(template_path) or os.path.basename(template_path.rstrip(os.sep)) or template_path
+            self.prompt_manager = PromptManager(template_name=template_name)
         self.possible_types = [
             "Progress Note",
             "Evaluation",
