@@ -1,11 +1,3 @@
-"""
-Integration tests for the database CRUD (Create, Read, Update, Delete) functions.
-
-These tests validate that the complex database queries in `src/database/crud.py`
-return the correct data and perform the correct calculations. They use a live,
-in-memory SQLite database to ensure full validation of the SQL logic.
-"""
-
 import pytest
 import pytest_asyncio
 import os
@@ -127,15 +119,27 @@ async def test_get_discipline_breakdown(populated_db: AsyncSession):
 @pytest.mark.asyncio
 async def test_get_team_performance_trends(populated_db: AsyncSession):
     """Test the calculation of weekly performance trends."""
+    # The test data spans 20 days, so we look back 21 days (3 weeks)
     trends = await crud.get_team_performance_trends(populated_db, days_back=21)
 
     assert len(trends) == 3
-    # Week 1 (most recent) has one report with a score of 95.0
+
+    # Week 1 (most recent: 0-7 days ago) has one report:
+    # - report_1 (5 days ago, score 95.0)
     assert trends[0]["week"] == 1
     assert trends[0]["avg_compliance_score"] == pytest.approx(95.0)
-    # Week 2 has two reports (85.0, 75.0)
+
+    # Week 2 (7-14 days ago) has one report:
+    # - report_2 (10 days ago, score 85.0)
     assert trends[1]["week"] == 2
-    assert trends[1]["avg_compliance_score"] == pytest.approx(80.0)
+    assert trends[1]["avg_compliance_score"] == pytest.approx(85.0)
+
+    # Week 3 (14-21 days ago) has two reports:
+    # - report_3 (15 days ago, score 75.0)
+    # - report_4 (20 days ago, score 90.0)
+    # Average = (75.0 + 90.0) / 2 = 82.5
+    assert trends[2]["week"] == 3
+    assert trends[2]["avg_compliance_score"] == pytest.approx(82.5)
 
 @pytest.mark.asyncio
 async def test_get_benchmark_data(populated_db: AsyncSession):

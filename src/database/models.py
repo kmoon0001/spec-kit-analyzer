@@ -91,6 +91,7 @@ class AnalysisReport(Base):
     document_type: Mapped[Optional[str]] = mapped_column(
         String, index=True, nullable=True
     )
+    discipline: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
     analysis_result: Mapped[dict] = mapped_column(JSON)
     document_embedding: Mapped[Optional[bytes]] = mapped_column(
         LargeBinary, nullable=True

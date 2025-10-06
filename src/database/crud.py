@@ -106,8 +106,8 @@ async def get_team_performance_trends(db: AsyncSession, days_back: int) -> List[
     """Computes team performance trends over time."""
     num_weeks = days_back // 7
     trends = []
-    for i in range(num_weeks, 0, -1):
-        end_date = datetime.datetime.now(timezone.utc) - datetime.timedelta(weeks=i-1)
+    for i in range(num_weeks):
+        end_date = datetime.datetime.now(timezone.utc) - datetime.timedelta(weeks=i)
         start_date = end_date - datetime.timedelta(weeks=1)
         
         query = (
@@ -120,7 +120,7 @@ async def get_team_performance_trends(db: AsyncSession, days_back: int) -> List[
         )
         result = (await db.execute(query)).first()
         trends.append({
-            "week": num_weeks - i + 1,
+            "week": i + 1,
             "avg_compliance_score": result.avg_score or 0,
             "total_findings": result.total_findings or 0,
         })
