@@ -229,19 +229,17 @@ class MainViewModel(QObject):
         self._run_worker(FeedbackWorker, on_success=self.status_message_changed.emit, on_error=lambda msg: self.status_message_changed.emit(f"Feedback Error: {msg}"), token=self.auth_token, feedback_data=feedback_data)
 
     def stop_all_workers(self) -> None:
+        """Stop all worker threads quickly - don't wait too long."""
         for thread in list(self._active_threads):
-            worker = getattr(thread, "_worker_ref", None)
-            if worker and hasattr(worker, "stop"):
-                try:
-                    worker.stop()
-                except Exception:
-                    pass
             try:
                 if thread.isRunning():
                     thread.quit()
-                    thread.wait()
-            except RuntimeError:
-                continue
+                    thread.wait(100)  # Wait max 100ms per thread
+                    if thread.isRunning():
+                        thread.terminate()  # Force terminate if still running
+            except Exception:
+                pass
+        self._active_threads.clear()
 
 
 class MainApplicationWindow(QMainWindow):
@@ -380,7 +378,12 @@ class MainApplicationWindow(QMainWindow):
 
     def _start_analysis(self) -> None:
         if not self._selected_file:
-            QMessageBox.warning(self, "No document", "Please select a document before starting the analysis.")
+            QMessageBox.warning(self, "No Document", "Please select a document before starting the analysis.")
+            return
+        
+        # Check if rubric is selected
+        if not self.rubric_selector.currentData():
+            QMessageBox.warning(self, "No Rubric", "Please select a compliance guideline before analysis.")
             return
         
         options = {
@@ -392,8 +395,16 @@ class MainApplicationWindow(QMainWindow):
         
         # Show subtle loading spinner
         self.loading_spinner.start_spinning()
+        self.statusBar().showMessage("⏳ Starting analysis... This may take a moment.", 0)
         
-        self.view_model.start_analysis(str(self._selected_file), options)
+        try:
+            self.view_model.start_analysis(str(self._selected_file), options)
+        except Exception as e:
+            self.loading_spinner.stop_spinning()
+            self.run_analysis_button.setEnabled(True)
+            self.repeat_analysis_button.setEnabled(True)
+            QMessageBox.critical(self, "Analysis Error", f"Failed to start analysis:\n{str(e)}\n\nMake sure the API server is running.")
+            self.statusBar().showMessage("❌ Analysis failed to start", 5000)
 
     def _repeat_analysis(self) -> None:
         """Repeat analysis on the same document with current settings."""
@@ -628,9 +639,21 @@ You can also:
             webbrowser.open(url.toString())
 
     def closeEvent(self, event) -> None:
-        self._save_gui_settings()
-        self.view_model.stop_all_workers()
-        super().closeEvent(event)
+        """Handle application close - exit quickly."""
+        try:
+            self._save_gui_settings()
+        except Exception:
+            pass  # Don't block exit on save errors
+        
+        # Force quit workers quickly
+        try:
+            self.view_model.stop_all_workers()
+        except Exception:
+            pass
+        
+        # Force terminate any remaining threads
+        QApplication.quit()
+        event.accept()
 
     def _build_menus(self) -> None:
         menu_bar = self.menuBar()
