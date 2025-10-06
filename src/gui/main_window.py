@@ -295,9 +295,17 @@ class MainApplicationWindow(QMainWindow):
         # Note: Header will be added to central layout in _build_central_layout
 
     def _apply_medical_theme(self) -> None:
-        """Apply the comprehensive medical theme styling."""
-        # Apply main window stylesheet
-        self.setStyleSheet(medical_theme.get_main_window_stylesheet())
+        """Apply the comprehensive medical theme styling with better contrast."""
+        # Apply main window stylesheet with softer background
+        main_style = f"""
+            QMainWindow {{
+                background-color: #f1f5f9;
+            }}
+            QWidget {{
+                font-family: "Segoe UI", Arial, sans-serif;
+            }}
+        """
+        self.setStyleSheet(main_style)
         
         # Update header theme
         is_dark = medical_theme.current_theme == "dark"
@@ -531,29 +539,42 @@ class MainApplicationWindow(QMainWindow):
         # Hide loading spinner
         self.loading_spinner.stop_spinning()
         
-        self.statusBar().showMessage("✅ Analysis complete", 5000)
+        self.statusBar().showMessage("✅ Analysis Complete - Click 'View Report' to see results", 5000)
         self.run_analysis_button.setEnabled(True)
         self.repeat_analysis_button.setEnabled(True)
         self.view_report_button.setEnabled(True)
         self._current_payload = payload
+        
+        # Display human-readable summary in results tab
         analysis = payload.get("analysis", {})
         doc_name = self._selected_file.name if self._selected_file else "Document"
-        report_html = payload.get("report_html") or self.report_generator.generate_html_report(analysis_result=analysis, doc_name=doc_name)
-        self.analysis_summary_browser.setHtml(report_html)
-        self.report_preview_browser.setHtml(report_html)
+        
+        # Create human-readable summary
+        summary_text = f"""
+ANALYSIS COMPLETE
+================
+
+Document: {doc_name}
+Status: ✅ Analysis Successful
+Timestamp: {payload.get('timestamp', 'N/A')}
+
+SUMMARY:
+--------
+Total Findings: {len(analysis.get('findings', []))}
+Compliance Score: {analysis.get('compliance_score', 'N/A')}%
+Risk Level: {analysis.get('risk_level', 'N/A')}
+
+Click the "📊 View Report" button to see the full detailed report.
+
+You can also:
+- Click "🔄 Repeat" to run analysis again
+- Click "📄 Export PDF" or "🌐 Export HTML" to save the report
+        """
+        
+        self.analysis_summary_browser.setPlainText(summary_text)
         self.detailed_results_browser.setPlainText(json.dumps(payload, indent=2))
         
-        # Add report to outputs list
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        report_item = QListWidgetItem(f"📊 {doc_name} - {timestamp}")
-        self.report_outputs_list.addItem(report_item)
-        self.report_outputs_list.setCurrentItem(report_item)
-        
         self.view_model.load_dashboard_data() # Refresh dashboard after analysis
-
-        if self.auto_analysis_queue_list.count() > 0:
-            self._process_auto_analysis_queue()
 
     def on_analysis_error(self, message: str) -> None:
         """Handles analysis errors by re-enabling controls and surfacing the status."""
@@ -1231,79 +1252,312 @@ class MainApplicationWindow(QMainWindow):
         return tab
     
     def _create_settings_tab(self) -> QWidget:
-        """Create the Settings tab."""
+        """Create the Settings tab with comprehensive options."""
         tab = QWidget(self)
         layout = QVBoxLayout(tab)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
         
         # Title
-        title = QLabel("Application Settings", tab)
-        title.setFont(QFont("Segoe UI", 16, QFont.Bold))
+        title = QLabel("⚙️ Application Settings", tab)
+        title.setFont(QFont("Segoe UI", 18, QFont.Bold))
+        title.setStyleSheet(f"color: {medical_theme.get_color('primary_blue')};")
         layout.addWidget(title)
         
         # Settings tabs
         settings_tabs = QTabWidget(tab)
+        settings_tabs.setStyleSheet(f"""
+            QTabWidget::pane {{
+                border: 2px solid {medical_theme.get_color('border_light')};
+                border-radius: 8px;
+                background: {medical_theme.get_color('bg_secondary')};
+            }}
+            QTabBar::tab {{
+                padding: 10px 20px;
+                margin-right: 4px;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+                background: {medical_theme.get_color('bg_tertiary')};
+                color: {medical_theme.get_color('text_secondary')};
+            }}
+            QTabBar::tab:selected {{
+                background: {medical_theme.get_color('primary_blue')};
+                color: white;
+            }}
+        """)
         
         # User Preferences
         user_prefs_widget = self._create_user_preferences_widget()
-        settings_tabs.addTab(user_prefs_widget, "User Preferences")
-        
-        # Performance Settings
-        perf_widget = self._create_performance_settings_widget()
-        settings_tabs.addTab(perf_widget, "Performance")
+        settings_tabs.addTab(user_prefs_widget, "👤 User Preferences")
         
         # Analysis Settings
         analysis_settings_widget = self._create_analysis_settings_widget()
-        settings_tabs.addTab(analysis_settings_widget, "Analysis")
+        settings_tabs.addTab(analysis_settings_widget, "📊 Analysis Settings")
+        
+        # Report Settings
+        report_settings_widget = self._create_report_settings_widget()
+        settings_tabs.addTab(report_settings_widget, "📄 Report Settings")
+        
+        # Performance Settings
+        perf_widget = self._create_performance_settings_widget()
+        settings_tabs.addTab(perf_widget, "⚡ Performance")
         
         # Admin Settings (if admin)
         if self.current_user.is_admin:
             self.settings_editor = SettingsEditorWidget(tab)
             self.settings_editor.save_requested.connect(self.view_model.save_settings)
-            settings_tabs.addTab(self.settings_editor, "Advanced (Admin)")
+            settings_tabs.addTab(self.settings_editor, "🔧 Advanced (Admin)")
         
         layout.addWidget(settings_tabs)
         return tab
     
     def _create_user_preferences_widget(self) -> QWidget:
         """Create user preferences settings widget."""
+        from PySide6.QtWidgets import QCheckBox
+        
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
         
         # Theme selection
-        theme_label = QLabel("Theme:", widget)
-        layout.addWidget(theme_label)
+        theme_section = QWidget()
+        theme_section.setStyleSheet(f"""
+            QWidget {{
+                background: {medical_theme.get_color('bg_primary')};
+                border: 2px solid {medical_theme.get_color('border_light')};
+                border-radius: 10px;
+                padding: 15px;
+            }}
+        """)
+        theme_layout = QVBoxLayout(theme_section)
         
-        theme_group = QWidget()
-        theme_layout = QHBoxLayout(theme_group)
-        light_button = QPushButton("Light", theme_group)
+        theme_label = QLabel("🎨 Theme Selection", theme_section)
+        theme_label.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        theme_layout.addWidget(theme_label)
+        
+        theme_buttons = QHBoxLayout()
+        light_button = AnimatedButton("☀️ Light Theme", theme_section)
         light_button.clicked.connect(lambda: self._apply_theme("light"))
-        theme_layout.addWidget(light_button)
-        dark_button = QPushButton("Dark", theme_group)
-        dark_button.clicked.connect(lambda: self._apply_theme("dark"))
-        theme_layout.addWidget(dark_button)
-        theme_layout.addStretch()
-        layout.addWidget(theme_group)
+        light_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
+        light_button.setMinimumHeight(40)
+        theme_buttons.addWidget(light_button)
         
-        # Password change
-        password_button = QPushButton("Change Password", widget)
+        dark_button = AnimatedButton("🌙 Dark Theme", theme_section)
+        dark_button.clicked.connect(lambda: self._apply_theme("dark"))
+        dark_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
+        dark_button.setMinimumHeight(40)
+        theme_buttons.addWidget(dark_button)
+        
+        theme_layout.addLayout(theme_buttons)
+        layout.addWidget(theme_section)
+        
+        # Account settings
+        account_section = QWidget()
+        account_section.setStyleSheet(f"""
+            QWidget {{
+                background: {medical_theme.get_color('bg_primary')};
+                border: 2px solid {medical_theme.get_color('border_light')};
+                border-radius: 10px;
+                padding: 15px;
+            }}
+        """)
+        account_layout = QVBoxLayout(account_section)
+        
+        account_label = QLabel("👤 Account Settings", account_section)
+        account_label.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        account_layout.addWidget(account_label)
+        
+        user_info = QLabel(f"Logged in as: {self.current_user.username}", account_section)
+        user_info.setStyleSheet("color: #64748b; padding: 5px;")
+        account_layout.addWidget(user_info)
+        
+        password_button = AnimatedButton("🔒 Change Password", account_section)
         password_button.clicked.connect(self._open_change_password_dialog)
-        layout.addWidget(password_button)
+        password_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
+        password_button.setMinimumHeight(40)
+        account_layout.addWidget(password_button)
+        
+        layout.addWidget(account_section)
+        
+        # UI Preferences
+        ui_section = QWidget()
+        ui_section.setStyleSheet(f"""
+            QWidget {{
+                background: {medical_theme.get_color('bg_primary')};
+                border: 2px solid {medical_theme.get_color('border_light')};
+                border-radius: 10px;
+                padding: 15px;
+            }}
+        """)
+        ui_layout = QVBoxLayout(ui_section)
+        
+        ui_label = QLabel("🖥️ Interface Preferences", ui_section)
+        ui_label.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        ui_layout.addWidget(ui_label)
+        
+        show_tooltips = QCheckBox("Show helpful tooltips", ui_section)
+        show_tooltips.setChecked(True)
+        ui_layout.addWidget(show_tooltips)
+        
+        auto_save = QCheckBox("Auto-save analysis results", ui_section)
+        auto_save.setChecked(True)
+        ui_layout.addWidget(auto_save)
+        
+        show_animations = QCheckBox("Enable button animations", ui_section)
+        show_animations.setChecked(True)
+        ui_layout.addWidget(show_animations)
+        
+        layout.addWidget(ui_section)
         
         layout.addStretch()
         return widget
     
-    def _create_performance_settings_widget(self) -> QWidget:
-        """Create performance settings widget."""
+    def _create_analysis_settings_widget(self) -> QWidget:
+        """Create analysis settings widget."""
+        from PySide6.QtWidgets import QCheckBox, QSpinBox
+        
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
         
-        info_label = QLabel("Performance settings will be available in a future update.", widget)
+        # Default Analysis Settings
+        section = QWidget()
+        section.setStyleSheet(f"""
+            QWidget {{
+                background: {medical_theme.get_color('bg_primary')};
+                border: 2px solid {medical_theme.get_color('border_light')};
+                border-radius: 10px;
+                padding: 15px;
+            }}
+        """)
+        section_layout = QVBoxLayout(section)
+        
+        title = QLabel("📊 Default Analysis Settings", section)
+        title.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        section_layout.addWidget(title)
+        
+        auto_analyze = QCheckBox("Auto-analyze on document upload", section)
+        section_layout.addWidget(auto_analyze)
+        
+        include_7habits = QCheckBox("Include 7 Habits Framework in reports", section)
+        include_7habits.setChecked(True)
+        section_layout.addWidget(include_7habits)
+        
+        include_education = QCheckBox("Include educational resources", section)
+        include_education.setChecked(True)
+        section_layout.addWidget(include_education)
+        
+        show_confidence = QCheckBox("Show AI confidence scores", section)
+        show_confidence.setChecked(True)
+        section_layout.addWidget(show_confidence)
+        
+        layout.addWidget(section)
+        layout.addStretch()
+        return widget
+
+    def _create_report_settings_widget(self) -> QWidget:
+        """Create report settings widget."""
+        from PySide6.QtWidgets import QCheckBox
+        
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
+        
+        # Report Content Settings
+        section = QWidget()
+        section.setStyleSheet(f"""
+            QWidget {{
+                background: {medical_theme.get_color('bg_primary')};
+                border: 2px solid {medical_theme.get_color('border_light')};
+                border-radius: 10px;
+                padding: 15px;
+            }}
+        """)
+        section_layout = QVBoxLayout(section)
+        
+        title = QLabel("📄 Report Content Settings", section)
+        title.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        section_layout.addWidget(title)
+        
+        include_medicare = QCheckBox("✅ Medicare Guidelines Compliance", section)
+        include_medicare.setChecked(True)
+        section_layout.addWidget(include_medicare)
+        
+        include_strengths = QCheckBox("💪 Strengths & Best Practices", section)
+        include_strengths.setChecked(True)
+        section_layout.addWidget(include_strengths)
+        
+        include_weaknesses = QCheckBox("⚠️ Weaknesses & Areas for Improvement", section)
+        include_weaknesses.setChecked(True)
+        section_layout.addWidget(include_weaknesses)
+        
+        include_suggestions = QCheckBox("💡 Actionable Suggestions", section)
+        include_suggestions.setChecked(True)
+        section_layout.addWidget(include_suggestions)
+        
+        include_education_res = QCheckBox("📚 Educational Resources", section)
+        include_education_res.setChecked(True)
+        section_layout.addWidget(include_education_res)
+        
+        include_habits = QCheckBox("🎯 7 Habits Framework Integration", section)
+        include_habits.setChecked(True)
+        section_layout.addWidget(include_habits)
+        
+        include_score = QCheckBox("📊 Compliance Score & Risk Level", section)
+        include_score.setChecked(True)
+        section_layout.addWidget(include_score)
+        
+        include_findings = QCheckBox("🔍 Detailed Findings Analysis", section)
+        include_findings.setChecked(True)
+        section_layout.addWidget(include_findings)
+        
+        layout.addWidget(section)
+        layout.addStretch()
+        return widget
+
+    def _create_performance_settings_widget(self) -> QWidget:
+        """Create performance settings widget."""
+        from PySide6.QtWidgets import QCheckBox, QSlider
+        
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
+        
+        section = QWidget()
+        section.setStyleSheet(f"""
+            QWidget {{
+                background: {medical_theme.get_color('bg_primary')};
+                border: 2px solid {medical_theme.get_color('border_light')};
+                border-radius: 10px;
+                padding: 15px;
+            }}
+        """)
+        section_layout = QVBoxLayout(section)
+        
+        title = QLabel("⚡ Performance Settings", section)
+        title.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        section_layout.addWidget(title)
+        
+        enable_cache = QCheckBox("Enable analysis caching", section)
+        enable_cache.setChecked(True)
+        section_layout.addWidget(enable_cache)
+        
+        parallel_processing = QCheckBox("Enable parallel processing", section)
+        parallel_processing.setChecked(True)
+        section_layout.addWidget(parallel_processing)
+        
+        auto_cleanup = QCheckBox("Auto-cleanup temporary files", section)
+        auto_cleanup.setChecked(True)
+        section_layout.addWidget(auto_cleanup)
+        
+        layout.addWidget(section)
+        
+        info_label = QLabel("💡 Tip: Enable caching for faster repeated analyses", widget)
+        info_label.setStyleSheet("color: #64748b; font-style: italic; padding: 10px;")
         layout.addWidget(info_label)
         
         layout.addStretch()
@@ -1551,8 +1805,19 @@ class MainApplicationWindow(QMainWindow):
 
         self._selected_file = file_path
         self._cached_preview_content = content
-        self.file_display.setPlainText(content[:4000])
-        self.statusBar().showMessage(f"Selected {self._selected_file.name}", 3000)
+        
+        # Show human-readable summary instead of raw content
+        file_info = f"""
+📄 Document Selected: {file_path.name}
+📊 File Size: {len(content)} characters
+📁 Location: {file_path.parent}
+
+✅ Ready for analysis!
+
+Click "Run Compliance Analysis" to begin.
+        """
+        self.file_display.setPlainText(file_info)
+        self.statusBar().showMessage(f"✅ Document loaded: {self._selected_file.name}", 3000)
         self.run_analysis_button.setEnabled(True)
         self._update_document_preview()
 

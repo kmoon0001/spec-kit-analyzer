@@ -46,22 +46,22 @@ class HeaderComponent(QWidget):
         
     def create_title_section(self):
         """Create the title and logo section."""
-        layout = QVBoxLayout()
+        layout = QHBoxLayout()
         
-        # Main title (clickable for easter eggs)
-        self.title_label = QLabel("🏥 Therapy Compliance Analyzer")
+        # Medical emoji (clickable for easter eggs)
+        emoji_label = QLabel("🏥")
+        emoji_label.setFont(QFont("Segoe UI", 24))
+        emoji_label.mousePressEvent = self.on_logo_clicked
+        emoji_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        emoji_label.setToolTip("Click 7 times for easter egg!")
+        layout.addWidget(emoji_label)
+        
+        # Main title
+        self.title_label = QLabel("THERAPY DOCUMENTATION COMPLIANCE ANALYSIS")
         self.title_label.setObjectName("titleLabel")
-        self.title_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        self.title_label.mousePressEvent = self.on_logo_clicked
-        self.title_label.setCursor(Qt.CursorShape.PointingHandCursor)
-        
-        # Subtitle
-        self.subtitle_label = QLabel("AI-Powered Clinical Documentation Analysis")
-        self.subtitle_label.setObjectName("subtitleLabel")
-        self.subtitle_label.setFont(QFont("Segoe UI", 10))
-        
+        self.title_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        self.title_label.setStyleSheet("padding: 0px 15px;")
         layout.addWidget(self.title_label)
-        layout.addWidget(self.subtitle_label)
         
         return layout
         
