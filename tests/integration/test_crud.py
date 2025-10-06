@@ -52,19 +52,31 @@ async def db_session() -> AsyncSession:
 @pytest_asyncio.fixture
 async def populated_db(db_session: AsyncSession) -> AsyncSession:
     """Populates the database with a set of test data."""
-    # Create test reports
+    # Create test reports with discipline correctly placed in analysis_result
     reports_data = [
         models.AnalysisReport(
-            id=1, document_name="report_1.txt", compliance_score=95.0, discipline="PT", analysis_date=datetime.now(timezone.utc) - timedelta(days=5), document_embedding=np.random.rand(768).astype(np.float32).tobytes()
+            id=1, document_name="report_1.txt", compliance_score=95.0, document_type="Progress Note",
+            analysis_date=datetime.now(timezone.utc) - timedelta(days=5),
+            analysis_result={"discipline": "PT"},
+            document_embedding=np.random.rand(768).astype(np.float32).tobytes()
         ),
         models.AnalysisReport(
-            id=2, document_name="report_2.txt", compliance_score=85.0, discipline="PT", analysis_date=datetime.now(timezone.utc) - timedelta(days=10), document_embedding=np.random.rand(768).astype(np.float32).tobytes()
+            id=2, document_name="report_2.txt", compliance_score=85.0, document_type="Evaluation",
+            analysis_date=datetime.now(timezone.utc) - timedelta(days=10),
+            analysis_result={"discipline": "PT"},
+            document_embedding=np.random.rand(768).astype(np.float32).tobytes()
         ),
         models.AnalysisReport(
-            id=3, document_name="report_3.txt", compliance_score=75.0, discipline="OT", analysis_date=datetime.now(timezone.utc) - timedelta(days=15), document_embedding=np.random.rand(768).astype(np.float32).tobytes()
+            id=3, document_name="report_3.txt", compliance_score=75.0, document_type="Progress Note",
+            analysis_date=datetime.now(timezone.utc) - timedelta(days=15),
+            analysis_result={"discipline": "OT"},
+            document_embedding=np.random.rand(768).astype(np.float32).tobytes()
         ),
         models.AnalysisReport(
-            id=4, document_name="report_4.txt", compliance_score=90.0, discipline="SLP", analysis_date=datetime.now(timezone.utc) - timedelta(days=20), document_embedding=np.random.rand(768).astype(np.float32).tobytes()
+            id=4, document_name="report_4.txt", compliance_score=90.0, document_type="Discharge Summary",
+            analysis_date=datetime.now(timezone.utc) - timedelta(days=20),
+            analysis_result={"discipline": "SLP"},
+            document_embedding=np.random.rand(768).astype(np.float32).tobytes()
         ),
     ]
     db_session.add_all(reports_data)
@@ -75,9 +87,10 @@ async def populated_db(db_session: AsyncSession) -> AsyncSession:
     if not vector_store.is_initialized:
         vector_store.initialize_index()
     
-    embeddings = np.array([np.frombuffer(r.document_embedding, dtype=np.float32) for r in reports_data])
-    ids = [r.id for r in reports_data]
-    vector_store.add_vectors(embeddings, ids)
+    embeddings = np.array([np.frombuffer(r.document_embedding, dtype=np.float32) for r in reports_data if r.document_embedding])
+    ids = [r.id for r in reports_data if r.document_embedding]
+    if len(embeddings) > 0:
+        vector_store.add_vectors(embeddings, ids)
 
     return db_session
 
@@ -91,7 +104,7 @@ async def test_get_dashboard_statistics(populated_db: AsyncSession):
     assert stats["total_documents_analyzed"] == 4
     assert stats["overall_compliance_score"] == pytest.approx(86.25)
     assert len(stats["compliance_by_category"]) == 3
-    assert stats["compliance_by_category"]["PT"] == pytest.approx(90.0)
+    assert stats["compliance_by_category"]["Progress Note"] == pytest.approx(85.0)
 
 @pytest.mark.asyncio
 async def test_get_organizational_metrics(populated_db: AsyncSession):
@@ -136,32 +149,27 @@ async def test_get_benchmark_data(populated_db: AsyncSession):
 @pytest.mark.asyncio
 async def test_find_similar_report_vector_search(populated_db: AsyncSession):
     """Test the vector search path of find_similar_report."""
-    # Use the embedding of report 2 to find report 1, which should be similar
     report_2 = await crud.get_report(populated_db, 2)
     
-    # For this test, we'll find a report similar to itself, but exclude it
-    # to ensure we get the next most similar one.
     similar_report = await crud.find_similar_report(
         db=populated_db,
-        document_type="PT",
+        document_type="Evaluation",
         exclude_report_id=2,
         embedding=report_2.document_embedding
     )
 
     assert similar_report is not None
-    # In a real scenario, we'd know the nearest neighbor. Here, we just assert it found *something*.
     assert isinstance(similar_report, models.AnalysisReport)
 
 @pytest.mark.asyncio
 async def test_find_similar_report_fallback(populated_db: AsyncSession):
     """Test the fallback mechanism of find_similar_report when no embedding is provided."""
-    # Should return the most recent report of the same type (report 1)
     similar_report = await crud.find_similar_report(
         db=populated_db,
-        document_type="PT",
-        exclude_report_id=2, # Exclude report 2
+        document_type="Progress Note",
+        exclude_report_id=3, # Exclude report 3
         embedding=None # No embedding
     )
 
     assert similar_report is not None
-    assert similar_report.id == 1
+    assert similar_report.id == 1 # Should be the most recent 'Progress Note'

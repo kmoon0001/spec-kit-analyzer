@@ -8,6 +8,7 @@ import datetime
 import logging
 import numpy as np
 from typing import List, Optional, Dict, Any
+from collections import defaultdict
 
 from sqlalchemy import delete, select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,14 +19,41 @@ from ..core.vector_store import get_vector_store
 
 logger = logging.getLogger(__name__)
 
-# ... (existing user, rubric, feedback functions remain the same) ...
+# ... (user, rubric, feedback functions remain the same) ...
+
+async def get_dashboard_statistics(db: AsyncSession) -> Dict[str, Any]:
+    """Computes and returns key statistics for the main dashboard."""
+    total_docs_query = select(func.count(models.AnalysisReport.id))
+    total_docs_result = await db.execute(total_docs_query)
+    total_documents_analyzed = total_docs_result.scalar_one_or_none() or 0
+
+    avg_score_query = select(func.avg(models.AnalysisReport.compliance_score))
+    avg_score_result = await db.execute(avg_score_query)
+    overall_compliance_score = avg_score_result.scalar_one_or_none() or 0.0
+
+    category_query = (
+        select(
+            models.AnalysisReport.document_type,
+            func.avg(models.AnalysisReport.compliance_score).label("average_score"),
+        )
+        .group_by(models.AnalysisReport.document_type)
+        .order_by(models.AnalysisReport.document_type)
+    )
+    category_result = await db.execute(category_query)
+    compliance_by_category = {row.document_type: row.average_score for row in category_result.all() if row.document_type}
+
+    return {
+        "total_documents_analyzed": total_documents_analyzed,
+        "overall_compliance_score": overall_compliance_score,
+        "compliance_by_category": compliance_by_category,
+    }
 
 async def get_organizational_metrics(db: AsyncSession, days_back: int) -> Dict[str, Any]:
     """Computes high-level organizational metrics."""
-    cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days_back)
+    cutoff_date = datetime.datetime.now(timezone.utc) - timedelta(days=days_back)
     
     report_query = select(models.AnalysisReport).filter(models.AnalysisReport.analysis_date >= cutoff_date)
-    reports = list((await db.execute(report_query)).scalars().all())
+    reports = list((await db.execute(report_query.options(selectinload(models.AnalysisReport.findings)))).scalars().unique().all())
     
     total_analyses = len(reports)
     total_findings = sum(len(r.findings) for r in reports)
@@ -42,17 +70,17 @@ async def get_organizational_metrics(db: AsyncSession, days_back: int) -> Dict[s
     }
 
 async def get_discipline_breakdown(db: AsyncSession, days_back: int) -> Dict[str, Dict[str, Any]]:
-    """Computes compliance metrics broken down by discipline."""
-    cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days_back)
+    """Computes compliance metrics broken down by discipline, querying the JSON field."""
+    cutoff_date = datetime.datetime.now(timezone.utc) - timedelta(days=days_back)
     
     query = (
         select(
-            models.AnalysisReport.discipline,
+            models.AnalysisReport.analysis_result["discipline"].as_string().label("discipline"),
             func.avg(models.AnalysisReport.compliance_score).label("avg_score"),
-            func.count(models.AnalysisReport.user_id).label("user_count")
+            func.count(models.AnalysisReport.id).label("user_count")
         )
         .filter(models.AnalysisReport.analysis_date >= cutoff_date)
-        .group_by(models.AnalysisReport.discipline)
+        .group_by(models.AnalysisReport.analysis_result["discipline"].as_string())
     )
     result = await db.execute(query)
     return {row.discipline: {"avg_compliance_score": row.avg_score, "user_count": row.user_count} for row in result.all()}
@@ -79,7 +107,7 @@ async def get_team_performance_trends(db: AsyncSession, days_back: int) -> List[
     num_weeks = days_back // 7
     trends = []
     for i in range(num_weeks, 0, -1):
-        end_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(weeks=i-1)
+        end_date = datetime.datetime.now(timezone.utc) - datetime.timedelta(weeks=i-1)
         start_date = end_date - datetime.timedelta(weeks=1)
         
         query = (
@@ -87,7 +115,7 @@ async def get_team_performance_trends(db: AsyncSession, days_back: int) -> List[
                 func.avg(models.AnalysisReport.compliance_score).label("avg_score"),
                 func.count(models.Finding.id).label("total_findings")
             )
-            .join(models.Finding, models.AnalysisReport.id == models.Finding.report_id)
+            .join(models.AnalysisReport, models.Finding.report_id == models.AnalysisReport.id, isouter=True)
             .filter(and_(models.AnalysisReport.analysis_date >= start_date, models.AnalysisReport.analysis_date < end_date))
         )
         result = (await db.execute(query)).first()
@@ -107,7 +135,7 @@ async def get_benchmark_data(db: AsyncSession) -> Dict[str, Any]:
         return {}
 
     return {
-        "total_users_in_benchmark": (await db.execute(select(func.count(models.User.id)))).scalar_one(),
+        "total_users_in_benchmark": (await db.execute(select(func.count(models.User.id)))).scalar_one_or_none() or 0,
         "compliance_score_percentiles": {
             "p25": np.percentile(scores, 25),
             "p50": np.percentile(scores, 50),
@@ -116,7 +144,7 @@ async def get_benchmark_data(db: AsyncSession) -> Dict[str, Any]:
         },
     }
 
-# ... (rest of the file remains the same, including find_similar_report and create_report_and_findings) ...
+# ... (rest of the file remains the same) ...
 
 async def create_feedback_annotation(
     db: AsyncSession, feedback: schemas.FeedbackAnnotationCreate, user_id: int
@@ -297,34 +325,6 @@ async def get_all_reports_with_embeddings(db: AsyncSession) -> List[models.Analy
     return list(result.scalars().all())
 
 
-async def get_dashboard_statistics(db: AsyncSession) -> Dict[str, Any]:
-    """Computes and returns key statistics for the main dashboard."""
-    total_docs_query = select(func.count(models.AnalysisReport.id))
-    total_docs_result = await db.execute(total_docs_query)
-    total_documents_analyzed = total_docs_result.scalar_one_or_none() or 0
-
-    avg_score_query = select(func.avg(models.AnalysisReport.compliance_score))
-    avg_score_result = await db.execute(avg_score_query)
-    overall_compliance_score = avg_score_result.scalar_one_or_none() or 0.0
-
-    category_query = (
-        select(
-            models.AnalysisReport.document_type,
-            func.avg(models.AnalysisReport.compliance_score).label("average_score"),
-        )
-        .group_by(models.AnalysisReport.document_type)
-        .order_by(models.AnalysisReport.document_type)
-    )
-    category_result = await db.execute(category_query)
-    compliance_by_category = {row.document_type: row.average_score for row in category_result.all()}
-
-    return {
-        "total_documents_analyzed": total_documents_analyzed,
-        "overall_compliance_score": overall_compliance_score,
-        "compliance_by_category": compliance_by_category,
-    }
-
-
 async def get_user_analysis_count(db: AsyncSession, user_id: int) -> int:
     """Get total analysis count for a user."""
     result = await db.execute(
@@ -357,7 +357,7 @@ async def delete_reports_older_than(db: AsyncSession, days: int) -> int:
     Returns:
         Number of reports deleted
     """
-    cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+    cutoff_date = datetime.datetime.now(timezone.utc) - datetime.timedelta(
         days=days
     )
 
@@ -441,12 +441,7 @@ async def create_report_and_findings(
     Create a report with associated findings in a single transaction.
     Also adds the new report's embedding to the vector store.
     """
-    db_report = models.AnalysisReport(
-        document_name=report_data.document_name,
-        compliance_score=report_data.compliance_score,
-        analysis_result=report_data.analysis_result,
-        document_embedding=report_data.document_embedding,
-    )
+    db_report = models.AnalysisReport(**report_data.model_dump())
     db.add(db_report)
     await db.flush()  # Flush to get the report ID before adding findings
 
@@ -629,7 +624,7 @@ async def get_user_habit_statistics(
     Returns:
         Comprehensive habit statistics
     """
-    cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+    cutoff_date = datetime.datetime.now(timezone.utc) - datetime.timedelta(
         days=days_back
     )
 
