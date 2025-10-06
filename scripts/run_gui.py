@@ -1,7 +1,7 @@
 """
 GUI entry point script.
 
-This script launches the PySide6 GUI application.
+This script launches the PySide6 GUI application with proper authentication.
 """
 import sys
 from pathlib import Path
@@ -47,9 +47,9 @@ if __name__ == "__main__":
         # Check if API is running
         if not check_api_connection():
             print("WARNING: API server not detected. Please start the API server first:")
-            print("   python run_api.py")
+            print("   python scripts/run_api.py")
             print("\nOr use the combined startup script:")
-            print("   python start_application.py")
+            print("   python scripts/start_application.py")
             
             # Show a dialog to the user
             app = QApplication(sys.argv)
@@ -57,98 +57,13 @@ if __name__ == "__main__":
             msg.setIcon(QMessageBox.Warning)
             msg.setWindowTitle("API Server Required")
             msg.setText("The API server is not running.")
-            msg.setInformativeText("Please start the API server first:\n\npython run_api.py\n\nOr use: python start_application.py")
+            msg.setInformativeText("Please start the API server first:\n\npython scripts/run_api.py\n\nOr use: python scripts/start_application.py")
             msg.exec()
             sys.exit(1)
         
-        # Initialize the database first to ensure tables are created
-        from src.database import init_db
-        asyncio.run(init_db())
-
-        # Create and run the application
-        app = QApplication(sys.argv)
-        
-        # Show login dialog with retry loop
-        from src.gui.dialogs.login_dialog import LoginDialog
-        from src.database import models
-        
-        authenticated = False
-        max_attempts = 5
-        attempt = 0
-        
-        while not authenticated and attempt < max_attempts:
-            login_dialog = LoginDialog()
-            
-            if not login_dialog.exec():
-                # User cancelled login
-                print("Login cancelled by user")
-                sys.exit(0)
-            
-            # Get credentials
-            username, password = login_dialog.get_credentials()
-            attempt += 1
-            
-            # Authenticate with API
-            try:
-                response = requests.post(
-                    "http://127.0.0.1:8001/auth/auth/token",
-                    data={"username": username, "password": password},
-                    timeout=10
-                )
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    token = data.get("access_token")
-                    
-                    # Get user info
-                    user_response = requests.get(
-                        "http://127.0.0.1:8001/auth/me",
-                        headers={"Authorization": f"Bearer {token}"},
-                        timeout=10
-                    )
-                    
-                    if user_response.status_code == 200:
-                        user_data = user_response.json()
-                        
-                        # Create user object
-                        user = models.User(
-                            id=user_data.get("id"),
-                            username=user_data.get("username"),
-                            is_admin=user_data.get("is_admin", False)
-                        )
-                        
-                        authenticated = True
-                        
-                        from src.gui.main_window import MainApplicationWindow
-                        main_win = MainApplicationWindow(user, token)
-                        main_win.show()
-                        
-                        print("SUCCESS: GUI application started successfully!")
-                        sys.exit(app.exec())
-                    else:
-                        QMessageBox.warning(None, "Error", "Failed to get user information. Please try again.")
-                else:
-                    remaining = max_attempts - attempt
-                    if remaining > 0:
-                        QMessageBox.warning(
-                            None, 
-                            "Login Failed", 
-                            f"Invalid username or password.\n\nAttempts remaining: {remaining}"
-                        )
-                    else:
-                        QMessageBox.critical(
-                            None, 
-                            "Login Failed", 
-                            "Maximum login attempts exceeded."
-                        )
-                        sys.exit(1)
-                    
-            except Exception as e:
-                QMessageBox.warning(None, "Error", f"Authentication failed: {e}\n\nPlease try again.")
-        
-        if not authenticated:
-            print("Maximum login attempts exceeded")
-            sys.exit(1)
+        # Use the proper authentication flow from src.gui.main
+        from src.gui.main import main as gui_main
+        asyncio.run(gui_main())
         
     except Exception as e:
         print(f"ERROR: Error starting application: {e}")
