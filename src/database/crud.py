@@ -14,6 +14,7 @@ from collections import defaultdict
 from datetime import timezone, timedelta
 
 from sqlalchemy import delete, select, func, and_
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -172,6 +173,21 @@ async def get_benchmark_data(db: AsyncSession) -> Dict[str, Any]:
             "p90": np.percentile(scores, 90),
         },
     }
+
+
+async def get_all_reports_with_embeddings(db: AsyncSession) -> List[models.AnalysisReport]:
+    """Return all analysis reports that have an embedding stored."""
+    query = (
+        select(models.AnalysisReport)
+        .options(selectinload(models.AnalysisReport.findings))
+        .where(models.AnalysisReport.document_embedding.isnot(None))
+    )
+    try:
+        result = await db.execute(query)
+    except OperationalError as exc:
+        logger.warning("Unable to load existing embeddings: %s", exc)
+        return []
+    return list(result.scalars().unique().all())
 
 
 async def get_report(db: AsyncSession, report_id: int) -> Optional[models.AnalysisReport]:
