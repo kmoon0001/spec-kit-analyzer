@@ -1,3 +1,4 @@
+# MODIFIED: Corrected patch paths for worker modules.
 import pytest
 from unittest.mock import patch
 from PySide6.QtWidgets import QDialog

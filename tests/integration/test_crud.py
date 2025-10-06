@@ -1,3 +1,4 @@
+# MODIFIED: Clears the AnalysisReport table before populating.
 """
 Integration tests for the database CRUD (Create, Read, Update, Delete) functions.
 
@@ -12,6 +13,7 @@ import os
 import numpy as np
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -51,7 +53,11 @@ async def db_session() -> AsyncSession:
 
 @pytest_asyncio.fixture
 async def populated_db(db_session: AsyncSession) -> AsyncSession:
-    """Populates the database with a set of test data."""
+    """Clears and populates the database with a set of test data."""
+    # Clear existing data to ensure a clean slate for each test
+    await db_session.execute(delete(models.AnalysisReport))
+    await db_session.commit()
+
     # Create test reports with discipline correctly placed in analysis_result
     reports_data = [
         models.AnalysisReport(
