@@ -70,19 +70,59 @@ if __name__ == "__main__":
         
         # Show login dialog
         from src.gui.dialogs.login_dialog import LoginDialog
+        from src.database import models
+        
         login_dialog = LoginDialog()
         
         if login_dialog.exec():
-            # User logged in successfully
-            user = login_dialog.user
-            token = login_dialog.token
+            # Get credentials
+            username, password = login_dialog.get_credentials()
             
-            from src.gui.main_window import MainApplicationWindow
-            main_win = MainApplicationWindow(user, token)
-            main_win.show()
-            
-            print("SUCCESS: GUI application started successfully!")
-            sys.exit(app.exec())
+            # Authenticate with API
+            try:
+                response = requests.post(
+                    "http://127.0.0.1:8001/auth/login",
+                    data={"username": username, "password": password},
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    token = data.get("access_token")
+                    
+                    # Get user info
+                    user_response = requests.get(
+                        "http://127.0.0.1:8001/auth/me",
+                        headers={"Authorization": f"Bearer {token}"},
+                        timeout=10
+                    )
+                    
+                    if user_response.status_code == 200:
+                        user_data = user_response.json()
+                        
+                        # Create user object
+                        user = models.User(
+                            id=user_data.get("id"),
+                            username=user_data.get("username"),
+                            is_admin=user_data.get("is_admin", False)
+                        )
+                        
+                        from src.gui.main_window import MainApplicationWindow
+                        main_win = MainApplicationWindow(user, token)
+                        main_win.show()
+                        
+                        print("SUCCESS: GUI application started successfully!")
+                        sys.exit(app.exec())
+                    else:
+                        QMessageBox.critical(None, "Error", "Failed to get user information")
+                        sys.exit(1)
+                else:
+                    QMessageBox.critical(None, "Login Failed", "Invalid username or password")
+                    sys.exit(1)
+                    
+            except Exception as e:
+                QMessageBox.critical(None, "Error", f"Authentication failed: {e}")
+                sys.exit(1)
         else:
             # User cancelled login
             print("Login cancelled by user")
