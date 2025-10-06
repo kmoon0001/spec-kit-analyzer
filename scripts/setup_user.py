@@ -32,7 +32,7 @@ async def setup_user():
             )
             
             hashed_password = AuthService.get_password_hash("admin123")
-            new_user = await crud.create_user(db_session, user_data, hashed_password)
+            new_user = await crud.create_user(db_session, user_data, hashed_password, is_admin=True)
             await db_session.commit()
             
             print(f"✅ Created user: {new_user.username}")

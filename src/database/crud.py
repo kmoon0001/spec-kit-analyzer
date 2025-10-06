@@ -23,6 +23,53 @@ from ..core.vector_store import get_vector_store
 
 logger = logging.getLogger(__name__)
 
+async def get_user(db: AsyncSession, user_id: int) -> Optional[models.User]:
+    result = await db.execute(
+        select(models.User).where(models.User.id == user_id)
+    )
+    return result.scalars().first()
+
+
+default_admin_flag = False
+
+
+async def get_user_by_username(db: AsyncSession, username: str) -> Optional[models.User]:
+    result = await db.execute(
+        select(models.User).where(models.User.username == username)
+    )
+    return result.scalars().first()
+
+
+async def create_user(
+    db: AsyncSession,
+    user: schemas.UserCreate,
+    hashed_password: str,
+    *,
+    is_admin: bool | None = None,
+) -> models.User:
+    db_user = models.User(
+        username=user.username,
+        hashed_password=hashed_password,
+        is_active=True,
+        is_admin=is_admin if is_admin is not None else getattr(user, 'is_admin', False),
+    )
+    db.add(db_user)
+    await db.commit()
+    await db.refresh(db_user)
+    return db_user
+
+
+async def change_user_password(
+    db: AsyncSession,
+    user: models.User,
+    new_hashed_password: str,
+) -> models.User:
+    user.hashed_password = new_hashed_password  # type: ignore[attr-defined]
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
 # ... (user, rubric, feedback functions remain the same) ...
 
 async def get_dashboard_statistics(db: AsyncSession) -> Dict[str, Any]:
@@ -253,3 +300,4 @@ async def find_similar_report(
 
 
 # ... (rest of the file remains the same) ...
+
