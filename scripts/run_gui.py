@@ -23,13 +23,13 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 
 def check_api_connection(max_attempts=5, delay=2):
     """Check if the API server is running and accessible."""
-    print("🔍 Checking API server connection...")
+    print("Checking API server connection...")
     
     for attempt in range(max_attempts):
         try:
             response = requests.get("http://127.0.0.1:8001/health", timeout=5)
             if response.status_code == 200:
-                print("✅ API server is running and accessible!")
+                print("SUCCESS: API server is running and accessible!")
                 return True
         except requests.exceptions.RequestException as e:
             print(f"   Attempt {attempt + 1}/{max_attempts}: API not ready ({e})")
@@ -37,16 +37,16 @@ def check_api_connection(max_attempts=5, delay=2):
         if attempt < max_attempts - 1:
             time.sleep(delay)
     
-    print("❌ API server is not accessible")
+    print("ERROR: API server is not accessible")
     return False
 
 if __name__ == "__main__":
     try:
-        print("🚀 Starting Therapy Compliance Analyzer GUI...")
+        print("Starting Therapy Compliance Analyzer GUI...")
         
         # Check if API is running
         if not check_api_connection():
-            print("⚠️  API server not detected. Please start the API server first:")
+            print("WARNING: API server not detected. Please start the API server first:")
             print("   python run_api.py")
             print("\nOr use the combined startup script:")
             print("   python start_application.py")
@@ -68,15 +68,28 @@ if __name__ == "__main__":
         # Create and run the application
         app = QApplication(sys.argv)
         
-        from src.gui.main_window import MainApplicationWindow
-        main_win = MainApplicationWindow()
-        main_win.show()  # Show the window
+        # Show login dialog
+        from src.gui.dialogs.login_dialog import LoginDialog
+        login_dialog = LoginDialog()
         
-        print("✅ GUI application started successfully!")
-        sys.exit(app.exec())
+        if login_dialog.exec():
+            # User logged in successfully
+            user = login_dialog.user
+            token = login_dialog.token
+            
+            from src.gui.main_window import MainApplicationWindow
+            main_win = MainApplicationWindow(user, token)
+            main_win.show()
+            
+            print("SUCCESS: GUI application started successfully!")
+            sys.exit(app.exec())
+        else:
+            # User cancelled login
+            print("Login cancelled by user")
+            sys.exit(0)
         
     except Exception as e:
-        print(f"❌ Error starting application: {e}")
+        print(f"ERROR: Error starting application: {e}")
         import traceback
         traceback.print_exc()
         print("\nPlease ensure PySide6 is installed: pip install PySide6")

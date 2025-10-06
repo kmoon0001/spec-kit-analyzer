@@ -19,7 +19,7 @@ server_running = True
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully."""
     global server_running
-    print(f"\n🛑 Received signal {signum}. Shutting down API server...")
+    print(f"\nReceived signal {signum}. Shutting down API server...")
     server_running = False
     sys.exit(0)
 
@@ -33,16 +33,17 @@ def check_dependencies():
         if not hasattr(config_module, "get_settings"):
             raise AttributeError("src.config does not expose 'get_settings'")
         config_module.get_settings()
-        print("? All dependencies loaded successfully")
+        print("All dependencies loaded successfully")
         return True
     except ImportError as e:
-        print(f"? Missing dependency: {e}")
+        print(f"Missing dependency: {e}")
         return False
     except AttributeError as e:
-        print(f"? Configuration issue: {e}")
+        print(f"Configuration issue: {e}")
         return False
     except Exception as e:
-        print(f"? Configuration error: {e}")
+        print(f"Configuration error: {e}")
+        return False
         return False
 
 
@@ -52,7 +53,7 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
-    print("🚀 Starting Therapy Compliance Analyzer API Server...")
+    print("Starting Therapy Compliance Analyzer API Server...")
     print("   Host: 127.0.0.1")
     print("   Port: 8001")
     print("   Press Ctrl+C to stop")
@@ -60,7 +61,7 @@ if __name__ == "__main__":
     
     # Check dependencies first
     if not check_dependencies():
-        print("❌ Dependency check failed. Please install requirements.")
+        print("✗ Dependency check failed. Please install requirements.")
         sys.exit(1)
     
     try:
@@ -68,7 +69,7 @@ if __name__ == "__main__":
         from src.api.main import app
         
         # Run the server directly with uvicorn
-        print("🔄 Starting server...")
+        print("Starting server...")
         uvicorn.run(
             app,
             host="127.0.0.1",
@@ -80,11 +81,11 @@ if __name__ == "__main__":
         )
         
     except KeyboardInterrupt:
-        print("\n✅ API server stopped by user")
+        print("\n✓ API server stopped by user")
     except Exception as e:
-        print(f"\n❌ API server error: {e}")
+        print(f"\n✗ API server error: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
     finally:
-        print("🧹 API server cleanup complete")
+        print("API server cleanup complete")
