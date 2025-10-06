@@ -94,20 +94,47 @@ User wants to restore the original beautiful medical-themed PySide6 GUI that was
 - ✅ Responsive scaling
 - ✅ Selection highlighting
 
-### Integration Complete! ✅
+### Major Layout Redesign Complete! ✅
 - ✅ HeaderComponent with 🏥 emoji and easter eggs - DONE!
-- ✅ StatusComponent for AI model indicators - DONE!
+- ✅ StatusComponent for AI model indicators (moved to bottom status bar) - DONE!
 - ✅ MedicalTheme styling applied comprehensively - DONE!
 - ✅ Theme toggle buttons (🌙/☀️) in header - DONE!
-- ✅ Repeat analysis button (🔄) - DONE!
-- ✅ Report output click-to-view - DONE!
-- ✅ Beautiful selection highlighting - DONE!
-- ✅ Professional button styling - DONE!
-- ✅ Minimal micro-interactions (subtle animations) - DONE!
-  - AnimatedButton for Run/Repeat/Chat buttons
-  - LoadingSpinner during analysis
-  - Kept minimal and non-distracting
-- 🔄 ModernCard styling for panels - Optional future enhancement
+- ✅ Window title fixed: "🏥 Therapy Compliance Analyzer" - DONE!
+- ✅ Minimal micro-interactions (AnimatedButton, LoadingSpinner) - DONE!
+
+### Layout Improvements ✅
+- ✅ Removed auto-analysis dock (now popup button)
+- ✅ Removed document preview dock (now popup button)
+- ✅ Removed report preview panel (now popup window)
+- ✅ Clean 3-column layout: Upload/Settings | Report Sections | Results
+- ✅ Better spacing and feng shui - not squished anymore!
+- ✅ Report sections as grid of checkboxes (2 columns)
+- ✅ Proper visual hierarchy and flow
+
+### Current Layout Structure ✅
+**Left Column (30%)**: 
+- 📁 Upload Document section
+- 📋 Compliance Guidelines section (rubric selector)
+- ⚙️ Review Strictness selector
+- ▶️ Action buttons (Run/Repeat/View Report)
+
+**Middle Column (25%)**:
+- 📋 Report Sections (grid checkboxes)
+- Export buttons (PDF/HTML)
+- Document Preview button
+
+**Right Column (45%)**:
+- Analysis Results tabs
+- Chat integration
+
+### What's Working Now ✅
+- Clean, organized layout
+- No squished buttons
+- Better color contrast
+- Everything scales properly
+- Modern card-based design
+- Proper spacing (feng shui!)
+- All buttons are AnimatedButton with hover effects
 
 ## Login Credentials
 - Username: `admin`

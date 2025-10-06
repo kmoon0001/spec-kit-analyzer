@@ -249,9 +249,9 @@ class MainApplicationWindow(QMainWindow):
 
     def __init__(self, user: models.User, token: str) -> None:
         super().__init__()
-        self.setWindowTitle("🏥 Therapy Compliance Analyzer")
+        self.setWindowTitle("THERAPY DOCUMENTATION COMPLIANCE ANALYSIS")
         self.resize(1440, 920)
-        self.setMinimumSize(1200, 700)
+        self.setMinimumSize(900, 600)  # Allow smaller scaling
 
         self.current_user = user
         self.settings = QSettings("TherapyCo", "ComplianceAnalyzer")
