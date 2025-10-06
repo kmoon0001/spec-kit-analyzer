@@ -312,7 +312,6 @@ class MainApplicationWindow(QMainWindow):
             theme_menu.addAction(action)
             self.theme_action_group.addAction(action)
         view_menu.addMenu(theme_menu)
-
     def _build_tools_menu(self, menu_bar: QMenu) -> None:
         tools_menu = menu_bar.addMenu("&Tools")
         refresh_action = QAction("Refresh All Data", self)
