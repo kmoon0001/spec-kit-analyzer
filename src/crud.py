@@ -6,7 +6,7 @@ import logging
 from sqlalchemy import func
 
 from src.database import models
-from src import schemas
+from src.database import schemas
 
 logger = logging.getLogger(__name__)
 
@@ -107,3 +107,4 @@ async def get_all_rubrics(db: AsyncSession):
     """Retrieve all compliance rubrics from the database."""
     result = await db.execute(select(models.ComplianceRubric))
     return list(result.scalars().all())
+
