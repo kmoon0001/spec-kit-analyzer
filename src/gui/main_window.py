@@ -317,9 +317,24 @@ class MainApplicationWindow(QMainWindow):
         self.run_analysis_button.setEnabled(True)
 
     def _on_rubrics_loaded(self, rubrics: list[dict]) -> None:
+        """Load rubrics into dropdown with default rubrics always available."""
         self.rubric_selector.clear()
+        
+        # Add default rubrics first
+        self.rubric_selector.addItem("📋 Medicare Policy Manual (Default)", "medicare_policy_manual")
+        self.rubric_selector.addItem("📋 Part B Guidelines (Default)", "part_b_guidelines")
+        
+        # Add separator if there are custom rubrics
+        if rubrics:
+            self.rubric_selector.insertSeparator(2)
+        
+        # Add custom rubrics from API
         for rubric in rubrics:
             self.rubric_selector.addItem(rubric.get("name", "Unnamed rubric"), rubric.get("value"))
+        
+        # Select first default rubric
+        self.rubric_selector.setCurrentIndex(0)
+        
         self._load_gui_settings() # Re-apply settings after rubrics are loaded
 
     def _handle_link_clicked(self, url: QUrl) -> None:
@@ -851,12 +866,30 @@ class MainApplicationWindow(QMainWindow):
         return browser, tab
 
     def _build_status_bar(self) -> None:
+        """Build status bar with progress indicator and branding."""
         status: QStatusBar = self.statusBar()
         status.showMessage("Ready")
+        
+        # Progress bar
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setMaximumWidth(180)
         self.progress_bar.hide()
         status.addPermanentWidget(self.progress_bar)
+        
+        # Pacific Coast Therapy branding in bottom right
+        branding_label = QLabel("🌴 Pacific Coast Therapy")
+        branding_label.setObjectName("brandingLabel")
+        branding_label.setStyleSheet("""
+            QLabel#brandingLabel {
+                font-family: "Brush Script MT", "Lucida Handwriting", "Comic Sans MS", cursive;
+                font-size: 11px;
+                color: #94a3b8;
+                font-style: italic;
+                padding-right: 10px;
+            }
+        """)
+        branding_label.setToolTip("Powered by Pacific Coast Therapy")
+        status.addPermanentWidget(branding_label)
 
     def _build_docks(self) -> None:
         """Build dock widgets for document preview, auto-analysis, meta analytics, and performance."""
@@ -943,14 +976,29 @@ class MainApplicationWindow(QMainWindow):
             self._start_analysis()
 
     def _build_floating_chat_button(self) -> None:
-        self.chat_button = QPushButton("Ask AI Assistant", self)
+        """Create floating AI chat button in bottom left corner."""
+        self.chat_button = QPushButton("💬 Ask AI Assistant", self)
         self.chat_button.setObjectName("floatingChatButton")
         self.chat_button.clicked.connect(self._open_chat_dialog)
         self.chat_button.setStyleSheet("""
-            QPushButton#floatingChatButton {background-color: palette(highlight); color: palette(highlighted-text); border-radius: 22px; padding: 10px 20px; font-weight: bold;}
-            QPushButton#floatingChatButton:hover {background-color: palette(light);}
+            QPushButton#floatingChatButton {
+                background-color: #4a90e2;
+                color: white;
+                border-radius: 22px;
+                padding: 10px 20px;
+                font-weight: bold;
+                font-size: 13px;
+                border: none;
+            }
+            QPushButton#floatingChatButton:hover {
+                background-color: #357abd;
+                transform: scale(1.05);
+            }
+            QPushButton#floatingChatButton:pressed {
+                background-color: #2968a3;
+            }
         """)
-        self.chat_button.resize(220, 44)
+        self.chat_button.resize(200, 44)
         self.chat_button.raise_()
 
     def _apply_theme(self, theme: str) -> None:
@@ -1127,11 +1175,13 @@ class MainApplicationWindow(QMainWindow):
         QMessageBox.information(self, "About", f"Therapy Compliance Analyzer\nWelcome, {self.current_user.username}!")
 
     def resizeEvent(self, event) -> None:
+        """Handle window resize to reposition floating chat button."""
         super().resizeEvent(event)
         margin = 24
         button_width = self.chat_button.width()
         button_height = self.chat_button.height()
-        self.chat_button.move(self.width() - button_width - margin, self.height() - button_height - margin)
+        # Position in BOTTOM LEFT corner
+        self.chat_button.move(margin, self.height() - button_height - margin)
 
 __all__ = ["MainApplicationWindow"]
 
