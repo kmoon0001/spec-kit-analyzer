@@ -1,5 +1,6 @@
-# MODIFIED: Added async_client fixture.
+# MODIFIED: Changed async_client to be a pytest_asyncio.fixture.
 import pytest
+import pytest_asyncio
 from datetime import datetime, timezone
 from httpx import AsyncClient
 
@@ -8,7 +9,7 @@ from src.api.dependencies import get_current_active_user
 from src.database import schemas
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def async_client():
     """Provides an async client for making API requests."""
     async with AsyncClient(app=app, base_url="http://test") as client:

@@ -1,6 +1,7 @@
 # MODIFIED: Corrected patch paths for worker modules.
+# MODIFIED: Provide mock user and token to MainApplicationWindow constructor.
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from src.gui.main_window import MainApplicationWindow
 
@@ -24,10 +25,10 @@ def mock_backend_services():
 @pytest.fixture
 def main_app_window(qtbot):
     """Fixture to create the main window in a logged-in state."""
-    # This setup is simplified as we don't need to test the login flow here
-    window = MainApplicationWindow()
-    window.access_token = "fake-token"
-    window.load_main_ui()
+    mock_user = MagicMock()
+    mock_user.username = "testuser"
+    mock_token = "fake-token"
+    window = MainApplicationWindow(user=mock_user, token=mock_token)
     qtbot.addWidget(window)
     return window
 

@@ -1,6 +1,7 @@
 # MODIFIED: Corrected patch paths for worker modules.
+# MODIFIED: Provide mock user and token to MainApplicationWindow constructor.
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from PySide6.QtWidgets import QDialog
 from src.gui.main_window import MainApplicationWindow
 
@@ -25,13 +26,11 @@ def mock_all_backend_services():
 @pytest.fixture
 def main_app_window(qtbot):
     """Fixture to create the main window and get it into a logged-in state."""
-    window = MainApplicationWindow()
+    mock_user = MagicMock()
+    mock_user.username = "testuser"
+    mock_token = "fake-token"
+    window = MainApplicationWindow(user=mock_user, token=mock_token)
     qtbot.addWidget(window)
-    # Simulate a successful login to load the main UI
-    with patch("src.gui.main_window.LoginDialog") as mock_login_dialog:
-        mock_login_dialog.return_value.exec.return_value = QDialog.DialogCode.Accepted
-        mock_login_dialog.return_value.get_credentials.return_value = ("user", "pass")
-        window.show_login_dialog()
     return window
 
 
