@@ -1,3 +1,11 @@
+"""
+Integration tests for the database CRUD (Create, Read, Update, Delete) functions.
+
+These tests validate that the complex database queries in `src/database/crud.py`
+return the correct data and perform the correct calculations. They use a live,
+in-memory SQLite database to ensure full validation of the SQL logic.
+"""
+
 import pytest
 import pytest_asyncio
 import os
