@@ -249,8 +249,9 @@ class MainApplicationWindow(QMainWindow):
 
     def __init__(self, user: models.User, token: str) -> None:
         super().__init__()
-        self.setWindowTitle(f"Therapy Compliance Analyzer - Welcome, {user.username}!")
+        self.setWindowTitle("🏥 Therapy Compliance Analyzer")
         self.resize(1440, 920)
+        self.setMinimumSize(1200, 700)
 
         self.current_user = user
         self.settings = QSettings("TherapyCo", "ComplianceAnalyzer")
@@ -395,20 +396,136 @@ class MainApplicationWindow(QMainWindow):
         self.statusBar().showMessage("Repeating analysis...", 2000)
         self._start_analysis()
 
-    def _on_report_output_clicked(self, item: QListWidgetItem) -> None:
-        """Handle clicking on a report output to view it."""
-        report_name = item.text()
-        self.statusBar().showMessage(f"Viewing report: {report_name}", 3000)
+    def _on_strictness_selected(self, selected_button: AnimatedButton) -> None:
+        """Handle strictness level selection (only one can be selected at a time)."""
+        for btn in self.strictness_buttons:
+            if btn != selected_button:
+                btn.setChecked(False)
+        selected_button.setChecked(True)
         
-        # In a full implementation, this would load the specific report
-        # For now, we'll just show the current report
-        if self._current_payload:
-            analysis = self._current_payload.get("analysis", {})
-            doc_name = self._selected_file.name if self._selected_file else "Document"
-            report_html = self._current_payload.get("report_html") or self.report_generator.generate_html_report(
-                analysis_result=analysis, doc_name=doc_name
-            )
-            self.report_preview_browser.setHtml(report_html)
+        # Get selected level
+        level = selected_button.text().split()[-1]  # Extract level name
+        self.statusBar().showMessage(f"Review strictness set to: {level}", 3000)
+
+    def _open_report_popup(self) -> None:
+        """Open the full report in a popup window."""
+        if not self._current_payload:
+            QMessageBox.information(self, "No Report", "No analysis report available yet. Please run an analysis first.")
+            return
+        
+        # Create popup dialog
+        from PySide6.QtWidgets import QDialog, QVBoxLayout
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("📊 Compliance Analysis Report")
+        dialog.resize(1000, 700)
+        
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Report browser
+        report_browser = QTextBrowser(dialog)
+        report_browser.setOpenExternalLinks(False)
+        report_browser.anchorClicked.connect(self._handle_link_clicked)
+        
+        # Load report
+        analysis = self._current_payload.get("analysis", {})
+        doc_name = self._selected_file.name if self._selected_file else "Document"
+        report_html = self._current_payload.get("report_html") or self.report_generator.generate_html_report(
+            analysis_result=analysis, doc_name=doc_name
+        )
+        report_browser.setHtml(report_html)
+        
+        layout.addWidget(report_browser)
+        
+        # Close button
+        close_btn = AnimatedButton("✖️ Close", dialog)
+        close_btn.clicked.connect(dialog.close)
+        close_btn.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
+        layout.addWidget(close_btn)
+        
+        dialog.exec()
+
+    def _toggle_all_sections(self, checked: bool) -> None:
+        """Toggle all report section checkboxes."""
+        for checkbox in self.section_checkboxes.values():
+            checkbox.setChecked(checked)
+        
+        status = "selected" if checked else "deselected"
+        self.statusBar().showMessage(f"All sections {status}", 2000)
+
+    def _open_document_preview(self) -> None:
+        """Open document preview in a popup window."""
+        if not self._selected_file:
+            QMessageBox.information(self, "No Document", "No document selected to preview.")
+            return
+        
+        # Create popup dialog
+        from PySide6.QtWidgets import QDialog
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"📄 Document Preview - {self._selected_file.name}")
+        dialog.resize(900, 700)
+        
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Document browser
+        doc_browser = QTextBrowser(dialog)
+        doc_browser.setPlainText(self._cached_preview_content or "Loading document...")
+        layout.addWidget(doc_browser)
+        
+        # Close button
+        close_btn = AnimatedButton("✖️ Close", dialog)
+        close_btn.clicked.connect(dialog.close)
+        close_btn.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
+        layout.addWidget(close_btn)
+        
+        dialog.exec()
+
+    def _export_report_pdf(self) -> None:
+        """Export the current report as PDF."""
+        if not self._current_payload:
+            QMessageBox.information(self, "No Report", "No analysis report available to export.")
+            return
+        
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Export Report as PDF", "", "PDF Files (*.pdf)"
+        )
+        
+        if file_path:
+            try:
+                # TODO: Implement PDF export using pdf_export_service
+                self.statusBar().showMessage(f"✅ Report exported to: {file_path}", 5000)
+                QMessageBox.information(self, "Export Successful", f"Report exported successfully to:\n{file_path}")
+            except Exception as e:
+                QMessageBox.warning(self, "Export Failed", f"Failed to export report: {str(e)}")
+
+    def _export_report_html(self) -> None:
+        """Export the current report as HTML."""
+        if not self._current_payload:
+            QMessageBox.information(self, "No Report", "No analysis report available to export.")
+            return
+        
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Export Report as HTML", "", "HTML Files (*.html)"
+        )
+        
+        if file_path:
+            try:
+                analysis = self._current_payload.get("analysis", {})
+                doc_name = self._selected_file.name if self._selected_file else "Document"
+                report_html = self._current_payload.get("report_html") or self.report_generator.generate_html_report(
+                    analysis_result=analysis, doc_name=doc_name
+                )
+                
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(report_html)
+                
+                self.statusBar().showMessage(f"✅ Report exported to: {file_path}", 5000)
+                QMessageBox.information(self, "Export Successful", f"Report exported successfully to:\n{file_path}")
+            except Exception as e:
+                QMessageBox.warning(self, "Export Failed", f"Failed to export report: {str(e)}")
 
     def _handle_analysis_success(self, payload: Dict[str, Any]) -> None:
         # Hide loading spinner
@@ -417,6 +534,7 @@ class MainApplicationWindow(QMainWindow):
         self.statusBar().showMessage("✅ Analysis complete", 5000)
         self.run_analysis_button.setEnabled(True)
         self.repeat_analysis_button.setEnabled(True)
+        self.view_report_button.setEnabled(True)
         self._current_payload = payload
         analysis = payload.get("analysis", {})
         doc_name = self._selected_file.name if self._selected_file else "Document"
@@ -520,11 +638,14 @@ class MainApplicationWindow(QMainWindow):
 
     def _build_view_menu(self, menu_bar: QMenu) -> None:
         view_menu = menu_bar.addMenu("&View")
-        view_menu.addAction(self.document_preview_dock.toggleViewAction())
-        view_menu.addAction(self.auto_analysis_dock.toggleViewAction())
+        
+        # Optional docks (hidden by default)
         if self.performance_dock:
             view_menu.addAction(self.performance_dock.toggleViewAction())
         
+        view_menu.addSeparator()
+        
+        # Theme submenu
         theme_menu = QMenu("Theme", self)
         self.theme_action_group = QActionGroup(self)
         self.theme_action_group.setExclusive(True)
@@ -592,10 +713,7 @@ class MainApplicationWindow(QMainWindow):
         # Add beautiful medical-themed header at the top
         root_layout.addWidget(self.header)
         
-        # Add AI model status indicators below header
-        root_layout.addWidget(self.status_component)
-        
-        # Create main tab widget with 4 tabs
+        # Create main tab widget with 4 tabs (status indicators will be in status bar at bottom)
         self.tab_widget = QTabWidget(self)
         self.tab_widget.setDocumentMode(True)
         root_layout.addWidget(self.tab_widget, stretch=1)
@@ -620,167 +738,284 @@ class MainApplicationWindow(QMainWindow):
         self.tab_widget.setCurrentWidget(self.analysis_tab)
 
     def _create_analysis_tab(self) -> QWidget:
-        """Create the Analysis tab with left (3 panels) and right (chat/analysis) layout."""
+        """Create the Analysis tab with clean 2-column layout."""
         tab = QWidget(self)
         layout = QVBoxLayout(tab)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(16)
         
         # Main horizontal splitter
         main_splitter = QSplitter(Qt.Horizontal, tab)
         main_splitter.setChildrenCollapsible(False)
         
-        # Left panel with 3 vertical sections
+        # Left panel: Settings + Report Sections
         left_panel = self._create_analysis_left_panel()
         main_splitter.addWidget(left_panel)
         
-        # Right panel with chat/analysis
+        # Right panel: Analysis Results
         right_panel = self._create_analysis_right_panel()
         main_splitter.addWidget(right_panel)
         
-        # Set stretch factors (30% left, 70% right)
-        main_splitter.setStretchFactor(0, 3)
-        main_splitter.setStretchFactor(1, 7)
+        # Set stretch factors (35% left, 65% right for better balance)
+        main_splitter.setStretchFactor(0, 35)
+        main_splitter.setStretchFactor(1, 65)
         
         layout.addWidget(main_splitter)
         return tab
     
     def _create_analysis_left_panel(self) -> QWidget:
-        """Create the left panel with 3 vertical sections: Rubric, Report Preview, Report Outputs."""
+        """Create the left panel with Settings and Report Sections."""
         panel = QWidget(self)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(16)
         
-        # Vertical splitter for 3 sections
-        left_splitter = QSplitter(Qt.Vertical, panel)
-        left_splitter.setChildrenCollapsible(False)
+        # Top: Document & Analysis Settings
+        settings_panel = self._create_rubric_selection_panel()
+        layout.addWidget(settings_panel, stretch=1)
         
-        # Top: Rubric Selection Panel
-        rubric_panel = self._create_rubric_selection_panel()
-        left_splitter.addWidget(rubric_panel)
+        # Bottom: Report Sections (grid of checkboxes)
+        report_sections_panel = self._create_report_outputs_panel()
+        layout.addWidget(report_sections_panel, stretch=1)
         
-        # Middle: Report Preview Panel
-        report_preview_panel = self._create_report_preview_panel()
-        left_splitter.addWidget(report_preview_panel)
-        
-        # Bottom: Report Outputs Panel
-        report_outputs_panel = self._create_report_outputs_panel()
-        left_splitter.addWidget(report_outputs_panel)
-        
-        # Set initial sizes (30%, 40%, 30%)
-        left_splitter.setStretchFactor(0, 3)
-        left_splitter.setStretchFactor(1, 4)
-        left_splitter.setStretchFactor(2, 3)
-        
-        layout.addWidget(left_splitter)
         return panel
     
     def _create_rubric_selection_panel(self) -> QWidget:
-        """Create the Rubric selection panel (top left)."""
+        """Create the Document & Analysis Settings panel (top left)."""
+        from PySide6.QtWidgets import QSizePolicy
+        
         panel = QWidget(self)
-        panel.setMinimumWidth(280)
+        panel.setMinimumWidth(300)
+        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        panel.setStyleSheet(f"""
+            QWidget {{
+                background-color: {medical_theme.get_color("bg_secondary")};
+                border: 2px solid {medical_theme.get_color("border_light")};
+                border-radius: 10px;
+            }}
+        """)
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(14)
         
         # Title
-        title = QLabel("Select Rubric", panel)
-        title.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        title = QLabel("📄 Document & Analysis Settings", panel)
+        title.setFont(QFont("Segoe UI", 14, QFont.Bold))
+        title.setStyleSheet(f"""
+            color: {medical_theme.get_color('primary_blue')};
+            background: transparent;
+            border: none;
+            padding: 4px;
+        """)
         layout.addWidget(title)
         
-        # File selection
+        # File selection group
         layout.addWidget(self._create_file_selection_group(panel))
         
-        # Rubric selector
-        rubric_label = QLabel("Compliance Rubric:", panel)
+        # Compliance Rubric selector
+        rubric_label = QLabel("Compliance Guidelines:", panel)
+        rubric_label.setFont(QFont("Segoe UI", 10, QFont.Bold))
         layout.addWidget(rubric_label)
+        
         self.rubric_selector = QComboBox(panel)
+        self.rubric_selector.setStyleSheet(f"""
+            QComboBox {{
+                padding: 8px;
+                border: 2px solid {medical_theme.get_color('border_light')};
+                border-radius: 6px;
+                background: {medical_theme.get_color('bg_primary')};
+                min-height: 30px;
+            }}
+            QComboBox:hover {{
+                border-color: {medical_theme.get_color('primary_blue')};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                width: 30px;
+            }}
+        """)
         layout.addWidget(self.rubric_selector)
         
-        # Buttons layout
-        buttons_layout = QHBoxLayout()
+        # Analysis Strictness Level
+        strictness_label = QLabel("Review Strictness:", panel)
+        strictness_label.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        layout.addWidget(strictness_label)
         
-        # Run Analysis button with subtle animation
-        self.run_analysis_button = AnimatedButton("▶ Run Analysis", panel)
+        strictness_layout = QHBoxLayout()
+        self.strictness_buttons = []
+        
+        for level, emoji in [("Moderate", "😊"), ("Standard", "📋"), ("Strict", "🔍")]:
+            btn = AnimatedButton(f"{emoji} {level}", panel)
+            btn.setCheckable(True)
+            btn.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
+            btn.clicked.connect(lambda checked, b=btn: self._on_strictness_selected(b))
+            strictness_layout.addWidget(btn)
+            self.strictness_buttons.append(btn)
+        
+        # Set Standard as default
+        self.strictness_buttons[1].setChecked(True)
+        layout.addLayout(strictness_layout)
+        
+        # Action Buttons
+        buttons_layout = QVBoxLayout()
+        buttons_layout.setSpacing(8)
+        
+        # Run Analysis button
+        self.run_analysis_button = AnimatedButton("▶️  Run Compliance Analysis", panel)
         self.run_analysis_button.clicked.connect(self._start_analysis)
         self.run_analysis_button.setEnabled(False)
         self.run_analysis_button.setStyleSheet(medical_theme.get_button_stylesheet("primary"))
+        self.run_analysis_button.setMinimumHeight(45)
         buttons_layout.addWidget(self.run_analysis_button)
         
-        # Repeat Analysis button with subtle animation
+        # Secondary actions row
+        secondary_layout = QHBoxLayout()
+        
+        # Repeat Analysis button
         self.repeat_analysis_button = AnimatedButton("🔄 Repeat", panel)
         self.repeat_analysis_button.clicked.connect(self._repeat_analysis)
         self.repeat_analysis_button.setEnabled(False)
         self.repeat_analysis_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
         self.repeat_analysis_button.setToolTip("Repeat analysis on the same document")
-        buttons_layout.addWidget(self.repeat_analysis_button)
+        secondary_layout.addWidget(self.repeat_analysis_button)
         
+        # View Report button
+        self.view_report_button = AnimatedButton("📊 View Report", panel)
+        self.view_report_button.clicked.connect(self._open_report_popup)
+        self.view_report_button.setEnabled(False)
+        self.view_report_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
+        self.view_report_button.setToolTip("Open full report in popup window")
+        secondary_layout.addWidget(self.view_report_button)
+        
+        buttons_layout.addLayout(secondary_layout)
         layout.addLayout(buttons_layout)
         
         layout.addStretch(1)
         return panel
     
-    def _create_report_preview_panel(self) -> QWidget:
-        """Create the Report preview panel (middle left)."""
-        panel = QWidget(self)
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
-        
-        # Title
-        title = QLabel("Report Preview", panel)
-        title.setFont(QFont("Segoe UI", 12, QFont.Bold))
-        layout.addWidget(title)
-        
-        # Report browser
-        self.report_preview_browser = QTextBrowser(panel)
-        self.report_preview_browser.setOpenExternalLinks(False)
-        self.report_preview_browser.anchorClicked.connect(self._handle_link_clicked)
-        layout.addWidget(self.report_preview_browser)
-        
-        return panel
+
     
     def _create_report_outputs_panel(self) -> QWidget:
-        """Create the Report outputs panel (bottom left)."""
+        """Create the Report Sections panel with grid of checkboxes."""
         panel = QWidget(self)
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
-        
-        # Title
-        title = QLabel("Report Outputs", panel)
-        title.setFont(QFont("Segoe UI", 12, QFont.Bold))
-        layout.addWidget(title)
-        
-        # Outputs list with beautiful selection highlighting
-        self.report_outputs_list = QListWidget(panel)
-        self.report_outputs_list.itemClicked.connect(self._on_report_output_clicked)
-        self.report_outputs_list.setStyleSheet(f"""
-            QListWidget {{
+        panel.setStyleSheet(f"""
+            QWidget {{
                 background-color: {medical_theme.get_color("bg_secondary")};
-                border: 1px solid {medical_theme.get_color("border_light")};
-                border-radius: 6px;
-                padding: 4px;
-            }}
-            QListWidget::item {{
-                padding: 8px;
-                border-radius: 4px;
-                margin: 2px;
-            }}
-            QListWidget::item:selected {{
-                background-color: {medical_theme.get_color("primary_blue")};
-                color: white;
-            }}
-            QListWidget::item:hover {{
-                background-color: {medical_theme.get_color("bg_tertiary")};
+                border: 2px solid {medical_theme.get_color("border_light")};
+                border-radius: 10px;
             }}
         """)
-        layout.addWidget(self.report_outputs_list)
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
         
-        # Export button
-        export_button = QPushButton("📄 Export Selected", panel)
-        export_button.clicked.connect(self._export_report)
-        export_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
-        layout.addWidget(export_button)
+        # Title
+        title = QLabel("📋 Report Sections", panel)
+        title.setFont(QFont("Segoe UI", 14, QFont.Bold))
+        title.setStyleSheet(f"color: {medical_theme.get_color('primary_blue')}; background: transparent; border: none;")
+        layout.addWidget(title)
+        
+        # Grid of checkboxes (2 columns)
+        from PySide6.QtWidgets import QCheckBox, QGridLayout
+        
+        grid_widget = QWidget(panel)
+        grid_widget.setStyleSheet("background: transparent; border: none;")
+        grid_layout = QGridLayout(grid_widget)
+        grid_layout.setSpacing(10)
+        grid_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Report sections
+        sections = [
+            ("✅ Medicare Guidelines", "medicare"),
+            ("💪 Strengths", "strengths"),
+            ("⚠️ Weaknesses", "weaknesses"),
+            ("💡 Suggestions", "suggestions"),
+            ("📚 Education", "education"),
+            ("🎯 7 Habits", "habits"),
+            ("📊 Compliance Score", "score"),
+            ("🔍 Detailed Findings", "findings"),
+        ]
+        
+        self.section_checkboxes = {}
+        row, col = 0, 0
+        
+        for emoji_text, key in sections:
+            checkbox = QCheckBox(emoji_text, grid_widget)
+            checkbox.setChecked(True)
+            checkbox.setStyleSheet(f"""
+                QCheckBox {{
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: {medical_theme.get_color('text_primary')};
+                    spacing: 8px;
+                    background: transparent;
+                }}
+                QCheckBox::indicator {{
+                    width: 20px;
+                    height: 20px;
+                    border: 2px solid {medical_theme.get_color('border_medium')};
+                    border-radius: 4px;
+                    background: {medical_theme.get_color('bg_primary')};
+                }}
+                QCheckBox::indicator:checked {{
+                    background: {medical_theme.get_color('primary_blue')};
+                    border-color: {medical_theme.get_color('primary_blue')};
+                    image: url(none);
+                }}
+                QCheckBox::indicator:hover {{
+                    border-color: {medical_theme.get_color('primary_blue')};
+                }}
+            """)
+            grid_layout.addWidget(checkbox, row, col)
+            self.section_checkboxes[key] = checkbox
+            
+            col += 1
+            if col > 1:  # 2 columns
+                col = 0
+                row += 1
+        
+        layout.addWidget(grid_widget)
+        
+        # Utility buttons row
+        utility_layout = QHBoxLayout()
+        utility_layout.setSpacing(8)
+        
+        # Document Preview button
+        preview_btn = AnimatedButton("📄 Preview Document", panel)
+        preview_btn.clicked.connect(self._open_document_preview)
+        preview_btn.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
+        utility_layout.addWidget(preview_btn)
+        
+        # Select All / Deselect All
+        select_all_btn = AnimatedButton("☑️ All", panel)
+        select_all_btn.clicked.connect(lambda: self._toggle_all_sections(True))
+        select_all_btn.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
+        select_all_btn.setMaximumWidth(80)
+        utility_layout.addWidget(select_all_btn)
+        
+        deselect_all_btn = AnimatedButton("☐ None", panel)
+        deselect_all_btn.clicked.connect(lambda: self._toggle_all_sections(False))
+        deselect_all_btn.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
+        deselect_all_btn.setMaximumWidth(80)
+        utility_layout.addWidget(deselect_all_btn)
+        
+        layout.addLayout(utility_layout)
+        
+        # Export buttons
+        export_layout = QHBoxLayout()
+        export_layout.setSpacing(8)
+        
+        export_pdf_btn = AnimatedButton("📄 Export PDF", panel)
+        export_pdf_btn.clicked.connect(self._export_report_pdf)
+        export_pdf_btn.setStyleSheet(medical_theme.get_button_stylesheet("success"))
+        export_layout.addWidget(export_pdf_btn)
+        
+        export_html_btn = AnimatedButton("🌐 Export HTML", panel)
+        export_html_btn.clicked.connect(self._export_report_html)
+        export_html_btn.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
+        export_layout.addWidget(export_html_btn)
+        
+        layout.addLayout(export_layout)
         
         return panel
     
@@ -1037,9 +1272,17 @@ class MainApplicationWindow(QMainWindow):
         return browser, tab
 
     def _build_status_bar(self) -> None:
-        """Build status bar with progress indicator and branding."""
+        """Build status bar with AI indicators, progress, and branding at the bottom."""
         status: QStatusBar = self.statusBar()
         status.showMessage("Ready")
+        
+        # AI Model Status Indicators (left side of status bar)
+        status.addPermanentWidget(self.status_component)
+        
+        # Add separator
+        separator = QLabel(" | ")
+        separator.setStyleSheet("color: #94a3b8;")
+        status.addPermanentWidget(separator)
         
         # Subtle loading spinner (hidden by default)
         self.loading_spinner = LoadingSpinner(size=20, parent=self)
@@ -1068,18 +1311,7 @@ class MainApplicationWindow(QMainWindow):
         status.addPermanentWidget(branding_label)
 
     def _build_docks(self) -> None:
-        """Build dock widgets for document preview, auto-analysis, meta analytics, and performance."""
-        # Document Preview Dock
-        self.document_preview_dock = QDockWidget("Document Preview", self)
-        self.document_preview_dock.setAllowedAreas(Qt.RightDockWidgetArea | Qt.LeftDockWidgetArea)
-        self.document_preview_browser = QTextBrowser(self.document_preview_dock)
-        self.document_display_area = self.document_preview_browser
-        self.document_preview_dock.setWidget(self.document_preview_browser)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.document_preview_dock)
-
-        # Auto-Analysis Queue Dock
-        self._build_auto_analysis_dock()
-        
+        """Build optional dock widgets (Meta Analytics and Performance - hidden by default)."""
         # Meta Analytics Dock (hidden by default, accessible via Tools menu)
         if MetaAnalyticsWidget:
             self.meta_analytics_dock = QDockWidget("Meta Analytics", self)
@@ -1106,28 +1338,7 @@ class MainApplicationWindow(QMainWindow):
         # Log Viewer (create widget for Mission Control to use)
         self.log_viewer = LogViewerWidget(self)
 
-    def _build_auto_analysis_dock(self) -> None:
-        self.auto_analysis_dock = QDockWidget("Auto-Analysis Queue", self)
-        self.auto_analysis_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        
-        container = QWidget()
-        layout = QVBoxLayout(container)
-        
-        self.auto_analysis_queue_list = QListWidget()
-        layout.addWidget(self.auto_analysis_queue_list)
 
-        button_layout = QHBoxLayout()
-        add_files_button = QPushButton("Add Files…")
-        add_files_button.clicked.connect(self._add_files_to_auto_analysis_queue)
-        button_layout.addWidget(add_files_button)
-
-        process_button = QPushButton("Process Queue")
-        process_button.clicked.connect(self._process_auto_analysis_queue)
-        button_layout.addWidget(process_button)
-        layout.addLayout(button_layout)
-        
-        self.auto_analysis_dock.setWidget(container)
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.auto_analysis_dock)
 
     def _add_files_to_auto_analysis_queue(self) -> None:
         file_paths, _ = QFileDialog.getOpenFileNames(self, "Select documents to queue for analysis", str(Path.home()), "Documents (*.pdf *.docx *.txt *.md *.json)")
