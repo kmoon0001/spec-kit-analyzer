@@ -738,163 +738,247 @@ class MainApplicationWindow(QMainWindow):
         self.tab_widget.setCurrentWidget(self.analysis_tab)
 
     def _create_analysis_tab(self) -> QWidget:
-        """Create the Analysis tab with clean 2-column layout."""
+        """Create the Analysis tab with balanced 3-section layout."""
         tab = QWidget(self)
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(16)
+        layout = QHBoxLayout(tab)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
         
-        # Main horizontal splitter
-        main_splitter = QSplitter(Qt.Horizontal, tab)
-        main_splitter.setChildrenCollapsible(False)
+        # Left column: Document Upload & Settings (30%)
+        left_column = self._create_analysis_left_column()
+        layout.addWidget(left_column, stretch=3)
         
-        # Left panel: Settings + Report Sections
-        left_panel = self._create_analysis_left_panel()
-        main_splitter.addWidget(left_panel)
+        # Middle column: Report Sections (25%)
+        middle_column = self._create_report_outputs_panel()
+        layout.addWidget(middle_column, stretch=25)
         
-        # Right panel: Analysis Results
-        right_panel = self._create_analysis_right_panel()
-        main_splitter.addWidget(right_panel)
+        # Right column: Analysis Results (45%)
+        right_column = self._create_analysis_right_panel()
+        layout.addWidget(right_column, stretch=45)
         
-        # Set stretch factors (35% left, 65% right for better balance)
-        main_splitter.setStretchFactor(0, 35)
-        main_splitter.setStretchFactor(1, 65)
-        
-        layout.addWidget(main_splitter)
         return tab
     
-    def _create_analysis_left_panel(self) -> QWidget:
-        """Create the left panel with Settings and Report Sections."""
-        panel = QWidget(self)
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(16)
-        
-        # Top: Document & Analysis Settings
-        settings_panel = self._create_rubric_selection_panel()
-        layout.addWidget(settings_panel, stretch=1)
-        
-        # Bottom: Report Sections (grid of checkboxes)
-        report_sections_panel = self._create_report_outputs_panel()
-        layout.addWidget(report_sections_panel, stretch=1)
-        
-        return panel
-    
-    def _create_rubric_selection_panel(self) -> QWidget:
-        """Create the Document & Analysis Settings panel (top left)."""
+    def _create_analysis_left_column(self) -> QWidget:
+        """Create the left column with document upload and settings."""
         from PySide6.QtWidgets import QSizePolicy
         
-        panel = QWidget(self)
-        panel.setMinimumWidth(300)
-        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        panel.setStyleSheet(f"""
+        column = QWidget(self)
+        column.setMinimumWidth(350)
+        column.setMaximumWidth(450)
+        column.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        
+        layout = QVBoxLayout(column)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(20)
+        
+        # Document Upload Section
+        upload_section = self._create_document_upload_section()
+        layout.addWidget(upload_section, stretch=0)
+        
+        # Analysis Settings Section
+        settings_section = self._create_analysis_settings_section()
+        layout.addWidget(settings_section, stretch=0)
+        
+        # Action Buttons Section
+        actions_section = self._create_action_buttons_section()
+        layout.addWidget(actions_section, stretch=0)
+        
+        layout.addStretch(1)
+        return column
+    
+    def _create_document_upload_section(self) -> QWidget:
+        """Create the document upload section."""
+        section = QWidget(self)
+        section.setStyleSheet(f"""
             QWidget {{
                 background-color: {medical_theme.get_color("bg_secondary")};
                 border: 2px solid {medical_theme.get_color("border_light")};
-                border-radius: 10px;
+                border-radius: 12px;
             }}
         """)
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(14)
+        
+        layout = QVBoxLayout(section)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
         
         # Title
-        title = QLabel("📄 Document & Analysis Settings", panel)
+        title = QLabel("📁 Upload Document", section)
         title.setFont(QFont("Segoe UI", 14, QFont.Bold))
-        title.setStyleSheet(f"""
-            color: {medical_theme.get_color('primary_blue')};
-            background: transparent;
-            border: none;
-            padding: 4px;
-        """)
+        title.setStyleSheet(f"color: {medical_theme.get_color('primary_blue')}; background: transparent; border: none;")
         layout.addWidget(title)
         
-        # File selection group
-        layout.addWidget(self._create_file_selection_group(panel))
+        # File display
+        self.file_display = QTextEdit(section)
+        self.file_display.setReadOnly(True)
+        self.file_display.setMinimumHeight(90)
+        self.file_display.setMaximumHeight(110)
+        self.file_display.setPlaceholderText("No document selected\n\nClick 'Upload Document' below")
+        self.file_display.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {medical_theme.get_color("bg_primary")};
+                border: 2px dashed {medical_theme.get_color("border_medium")};
+                border-radius: 8px;
+                padding: 12px;
+                font-size: 11px;
+                color: {medical_theme.get_color("text_secondary")};
+            }}
+        """)
+        layout.addWidget(self.file_display)
         
-        # Compliance Rubric selector
-        rubric_label = QLabel("Compliance Guidelines:", panel)
+        # Upload buttons
+        buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(10)
+        
+        self.open_file_button = AnimatedButton("📄 Upload Document", section)
+        self.open_file_button.clicked.connect(self._prompt_for_document)
+        self.open_file_button.setStyleSheet(medical_theme.get_button_stylesheet("primary"))
+        self.open_file_button.setMinimumHeight(42)
+        buttons_layout.addWidget(self.open_file_button)
+        
+        self.open_folder_button = AnimatedButton("📂 Batch", section)
+        self.open_folder_button.clicked.connect(self._prompt_for_folder)
+        self.open_folder_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
+        self.open_folder_button.setMinimumHeight(42)
+        self.open_folder_button.setMaximumWidth(100)
+        buttons_layout.addWidget(self.open_folder_button)
+        
+        layout.addLayout(buttons_layout)
+        return section
+
+    def _create_analysis_settings_section(self) -> QWidget:
+        """Create the analysis settings section with rubric and strictness."""
+        section = QWidget(self)
+        section.setStyleSheet(f"""
+            QWidget {{
+                background-color: {medical_theme.get_color("bg_secondary")};
+                border: 2px solid {medical_theme.get_color("border_light")};
+                border-radius: 12px;
+            }}
+        """)
+        
+        layout = QVBoxLayout(section)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(18)
+        
+        # Title
+        title = QLabel("📋 Compliance Guidelines", section)
+        title.setFont(QFont("Segoe UI", 14, QFont.Bold))
+        title.setStyleSheet(f"color: {medical_theme.get_color('primary_blue')}; background: transparent; border: none;")
+        layout.addWidget(title)
+        
+        # Rubric selector with better styling
+        rubric_label = QLabel("Select Guidelines:", section)
         rubric_label.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        rubric_label.setStyleSheet("background: transparent; border: none; color: #475569;")
         layout.addWidget(rubric_label)
         
-        self.rubric_selector = QComboBox(panel)
+        self.rubric_selector = QComboBox(section)
+        self.rubric_selector.setMinimumHeight(45)
         self.rubric_selector.setStyleSheet(f"""
             QComboBox {{
-                padding: 8px;
-                border: 2px solid {medical_theme.get_color('border_light')};
-                border-radius: 6px;
+                padding: 12px 14px;
+                border: 2px solid {medical_theme.get_color('border_medium')};
+                border-radius: 8px;
                 background: {medical_theme.get_color('bg_primary')};
-                min-height: 30px;
+                font-size: 12px;
+                font-weight: 500;
+                color: {medical_theme.get_color('text_primary')};
             }}
             QComboBox:hover {{
                 border-color: {medical_theme.get_color('primary_blue')};
+                background: white;
+            }}
+            QComboBox:focus {{
+                border-color: {medical_theme.get_color('primary_blue')};
+                border-width: 2px;
             }}
             QComboBox::drop-down {{
                 border: none;
-                width: 30px;
+                width: 40px;
+            }}
+            QComboBox::down-arrow {{
+                width: 14px;
+                height: 14px;
             }}
         """)
         layout.addWidget(self.rubric_selector)
         
-        # Analysis Strictness Level
-        strictness_label = QLabel("Review Strictness:", panel)
+        # Separator
+        separator = QWidget(section)
+        separator.setFixedHeight(1)
+        separator.setStyleSheet(f"background-color: {medical_theme.get_color('border_light')}; border: none; margin: 8px 0px;")
+        layout.addWidget(separator)
+        
+        # Strictness selector
+        strictness_label = QLabel("Review Strictness:", section)
         strictness_label.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        strictness_label.setStyleSheet("background: transparent; border: none; color: #475569;")
         layout.addWidget(strictness_label)
         
         strictness_layout = QHBoxLayout()
+        strictness_layout.setSpacing(10)
         self.strictness_buttons = []
         
         for level, emoji in [("Moderate", "😊"), ("Standard", "📋"), ("Strict", "🔍")]:
-            btn = AnimatedButton(f"{emoji} {level}", panel)
+            btn = AnimatedButton(f"{emoji}\n{level}", section)
             btn.setCheckable(True)
+            btn.setMinimumHeight(55)
             btn.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
             btn.clicked.connect(lambda checked, b=btn: self._on_strictness_selected(b))
             strictness_layout.addWidget(btn)
             self.strictness_buttons.append(btn)
         
-        # Set Standard as default
         self.strictness_buttons[1].setChecked(True)
         layout.addLayout(strictness_layout)
         
-        # Action Buttons
-        buttons_layout = QVBoxLayout()
-        buttons_layout.setSpacing(8)
+        return section
+
+    def _create_action_buttons_section(self) -> QWidget:
+        """Create the action buttons section."""
+        section = QWidget(self)
+        section.setStyleSheet(f"""
+            QWidget {{
+                background-color: {medical_theme.get_color("bg_secondary")};
+                border: 2px solid {medical_theme.get_color("border_light")};
+                border-radius: 12px;
+            }}
+        """)
         
-        # Run Analysis button
-        self.run_analysis_button = AnimatedButton("▶️  Run Compliance Analysis", panel)
+        layout = QVBoxLayout(section)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+        
+        # Run Analysis button (big and prominent)
+        self.run_analysis_button = AnimatedButton("▶️  Run Compliance Analysis", section)
         self.run_analysis_button.clicked.connect(self._start_analysis)
         self.run_analysis_button.setEnabled(False)
-        self.run_analysis_button.setStyleSheet(medical_theme.get_button_stylesheet("primary"))
-        self.run_analysis_button.setMinimumHeight(45)
-        buttons_layout.addWidget(self.run_analysis_button)
+        self.run_analysis_button.setStyleSheet(medical_theme.get_button_stylesheet("success"))
+        self.run_analysis_button.setMinimumHeight(55)
+        self.run_analysis_button.setFont(QFont("Segoe UI", 13, QFont.Bold))
+        layout.addWidget(self.run_analysis_button)
         
-        # Secondary actions row
+        # Secondary actions
         secondary_layout = QHBoxLayout()
+        secondary_layout.setSpacing(10)
         
-        # Repeat Analysis button
-        self.repeat_analysis_button = AnimatedButton("🔄 Repeat", panel)
+        self.repeat_analysis_button = AnimatedButton("🔄 Repeat", section)
         self.repeat_analysis_button.clicked.connect(self._repeat_analysis)
         self.repeat_analysis_button.setEnabled(False)
         self.repeat_analysis_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
-        self.repeat_analysis_button.setToolTip("Repeat analysis on the same document")
+        self.repeat_analysis_button.setMinimumHeight(42)
         secondary_layout.addWidget(self.repeat_analysis_button)
         
-        # View Report button
-        self.view_report_button = AnimatedButton("📊 View Report", panel)
+        self.view_report_button = AnimatedButton("📊 View Report", section)
         self.view_report_button.clicked.connect(self._open_report_popup)
         self.view_report_button.setEnabled(False)
         self.view_report_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
-        self.view_report_button.setToolTip("Open full report in popup window")
+        self.view_report_button.setMinimumHeight(42)
         secondary_layout.addWidget(self.view_report_button)
         
-        buttons_layout.addLayout(secondary_layout)
-        layout.addLayout(buttons_layout)
-        
-        layout.addStretch(1)
-        return panel
-    
+        layout.addLayout(secondary_layout)
+        return section
 
-    
+
     def _create_report_outputs_panel(self) -> QWidget:
         """Create the Report Sections panel with grid of checkboxes."""
         panel = QWidget(self)
@@ -1059,25 +1143,7 @@ class MainApplicationWindow(QMainWindow):
         layout.addWidget(right_tabs)
         return panel
 
-    def _create_file_selection_group(self, parent: QWidget) -> QWidget:
-        group = QWidget(parent)
-        layout = QVBoxLayout(group)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
-        self.file_display = QTextEdit(group)
-        self.file_display.setReadOnly(True)
-        self.file_display.setMaximumHeight(80)
-        self.file_display.setPlaceholderText("No document selected")
-        layout.addWidget(self.file_display)
-        controls_row = QHBoxLayout()
-        self.open_file_button = QPushButton("Browse…", group)
-        self.open_file_button.clicked.connect(self._prompt_for_document)
-        controls_row.addWidget(self.open_file_button)
-        self.open_folder_button = QPushButton("Folder…", group)
-        self.open_folder_button.clicked.connect(self._prompt_for_folder)
-        controls_row.addWidget(self.open_folder_button)
-        layout.addLayout(controls_row)
-        return group
+
 
     def _create_mission_control_tab(self) -> QWidget:
         """Create the Mission Control tab."""
@@ -1474,43 +1540,25 @@ class MainApplicationWindow(QMainWindow):
             self._selected_file = file_path
             self._cached_preview_content = placeholder
             self.file_display.setPlainText(placeholder)
-            self.document_display_area.setPlainText(placeholder)
             self.run_analysis_button.setEnabled(True)
             return
         except Exception as exc:
             self._selected_file = None
             error_message = f"Could not display preview: {exc}"
             self.file_display.setPlainText(error_message)
-            self.document_display_area.setPlainText(error_message)
             self.statusBar().showMessage(f"Failed to load {file_path.name}", 5000)
             return
 
         self._selected_file = file_path
         self._cached_preview_content = content
         self.file_display.setPlainText(content[:4000])
-        self.document_display_area.setPlainText(content)
         self.statusBar().showMessage(f"Selected {self._selected_file.name}", 3000)
         self.run_analysis_button.setEnabled(True)
         self._update_document_preview()
 
     def _update_document_preview(self) -> None:
-        if self._cached_preview_content:
-            self.document_display_area.setPlainText(self._cached_preview_content)
-            return
-
-        if self._selected_file and self._selected_file.exists():
-            try:
-                max_preview_chars = 2_000_000
-                with open(self._selected_file, "r", encoding="utf-8", errors="ignore") as stream:
-                    content = stream.read(max_preview_chars)
-            except Exception as exc:
-                self.document_display_area.setPlainText(f"Could not display preview: {exc}")
-                self.run_analysis_button.setEnabled(False)
-                return
-            self._cached_preview_content = content
-            self.document_display_area.setPlainText(content)
-        else:
-            self.document_display_area.clear()
+        """Document preview is now handled via popup button - this method is deprecated."""
+        pass
 
     def _prompt_for_folder(self) -> None:
         folder_path = QFileDialog.getExistingDirectory(self, "Select folder for batch analysis", str(Path.home()))
