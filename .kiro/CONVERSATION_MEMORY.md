@@ -103,8 +103,11 @@ User wants to restore the original beautiful medical-themed PySide6 GUI that was
 - ✅ Report output click-to-view - DONE!
 - ✅ Beautiful selection highlighting - DONE!
 - ✅ Professional button styling - DONE!
-- 🔄 Micro-interactions (animations) - Optional enhancement
-- 🔄 ModernCard styling for panels - Optional enhancement
+- ✅ Minimal micro-interactions (subtle animations) - DONE!
+  - AnimatedButton for Run/Repeat/Chat buttons
+  - LoadingSpinner during analysis
+  - Kept minimal and non-distracting
+- 🔄 ModernCard styling for panels - Optional future enhancement
 
 ## Login Credentials
 - Username: `admin`
