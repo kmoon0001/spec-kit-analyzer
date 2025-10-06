@@ -265,7 +265,6 @@ class MainApplicationWindow(QMainWindow):
         self._build_central_layout()
         self._build_status_bar()
         self._build_floating_chat_button()
-        self._setup_keyboard_shortcuts()
 
     def _connect_view_model(self) -> None:
         self.view_model.status_message_changed.connect(self.statusBar().showMessage)
@@ -391,26 +390,6 @@ class MainApplicationWindow(QMainWindow):
         view_menu.addMenu(theme_menu)
     def _build_tools_menu(self, menu_bar: QMenu) -> None:
         tools_menu = menu_bar.addMenu("&Tools")
-        
-        # Meta Analytics
-        if MetaAnalyticsWidget:
-            meta_action = QAction("Meta Analytics", self, checkable=True)
-            meta_action.setShortcut("Ctrl+Shift+A")
-            meta_action.triggered.connect(self._toggle_meta_analytics_dock)
-            tools_menu.addAction(meta_action)
-            self.meta_analytics_action = meta_action
-        
-        # Performance Status
-        if PerformanceStatusWidget:
-            perf_action = QAction("Performance Status", self, checkable=True)
-            perf_action.setShortcut("Ctrl+Shift+P")
-            perf_action.triggered.connect(self._toggle_performance_dock)
-            tools_menu.addAction(perf_action)
-            self.performance_action = perf_action
-        
-        tools_menu.addSeparator()
-        
-        # Refresh
         refresh_action = QAction("Refresh All Data", self)
         refresh_action.triggered.connect(self._load_initial_state)
         tools_menu.addAction(refresh_action)
@@ -437,205 +416,60 @@ class MainApplicationWindow(QMainWindow):
         help_menu.addAction(about_action)
 
     def _build_central_layout(self) -> None:
-        """Build the main central widget with 4-tab structure."""
         central = QWidget(self)
         self.setCentralWidget(central)
         root_layout = QVBoxLayout(central)
         root_layout.setContentsMargins(12, 12, 12, 12)
         root_layout.setSpacing(12)
-        
-        # Create main tab widget with 4 tabs
+        self.main_splitter = QSplitter(Qt.Horizontal, self)
+        self.main_splitter.setChildrenCollapsible(False)
+        root_layout.addWidget(self.main_splitter, stretch=1)
+        self.control_panel = self._create_control_panel()
+        self.main_splitter.addWidget(self.control_panel)
         self.tab_widget = QTabWidget(self)
         self.tab_widget.setDocumentMode(True)
-        root_layout.addWidget(self.tab_widget, stretch=1)
-        
-        # Tab 1: Analysis (with left 3 panels + right chat/analysis)
-        self.analysis_tab = self._create_analysis_tab()
-        self.tab_widget.addTab(self.analysis_tab, "Analysis")
-        
-        # Tab 2: Dashboard
-        self.dashboard_tab = self._create_dashboard_tab()
-        self.tab_widget.addTab(self.dashboard_tab, "Dashboard")
-        
-        # Tab 3: Mission Control
+        self.main_splitter.addWidget(self.tab_widget)
+        self.tabs = self.tab_widget
         self.mission_control_tab = self._create_mission_control_tab()
         self.tab_widget.addTab(self.mission_control_tab, "Mission Control")
-        
-        # Tab 4: Settings
-        self.settings_tab = self._create_settings_tab()
-        self.tab_widget.addTab(self.settings_tab, "Settings")
-        
-        # Set Analysis as default tab
-        self.tab_widget.setCurrentWidget(self.analysis_tab)
+        self.analysis_summary_tab = self._create_analysis_summary_tab()
+        self.tab_widget.addTab(self.analysis_summary_tab, "Analysis Summary")
+        self.detailed_results_tab = self._create_detailed_results_tab()
+        self.tab_widget.addTab(self.detailed_results_tab, "Detailed Findings")
+        self.dashboard_tab = self._create_dashboard_tab()
+        self.tab_widget.addTab(self.dashboard_tab, "Dashboards")
+        self.meta_tab = self._create_meta_tab()
+        self.tab_widget.addTab(self.meta_tab, "Meta Analytics")
+        self.report_tab = self._create_report_tab()
+        self.tab_widget.addTab(self.report_tab, "Reports")
+        self.log_stream_tab = self._create_log_stream_tab()
+        self.tab_widget.addTab(self.log_stream_tab, "Log Stream")
+        if self.current_user.is_admin:
+            self.admin_tab = self._create_admin_tab()
+            self.tab_widget.addTab(self.admin_tab, "Admin")
+        self.tab_widget.setCurrentWidget(self.mission_control_tab)
+        self.main_splitter.setStretchFactor(0, 0)
+        self.main_splitter.setStretchFactor(1, 1)
 
-    def _create_analysis_tab(self) -> QWidget:
-        """Create the Analysis tab with left (3 panels) and right (chat/analysis) layout."""
-        tab = QWidget(self)
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Main horizontal splitter
-        main_splitter = QSplitter(Qt.Horizontal, tab)
-        main_splitter.setChildrenCollapsible(False)
-        
-        # Left panel with 3 vertical sections
-        left_panel = self._create_analysis_left_panel()
-        main_splitter.addWidget(left_panel)
-        
-        # Right panel with chat/analysis
-        right_panel = self._create_analysis_right_panel()
-        main_splitter.addWidget(right_panel)
-        
-        # Set stretch factors (30% left, 70% right)
-        main_splitter.setStretchFactor(0, 3)
-        main_splitter.setStretchFactor(1, 7)
-        
-        layout.addWidget(main_splitter)
-        return tab
-    
-    def _create_analysis_left_panel(self) -> QWidget:
-        """Create the left panel with 3 vertical sections: Rubric, Report Preview, Report Outputs."""
+    def _create_analysis_controls_panel(self) -> QWidget:
         panel = QWidget(self)
+        panel.setMinimumWidth(320)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Vertical splitter for 3 sections
-        left_splitter = QSplitter(Qt.Vertical, panel)
-        left_splitter.setChildrenCollapsible(False)
-        
-        # Top: Rubric Selection Panel
-        rubric_panel = self._create_rubric_selection_panel()
-        left_splitter.addWidget(rubric_panel)
-        
-        # Middle: Report Preview Panel
-        report_preview_panel = self._create_report_preview_panel()
-        left_splitter.addWidget(report_preview_panel)
-        
-        # Bottom: Report Outputs Panel
-        report_outputs_panel = self._create_report_outputs_panel()
-        left_splitter.addWidget(report_outputs_panel)
-        
-        # Set initial sizes (30%, 40%, 30%)
-        left_splitter.setStretchFactor(0, 3)
-        left_splitter.setStretchFactor(1, 4)
-        left_splitter.setStretchFactor(2, 3)
-        
-        layout.addWidget(left_splitter)
-        return panel
-    
-    def _create_rubric_selection_panel(self) -> QWidget:
-        """Create the Rubric selection panel (top left)."""
-        panel = QWidget(self)
-        panel.setMinimumWidth(280)
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
-        
-        # Title
-        title = QLabel("Select Rubric", panel)
-        title.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        layout.setSpacing(12)
+        title = QLabel("Analysis Controls", panel)
+        title.setFont(QFont("Segoe UI", 14, QFont.Bold))
         layout.addWidget(title)
-        
-        # File selection
         layout.addWidget(self._create_file_selection_group(panel))
-        
-        # Rubric selector
-        rubric_label = QLabel("Compliance Rubric:", panel)
-        layout.addWidget(rubric_label)
         self.rubric_selector = QComboBox(panel)
         layout.addWidget(self.rubric_selector)
-        
-        # Run Analysis button
-        self.run_analysis_button = QPushButton("Run Analysis", panel)
-        self.run_analysis_button.setIcon(QIcon.fromTheme("media-playback-start"))
-        self.run_analysis_button.clicked.connect(self._start_analysis)
-        self.run_analysis_button.setEnabled(False)
-        layout.addWidget(self.run_analysis_button)
-        
+        self.analysis_button = QPushButton("Start Analysis", panel)
+        self.analysis_button.setIcon(QIcon.fromTheme("media-playback-start"))
+        self.analysis_button.clicked.connect(self._start_analysis)
+        self.analysis_button.setEnabled(False)
+        layout.addWidget(self.analysis_button)
+        self.run_analysis_button = self.analysis_button
         layout.addStretch(1)
-        return panel
-    
-    def _create_report_preview_panel(self) -> QWidget:
-        """Create the Report preview panel (middle left)."""
-        panel = QWidget(self)
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
-        
-        # Title
-        title = QLabel("Report Preview", panel)
-        title.setFont(QFont("Segoe UI", 12, QFont.Bold))
-        layout.addWidget(title)
-        
-        # Report browser
-        self.report_preview_browser = QTextBrowser(panel)
-        self.report_preview_browser.setOpenExternalLinks(False)
-        self.report_preview_browser.anchorClicked.connect(self._handle_link_clicked)
-        layout.addWidget(self.report_preview_browser)
-        
-        return panel
-    
-    def _create_report_outputs_panel(self) -> QWidget:
-        """Create the Report outputs panel (bottom left)."""
-        panel = QWidget(self)
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
-        
-        # Title
-        title = QLabel("Report Outputs", panel)
-        title.setFont(QFont("Segoe UI", 12, QFont.Bold))
-        layout.addWidget(title)
-        
-        # Outputs list
-        self.report_outputs_list = QListWidget(panel)
-        layout.addWidget(self.report_outputs_list)
-        
-        # Export button
-        export_button = QPushButton("Export Selected", panel)
-        export_button.clicked.connect(self._export_report)
-        layout.addWidget(export_button)
-        
-        return panel
-    
-    def _create_analysis_right_panel(self) -> QWidget:
-        """Create the right panel with Chat/Analysis tabs."""
-        panel = QWidget(self)
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
-        
-        # Tab widget for Chat and Analysis
-        right_tabs = QTabWidget(panel)
-        
-        # Analysis results tab
-        analysis_widget = QWidget()
-        analysis_layout = QVBoxLayout(analysis_widget)
-        analysis_layout.setContentsMargins(0, 0, 0, 0)
-        self.analysis_summary_browser = QTextBrowser(analysis_widget)
-        self.analysis_summary_browser.setOpenExternalLinks(False)
-        self.analysis_summary_browser.anchorClicked.connect(self._handle_link_clicked)
-        analysis_layout.addWidget(self.analysis_summary_browser)
-        right_tabs.addTab(analysis_widget, "Analysis Results")
-        
-        # Detailed findings tab
-        detailed_widget = QWidget()
-        detailed_layout = QVBoxLayout(detailed_widget)
-        detailed_layout.setContentsMargins(0, 0, 0, 0)
-        self.detailed_results_browser = QTextBrowser(detailed_widget)
-        detailed_layout.addWidget(self.detailed_results_browser)
-        right_tabs.addTab(detailed_widget, "Detailed Findings")
-        
-        # Chat tab (placeholder for now)
-        chat_widget = QWidget()
-        chat_layout = QVBoxLayout(chat_widget)
-        chat_layout.setContentsMargins(0, 0, 0, 0)
-        chat_label = QLabel("AI Chat Assistant\n\nClick the 'Ask AI Assistant' button to open the chat dialog.", chat_widget)
-        chat_label.setAlignment(Qt.AlignCenter)
-        chat_layout.addWidget(chat_label)
-        right_tabs.addTab(chat_widget, "Chat")
-        
-        layout.addWidget(right_tabs)
         return panel
 
     def _create_file_selection_group(self, parent: QWidget) -> QWidget:
@@ -659,7 +493,6 @@ class MainApplicationWindow(QMainWindow):
         return group
 
     def _create_mission_control_tab(self) -> QWidget:
-        """Create the Mission Control tab."""
         tab = QWidget(self)
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -670,70 +503,40 @@ class MainApplicationWindow(QMainWindow):
         layout.addWidget(self.mission_control_widget)
         return tab
 
+    def _create_log_stream_tab(self) -> QWidget:
+        tab, layout = self._create_tab_base_layout()
+        self.log_viewer = LogViewerWidget(tab)
+        layout.addWidget(self.log_viewer)
+        return tab
 
+    def _create_admin_tab(self) -> QWidget:
+        tab, layout = self._create_tab_base_layout()
+        self.settings_editor = SettingsEditorWidget(tab)
+        self.settings_editor.save_requested.connect(self.view_model.save_settings)
+        layout.addWidget(self.settings_editor)
+        return tab
 
     def _handle_mission_control_start(self) -> None:
-        """Handle start analysis request from Mission Control."""
-        self.tab_widget.setCurrentWidget(self.analysis_tab)
+        self.tab_widget.setCurrentWidget(self.analysis_summary_tab)
         self._prompt_for_document()
 
     def _handle_mission_control_review(self, doc_info: dict) -> None:
-        """Handle review document request from Mission Control."""
         doc_name = doc_info.get("title") or doc_info.get("name") or doc_info.get("document_name") or "Document"
         self.statusBar().showMessage(f"Detailed replay for '{doc_name}' will be available in a future update.")
-    
-    def _toggle_meta_analytics_dock(self) -> None:
-        """Toggle Meta Analytics dock widget visibility."""
-        if self.meta_analytics_dock:
-            if self.meta_analytics_dock.isVisible():
-                self.meta_analytics_dock.hide()
-            else:
-                self.meta_analytics_dock.show()
-                self.view_model.load_meta_analytics()
-    
-    def _toggle_performance_dock(self) -> None:
-        """Toggle Performance Status dock widget visibility."""
-        if self.performance_dock:
-            if self.performance_dock.isVisible():
-                self.performance_dock.hide()
-            else:
-                self.performance_dock.show()
-    
-    def _open_change_password_dialog(self) -> None:
-        """Open the change password dialog."""
-        dialog = ChangePasswordDialog(self.current_user, self)
-        dialog.exec()
-    
-    def _setup_keyboard_shortcuts(self) -> None:
-        """Setup keyboard shortcuts for tab navigation."""
-        # Ctrl+1: Analysis tab
-        shortcut_analysis = QAction(self)
-        shortcut_analysis.setShortcut("Ctrl+1")
-        shortcut_analysis.triggered.connect(lambda: self.tab_widget.setCurrentIndex(0))
-        self.addAction(shortcut_analysis)
-        
-        # Ctrl+2: Dashboard tab
-        shortcut_dashboard = QAction(self)
-        shortcut_dashboard.setShortcut("Ctrl+2")
-        shortcut_dashboard.triggered.connect(lambda: self.tab_widget.setCurrentIndex(1))
-        self.addAction(shortcut_dashboard)
-        
-        # Ctrl+3: Mission Control tab
-        shortcut_mission = QAction(self)
-        shortcut_mission.setShortcut("Ctrl+3")
-        shortcut_mission.triggered.connect(lambda: self.tab_widget.setCurrentIndex(2))
-        self.addAction(shortcut_mission)
-        
-        # Ctrl+4: Settings tab
-        shortcut_settings = QAction(self)
-        shortcut_settings.setShortcut("Ctrl+4")
-        shortcut_settings.triggered.connect(lambda: self.tab_widget.setCurrentIndex(3))
-        self.addAction(shortcut_settings)
 
+    def _create_analysis_summary_tab(self) -> QWidget:
+        tab, layout = self._create_tab_base_layout(spacing=8)
+        self.analysis_summary_browser = QTextBrowser(tab)
+        self.analysis_summary_browser.setOpenExternalLinks(False)
+        self.analysis_summary_browser.anchorClicked.connect(self._handle_link_clicked)
+        layout.addWidget(self.analysis_summary_browser, stretch=1)
+        return tab
 
+    def _create_detailed_results_tab(self) -> QWidget:
+        self.detailed_results_browser, tab = self._create_browser_tab()
+        return tab
 
     def _create_dashboard_tab(self) -> QWidget:
-        """Create the Dashboard tab."""
         tab, layout = self._create_tab_base_layout()
         self.dashboard_widget = DashboardWidget() if DashboardWidget else QTextBrowser()
         if not DashboardWidget:
@@ -742,100 +545,20 @@ class MainApplicationWindow(QMainWindow):
             self.dashboard_widget.refresh_requested.connect(self.view_model.load_dashboard_data)
         layout.addWidget(self.dashboard_widget)
         return tab
-    
-    def _create_settings_tab(self) -> QWidget:
-        """Create the Settings tab."""
-        tab = QWidget(self)
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(12)
-        
-        # Title
-        title = QLabel("Application Settings", tab)
-        title.setFont(QFont("Segoe UI", 16, QFont.Bold))
-        layout.addWidget(title)
-        
-        # Settings tabs
-        settings_tabs = QTabWidget(tab)
-        
-        # User Preferences
-        user_prefs_widget = self._create_user_preferences_widget()
-        settings_tabs.addTab(user_prefs_widget, "User Preferences")
-        
-        # Performance Settings
-        perf_widget = self._create_performance_settings_widget()
-        settings_tabs.addTab(perf_widget, "Performance")
-        
-        # Analysis Settings
-        analysis_settings_widget = self._create_analysis_settings_widget()
-        settings_tabs.addTab(analysis_settings_widget, "Analysis")
-        
-        # Admin Settings (if admin)
-        if self.current_user.is_admin:
-            self.settings_editor = SettingsEditorWidget(tab)
-            self.settings_editor.save_requested.connect(self.view_model.save_settings)
-            settings_tabs.addTab(self.settings_editor, "Advanced (Admin)")
-        
-        layout.addWidget(settings_tabs)
+
+    def _create_meta_tab(self) -> QWidget:
+        tab, layout = self._create_tab_base_layout()
+        self.meta_widget = MetaAnalyticsWidget() if MetaAnalyticsWidget else QTextBrowser()
+        if not MetaAnalyticsWidget:
+            self.meta_widget.setPlainText("Meta analytics component unavailable.")
+        else:
+            self.meta_widget.refresh_requested.connect(self.view_model.load_meta_analytics)
+        layout.addWidget(self.meta_widget)
         return tab
-    
-    def _create_user_preferences_widget(self) -> QWidget:
-        """Create user preferences settings widget."""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(12)
-        
-        # Theme selection
-        theme_label = QLabel("Theme:", widget)
-        layout.addWidget(theme_label)
-        
-        theme_group = QWidget()
-        theme_layout = QHBoxLayout(theme_group)
-        light_button = QPushButton("Light", theme_group)
-        light_button.clicked.connect(lambda: self._apply_theme("light"))
-        theme_layout.addWidget(light_button)
-        dark_button = QPushButton("Dark", theme_group)
-        dark_button.clicked.connect(lambda: self._apply_theme("dark"))
-        theme_layout.addWidget(dark_button)
-        theme_layout.addStretch()
-        layout.addWidget(theme_group)
-        
-        # Password change
-        password_button = QPushButton("Change Password", widget)
-        password_button.clicked.connect(self._open_change_password_dialog)
-        layout.addWidget(password_button)
-        
-        layout.addStretch()
-        return widget
-    
-    def _create_performance_settings_widget(self) -> QWidget:
-        """Create performance settings widget."""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(12)
-        
-        info_label = QLabel("Performance settings will be available in a future update.", widget)
-        layout.addWidget(info_label)
-        
-        layout.addStretch()
-        return widget
-    
-    def _create_analysis_settings_widget(self) -> QWidget:
-        """Create analysis settings widget."""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(12)
-        
-        info_label = QLabel("Analysis settings will be available in a future update.", widget)
-        layout.addWidget(info_label)
-        
-        layout.addStretch()
-        return widget
 
-
+    def _create_report_tab(self) -> QWidget:
+        self.report_preview_browser, tab = self._create_browser_tab()
+        return tab
 
     def _create_tab_base_layout(self, spacing: int = 0) -> tuple[QWidget, QVBoxLayout]:
         tab = QWidget(self)
@@ -859,8 +582,6 @@ class MainApplicationWindow(QMainWindow):
         status.addPermanentWidget(self.progress_bar)
 
     def _build_docks(self) -> None:
-        """Build dock widgets for document preview, auto-analysis, meta analytics, and performance."""
-        # Document Preview Dock
         self.document_preview_dock = QDockWidget("Document Preview", self)
         self.document_preview_dock.setAllowedAreas(Qt.RightDockWidgetArea | Qt.LeftDockWidgetArea)
         self.document_preview_browser = QTextBrowser(self.document_preview_dock)
@@ -868,34 +589,15 @@ class MainApplicationWindow(QMainWindow):
         self.document_preview_dock.setWidget(self.document_preview_browser)
         self.addDockWidget(Qt.RightDockWidgetArea, self.document_preview_dock)
 
-        # Auto-Analysis Queue Dock
-        self._build_auto_analysis_dock()
-        
-        # Meta Analytics Dock (hidden by default, accessible via Tools menu)
-        if MetaAnalyticsWidget:
-            self.meta_analytics_dock = QDockWidget("Meta Analytics", self)
-            self.meta_analytics_dock.setAllowedAreas(Qt.BottomDockWidgetArea | Qt.RightDockWidgetArea)
-            self.meta_widget = MetaAnalyticsWidget()
-            self.meta_widget.refresh_requested.connect(self.view_model.load_meta_analytics)
-            self.meta_analytics_dock.setWidget(self.meta_widget)
-            self.addDockWidget(Qt.BottomDockWidgetArea, self.meta_analytics_dock)
-            self.meta_analytics_dock.hide()  # Hidden by default
-        else:
-            self.meta_analytics_dock = None
-        
-        # Performance Status Dock (hidden by default, accessible via Tools menu)
         if PerformanceStatusWidget:
-            self.performance_dock = QDockWidget("Performance Status", self)
-            self.performance_dock.setAllowedAreas(Qt.RightDockWidgetArea | Qt.BottomDockWidgetArea)
+            self.performance_dock = QDockWidget("Performance", self)
             self.performance_widget = PerformanceStatusWidget()
             self.performance_dock.setWidget(self.performance_widget)
             self.addDockWidget(Qt.RightDockWidgetArea, self.performance_dock)
-            self.performance_dock.hide()  # Hidden by default
         else:
             self.performance_dock = None
-        
-        # Log Viewer (create widget for Mission Control to use)
-        self.log_viewer = LogViewerWidget(self)
+
+        self._build_auto_analysis_dock()
 
     def _build_auto_analysis_dock(self) -> None:
         self.auto_analysis_dock = QDockWidget("Auto-Analysis Queue", self)
@@ -960,34 +662,22 @@ class MainApplicationWindow(QMainWindow):
                 action.setChecked(True)
 
     def _save_gui_settings(self) -> None:
-        """Save GUI settings including window geometry, theme, and preferences."""
         self.settings.setValue("geometry", self.saveGeometry())
         self.settings.setValue("windowState", self.saveState())
-        self.settings.setValue("ui/last_active_tab", self.tab_widget.currentIndex())
-        
+        self.settings.setValue("mainSplitter", self.main_splitter.saveState())
         if self.theme_action_group.checkedAction():
             self.settings.setValue("theme", self.theme_action_group.checkedAction().text().lower())
         self.settings.setValue("analysis/rubric", self.rubric_selector.currentData())
         if self._selected_file:
             self.settings.setValue("analysis/last_file", str(self._selected_file))
-        
-        # Save dock widget states
-        if self.meta_analytics_dock:
-            self.settings.setValue("docks/meta_analytics_visible", self.meta_analytics_dock.isVisible())
-        if self.performance_dock:
-            self.settings.setValue("docks/performance_status_visible", self.performance_dock.isVisible())
 
     def _load_gui_settings(self) -> None:
-        """Load GUI settings including window geometry, theme, and preferences."""
         if geometry := self.settings.value("geometry"):
             self.restoreGeometry(geometry)
         if window_state := self.settings.value("windowState"):
             self.restoreState(window_state)
-        
-        # Restore last active tab
-        last_tab = self.settings.value("ui/last_active_tab", 0, type=int)
-        if 0 <= last_tab < self.tab_widget.count():
-            self.tab_widget.setCurrentIndex(last_tab)
+        if splitter_state := self.settings.value("mainSplitter"):
+            self.main_splitter.restoreState(splitter_state)
         
         saved_theme = self.settings.value("theme", "light", type=str)
         self._apply_theme(saved_theme)
@@ -1001,21 +691,6 @@ class MainApplicationWindow(QMainWindow):
             last_file = Path(last_file_str)
             if last_file.exists():
                 self._set_selected_file(last_file)
-        
-        # Restore dock widget visibility
-        if self.meta_analytics_dock:
-            visible = self.settings.value("docks/meta_analytics_visible", False, type=bool)
-            if visible:
-                self.meta_analytics_dock.show()
-            if hasattr(self, 'meta_analytics_action'):
-                self.meta_analytics_action.setChecked(visible)
-        
-        if self.performance_dock:
-            visible = self.settings.value("docks/performance_status_visible", False, type=bool)
-            if visible:
-                self.performance_dock.show()
-            if hasattr(self, 'performance_action'):
-                self.performance_action.setChecked(visible)
 
     def open_file_dialog(self) -> None:
         """Public wrapper to trigger the standard file picker."""

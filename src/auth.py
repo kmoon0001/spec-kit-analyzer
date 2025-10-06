@@ -20,7 +20,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 class AuthService:
     def __init__(self):
         settings = get_settings()
-        self.secret_key = settings.auth.secret_key
+        self.secret_key = settings.auth.secret_key.get_secret_value() if settings.auth.secret_key else None
         self.algorithm = settings.auth.algorithm
         self.access_token_expire_minutes = settings.auth.access_token_expire_minutes
 
@@ -110,3 +110,4 @@ async def get_current_admin_user(
             detail="The user does not have administrative privileges.",
         )
     return current_user
+
