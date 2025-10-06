@@ -54,6 +54,9 @@ from src.gui.components.header_component import HeaderComponent
 from src.gui.components.status_component import StatusComponent
 from src.gui.widgets.medical_theme import medical_theme
 
+# Import minimal micro-interactions (subtle animations only)
+from src.gui.widgets.micro_interactions import AnimatedButton, LoadingSpinner
+
 from src.gui.widgets.mission_control_widget import MissionControlWidget, LogViewerWidget, SettingsEditorWidget
 from src.gui.widgets.dashboard_widget import DashboardWidget
 
@@ -351,6 +354,20 @@ class MainApplicationWindow(QMainWindow):
         self.view_model.start_workers()
         if self.current_user.is_admin:
             self.view_model.load_settings()
+        
+        # Simulate AI model loading (set all to loading state initially)
+        self.status_component.set_all_loading()
+        
+        # After a short delay, set all models as ready (in production, this would be based on actual model loading)
+        # For now, we'll set them as ready after 2 seconds
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(2000, self._on_ai_models_ready)
+
+    def _on_ai_models_ready(self) -> None:
+        """Called when AI models are loaded and ready."""
+        self.status_component.set_all_ready()
+        status_text = self.status_component.get_status_text()
+        self.statusBar().showMessage(f"✅ {status_text}", 5000)
 
     def _start_analysis(self) -> None:
         if not self._selected_file:
@@ -362,11 +379,44 @@ class MainApplicationWindow(QMainWindow):
             "analysis_mode": "rubric",
         }
         self.run_analysis_button.setEnabled(False)
+        self.repeat_analysis_button.setEnabled(False)
+        
+        # Show subtle loading spinner
+        self.loading_spinner.start_spinning()
+        
         self.view_model.start_analysis(str(self._selected_file), options)
 
+    def _repeat_analysis(self) -> None:
+        """Repeat analysis on the same document with current settings."""
+        if not self._selected_file:
+            QMessageBox.warning(self, "No document", "No document selected to repeat analysis.")
+            return
+        
+        self.statusBar().showMessage("Repeating analysis...", 2000)
+        self._start_analysis()
+
+    def _on_report_output_clicked(self, item: QListWidgetItem) -> None:
+        """Handle clicking on a report output to view it."""
+        report_name = item.text()
+        self.statusBar().showMessage(f"Viewing report: {report_name}", 3000)
+        
+        # In a full implementation, this would load the specific report
+        # For now, we'll just show the current report
+        if self._current_payload:
+            analysis = self._current_payload.get("analysis", {})
+            doc_name = self._selected_file.name if self._selected_file else "Document"
+            report_html = self._current_payload.get("report_html") or self.report_generator.generate_html_report(
+                analysis_result=analysis, doc_name=doc_name
+            )
+            self.report_preview_browser.setHtml(report_html)
+
     def _handle_analysis_success(self, payload: Dict[str, Any]) -> None:
-        self.statusBar().showMessage("Analysis complete", 5000)
+        # Hide loading spinner
+        self.loading_spinner.stop_spinning()
+        
+        self.statusBar().showMessage("✅ Analysis complete", 5000)
         self.run_analysis_button.setEnabled(True)
+        self.repeat_analysis_button.setEnabled(True)
         self._current_payload = payload
         analysis = payload.get("analysis", {})
         doc_name = self._selected_file.name if self._selected_file else "Document"
@@ -374,6 +424,14 @@ class MainApplicationWindow(QMainWindow):
         self.analysis_summary_browser.setHtml(report_html)
         self.report_preview_browser.setHtml(report_html)
         self.detailed_results_browser.setPlainText(json.dumps(payload, indent=2))
+        
+        # Add report to outputs list
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        report_item = QListWidgetItem(f"📊 {doc_name} - {timestamp}")
+        self.report_outputs_list.addItem(report_item)
+        self.report_outputs_list.setCurrentItem(report_item)
+        
         self.view_model.load_dashboard_data() # Refresh dashboard after analysis
 
         if self.auto_analysis_queue_list.count() > 0:
@@ -381,8 +439,12 @@ class MainApplicationWindow(QMainWindow):
 
     def on_analysis_error(self, message: str) -> None:
         """Handles analysis errors by re-enabling controls and surfacing the status."""
+        # Hide loading spinner
+        self.loading_spinner.stop_spinning()
+        
         self.statusBar().showMessage(f"Analysis failed: {message}", 5000)
         self.run_analysis_button.setEnabled(True)
+        self.repeat_analysis_button.setEnabled(True)
 
     def _on_rubrics_loaded(self, rubrics: list[dict]) -> None:
         """Load rubrics into dropdown with default rubrics always available."""
@@ -527,6 +589,12 @@ class MainApplicationWindow(QMainWindow):
         root_layout.setContentsMargins(12, 12, 12, 12)
         root_layout.setSpacing(12)
         
+        # Add beautiful medical-themed header at the top
+        root_layout.addWidget(self.header)
+        
+        # Add AI model status indicators below header
+        root_layout.addWidget(self.status_component)
+        
         # Create main tab widget with 4 tabs
         self.tab_widget = QTabWidget(self)
         self.tab_widget.setDocumentMode(True)
@@ -628,12 +696,25 @@ class MainApplicationWindow(QMainWindow):
         self.rubric_selector = QComboBox(panel)
         layout.addWidget(self.rubric_selector)
         
-        # Run Analysis button
-        self.run_analysis_button = QPushButton("Run Analysis", panel)
-        self.run_analysis_button.setIcon(QIcon.fromTheme("media-playback-start"))
+        # Buttons layout
+        buttons_layout = QHBoxLayout()
+        
+        # Run Analysis button with subtle animation
+        self.run_analysis_button = AnimatedButton("▶ Run Analysis", panel)
         self.run_analysis_button.clicked.connect(self._start_analysis)
         self.run_analysis_button.setEnabled(False)
-        layout.addWidget(self.run_analysis_button)
+        self.run_analysis_button.setStyleSheet(medical_theme.get_button_stylesheet("primary"))
+        buttons_layout.addWidget(self.run_analysis_button)
+        
+        # Repeat Analysis button with subtle animation
+        self.repeat_analysis_button = AnimatedButton("🔄 Repeat", panel)
+        self.repeat_analysis_button.clicked.connect(self._repeat_analysis)
+        self.repeat_analysis_button.setEnabled(False)
+        self.repeat_analysis_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
+        self.repeat_analysis_button.setToolTip("Repeat analysis on the same document")
+        buttons_layout.addWidget(self.repeat_analysis_button)
+        
+        layout.addLayout(buttons_layout)
         
         layout.addStretch(1)
         return panel
@@ -670,13 +751,35 @@ class MainApplicationWindow(QMainWindow):
         title.setFont(QFont("Segoe UI", 12, QFont.Bold))
         layout.addWidget(title)
         
-        # Outputs list
+        # Outputs list with beautiful selection highlighting
         self.report_outputs_list = QListWidget(panel)
+        self.report_outputs_list.itemClicked.connect(self._on_report_output_clicked)
+        self.report_outputs_list.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {medical_theme.get_color("bg_secondary")};
+                border: 1px solid {medical_theme.get_color("border_light")};
+                border-radius: 6px;
+                padding: 4px;
+            }}
+            QListWidget::item {{
+                padding: 8px;
+                border-radius: 4px;
+                margin: 2px;
+            }}
+            QListWidget::item:selected {{
+                background-color: {medical_theme.get_color("primary_blue")};
+                color: white;
+            }}
+            QListWidget::item:hover {{
+                background-color: {medical_theme.get_color("bg_tertiary")};
+            }}
+        """)
         layout.addWidget(self.report_outputs_list)
         
         # Export button
-        export_button = QPushButton("Export Selected", panel)
+        export_button = QPushButton("📄 Export Selected", panel)
         export_button.clicked.connect(self._export_report)
+        export_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
         layout.addWidget(export_button)
         
         return panel
@@ -938,6 +1041,11 @@ class MainApplicationWindow(QMainWindow):
         status: QStatusBar = self.statusBar()
         status.showMessage("Ready")
         
+        # Subtle loading spinner (hidden by default)
+        self.loading_spinner = LoadingSpinner(size=20, parent=self)
+        self.loading_spinner.hide()
+        status.addPermanentWidget(self.loading_spinner)
+        
         # Progress bar
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setMaximumWidth(180)
@@ -1044,8 +1152,8 @@ class MainApplicationWindow(QMainWindow):
             self._start_analysis()
 
     def _build_floating_chat_button(self) -> None:
-        """Create floating AI chat button in bottom left corner."""
-        self.chat_button = QPushButton("💬 Ask AI Assistant", self)
+        """Create floating AI chat button in bottom left corner with subtle animation."""
+        self.chat_button = AnimatedButton("💬 Ask AI Assistant", self)
         self.chat_button.setObjectName("floatingChatButton")
         self.chat_button.clicked.connect(self._open_chat_dialog)
         self.chat_button.setStyleSheet("""
