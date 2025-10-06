@@ -2,7 +2,7 @@
 import pytest
 import pytest_asyncio
 from datetime import datetime, timezone
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 
 from src.api.main import app
 from src.api.dependencies import get_current_active_user
@@ -12,7 +12,8 @@ from src.database import schemas
 @pytest_asyncio.fixture
 async def async_client():
     """Provides an async client for making API requests."""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
 
 

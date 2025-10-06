@@ -7,7 +7,7 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-def test_code_cleanup():
+def _run_code_cleanup():
     """Test that code cleanup removed redundant and competing features"""
     
     print("🧹 CODE CLEANUP VERIFICATION TEST")
@@ -150,6 +150,10 @@ def test_code_cleanup():
         traceback.print_exc()
         return False
 
+
+def test_code_cleanup():
+    assert _run_code_cleanup()
+
 if __name__ == "__main__":
-    success = test_code_cleanup()
+    success = _run_code_cleanup()
     sys.exit(0 if success else 1)

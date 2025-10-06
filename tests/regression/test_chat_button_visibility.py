@@ -7,7 +7,7 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-def test_chat_button_visibility():
+def _run_chat_button_visibility():
     """Test if the floating chat button is visible and functional"""
     
     print("💬 FLOATING CHAT BUTTON VISIBILITY TEST")
@@ -113,6 +113,10 @@ def test_chat_button_visibility():
         traceback.print_exc()
         return False
 
+
+def test_chat_button_visibility():
+    assert _run_chat_button_visibility()
+
 if __name__ == "__main__":
-    success = test_chat_button_visibility()
+    success = _run_chat_button_visibility()
     sys.exit(0 if success else 1)

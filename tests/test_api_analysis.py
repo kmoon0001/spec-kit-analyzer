@@ -1,3 +1,4 @@
+# MODIFIED: Refactored to use a proper pytest fixture for patching.
 # ruff: noqa: E402
 import os
 import sys
@@ -9,10 +10,6 @@ import pytest
 # This test is marked as 'heavy' because it involves the entire application stack
 # and requires extensive mocking to run in isolation. It is intended for end-to-end validation.
 pytestmark = pytest.mark.heavy
-
-# --- Pre-emptive Mocking ---
-# This code MUST run before the application is imported. We cannot use pytest
-# fixtures for this, as they run after module import.
 
 # Ensure the src directory is in the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -27,22 +24,26 @@ MOCK_MODULES = {
 }
 sys.modules.update(MOCK_MODULES)
 
-# 2. Manually start patches for all external-facing services and functions
-#    that are called during the application's import-time initialization.
-#    This prevents any network calls or heavy model loading.
-patchers = [
-    patch(
-        "ctransformers.AutoModelForCausalLM.from_pretrained",
-        return_value=MagicMock(),
-    ),
-    patch("transformers.pipeline", return_value=MagicMock()),
-    patch("transformers.pipeline", return_value=MagicMock()),
-    patch("src.database.crud.get_rubrics", return_value=[]),  # Prevent DB calls
-    patch("src.core.hybrid_retriever.SentenceTransformer", return_value=MagicMock()),
-    patch("src.core.hybrid_retriever.BM25Okapi", return_value=MagicMock()),
-]
-for p in patchers:
-    p.start()
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_preemptive_services():
+    """Manually start and stop patches for services called on app import."""
+    patchers = [
+        patch(
+            "ctransformers.AutoModelForCausalLM.from_pretrained",
+            return_value=MagicMock(),
+        ),
+        patch("transformers.pipeline", return_value=MagicMock()),
+        patch("src.database.crud.get_rubric", return_value=None),  # Prevent DB calls
+        patch("src.core.hybrid_retriever.SentenceTransformer", return_value=MagicMock()),
+        patch("src.core.hybrid_retriever.BM25Okapi", return_value=MagicMock()),
+    ]
+    for p in patchers:
+        p.start()
+    yield
+    for p in patchers:
+        p.stop()
+
 
 # --- Test Code ---
 # Now it is safe to import the rest of our test modules and the application itself.
@@ -51,17 +52,6 @@ from fastapi.testclient import TestClient
 from src.api.main import app, limiter
 from src.auth import get_current_active_user
 from src.database import schemas
-
-
-# We must stop the patchers we started manually. A session-scoped autouse fixture
-# is a clean way to do this at the end of the test run.
-@pytest.fixture(scope="session", autouse=True)
-def stop_manual_patchers():
-    """Stops the manually started patchers at the end of the test session."""
-    yield
-    for p in patchers:
-        p.stop()
-
 
 # Disable rate limiting for all tests
 limiter.enabled = False

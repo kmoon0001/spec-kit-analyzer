@@ -7,6 +7,7 @@ Provides async database operations for users, rubrics, reports, and findings.
 
 import datetime
 import logging
+import math
 import numpy as np
 from typing import List, Optional, Dict, Any
 from collections import defaultdict
@@ -105,27 +106,53 @@ async def get_training_needs(db: AsyncSession, days_back: int) -> List[Dict[str,
     ]
 
 async def get_team_performance_trends(db: AsyncSession, days_back: int) -> List[Dict[str, Any]]:
-    """Computes team performance trends over time."""
-    num_weeks = days_back // 7
-    trends = []
-    for i in range(num_weeks):
-        end_date = datetime.datetime.now(timezone.utc) - datetime.timedelta(weeks=i)
-        start_date = end_date - datetime.timedelta(weeks=1)
-        
-        query = (
-            select(
-                func.avg(models.AnalysisReport.compliance_score).label("avg_score"),
-                func.count(models.Finding.id).label("total_findings")
-            )
-            .join(models.AnalysisReport, models.Finding.report_id == models.AnalysisReport.id, isouter=True)
-            .filter(and_(models.AnalysisReport.analysis_date >= start_date, models.AnalysisReport.analysis_date < end_date))
+    """Computes team performance trends grouped by week."""
+    if days_back <= 0:
+        return []
+
+    now = datetime.datetime.now(timezone.utc)
+    num_weeks = max(1, math.ceil(days_back / 7))
+    cutoff_date = now - datetime.timedelta(days=days_back)
+
+    query = (
+        select(models.AnalysisReport)
+        .options(selectinload(models.AnalysisReport.findings))
+        .where(models.AnalysisReport.analysis_date >= cutoff_date)
+    )
+    result = await db.execute(query)
+    reports = list(result.scalars().unique().all())
+
+    def _as_aware(dt: datetime.datetime) -> datetime.datetime:
+        if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+
+    trends: List[Dict[str, Any]] = []
+    for index in range(num_weeks):
+        week_end = now - datetime.timedelta(days=index * 7)
+        week_start = week_end - datetime.timedelta(days=7)
+
+        week_reports = [
+            report
+            for report in reports
+            if week_start <= _as_aware(report.analysis_date) < week_end
+        ]
+
+        if week_reports:
+            avg_score = float(np.mean([report.compliance_score for report in week_reports]))
+            total_findings = sum(len(report.findings) for report in week_reports)
+        else:
+            avg_score = 0.0
+            total_findings = 0
+
+        trends.append(
+            {
+                "week": index + 1,
+                "avg_compliance_score": avg_score,
+                "total_findings": total_findings,
+            }
         )
-        result = (await db.execute(query)).first()
-        trends.append({
-            "week": i + 1,
-            "avg_compliance_score": result.avg_score or 0,
-            "total_findings": result.total_findings or 0,
-        })
+
     return trends
 
 async def get_benchmark_data(db: AsyncSession) -> Dict[str, Any]:
@@ -145,5 +172,68 @@ async def get_benchmark_data(db: AsyncSession) -> Dict[str, Any]:
             "p90": np.percentile(scores, 90),
         },
     }
+
+
+async def get_report(db: AsyncSession, report_id: int) -> Optional[models.AnalysisReport]:
+    """Fetches a single analysis report with its findings eagerly loaded."""
+    query = (
+        select(models.AnalysisReport)
+        .options(selectinload(models.AnalysisReport.findings))
+        .where(models.AnalysisReport.id == report_id)
+    )
+    result = await db.execute(query)
+    return result.scalars().first()
+
+
+async def find_similar_report(
+    db: AsyncSession,
+    document_type: Optional[str],
+    exclude_report_id: Optional[int] = None,
+    embedding: Optional[bytes] = None,
+    threshold: float = 0.85,
+) -> Optional[models.AnalysisReport]:
+    """Finds a similar report using the vector store, with a fallback to recency."""
+    candidate_ids: List[int] = []
+    vector_store = get_vector_store()
+
+    if embedding:
+        if not vector_store.is_initialized:
+            vector_store.initialize_index()
+
+        if vector_store.is_initialized:
+            try:
+                query_vector = np.frombuffer(embedding, dtype=np.float32)
+                if query_vector.size:
+                    query_vector = query_vector.reshape(1, -1)
+                    for report_id, _ in vector_store.search(query_vector, k=5, threshold=threshold):
+                        report_id = int(report_id)
+                        if exclude_report_id is not None and report_id == exclude_report_id:
+                            continue
+                        if report_id not in candidate_ids:
+                            candidate_ids.append(report_id)
+            except (ValueError, TypeError) as exc:
+                logger.warning("Invalid embedding supplied to find_similar_report: %s", exc)
+
+    for candidate_id in candidate_ids:
+        candidate = await get_report(db, candidate_id)
+        if candidate and (document_type is None or candidate.document_type == document_type):
+            return candidate
+
+    for candidate_id in candidate_ids:
+        candidate = await get_report(db, candidate_id)
+        if candidate:
+            return candidate
+
+    query = select(models.AnalysisReport)
+    if document_type is not None:
+        query = query.where(models.AnalysisReport.document_type == document_type)
+
+    if exclude_report_id is not None:
+        query = query.where(models.AnalysisReport.id != exclude_report_id)
+
+    query = query.order_by(models.AnalysisReport.analysis_date.desc())
+    result = await db.execute(query)
+    return result.scalars().first()
+
 
 # ... (rest of the file remains the same) ...

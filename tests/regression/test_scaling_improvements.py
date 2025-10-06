@@ -7,7 +7,7 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-def test_scaling_improvements():
+def _run_scaling_improvements():
     """Test scaling improvements and title display"""
     
     print("📏 SCALING & TITLE IMPROVEMENTS TEST")
@@ -132,6 +132,10 @@ def test_scaling_improvements():
         traceback.print_exc()
         return False
 
+
+def test_scaling_improvements():
+    assert _run_scaling_improvements()
+
 if __name__ == "__main__":
-    success = test_scaling_improvements()
+    success = _run_scaling_improvements()
     sys.exit(0 if success else 1)

@@ -42,6 +42,7 @@ from src.core.report_generator import ReportGenerator
 from src.gui.dialogs.chat_dialog import ChatDialog
 from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog
 from src.gui.dialogs.batch_analysis_dialog import BatchAnalysisDialog
+from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 from src.gui.dialogs.settings_dialog import SettingsDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
 from src.gui.themes import get_theme_palette
@@ -66,10 +67,6 @@ API_URL = SETTINGS.paths.api_url
 
 
 class WorkerProtocol(Protocol):
-    success: Any
-    error: Any
-    finished: Any
-    progress: Any
     def run(self) -> None: ...
     def moveToThread(self, thread: QThread) -> None: ...
 
@@ -100,28 +97,88 @@ class MainViewModel(QObject):
         if MetaAnalyticsWidget:
             self.load_meta_analytics()
 
-    def _run_worker(self, worker_class: Type[WorkerProtocol], on_success: Callable, on_error: Callable, **kwargs: Any) -> None:
+    def _run_worker(
+        self,
+        worker_class: Type[WorkerProtocol],
+        on_success: Callable | None = None,
+        on_error: Callable | None = None,
+        *,
+        success_signal: Optional[str] = "success",
+        error_signal: Optional[str] = "error",
+        auto_stop: bool = True,
+        start_slot: str = "run",
+        **kwargs: Any,
+    ) -> None:
         thread = QThread()
         worker = worker_class(**kwargs)
         worker.moveToThread(thread)
+        setattr(thread, "_worker_ref", worker)
 
-        worker.success.connect(on_success)
-        worker.error.connect(on_error)
-        worker.finished.connect(thread.quit)
+        def connect_signal(signal_name: Optional[str], callback: Callable | None, should_quit: bool) -> None:
+            if not signal_name:
+                return
+            if not hasattr(worker, signal_name):
+                if callback is not None:
+                    raise AttributeError(f"{worker_class.__name__} does not expose signal '{signal_name}'")
+                return
+            signal = getattr(worker, signal_name)
+            if callback is not None:
+                signal.connect(callback)
+            if should_quit:
+                signal.connect(thread.quit)
+
+        connect_signal(success_signal, on_success, auto_stop)
+        connect_signal(error_signal, on_error, auto_stop)
+
+        if hasattr(worker, "finished"):
+            getattr(worker, "finished").connect(thread.quit)
+
         thread.finished.connect(thread.deleteLater)
-        thread.started.connect(worker.run)
-        
+        if hasattr(worker, "deleteLater"):
+            thread.finished.connect(worker.deleteLater)
+
+        def _cleanup() -> None:
+            if hasattr(thread, "_worker_ref"):
+                setattr(thread, "_worker_ref", None)
+            if thread in self._active_threads:
+                self._active_threads.remove(thread)
+
+        thread.finished.connect(_cleanup)
+
+        start_callable = getattr(worker, start_slot)
+        thread.started.connect(start_callable)
+
         self._active_threads.append(thread)
         thread.start()
 
+
     def _start_health_check_worker(self) -> None:
-        self._run_worker(HealthCheckWorker, on_success=self.api_status_changed.emit, on_error=lambda msg: self.status_message_changed.emit(f"Health Check Error: {msg}"))
+        self._run_worker(
+            HealthCheckWorker,
+            on_success=self.api_status_changed.emit,
+            success_signal="status_update",
+            error_signal=None,
+            auto_stop=False,
+        )
 
     def _start_task_monitor_worker(self) -> None:
-        self._run_worker(TaskMonitorWorker, on_success=self.task_list_changed.emit, on_error=lambda msg: self.status_message_changed.emit(f"Task Monitor Error: {msg}"), token=self.auth_token)
+        self._run_worker(
+            TaskMonitorWorker,
+            on_success=self.task_list_changed.emit,
+            on_error=lambda msg: self.status_message_changed.emit(f"Task Monitor Error: {msg}"),
+            success_signal="tasks_updated",
+            auto_stop=False,
+            token=self.auth_token,
+        )
 
     def _start_log_stream_worker(self) -> None:
-        self._run_worker(LogStreamWorker, on_success=self.log_message_received.emit, on_error=lambda msg: self.status_message_changed.emit(f"Log Stream: {msg}"))
+        self._run_worker(
+            LogStreamWorker,
+            on_success=self.log_message_received.emit,
+            on_error=lambda msg: self.status_message_changed.emit(f"Log Stream: {msg}"),
+            success_signal="new_log_message",
+            auto_stop=False,
+        )
 
     def load_rubrics(self) -> None:
         self._run_worker(GenericApiWorker, on_success=self.rubrics_loaded.emit, on_error=lambda msg: self.status_message_changed.emit(f"Could not load rubrics: {msg}"), endpoint="/rubrics", token=self.auth_token)
@@ -164,9 +221,19 @@ class MainViewModel(QObject):
         self._run_worker(FeedbackWorker, on_success=self.status_message_changed.emit, on_error=lambda msg: self.status_message_changed.emit(f"Feedback Error: {msg}"), token=self.auth_token, feedback_data=feedback_data)
 
     def stop_all_workers(self) -> None:
-        for thread in self._active_threads:
-            thread.quit()
-            thread.wait()
+        for thread in list(self._active_threads):
+            worker = getattr(thread, "_worker_ref", None)
+            if worker and hasattr(worker, "stop"):
+                try:
+                    worker.stop()
+                except Exception:
+                    pass
+            try:
+                if thread.isRunning():
+                    thread.quit()
+                    thread.wait()
+            except RuntimeError:
+                continue
 
 
 class MainApplicationWindow(QMainWindow):
@@ -182,6 +249,7 @@ class MainApplicationWindow(QMainWindow):
         self.report_generator = ReportGenerator()
         self._current_payload: Dict[str, Any] = {}
         self._selected_file: Optional[Path] = None
+        self._cached_preview_content: str = ""
 
         self.view_model = MainViewModel(token)
 
@@ -223,10 +291,12 @@ class MainApplicationWindow(QMainWindow):
             "discipline": self.rubric_selector.currentData() or "",
             "analysis_mode": "rubric",
         }
+        self.run_analysis_button.setEnabled(False)
         self.view_model.start_analysis(str(self._selected_file), options)
 
     def _handle_analysis_success(self, payload: Dict[str, Any]) -> None:
         self.statusBar().showMessage("Analysis complete", 5000)
+        self.run_analysis_button.setEnabled(True)
         self._current_payload = payload
         analysis = payload.get("analysis", {})
         doc_name = self._selected_file.name if self._selected_file else "Document"
@@ -238,6 +308,11 @@ class MainApplicationWindow(QMainWindow):
 
         if self.auto_analysis_queue_list.count() > 0:
             self._process_auto_analysis_queue()
+
+    def on_analysis_error(self, message: str) -> None:
+        """Handles analysis errors by re-enabling controls and surfacing the status."""
+        self.statusBar().showMessage(f"Analysis failed: {message}", 5000)
+        self.run_analysis_button.setEnabled(True)
 
     def _on_rubrics_loaded(self, rubrics: list[dict]) -> None:
         self.rubric_selector.clear()
@@ -353,6 +428,7 @@ class MainApplicationWindow(QMainWindow):
         self.tab_widget = QTabWidget(self)
         self.tab_widget.setDocumentMode(True)
         self.main_splitter.addWidget(self.tab_widget)
+        self.tabs = self.tab_widget
         self.mission_control_tab = self._create_mission_control_tab()
         self.tab_widget.addTab(self.mission_control_tab, "Mission Control")
         self.analysis_summary_tab = self._create_analysis_summary_tab()
@@ -389,7 +465,9 @@ class MainApplicationWindow(QMainWindow):
         self.analysis_button = QPushButton("Start Analysis", panel)
         self.analysis_button.setIcon(QIcon.fromTheme("media-playback-start"))
         self.analysis_button.clicked.connect(self._start_analysis)
+        self.analysis_button.setEnabled(False)
         layout.addWidget(self.analysis_button)
+        self.run_analysis_button = self.analysis_button
         layout.addStretch(1)
         return panel
 
@@ -506,6 +584,7 @@ class MainApplicationWindow(QMainWindow):
         self.document_preview_dock = QDockWidget("Document Preview", self)
         self.document_preview_dock.setAllowedAreas(Qt.RightDockWidgetArea | Qt.LeftDockWidgetArea)
         self.document_preview_browser = QTextBrowser(self.document_preview_dock)
+        self.document_display_area = self.document_preview_browser
         self.document_preview_dock.setWidget(self.document_preview_browser)
         self.addDockWidget(Qt.RightDockWidgetArea, self.document_preview_dock)
 
@@ -612,27 +691,65 @@ class MainApplicationWindow(QMainWindow):
             if last_file.exists():
                 self._set_selected_file(last_file)
 
+    def open_file_dialog(self) -> None:
+        """Public wrapper to trigger the standard file picker."""
+        self._prompt_for_document()
+
     def _prompt_for_document(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(self, "Select clinical document", str(Path.home()), "Documents (*.pdf *.docx *.txt *.md *.json)")
         if file_path:
             self._set_selected_file(Path(file_path))
 
     def _set_selected_file(self, file_path: Path) -> None:
-        if not file_path.is_file():
+        self.run_analysis_button.setEnabled(False)
+        self._cached_preview_content = ""
+        try:
+            max_preview_chars = 2_000_000
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as stream:
+                content = stream.read(max_preview_chars)
+        except FileNotFoundError:
             self.statusBar().showMessage(f"File not found: {file_path.name}", 5000)
-            self._selected_file = None
-            self.file_display.clear()
-        else:
+            placeholder = f"Preview unavailable: {file_path.name} not found."
             self._selected_file = file_path
-            self.file_display.setPlainText(self._selected_file.read_text(encoding='utf-8', errors='ignore')[:4000])
-            self.statusBar().showMessage(f"Selected {self._selected_file.name}", 3000)
+            self._cached_preview_content = placeholder
+            self.file_display.setPlainText(placeholder)
+            self.document_display_area.setPlainText(placeholder)
+            self.run_analysis_button.setEnabled(True)
+            return
+        except Exception as exc:
+            self._selected_file = None
+            error_message = f"Could not display preview: {exc}"
+            self.file_display.setPlainText(error_message)
+            self.document_display_area.setPlainText(error_message)
+            self.statusBar().showMessage(f"Failed to load {file_path.name}", 5000)
+            return
+
+        self._selected_file = file_path
+        self._cached_preview_content = content
+        self.file_display.setPlainText(content[:4000])
+        self.document_display_area.setPlainText(content)
+        self.statusBar().showMessage(f"Selected {self._selected_file.name}", 3000)
+        self.run_analysis_button.setEnabled(True)
         self._update_document_preview()
 
     def _update_document_preview(self) -> None:
+        if self._cached_preview_content:
+            self.document_display_area.setPlainText(self._cached_preview_content)
+            return
+
         if self._selected_file and self._selected_file.exists():
-            self.document_preview_browser.setPlainText(self._selected_file.read_text(encoding='utf-8', errors='ignore'))
+            try:
+                max_preview_chars = 2_000_000
+                with open(self._selected_file, "r", encoding="utf-8", errors="ignore") as stream:
+                    content = stream.read(max_preview_chars)
+            except Exception as exc:
+                self.document_display_area.setPlainText(f"Could not display preview: {exc}")
+                self.run_analysis_button.setEnabled(False)
+                return
+            self._cached_preview_content = content
+            self.document_display_area.setPlainText(content)
         else:
-            self.document_preview_browser.clear()
+            self.document_display_area.clear()
 
     def _prompt_for_folder(self) -> None:
         folder_path = QFileDialog.getExistingDirectory(self, "Select folder for batch analysis", str(Path.home()))
@@ -668,6 +785,11 @@ class MainApplicationWindow(QMainWindow):
 
     def _open_settings_dialog(self) -> None:
         dialog = SettingsDialog(self)
+        dialog.exec()
+
+    def show_change_password_dialog(self) -> None:
+        """Opens the change password dialog."""
+        dialog = ChangePasswordDialog(self)
         dialog.exec()
 
     def _open_chat_dialog(self) -> None:

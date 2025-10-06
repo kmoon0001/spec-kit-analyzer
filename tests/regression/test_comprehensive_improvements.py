@@ -7,7 +7,7 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-def test_comprehensive_improvements():
+def _run_comprehensive_improvements():
     """Test all comprehensive UI improvements"""
     
     print("🎯 COMPREHENSIVE UI IMPROVEMENTS TEST")
@@ -159,6 +159,10 @@ def test_comprehensive_improvements():
         traceback.print_exc()
         return False
 
+
+def test_comprehensive_improvements():
+    assert _run_comprehensive_improvements()
+
 if __name__ == "__main__":
-    success = test_comprehensive_improvements()
+    success = _run_comprehensive_improvements()
     sys.exit(0 if success else 1)
