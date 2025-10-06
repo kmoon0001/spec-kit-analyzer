@@ -68,20 +68,30 @@ if __name__ == "__main__":
         # Create and run the application
         app = QApplication(sys.argv)
         
-        # Show login dialog
+        # Show login dialog with retry loop
         from src.gui.dialogs.login_dialog import LoginDialog
         from src.database import models
         
-        login_dialog = LoginDialog()
+        authenticated = False
+        max_attempts = 5
+        attempt = 0
         
-        if login_dialog.exec():
+        while not authenticated and attempt < max_attempts:
+            login_dialog = LoginDialog()
+            
+            if not login_dialog.exec():
+                # User cancelled login
+                print("Login cancelled by user")
+                sys.exit(0)
+            
             # Get credentials
             username, password = login_dialog.get_credentials()
+            attempt += 1
             
             # Authenticate with API
             try:
                 response = requests.post(
-                    "http://127.0.0.1:8001/auth/login",
+                    "http://127.0.0.1:8001/auth/auth/token",
                     data={"username": username, "password": password},
                     timeout=10
                 )
@@ -107,6 +117,8 @@ if __name__ == "__main__":
                             is_admin=user_data.get("is_admin", False)
                         )
                         
+                        authenticated = True
+                        
                         from src.gui.main_window import MainApplicationWindow
                         main_win = MainApplicationWindow(user, token)
                         main_win.show()
@@ -114,19 +126,29 @@ if __name__ == "__main__":
                         print("SUCCESS: GUI application started successfully!")
                         sys.exit(app.exec())
                     else:
-                        QMessageBox.critical(None, "Error", "Failed to get user information")
-                        sys.exit(1)
+                        QMessageBox.warning(None, "Error", "Failed to get user information. Please try again.")
                 else:
-                    QMessageBox.critical(None, "Login Failed", "Invalid username or password")
-                    sys.exit(1)
+                    remaining = max_attempts - attempt
+                    if remaining > 0:
+                        QMessageBox.warning(
+                            None, 
+                            "Login Failed", 
+                            f"Invalid username or password.\n\nAttempts remaining: {remaining}"
+                        )
+                    else:
+                        QMessageBox.critical(
+                            None, 
+                            "Login Failed", 
+                            "Maximum login attempts exceeded."
+                        )
+                        sys.exit(1)
                     
             except Exception as e:
-                QMessageBox.critical(None, "Error", f"Authentication failed: {e}")
-                sys.exit(1)
-        else:
-            # User cancelled login
-            print("Login cancelled by user")
-            sys.exit(0)
+                QMessageBox.warning(None, "Error", f"Authentication failed: {e}\n\nPlease try again.")
+        
+        if not authenticated:
+            print("Maximum login attempts exceeded")
+            sys.exit(1)
         
     except Exception as e:
         print(f"ERROR: Error starting application: {e}")
