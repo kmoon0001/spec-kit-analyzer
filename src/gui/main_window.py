@@ -796,9 +796,40 @@ You can also:
         # Add beautiful medical-themed header at the top
         root_layout.addWidget(self.header)
         
-        # Create main tab widget with 4 tabs (status indicators will be in status bar at bottom)
+        # Create main tab widget with modern styling (no chat tab - integrated into analysis)
         self.tab_widget = QTabWidget(self)
-        self.tab_widget.setDocumentMode(True)
+        self.tab_widget.setDocumentMode(False)
+        self.tab_widget.setStyleSheet(f"""
+            QTabWidget::pane {{
+                border: 2px solid {medical_theme.get_color('border_light')};
+                border-radius: 10px;
+                background: {medical_theme.get_color('bg_primary')};
+                top: -2px;
+            }}
+            QTabBar::tab {{
+                background: {medical_theme.get_color('bg_secondary')};
+                border: 2px solid {medical_theme.get_color('border_light')};
+                border-bottom: none;
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px;
+                padding: 12px 24px;
+                margin-right: 6px;
+                color: {medical_theme.get_color('text_secondary')};
+                font-weight: 700;
+                font-size: 12px;
+                min-width: 120px;
+            }}
+            QTabBar::tab:selected {{
+                background: white;
+                color: {medical_theme.get_color('primary_blue')};
+                border-bottom: 2px solid white;
+                margin-bottom: -2px;
+            }}
+            QTabBar::tab:hover:!selected {{
+                background: {medical_theme.get_color('hover_bg')};
+                color: {medical_theme.get_color('primary_blue')};
+            }}
+        """)
         root_layout.addWidget(self.tab_widget, stretch=1)
         
         # Tab 1: Analysis (with left 3 panels + right chat/analysis)
@@ -821,25 +852,416 @@ You can also:
         self.tab_widget.setCurrentWidget(self.analysis_tab)
 
     def _create_analysis_tab(self) -> QWidget:
-        """Create the Analysis tab with balanced 3-section layout."""
+        """Create the Analysis tab with improved layout and scaling."""
         tab = QWidget(self)
-        layout = QHBoxLayout(tab)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(20)
+        main_layout = QHBoxLayout(tab)
+        main_layout.setContentsMargins(15, 15, 15, 15)
+        main_layout.setSpacing(15)
         
-        # Left column: Document Upload & Settings (30%)
-        left_column = self._create_analysis_left_column()
-        layout.addWidget(left_column, stretch=3)
+        # Left column: Rubric Selection (25%)
+        left_column = self._create_rubric_selection_panel()
+        main_layout.addWidget(left_column, stretch=25)
         
-        # Middle column: Report Sections (25%)
-        middle_column = self._create_report_outputs_panel()
-        layout.addWidget(middle_column, stretch=25)
+        # Middle column: Compliance Guidelines & Report Sections (30%)
+        middle_column = self._create_middle_column_panel()
+        main_layout.addWidget(middle_column, stretch=30)
         
-        # Right column: Analysis Results (45%)
-        right_column = self._create_analysis_right_panel()
-        layout.addWidget(right_column, stretch=45)
+        # Right column: Analysis Results with Chat (45%)
+        right_column = self._create_analysis_results_with_chat()
+        main_layout.addWidget(right_column, stretch=45)
         
         return tab
+    
+    def _create_rubric_selection_panel(self) -> QWidget:
+        """Create left panel with rubric selection and document upload."""
+        from PySide6.QtWidgets import QSizePolicy, QScrollArea
+        
+        panel = QWidget(self)
+        panel.setMinimumWidth(280)
+        panel.setMaximumWidth(400)
+        panel.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(15)
+        
+        # Document Upload Section
+        upload_section = self._create_document_upload_section()
+        layout.addWidget(upload_section)
+        
+        # Rubric Selection Section (moved here from middle)
+        rubric_section = self._create_rubric_selector_section()
+        layout.addWidget(rubric_section)
+        
+        # Action Buttons
+        actions_section = self._create_action_buttons_section()
+        layout.addWidget(actions_section)
+        
+        layout.addStretch(1)
+        return panel
+    
+    def _create_rubric_selector_section(self) -> QWidget:
+        """Create rubric selector section."""
+        section = QWidget(self)
+        section.setStyleSheet(f"""
+            QWidget {{
+                background-color: {medical_theme.get_color("bg_secondary")};
+                border: 2px solid {medical_theme.get_color("border_light")};
+                border-radius: 12px;
+            }}
+        """)
+        
+        layout = QVBoxLayout(section)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(12)
+        
+        # Title
+        title = QLabel("📚 Select Rubric", section)
+        title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        title.setStyleSheet(f"color: {medical_theme.get_color('primary_blue')}; background: transparent; border: none;")
+        layout.addWidget(title)
+        
+        # Rubric selector
+        self.rubric_selector = QComboBox(section)
+        self.rubric_selector.setMinimumHeight(40)
+        self.rubric_selector.setStyleSheet(f"""
+            QComboBox {{
+                padding: 10px 12px;
+                border: 2px solid {medical_theme.get_color('border_medium')};
+                border-radius: 8px;
+                background: white;
+                font-size: 11px;
+                font-weight: 500;
+                color: {medical_theme.get_color('text_primary')};
+            }}
+            QComboBox:hover {{
+                border-color: {medical_theme.get_color('primary_blue')};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                width: 35px;
+            }}
+        """)
+        layout.addWidget(self.rubric_selector)
+        
+        return section
+    
+    def _create_middle_column_panel(self) -> QWidget:
+        """Create middle panel with compliance guidelines and report sections."""
+        from PySide6.QtWidgets import QSizePolicy, QScrollArea
+        
+        panel = QWidget(self)
+        panel.setMinimumWidth(300)
+        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(15)
+        
+        # Compliance Guidelines Section (moved from left, above report sections)
+        guidelines_section = self._create_compliance_guidelines_section()
+        layout.addWidget(guidelines_section, stretch=1)
+        
+        # Report Sections (moved from middle)
+        report_section = self._create_report_sections_panel()
+        layout.addWidget(report_section, stretch=1)
+        
+        return panel
+    
+    def _create_compliance_guidelines_section(self) -> QWidget:
+        """Create compliance guidelines section with smaller buttons."""
+        from PySide6.QtWidgets import QScrollArea
+        
+        section = QWidget(self)
+        section.setStyleSheet(f"""
+            QWidget {{
+                background-color: {medical_theme.get_color("bg_secondary")};
+                border: 2px solid {medical_theme.get_color("border_light")};
+                border-radius: 12px;
+            }}
+        """)
+        
+        layout = QVBoxLayout(section)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(12)
+        
+        # Title
+        title = QLabel("⚙️ Review Strictness", section)
+        title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        title.setStyleSheet(f"color: {medical_theme.get_color('primary_blue')}; background: transparent; border: none;")
+        layout.addWidget(title)
+        
+        # Strictness buttons (smaller)
+        strictness_layout = QHBoxLayout()
+        strictness_layout.setSpacing(8)
+        self.strictness_buttons = []
+        
+        for level, emoji in [("Lenient", "😊"), ("Standard", "📋"), ("Strict", "🔍")]:
+            btn = AnimatedButton(f"{emoji}\n{level}", section)
+            btn.setCheckable(True)
+            btn.setMinimumHeight(45)  # Smaller than before (was 55)
+            btn.setMaximumHeight(50)
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: white;
+                    border: 2px solid {medical_theme.get_color('border_medium')};
+                    border-radius: 8px;
+                    color: {medical_theme.get_color('text_primary')};
+                    font-size: 10px;
+                    font-weight: 600;
+                    padding: 4px;
+                }}
+                QPushButton:hover {{
+                    background-color: {medical_theme.get_color('hover_bg')};
+                    border-color: {medical_theme.get_color('primary_blue')};
+                }}
+                QPushButton:checked {{
+                    background-color: {medical_theme.get_color('primary_blue')};
+                    color: white;
+                    border-color: {medical_theme.get_color('primary_blue')};
+                }}
+            """)
+            btn.clicked.connect(lambda checked, b=btn: self._on_strictness_selected(b))
+            self.strictness_buttons.append(btn)
+            strictness_layout.addWidget(btn)
+        
+        layout.addLayout(strictness_layout)
+        
+        # Set default to Standard
+        if len(self.strictness_buttons) >= 2:
+            self.strictness_buttons[1].setChecked(True)
+        
+        return section
+    
+    def _create_report_sections_panel(self) -> QWidget:
+        """Create report sections panel."""
+        from PySide6.QtWidgets import QCheckBox, QGridLayout
+        
+        section = QWidget(self)
+        section.setStyleSheet(f"""
+            QWidget {{
+                background-color: {medical_theme.get_color("bg_secondary")};
+                border: 2px solid {medical_theme.get_color("border_light")};
+                border-radius: 12px;
+            }}
+        """)
+        
+        layout = QVBoxLayout(section)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(12)
+        
+        # Title
+        title = QLabel("📋 Report Sections", section)
+        title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        title.setStyleSheet(f"color: {medical_theme.get_color('primary_blue')}; background: transparent; border: none;")
+        layout.addWidget(title)
+        
+        # Checkboxes in grid
+        grid = QGridLayout()
+        grid.setSpacing(8)
+        
+        sections = [
+            "Executive Summary", "Detailed Findings",
+            "Risk Assessment", "Recommendations",
+            "Regulatory Citations", "Action Plan",
+            "AI Transparency", "Improvement Strategies"
+        ]
+        
+        self.section_checkboxes = {}
+        for i, section_name in enumerate(sections):
+            checkbox = QCheckBox(section_name)
+            checkbox.setChecked(True)
+            checkbox.setStyleSheet(f"""
+                QCheckBox {{
+                    color: {medical_theme.get_color('text_primary')};
+                    font-size: 10px;
+                    spacing: 6px;
+                    background: transparent;
+                    border: none;
+                }}
+                QCheckBox::indicator {{
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid {medical_theme.get_color('border_medium')};
+                    border-radius: 4px;
+                    background: white;
+                }}
+                QCheckBox::indicator:checked {{
+                    background: {medical_theme.get_color('primary_blue')};
+                    border-color: {medical_theme.get_color('primary_blue')};
+                }}
+            """)
+            self.section_checkboxes[section_name] = checkbox
+            grid.addWidget(checkbox, i // 2, i % 2)
+        
+        layout.addLayout(grid)
+        
+        # Export buttons
+        export_layout = QHBoxLayout()
+        export_layout.setSpacing(8)
+        
+        pdf_btn = AnimatedButton("📄 PDF", section)
+        pdf_btn.clicked.connect(self._export_report_pdf)
+        pdf_btn.setMinimumHeight(35)
+        pdf_btn.setStyleSheet(medical_theme.get_button_stylesheet("primary"))
+        export_layout.addWidget(pdf_btn)
+        
+        html_btn = AnimatedButton("🌐 HTML", section)
+        html_btn.clicked.connect(self._export_report_html)
+        html_btn.setMinimumHeight(35)
+        html_btn.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
+        export_layout.addWidget(html_btn)
+        
+        layout.addLayout(export_layout)
+        
+        return section
+    
+    def _create_analysis_results_with_chat(self) -> QWidget:
+        """Create right panel with analysis results and integrated chat bar."""
+        panel = QWidget(self)
+        
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+        
+        # Analysis results (existing)
+        results_panel = self._create_analysis_right_panel_content()
+        layout.addWidget(results_panel, stretch=1)
+        
+        # Chat input bar at bottom
+        chat_bar = self._create_chat_input_bar()
+        layout.addWidget(chat_bar, stretch=0)
+        
+        return panel
+    
+    def _create_analysis_right_panel_content(self) -> QWidget:
+        """Create the analysis results content."""
+        from PySide6.QtWidgets import QTabWidget
+        
+        panel = QWidget(self)
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Modern styled tabs
+        results_tabs = QTabWidget(panel)
+        results_tabs.setStyleSheet(f"""
+            QTabWidget::pane {{
+                border: 2px solid {medical_theme.get_color('border_light')};
+                border-radius: 8px;
+                background: white;
+                top: -1px;
+            }}
+            QTabBar::tab {{
+                background: {medical_theme.get_color('bg_secondary')};
+                border: 2px solid {medical_theme.get_color('border_light')};
+                border-bottom: none;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+                padding: 10px 20px;
+                margin-right: 4px;
+                color: {medical_theme.get_color('text_secondary')};
+                font-weight: 600;
+                font-size: 11px;
+            }}
+            QTabBar::tab:selected {{
+                background: white;
+                color: {medical_theme.get_color('primary_blue')};
+                border-bottom: 2px solid white;
+            }}
+            QTabBar::tab:hover {{
+                background: {medical_theme.get_color('hover_bg')};
+            }}
+        """)
+        
+        # Summary tab
+        self.analysis_summary_browser = QTextBrowser(panel)
+        self.analysis_summary_browser.setOpenExternalLinks(False)
+        self.analysis_summary_browser.anchorClicked.connect(self._handle_report_link)
+        self.analysis_summary_browser.setStyleSheet(f"""
+            QTextBrowser {{
+                border: none;
+                background: white;
+                padding: 15px;
+                font-size: 12px;
+                line-height: 1.6;
+            }}
+        """)
+        results_tabs.addTab(self.analysis_summary_browser, "📊 Summary")
+        
+        # Detailed results tab
+        self.detailed_results_browser = QTextBrowser(panel)
+        self.detailed_results_browser.setOpenExternalLinks(False)
+        self.detailed_results_browser.anchorClicked.connect(self._handle_report_link)
+        self.detailed_results_browser.setStyleSheet(f"""
+            QTextBrowser {{
+                border: none;
+                background: white;
+                padding: 15px;
+                font-size: 12px;
+            }}
+        """)
+        results_tabs.addTab(self.detailed_results_browser, "📋 Details")
+        
+        layout.addWidget(results_tabs)
+        return panel
+    
+    def _create_chat_input_bar(self) -> QWidget:
+        """Create chat input bar below analysis results."""
+        bar = QWidget(self)
+        bar.setStyleSheet(f"""
+            QWidget {{
+                background-color: {medical_theme.get_color('bg_secondary')};
+                border: 2px solid {medical_theme.get_color('border_light')};
+                border-radius: 8px;
+                padding: 8px;
+            }}
+        """)
+        bar.setMaximumHeight(60)
+        
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(10, 5, 10, 5)
+        layout.setSpacing(10)
+        
+        # Chat input field
+        self.chat_input = QTextEdit(bar)
+        self.chat_input.setPlaceholderText("💬 Ask AI about the analysis results...")
+        self.chat_input.setMaximumHeight(40)
+        self.chat_input.setStyleSheet(f"""
+            QTextEdit {{
+                border: 2px solid {medical_theme.get_color('border_medium')};
+                border-radius: 6px;
+                padding: 8px;
+                background: white;
+                font-size: 11px;
+                color: {medical_theme.get_color('text_primary')};
+            }}
+            QTextEdit:focus {{
+                border-color: {medical_theme.get_color('primary_blue')};
+            }}
+        """)
+        layout.addWidget(self.chat_input, stretch=1)
+        
+        # Send button
+        send_btn = AnimatedButton("Send", bar)
+        send_btn.setMinimumWidth(80)
+        send_btn.setMaximumHeight(40)
+        send_btn.clicked.connect(self._send_chat_message)
+        send_btn.setStyleSheet(medical_theme.get_button_stylesheet("primary"))
+        layout.addWidget(send_btn)
+        
+        return bar
+    
+    def _send_chat_message(self):
+        """Handle sending chat message."""
+        message = self.chat_input.toPlainText().strip()
+        if not message:
+            return
+        
+        # Clear input
+        self.chat_input.clear()
+        
+        # Open chat dialog with the message
+        self._open_chat_dialog(initial_message=message)
     
     def _create_analysis_left_column(self) -> QWidget:
         """Create the left column with document upload and settings."""
@@ -1928,8 +2350,12 @@ Click "Run Compliance Analysis" to begin.
         dialog = ChangePasswordDialog(self)
         dialog.exec()
 
-    def _open_chat_dialog(self) -> None:
-        initial_context = self.analysis_summary_browser.toPlainText() or "Provide a compliance summary."
+    def _open_chat_dialog(self, initial_message: str = None) -> None:
+        """Open the AI chat dialog with optional initial message."""
+        if initial_message:
+            initial_context = f"User question: {initial_message}\n\nContext: {self.analysis_summary_browser.toPlainText()}"
+        else:
+            initial_context = self.analysis_summary_browser.toPlainText() or "Provide a compliance summary."
         dialog = ChatDialog(initial_context, self.auth_token, self)
         dialog.exec()
 

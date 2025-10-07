@@ -56,11 +56,11 @@ class HeaderComponent(QWidget):
         emoji_label.setToolTip("Click 7 times for easter egg!")
         layout.addWidget(emoji_label)
         
-        # Main title
+        # Main title with blue color
         self.title_label = QLabel("THERAPY DOCUMENTATION COMPLIANCE ANALYSIS")
         self.title_label.setObjectName("titleLabel")
         self.title_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        self.title_label.setStyleSheet("padding: 0px 15px;")
+        self.title_label.setStyleSheet("padding: 0px 15px; color: #4a90e2;")
         layout.addWidget(self.title_label)
         
         return layout
@@ -110,17 +110,18 @@ class HeaderComponent(QWidget):
         """Get the default stylesheet for the header."""
         return """
         #headerComponent {
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                stop:0 #4a90e2, stop:1 #357abd);
+            background: white;
+            border: 2px solid #e0e0e0;
             border-radius: 10px;
         }
         
         #titleLabel {
-            color: white;
+            color: #4a90e2;
+            font-weight: bold;
         }
         
         #titleLabel:hover {
-            color: #f0f0f0;
+            color: #357abd;
         }
         
         #subtitleLabel {
