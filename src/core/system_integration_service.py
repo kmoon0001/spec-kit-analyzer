@@ -18,7 +18,7 @@ from .advanced_cache_service import AdvancedCacheService
 from .memory_manager import MemoryManager, MemoryPressureLevel
 from .resource_pool import ResourcePoolManager
 from .model_resource_factory import model_resource_manager
-from .performance_optimizer import PerformanceOptimizer
+from .performance_optimizer_simple import PerformanceOptimizer
 
 logger = logging.getLogger(__name__)
 
