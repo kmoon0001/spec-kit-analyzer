@@ -9,6 +9,7 @@ from sentence_transformers.util import cos_sim
 
 from src.config import get_settings
 from .cache_service import cache_service
+from .query_expander import QueryExpander, ExpansionResult
 
 try:  # pragma: no cover - optional dependency during tests
     from src.database import crud
@@ -20,9 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 class HybridRetriever:
-    """Combine keyword, dense retrieval, and reranking with cached embeddings."""
+    """Combine keyword, dense retrieval, and reranking with cached embeddings and query expansion."""
 
-    def __init__(self, rules: Optional[List[Dict[str, str]]] = None, model_name: Optional[str] = None) -> None:
+    def __init__(self, 
+                 rules: Optional[List[Dict[str, str]]] = None, 
+                 model_name: Optional[str] = None,
+                 query_expander: Optional[QueryExpander] = None) -> None:
         settings = get_settings()
         self.rules = rules or self._load_rules_from_db()
         
@@ -32,8 +36,10 @@ class HybridRetriever:
         features_cfg = getattr(settings, "features", {}) or {}
         if isinstance(features_cfg, dict):
             self.use_reranker = bool(features_cfg.get("enable_reranker", False))
+            self.use_query_expansion = bool(features_cfg.get("enable_query_expansion", True))
         else:
             self.use_reranker = bool(getattr(features_cfg, "enable_reranker", False))
+            self.use_query_expansion = bool(getattr(features_cfg, "enable_query_expansion", True))
 
         self.dense_retriever = SentenceTransformer(dense_model_name)
         self.reranker = None
@@ -44,6 +50,9 @@ class HybridRetriever:
                 logger.warning("Failed to initialize reranker '%s': %s", reranker_model_name, exc)
                 self.use_reranker = False
 
+        # Initialize query expander
+        self.query_expander = query_expander or QueryExpander()
+        
         self._build_indices()
 
     def _build_indices(self) -> None:
@@ -85,16 +94,39 @@ class HybridRetriever:
         top_k: int = 5,
         k: int = 60,
         category_filter: Optional[str] = None,
+        discipline: Optional[str] = None,
+        document_type: Optional[str] = None,
+        context_entities: Optional[List[str]] = None,
     ) -> List[Dict[str, str]]:
         if not self.rules or not self.corpus:
             return []
 
+        # 0. Query Expansion (if enabled)
+        expanded_query = query
+        expansion_result = None
+        
+        if self.use_query_expansion:
+            try:
+                expansion_result = self.query_expander.expand_query(
+                    query=query,
+                    discipline=discipline,
+                    document_type=document_type,
+                    context_entities=context_entities
+                )
+                expanded_query = expansion_result.get_expanded_query(max_terms=8)
+                logger.debug(f"Query expanded from '{query}' to '{expanded_query}' "
+                           f"({expansion_result.total_terms} total terms)")
+            except Exception as e:
+                logger.warning(f"Query expansion failed, using original query: {e}")
+                expanded_query = query
+
         # 1. Hybrid Retrieval (BM25 + Dense) with RRF
-        tokenized_query = query.lower().split()
+        tokenized_query = expanded_query.lower().split()
         bm25_scores = self.bm25.get_scores(tokenized_query) if self.bm25 is not None else np.zeros(len(self.rules))
         bm25_ranks = {doc_id: rank + 1 for rank, doc_id in enumerate(np.argsort(bm25_scores)[::-1])}
 
-        query_embedding = self._get_embedding(query)
+        # Use expanded query for dense retrieval as well
+        query_embedding = self._get_embedding(expanded_query)
         if self.corpus_embeddings is None:
             return []
         dense_scores = cos_sim(query_embedding, self.corpus_embeddings)[0].cpu().numpy()
@@ -111,7 +143,7 @@ class HybridRetriever:
         initial_top_n = min(len(rrf_scores), 20)
         sorted_initial_docs = sorted(rrf_scores.items(), key=lambda item: item[1], reverse=True)[:initial_top_n]
         
-        # 2. Reranking with Cross-Encoder
+        # 2. Reranking with Cross-Encoder (use original query for reranking)
         cross_inp = [[query, self.corpus[doc_id]] for doc_id, _ in sorted_initial_docs]
 
         if self.use_reranker and self.reranker is not None:
@@ -126,7 +158,21 @@ class HybridRetriever:
             sorted_reranked_docs = sorted_initial_docs
 
         # 3. Final Selection and Filtering
-        final_rules = [self.rules[doc_id] for doc_id, _ in sorted_reranked_docs]
+        final_rules = []
+        for doc_id, score in sorted_reranked_docs:
+            rule = self.rules[doc_id].copy()
+            rule['relevance_score'] = float(score)
+            
+            # Add expansion metadata if query expansion was used
+            if expansion_result and self.use_query_expansion:
+                rule['query_expansion'] = {
+                    'original_query': expansion_result.original_query,
+                    'expanded_query': expanded_query,
+                    'expansion_sources': list(expansion_result.expansion_sources.keys()),
+                    'total_expansions': expansion_result.total_terms - 1
+                }
+            
+            final_rules.append(rule)
 
         if category_filter:
             filtered_rules = [rule for rule in final_rules if rule.get("category", "").lower() == category_filter.lower()]

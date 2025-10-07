@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import logging
+import time
 from threading import Lock
 from typing import Any, Dict, Optional
 from pathlib import Path
+
+from src.core.cache_service import LLMResponseCache
 
 logger = logging.getLogger(__name__)
 
@@ -153,6 +156,14 @@ class LLMService:
             logger.error("LLM is not available or failed to load. Cannot generate text.")
             return "Error: LLM service is not available."
 
+        # Check cache first for performance optimization
+        model_identifier = f"{self.model_repo_id}_{self.backend}"
+        cached_response = LLMResponseCache.get_llm_response(prompt, model_identifier)
+        if cached_response is not None:
+            logger.debug(f"Cache hit for LLM response (model: {model_identifier})")
+            return cached_response
+
+        start_time = time.time()
         gen_params = dict(self.settings.get("generation_params", {}))
         gen_params.update(kwargs)
 
@@ -175,7 +186,15 @@ class LLMService:
                     stop=stop_sequences,
                     **gen_params,
                 )
-                return output.strip() if isinstance(output, str) else str(output)
+                result = output.strip() if isinstance(output, str) else str(output)
+                
+                # Cache the result for future use
+                generation_time = time.time() - start_time
+                ttl_hours = 6.0 if generation_time > 5.0 else 12.0  # Longer TTL for quick responses
+                LLMResponseCache.set_llm_response(prompt, model_identifier, result, ttl_hours)
+                
+                logger.debug(f"LLM generation completed in {generation_time:.2f}s, cached with TTL {ttl_hours}h")
+                return result
 
             if self.tokenizer is None:
                 logger.error("Tokenizer not initialised for transformers backend")
@@ -245,7 +264,16 @@ class LLMService:
             with torch.no_grad():
                 outputs = self.llm.generate(**inputs, **generate_kwargs)
 
-            return self.tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+            result = self.tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+            
+            # Cache the result for future use
+            generation_time = time.time() - start_time
+            ttl_hours = 6.0 if generation_time > 5.0 else 12.0  # Longer TTL for quick responses
+            LLMResponseCache.set_llm_response(prompt, model_identifier, result, ttl_hours)
+            
+            logger.debug(f"LLM generation completed in {generation_time:.2f}s, cached with TTL {ttl_hours}h")
+            return result
+            
         except Exception as exc:  # noqa: BLE001 - capture inference issues
             logger.error("An error occurred during text generation", exc_info=True, extra={"error": str(exc)})
             return "An error occurred during text generation."

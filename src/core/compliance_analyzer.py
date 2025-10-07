@@ -225,7 +225,11 @@ class ComplianceAnalyzer:
 
         search_query = f"{discipline} {doc_type} {entity_list_str}"
         retrieved_rules = await self.retriever.retrieve(
-            search_query, category_filter=discipline
+            search_query, 
+            category_filter=discipline,
+            discipline=discipline,
+            document_type=doc_type,
+            context_entities=[entity['word'] for entity in entities] if entities else None
         )
         logger.info("Retrieved %d rules for analysis.", len(retrieved_rules))
 
