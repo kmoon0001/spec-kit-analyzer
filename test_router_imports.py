@@ -1,3 +1,46 @@
+_pycache__
+   ✅ Removed: .\.venv\pydevd_attach_to_process\winappdbg\win32\__pycache__
+   ✅ Removed: .\.venv\Scripts\__pycache__
+   ✅ Removed: .\bin\__pycache__
+   ✅ Removed: .\scripts\__pycache__
+   ✅ Removed: .\src\api\routers\__pycache__
+   ✅ Removed: .\src\gui\components\__pycache__
+   ✅ Removed: .\src\gui\dialogs\__pycache__
+   ✅ Removed: .\src\gui\widgets\__pycache__
+   ✅ Removed: .\src\gui\workers\__pycache__
+   ✅ Removed: .\src\ml\__pycache__
+   ✅ Removed: .\src\utils\__pycache__
+   ✅ Removed: .\tests\gui\__pycache__
+   ✅ Removed: .\tests\integration\__pycache__
+   ✅ Removed: .\tests\logic\__pycache__
+   ✅ Removed: .\tests\regression\__pycache__
+   ✅ Removed: .\tests\unit\__pycache__
+   ✅ Removed: .\tests\_stability\__pycache__
+
+🎉 Cache clearing complete!
+   Now restart the server: python scripts/run_api.py
+PS C:\Users\kevin\PycharmProjects\Letsgo#999> python check_server_direct.py
+🔍 Direct Server Check
+==============================
+Testing basic connection...
+❌ Connection Error: HTTPConnectionPool(host='127.0.0.1', port=8001): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000243A62602F0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))
+   Server may not be running or on different port
+PS C:\Users\kevin\PycharmProjects\Letsgo#999> ^C
+PS C:\Users\kevin\PycharmProjects\Letsgo#999> ^C
+PS C:\Users\kevin\PycharmProjects\Letsgo#999> 
+PS C:\Users\kevin\PycharmProjects\Letsgo#999> ^C
+PS C:\Users\kevin\PycharmProjects\Letsgo#999> python wait_for_server.py    
+⏳ Waiting for API server to start...
+   (Restart server with: python scripts/run_api.py)
+==================================================
+🔍 Attempt 6/60: Testing connection...Traceback (most recent call last):
+  File "C:\Users\kevin\PycharmProjects\Letsgo#999\wait_for_server.py", line 74, in <module>
+    success = wait_for_server()
+  File "C:\Users\kevin\PycharmProjects\Letsgo#999\wait_for_server.py", line 66, in wait_for_server
+    time.sleep(5)  # Wait 5 seconds between attempts
+    ~~~~~~~~~~^^^
+KeyboardInterrupt
+PS C:\Users\kevin\Pycha
 #!/usr/bin/env python3
 """
 Test script to verify router imports are working correctly.

@@ -109,7 +109,7 @@ class PerformanceOptimizer:
                 timestamp=datetime.now()
             )
     
-    def optimize_performance(self, 
+    async def optimize_performance(self, 
                            aggressive: bool = False,
                            target_improvement: float = 20.0) -> Dict[str, Any]:
         """Execute comprehensive performance optimization.
