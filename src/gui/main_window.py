@@ -2,7 +2,6 @@
 """Primary GUI window for the Therapy Compliance Analyzer."""
 from __future__ import annotations
 
-import functools
 import gc
 import json
 import logging
@@ -13,7 +12,7 @@ from typing import Any, Callable, Dict, Optional, Protocol
 from urllib.parse import urlparse, parse_qs
 
 from PySide6.QtCore import Qt, QThread, QSettings, QObject, Signal, QUrl
-from PySide6.QtGui import QAction, QFont, QActionGroup
+from PySide6.QtGui import QAction, QFont
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -21,7 +20,6 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
     QLabel,
-    QListWidgetItem,
     QMainWindow,
     QMenu,
     QMessageBox,
@@ -208,22 +206,26 @@ class MainViewModel(QObject):
 
     def _handle_analysis_task_started(self, task_id: str) -> None:
         self.status_message_changed.emit("Analysis running…")
-        self._run_worker(SingleAnalysisPollingWorker, on_success=self.analysis_result_received.emit, on_error=lambda msg: self.status_message_changed.emit(f"Polling failed: {msg}"), task_id=task_id, token=self.auth_token)
+        self._run_worker(SingleAnalysisPollingWorker, on_success=self.analysis_result_received.emit, on_error=lambda msg: self.status_message_changed.emit(f"Polling failed: {msg}"), task_id=task_id)
 
     def load_settings(self) -> None:
         self._run_worker(GenericApiWorker, on_success=self.settings_loaded.emit, on_error=lambda msg: self.status_message_changed.emit(f"Failed to load settings: {msg}"), endpoint="/admin/settings", token=self.auth_token)
 
     def save_settings(self, settings: dict) -> None:
+        auth_token = self.auth_token  # Capture in local scope
+        
         class SettingsSaveWorker(QThread):
             success = Signal(str)
             error = Signal(str)
-            def run(self_worker) -> None:
+            def run(self) -> None:
                 try:
-                    response = requests.post(f"{API_URL}/admin/settings", headers={"Authorization": f"Bearer {self.auth_token}"}, json=settings, timeout=10)
+                    response = requests.post(f"{API_URL}/admin/settings", headers={"Authorization": f"Bearer {auth_token}"}, json=settings, timeout=10)
                     response.raise_for_status()
-                    self_worker.success.emit(response.json().get("message", "Success!"))
+                    self.success.emit(response.json().get("message", "Success!"))
+                except (requests.RequestException, ValueError, KeyError) as e:
+                    self.error.emit(str(e))
                 except Exception as e:
-                    self_worker.error.emit(str(e))
+                    self.error.emit(f"Unexpected error: {str(e)}")
         self._run_worker(SettingsSaveWorker, on_success=lambda msg: self.status_message_changed.emit(msg), on_error=lambda msg: self.status_message_changed.emit(f"Failed to save settings: {msg}"))
 
     def submit_feedback(self, feedback_data: Dict[str, Any]) -> None:
@@ -262,10 +264,56 @@ class MainApplicationWindow(QMainWindow):
         self.view_model = MainViewModel(token)
         self.mission_control_widget = MissionControlWidget(self)
         
-        # Initialize missing attributes
+        # Initialize UI attributes to prevent "defined outside __init__" warnings
         self.auto_analysis_queue_list = None
         self.auth_token = token
         self.report_preview_browser = None
+        self.header = None
+        self.status_component = None
+        self.tab_widget = None
+        self.analysis_tab = None
+        self.dashboard_tab = None
+        self.mission_control_tab = None
+        self.settings_tab = None
+        self.rubric_selector = None
+        self.strictness_buttons = []
+        self.section_checkboxes = {}
+        self.analysis_summary_browser = None
+        self.detailed_results_browser = None
+        self.chat_input = None
+        self.file_display = None
+        self.open_file_button = None
+        self.open_folder_button = None
+        self.run_analysis_button = None
+        self.repeat_analysis_button = None
+        self.view_report_button = None
+        self.dashboard_widget = None
+        self.settings_editor = None
+        self.resource_label = None
+        self.connection_label = None
+        self.loading_spinner = None
+        self.progress_bar = None
+        self.meta_analytics_dock = None
+        self.meta_widget = None
+        self.performance_dock = None
+        self.performance_widget = None
+        self.log_viewer = None
+        self.chat_button = None
+        self.meta_analytics_action = None
+        self.performance_action = None
+        
+        # System monitoring attributes
+        self.has_psutil = False
+        self.resource_timer = None
+        
+        # Easter egg attributes
+        self.konami_sequence = []
+        self.konami_code = [
+            Qt.Key.Key_Up, Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Down,
+            Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Left, Qt.Key.Key_Right,
+            Qt.Key.Key_B, Qt.Key.Key_A
+        ]
+        self.developer_mode = False
 
         self._build_ui()
         self._connect_view_model()
@@ -404,6 +452,9 @@ class MainApplicationWindow(QMainWindow):
         # For now, we'll set them as ready after 2 seconds
         from PySide6.QtCore import QTimer
         QTimer.singleShot(2000, self._on_ai_models_ready)
+        
+        # Start system resource monitoring
+        self._start_resource_monitoring()
 
     def _on_ai_models_ready(self) -> None:
         """Called when AI models are loaded and ready."""
@@ -588,7 +639,7 @@ class MainApplicationWindow(QMainWindow):
                     QMessageBox.warning(self, "Export Failed", f"PDF export failed:\n{error_msg}\n\nTip: Install weasyprint for better PDF support:\npip install weasyprint")
                     
             except Exception as e:
-                logger.error(f"PDF export failed: {e}")
+                logger.error("PDF export failed: %s", str(e))
                 QMessageBox.warning(self, "Export Failed", f"Failed to export report: {str(e)}\n\nTip: Install weasyprint:\npip install weasyprint")
 
     def _export_report_html(self) -> None:
@@ -1827,10 +1878,7 @@ You can also:
             else:
                 self.performance_dock.show()
     
-    def _open_change_password_dialog(self) -> None:
-        """Open the change password dialog."""
-        dialog = ChangePasswordDialog(self)
-        dialog.exec()
+
     
     def _setup_keyboard_shortcuts(self) -> None:
         """Setup keyboard shortcuts for tab navigation."""
@@ -1863,11 +1911,12 @@ You can also:
     def _create_dashboard_tab(self) -> QWidget:
         """Create the Dashboard tab."""
         tab, layout = self._create_tab_base_layout()
-        self.dashboard_widget = DashboardWidget() if DashboardWidget else QTextBrowser()
-        if not DashboardWidget:
-            self.dashboard_widget.setPlainText("Dashboard component unavailable.")
-        else:
+        try:
+            self.dashboard_widget = DashboardWidget()
             self.dashboard_widget.refresh_requested.connect(self.view_model.load_dashboard_data)
+        except (ImportError, NameError):
+            self.dashboard_widget = QTextBrowser()
+            self.dashboard_widget.setPlainText("Dashboard component unavailable.")
         layout.addWidget(self.dashboard_widget)
         return tab
     
@@ -1993,7 +2042,7 @@ You can also:
         account_layout.addWidget(user_info)
         
         password_button = AnimatedButton("🔒 Change Password", account_section)
-        password_button.clicked.connect(self._open_change_password_dialog)
+        password_button.clicked.connect(self.show_change_password_dialog)
         password_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
         password_button.setMinimumHeight(40)
         account_layout.addWidget(password_button)
@@ -2208,9 +2257,31 @@ You can also:
         status.addPermanentWidget(self.status_component)
         
         # Add separator
-        separator = QLabel(" | ")
-        separator.setStyleSheet("color: #94a3b8;")
-        status.addPermanentWidget(separator)
+        separator1 = QLabel(" | ")
+        separator1.setStyleSheet("color: #94a3b8;")
+        status.addPermanentWidget(separator1)
+        
+        # System Resource Monitor
+        self.resource_label = QLabel("💻 CPU: 0% | RAM: 0MB")
+        self.resource_label.setStyleSheet("color: #64748b; font-size: 10px; font-family: monospace;")
+        self.resource_label.setToolTip("System resource usage")
+        status.addPermanentWidget(self.resource_label)
+        
+        # Add separator
+        separator2 = QLabel(" | ")
+        separator2.setStyleSheet("color: #94a3b8;")
+        status.addPermanentWidget(separator2)
+        
+        # Connection Status
+        self.connection_label = QLabel("🌐 API: Connected")
+        self.connection_label.setStyleSheet("color: #059669; font-size: 10px;")
+        self.connection_label.setToolTip("API connection status")
+        status.addPermanentWidget(self.connection_label)
+        
+        # Add separator
+        separator3 = QLabel(" | ")
+        separator3.setStyleSheet("color: #94a3b8;")
+        status.addPermanentWidget(separator3)
         
         # Subtle loading spinner (hidden by default)
         self.loading_spinner = LoadingSpinner(size=20, parent=self)
@@ -2243,6 +2314,7 @@ You can also:
         # Meta Analytics Dock (hidden by default, accessible via Tools menu)
         if MetaAnalyticsWidget:
             self.meta_analytics_dock = QDockWidget("Meta Analytics", self)
+            self.meta_analytics_dock.setObjectName("MetaAnalyticsDock")
             self.meta_analytics_dock.setAllowedAreas(Qt.DockWidgetArea.BottomDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
             self.meta_widget = MetaAnalyticsWidget()
             self.meta_widget.refresh_requested.connect(self.view_model.load_meta_analytics)
@@ -2316,11 +2388,14 @@ You can also:
         self.chat_button.resize(200, 44)
         self.chat_button.raise_()
 
-    def _apply_theme(self, theme: str) -> None:
-        QApplication.instance().setPalette(get_theme_palette(theme))
-        for action in self.theme_action_group.actions():
-            if action.text().lower() == theme:
-                action.setChecked(True)
+    def _apply_theme(self, theme_name: str) -> None:
+        """Apply a specific theme."""
+        medical_theme.set_theme(theme_name)
+        self._apply_medical_theme()
+        
+        # Update status bar message
+        theme_display = "Dark" if theme_name == "dark" else "Light"
+        self.statusBar().showMessage(f"Applied {theme_display} theme", 3000)
 
     def _save_gui_settings(self) -> None:
         """Save GUI settings including window geometry, theme, and preferences."""
@@ -2328,8 +2403,8 @@ You can also:
         self.settings.setValue("windowState", self.saveState())
         self.settings.setValue("ui/last_active_tab", self.tab_widget.currentIndex())
         
-        if self.theme_action_group.checkedAction():
-            self.settings.setValue("theme", self.theme_action_group.checkedAction().text().lower())
+        # Save current theme
+        self.settings.setValue("theme", medical_theme.current_theme)
         self.settings.setValue("analysis/rubric", self.rubric_selector.currentData())
         if self._selected_file:
             self.settings.setValue("analysis/last_file", str(self._selected_file))
@@ -2431,7 +2506,8 @@ Click "Run Compliance Analysis" to begin.
 
     def _update_document_preview(self) -> None:
         """Document preview is now handled via popup button - this method is deprecated."""
-        pass
+        # This method is kept for backward compatibility but no longer used
+        return
 
     def _prompt_for_folder(self) -> None:
         folder_path = QFileDialog.getExistingDirectory(self, "Select folder for batch analysis", str(Path.home()))
@@ -2515,7 +2591,7 @@ healthcare better every day! 💪
         # Add custom button for more easter eggs
         easter_egg_button = msg.addButton("🥚 More Easter Eggs", QMessageBox.ButtonRole.ActionRole)
         
-        result = msg.exec()
+        msg.exec()
         
         if msg.clickedButton() == easter_egg_button:
             self._show_easter_eggs_dialog()
@@ -2729,6 +2805,58 @@ Memory:
         """
         
         QMessageBox.information(self, "ℹ️ System Information", system_info)
+
+    def _start_resource_monitoring(self) -> None:
+        """Start system resource monitoring timer."""
+        try:
+            import psutil
+            self.has_psutil = True
+        except ImportError:
+            self.has_psutil = False
+            self.resource_label.setText("💻 Resource monitoring unavailable")
+            self.resource_label.setToolTip("Install psutil for resource monitoring: pip install psutil")
+            return
+        
+        from PySide6.QtCore import QTimer
+        self.resource_timer = QTimer()
+        self.resource_timer.timeout.connect(self._update_resource_info)
+        self.resource_timer.start(2000)  # Update every 2 seconds
+
+    def _update_resource_info(self) -> None:
+        """Update system resource information in status bar."""
+        if not self.has_psutil:
+            return
+        
+        try:
+            import psutil
+            
+            # Get CPU and memory usage
+            cpu_percent = psutil.cpu_percent(interval=None)
+            memory = psutil.virtual_memory()
+            memory_mb = memory.used // (1024 * 1024)
+            memory_percent = memory.percent
+            
+            # Get disk usage for current drive
+            disk = psutil.disk_usage('/')
+            disk_percent = (disk.used / disk.total) * 100
+            
+            # Update resource label
+            resource_text = f"💻 CPU: {cpu_percent:.1f}% | RAM: {memory_mb}MB ({memory_percent:.1f}%) | Disk: {disk_percent:.1f}%"
+            self.resource_label.setText(resource_text)
+            
+            # Change color based on usage
+            if cpu_percent > 80 or memory_percent > 80:
+                color = "#dc2626"  # Red for high usage
+            elif cpu_percent > 60 or memory_percent > 60:
+                color = "#d97706"  # Orange for medium usage
+            else:
+                color = "#059669"  # Green for normal usage
+            
+            self.resource_label.setStyleSheet(f"color: {color}; font-size: 10px; font-family: monospace;")
+            
+        except Exception as e:
+            self.resource_label.setText("💻 Resource info unavailable")
+            self.resource_label.setToolTip(f"Error getting resource info: {str(e)}")
 
     def resizeEvent(self, event) -> None:
         """Handle window resize to reposition floating chat button."""

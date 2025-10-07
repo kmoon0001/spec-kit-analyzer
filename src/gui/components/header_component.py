@@ -27,40 +27,57 @@ class HeaderComponent(QWidget):
         
     def init_ui(self):
         """Initialize the header UI."""
-        self.setFixedHeight(80)
+        self.setFixedHeight(100)  # Increased height for larger title
         self.setObjectName("headerComponent")
         
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(20, 10, 20, 10)
+        layout.setContentsMargins(20, 15, 20, 15)
         
-        # Logo and title section
+        # Logo section (left)
+        logo_section = self.create_logo_section()
+        layout.addLayout(logo_section)
+        
+        # Title section (center - takes most space)
         title_section = self.create_title_section()
-        layout.addLayout(title_section)
+        layout.addLayout(title_section, stretch=3)  # Give title more space
         
-        # Spacer
-        layout.addStretch()
-        
-        # Controls section
+        # Controls section (right)
         controls_section = self.create_controls_section()
         layout.addLayout(controls_section)
         
-    def create_title_section(self):
-        """Create the title and logo section."""
+    def create_logo_section(self):
+        """Create the logo section."""
         layout = QHBoxLayout()
         
         # Medical emoji (clickable for easter eggs)
         emoji_label = QLabel("🏥")
-        emoji_label.setFont(QFont("Segoe UI", 24))
+        emoji_label.setFont(QFont("Segoe UI", 32))  # Larger emoji
         emoji_label.mousePressEvent = self.on_logo_clicked
         emoji_label.setCursor(Qt.CursorShape.PointingHandCursor)
         emoji_label.setToolTip("Click 7 times for easter egg!")
         layout.addWidget(emoji_label)
         
-        # Main title with blue color
+        return layout
+
+    def create_title_section(self):
+        """Create the centered title section."""
+        layout = QHBoxLayout()
+        
+        # Main title - larger and centered
         self.title_label = QLabel("THERAPY DOCUMENTATION COMPLIANCE ANALYSIS")
         self.title_label.setObjectName("titleLabel")
-        self.title_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        self.title_label.setStyleSheet("padding: 0px 15px; color: #4a90e2;")
+        self.title_label.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))  # Much larger font
+        self.title_label.setStyleSheet("""
+            QLabel#titleLabel {
+                color: #1d4ed8;
+                text-align: center;
+                padding: 10px 20px;
+                background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+                border-radius: 12px;
+                border: 2px solid #cbd5e0;
+            }
+        """)
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.title_label)
         
         return layout
@@ -69,12 +86,27 @@ class HeaderComponent(QWidget):
         """Create the controls section."""
         layout = QHBoxLayout()
         
-        # Theme toggle button
+        # Theme toggle button - larger and more prominent
         self.theme_button = QPushButton("🌙")
         self.theme_button.setObjectName("themeButton")
-        self.theme_button.setFixedSize(40, 40)
-        self.theme_button.setToolTip("Toggle Dark/Light Theme")
+        self.theme_button.setFixedSize(50, 50)  # Larger button
+        self.theme_button.setToolTip("Toggle Dark/Light Theme (Ctrl+T)")
         self.theme_button.clicked.connect(self.on_theme_toggle)
+        self.theme_button.setStyleSheet("""
+            QPushButton#themeButton {
+                background-color: #f1f5f9;
+                border: 2px solid #cbd5e0;
+                border-radius: 25px;
+                font-size: 20px;
+            }
+            QPushButton#themeButton:hover {
+                background-color: #e2e8f0;
+                border-color: #1d4ed8;
+            }
+            QPushButton#themeButton:pressed {
+                background-color: #cbd5e0;
+            }
+        """)
         
         layout.addWidget(self.theme_button)
         
