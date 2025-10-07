@@ -235,7 +235,7 @@ def create_sample_logo():
         # Add company name
         try:
             font = ImageFont.truetype("arial.ttf", 24)
-        except:
+        except OSError:
             font = ImageFont.load_default()
         
         text = "HealthCorp"

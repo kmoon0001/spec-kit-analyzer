@@ -54,9 +54,9 @@ def test_api_server():
             print(f"   {method} {endpoint} ({description}): {response.status_code}")
             
             if response.status_code == 404:
-                print(f"      ❌ Endpoint not found")
+                print("      ❌ Endpoint not found")
             elif response.status_code in [200, 400, 401, 422]:
-                print(f"      ✅ Endpoint exists (expected error for invalid data)")
+                print("      ✅ Endpoint exists (expected error for invalid data)")
             else:
                 print(f"      ⚠️ Unexpected status: {response.status_code}")
                 

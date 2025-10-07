@@ -8,15 +8,13 @@ medical terms, synonyms, and contextual information.
 """
 
 import sys
-import os
 from pathlib import Path
-from typing import List, Dict, Any
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.core.query_expander import QueryExpander, MedicalVocabulary
+from src.core.query_expander import QueryExpander, MedicalVocabulary  # noqa: E402
 
 
 def demonstrate_medical_vocabulary():
@@ -27,13 +25,13 @@ def demonstrate_medical_vocabulary():
     vocab = MedicalVocabulary()
     
     # Show vocabulary statistics
-    print(f"📊 Vocabulary Statistics:")
+    print("📊 Vocabulary Statistics:")
     print(f"   • Synonyms: {len(vocab.synonyms)} medical terms")
     print(f"   • Abbreviations: {len(vocab.abbreviations)} abbreviations")
     print(f"   • Specialty terms: {sum(len(terms) for terms in vocab.specialties.values())} terms")
     
     # Demonstrate synonym expansion
-    print(f"\n🔄 Synonym Expansion Examples:")
+    print("\n🔄 Synonym Expansion Examples:")
     test_terms = ["physical therapy", "PT", "assessment", "goals", "mobility"]
     
     for term in test_terms:
@@ -42,7 +40,7 @@ def demonstrate_medical_vocabulary():
             print(f"   • '{term}' → {synonyms[:3]}{'...' if len(synonyms) > 3 else ''}")
     
     # Demonstrate abbreviation expansion
-    print(f"\n📝 Abbreviation Expansion Examples:")
+    print("\n📝 Abbreviation Expansion Examples:")
     test_abbrevs = ["PT", "OT", "SLP", "ROM", "ADL"]
     
     for abbrev in test_abbrevs:
@@ -51,7 +49,7 @@ def demonstrate_medical_vocabulary():
             print(f"   • '{abbrev}' → {expansions[0]}")
     
     # Show specialty terms
-    print(f"\n🏥 Specialty-Specific Terms:")
+    print("\n🏥 Specialty-Specific Terms:")
     for discipline in ["physical", "occupational", "speech"]:
         specialty_terms = vocab.get_specialty_terms(discipline)
         if specialty_terms:
@@ -60,7 +58,7 @@ def demonstrate_medical_vocabulary():
 
 def demonstrate_query_expansion():
     """Demonstrate query expansion with realistic examples."""
-    print(f"\n🔍 Query Expansion Demonstration")
+    print("\n🔍 Query Expansion Demonstration")
     print("=" * 50)
     
     expander = QueryExpander()
@@ -123,7 +121,7 @@ def demonstrate_query_expansion():
         
         # Show expansion sources
         if result.expansion_sources:
-            print(f"   Expansion Sources:")
+            print("   Expansion Sources:")
             for source, terms in result.expansion_sources.items():
                 if terms:
                     print(f"     • {source.title()}: {terms[:2]}{'...' if len(terms) > 2 else ''}")
@@ -132,14 +130,14 @@ def demonstrate_query_expansion():
         if result.confidence_scores:
             top_terms = sorted(result.confidence_scores.items(), 
                              key=lambda x: x[1], reverse=True)[:3]
-            print(f"   Top Confidence Scores:")
+            print("   Top Confidence Scores:")
             for term, confidence in top_terms:
                 print(f"     • '{term}': {confidence:.2f}")
 
 
 def demonstrate_expansion_impact():
     """Demonstrate the impact of query expansion on search effectiveness."""
-    print(f"\n📈 Query Expansion Impact Analysis")
+    print("\n📈 Query Expansion Impact Analysis")
     print("=" * 50)
     
     expander = QueryExpander()
@@ -221,12 +219,12 @@ def demonstrate_expansion_impact():
             for match in additional_matches[:2]:  # Show first 2 additional matches
                 print(f"      • {match[:60]}...")
         else:
-            print(f"   ➡️  No additional matches (query was already effective)")
+            print("   ➡️  No additional matches (query was already effective)")
 
 
 def demonstrate_customization():
     """Demonstrate vocabulary customization capabilities."""
-    print(f"\n⚙️ Vocabulary Customization")
+    print("\n⚙️ Vocabulary Customization")
     print("=" * 50)
     
     # Create custom vocabulary
@@ -251,8 +249,8 @@ def demonstrate_customization():
         document_type="progress_note"
     )
     
-    print(f"\n🔍 Custom Expansion Test:")
-    print(f"   Original: 'telehealth COVID therapy'")
+    print("\n🔍 Custom Expansion Test:")
+    print("   Original: 'telehealth COVID therapy'")
     print(f"   Expanded: '{result.get_expanded_query()}'")
     print(f"   Custom terms found in expansion: {len([t for t in result.expanded_terms if 'telemedicine' in t or 'coronavirus' in t])}")
 
@@ -270,21 +268,21 @@ def main():
         demonstrate_customization()
         
         # Show summary
-        print(f"\n✅ Query Expansion Demo Complete!")
-        print(f"\n💡 Key Benefits Demonstrated:")
-        print(f"   • Medical terminology expansion with 100+ synonyms")
-        print(f"   • Abbreviation expansion for 30+ medical abbreviations")
-        print(f"   • Discipline-specific term enhancement")
-        print(f"   • Context-aware expansion using document entities")
-        print(f"   • Document type-specific expansion")
-        print(f"   • Customizable vocabulary for specialized terms")
-        print(f"   • Improved search recall through intelligent expansion")
+        print("\n✅ Query Expansion Demo Complete!")
+        print("\n💡 Key Benefits Demonstrated:")
+        print("   • Medical terminology expansion with 100+ synonyms")
+        print("   • Abbreviation expansion for 30+ medical abbreviations")
+        print("   • Discipline-specific term enhancement")
+        print("   • Context-aware expansion using document entities")
+        print("   • Document type-specific expansion")
+        print("   • Customizable vocabulary for specialized terms")
+        print("   • Improved search recall through intelligent expansion")
         
-        print(f"\n🚀 Expected Impact:")
-        print(f"   • 15-25% improvement in relevant rule retrieval")
-        print(f"   • Better coverage of medical terminology variations")
-        print(f"   • Reduced false negatives in compliance analysis")
-        print(f"   • More comprehensive compliance checking")
+        print("\n🚀 Expected Impact:")
+        print("   • 15-25% improvement in relevant rule retrieval")
+        print("   • Better coverage of medical terminology variations")
+        print("   • Reduced false negatives in compliance analysis")
+        print("   • More comprehensive compliance checking")
         
     except Exception as e:
         print(f"\nDemo failed with error: {e}")

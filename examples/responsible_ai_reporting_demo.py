@@ -16,13 +16,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 try:
     from core.report_generation_engine import ReportGenerationEngine, ReportConfig, ReportType
     from core.ai_guardrails_service import AIGuardrailsService
-    from core.data_integration_service import DataQuery, DataSourceType
+    pass  # Imports removed as they were unused
 except ImportError:
     # Alternative import approach
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from src.core.report_generation_engine import ReportGenerationEngine, ReportConfig, ReportType
     from src.core.ai_guardrails_service import AIGuardrailsService
-    from src.core.data_integration_service import DataQuery, DataSourceType
 
 
 async def demonstrate_responsible_ai_reporting():

@@ -8,7 +8,6 @@ is used to continuously improve confidence calibration.
 """
 
 import sys
-import os
 import asyncio
 import tempfile
 from pathlib import Path
@@ -18,9 +17,9 @@ from datetime import datetime
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.ml.trainer import MLTrainingPipeline
-from src.core.calibration_trainer import CalibrationTrainer, FeedbackCollector
-from src.core.ml_scheduler import MLScheduler
+from src.ml.trainer import MLTrainingPipeline  # noqa: E402
+from src.core.calibration_trainer import CalibrationTrainer, FeedbackCollector  # noqa: E402
+from src.core.ml_scheduler import MLScheduler  # noqa: E402
 
 
 async def simulate_user_feedback_collection():
@@ -110,7 +109,7 @@ async def demonstrate_ml_training_pipeline():
     trainer = await simulate_user_feedback_collection()
     
     # Step 2: Create ML training pipeline
-    print(f"\n🔧 Setting up ML training pipeline...")
+    print("\n🔧 Setting up ML training pipeline...")
     
     with tempfile.TemporaryDirectory() as temp_dir:
         pipeline = MLTrainingPipeline(
@@ -123,7 +122,7 @@ async def demonstrate_ml_training_pipeline():
         print(f"   • Performance threshold: {pipeline.performance_threshold}")
         
         # Step 3: Run training pipeline
-        print(f"\n🚀 Running ML training pipeline...")
+        print("\n🚀 Running ML training pipeline...")
         
         start_time = datetime.now()
         result = await pipeline.fine_tune_model_with_feedback(force_retrain=True)
@@ -134,7 +133,7 @@ async def demonstrate_ml_training_pipeline():
         
         # Step 4: Display results
         if result['status'] == 'completed':
-            print(f"\n📊 Training Results:")
+            print("\n📊 Training Results:")
             
             training_results = result['training_results']
             print(f"   • Calibration method used: {training_results['method_used']}")
@@ -161,7 +160,7 @@ async def demonstrate_ml_training_pipeline():
             print(f"   • Training result: {result}")
         
         # Step 5: Demonstrate scheduler
-        print(f"\n⏰ Demonstrating ML Scheduler...")
+        print("\n⏰ Demonstrating ML Scheduler...")
         
         scheduler = MLScheduler(training_pipeline=pipeline)
         
@@ -170,8 +169,8 @@ async def demonstrate_ml_training_pipeline():
         print(f"   • Scheduler running: {status['is_running']}")
         
         # Show what would happen with scheduled training
-        print(f"   • Would normally run training daily at 2:00 AM")
-        print(f"   • Health checks would run every 6 hours")
+        print("   • Would normally run training daily at 2:00 AM")
+        print("   • Health checks would run every 6 hours")
         
         # Demonstrate health check
         health_status = await scheduler._check_system_health()
@@ -182,21 +181,21 @@ async def demonstrate_ml_training_pipeline():
             print(f"   • Warnings: {health_status['warnings']}")
         
         # Step 6: Show continuous improvement potential
-        print(f"\n🔄 Continuous Improvement Cycle:")
-        print(f"   1. Users provide feedback on AI findings")
-        print(f"   2. Feedback is collected and stored in database")
-        print(f"   3. ML pipeline automatically trains new calibrators")
-        print(f"   4. Improved models are deployed if they meet quality thresholds")
-        print(f"   5. Better confidence scores lead to more trustworthy AI")
-        print(f"   6. Cycle repeats with new feedback")
+        print("\n🔄 Continuous Improvement Cycle:")
+        print("   1. Users provide feedback on AI findings")
+        print("   2. Feedback is collected and stored in database")
+        print("   3. ML pipeline automatically trains new calibrators")
+        print("   4. Improved models are deployed if they meet quality thresholds")
+        print("   5. Better confidence scores lead to more trustworthy AI")
+        print("   6. Cycle repeats with new feedback")
         
-        print(f"\n✅ ML Training Pipeline Demo Complete!")
-        print(f"\n💡 Key Benefits:")
-        print(f"   • Replaced placeholder with real implementation")
-        print(f"   • Automatic model improvement from user feedback")
-        print(f"   • Quality-gated deployment (only deploy if improved)")
-        print(f"   • Scheduled training and health monitoring")
-        print(f"   • Complete audit trail and metrics")
+        print("\n✅ ML Training Pipeline Demo Complete!")
+        print("\n💡 Key Benefits:")
+        print("   • Replaced placeholder with real implementation")
+        print("   • Automatic model improvement from user feedback")
+        print("   • Quality-gated deployment (only deploy if improved)")
+        print("   • Scheduled training and health monitoring")
+        print("   • Complete audit trail and metrics")
 
 
 async def main():

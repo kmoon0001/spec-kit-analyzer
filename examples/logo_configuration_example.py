@@ -13,7 +13,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from core.report_generation_engine import ReportGenerationEngine, ReportConfig, ReportType
-from core.report_branding_service import LogoPosition, LogoSize
 
 
 def demonstrate_logo_configuration():
@@ -52,7 +51,7 @@ def demonstrate_logo_configuration():
     print("   Generating report without logo...")
     report = engine.generate_report(config)
     print(f"   Report generated: {report.id}")
-    print(f"   Report has professional styling without logo placeholders")
+    print("   Report has professional styling without logo placeholders")
     print()
     
     # 3. Configure logo (if logo file exists)
@@ -83,7 +82,7 @@ def demonstrate_logo_configuration():
         print("   Generating report after disabling logo...")
         report_no_logo = engine.generate_report(config)
         print(f"   Report generated: {report_no_logo.id}")
-        print(f"   Report seamlessly returns to no-logo styling")
+        print("   Report seamlessly returns to no-logo styling")
         print()
     else:
         print("3. Logo file not found - creating sample instructions:")
@@ -123,7 +122,7 @@ def create_sample_logo():
         try:
             # Try to use a nice font
             font = ImageFont.truetype("arial.ttf", 24)
-        except:
+        except OSError:
             # Fallback to default font
             font = ImageFont.load_default()
         

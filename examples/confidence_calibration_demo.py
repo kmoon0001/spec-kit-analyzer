@@ -7,7 +7,6 @@ of AI confidence scores in the Therapy Compliance Analyzer.
 """
 
 import sys
-import os
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -16,7 +15,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.core.confidence_calibrator import ConfidenceCalibrator
+from src.core.confidence_calibrator import ConfidenceCalibrator  # noqa: E402
 
 
 def generate_synthetic_compliance_data(n_samples=200):
@@ -162,7 +161,7 @@ def main():
     print(f"   • Generated {len(raw_confidences)} synthetic compliance findings")
     print(f"   • Mean raw confidence: {raw_confidences.mean():.3f}")
     print(f"   • Actual accuracy: {labels.mean():.3f}")
-    print(f"   • Model appears overconfident (high confidence, lower accuracy)")
+    print("   • Model appears overconfident (high confidence, lower accuracy)")
     
     # Split data for training and testing
     split_idx = len(raw_confidences) // 2
@@ -195,25 +194,25 @@ def main():
     # Calculate metrics after calibration
     cal_ece, cal_brier = calculate_calibration_metrics(calibrated_confidences, test_labels)
     
-    print(f"\n📈 Calibration Results:")
-    print(f"   • Expected Calibration Error (ECE):")
+    print("\n📈 Calibration Results:")
+    print("   • Expected Calibration Error (ECE):")
     print(f"     - Before: {raw_ece:.4f}")
     print(f"     - After:  {cal_ece:.4f}")
     print(f"     - Improvement: {((raw_ece - cal_ece) / raw_ece * 100):.1f}%")
     
-    print(f"   • Brier Score:")
+    print("   • Brier Score:")
     print(f"     - Before: {raw_brier:.4f}")
     print(f"     - After:  {cal_brier:.4f}")
     print(f"     - Improvement: {((raw_brier - cal_brier) / raw_brier * 100):.1f}%")
     
-    print(f"\n📊 Confidence Score Changes:")
+    print("\n📊 Confidence Score Changes:")
     print(f"   • Mean confidence before: {test_confidences.mean():.3f}")
     print(f"   • Mean confidence after:  {calibrated_confidences.mean():.3f}")
     print(f"   • Standard deviation before: {test_confidences.std():.3f}")
     print(f"   • Standard deviation after:  {calibrated_confidences.std():.3f}")
     
     # Show examples of individual changes
-    print(f"\n🔍 Example Confidence Changes:")
+    print("\n🔍 Example Confidence Changes:")
     for i in range(min(5, len(test_confidences))):
         original = test_confidences[i]
         calibrated = calibrated_confidences[i]
@@ -222,7 +221,7 @@ def main():
         print(f"   • Finding {i+1}: {original:.3f} → {calibrated:.3f} {change} ({actual})")
     
     # Create visualization
-    print(f"\n📈 Creating calibration visualization...")
+    print("\n📈 Creating calibration visualization...")
     try:
         plot_calibration_comparison(test_confidences, test_labels, calibrator)
         print("   • Saved calibration plots to 'confidence_calibration_demo.png'")
@@ -231,12 +230,12 @@ def main():
     except Exception as e:
         print(f"   • Visualization failed: {e}")
     
-    print(f"\n✅ Demo completed successfully!")
-    print(f"\n💡 Key Takeaways:")
-    print(f"   • Confidence calibration improves reliability of AI confidence scores")
-    print(f"   • Overconfident models benefit significantly from calibration")
-    print(f"   • Calibrated scores better reflect true probability of correctness")
-    print(f"   • This helps users make better decisions about AI recommendations")
+    print("\n✅ Demo completed successfully!")
+    print("\n💡 Key Takeaways:")
+    print("   • Confidence calibration improves reliability of AI confidence scores")
+    print("   • Overconfident models benefit significantly from calibration")
+    print("   • Calibrated scores better reflect true probability of correctness")
+    print("   • This helps users make better decisions about AI recommendations")
 
 
 if __name__ == "__main__":

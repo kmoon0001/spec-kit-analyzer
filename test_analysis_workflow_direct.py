@@ -12,9 +12,6 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.core.analysis_diagnostics import diagnostics
-from src.core.analysis_status_tracker import AnalysisState, status_tracker
-from src.core.analysis_workflow_logger import workflow_logger
 
 def test_analysis_workflow_direct():
     """Test the complete analysis workflow using FastAPI TestClient."""
@@ -113,7 +110,7 @@ def test_analysis_workflow_direct():
             print(f"   ✅ Analysis submitted successfully! Task ID: {task_id[:8]}...")
             
             # Step 4: Check task status
-            print(f"\n4️⃣ Checking task status...")
+            print("\n4️⃣ Checking task status...")
             
             status_response = client.get(
                 f"/analysis/status/{task_id}",
@@ -125,7 +122,7 @@ def test_analysis_workflow_direct():
             if status_response.status_code == 200:
                 status_data = status_response.json()
                 print(f"   Task status: {status_data.get('status')}")
-                print(f"   ✅ Analysis workflow is working!")
+                print("   ✅ Analysis workflow is working!")
                 return True
             else:
                 print(f"   ❌ Status check failed: {status_response.text}")

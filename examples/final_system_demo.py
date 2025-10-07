@@ -11,7 +11,7 @@ This demonstrates our comprehensive reporting system with:
 import asyncio
 from datetime import datetime
 from dataclasses import dataclass
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 from enum import Enum
 
 class ReportType(Enum):
@@ -376,8 +376,8 @@ async def run_comprehensive_demo():
     final_status = engine.get_system_status()
     print(f"   📊 Reports Generated: {final_status['reports']['generated']}")
     print(f"   🛡️ Total Violations Detected: {final_status['ai_guardrails']['violations_detected']}")
-    print(f"   🎯 7 Habits Integration: ACTIVE")
-    print(f"   🎨 Professional Branding: APPLIED")
+    print("   🎯 7 Habits Integration: ACTIVE")
+    print("   🎨 Professional Branding: APPLIED")
     
     print("\n=== 🎉 DEMONSTRATION COMPLETE ===")
     print("\n🏆 SYSTEM ACHIEVEMENTS:")

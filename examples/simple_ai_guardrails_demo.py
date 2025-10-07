@@ -5,9 +5,7 @@ This standalone demo showcases the AI guardrails system without complex dependen
 demonstrating responsible AI controls, bias detection, and safety measures.
 """
 
-import sys
 import re
-from pathlib import Path
 from enum import Enum
 from dataclasses import dataclass
 from typing import List, Dict, Any
