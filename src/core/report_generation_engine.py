@@ -532,6 +532,14 @@ class ReportGenerationEngine:
         self.generated_reports: Dict[str, Report] = {}
         self.report_counter = 0
         
+        # Initialize branding service for optional logo support
+        try:
+            from .report_branding_service import ReportBrandingService
+            self.branding_service = ReportBrandingService()
+        except ImportError:
+            logger.warning("Branding service not available, reports will use default styling")
+            self.branding_service = None
+        
         # Initialize data integration service
         self._initialize_data_integration()
     
@@ -720,10 +728,68 @@ class ReportGenerationEngine:
             "description": report.description,
             "generated_at": report.generated_at.strftime("%Y-%m-%d %H:%M:%S"),
             "sections": report.sections,
-            "metadata": report.metadata
+            "metadata": report.metadata,
+            "report_id": report.id,
+            "report_type": report.report_type.value
         }
         
+        # Add branding context if available
+        if self.branding_service:
+            branding_context = self.branding_service.get_branding_context()
+            context.update(branding_context)
+        else:
+            # Provide default branding context when service is not available
+            context["branding"] = {
+                "has_logo": False,
+                "logo_data": None,
+                "organization_name": None,
+                "primary_color": "#2c5aa0",
+                "secondary_color": "#6c757d",
+                "accent_color": "#28a745",
+                "font_family": "Arial, sans-serif",
+                "custom_css": self._get_default_css()
+            }
+        
         return self.template_engine.render_template(template_id, context)
+    
+    def _get_default_css(self) -> str:
+        """Get default CSS when branding service is not available"""
+        return """
+        :root {
+            --primary-color: #2c5aa0;
+            --secondary-color: #6c757d;
+            --accent-color: #28a745;
+            --font-family: Arial, sans-serif;
+        }
+        
+        body {
+            font-family: var(--font-family);
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .report-header {
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        
+        .report-title {
+            color: var(--primary-color);
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 0;
+        }
+        
+        .report-subtitle {
+            color: var(--secondary-color);
+            font-size: 1.2em;
+            margin: 10px 0;
+        }
+        """
     
     async def export_report(self, report_id: str, formats: List[ReportFormat], output_dir: Path) -> Dict[ReportFormat, str]:
         """Export report to specified formats"""
@@ -761,4 +827,89 @@ class ReportGenerationEngine:
     def get_report_status(self, report_id: str) -> Optional[ReportStatus]:
         """Get the status of a report"""
         report = self.generated_reports.get(report_id)
-        return report.status if report else None
+        return report.status if report else None 
+   
+    def configure_branding(self, organization_name: Optional[str] = None,
+                          logo_path: Optional[str] = None,
+                          logo_position: Optional[str] = None,
+                          primary_color: Optional[str] = None,
+                          **kwargs) -> bool:
+        """Configure report branding including optional logo"""
+        if not self.branding_service:
+            logger.warning("Branding service not available")
+            return False
+        
+        try:
+            # Update general branding
+            if any([organization_name, primary_color, kwargs]):
+                self.branding_service.update_branding(
+                    organization_name=organization_name,
+                    primary_color=primary_color,
+                    **{k: v for k, v in kwargs.items() if k in ['secondary_color', 'accent_color', 'font_family', 'custom_css']}
+                )
+            
+            # Configure logo if provided
+            if logo_path:
+                from .report_branding_service import LogoPosition, LogoSize
+                
+                position = LogoPosition.TOP_RIGHT  # Default
+                if logo_position:
+                    try:
+                        position = LogoPosition(logo_position.lower())
+                    except ValueError:
+                        logger.warning(f"Invalid logo position: {logo_position}, using default")
+                
+                size = LogoSize(kwargs.get('logo_size', 'medium').lower()) if 'logo_size' in kwargs else LogoSize.MEDIUM
+                
+                success = self.branding_service.configure_logo(
+                    logo_path,
+                    position=position,
+                    size=size,
+                    opacity=kwargs.get('logo_opacity', 1.0),
+                    custom_width=kwargs.get('logo_width'),
+                    custom_height=kwargs.get('logo_height')
+                )
+                
+                if not success:
+                    logger.error(f"Failed to configure logo: {logo_path}")
+                    return False
+            
+            logger.info("Report branding configured successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error configuring branding: {e}")
+            return False
+    
+    def disable_logo(self) -> bool:
+        """Disable logo in reports"""
+        if not self.branding_service:
+            return False
+        
+        try:
+            self.branding_service.disable_logo()
+            logger.info("Logo disabled for reports")
+            return True
+        except Exception as e:
+            logger.error(f"Error disabling logo: {e}")
+            return False
+    
+    def get_branding_status(self) -> Dict[str, Any]:
+        """Get current branding configuration status"""
+        if not self.branding_service:
+            return {
+                "branding_available": False,
+                "logo_enabled": False,
+                "organization_name": None
+            }
+        
+        config = self.branding_service.get_configuration()
+        return {
+            "branding_available": True,
+            "logo_enabled": config.logo.enabled,
+            "logo_path": config.logo.file_path if config.logo.enabled else None,
+            "organization_name": config.organization_name,
+            "primary_color": config.primary_color,
+            "secondary_color": config.secondary_color,
+            "accent_color": config.accent_color
+        }

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        {{ branding.custom_css | safe }}
+        
+        /* Additional professional styling */
+        .section {
+            margin: 30px 0;
+            page-break-inside: avoid;
+        }
+        
+        .section-title {
+            color: var(--primary-color);
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            border-left: 4px solid var(--accent-color);
+            padding-left: 15px;
+        }
+        
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .metric-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            transition: box-shadow 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin: 10px 0;
+        }
+        
+        .metric-label {
+            color: var(--secondary-color);
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .insight-box {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-left: 4px solid var(--accent-color);
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .insight-title {
+            color: var(--primary-color);
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .recommendation-list {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        
+        .recommendation-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f3f4;
+        }
+        
+        .recommendation-item:last-child {
+            border-bottom: none;
+        }
+        
+        .priority-high { border-left: 4px solid #dc3545; }
+        .priority-medium { border-left: 4px solid #ffc107; }
+        .priority-low { border-left: 4px solid #28a745; }
+        
+        .chart-container {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            color: var(--secondary-color);
+            font-size: 0.9em;
+            text-align: center;
+        }
+        
+        @media print {
+            .report-header {
+                page-break-after: avoid;
+            }
+            .section {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="report-header">
+        {% if branding.has_logo and branding.logo_data %}
+        <div class="report-logo">
+            <img src="{{ branding.logo_data.data }}" alt="Organization Logo" 
+                 {% if branding.logo_data.width %}width="{{ branding.logo_data.width }}"{% endif %}
+                 {% if branding.logo_data.height %}height="{{ branding.logo_data.height }}"{% endif %}>
+        </div>
+        {% endif %}
+        
+        <h1 class="report-title">{{ title }}</h1>
+        {% if description %}
+        <p class="report-subtitle">{{ description }}</p>
+        {% endif %}
+        
+        <div class="report-meta">
+            <p><strong>Generated:</strong> {{ generated_at | format_datetime }}</p>
+            {% if branding.organization_name %}
+            <p><strong>Organization:</strong> {{ branding.organization_name }}</p>
+            {% endif %}
+            <p><strong>Report Type:</strong> {{ report_type | title }}</p>
+        </div>
+    </div>
+
+    {% if executive_summary %}
+    <div class="section">
+        <h2 class="section-title">Executive Summary</h2>
+        <div class="insight-box">
+            <div class="insight-title">Key Insights</div>
+            <p>{{ executive_summary.overview }}</p>
+            
+            {% if executive_summary.key_metrics %}
+            <div class="metric-grid">
+                {% for metric in executive_summary.key_metrics %}
+                <div class="metric-card">
+                    <div class="metric-label">{{ metric.label }}</div>
+                    <div class="metric-value">{{ metric.value }}</div>
+                    {% if metric.trend %}
+                    <div class="metric-trend {{ metric.trend.direction }}">
+                        {{ metric.trend.change }}{{ metric.trend.unit }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if performance_analysis %}
+    <div class="section">
+        <h2 class="section-title">Performance Analysis</h2>
+        
+        {% if performance_analysis.insights %}
+        {% for insight in performance_analysis.insights %}
+        <div class="insight-box">
+            <div class="insight-title">{{ insight.title }}</div>
+            <p><strong>Finding:</strong> {{ insight.description }}</p>
+            <p><strong>Reasoning:</strong> {{ insight.reasoning }}</p>
+            
+            {% if insight.evidence %}
+            <p><strong>Supporting Evidence:</strong></p>
+            <ul>
+                {% for evidence in insight.evidence %}
+                <li>{{ evidence }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            
+            <p><strong>Confidence Level:</strong> {{ (insight.confidence_score * 100) | round(1) }}%</p>
+        </div>
+        {% endfor %}
+        {% endif %}
+        
+        {% if performance_analysis.charts %}
+        {% for chart in performance_analysis.charts %}
+        <div class="chart-container">
+            <h3>{{ chart.title }}</h3>
+            <div id="chart-{{ loop.index }}" style="height: 400px;">
+                <!-- Chart will be rendered here -->
+                <script>
+                    // Chart configuration: {{ chart.config | tojson }}
+                </script>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if recommendations %}
+    <div class="section">
+        <h2 class="section-title">Actionable Recommendations</h2>
+        
+        <div class="recommendation-list">
+            {% for rec in recommendations %}
+            <div class="recommendation-item priority-{{ rec.priority }}">
+                <h4>{{ rec.title }}</h4>
+                <p><strong>Action Required:</strong> {{ rec.action }}</p>
+                <p><strong>Expected Impact:</strong> {{ rec.impact }}</p>
+                <p><strong>Implementation Steps:</strong></p>
+                <ol>
+                    {% for step in rec.steps %}
+                    <li>{{ step }}</li>
+                    {% endfor %}
+                </ol>
+                {% if rec.timeline %}
+                <p><strong>Timeline:</strong> {{ rec.timeline }}</p>
+                {% endif %}
+                {% if rec.resources_needed %}
+                <p><strong>Resources Needed:</strong> {{ rec.resources_needed }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if training_insights %}
+    <div class="section">
+        <h2 class="section-title">Training & Educational Insights</h2>
+        
+        {% for training in training_insights %}
+        <div class="insight-box">
+            <div class="insight-title">{{ training.topic }}</div>
+            <p><strong>Learning Objective:</strong> {{ training.objective }}</p>
+            <p><strong>Key Concepts:</strong> {{ training.concepts }}</p>
+            
+            {% if training.examples %}
+            <p><strong>Practical Examples:</strong></p>
+            <ul>
+                {% for example in training.examples %}
+                <li>{{ example }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            
+            {% if training.best_practices %}
+            <p><strong>Best Practices:</strong></p>
+            <ul>
+                {% for practice in training.best_practices %}
+                <li>{{ practice }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if compliance_status %}
+    <div class="section">
+        <h2 class="section-title">Compliance Status</h2>
+        
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-label">Overall Compliance Score</div>
+                <div class="metric-value">{{ compliance_status.overall_score }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Critical Issues</div>
+                <div class="metric-value">{{ compliance_status.critical_issues }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Risk Level</div>
+                <div class="metric-value">{{ compliance_status.risk_level | title }}</div>
+            </div>
+        </div>
+        
+        {% if compliance_status.findings %}
+        {% for finding in compliance_status.findings %}
+        <div class="insight-box">
+            <div class="insight-title">{{ finding.regulation }} - {{ finding.severity | title }} Priority</div>
+            <p><strong>Issue:</strong> {{ finding.description }}</p>
+            <p><strong>Regulatory Requirement:</strong> {{ finding.requirement }}</p>
+            <p><strong>Recommended Action:</strong> {{ finding.recommendation }}</p>
+            {% if finding.deadline %}
+            <p><strong>Compliance Deadline:</strong> {{ finding.deadline }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        <p>This report was generated automatically by the Therapy Compliance Analyzer</p>
+        <p>Report ID: {{ report_id }} | Generated: {{ generated_at | format_datetime }}</p>
+        {% if branding.organization_name %}
+        <p>© {{ generated_at | format_datetime('%Y') }} {{ branding.organization_name }}</p>
+        {% endif %}
+    </div>
+
+    <!-- Chart rendering scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Initialize charts after page load
+        document.addEventListener('DOMContentLoaded', function() {
+            {% if performance_analysis and performance_analysis.charts %}
+            {% for chart in performance_analysis.charts %}
+            const ctx{{ loop.index }} = document.getElementById('chart-{{ loop.index }}');
+            if (ctx{{ loop.index }}) {
+                new Chart(ctx{{ loop.index }}, {{ chart.config | tojson | safe }});
+            }
+            {% endfor %}
+            {% endif %}
+        });
+    </script>
+</body>
+</html>
