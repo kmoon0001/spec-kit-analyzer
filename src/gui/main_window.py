@@ -677,6 +677,11 @@ You can also:
         else:
             webbrowser.open(url.toString())
 
+
+    def _handle_report_link(self, url: QUrl) -> None:
+        """Route analysis browser anchor clicks through the shared handler."""
+        self._handle_link_clicked(url)
+
     def closeEvent(self, event) -> None:
         """Handle application close - exit quickly."""
         try:
