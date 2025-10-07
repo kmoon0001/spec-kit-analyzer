@@ -1,109 +1,111 @@
 """
-Advanced Template System and Rendering Engine
+Advanced Template System - Professional report template management
 
-This module provides comprehensive template management, rendering, and component
-library functionality for the reporting system.
+This module provides a comprehensive template system with advanced rendering,
+component libraries, validation, and version management for professional reports.
 """
 
 import logging
+import re
+import json
+import yaml
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union, Callable
-import json
-import yaml
-import re
+from typing import Dict, List, Optional, Any, Union, Callable, Set
+from jinja2 import Environment, FileSystemLoader, Template, select_autoescape
+from jinja2.exceptions import TemplateError, TemplateSyntaxError
 
 logger = logging.getLogger(__name__)
 
 
 class TemplateType(Enum):
-    """Types of templates supported"""
-    REPORT = "report"
-    SECTION = "section"
-    COMPONENT = "component"
-    CHART = "chart"
+    """Types of report templates"""
+    PERFORMANCE_ANALYSIS = "performance_analysis"
+    COMPLIANCE_ANALYSIS = "compliance_analysis"
     DASHBOARD = "dashboard"
-    EMAIL = "email"
+    EXECUTIVE_SUMMARY = "executive_summary"
+    TREND_ANALYSIS = "trend_analysis"
+    COMPARISON = "comparison"
+    CUSTOM = "custom"
 
 
 class ComponentType(Enum):
-    """Types of reusable components"""
+    """Types of template components"""
     CHART = "chart"
     TABLE = "table"
     METRIC_CARD = "metric_card"
     ALERT_PANEL = "alert_panel"
     TREND_INDICATOR = "trend_indicator"
     PROGRESS_BAR = "progress_bar"
-    STATUS_BADGE = "status_badge"
-    TIMELINE = "timeline"
+    TEXT_BLOCK = "text_block"
+    IMAGE = "image"
+    CUSTOM = "custom"
+
+
+class RenderFormat(Enum):
+    """Supported rendering formats"""
+    HTML = "html"
+    PDF = "pdf"
+    MARKDOWN = "markdown"
+    PLAIN_TEXT = "plain_text"
 
 
 @dataclass
 class TemplateMetadata:
-    """Metadata for templates"""
-    id: str
+    """Metadata for template management"""
+    template_id: str
     name: str
     description: str
     template_type: TemplateType
-    version: str = "1.0.0"
-    author: str = ""
-    created_at: datetime = field(default_factory=datetime.now)
-    updated_at: datetime = field(default_factory=datetime.now)
+    version: str
+    author: str
+    created_at: datetime
+    updated_at: datetime
+    supported_formats: List[RenderFormat] = field(default_factory=list)
+    required_data_fields: List[str] = field(default_factory=list)
+    optional_data_fields: List[str] = field(default_factory=list)
     tags: List[str] = field(default_factory=list)
-    required_data: List[str] = field(default_factory=list)
-    optional_data: List[str] = field(default_factory=list)
-    supported_formats: List[str] = field(default_factory=lambda: ["html"])
-    dependencies: List[str] = field(default_factory=list)
-    custom_properties: Dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class ComponentDefinition:
-    """Definition of a reusable component"""
-    id: str
-    name: str
-    component_type: ComponentType
-    template_content: str
-    default_props: Dict[str, Any] = field(default_factory=dict)
-    required_props: List[str] = field(default_factory=list)
-    css_classes: List[str] = field(default_factory=list)
-    javascript_code: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class RenderContext:
-    """Context for template rendering"""
-    data: Dict[str, Any]
-    components: Dict[str, Any] = field(default_factory=dict)
-    filters: Dict[str, Callable] = field(default_factory=dict)
-    globals: Dict[str, Any] = field(default_factory=dict)
-    template_vars: Dict[str, Any] = field(default_factory=dict)
-
-c
-lass TemplateValidator:
-    """Validates templates for correctness and compatibility"""
+    compatibility_version: str = "1.0"
     
-    def __init__(self):
-        self.validation_rules = {
-            'required_blocks': ['content'],
-            'forbidden_tags': ['script', 'iframe', 'object', 'embed'],
-            'max_template_size': 1024 * 1024,  # 1MB
-            'allowed_extensions': ['.html', '.jinja2', '.j2']
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization"""
+        return {
+            "template_id": self.template_id,
+            "name": self.name,
+            "description": self.description,
+            "template_type": self.template_type.value,
+            "version": self.version,
+            "author": self.author,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "supported_formats": [fmt.value for fmt in self.supported_formats],
+            "required_data_fields": self.required_data_fields,
+            "optional_data_fields": self.optional_data_fields,
+            "tags": self.tags,
+            "compatibility_version": self.compatibility_version
         }
     
-    def validate_template(self, template_content: str, metadata: TemplateMetadata) -> List[str]:
-        """Validate template content and return list of issues"""
-        issues = []
-        
-        # Check template size
-        if len(template_content) > self.validation_rules['max_template_size']:
-            issues.append(f"Template size exceeds maximum allowed size")
-        
-        # Check for forbidden tags
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'TemplateMetadata':
+        """Create from dictionary"""
+        return cls(
+            template_id=data["template_id"],
+            name=data["name"],
+            description=data["description"],
+            template_type=TemplateType(data["template_type"]),
+            version=data["version"],
+            author=data["author"],
+            created_at=datetime.fromisoformat(data["created_at"]),
+            updated_at=datetime.fromisoformat(data["updated_at"]),
+            supported_formats=[RenderFormat(fmt) for fmt in data.get("supported_formats", [])],
+            required_data_fields=data.get("required_data_fields", []),
+            optional_data_fields=data.get("optional_data_fields", []),
+            tags=data.get("tags", []),
+            compatibility_version=data.get("compatibility_version", "1.0")
+        )
         for tag in self.validation_rules['forbidden_tags']:
             if f'<{tag}' in template_content.lower():
                 issues.append(f"Forbidden tag found: {tag}")
@@ -330,3 +332,461 @@ class ComponentLibrary:
         except Exception as e:
             logger.error(f"Error rendering component {component_id}: {e}")
             return f"<div class='component-error'>Error rendering component: {component_id}</div>"
+
+@da
+taclass
+class ComponentDefinition:
+    """Definition of a reusable template component"""
+    id: str
+    name: str
+    component_type: ComponentType
+    template_content: str
+    required_props: List[str] = field(default_factory=list)
+    default_props: Dict[str, Any] = field(default_factory=dict)
+    css_classes: List[str] = field(default_factory=list)
+    javascript_code: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+class TemplateValidator:
+    """Validates template content and structure"""
+    
+    def __init__(self):
+        self.validation_rules = {
+            'max_template_size': 1024 * 1024,  # 1MB
+            'forbidden_tags': ['script', 'iframe', 'object', 'embed'],
+            'required_sections': ['title', 'content'],
+            'allowed_file_extensions': ['.html', '.jinja2', '.j2']
+        }
+    
+    def validate_template(self, template_content: str, metadata: TemplateMetadata) -> List[str]:
+        """Validate template content and return list of issues"""
+        issues = []
+        
+        # Check template size
+        if len(template_content) > self.validation_rules['max_template_size']:
+            issues.append("Template exceeds maximum size limit")
+        
+        # Check for forbidden tags
+        for tag in self.validation_rules['forbidden_tags']:
+            if f'<{tag}' in template_content.lower():
+                issues.append(f"Forbidden tag found: {tag}")
+        
+        # Check required data availability
+        template_vars = self._extract_template_variables(template_content)
+        missing_required = set(metadata.required_data_fields) - set(template_vars)
+        if missing_required:
+            issues.append(f"Required data not used in template: {missing_required}")
+        
+        return issues
+    
+    def _extract_template_variables(self, template_content: str) -> List[str]:
+        """Extract variable names from template content"""
+        # Simple regex to find template variables
+        pattern = r'\{\{\s*([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\}\}'
+        matches = re.findall(pattern, template_content)
+        return [match.split('.')[0] for match in matches]
+    
+    def validate_component(self, component: ComponentDefinition) -> List[str]:
+        """Validate component definition"""
+        issues = []
+        
+        # Validate template content
+        template_metadata = TemplateMetadata(
+            template_id=component.id,
+            name=component.name,
+            description="Component template",
+            template_type=TemplateType.CUSTOM,
+            version="1.0",
+            author="system",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            required_data_fields=component.required_props
+        )
+        
+        template_issues = self.validate_template(component.template_content, template_metadata)
+        issues.extend(template_issues)
+        
+        # Check required props are defined
+        if not component.required_props:
+            issues.append("Component should define required props")
+        
+        return issues
+
+
+class AdvancedTemplateRenderer:
+    """Advanced template renderer with Jinja2 support"""
+    
+    def __init__(self, templates_dir: Optional[Path] = None):
+        self.templates_dir = templates_dir or Path("src/resources/report_templates")
+        self.component_library = ComponentLibrary()
+        self.validator = TemplateValidator()
+        
+        # Initialize Jinja2 environment
+        self.jinja_env = Environment(
+            loader=FileSystemLoader(str(self.templates_dir)),
+            autoescape=select_autoescape(['html', 'xml']),
+            trim_blocks=True,
+            lstrip_blocks=True
+        )
+        
+        # Register custom filters and functions
+        self._register_custom_filters()
+        self._register_custom_functions()
+    
+    def _register_custom_filters(self) -> None:
+        """Register custom Jinja2 filters"""
+        
+        def format_number(value: Union[int, float], precision: int = 2) -> str:
+            """Format number with specified precision"""
+            try:
+                return f"{float(value):.{precision}f}"
+            except (ValueError, TypeError):
+                return str(value)
+        
+        def format_percentage(value: Union[int, float], precision: int = 1) -> str:
+            """Format value as percentage"""
+            try:
+                return f"{float(value):.{precision}f}%"
+            except (ValueError, TypeError):
+                return str(value)
+        
+        def format_datetime(value: Union[str, datetime], format_str: str = "%Y-%m-%d %H:%M:%S") -> str:
+            """Format datetime value"""
+            try:
+                if isinstance(value, str):
+                    dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                else:
+                    dt = value
+                return dt.strftime(format_str)
+            except (ValueError, TypeError):
+                return str(value)
+        
+        # Register filters
+        self.jinja_env.filters['format_number'] = format_number
+        self.jinja_env.filters['format_percentage'] = format_percentage
+        self.jinja_env.filters['format_datetime'] = format_datetime
+    
+    def _register_custom_functions(self) -> None:
+        """Register custom Jinja2 global functions"""
+        
+        def render_component(component_id: str, **props) -> str:
+            """Render a component within a template"""
+            try:
+                return self.component_library.render_component(component_id, props)
+            except Exception as e:
+                logger.error(f"Error rendering component {component_id}: {e}")
+                return f"<div class='component-error'>Error: {component_id}</div>"
+        
+        def get_chart_config(chart_type: str, data: Dict[str, Any]) -> str:
+            """Generate chart configuration JSON"""
+            # Basic chart configuration generator
+            config = {
+                "type": chart_type,
+                "data": data,
+                "options": {
+                    "responsive": True,
+                    "maintainAspectRatio": False
+                }
+            }
+            return json.dumps(config)
+        
+        # Register global functions
+        self.jinja_env.globals['render_component'] = render_component
+        self.jinja_env.globals['get_chart_config'] = get_chart_config
+    
+    def render_template(self, template_id: str, context: Dict[str, Any], 
+                       format: RenderFormat = RenderFormat.HTML) -> str:
+        """Render template with advanced features"""
+        try:
+            # Load template
+            template = self.jinja_env.get_template(f"{template_id}.html")
+            
+            # Add format-specific context
+            enhanced_context = {
+                **context,
+                'render_format': format.value,
+                'generated_at': datetime.now(),
+                'template_id': template_id
+            }
+            
+            # Render template
+            rendered = template.render(**enhanced_context)
+            
+            # Post-process based on format
+            if format == RenderFormat.PLAIN_TEXT:
+                rendered = self._html_to_text(rendered)
+            elif format == RenderFormat.MARKDOWN:
+                rendered = self._html_to_markdown(rendered)
+            
+            return rendered
+            
+        except TemplateError as e:
+            logger.error(f"Template rendering error for {template_id}: {e}")
+            return self._render_error_template(template_id, str(e))
+        except Exception as e:
+            logger.error(f"Unexpected error rendering template {template_id}: {e}")
+            return self._render_error_template(template_id, str(e))
+    
+    def _html_to_text(self, html_content: str) -> str:
+        """Convert HTML to plain text"""
+        # Simple HTML to text conversion
+        import re
+        text = re.sub(r'<[^>]+>', '', html_content)
+        text = re.sub(r'\s+', ' ', text)
+        return text.strip()
+    
+    def _html_to_markdown(self, html_content: str) -> str:
+        """Convert HTML to Markdown"""
+        # Basic HTML to Markdown conversion
+        import re
+        
+        # Convert headers
+        html_content = re.sub(r'<h1[^>]*>(.*?)</h1>', r'# \1\n', html_content)
+        html_content = re.sub(r'<h2[^>]*>(.*?)</h2>', r'## \1\n', html_content)
+        html_content = re.sub(r'<h3[^>]*>(.*?)</h3>', r'### \1\n', html_content)
+        
+        # Convert paragraphs
+        html_content = re.sub(r'<p[^>]*>(.*?)</p>', r'\1\n\n', html_content)
+        
+        # Convert lists
+        html_content = re.sub(r'<li[^>]*>(.*?)</li>', r'- \1\n', html_content)
+        
+        # Remove remaining HTML tags
+        html_content = re.sub(r'<[^>]+>', '', html_content)
+        
+        return html_content.strip()
+    
+    def _render_error_template(self, template_id: str, error_message: str) -> str:
+        """Render error template when main template fails"""
+        return f"""
+        <div class="template-error">
+            <h2>Template Rendering Error</h2>
+            <p><strong>Template:</strong> {template_id}</p>
+            <p><strong>Error:</strong> {error_message}</p>
+            <p>Please check the template configuration and try again.</p>
+        </div>
+        """
+    
+    def validate_template_file(self, template_path: Path) -> List[str]:
+        """Validate a template file"""
+        try:
+            with open(template_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Create dummy metadata for validation
+            metadata = TemplateMetadata(
+                template_id=template_path.stem,
+                name=template_path.stem,
+                description="Template validation",
+                template_type=TemplateType.CUSTOM,
+                version="1.0",
+                author="system",
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            
+            return self.validator.validate_template(content, metadata)
+            
+        except Exception as e:
+            return [f"Error reading template file: {e}"]
+
+
+class TemplateLibrary:
+    """Library for managing and versioning report templates"""
+    
+    def __init__(self, templates_dir: Optional[Path] = None):
+        self.templates_dir = templates_dir or Path("src/resources/report_templates")
+        self.metadata_dir = self.templates_dir / "metadata"
+        self.templates: Dict[str, TemplateMetadata] = {}
+        self.renderer = AdvancedTemplateRenderer(self.templates_dir)
+        
+        # Ensure directories exist
+        self.templates_dir.mkdir(parents=True, exist_ok=True)
+        self.metadata_dir.mkdir(parents=True, exist_ok=True)
+        
+        self._load_templates()
+    
+    def _load_templates(self) -> None:
+        """Load templates and their metadata"""
+        try:
+            # Load metadata files
+            for metadata_file in self.metadata_dir.glob("*.yaml"):
+                template_id = metadata_file.stem
+                with open(metadata_file, 'r', encoding='utf-8') as f:
+                    metadata_data = yaml.safe_load(f)
+                
+                metadata = TemplateMetadata.from_dict(metadata_data)
+                self.templates[template_id] = metadata
+                logger.debug(f"Loaded template metadata: {template_id}")
+            
+            # Check for template files without metadata
+            for template_file in self.templates_dir.glob("*.html"):
+                template_id = template_file.stem
+                if template_id not in self.templates:
+                    # Create default metadata
+                    metadata = TemplateMetadata(
+                        template_id=template_id,
+                        name=template_id.replace('_', ' ').title(),
+                        description=f"Template: {template_id}",
+                        template_type=TemplateType.CUSTOM,
+                        version="1.0",
+                        author="system",
+                        created_at=datetime.now(),
+                        updated_at=datetime.now(),
+                        supported_formats=[RenderFormat.HTML]
+                    )
+                    self.templates[template_id] = metadata
+                    self._save_metadata(template_id, metadata)
+            
+            logger.info(f"Loaded {len(self.templates)} report templates")
+            
+        except Exception as e:
+            logger.error(f"Error loading templates: {e}")
+            self._create_default_templates()
+    
+    def _create_default_templates(self) -> None:
+        """Create default report templates"""
+        default_templates = {
+            "performance_analysis": {
+                "metadata": TemplateMetadata(
+                    template_id="performance_analysis",
+                    name="Performance Analysis Report",
+                    description="Comprehensive performance analysis with metrics and trends",
+                    template_type=TemplateType.PERFORMANCE_ANALYSIS,
+                    version="1.0",
+                    author="system",
+                    created_at=datetime.now(),
+                    updated_at=datetime.now(),
+                    supported_formats=[RenderFormat.HTML, RenderFormat.PDF],
+                    required_data_fields=["performance_metrics", "optimization_results"],
+                    tags=["performance", "analysis", "metrics"]
+                ),
+                "content": """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ title }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
+        .section { margin: 20px 0; }
+        .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .metric-card { border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
+        .metric-value { font-size: 2em; font-weight: bold; color: #2c5aa0; }
+        .trend-up { color: #28a745; }
+        .trend-down { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ title }}</h1>
+        <p>Generated: {{ generated_at | format_datetime }}</p>
+        {% if description %}
+        <p>{{ description }}</p>
+        {% endif %}
+    </div>
+    
+    <div class="section">
+        <h2>Performance Summary</h2>
+        <div class="metric-grid">
+            {{ render_component('metric_card', 
+                title='Response Time', 
+                value=performance_metrics.avg_response_time | format_number,
+                unit='ms',
+                trend={'direction': 'up' if performance_metrics.response_time_trend > 0 else 'down', 
+                       'value': performance_metrics.response_time_trend | format_percentage}) }}
+            
+            {{ render_component('metric_card',
+                title='Memory Usage',
+                value=performance_metrics.avg_memory_usage | format_number,
+                unit='MB') }}
+        </div>
+    </div>
+    
+    {% if optimization_results %}
+    <div class="section">
+        <h2>Optimization Results</h2>
+        {% for optimization in optimization_results %}
+        <div class="optimization-result">
+            <h3>{{ optimization.name }}</h3>
+            <p>Improvement: {{ optimization.improvement_percent | format_percentage }}</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</body>
+</html>
+                """.strip()
+            }
+        }
+        
+        # Create default templates
+        for template_id, template_data in default_templates.items():
+            self.templates[template_id] = template_data["metadata"]
+            
+            # Save template file
+            template_file = self.templates_dir / f"{template_id}.html"
+            with open(template_file, 'w', encoding='utf-8') as f:
+                f.write(template_data["content"])
+            
+            # Save metadata
+            self._save_metadata(template_id, template_data["metadata"])
+        
+        logger.info("Created default report templates")
+    
+    def _save_metadata(self, template_id: str, metadata: TemplateMetadata) -> None:
+        """Save template metadata to file"""
+        metadata_file = self.metadata_dir / f"{template_id}.yaml"
+        with open(metadata_file, 'w', encoding='utf-8') as f:
+            yaml.dump(metadata.to_dict(), f, default_flow_style=False)
+    
+    def get_template(self, template_id: str) -> Optional[TemplateMetadata]:
+        """Get template metadata by ID"""
+        return self.templates.get(template_id)
+    
+    def list_templates(self, template_type: Optional[TemplateType] = None) -> List[str]:
+        """List available templates, optionally filtered by type"""
+        if template_type:
+            return [
+                tid for tid, tmpl in self.templates.items()
+                if tmpl.template_type == template_type
+            ]
+        return list(self.templates.keys())
+    
+    def render_template(self, template_id: str, context: Dict[str, Any],
+                       format: RenderFormat = RenderFormat.HTML) -> str:
+        """Render template using the advanced renderer"""
+        if template_id not in self.templates:
+            raise ValueError(f"Template not found: {template_id}")
+        
+        return self.renderer.render_template(template_id, context, format)
+    
+    def validate_template(self, template_id: str) -> List[str]:
+        """Validate a template"""
+        if template_id not in self.templates:
+            return [f"Template not found: {template_id}"]
+        
+        template_file = self.templates_dir / f"{template_id}.html"
+        if not template_file.exists():
+            return [f"Template file not found: {template_file}"]
+        
+        return self.renderer.validate_template_file(template_file)
+    
+    def register_template(self, metadata: TemplateMetadata, content: str) -> None:
+        """Register a new template"""
+        # Validate template content
+        issues = self.renderer.validator.validate_template(content, metadata)
+        if issues:
+            raise ValueError(f"Template validation failed: {issues}")
+        
+        # Save template file
+        template_file = self.templates_dir / f"{metadata.template_id}.html"
+        with open(template_file, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        # Save metadata
+        self.templates[metadata.template_id] = metadata
+        self._save_metadata(metadata.template_id, metadata)
+        
+        logger.info(f"Registered template: {metadata.template_id}")

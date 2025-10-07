@@ -352,17 +352,35 @@ class DataIntegrationService:
         """Register a data provider"""
         self.providers[provider.provider_id] = provider
         
-        # Update provider registry
-        metadata = asyncio.run(provider.get_metadata())
-        source_type = metadata.source_type
-        
-        if source_type not in self.provider_registry:
-            self.provider_registry[source_type] = []
-        
-        if provider.provider_id not in self.provider_registry[source_type]:
-            self.provider_registry[source_type].append(provider.provider_id)
-        
-        logger.info(f"Registered data provider: {provider.provider_id}")
+        # Update provider registry - use a sync approach to avoid asyncio.run() issues
+        try:
+            # Create a simple metadata object for registry purposes
+            # The actual metadata will be fetched when needed
+            if hasattr(provider, 'supported_report_types'):
+                # Determine source type based on provider type
+                if 'performance' in provider.provider_id:
+                    source_type = DataSourceType.PERFORMANCE_METRICS
+                elif 'compliance' in provider.provider_id:
+                    source_type = DataSourceType.COMPLIANCE_ANALYSIS
+                elif 'monitoring' in provider.provider_id:
+                    source_type = DataSourceType.SYSTEM_MONITORING
+                else:
+                    source_type = DataSourceType.PERFORMANCE_METRICS  # Default
+            else:
+                source_type = DataSourceType.PERFORMANCE_METRICS  # Default
+            
+            if source_type not in self.provider_registry:
+                self.provider_registry[source_type] = []
+            
+            if provider.provider_id not in self.provider_registry[source_type]:
+                self.provider_registry[source_type].append(provider.provider_id)
+            
+            logger.info(f"Registered data provider: {provider.provider_id}")
+            
+        except Exception as e:
+            logger.error(f"Error registering provider {provider.provider_id}: {e}")
+            # Still add to providers dict even if registry update fails
+            logger.info(f"Registered data provider: {provider.provider_id} (registry update failed)")
     
     async def query_data(self, query: DataQuery) -> Dict[str, DataResult[Dict[str, Any]]]:
         """Query data from multiple providers based on source types"""
@@ -380,7 +398,9 @@ class DataIntegrationService:
             if provider_id in self.providers:
                 provider = self.providers[provider_id]
                 if provider.is_available:
-                    task = asyncio.create_task(provider.query_data(query))
+                    task = asyncio.create_task(
+                        self._query_provider_with_error_handling(provider, query)
+                    )
                     tasks.append((provider_id, task))
         
         # Collect results
@@ -391,6 +411,21 @@ class DataIntegrationService:
                     results[provider_id] = result
                 except Exception as e:
                     logger.error(f"Error querying provider {provider_id}: {e}")
+                    # Create error result
+                    error_metadata = DataSourceMetadata(
+                        source_id=provider_id,
+                        source_type=DataSourceType.PERFORMANCE_METRICS,
+                        description=f"Error querying {provider_id}",
+                        last_updated=datetime.now(),
+                        data_quality=DataQuality.LOW,
+                        availability=False
+                    )
+                    results[provider_id] = DataResult(
+                        data={"error": str(e)},
+                        metadata=error_metadata,
+                        query=query,
+                        retrieved_at=datetime.now()
+                    )
         
         return results
     
@@ -405,4 +440,70 @@ class DataIntegrationService:
             except Exception as e:
                 logger.error(f"Error getting metadata for provider {provider_id}: {e}")
         
-        return metadata
+        return metadata   
+ 
+    def unregister_provider(self, provider_id: str) -> None:
+        """Unregister a data provider"""
+        if provider_id in self.providers:
+            provider = self.providers[provider_id]
+            
+            # Remove from registry
+            for source_type, provider_list in self.provider_registry.items():
+                if provider_id in provider_list:
+                    provider_list.remove(provider_id)
+            
+            del self.providers[provider_id]
+            logger.info(f"Unregistered data provider: {provider_id}")
+    
+    async def health_check_all_providers(self) -> Dict[str, bool]:
+        """Perform health check on all providers"""
+        health_status = {}
+        
+        tasks = []
+        for provider_id, provider in self.providers.items():
+            task = asyncio.create_task(provider.health_check())
+            tasks.append((provider_id, task))
+        
+        for provider_id, task in tasks:
+            try:
+                is_healthy = await task
+                health_status[provider_id] = is_healthy
+            except Exception as e:
+                logger.error(f"Health check failed for provider {provider_id}: {e}")
+                health_status[provider_id] = False
+        
+        self.last_health_check = datetime.now()
+        return health_status
+    
+    def get_provider_registry(self) -> Dict[DataSourceType, List[str]]:
+        """Get the current provider registry"""
+        return self.provider_registry.copy()
+    
+    def clear_all_caches(self) -> None:
+        """Clear caches for all providers"""
+        for provider in self.providers.values():
+            provider.clear_cache()
+        logger.info("Cleared caches for all data providers")
+    
+    async def _query_provider_with_error_handling(self, provider: BaseDataProvider, 
+                                                 query: DataQuery) -> DataResult[Dict[str, Any]]:
+        """Query a provider with comprehensive error handling"""
+        try:
+            return await provider.query_data(query)
+        except Exception as e:
+            logger.error(f"Provider {provider.provider_id} query failed: {e}")
+            # Create error result
+            error_metadata = DataSourceMetadata(
+                source_id=provider.provider_id,
+                source_type=DataSourceType.PERFORMANCE_METRICS,  # Default
+                description=f"Error querying {provider.provider_id}",
+                last_updated=datetime.now(),
+                data_quality=DataQuality.LOW,
+                availability=False
+            )
+            return DataResult(
+                data={"error": str(e)},
+                metadata=error_metadata,
+                query=query,
+                retrieved_at=datetime.now()
+            )
