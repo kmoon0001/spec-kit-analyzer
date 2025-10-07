@@ -46,6 +46,11 @@ from src.gui.themes import get_theme_palette
 from src.gui.workers.generic_api_worker import GenericApiWorker, HealthCheckWorker, TaskMonitorWorker, LogStreamWorker, FeedbackWorker
 from src.gui.workers.single_analysis_polling_worker import SingleAnalysisPollingWorker
 
+# Import diagnostic tools
+from src.core.analysis_workflow_logger import workflow_logger
+from src.core.analysis_status_tracker import status_tracker, AnalysisState
+from src.core.analysis_diagnostics import diagnostics
+
 # Import beautiful medical-themed components
 from src.gui.components.header_component import HeaderComponent
 from src.gui.components.status_component import StatusComponent
@@ -205,8 +210,40 @@ class MainViewModel(QObject):
         self._run_worker(AnalysisStarterWorker, on_success=self._handle_analysis_task_started, on_error=lambda msg: self.status_message_changed.emit(f"Analysis failed: {msg}"), file_path=file_path, data=options, token=self.auth_token)
 
     def _handle_analysis_task_started(self, task_id: str) -> None:
-        self.status_message_changed.emit("Analysis running…")
-        self._run_worker(SingleAnalysisPollingWorker, on_success=self.analysis_result_received.emit, on_error=lambda msg: self.status_message_changed.emit(f"Polling failed: {msg}"), task_id=task_id)
+        # Log successful task creation
+        workflow_logger.log_api_response(200, {"task_id": task_id})
+        
+        # Update status tracker with task ID
+        status_tracker.set_task_id(task_id)
+        status_tracker.update_status(AnalysisState.PROCESSING, 20, f"Analysis task created: {task_id[:8]}...")
+        
+        self.status_message_changed.emit(f"Analysis running (Task: {task_id[:8]}...)…")
+        
+        # Start polling for results
+        self._run_worker(
+            SingleAnalysisPollingWorker, 
+            on_success=self._handle_analysis_success_with_logging, 
+            on_error=self._handle_analysis_error_with_logging, 
+            task_id=task_id
+        )
+    
+    def _handle_analysis_success_with_logging(self, result: dict) -> None:
+        """Handle successful analysis with comprehensive logging."""
+        # Log successful completion
+        workflow_logger.log_workflow_completion(True, result)
+        status_tracker.complete_analysis(result)
+        
+        # Call the original success handler
+        self._handle_analysis_success(result)
+    
+    def _handle_analysis_error_with_logging(self, error_msg: str) -> None:
+        """Handle analysis error with comprehensive logging."""
+        # Log the error
+        workflow_logger.log_workflow_completion(False, error=error_msg)
+        status_tracker.set_error(error_msg)
+        
+        # Call the original error handler
+        self.on_analysis_error(error_msg)
 
     def load_settings(self) -> None:
         self._run_worker(GenericApiWorker, on_success=self.settings_loaded.emit, on_error=lambda msg: self.status_message_changed.emit(f"Failed to load settings: {msg}"), endpoint="/admin/settings", token=self.auth_token)
@@ -463,6 +500,7 @@ class MainApplicationWindow(QMainWindow):
         self.statusBar().showMessage(f"✅ {status_text}", 5000)
 
     def _start_analysis(self) -> None:
+        # Pre-flight checks
         if not self._selected_file:
             QMessageBox.warning(self, "No Document", "Please select a document before starting the analysis.")
             return
@@ -472,24 +510,101 @@ class MainApplicationWindow(QMainWindow):
             QMessageBox.warning(self, "No Rubric", "Please select a compliance guideline before analysis.")
             return
         
+        # Run diagnostic checks before starting analysis
+        self.statusBar().showMessage("🔍 Running pre-analysis diagnostics...", 2000)
+        diagnostic_results = diagnostics.run_full_diagnostic()
+        
+        # Check for critical issues
+        critical_issues = [
+            result for result in diagnostic_results.values() 
+            if result.status.value == "error" and result.component in ["api_connectivity", "analysis_endpoints"]
+        ]
+        
+        if critical_issues:
+            error_messages = [f"• {issue.message}" for issue in critical_issues]
+            QMessageBox.critical(
+                self, 
+                "🚨 Analysis Prerequisites Failed", 
+                f"Cannot start analysis due to critical issues:\n\n" + "\n".join(error_messages) + 
+                f"\n\nPlease resolve these issues and try again."
+            )
+            return
+        
+        # Validate the selected file
+        file_validation = diagnostics.validate_file_format(str(self._selected_file))
+        if file_validation.status.value == "error":
+            QMessageBox.warning(
+                self, 
+                "📄 File Validation Failed", 
+                f"The selected file cannot be processed:\n\n{file_validation.message}\n\nPlease select a different file."
+            )
+            return
+        
+        # Start workflow logging and tracking
+        rubric_name = self.rubric_selector.currentText()
+        session_id = workflow_logger.log_analysis_start(
+            str(self._selected_file), 
+            rubric_name, 
+            self.current_user.username
+        )
+        
+        status_tracker.start_tracking(
+            session_id,
+            str(self._selected_file),
+            rubric_name
+        )
+        
+        # Prepare analysis options
         options = {
             "discipline": self.rubric_selector.currentData() or "",
             "analysis_mode": "rubric",
+            "session_id": session_id
         }
+        
+        # Update UI state
         self.run_analysis_button.setEnabled(False)
         self.repeat_analysis_button.setEnabled(False)
+        self.view_report_button.setEnabled(False)
         
-        # Show subtle loading spinner
+        # Show loading indicators
         self.loading_spinner.start_spinning()
         self.statusBar().showMessage("⏳ Starting analysis... This may take a moment.", 0)
         
+        # Update status tracker
+        status_tracker.update_status(AnalysisState.STARTING, 0, "Submitting analysis request...")
+        
         try:
+            # Log the analysis request
+            workflow_logger.log_api_request("/analysis/submit", "POST", options)
+            
+            # Start the analysis
             self.view_model.start_analysis(str(self._selected_file), options)
+            
+            # Update status
+            status_tracker.update_status(AnalysisState.UPLOADING, 10, "Document uploaded, processing...")
+            
         except Exception as e:
+            # Log the error
+            workflow_logger.log_workflow_completion(False, error=str(e))
+            status_tracker.set_error(f"Failed to start analysis: {str(e)}")
+            
+            # Reset UI
             self.loading_spinner.stop_spinning()
             self.run_analysis_button.setEnabled(True)
             self.repeat_analysis_button.setEnabled(True)
-            QMessageBox.critical(self, "Analysis Error", f"Failed to start analysis:\n{str(e)}\n\nMake sure the API server is running.")
+            
+            # Show detailed error message
+            error_msg = f"Failed to start analysis:\n\n{str(e)}\n\n"
+            
+            # Add troubleshooting suggestions based on error type
+            if "connection" in str(e).lower() or "refused" in str(e).lower():
+                error_msg += "💡 Troubleshooting:\n• Make sure the API server is running\n• Try: python scripts/run_api.py"
+            elif "timeout" in str(e).lower():
+                error_msg += "💡 Troubleshooting:\n• API server may be overloaded\n• Check system resources\n• Try again in a moment"
+            else:
+                error_msg += "💡 Troubleshooting:\n• Check the console for detailed error logs\n• Restart the application if issues persist"
+            
+            QMessageBox.critical(self, "❌ Analysis Error", error_msg)
             self.statusBar().showMessage("❌ Analysis failed to start", 5000)
 
     def _repeat_analysis(self) -> None:
@@ -905,6 +1020,17 @@ You can also:
         clear_cache_action = QAction("🗑️ Clear Cache", self)
         clear_cache_action.triggered.connect(self._clear_all_caches)
         tools_menu.addAction(clear_cache_action)
+        
+        tools_menu.addSeparator()
+        
+        # Diagnostic Tools
+        diagnostic_action = QAction("🔍 Run Diagnostics", self)
+        diagnostic_action.triggered.connect(self._run_diagnostics)
+        tools_menu.addAction(diagnostic_action)
+        
+        start_api_action = QAction("🚀 Start API Server", self)
+        start_api_action.triggered.connect(self._start_api_server)
+        tools_menu.addAction(start_api_action)
 
     def _build_admin_menu(self, menu_bar) -> None:
         if not self.current_user.is_admin:
@@ -2806,6 +2932,119 @@ Memory:
         """
         
         QMessageBox.information(self, "ℹ️ System Information", system_info)
+
+    def _run_diagnostics(self) -> None:
+        """Run comprehensive system diagnostics."""
+        self.statusBar().showMessage("🔍 Running system diagnostics...", 0)
+        
+        try:
+            # Run diagnostics
+            diagnostic_results = diagnostics.run_full_diagnostic()
+            
+            # Format results for display
+            results_text = "🔍 SYSTEM DIAGNOSTICS REPORT\n\n"
+            
+            healthy_count = 0
+            warning_count = 0
+            error_count = 0
+            
+            for component, result in diagnostic_results.items():
+                status_icon = {
+                    "healthy": "✅",
+                    "warning": "⚠️",
+                    "error": "❌",
+                    "unknown": "❓"
+                }.get(result.status.value, "❓")
+                
+                results_text += f"{status_icon} {component.replace('_', ' ').title()}\n"
+                results_text += f"   {result.message}\n\n"
+                
+                if result.status.value == "healthy":
+                    healthy_count += 1
+                elif result.status.value == "warning":
+                    warning_count += 1
+                elif result.status.value == "error":
+                    error_count += 1
+            
+            # Add summary
+            results_text += f"📊 SUMMARY\n"
+            results_text += f"✅ Healthy: {healthy_count}\n"
+            results_text += f"⚠️ Warnings: {warning_count}\n"
+            results_text += f"❌ Errors: {error_count}\n\n"
+            
+            if error_count > 0:
+                results_text += "💡 RECOMMENDATIONS\n"
+                results_text += "• Fix critical errors before running analysis\n"
+                results_text += "• Check that the API server is running\n"
+                results_text += "• Use Tools → Start API Server if needed\n"
+            
+            # Show results in a dialog
+            msg = QMessageBox(self)
+            msg.setWindowTitle("🔍 System Diagnostics")
+            msg.setText(results_text)
+            msg.setIcon(QMessageBox.Icon.Information)
+            msg.exec()
+            
+            self.statusBar().showMessage("✅ Diagnostics completed", 5000)
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Diagnostics Error", f"Failed to run diagnostics:\n{str(e)}")
+            self.statusBar().showMessage("❌ Diagnostics failed", 5000)
+
+    def _start_api_server(self) -> None:
+        """Start the API server from within the GUI."""
+        reply = QMessageBox.question(
+            self,
+            "🚀 Start API Server",
+            "This will start the API server in a separate process.\n\n"
+            "The server is required for document analysis to work.\n\n"
+            "Do you want to start the API server now?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                import subprocess
+                import sys
+                from pathlib import Path
+                
+                # Start the API server
+                api_script = Path("scripts/run_api.py")
+                if api_script.exists():
+                    self.statusBar().showMessage("🚀 Starting API server...", 0)
+                    
+                    # Start in a separate process
+                    subprocess.Popen([
+                        sys.executable, str(api_script)
+                    ], creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0)
+                    
+                    QMessageBox.information(
+                        self,
+                        "🚀 API Server Starting",
+                        "The API server is starting in a separate window.\n\n"
+                        "Please wait a moment for it to initialize, then try your analysis again.\n\n"
+                        "You can also run diagnostics (Tools → Run Diagnostics) to check the status."
+                    )
+                    
+                    self.statusBar().showMessage("✅ API server started", 5000)
+                else:
+                    QMessageBox.warning(
+                        self,
+                        "Script Not Found",
+                        f"Could not find API server script at: {api_script}\n\n"
+                        "Please start the API server manually:\n"
+                        "python scripts/run_api.py"
+                    )
+                    
+            except Exception as e:
+                QMessageBox.critical(
+                    self,
+                    "Failed to Start API Server",
+                    f"Could not start the API server:\n\n{str(e)}\n\n"
+                    "Please start it manually:\n"
+                    "python scripts/run_api.py"
+                )
 
     def _start_resource_monitoring(self) -> None:
         """Start system resource monitoring timer."""
