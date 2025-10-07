@@ -96,14 +96,14 @@ class DashboardWidget(QWidget):
 
         layout = QVBoxLayout(box)
         title_label = QLabel(title, box)
-        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         value_label = QLabel(initial_value, box)
         font = value_label.font()
         font.setPointSize(24)
         font.setBold(True)
         value_label.setFont(font)
-        value_label.setAlignment(Qt.AlignCenter)
+        value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         value_label.setObjectName("kpiValueLabel")
 
         layout.addWidget(title_label)
@@ -133,7 +133,7 @@ class DashboardWidget(QWidget):
             progress = QProgressBar(self)
             progress.setValue(int(score))
             progress.setFormat(f"{score:.1f}%")
-            progress.setAlignment(Qt.AlignCenter)
+            progress.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             self.breakdown_layout.addWidget(label, row, 0)
             self.breakdown_layout.addWidget(progress, row, 1)

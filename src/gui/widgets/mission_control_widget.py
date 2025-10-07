@@ -61,7 +61,7 @@ class SettingsEditorWidget(QWidget):
             full_key = f"{prefix}{key}"
             if isinstance(value, dict):
                 group_label = QLabel(f"{key.replace('_', ' ').title()}")
-                group_label.setFont(QFont("Segoe UI", 10, QFont.Bold))
+                group_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
                 self.form_layout.addRow(group_label)
                 self._build_form_recursively(value, f"{full_key}.")
             else:
@@ -208,7 +208,7 @@ class MissionControlWidget(QWidget):
 
         header_layout = QHBoxLayout()
         header = QLabel("Mission Control")
-        header.setFont(QFont("Segoe UI", 20, QFont.Bold))
+        header.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
         header_layout.addWidget(header)
         header_layout.addStretch()
         layout.addLayout(header_layout)
@@ -251,7 +251,7 @@ class MissionControlWidget(QWidget):
         for key, name in components.items():
             name_label = QLabel(name)
             status_label = QLabel("Pending...")
-            status_label.setFont(QFont("Segoe UI", 9, QFont.Bold))
+            status_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
             self.ai_health_labels[key] = status_label
             layout.addWidget(name_label, 1, col)
             layout.addWidget(status_label, 2, col)
@@ -274,8 +274,8 @@ class MissionControlWidget(QWidget):
         layout.addWidget(title)
 
         self.api_status_label = QLabel("Pending...")
-        self.api_status_label.setFont(QFont("Segoe UI", 12, QFont.Bold))
-        layout.addWidget(self.api_status_label, alignment=Qt.AlignCenter)
+        self.api_status_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        layout.addWidget(self.api_status_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         frame.setStyleSheet(
             "#systemStatusFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }"

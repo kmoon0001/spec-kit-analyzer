@@ -53,6 +53,22 @@ class RenderFormat(Enum):
 
 
 @dataclass
+class ComponentDefinition:
+    """Definition of a reusable template component"""
+    id: str
+    name: str
+    component_type: ComponentType
+    template_content: str
+    required_props: List[str] = field(default_factory=list)
+    default_props: Dict[str, Any] = field(default_factory=dict)
+    css_classes: List[str] = field(default_factory=list)
+    javascript_code: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    MARKDOWN = "markdown"
+    PLAIN_TEXT = "plain_text"
+
+
+@dataclass
 class TemplateMetadata:
     """Metadata for template management"""
     template_id: str
@@ -105,27 +121,6 @@ class TemplateMetadata:
             tags=data.get("tags", []),
             compatibility_version=data.get("compatibility_version", "1.0")
         )
-        """Validate component definition"""
-        issues = []
-        
-        # Validate template content
-        template_issues = self.validate_template(
-            component.template_content,
-            TemplateMetadata(
-                id=component.id,
-                name=component.name,
-                description="Component template",
-                template_type=TemplateType.COMPONENT,
-                required_data=component.required_props
-            )
-        )
-        issues.extend(template_issues)
-        
-        # Check required props are defined
-        if not component.required_props:
-            issues.append("Component should define required props")
-        
-        return issues
 
 
 class ComponentLibrary:
@@ -311,20 +306,6 @@ class ComponentLibrary:
         except Exception as e:
             logger.error(f"Error rendering component {component_id}: {e}")
             return f"<div class='component-error'>Error rendering component: {component_id}</div>"
-
-@dataclass
-class ComponentDefinition:
-    """Definition of a reusable template component"""
-    id: str
-    name: str
-    component_type: ComponentType
-    template_content: str
-    required_props: List[str] = field(default_factory=list)
-    default_props: Dict[str, Any] = field(default_factory=dict)
-    css_classes: List[str] = field(default_factory=list)
-    javascript_code: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
 
 class TemplateValidator:
     """Validates template content and structure"""

@@ -8,10 +8,8 @@ import logging
 import webbrowser
 import requests
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Type, Protocol
+from typing import Any, Callable, Dict, Optional, Protocol
 from urllib.parse import urlparse, parse_qs
-
-logger = logging.getLogger(__name__)
 
 from PySide6.QtCore import Qt, QThread, QSettings, QObject, Signal, QUrl
 from PySide6.QtGui import QAction, QFont, QActionGroup
@@ -70,6 +68,8 @@ try:
 except ImportError:
     PerformanceStatusWidget = None
 
+logger = logging.getLogger(__name__)
+
 SETTINGS = get_settings()
 API_URL = SETTINGS.paths.api_url
 
@@ -107,7 +107,7 @@ class MainViewModel(QObject):
 
     def _run_worker(
         self,
-        worker_class: Type[WorkerProtocol],
+        worker_class,
         on_success: Callable | None = None,
         on_error: Callable | None = None,
         *,
@@ -260,6 +260,11 @@ class MainApplicationWindow(QMainWindow):
 
         self.view_model = MainViewModel(token)
         self.mission_control_widget = MissionControlWidget(self)
+        
+        # Initialize missing attributes
+        self.auto_analysis_queue_list = None
+        self.auth_token = token
+        self.report_preview_browser = None
 
         self._build_ui()
         self._connect_view_model()
@@ -704,7 +709,7 @@ You can also:
         self._build_admin_menu(menu_bar)
         self._build_help_menu(menu_bar)
 
-    def _build_file_menu(self, menu_bar: QMenu) -> None:
+    def _build_file_menu(self, menu_bar) -> None:
         file_menu = menu_bar.addMenu("&File")
         open_file_action = QAction("Open Document…", self)
         open_file_action.triggered.connect(self._prompt_for_document)
@@ -721,7 +726,7 @@ You can also:
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
-    def _build_view_menu(self, menu_bar: QMenu) -> None:
+    def _build_view_menu(self, menu_bar) -> None:
         view_menu = menu_bar.addMenu("&View")
         
         # Optional docks (hidden by default)
@@ -740,7 +745,7 @@ You can also:
             theme_menu.addAction(action)
             self.theme_action_group.addAction(action)
         view_menu.addMenu(theme_menu)
-    def _build_tools_menu(self, menu_bar: QMenu) -> None:
+    def _build_tools_menu(self, menu_bar) -> None:
         tools_menu = menu_bar.addMenu("&Tools")
         
         # Meta Analytics
@@ -766,7 +771,7 @@ You can also:
         refresh_action.triggered.connect(self._load_initial_state)
         tools_menu.addAction(refresh_action)
 
-    def _build_admin_menu(self, menu_bar: QMenu) -> None:
+    def _build_admin_menu(self, menu_bar) -> None:
         if not self.current_user.is_admin:
             return
         admin_menu = menu_bar.addMenu("&Admin")
@@ -778,7 +783,7 @@ You can also:
         settings_action.triggered.connect(self._open_settings_dialog)
         admin_menu.addAction(settings_action)
 
-    def _build_help_menu(self, menu_bar: QMenu) -> None:
+    def _build_help_menu(self, menu_bar) -> None:
         help_menu = menu_bar.addMenu("&Help")
         docs_action = QAction("Open Documentation", self)
         docs_action.triggered.connect(lambda: webbrowser.open("https://github.com/your-username/your-repo-name"))
@@ -1309,7 +1314,7 @@ You can also:
         
         # Title
         title = QLabel("📁 Upload Document", section)
-        title.setFont(QFont("Segoe UI", 14, QFont.Bold))
+        title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {medical_theme.get_color('primary_blue')}; background: transparent; border: none;")
         layout.addWidget(title)
         
@@ -1368,13 +1373,13 @@ You can also:
         
         # Title
         title = QLabel("📋 Compliance Guidelines", section)
-        title.setFont(QFont("Segoe UI", 14, QFont.Bold))
+        title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {medical_theme.get_color('primary_blue')}; background: transparent; border: none;")
         layout.addWidget(title)
         
         # Rubric selector with better styling
         rubric_label = QLabel("Select Guidelines:", section)
-        rubric_label.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        rubric_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         rubric_label.setStyleSheet("background: transparent; border: none; color: #475569;")
         layout.addWidget(rubric_label)
         
@@ -1417,7 +1422,7 @@ You can also:
         
         # Strictness selector
         strictness_label = QLabel("Review Strictness:", section)
-        strictness_label.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        strictness_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         strictness_label.setStyleSheet("background: transparent; border: none; color: #475569;")
         layout.addWidget(strictness_label)
         
@@ -1460,7 +1465,7 @@ You can also:
         self.run_analysis_button.setEnabled(False)
         self.run_analysis_button.setStyleSheet(medical_theme.get_button_stylesheet("success"))
         self.run_analysis_button.setMinimumHeight(55)
-        self.run_analysis_button.setFont(QFont("Segoe UI", 13, QFont.Bold))
+        self.run_analysis_button.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
         layout.addWidget(self.run_analysis_button)
         
         # Secondary actions
@@ -1501,7 +1506,7 @@ You can also:
         
         # Title
         title = QLabel("📋 Report Sections", panel)
-        title.setFont(QFont("Segoe UI", 14, QFont.Bold))
+        title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {medical_theme.get_color('primary_blue')}; background: transparent; border: none;")
         layout.addWidget(title)
         
@@ -1642,7 +1647,7 @@ You can also:
         chat_layout = QVBoxLayout(chat_widget)
         chat_layout.setContentsMargins(0, 0, 0, 0)
         chat_label = QLabel("AI Chat Assistant\n\nClick the 'Ask AI Assistant' button to open the chat dialog.", chat_widget)
-        chat_label.setAlignment(Qt.AlignCenter)
+        chat_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         chat_layout.addWidget(chat_label)
         right_tabs.addTab(chat_widget, "Chat")
         
@@ -1694,7 +1699,7 @@ You can also:
     
     def _open_change_password_dialog(self) -> None:
         """Open the change password dialog."""
-        dialog = ChangePasswordDialog(self.current_user, self)
+        dialog = ChangePasswordDialog(self)
         dialog.exec()
     
     def _setup_keyboard_shortcuts(self) -> None:
@@ -1745,7 +1750,7 @@ You can also:
         
         # Title
         title = QLabel("⚙️ Application Settings", tab)
-        title.setFont(QFont("Segoe UI", 18, QFont.Bold))
+        title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {medical_theme.get_color('primary_blue')};")
         layout.addWidget(title)
         
@@ -1818,7 +1823,7 @@ You can also:
         theme_layout = QVBoxLayout(theme_section)
         
         theme_label = QLabel("🎨 Theme Selection", theme_section)
-        theme_label.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        theme_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         theme_layout.addWidget(theme_label)
         
         theme_buttons = QHBoxLayout()
@@ -1850,7 +1855,7 @@ You can also:
         account_layout = QVBoxLayout(account_section)
         
         account_label = QLabel("👤 Account Settings", account_section)
-        account_label.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        account_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         account_layout.addWidget(account_label)
         
         user_info = QLabel(f"Logged in as: {self.current_user.username}", account_section)
@@ -1878,7 +1883,7 @@ You can also:
         ui_layout = QVBoxLayout(ui_section)
         
         ui_label = QLabel("🖥️ Interface Preferences", ui_section)
-        ui_label.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        ui_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         ui_layout.addWidget(ui_label)
         
         show_tooltips = QCheckBox("Show helpful tooltips", ui_section)
@@ -1920,7 +1925,7 @@ You can also:
         section_layout = QVBoxLayout(section)
         
         title = QLabel("📊 Default Analysis Settings", section)
-        title.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         section_layout.addWidget(title)
         
         auto_analyze = QCheckBox("Auto-analyze on document upload", section)
@@ -1964,7 +1969,7 @@ You can also:
         section_layout = QVBoxLayout(section)
         
         title = QLabel("📄 Report Content Settings", section)
-        title.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         section_layout.addWidget(title)
         
         include_medicare = QCheckBox("✅ Medicare Guidelines Compliance", section)
@@ -2024,7 +2029,7 @@ You can also:
         section_layout = QVBoxLayout(section)
         
         title = QLabel("⚡ Performance Settings", section)
-        title.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         section_layout.addWidget(title)
         
         enable_cache = QCheckBox("Enable analysis caching", section)
@@ -2047,19 +2052,7 @@ You can also:
         
         layout.addStretch()
         return widget
-    
-    def _create_analysis_settings_widget(self) -> QWidget:
-        """Create analysis settings widget."""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(12)
-        
-        info_label = QLabel("Analysis settings will be available in a future update.", widget)
-        layout.addWidget(info_label)
-        
-        layout.addStretch()
-        return widget
+
 
 
 
@@ -2120,11 +2113,11 @@ You can also:
         # Meta Analytics Dock (hidden by default, accessible via Tools menu)
         if MetaAnalyticsWidget:
             self.meta_analytics_dock = QDockWidget("Meta Analytics", self)
-            self.meta_analytics_dock.setAllowedAreas(Qt.BottomDockWidgetArea | Qt.RightDockWidgetArea)
+            self.meta_analytics_dock.setAllowedAreas(Qt.DockWidgetArea.BottomDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
             self.meta_widget = MetaAnalyticsWidget()
             self.meta_widget.refresh_requested.connect(self.view_model.load_meta_analytics)
             self.meta_analytics_dock.setWidget(self.meta_widget)
-            self.addDockWidget(Qt.BottomDockWidgetArea, self.meta_analytics_dock)
+            self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.meta_analytics_dock)
             self.meta_analytics_dock.hide()  # Hidden by default
         else:
             self.meta_analytics_dock = None
@@ -2132,10 +2125,10 @@ You can also:
         # Performance Status Dock (hidden by default, accessible via Tools menu)
         if PerformanceStatusWidget:
             self.performance_dock = QDockWidget("Performance Status", self)
-            self.performance_dock.setAllowedAreas(Qt.RightDockWidgetArea | Qt.BottomDockWidgetArea)
+            self.performance_dock.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea | Qt.DockWidgetArea.BottomDockWidgetArea)
             self.performance_widget = PerformanceStatusWidget()
             self.performance_dock.setWidget(self.performance_widget)
-            self.addDockWidget(Qt.RightDockWidgetArea, self.performance_dock)
+            self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.performance_dock)
             self.performance_dock.hide()  # Hidden by default
         else:
             self.performance_dock = None
@@ -2351,7 +2344,7 @@ Click "Run Compliance Analysis" to begin.
         dialog = ChangePasswordDialog(self)
         dialog.exec()
 
-    def _open_chat_dialog(self, initial_message: str = None) -> None:
+    def _open_chat_dialog(self, initial_message: Optional[str] = None) -> None:
         """Open the AI chat dialog with optional initial message."""
         if initial_message:
             initial_context = f"User question: {initial_message}\n\nContext: {self.analysis_summary_browser.toPlainText()}"

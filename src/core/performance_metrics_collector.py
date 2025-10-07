@@ -214,14 +214,14 @@ class BaselineMetricsCollector:
             current_usage_mb = memory_info.rss / (1024 * 1024)
             
             # Get system memory info
-            system_memory = psutil.virtual_memory()
+            memory = psutil.virtual_memory()
             
             return MemoryMetrics(
                 peak_usage_mb=current_usage_mb,  # Will be updated with actual peak
                 average_usage_mb=current_usage_mb,  # Will be calculated from history
                 min_usage_mb=current_usage_mb,
                 current_usage_mb=current_usage_mb,
-                memory_efficiency=0.85,  # Placeholder - would need actual calculation
+                memory_efficiency=min(1.0, current_usage_mb / (memory.total / 1024 / 1024)),
                 gc_collections=0,  # Would need GC integration
                 memory_leaks_detected=False
             )

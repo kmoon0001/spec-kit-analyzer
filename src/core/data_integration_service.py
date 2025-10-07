@@ -444,8 +444,6 @@ class DataIntegrationService:
     def unregister_provider(self, provider_id: str) -> None:
         """Unregister a data provider"""
         if provider_id in self.providers:
-            provider = self.providers[provider_id]
-            
             # Remove from registry
             for source_type, provider_list in self.provider_registry.items():
                 if provider_id in provider_list:
