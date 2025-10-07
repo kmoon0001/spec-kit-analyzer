@@ -147,7 +147,19 @@ class LogStreamWorker(QThread):
 
     def run(self) -> None:
         """Connects to WebSocket and emits signals for new messages."""
-        asyncio.run(self._run_client())
+        try:
+            # Create new event loop for this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(self._run_client())
+        except Exception as e:
+            self.error.emit(f"Log stream error: {e}")
+        finally:
+            # Clean up the event loop
+            try:
+                loop.close()
+            except:
+                pass
 
     async def _run_client(self) -> None:
         uri = f"{WS_URL}/ws/logs"

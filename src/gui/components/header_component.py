@@ -27,34 +27,36 @@ class HeaderComponent(QWidget):
         
     def init_ui(self):
         """Initialize the header UI."""
-        self.setFixedHeight(100)  # Increased height for larger title
+        self.setFixedHeight(120)  # Even larger height for bigger title
         self.setObjectName("headerComponent")
         
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(20, 15, 20, 15)
+        layout.setContentsMargins(15, 20, 15, 20)  # More vertical padding
         
-        # Logo section (left)
+        # Logo section (left - smaller)
         logo_section = self.create_logo_section()
-        layout.addLayout(logo_section)
+        layout.addLayout(logo_section, stretch=0)
         
-        # Title section (center - takes most space)
+        # Title section (center - takes much more space)
         title_section = self.create_title_section()
-        layout.addLayout(title_section, stretch=3)  # Give title more space
+        layout.addLayout(title_section, stretch=6)  # Much more space for title
         
-        # Controls section (right)
+        # Controls section (right - smaller)
         controls_section = self.create_controls_section()
-        layout.addLayout(controls_section)
+        layout.addLayout(controls_section, stretch=0)
         
     def create_logo_section(self):
-        """Create the logo section."""
+        """Create the compact logo section."""
         layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 10, 0)  # Minimal margins
         
-        # Medical emoji (clickable for easter eggs)
+        # Medical emoji (clickable for easter eggs) - slightly smaller to save space
         emoji_label = QLabel("🏥")
-        emoji_label.setFont(QFont("Segoe UI", 32))  # Larger emoji
+        emoji_label.setFont(QFont("Segoe UI", 28))  # Slightly smaller emoji
         emoji_label.mousePressEvent = self.on_logo_clicked
         emoji_label.setCursor(Qt.CursorShape.PointingHandCursor)
         emoji_label.setToolTip("Click 7 times for easter egg!")
+        emoji_label.setFixedWidth(40)  # Fixed width to prevent expansion
         layout.addWidget(emoji_label)
         
         return layout
@@ -62,42 +64,47 @@ class HeaderComponent(QWidget):
     def create_title_section(self):
         """Create the centered title section."""
         layout = QHBoxLayout()
+        layout.setContentsMargins(20, 0, 20, 0)  # More horizontal padding
         
-        # Main title - larger and centered
+        # Main title - much larger and stretched across
         self.title_label = QLabel("THERAPY DOCUMENTATION COMPLIANCE ANALYSIS")
         self.title_label.setObjectName("titleLabel")
-        self.title_label.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))  # Much larger font
+        self.title_label.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))  # Much larger font (was 22)
         self.title_label.setStyleSheet("""
             QLabel#titleLabel {
                 color: #1d4ed8;
                 text-align: center;
-                padding: 10px 20px;
+                padding: 15px 30px;
                 background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-                border-radius: 12px;
-                border: 2px solid #cbd5e0;
+                border-radius: 15px;
+                border: 3px solid #cbd5e0;
+                font-weight: 900;
+                letter-spacing: 1px;
             }
         """)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title_label.setMinimumHeight(60)  # Ensure minimum height
         layout.addWidget(self.title_label)
         
         return layout
         
     def create_controls_section(self):
-        """Create the controls section."""
+        """Create the compact controls section."""
         layout = QHBoxLayout()
+        layout.setContentsMargins(10, 0, 0, 0)  # Minimal margins
         
-        # Theme toggle button - larger and more prominent
+        # Theme toggle button - compact but still functional
         self.theme_button = QPushButton("🌙")
         self.theme_button.setObjectName("themeButton")
-        self.theme_button.setFixedSize(50, 50)  # Larger button
+        self.theme_button.setFixedSize(45, 45)  # Slightly smaller button
         self.theme_button.setToolTip("Toggle Dark/Light Theme (Ctrl+T)")
         self.theme_button.clicked.connect(self.on_theme_toggle)
         self.theme_button.setStyleSheet("""
             QPushButton#themeButton {
                 background-color: #f1f5f9;
                 border: 2px solid #cbd5e0;
-                border-radius: 25px;
-                font-size: 20px;
+                border-radius: 22px;
+                font-size: 18px;
             }
             QPushButton#themeButton:hover {
                 background-color: #e2e8f0;

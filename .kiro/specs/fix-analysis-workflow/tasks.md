@@ -32,6 +32,7 @@ Convert the analysis workflow fix design into actionable implementation tasks th
   - Include methods to detect hanging processes and trigger recovery
   - _Requirements: 1.3, 4.1, 4.2_
 
+
 - [ ] 1.3 Add diagnostic health checks
   - Create API connectivity verification
   - Implement AI model status checking
@@ -44,6 +45,10 @@ Convert the analysis workflow fix design into actionable implementation tasks th
   - Add user-friendly error messages with troubleshooting guidance
   - Implement recovery mechanisms and retry functionality
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
+
+
+
+
 
 - [ ] 2.1 Implement comprehensive error categorization
   - Create error handlers for API connection failures
@@ -76,6 +81,7 @@ Convert the analysis workflow fix design into actionable implementation tasks th
   - Resolve worker thread communication problems
   - Ensure proper result processing and display
   - _Requirements: 2.1, 2.2, 2.3, 5.2, 5.3_
+
 
 - [ ] 3.1 Debug and fix AnalysisStarterWorker integration
   - Verify API request format and authentication

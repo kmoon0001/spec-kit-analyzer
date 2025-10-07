@@ -5,7 +5,6 @@ This script launches the PySide6 GUI application with proper authentication.
 """
 import sys
 from pathlib import Path
-import asyncio
 import time
 import requests
 
@@ -63,7 +62,7 @@ if __name__ == "__main__":
         
         # Use the proper authentication flow from src.gui.main
         from src.gui.main import main as gui_main
-        asyncio.run(gui_main())
+        gui_main()
         
     except Exception as e:
         print(f"ERROR: Error starting application: {e}")

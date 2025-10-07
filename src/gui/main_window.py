@@ -50,6 +50,7 @@ from src.gui.workers.single_analysis_polling_worker import SingleAnalysisPolling
 from src.core.analysis_workflow_logger import workflow_logger
 from src.core.analysis_status_tracker import status_tracker, AnalysisState
 from src.core.analysis_diagnostics import diagnostics
+from src.core.analysis_error_handler import error_handler
 
 # Import beautiful medical-themed components
 from src.gui.components.header_component import HeaderComponent
@@ -237,12 +238,33 @@ class MainViewModel(QObject):
         self._handle_analysis_success(result)
     
     def _handle_analysis_error_with_logging(self, error_msg: str) -> None:
-        """Handle analysis error with comprehensive logging."""
+        """Handle analysis error with comprehensive logging and user-friendly messaging."""
         # Log the error
         workflow_logger.log_workflow_completion(False, error=error_msg)
         status_tracker.set_error(error_msg)
         
-        # Call the original error handler
+        # Process error through error handler for better user experience
+        analysis_error = error_handler.categorize_and_handle_error(error_msg)
+        formatted_message = error_handler.format_error_message(analysis_error, include_technical=False)
+        
+        # Show user-friendly error dialog
+        msg = QMessageBox(self)
+        msg.setWindowTitle(f"{analysis_error.icon} Analysis Error")
+        msg.setText(formatted_message)
+        msg.setIcon(QMessageBox.Icon.Warning if analysis_error.severity == "warning" else QMessageBox.Icon.Critical)
+        
+        # Add "Show Technical Details" button
+        technical_button = msg.addButton("🔧 Technical Details", QMessageBox.ButtonRole.ActionRole)
+        msg.addButton(QMessageBox.StandardButton.Ok)
+        
+        result = msg.exec()
+        
+        # Show technical details if requested
+        if msg.clickedButton() == technical_button:
+            technical_msg = error_handler.format_error_message(analysis_error, include_technical=True)
+            QMessageBox.information(self, "🔧 Technical Details", technical_msg)
+        
+        # Call the original error handler for UI cleanup
         self.on_analysis_error(error_msg)
 
     def load_settings(self) -> None:
@@ -593,18 +615,26 @@ class MainApplicationWindow(QMainWindow):
             self.run_analysis_button.setEnabled(True)
             self.repeat_analysis_button.setEnabled(True)
             
-            # Show detailed error message
-            error_msg = f"Failed to start analysis:\n\n{str(e)}\n\n"
+            # Use error handler for user-friendly error message
+            analysis_error = error_handler.categorize_and_handle_error(str(e))
+            formatted_message = error_handler.format_error_message(analysis_error, include_technical=False)
             
-            # Add troubleshooting suggestions based on error type
-            if "connection" in str(e).lower() or "refused" in str(e).lower():
-                error_msg += "💡 Troubleshooting:\n• Make sure the API server is running\n• Try: python scripts/run_api.py"
-            elif "timeout" in str(e).lower():
-                error_msg += "💡 Troubleshooting:\n• API server may be overloaded\n• Check system resources\n• Try again in a moment"
-            else:
-                error_msg += "💡 Troubleshooting:\n• Check the console for detailed error logs\n• Restart the application if issues persist"
+            # Show user-friendly error dialog
+            msg = QMessageBox(self)
+            msg.setWindowTitle(f"{analysis_error.icon} Analysis Startup Error")
+            msg.setText(formatted_message)
+            msg.setIcon(QMessageBox.Icon.Critical if analysis_error.severity == "critical" else QMessageBox.Icon.Warning)
             
-            QMessageBox.critical(self, "❌ Analysis Error", error_msg)
+            # Add "Show Technical Details" button
+            technical_button = msg.addButton("🔧 Technical Details", QMessageBox.ButtonRole.ActionRole)
+            msg.addButton(QMessageBox.StandardButton.Ok)
+            
+            result = msg.exec()
+            
+            # Show technical details if requested
+            if msg.clickedButton() == technical_button:
+                technical_msg = error_handler.format_error_message(analysis_error, include_technical=True)
+                QMessageBox.information(self, "🔧 Technical Details", technical_msg)
             self.statusBar().showMessage("❌ Analysis failed to start", 5000)
 
     def _repeat_analysis(self) -> None:
@@ -1630,7 +1660,7 @@ You can also:
         self.file_display.setReadOnly(True)
         self.file_display.setMinimumHeight(90)
         self.file_display.setMaximumHeight(110)
-        self.file_display.setPlaceholderText("No document selected\n\nClick 'Upload Document' below")
+        self.file_display.setPlaceholderText("📄 No Document Selected\n\n👆 Click 'Upload Document' to choose a file\n\nSupported formats: PDF, DOCX, TXT")
         self.file_display.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {medical_theme.get_color("bg_primary")};
@@ -2616,15 +2646,15 @@ You can also:
         self._selected_file = file_path
         self._cached_preview_content = content
         
-        # Show human-readable summary instead of raw content
-        file_info = f"""
-📄 Document Selected: {file_path.name}
-📊 File Size: {len(content)} characters
-📁 Location: {file_path.parent}
+        # Show clear document status instead of confusing description
+        file_size_mb = len(content) / (1024 * 1024)
+        file_info = f"""✅ DOCUMENT LOADED
 
-✅ Ready for analysis!
+📄 {file_path.name}
+📊 Size: {file_size_mb:.1f} MB ({len(content):,} characters)
+📁 {file_path.parent.name}/
 
-Click "Run Compliance Analysis" to begin.
+🚀 Ready to analyze!
         """
         self.file_display.setPlainText(file_info)
         self.statusBar().showMessage(f"✅ Document loaded: {self._selected_file.name}", 3000)
