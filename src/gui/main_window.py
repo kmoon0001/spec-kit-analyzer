@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import functools
 import json
+import logging
 import webbrowser
 import requests
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Type, Protocol
 from urllib.parse import urlparse, parse_qs
+
+logger = logging.getLogger(__name__)
 
 from PySide6.QtCore import Qt, QThread, QSettings, QObject, Signal, QUrl
 from PySide6.QtGui import QAction, QFont, QIcon, QActionGroup
@@ -514,11 +517,47 @@ class MainApplicationWindow(QMainWindow):
         
         if file_path:
             try:
-                # TODO: Implement PDF export using pdf_export_service
-                self.statusBar().showMessage(f"✅ Report exported to: {file_path}", 5000)
-                QMessageBox.information(self, "Export Successful", f"Report exported successfully to:\n{file_path}")
+                from src.core.pdf_export_service import PDFExportService
+                from pathlib import Path
+                import shutil
+                
+                # Get HTML content from current payload
+                html_content = self._current_payload.get("report_html", "")
+                if not html_content:
+                    QMessageBox.warning(self, "No Content", "Report HTML content not available.")
+                    return
+                
+                # Initialize PDF export service
+                pdf_service = PDFExportService(output_dir="temp/reports")
+                
+                # Get document name for metadata
+                doc_name = self._current_payload.get("document_name", "Compliance Report")
+                
+                # Export to PDF
+                result = pdf_service.export_to_pdf(
+                    html_content=html_content,
+                    document_name=doc_name,
+                    filename=Path(file_path).stem,
+                    metadata={
+                        "title": f"Compliance Analysis - {doc_name}",
+                        "author": "Therapy Compliance Analyzer",
+                        "subject": "Clinical Documentation Compliance Report"
+                    }
+                )
+                
+                if result["success"]:
+                    # Copy the generated PDF to the user's chosen location
+                    shutil.copy2(result["pdf_path"], file_path)
+                    
+                    self.statusBar().showMessage(f"✅ Report exported to: {file_path}", 5000)
+                    QMessageBox.information(self, "Export Successful", f"Report exported successfully to:\n{file_path}")
+                else:
+                    error_msg = result.get("error", "Unknown error occurred")
+                    QMessageBox.warning(self, "Export Failed", f"PDF export failed:\n{error_msg}\n\nTip: Install weasyprint for better PDF support:\npip install weasyprint")
+                    
             except Exception as e:
-                QMessageBox.warning(self, "Export Failed", f"Failed to export report: {str(e)}")
+                logger.error(f"PDF export failed: {e}")
+                QMessageBox.warning(self, "Export Failed", f"Failed to export report: {str(e)}\n\nTip: Install weasyprint:\npip install weasyprint")
 
     def _export_report_html(self) -> None:
         """Export the current report as HTML."""
