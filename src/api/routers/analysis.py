@@ -46,8 +46,9 @@ def run_analysis_and_save(
     """
     Background task to run document analysis on in-memory content and save results.
     """
-    async def _job() -> None:
+    async def _async_analysis():
         try:
+            logger.info(f"Starting analysis for task {task_id}")
             result = await analysis_service.analyze_document(
                 file_content=file_content,
                 original_filename=original_filename,
@@ -60,6 +61,7 @@ def run_analysis_and_save(
                 "filename": original_filename,
                 "timestamp": datetime.datetime.now(datetime.timezone.utc),
             }
+            logger.info(f"Analysis completed for task {task_id}")
         except Exception as exc:
             logger.exception("Analysis task failed", task_id=task_id, error=str(exc))
             tasks[task_id] = {
@@ -68,8 +70,15 @@ def run_analysis_and_save(
                 "filename": original_filename,
                 "timestamp": datetime.datetime.now(datetime.timezone.utc),
             }
-
-    asyncio.run(_job())
+    
+    # Run the async function in a new event loop
+    import asyncio
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_async_analysis())
+    finally:
+        loop.close()
 
 
 @router.post("/analyze", status_code=status.HTTP_202_ACCEPTED)
