@@ -183,3 +183,226 @@ class BaseDataProvider(ABC):
         """Clear all cached data"""
         self._cache.clear()
         self._cache_ttl.clear()
+
+
+class PerformanceDataProvider(BaseDataProvider):
+    """Data provider for performance metrics and optimization results"""
+    
+    def __init__(self):
+        super().__init__(
+            provider_id="performance_metrics",
+            description="Performance metrics, optimization results, and system performance data"
+        )
+        self.supported_report_types = {
+            ReportType.PERFORMANCE_ANALYSIS,
+            ReportType.DASHBOARD,
+            ReportType.EXECUTIVE_SUMMARY,
+            ReportType.TREND_ANALYSIS
+        }
+    
+    def supports_report_type(self, report_type: ReportType) -> bool:
+        """Check if this provider supports the given report type"""
+        return report_type in self.supported_report_types
+    
+    async def get_data(self, config: ReportConfig) -> Dict[str, Any]:
+        """Get performance data for report generation"""
+        try:
+            # Create query from report config
+            query = DataQuery(
+                source_types=[DataSourceType.PERFORMANCE_METRICS, DataSourceType.OPTIMIZATION_RESULTS],
+                time_range=config.time_range,
+                filters=config.filters,
+                aggregation_level="hourly" if config.time_range and 
+                    (config.time_range.end_time - config.time_range.start_time).days > 7 else "raw"
+            )
+            
+            result = await self.query_data(query)
+            return result.data
+            
+        except Exception as e:
+            logger.error(f"Error getting performance data: {e}")
+            return {"error": str(e), "provider": self.provider_id}
+    
+    async def query_data(self, query: DataQuery) -> DataResult[Dict[str, Any]]:
+        """Execute performance data query"""
+        cache_key = self._get_cache_key(query)
+        
+        # Check cache first
+        if self._is_cache_valid(cache_key):
+            cached_data = self._cache[cache_key]
+            logger.debug(f"Using cached performance data for query")
+            return cached_data
+        
+        try:
+            # Simulate data retrieval from performance systems
+            performance_data = await self._fetch_performance_metrics(query)
+            optimization_data = await self._fetch_optimization_results(query)
+            
+            combined_data = {
+                "performance_metrics": performance_data,
+                "optimization_results": optimization_data,
+                "summary": self._calculate_performance_summary(performance_data, optimization_data)
+            }
+            
+            metadata = await self.get_metadata()
+            
+            result = DataResult(
+                data=combined_data,
+                metadata=metadata,
+                query=query,
+                retrieved_at=datetime.now(),
+                record_count=len(performance_data.get("metrics", [])),
+                has_more=False
+            )
+            
+            # Cache the result
+            self._cache_data(cache_key, result)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error querying performance data: {e}")
+            raise
+    
+    async def _fetch_performance_metrics(self, query: DataQuery) -> Dict[str, Any]:
+        """Fetch performance metrics from monitoring systems"""
+        await asyncio.sleep(0.1)  # Simulate async operation
+        
+        return {
+            "metrics": [
+                {
+                    "timestamp": datetime.now().isoformat(),
+                    "response_time_ms": 150.0,
+                    "memory_usage_mb": 256.0,
+                    "cpu_usage_percent": 45.0,
+                    "throughput_requests_per_second": 25.0,
+                    "error_rate_percent": 0.5
+                }
+            ],
+            "aggregation_level": query.aggregation_level,
+            "time_range": {
+                "start_time": query.time_range.start_time.isoformat(),
+                "end_time": query.time_range.end_time.isoformat()
+            } if query.time_range else None
+        }
+    
+    async def _fetch_optimization_results(self, query: DataQuery) -> Dict[str, Any]:
+        """Fetch optimization results from performance optimizer"""
+        await asyncio.sleep(0.1)  # Simulate async operation
+        
+        return {
+            "optimizations": [
+                {
+                    "optimization_type": "cache",
+                    "enabled": True,
+                    "improvement_percent": 35.0,
+                    "baseline_response_time_ms": 200.0,
+                    "optimized_response_time_ms": 130.0
+                }
+            ],
+            "overall_improvement": {
+                "response_time_improvement_percent": 30.0,
+                "memory_improvement_percent": 25.0,
+                "throughput_improvement_percent": 20.0
+            }
+        }
+    
+    def _calculate_performance_summary(self, performance_data: Dict[str, Any], 
+                                     optimization_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate performance summary statistics"""
+        return {
+            "overall_health_score": 85.0,
+            "performance_trend": "improving",
+            "optimization_effectiveness": 78.0,
+            "recommendations_count": 3,
+            "critical_issues_count": 0
+        }
+    
+    async def get_metadata(self) -> DataSourceMetadata:
+        """Get metadata about performance data source"""
+        return DataSourceMetadata(
+            source_id=self.provider_id,
+            source_type=DataSourceType.PERFORMANCE_METRICS,
+            description=self.description,
+            last_updated=datetime.now(),
+            data_quality=DataQuality.HIGH,
+            availability=self.is_available,
+            tags=["performance", "optimization", "metrics", "monitoring"]
+        )
+
+
+class DataIntegrationService:
+    """Main service for coordinating data integration across all providers"""
+    
+    def __init__(self):
+        self.providers: Dict[str, BaseDataProvider] = {}
+        self.provider_registry: Dict[DataSourceType, List[str]] = {}
+        self.health_check_interval = timedelta(minutes=5)
+        self.last_health_check = datetime.now()
+        
+        # Register default providers
+        self._register_default_providers()
+    
+    def _register_default_providers(self) -> None:
+        """Register default data providers"""
+        performance_provider = PerformanceDataProvider()
+        self.register_provider(performance_provider)
+    
+    def register_provider(self, provider: BaseDataProvider) -> None:
+        """Register a data provider"""
+        self.providers[provider.provider_id] = provider
+        
+        # Update provider registry
+        metadata = asyncio.run(provider.get_metadata())
+        source_type = metadata.source_type
+        
+        if source_type not in self.provider_registry:
+            self.provider_registry[source_type] = []
+        
+        if provider.provider_id not in self.provider_registry[source_type]:
+            self.provider_registry[source_type].append(provider.provider_id)
+        
+        logger.info(f"Registered data provider: {provider.provider_id}")
+    
+    async def query_data(self, query: DataQuery) -> Dict[str, DataResult[Dict[str, Any]]]:
+        """Query data from multiple providers based on source types"""
+        results = {}
+        
+        # Find providers for requested source types
+        providers_to_query = set()
+        for source_type in query.source_types:
+            if source_type in self.provider_registry:
+                providers_to_query.update(self.provider_registry[source_type])
+        
+        # Query providers in parallel
+        tasks = []
+        for provider_id in providers_to_query:
+            if provider_id in self.providers:
+                provider = self.providers[provider_id]
+                if provider.is_available:
+                    task = asyncio.create_task(provider.query_data(query))
+                    tasks.append((provider_id, task))
+        
+        # Collect results
+        if tasks:
+            for provider_id, task in tasks:
+                try:
+                    result = await task
+                    results[provider_id] = result
+                except Exception as e:
+                    logger.error(f"Error querying provider {provider_id}: {e}")
+        
+        return results
+    
+    async def get_available_providers(self) -> Dict[str, DataSourceMetadata]:
+        """Get metadata for all available providers"""
+        metadata = {}
+        
+        for provider_id, provider in self.providers.items():
+            try:
+                provider_metadata = await provider.get_metadata()
+                metadata[provider_id] = provider_metadata
+            except Exception as e:
+                logger.error(f"Error getting metadata for provider {provider_id}: {e}")
+        
+        return metadata

@@ -531,10 +531,32 @@ class ReportGenerationEngine:
         self.report_exporters: Dict[ReportFormat, ReportExporter] = {}
         self.generated_reports: Dict[str, Report] = {}
         self.report_counter = 0
+        
+        # Initialize data integration service
+        self._initialize_data_integration()
+    
+    def _initialize_data_integration(self) -> None:
+        """Initialize data integration service with existing providers"""
+        try:
+            from .data_integration_service import DataIntegrationService
+            self.data_integration_service = DataIntegrationService()
+            logger.info("Data integration service initialized successfully")
+        except ImportError as e:
+            logger.warning(f"Data integration service not available: {e}")
+            self.data_integration_service = None
     
     def register_data_provider(self, name: str, provider: DataProvider) -> None:
         """Register a data provider (non-intrusive integration)"""
         self.data_aggregation_service.register_data_provider(name, provider)
+        
+        # Also register with data integration service if available
+        if hasattr(self, 'data_integration_service') and self.data_integration_service:
+            try:
+                # Convert DataProvider to BaseDataProvider if needed
+                if hasattr(provider, 'provider_id'):
+                    self.data_integration_service.register_provider(provider)
+            except Exception as e:
+                logger.warning(f"Could not register provider with data integration service: {e}")
     
     def register_report_exporter(self, format: ReportFormat, exporter: ReportExporter) -> None:
         """Register a report exporter"""
