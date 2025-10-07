@@ -20,6 +20,28 @@ from src.core.analysis_workflow_logger import workflow_logger
 API_URL = "http://127.0.0.1:8001"
 
 
+def get_auth_token() -> str | None:
+    """Get authentication token for API requests."""
+    try:
+        # Try to login with default test credentials
+        response = requests.post(
+            f"{API_URL}/auth/token",
+            data={"username": "admin", "password": "admin123"},
+            timeout=10,
+        )
+
+        if response.status_code == 200:
+            token_data = response.json()
+            return token_data.get("access_token")
+        else:
+            print(f"   ❌ Authentication failed: {response.status_code}")
+            return None
+
+    except Exception as e:
+        print(f"   ❌ Authentication error: {e}")
+        return None
+
+
 def _run_system_diagnostics() -> bool:
     """Run system diagnostics and return True if all pass."""
     print("\n1️⃣ Running system diagnostics...")
@@ -51,7 +73,7 @@ def _run_system_diagnostics() -> bool:
 
 def _find_valid_test_file() -> str | None:
     """Find a valid test file for analysis."""
-    print("\n2️⃣ Testing file validation...")
+    print("\n3️⃣ Testing file validation...")
     test_files = [
         "test_data/sample_document.txt",
         "README.md",  # Should exist
@@ -77,9 +99,9 @@ def _find_valid_test_file() -> str | None:
     return None
 
 
-def _submit_analysis_request(valid_file: str) -> str | None:
+def _submit_analysis_request(valid_file: str, auth_token: str) -> str | None:
     """Submit analysis request and return task_id if successful."""
-    print(f"\n3️⃣ Testing analysis submission with file: {valid_file}")
+    print(f"\n4️⃣ Testing analysis submission with file: {valid_file}")
 
     # Start workflow tracking
     session_id = workflow_logger.log_analysis_start(
@@ -94,24 +116,43 @@ def _submit_analysis_request(valid_file: str) -> str | None:
 
         # Submit analysis request
         print("   📤 Submitting analysis request...")
-        workflow_logger.log_api_request("/analysis/submit", "POST")
+        workflow_logger.log_api_request("/analysis/analyze", "POST")
 
-        response = requests.post(
-            f"{API_URL}/analysis/submit",
-            json={
-                "content": content,
-                "discipline": "pt",
-                "analysis_mode": "rubric",
-                "session_id": session_id,
-            },
-            timeout=30,
-        )
+        # Create a temporary file for the request
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", delete=False
+        ) as temp_file:
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+
+        try:
+            headers = {"Authorization": f"Bearer {auth_token}"}
+            with open(temp_file_path, "rb") as f:
+                files = {"file": ("test_document.txt", f, "text/plain")}
+                data = {"discipline": "pt", "analysis_mode": "rubric"}
+                response = requests.post(
+                    f"{API_URL}/analysis/analyze",
+                    files=files,
+                    data=data,
+                    headers=headers,
+                    timeout=30,
+                )
+        finally:
+            # Clean up temp file
+            import os
+
+            try:
+                os.unlink(temp_file_path)
+            except OSError:
+                pass
 
         workflow_logger.log_api_response(
             response.status_code, response.json() if response.content else None
         )
 
-        if response.status_code == 200:
+        if response.status_code == 202:
             result = response.json()
             task_id = result.get("task_id")
 
@@ -147,22 +188,30 @@ def test_analysis_workflow() -> bool:
     if not _run_system_diagnostics():
         return False
 
-    # Step 2: Find valid test file
+    # Step 2: Get authentication token
+    print("\n2️⃣ Getting authentication token...")
+    auth_token = get_auth_token()
+    if not auth_token:
+        print("❌ Failed to get authentication token")
+        return False
+    print("✅ Authentication successful")
+
+    # Step 3: Find valid test file
     valid_file = _find_valid_test_file()
     if not valid_file:
         return False
 
-    # Step 3: Submit analysis request
-    task_id = _submit_analysis_request(valid_file)
+    # Step 4: Submit analysis request
+    task_id = _submit_analysis_request(valid_file, auth_token)
     if not task_id:
         return False
 
-    # Step 4: Test polling
-    print(f"\n4️⃣ Testing status polling for task: {task_id[:8]}...")
-    return test_polling(task_id)
+    # Step 5: Test polling
+    print(f"\n5️⃣ Testing status polling for task: {task_id[:8]}...")
+    return test_polling(task_id, auth_token)
 
 
-def test_polling(task_id: str) -> bool:
+def test_polling(task_id: str, auth_token: str) -> bool:
     """Test the polling mechanism."""
     max_attempts = 30  # 1 minute
     poll_interval = 2
@@ -172,7 +221,10 @@ def test_polling(task_id: str) -> bool:
             print(f"   🔄 Polling attempt {attempt}/{max_attempts}...")
             workflow_logger.log_polling_attempt(task_id, attempt)
 
-            response = requests.get(f"{API_URL}/tasks/{task_id}", timeout=15)
+            headers = {"Authorization": f"Bearer {auth_token}"}
+            response = requests.get(
+                f"{API_URL}/analysis/status/{task_id}", headers=headers, timeout=15
+            )
             workflow_logger.log_api_response(
                 response.status_code, response.json() if response.content else None
             )

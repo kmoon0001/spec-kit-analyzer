@@ -44,7 +44,7 @@ class SingleAnalysisPollingWorker(QObject):
                 workflow_logger.log_polling_attempt(self.task_id, attempts)
                 
                 response = requests.get(
-                    f"{API_URL}/tasks/{self.task_id}",
+                    f"{API_URL}/analysis/status/{self.task_id}",
                     timeout=15,
                 )
                 response.raise_for_status()
@@ -123,7 +123,7 @@ class SingleAnalysisPollingWorker(QObject):
                 if "Connection refused" in str(exc):
                     error_msg = "Cannot connect to analysis service. Please check if the API server is running."
                 elif "timeout" in str(exc).lower():
-                    error_msg = f"Request timed out while checking analysis status. The server may be overloaded."
+                    error_msg = "Request timed out while checking analysis status. The server may be overloaded."
                 else:
                     error_msg = f"Network error while checking analysis status: {exc}"
                 

@@ -5,11 +5,10 @@ This module provides comprehensive diagnostic capabilities to verify system
 health and identify common issues that prevent analysis from completing.
 """
 
-import os
 import time
 import requests
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any
 from dataclasses import dataclass
 from enum import Enum
 import logging
@@ -174,21 +173,31 @@ class AnalysisDiagnostics:
             response = requests.get(f"{self.api_url}/health", timeout=self.timeout)
             
             if response.status_code == 200:
-                health_data = response.json()
+                try:
+                    health_data = response.json()
+                except ValueError:
+                    # Response is not JSON
+                    return DiagnosticResult(
+                        component="api_health",
+                        status=DiagnosticStatus.ERROR,
+                        message=f"API returned non-JSON response: {response.text[:100]}",
+                        details={"response_text": response.text[:500]},
+                        timestamp=time.time()
+                    )
                 
-                # Check for specific health indicators
-                database_status = health_data.get("database", {}).get("status", "unknown")
-                ai_status = health_data.get("ai_models", {}).get("status", "unknown")
+                # Handle the actual API response format
+                api_status = health_data.get("status", "unknown")
+                database_status = health_data.get("database", "unknown")
                 
-                if database_status == "healthy" and ai_status == "ready":
+                if api_status == "ok" and database_status == "connected":
                     status = DiagnosticStatus.HEALTHY
-                    message = "All API subsystems are healthy"
-                elif database_status == "healthy" or ai_status == "ready":
+                    message = "API and database are healthy"
+                elif api_status == "ok":
                     status = DiagnosticStatus.WARNING
-                    message = "Some API subsystems have issues"
+                    message = "API is healthy but database status unclear"
                 else:
                     status = DiagnosticStatus.ERROR
-                    message = "API subsystems are not ready"
+                    message = f"API health check failed: {api_status}"
                 
                 return DiagnosticResult(
                     component="api_health",
@@ -196,8 +205,8 @@ class AnalysisDiagnostics:
                     message=message,
                     details={
                         "health_data": health_data,
-                        "database_status": database_status,
-                        "ai_status": ai_status
+                        "api_status": api_status,
+                        "database_status": database_status
                     },
                     timestamp=time.time()
                 )
@@ -222,8 +231,8 @@ class AnalysisDiagnostics:
     def check_analysis_endpoints(self) -> DiagnosticResult:
         """Check analysis-specific API endpoints."""
         endpoints_to_check = [
-            ("/analysis/submit", "POST"),
-            ("/tasks/{task_id}", "GET"),
+            ("/analysis/analyze", "POST"),
+            ("/analysis/status/{task_id}", "GET"),
         ]
         
         endpoint_results = {}
