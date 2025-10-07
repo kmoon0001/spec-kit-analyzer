@@ -8,7 +8,7 @@ proactive optimization strategies.
 import asyncio
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Any
 from dataclasses import dataclass
 import threading

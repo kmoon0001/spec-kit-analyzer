@@ -8,12 +8,11 @@ in the reporting system, ensuring safe, ethical, and trustworthy AI outputs.
 
 import logging
 import re
-import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Any, Set, Tuple, Union
+from typing import Dict, List, Optional, Any
 import hashlib
 from collections import defaultdict, Counter
 

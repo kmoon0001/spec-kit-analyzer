@@ -14,7 +14,7 @@ from urllib.parse import urlparse, parse_qs
 logger = logging.getLogger(__name__)
 
 from PySide6.QtCore import Qt, QThread, QSettings, QObject, Signal, QUrl
-from PySide6.QtGui import QAction, QFont, QIcon, QActionGroup
+from PySide6.QtGui import QAction, QFont, QActionGroup
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -22,14 +22,11 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
     QLabel,
-    QListWidget,
     QListWidgetItem,
     QMainWindow,
     QMenu,
     QMessageBox,
-    QPushButton,
     QProgressBar,
-    QSplitter,
     QStatusBar,
     QTabWidget,
     QTextBrowser,
@@ -298,13 +295,13 @@ class MainApplicationWindow(QMainWindow):
     def _apply_medical_theme(self) -> None:
         """Apply the comprehensive medical theme styling with better contrast."""
         # Apply main window stylesheet with softer background
-        main_style = f"""
-            QMainWindow {{
+        main_style = """
+            QMainWindow {
                 background-color: #f1f5f9;
-            }}
-            QWidget {{
+            }
+            QWidget {
                 font-family: "Segoe UI", Arial, sans-serif;
-            }}
+            }
         """
         self.setStyleSheet(main_style)
         
@@ -879,7 +876,7 @@ You can also:
     
     def _create_rubric_selection_panel(self) -> QWidget:
         """Create left panel with rubric selection and document upload."""
-        from PySide6.QtWidgets import QSizePolicy, QScrollArea
+        from PySide6.QtWidgets import QSizePolicy
         
         panel = QWidget(self)
         panel.setMinimumWidth(280)
@@ -953,7 +950,7 @@ You can also:
     
     def _create_middle_column_panel(self) -> QWidget:
         """Create middle panel with compliance guidelines and report sections."""
-        from PySide6.QtWidgets import QSizePolicy, QScrollArea
+        from PySide6.QtWidgets import QSizePolicy
         
         panel = QWidget(self)
         panel.setMinimumWidth(300)
@@ -975,7 +972,6 @@ You can also:
     
     def _create_compliance_guidelines_section(self) -> QWidget:
         """Create compliance guidelines section with smaller buttons."""
-        from PySide6.QtWidgets import QScrollArea
         
         section = QWidget(self)
         section.setStyleSheet(f"""
@@ -1182,14 +1178,14 @@ You can also:
         self.analysis_summary_browser = QTextBrowser(panel)
         self.analysis_summary_browser.setOpenExternalLinks(False)
         self.analysis_summary_browser.anchorClicked.connect(self._handle_report_link)
-        self.analysis_summary_browser.setStyleSheet(f"""
-            QTextBrowser {{
+        self.analysis_summary_browser.setStyleSheet("""
+            QTextBrowser {
                 border: none;
                 background: white;
                 padding: 15px;
                 font-size: 12px;
                 line-height: 1.6;
-            }}
+            }
         """)
         results_tabs.addTab(self.analysis_summary_browser, "📊 Summary")
         
@@ -1197,13 +1193,13 @@ You can also:
         self.detailed_results_browser = QTextBrowser(panel)
         self.detailed_results_browser.setOpenExternalLinks(False)
         self.detailed_results_browser.anchorClicked.connect(self._handle_report_link)
-        self.detailed_results_browser.setStyleSheet(f"""
-            QTextBrowser {{
+        self.detailed_results_browser.setStyleSheet("""
+            QTextBrowser {
                 border: none;
                 background: white;
                 padding: 15px;
                 font-size: 12px;
-            }}
+            }
         """)
         results_tabs.addTab(self.detailed_results_browser, "📋 Details")
         
@@ -1904,7 +1900,7 @@ You can also:
     
     def _create_analysis_settings_widget(self) -> QWidget:
         """Create analysis settings widget."""
-        from PySide6.QtWidgets import QCheckBox, QSpinBox
+        from PySide6.QtWidgets import QCheckBox
         
         widget = QWidget()
         layout = QVBoxLayout(widget)
@@ -2009,7 +2005,7 @@ You can also:
 
     def _create_performance_settings_widget(self) -> QWidget:
         """Create performance settings widget."""
-        from PySide6.QtWidgets import QCheckBox, QSlider
+        from PySide6.QtWidgets import QCheckBox
         
         widget = QWidget()
         layout = QVBoxLayout(widget)
@@ -2371,7 +2367,6 @@ Click "Run Compliance Analysis" to begin.
         """Handle window resize to reposition floating chat button."""
         super().resizeEvent(event)
         margin = 24
-        button_width = self.chat_button.width()
         button_height = self.chat_button.height()
         # Position in BOTTOM LEFT corner
         self.chat_button.move(margin, self.height() - button_height - margin)

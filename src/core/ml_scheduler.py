@@ -1,15 +1,13 @@
 """Scheduler for automated ML training and model updates."""
 
 import logging
-import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional, Dict, Any
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from src.ml.trainer import MLTrainingPipeline
-from src.core.calibration_trainer import CalibrationTrainer
 
 logger = logging.getLogger(__name__)
 

@@ -7,11 +7,10 @@ components including system resources, application metrics, and custom sources.
 
 import logging
 import psutil
-import time
 import threading
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Dict, List, Any, Optional, Callable, Set
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
 

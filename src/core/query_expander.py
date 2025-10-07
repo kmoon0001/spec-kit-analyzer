@@ -7,7 +7,7 @@ with related medical terms, synonyms, and contextual information.
 
 import logging
 import re
-from typing import Dict, List, Set, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
 from pathlib import Path
 import json

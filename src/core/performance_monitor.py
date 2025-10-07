@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass, asdict
 from enum import Enum
-import queue
 
 logger = logging.getLogger(__name__)
 

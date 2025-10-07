@@ -9,7 +9,7 @@ from sentence_transformers.util import cos_sim
 
 from src.config import get_settings
 from .cache_service import cache_service
-from .query_expander import QueryExpander, ExpansionResult
+from .query_expander import QueryExpander
 
 try:  # pragma: no cover - optional dependency during tests
     from src.database import crud

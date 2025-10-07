@@ -8,7 +8,6 @@ with time-series data management and automatic cleanup.
 import logging
 import sqlite3
 import threading
-import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple

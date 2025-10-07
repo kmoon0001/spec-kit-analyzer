@@ -7,7 +7,7 @@ for user decision-making.
 
 import numpy as np
 import logging
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, Union
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import cross_val_score

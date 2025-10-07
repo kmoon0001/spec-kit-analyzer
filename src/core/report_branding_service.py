@@ -9,12 +9,10 @@ any placeholders or visual gaps.
 import logging
 import base64
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union, Tuple
-import json
-from PIL import Image, ImageOps
+from typing import Dict, Optional, Any, Tuple
+from PIL import Image
 import yaml
 
 logger = logging.getLogger(__name__)

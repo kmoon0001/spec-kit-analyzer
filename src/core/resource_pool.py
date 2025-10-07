@@ -9,7 +9,6 @@ data structures.
 import logging
 import threading
 import time
-import weakref
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta

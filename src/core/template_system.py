@@ -9,14 +9,13 @@ import logging
 import re
 import json
 import yaml
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union, Callable, Set
-from jinja2 import Environment, FileSystemLoader, Template, select_autoescape
-from jinja2.exceptions import TemplateError, TemplateSyntaxError
+from typing import Dict, List, Optional, Any, Union
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+from jinja2.exceptions import TemplateError
 
 logger = logging.getLogger(__name__)
 
@@ -106,26 +105,6 @@ class TemplateMetadata:
             tags=data.get("tags", []),
             compatibility_version=data.get("compatibility_version", "1.0")
         )
-        for tag in self.validation_rules['forbidden_tags']:
-            if f'<{tag}' in template_content.lower():
-                issues.append(f"Forbidden tag found: {tag}")
-        
-        # Check required data availability
-        template_vars = self._extract_template_variables(template_content)
-        missing_required = set(metadata.required_data) - set(template_vars)
-        if missing_required:
-            issues.append(f"Required data not used in template: {missing_required}")
-        
-        return issues
-    
-    def _extract_template_variables(self, template_content: str) -> List[str]:
-        """Extract variable names from template content"""
-        # Simple regex to find template variables
-        pattern = r'\{\{\s*([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\}\}'
-        matches = re.findall(pattern, template_content)
-        return [match.split('.')[0] for match in matches]
-    
-    def validate_component(self, component: ComponentDefinition) -> List[str]:
         """Validate component definition"""
         issues = []
         
@@ -333,8 +312,7 @@ class ComponentLibrary:
             logger.error(f"Error rendering component {component_id}: {e}")
             return f"<div class='component-error'>Error rendering component: {component_id}</div>"
 
-@da
-taclass
+@dataclass
 class ComponentDefinition:
     """Definition of a reusable template component"""
     id: str

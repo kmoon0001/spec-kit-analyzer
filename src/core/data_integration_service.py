@@ -12,10 +12,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Any, Union, Protocol, TypeVar, Generic
-import json
+from typing import Dict, List, Optional, Any, TypeVar, Generic
 
-from .report_generation_engine import DataProvider, ReportConfig, ReportType, TimeRange
+from .report_generation_engine import ReportConfig, ReportType, TimeRange
 
 logger = logging.getLogger(__name__)
 
@@ -230,7 +229,7 @@ class PerformanceDataProvider(BaseDataProvider):
         # Check cache first
         if self._is_cache_valid(cache_key):
             cached_data = self._cache[cache_key]
-            logger.debug(f"Using cached performance data for query")
+            logger.debug("Using cached performance data for query")
             return cached_data
         
         try:

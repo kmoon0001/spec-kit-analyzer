@@ -6,11 +6,9 @@ pooling and lifecycle management of expensive AI resources.
 """
 
 import logging
-import os
-import sys
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 import torch
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoTokenizer
 from sentence_transformers import SentenceTransformer
 
 from .resource_pool import ResourceFactory

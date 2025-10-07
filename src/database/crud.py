@@ -10,10 +10,9 @@ import logging
 import math
 import numpy as np
 from typing import List, Optional, Dict, Any
-from collections import defaultdict
 from datetime import timezone, timedelta
 
-from sqlalchemy import delete, select, func, and_
+from sqlalchemy import select, func
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload

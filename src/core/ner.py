@@ -109,7 +109,7 @@ class ClinicalNERService:
         NERCache.set_ner_results(text, model_identifier, merged_entities, ttl_hours)
         
         logger.debug(f"NER processing completed in {processing_time:.2f}s, cached with TTL {ttl_hours}h")
-        return merged_entitie
+        return merged_entities
 
     def _merge_entities(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Merges overlapping entities based on score and span length."""

@@ -5,7 +5,6 @@ This module provides historical analysis and pattern recognition.
 """
 
 import logging
-from typing import Dict, List, Any, Optional
 
 logger = logging.getLogger(__name__)
 

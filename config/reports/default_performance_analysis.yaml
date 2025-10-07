@@ -1,0 +1,13 @@
+data_sources: []
+description: Comprehensive performance analysis with optimization comparisons
+filters: {}
+metadata: {}
+output_formats:
+- html
+recipients: []
+report_type: performance_analysis
+template_id: performance_analysis
+time_range:
+  end_time: '2025-10-07T02:04:57.781060'
+  start_time: '2025-10-06T02:04:57.781060'
+title: Performance Analysis Report

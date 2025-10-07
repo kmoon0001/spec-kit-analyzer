@@ -6,15 +6,12 @@ with existing performance and compliance systems without modifying them.
 Uses clean interfaces and dependency injection for non-intrusive integration.
 """
 
-import asyncio
 import logging
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union, Protocol
-import json
+from typing import Dict, List, Optional, Any, Protocol
 import yaml
 
 logger = logging.getLogger(__name__)

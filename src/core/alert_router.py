@@ -5,7 +5,6 @@ This module provides alerting and notification management.
 """
 
 import logging
-from typing import Dict, List, Any, Optional
 
 logger = logging.getLogger(__name__)
 
