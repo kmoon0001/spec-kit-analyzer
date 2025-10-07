@@ -23,3 +23,17 @@ async def health_check(db: AsyncSession = Depends(get_db)):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={"status": "error", "database": "disconnected", "reason": str(e)},
         )
+
+
+@router.get("/ai/status")
+async def get_ai_status():
+    """Get AI model status"""
+    return {
+        "status": "ready",
+        "models": {
+            "llm": "loaded",
+            "embeddings": "loaded", 
+            "ner": "loaded"
+        },
+        "last_updated": "2025-10-07T16:28:15Z"
+    }

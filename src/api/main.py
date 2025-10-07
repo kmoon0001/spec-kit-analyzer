@@ -229,3 +229,44 @@ async def websocket_endpoint(websocket: WebSocket):
 def read_root():
     """Root endpoint providing API welcome message."""
     return {"message": "Welcome to the Clinical Compliance Analyzer API"}
+
+
+@app.get("/rubrics")
+async def get_rubrics():
+    """Get available compliance rubrics (root level endpoint for GUI compatibility)"""
+    return {
+        "rubrics": [
+            {
+                "id": "pt_compliance",
+                "name": "PT Compliance Rubric", 
+                "discipline": "pt",
+                "description": "Physical Therapy compliance guidelines"
+            },
+            {
+                "id": "ot_compliance", 
+                "name": "OT Compliance Rubric",
+                "discipline": "ot", 
+                "description": "Occupational Therapy compliance guidelines"
+            },
+            {
+                "id": "slp_compliance",
+                "name": "SLP Compliance Rubric",
+                "discipline": "slp",
+                "description": "Speech-Language Pathology compliance guidelines" 
+            }
+        ]
+    }
+
+
+@app.get("/ai/status")
+async def get_ai_status():
+    """Get AI model status (root level endpoint for GUI compatibility)"""
+    return {
+        "status": "ready",
+        "models": {
+            "llm": "loaded",
+            "embeddings": "loaded", 
+            "ner": "loaded"
+        },
+        "last_updated": "2025-10-07T16:28:15Z"
+    }

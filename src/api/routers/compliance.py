@@ -44,6 +44,33 @@ class ComplianceResultModel(BaseModel):
     is_compliant: bool
 
 
+@router.get("/rubrics")
+async def get_rubrics():
+    """Get available compliance rubrics"""
+    return {
+        "rubrics": [
+            {
+                "id": "pt_compliance",
+                "name": "PT Compliance Rubric", 
+                "discipline": "pt",
+                "description": "Physical Therapy compliance guidelines"
+            },
+            {
+                "id": "ot_compliance", 
+                "name": "OT Compliance Rubric",
+                "discipline": "ot", 
+                "description": "Occupational Therapy compliance guidelines"
+            },
+            {
+                "id": "slp_compliance",
+                "name": "SLP Compliance Rubric",
+                "discipline": "slp",
+                "description": "Speech-Language Pathology compliance guidelines" 
+            }
+        ]
+    }
+
+
 @router.post("/evaluate", response_model=ComplianceResultModel)
 async def evaluate_document(payload: TherapyDocumentRequest) -> ComplianceResultModel:
     if not payload.text or not payload.discipline or not payload.document_type:

@@ -115,6 +115,21 @@ async def analyze_document(
     return {"task_id": task_id, "status": "processing"}
 
 
+@router.post("/submit", status_code=status.HTTP_202_ACCEPTED)
+async def submit_document(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    discipline: str = Form("pt"),
+    analysis_mode: str = Form("rubric"),
+    _current_user: models.User = Depends(get_current_active_user),
+    analysis_service: AnalysisService = Depends(get_analysis_service),
+) -> Dict[str, str]:
+    """Submit document for compliance analysis (alias for analyze_document for GUI compatibility)."""
+    return await analyze_document(
+        background_tasks, file, discipline, analysis_mode, _current_user, analysis_service
+    )
+
+
 @router.get("/status/{task_id}")
 async def get_analysis_status(
     task_id: str, _current_user: models.User = Depends(get_current_active_user)
