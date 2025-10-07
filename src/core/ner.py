@@ -8,9 +8,11 @@ resolve overlapping predictions.
 
 import logging
 import re
+import time
 from typing import Any, Dict, List, Optional
 
 from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
+from src.core.cache_service import NERCache
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +84,14 @@ class ClinicalNERService:
         if not self.pipelines or not text.strip():
             return []
 
+        # Check cache first for performance optimization
+        model_identifier = "_".join(self.model_names) if self.model_names else "default_ner"
+        cached_results = NERCache.get_ner_results(text, model_identifier)
+        if cached_results is not None:
+            logger.debug(f"Cache hit for NER results (model: {model_identifier})")
+            return cached_results
+
+        start_time = time.time()
         all_entities = []
         for pipe in self.pipelines:
             try:
@@ -91,7 +101,15 @@ class ClinicalNERService:
             except Exception as e:
                 logger.warning(f"A clinical NER pipeline failed during execution: {e}")
 
-        return self._merge_entities(all_entities)
+        merged_entities = self._merge_entities(all_entities)
+        
+        # Cache the results for future use
+        processing_time = time.time() - start_time
+        ttl_hours = 24.0 if processing_time > 2.0 else 48.0  # Longer TTL for quick processing
+        NERCache.set_ner_results(text, model_identifier, merged_entities, ttl_hours)
+        
+        logger.debug(f"NER processing completed in {processing_time:.2f}s, cached with TTL {ttl_hours}h")
+        return merged_entitie
 
     def _merge_entities(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Merges overlapping entities based on score and span length."""
