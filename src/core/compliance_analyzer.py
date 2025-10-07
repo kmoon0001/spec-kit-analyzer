@@ -1,7 +1,9 @@
 import json
 import logging
 import asyncio
+import numpy as np
 from typing import Any, Dict, List, Optional
+from pathlib import Path
 
 from src.core.llm_service import LLMService
 from src.core.nlg_service import NLGService
@@ -10,6 +12,7 @@ from src.core.explanation import ExplanationEngine
 from src.utils.prompt_manager import PromptManager
 from src.core.fact_checker_service import FactCheckerService
 from src.core.hybrid_retriever import HybridRetriever
+from src.core.confidence_calibrator import ConfidenceCalibrator
 
 logger = logging.getLogger(__name__)
 CONFIDENCE_THRESHOLD = 0.7
@@ -29,6 +32,7 @@ class ComplianceAnalyzer:
         nlg_service: Optional[NLGService] = None,
         deterministic_focus: Optional[str] = None,
         ner_analyzer: Optional[ClinicalNERService] = None,
+        confidence_calibrator: Optional[ConfidenceCalibrator] = None,
     ) -> None:
         """Initializes the ComplianceAnalyzer.
 
@@ -41,6 +45,7 @@ class ComplianceAnalyzer:
             fact_checker_service: An instance of FactCheckerService for verifying findings.
             nlg_service: An optional instance of NLGService for generating tips.
             deterministic_focus: Optional string for deterministic focus areas.
+            confidence_calibrator: Optional ConfidenceCalibrator for improving confidence scores.
         """
         self.retriever = retriever
         self.ner_service = ner_service or ner_analyzer
@@ -52,6 +57,7 @@ class ComplianceAnalyzer:
         self.prompt_manager = prompt_manager
         self.fact_checker_service = fact_checker_service
         self.nlg_service = nlg_service
+        self.confidence_calibrator = confidence_calibrator
         default_focus = "\n".join(
             [
                 "- Treatment frequency documented",
@@ -60,7 +66,130 @@ class ComplianceAnalyzer:
             ]
         )
         self.deterministic_focus = deterministic_focus or default_focus
+        
+        # Initialize confidence calibrator if not provided
+        if self.confidence_calibrator is None:
+            self.confidence_calibrator = ConfidenceCalibrator(method='auto')
+            self._load_or_create_calibrator()
+        
         logger.info("ComplianceAnalyzer initialized with all services.")
+
+    def _load_or_create_calibrator(self) -> None:
+        """Load existing calibrator or prepare for training with new data."""
+        calibrator_path = Path("models/confidence_calibrator.pkl")
+        
+        if calibrator_path.exists():
+            try:
+                self.confidence_calibrator.load(calibrator_path)
+                logger.info("Loaded existing confidence calibrator")
+            except Exception as e:
+                logger.warning(f"Failed to load calibrator: {e}. Will create new one.")
+                self.confidence_calibrator = ConfidenceCalibrator(method='auto')
+        else:
+            logger.info("No existing calibrator found. Will train on first batch of data.")
+
+    def _calibrate_confidence_scores(self, findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Apply confidence calibration to findings if calibrator is fitted."""
+        if not self.confidence_calibrator.is_fitted:
+            logger.debug("Confidence calibrator not fitted yet. Using raw scores.")
+            return findings
+        
+        try:
+            # Extract confidence scores
+            raw_confidences = []
+            for finding in findings:
+                confidence = finding.get("confidence", 0.5)
+                if isinstance(confidence, (int, float)):
+                    raw_confidences.append(float(confidence))
+                else:
+                    raw_confidences.append(0.5)  # Default for non-numeric confidence
+            
+            if not raw_confidences:
+                return findings
+            
+            # Calibrate confidence scores
+            raw_confidences_array = np.array(raw_confidences)
+            calibrated_confidences = self.confidence_calibrator.calibrate(raw_confidences_array)
+            
+            # Update findings with calibrated scores
+            for i, finding in enumerate(findings):
+                if i < len(calibrated_confidences):
+                    original_confidence = finding.get("confidence", 0.5)
+                    calibrated_confidence = float(calibrated_confidences[i])
+                    
+                    finding["confidence"] = calibrated_confidence
+                    finding["original_confidence"] = original_confidence
+                    finding["confidence_calibrated"] = True
+                    
+                    # Update confidence-based flags with calibrated scores
+                    if calibrated_confidence < CONFIDENCE_THRESHOLD:
+                        finding["is_low_confidence"] = True
+                    else:
+                        finding.pop("is_low_confidence", None)
+            
+            logger.debug(f"Calibrated confidence scores for {len(findings)} findings")
+            
+        except Exception as e:
+            logger.warning(f"Failed to calibrate confidence scores: {e}. Using raw scores.")
+        
+        return findings
+
+    def train_confidence_calibrator(self, training_data: List[Dict[str, Any]]) -> None:
+        """Train the confidence calibrator with labeled data.
+        
+        Args:
+            training_data: List of dictionaries containing:
+                - 'confidence': Original confidence score from LLM
+                - 'is_correct': Boolean indicating if the finding was correct
+        """
+        if not training_data:
+            logger.warning("No training data provided for confidence calibrator")
+            return
+        
+        try:
+            # Extract confidence scores and labels
+            confidences = []
+            labels = []
+            
+            for item in training_data:
+                if 'confidence' in item and 'is_correct' in item:
+                    confidences.append(float(item['confidence']))
+                    labels.append(1 if item['is_correct'] else 0)
+            
+            if len(confidences) < 10:
+                logger.warning(f"Insufficient training data ({len(confidences)} samples). Need at least 10.")
+                return
+            
+            # Train the calibrator
+            confidences_array = np.array(confidences)
+            labels_array = np.array(labels)
+            
+            self.confidence_calibrator.fit(confidences_array, labels_array)
+            
+            # Save the trained calibrator
+            calibrator_path = Path("models")
+            calibrator_path.mkdir(exist_ok=True)
+            self.confidence_calibrator.save(calibrator_path / "confidence_calibrator.pkl")
+            
+            # Log calibration metrics
+            metrics = self.confidence_calibrator.get_calibration_metrics()
+            logger.info(f"Confidence calibrator trained with {len(confidences)} samples")
+            logger.info(f"Calibration metrics: {metrics}")
+            
+        except Exception as e:
+            logger.error(f"Failed to train confidence calibrator: {e}")
+
+    def get_calibration_metrics(self) -> Dict[str, Any]:
+        """Get calibration quality metrics."""
+        if not self.confidence_calibrator.is_fitted:
+            return {"status": "not_fitted", "message": "Calibrator has not been trained yet"}
+        
+        metrics = self.confidence_calibrator.get_calibration_metrics()
+        return {
+            "status": "fitted",
+            "method": self.confidence_calibrator.method,
+            "metrics": metrics
+        }
 
     async def analyze_document(
         self, document_text: str, discipline: str, doc_type: str
@@ -130,6 +259,12 @@ class ComplianceAnalyzer:
             initial_analysis, document_text, explanation_context, retrieved_rules
         )
 
+        # Apply confidence calibration before final post-processing
+        if "findings" in explained_analysis and isinstance(explained_analysis["findings"], list):
+            explained_analysis["findings"] = self._calibrate_confidence_scores(
+                explained_analysis["findings"]
+            )
+
         final_analysis = await self._post_process_findings(
             explained_analysis, retrieved_rules
         )
@@ -168,10 +303,12 @@ class ComplianceAnalyzer:
             ):
                 finding["is_disputed"] = True
 
+            # Confidence threshold check (may have been updated by calibration)
             confidence = finding.get("confidence", 1.0)
             if (
                 isinstance(confidence, (float, int))
                 and confidence < CONFIDENCE_THRESHOLD
+                and not finding.get("confidence_calibrated", False)  # Skip if already calibrated
             ):
                 finding["is_low_confidence"] = True
 
