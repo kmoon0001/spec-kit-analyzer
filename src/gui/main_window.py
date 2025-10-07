@@ -2327,6 +2327,7 @@ You can also:
         # Performance Status Dock (hidden by default, accessible via Tools menu)
         if PerformanceStatusWidget:
             self.performance_dock = QDockWidget("Performance Status", self)
+            self.performance_dock.setObjectName("PerformanceStatusDock")
             self.performance_dock.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea | Qt.DockWidgetArea.BottomDockWidgetArea)
             self.performance_widget = PerformanceStatusWidget()
             self.performance_dock.setWidget(self.performance_widget)
