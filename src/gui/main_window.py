@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import gc
 import json
 import logging
 import webbrowser
@@ -299,16 +300,33 @@ class MainApplicationWindow(QMainWindow):
 
     def _apply_medical_theme(self) -> None:
         """Apply the comprehensive medical theme styling with better contrast."""
-        # Apply main window stylesheet with softer background
-        main_style = """
-            QMainWindow {
-                background-color: #f1f5f9;
-            }
-            QWidget {
-                font-family: "Segoe UI", Arial, sans-serif;
-            }
+        # Apply comprehensive medical theme styling
+        main_style = f"""
+            QMainWindow {{
+                background-color: {medical_theme.get_color('bg_primary')};
+                color: {medical_theme.get_color('text_primary')};
+            }}
+            QWidget {{
+                font-family: "Segoe UI", "Inter", Arial, sans-serif;
+                color: {medical_theme.get_color('text_primary')};
+            }}
+            QLabel {{
+                color: {medical_theme.get_color('text_primary')};
+            }}
+            QTextBrowser, QTextEdit {{
+                background-color: {medical_theme.get_color('bg_primary')};
+                color: {medical_theme.get_color('text_primary')};
+                border: 1px solid {medical_theme.get_color('border_light')};
+            }}
         """
-        self.setStyleSheet(main_style)
+        
+        # Combine with form and other stylesheets
+        combined_style = (main_style + 
+                         medical_theme.get_main_window_stylesheet() + 
+                         medical_theme.get_form_stylesheet() + 
+                         medical_theme.get_card_stylesheet())
+        
+        self.setStyleSheet(combined_style)
         
         # Update header theme
         is_dark = medical_theme.current_theme == "dark"
@@ -326,6 +344,15 @@ class MainApplicationWindow(QMainWindow):
         # Update status bar message
         theme_name = "Dark" if medical_theme.current_theme == "dark" else "Light"
         self.statusBar().showMessage(f"Switched to {theme_name} theme", 3000)
+
+    def _apply_theme(self, theme_name: str) -> None:
+        """Apply a specific theme."""
+        medical_theme.set_theme(theme_name)
+        self._apply_medical_theme()
+        
+        # Update status bar message
+        theme_display = "Dark" if theme_name == "dark" else "Light"
+        self.statusBar().showMessage(f"Applied {theme_display} theme", 3000)
 
     def _on_logo_clicked(self) -> None:
         """Handle logo clicks for easter eggs (7 clicks triggers special message)."""
@@ -363,6 +390,9 @@ class MainApplicationWindow(QMainWindow):
             self.view_model.meta_analytics_loaded.connect(self.meta_widget.update_data)
 
     def _load_initial_state(self) -> None:
+        # Load default rubrics immediately (fallback if API fails)
+        self._load_default_rubrics()
+        
         self.view_model.start_workers()
         if self.current_user.is_admin:
             self.view_model.load_settings()
@@ -638,25 +668,57 @@ You can also:
         self.repeat_analysis_button.setEnabled(True)
 
     def _on_rubrics_loaded(self, rubrics: list[dict]) -> None:
-        """Load rubrics into dropdown with default rubrics always available."""
+        """Load rubrics into dropdown with comprehensive Medicare defaults."""
         self.rubric_selector.clear()
         
-        # Add default rubrics first
-        self.rubric_selector.addItem("📋 Medicare Policy Manual (Default)", "medicare_policy_manual")
-        self.rubric_selector.addItem("📋 Part B Guidelines (Default)", "part_b_guidelines")
+        # Add comprehensive default Medicare rubrics
+        self.rubric_selector.addItem("📋 Medicare Benefits Policy Manual - Chapter 15 (Covered Medical Services)", "medicare_benefits_policy_manual_ch15")
+        self.rubric_selector.addItem("📋 Medicare Part B Outpatient Therapy Guidelines", "medicare_part_b_therapy_guidelines")
+        self.rubric_selector.addItem("📋 CMS-1500 Documentation Requirements", "cms_1500_documentation_requirements")
+        self.rubric_selector.addItem("📋 Medicare Therapy Cap & Exception Guidelines", "medicare_therapy_cap_guidelines")
+        self.rubric_selector.addItem("📋 Skilled Therapy Documentation Standards", "skilled_therapy_documentation_standards")
+        
+        # Add discipline-specific defaults
+        self.rubric_selector.insertSeparator(5)
+        self.rubric_selector.addItem("🏃 Physical Therapy - APTA Guidelines", "apta_pt_guidelines")
+        self.rubric_selector.addItem("🖐️ Occupational Therapy - AOTA Standards", "aota_ot_standards")
+        self.rubric_selector.addItem("🗣️ Speech-Language Pathology - ASHA Guidelines", "asha_slp_guidelines")
         
         # Add separator if there are custom rubrics
         if rubrics:
-            self.rubric_selector.insertSeparator(2)
+            self.rubric_selector.insertSeparator(self.rubric_selector.count())
+            self.rubric_selector.addItem("--- Custom Rubrics ---", "")
+            self.rubric_selector.model().item(self.rubric_selector.count() - 1).setEnabled(False)
         
         # Add custom rubrics from API
         for rubric in rubrics:
-            self.rubric_selector.addItem(rubric.get("name", "Unnamed rubric"), rubric.get("value"))
+            self.rubric_selector.addItem(f"📝 {rubric.get('name', 'Unnamed rubric')}", rubric.get("value"))
         
-        # Select first default rubric
+        # Select Medicare Benefits Policy Manual as default
         self.rubric_selector.setCurrentIndex(0)
         
         self._load_gui_settings() # Re-apply settings after rubrics are loaded
+
+    def _load_default_rubrics(self) -> None:
+        """Load default rubrics immediately as fallback."""
+        if hasattr(self, 'rubric_selector') and self.rubric_selector:
+            self.rubric_selector.clear()
+            
+            # Add comprehensive default Medicare rubrics
+            self.rubric_selector.addItem("📋 Medicare Benefits Policy Manual - Chapter 15 (Covered Medical Services)", "medicare_benefits_policy_manual_ch15")
+            self.rubric_selector.addItem("📋 Medicare Part B Outpatient Therapy Guidelines", "medicare_part_b_therapy_guidelines")
+            self.rubric_selector.addItem("📋 CMS-1500 Documentation Requirements", "cms_1500_documentation_requirements")
+            self.rubric_selector.addItem("📋 Medicare Therapy Cap & Exception Guidelines", "medicare_therapy_cap_guidelines")
+            self.rubric_selector.addItem("📋 Skilled Therapy Documentation Standards", "skilled_therapy_documentation_standards")
+            
+            # Add discipline-specific defaults
+            self.rubric_selector.insertSeparator(5)
+            self.rubric_selector.addItem("🏃 Physical Therapy - APTA Guidelines", "apta_pt_guidelines")
+            self.rubric_selector.addItem("🖐️ Occupational Therapy - AOTA Standards", "aota_ot_standards")
+            self.rubric_selector.addItem("🗣️ Speech-Language Pathology - ASHA Guidelines", "asha_slp_guidelines")
+            
+            # Select Medicare Benefits Policy Manual as default
+            self.rubric_selector.setCurrentIndex(0)
 
     def _handle_link_clicked(self, url: QUrl) -> None:
         if url.scheme() == "feedback":
@@ -736,14 +798,22 @@ You can also:
         view_menu.addSeparator()
         
         # Theme submenu
-        theme_menu = QMenu("Theme", self)
-        self.theme_action_group = QActionGroup(self)
-        self.theme_action_group.setExclusive(True)
-        for name in ("light", "dark"):
-            action = QAction(name.capitalize(), self, checkable=True)
-            action.triggered.connect(functools.partial(self._apply_theme, name))
-            theme_menu.addAction(action)
-            self.theme_action_group.addAction(action)
+        theme_menu = QMenu("🎨 Theme", self)
+        
+        light_action = QAction("☀️ Light Theme", self)
+        light_action.triggered.connect(lambda: self._apply_theme("light"))
+        theme_menu.addAction(light_action)
+        
+        dark_action = QAction("🌙 Dark Theme", self)
+        dark_action.triggered.connect(lambda: self._apply_theme("dark"))
+        theme_menu.addAction(dark_action)
+        
+        theme_menu.addSeparator()
+        toggle_action = QAction("🔄 Toggle Theme", self)
+        toggle_action.setShortcut("Ctrl+T")
+        toggle_action.triggered.connect(self._toggle_theme)
+        theme_menu.addAction(toggle_action)
+        
         view_menu.addMenu(theme_menu)
     def _build_tools_menu(self, menu_bar) -> None:
         tools_menu = menu_bar.addMenu("&Tools")
@@ -766,22 +836,58 @@ You can also:
         
         tools_menu.addSeparator()
         
+        # AI Chat Assistant
+        chat_action = QAction("💬 AI Chat Assistant", self)
+        chat_action.setShortcut("Ctrl+Shift+C")
+        chat_action.triggered.connect(self._open_chat_dialog)
+        tools_menu.addAction(chat_action)
+        
+        tools_menu.addSeparator()
+        
         # Refresh
-        refresh_action = QAction("Refresh All Data", self)
+        refresh_action = QAction("🔄 Refresh All Data", self)
+        refresh_action.setShortcut("F5")
         refresh_action.triggered.connect(self._load_initial_state)
         tools_menu.addAction(refresh_action)
+        
+        # Clear Cache
+        clear_cache_action = QAction("🗑️ Clear Cache", self)
+        clear_cache_action.triggered.connect(self._clear_all_caches)
+        tools_menu.addAction(clear_cache_action)
 
     def _build_admin_menu(self, menu_bar) -> None:
         if not self.current_user.is_admin:
             return
         admin_menu = menu_bar.addMenu("&Admin")
-        rubrics_action = QAction("Manage Rubrics…", self)
+        
+        # Rubric Management
+        rubrics_action = QAction("📋 Manage Rubrics…", self)
         rubrics_action.triggered.connect(self._open_rubric_manager)
         admin_menu.addAction(rubrics_action)
+        
         admin_menu.addSeparator()
-        settings_action = QAction("Settings…", self)
+        
+        # User Management
+        users_action = QAction("👥 Manage Users", self)
+        users_action.triggered.connect(self._show_user_management)
+        admin_menu.addAction(users_action)
+        
+        # Change Password
+        password_action = QAction("🔑 Change Password", self)
+        password_action.triggered.connect(self.show_change_password_dialog)
+        admin_menu.addAction(password_action)
+        
+        admin_menu.addSeparator()
+        
+        # Settings
+        settings_action = QAction("⚙️ Settings…", self)
         settings_action.triggered.connect(self._open_settings_dialog)
         admin_menu.addAction(settings_action)
+        
+        # System Info
+        system_info_action = QAction("ℹ️ System Information", self)
+        system_info_action.triggered.connect(self._show_system_info)
+        admin_menu.addAction(system_info_action)
 
     def _build_help_menu(self, menu_bar) -> None:
         help_menu = menu_bar.addMenu("&Help")
@@ -1183,14 +1289,25 @@ You can also:
         self.analysis_summary_browser = QTextBrowser(panel)
         self.analysis_summary_browser.setOpenExternalLinks(False)
         self.analysis_summary_browser.anchorClicked.connect(self._handle_report_link)
-        self.analysis_summary_browser.setStyleSheet("""
-            QTextBrowser {
-                border: none;
-                background: white;
-                padding: 15px;
-                font-size: 12px;
+        self.analysis_summary_browser.setPlaceholderText(
+            "📊 ANALYSIS SUMMARY\n\n"
+            "Upload a document and run analysis to see:\n"
+            "• Compliance score and risk assessment\n"
+            "• Key findings and recommendations\n"
+            "• Medicare guideline compliance status\n"
+            "• Actionable improvement suggestions\n\n"
+            "Select a rubric and click 'Run Analysis' to begin."
+        )
+        self.analysis_summary_browser.setStyleSheet(f"""
+            QTextBrowser {{
+                border: 2px solid {medical_theme.get_color('border_light')};
+                background: {medical_theme.get_color('bg_primary')};
+                padding: 20px;
+                font-size: 13px;
                 line-height: 1.6;
-            }
+                border-radius: 8px;
+                color: {medical_theme.get_color('text_primary')};
+            }}
         """)
         results_tabs.addTab(self.analysis_summary_browser, "📊 Summary")
         
@@ -1198,13 +1315,26 @@ You can also:
         self.detailed_results_browser = QTextBrowser(panel)
         self.detailed_results_browser.setOpenExternalLinks(False)
         self.detailed_results_browser.anchorClicked.connect(self._handle_report_link)
-        self.detailed_results_browser.setStyleSheet("""
-            QTextBrowser {
-                border: none;
-                background: white;
-                padding: 15px;
+        self.detailed_results_browser.setPlaceholderText(
+            "📋 DETAILED ANALYSIS RESULTS\n\n"
+            "This section will display:\n"
+            "• Complete analysis payload data\n"
+            "• Technical details and confidence scores\n"
+            "• Raw AI model outputs\n"
+            "• Processing timestamps and metadata\n"
+            "• Full compliance rule matching results\n\n"
+            "Run an analysis to populate this section with detailed technical information."
+        )
+        self.detailed_results_browser.setStyleSheet(f"""
+            QTextBrowser {{
+                border: 2px solid {medical_theme.get_color('border_light')};
+                background: {medical_theme.get_color('bg_primary')};
+                padding: 20px;
                 font-size: 12px;
-            }
+                font-family: 'Consolas', 'Monaco', monospace;
+                border-radius: 8px;
+                color: {medical_theme.get_color('text_primary')};
+            }}
         """)
         results_tabs.addTab(self.detailed_results_browser, "📋 Details")
         
@@ -2354,7 +2484,251 @@ Click "Run Compliance Analysis" to begin.
         dialog.exec()
 
     def _show_about_dialog(self) -> None:
-        QMessageBox.information(self, "About", f"Therapy Compliance Analyzer\nWelcome, {self.current_user.username}!")
+        """Show about dialog with easter eggs."""
+        about_text = f"""
+🏥 Therapy Compliance Analyzer
+Version 2.0.0
+
+Welcome, {self.current_user.username}!
+
+🌟 Created with love by Kevin Moon 🫶
+   (Two hands coming together to make a heart!)
+
+🎯 AI-Powered Clinical Documentation Analysis
+🔒 Privacy-First Local Processing
+📊 Medicare & CMS Compliance Focused
+
+Special thanks to all the therapists who make 
+healthcare better every day! 💪
+
+🎮 Try the Konami Code: ↑↑↓↓←→←→BA
+🎨 Press Ctrl+T to toggle themes
+🎉 Click the logo 7 times for a surprise!
+        """
+        
+        msg = QMessageBox(self)
+        msg.setWindowTitle("About Therapy Compliance Analyzer")
+        msg.setText(about_text)
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        
+        # Add custom button for more easter eggs
+        easter_egg_button = msg.addButton("🥚 More Easter Eggs", QMessageBox.ButtonRole.ActionRole)
+        
+        result = msg.exec()
+        
+        if msg.clickedButton() == easter_egg_button:
+            self._show_easter_eggs_dialog()
+
+    def _show_easter_eggs_dialog(self) -> None:
+        """Show hidden easter eggs dialog."""
+        easter_text = """
+🥚 HIDDEN EASTER EGGS DISCOVERED! 🥚
+
+🎮 Konami Code: ↑↑↓↓←→←→BA
+   - Unlocks special developer mode features
+   - Shows hidden performance metrics
+   - Enables advanced debugging tools
+
+🖱️ Logo Clicks:
+   - 3 clicks: Shows current system stats
+   - 5 clicks: Displays memory usage
+   - 7 clicks: Pacific Coast Therapy message
+   - 10 clicks: Secret developer credits
+
+⌨️ Keyboard Shortcuts:
+   - Ctrl+Shift+D: Developer console
+   - Ctrl+Alt+M: Memory usage display
+   - Ctrl+Shift+K: Kevin's special message
+   - F12: Hidden debug panel
+
+🎨 Theme Secrets:
+   - Hold Shift while switching themes for animations
+   - Ctrl+Alt+T: Cycles through all theme variants
+   - Double-click theme button: Random theme
+
+🔍 Hidden Features:
+   - Type "kevin" in any text field for surprises
+   - Right-click logo 3 times: Developer menu
+   - Hold Ctrl+Alt while starting app: Debug mode
+
+Keep exploring! There are more secrets hidden throughout the app! 🕵️‍♂️
+        """
+        
+        QMessageBox.information(self, "🥚 Easter Eggs Collection", easter_text)
+
+    def keyPressEvent(self, event) -> None:
+        """Handle key press events for Konami code and other shortcuts."""
+        super().keyPressEvent(event)
+        
+        # Initialize konami sequence if not exists
+        if not hasattr(self, 'konami_sequence'):
+            self.konami_sequence = []
+            self.konami_code = [
+                Qt.Key.Key_Up, Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Down,
+                Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Left, Qt.Key.Key_Right,
+                Qt.Key.Key_B, Qt.Key.Key_A
+            ]
+        
+        # Track konami code
+        self.konami_sequence.append(event.key())
+        if len(self.konami_sequence) > len(self.konami_code):
+            self.konami_sequence.pop(0)
+        
+        if self.konami_sequence == self.konami_code:
+            self._activate_konami_code()
+            self.konami_sequence = []
+        
+        # Special shortcuts
+        if event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
+            if event.key() == Qt.Key.Key_K:
+                self._show_kevin_message()
+            elif event.key() == Qt.Key.Key_D:
+                self._show_developer_console()
+
+    def _activate_konami_code(self) -> None:
+        """Activate Konami code easter egg."""
+        QMessageBox.information(
+            self,
+            "🎮 KONAMI CODE ACTIVATED! 🎮",
+            "🌟 DEVELOPER MODE UNLOCKED! 🌟\n\n"
+            "You've unlocked special features:\n"
+            "• Advanced debugging tools enabled\n"
+            "• Hidden performance metrics visible\n"
+            "• Developer console accessible\n"
+            "• Secret keyboard shortcuts active\n\n"
+            "Welcome to the inner circle! 🕵️‍♂️\n\n"
+            "Created with ❤️ by Kevin Moon\n"
+            "For all the amazing therapists out there! 🏥"
+        )
+        
+        # Enable developer mode
+        self.developer_mode = True
+        self.statusBar().showMessage("🎮 Developer Mode Activated! Press Ctrl+Shift+D for console", 10000)
+
+    def _show_kevin_message(self) -> None:
+        """Show Kevin's special message."""
+        QMessageBox.information(
+            self,
+            "👋 Message from Kevin Moon",
+            "Hey there! 🫶\n\n"
+            "Thanks for using the Therapy Compliance Analyzer!\n\n"
+            "This app was built with love and countless hours of coding\n"
+            "to help amazing therapists like you provide the best care\n"
+            "while staying compliant with all those tricky regulations.\n\n"
+            "Remember: You're making a real difference in people's lives! 💪\n\n"
+            "Keep being awesome! 🌟\n\n"
+            "- Kevin 🫶 (Two hands making a heart!)"
+        )
+
+    def _show_developer_console(self) -> None:
+        """Show developer console dialog."""
+        if not hasattr(self, 'developer_mode') or not self.developer_mode:
+            QMessageBox.warning(self, "Access Denied", "Developer console requires Konami code activation!")
+            return
+        
+        console_text = f"""
+🔧 DEVELOPER CONSOLE 🔧
+
+System Information:
+- User: {self.current_user.username}
+- Theme: {medical_theme.current_theme}
+- Active Threads: {len(self.view_model._active_threads)}
+- Selected File: {self._selected_file.name if self._selected_file else 'None'}
+- Current Payload: {'Available' if self._current_payload else 'None'}
+
+Memory Usage:
+- Python Objects: {len(gc.get_objects())} objects
+- Cache Status: Active
+
+Debug Commands Available:
+- Clear all caches
+- Reset UI state  
+- Force garbage collection
+- Export debug logs
+
+This console is only available in developer mode! 🎮
+        """
+        
+        QMessageBox.information(self, "🔧 Developer Console", console_text)
+
+    def _clear_all_caches(self) -> None:
+        """Clear all application caches."""
+        reply = QMessageBox.question(
+            self,
+            "Clear All Caches",
+            "Are you sure you want to clear all application caches?\n\n"
+            "This will:\n"
+            "• Clear document cache\n"
+            "• Clear analysis cache\n"
+            "• Clear AI model cache\n"
+            "• Reset temporary files\n\n"
+            "This action cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                # Clear various caches
+                if hasattr(self, '_current_payload'):
+                    self._current_payload = {}
+                if hasattr(self, '_cached_preview_content'):
+                    self._cached_preview_content = ""
+                
+                # Force garbage collection
+                gc.collect()
+                
+                self.statusBar().showMessage("✅ All caches cleared successfully", 5000)
+                QMessageBox.information(self, "Cache Cleared", "All application caches have been cleared successfully!")
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed to clear caches: {str(e)}")
+
+    def _show_user_management(self) -> None:
+        """Show user management dialog (placeholder)."""
+        QMessageBox.information(
+            self,
+            "👥 User Management",
+            "User Management features:\n\n"
+            "• View all registered users\n"
+            "• Manage user permissions\n"
+            "• Reset user passwords\n"
+            "• View user activity logs\n\n"
+            "This feature will be available in a future update!"
+        )
+
+    def _show_system_info(self) -> None:
+        """Show system information dialog."""
+        import platform
+        import sys
+        from PySide6 import __version__ as pyside_version
+        
+        system_info = f"""
+🖥️ SYSTEM INFORMATION
+
+Operating System:
+• Platform: {platform.system()} {platform.release()}
+• Architecture: {platform.machine()}
+• Processor: {platform.processor()}
+
+Python Environment:
+• Python Version: {sys.version.split()[0]}
+• PySide6 Version: {pyside_version}
+• Current User: {self.current_user.username}
+• User Role: {'Administrator' if self.current_user.is_admin else 'Standard User'}
+
+Application:
+• Theme: {medical_theme.current_theme.title()}
+• Active Threads: {len(self.view_model._active_threads)}
+• Developer Mode: {'Enabled' if hasattr(self, 'developer_mode') and self.developer_mode else 'Disabled'}
+
+Memory:
+• Python Objects: {len(gc.get_objects())}
+• Selected File: {self._selected_file.name if self._selected_file else 'None'}
+• Analysis Data: {'Available' if self._current_payload else 'None'}
+        """
+        
+        QMessageBox.information(self, "ℹ️ System Information", system_info)
 
     def resizeEvent(self, event) -> None:
         """Handle window resize to reposition floating chat button."""

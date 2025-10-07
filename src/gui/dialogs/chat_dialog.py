@@ -143,9 +143,11 @@ class ChatDialog(QDialog):
         self.worker_thread: QThread | None = None
         self.worker: ChatWorker | None = None
 
-        self.send_initial_message()
+        # Don't send initial message automatically - let user initiate
+        self.update_chat_display("assistant", "Hello! I'm your AI compliance assistant. How can I help you today?")
 
     def send_initial_message(self):
+        """Send initial message - called manually if needed."""
         self.update_chat_display("user", self.history[-1]["content"])
         self.send_message(is_initial=True)
 

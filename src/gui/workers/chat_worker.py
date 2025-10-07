@@ -13,6 +13,7 @@ class ChatWorker(QObject):
     """Worker to handle AI chat requests asynchronously."""
     success = Signal(str)
     error = Signal(str)
+    finished = Signal()
 
     def __init__(self, history: List[Dict[str, str]], token: str):
         super().__init__()
@@ -45,3 +46,5 @@ class ChatWorker(QObject):
                 self.error.emit(f"Failed to connect to the AI service: {e}")
         except Exception as e:
             self.error.emit(f"An unexpected error occurred: {e}")
+        finally:
+            self.finished.emit()
