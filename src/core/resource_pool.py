@@ -13,7 +13,7 @@ import weakref
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Callable, TypeVar, Generic
+from typing import Dict, List, Optional, Any, TypeVar, Generic
 from enum import Enum
 import queue
 
@@ -54,6 +54,7 @@ class PooledResource(Generic[T]):
         self.last_used = datetime.now()
         self.use_count = 0
         self.total_use_time = timedelta()
+        self.average_use_time = timedelta()
         self.state = ResourceState.AVAILABLE
         self._use_start_time: Optional[datetime] = None
         self._lock = threading.Lock()

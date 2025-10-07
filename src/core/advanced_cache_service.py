@@ -12,13 +12,10 @@ from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set, Tuple, Callable, Union
+from typing import Any, Dict, List, Optional, Tuple, Callable
 import threading
-import hashlib
-import json
 
 from src.core.cache_service import (
-    cache_service, 
     EmbeddingCache, 
     NERCache, 
     DocumentCache, 

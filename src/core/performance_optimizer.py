@@ -9,17 +9,12 @@ import asyncio
 import logging
 import time
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any
 from dataclasses import dataclass
 import threading
 
-from src.core.advanced_cache_service import (
-    advanced_cache_service,
-    CachePerformanceMonitor,
-    BatchCacheOperations,
-    CacheWarmingService
-)
-from src.core.cache_service import get_cache_stats, cleanup_all_caches
+from src.core.advanced_cache_service import advanced_cache_service
+from src.core.cache_service import get_cache_stats
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +53,7 @@ class PerformanceOptimizer:
         
         logger.info("Performance optimizer initialized")
     
-    async def analyze_performance(self) -> PerformanceMetrics:
+    def analyze_performance(self) -> PerformanceMetrics:
         """Analyze current system performance and identify optimization opportunities."""
         logger.info("Starting performance analysis")
         
@@ -140,7 +135,7 @@ class PerformanceOptimizer:
         
         try:
             # Get baseline performance metrics
-            baseline_metrics = await self.analyze_performance()
+            baseline_metrics = self.analyze_performance()
             
             optimization_results = {
                 'status': 'in_progress',
@@ -188,7 +183,7 @@ class PerformanceOptimizer:
             logger.info("Phase 4: Validating performance improvements")
             await asyncio.sleep(1)  # Allow optimizations to take effect
             
-            final_metrics = await self.analyze_performance()
+            final_metrics = self.analyze_performance()
             optimization_results['final_metrics'] = final_metrics
             
             # Calculate improvements

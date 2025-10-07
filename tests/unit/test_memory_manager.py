@@ -161,10 +161,15 @@ class TestResourceTracker:
         """Test total usage calculation across components."""
         tracker = ResourceTracker()
         
+        # Keep references to prevent garbage collection
+        resource1 = Mock()
+        resource2 = Mock()
+        resource3 = Mock()
+        
         # Register resources in different components
-        tracker.register_resource("component_1", "resource_1", Mock(), 1024)
-        tracker.register_resource("component_1", "resource_2", Mock(), 2048)
-        tracker.register_resource("component_2", "resource_3", Mock(), 512)
+        tracker.register_resource("component_1", "resource_1", resource1, 1024)
+        tracker.register_resource("component_1", "resource_2", resource2, 2048)
+        tracker.register_resource("component_2", "resource_3", resource3, 512)
         
         total_usage = tracker.get_total_usage()
         
@@ -223,9 +228,13 @@ class TestMemoryOptimizer:
             Mock(available=600 * 1024 * 1024)   # End: 600MB available
         ]
         
-        # Mock process memory
+        # Mock process memory to show memory freed by GC
         mock_process_instance = Mock()
-        mock_process_instance.memory_info.return_value = Mock(rss=1024 * 1024 * 1024)  # 1GB
+        # First call (before GC): 1GB, Second call (after GC): 950MB (50MB freed)
+        mock_process_instance.memory_info.side_effect = [
+            Mock(rss=1024 * 1024 * 1024),      # 1GB before GC
+            Mock(rss=974 * 1024 * 1024)        # 950MB after GC (50MB freed)
+        ]
         mock_process.return_value = mock_process_instance
         
         # Mock garbage collection
@@ -325,7 +334,9 @@ class TestMemoryManager:
         )
         
         manager = MemoryManager()
-        manager.register_resource("test_component", "resource_1", Mock(), 1024 * 1024)
+        # Keep reference to prevent garbage collection
+        test_resource = Mock()
+        manager.register_resource("test_component", "resource_1", test_resource, 1024 * 1024)
         
         status = manager.get_memory_status()
         
