@@ -4,12 +4,11 @@ import pytest
 import tempfile
 import json
 from pathlib import Path
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import Mock
 from datetime import datetime, timedelta
 
 from src.ml.trainer import MLTrainingPipeline
 from src.core.calibration_trainer import CalibrationTrainer
-from src.core.confidence_calibrator import ConfidenceCalibrator
 
 
 @pytest.fixture

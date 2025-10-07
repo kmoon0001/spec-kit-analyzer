@@ -2,7 +2,6 @@
 # MODIFIED: Provide mock user and token to MainApplicationWindow constructor.
 import pytest
 from unittest.mock import patch, MagicMock
-from PySide6.QtWidgets import QDialog
 from src.gui.main_window import MainApplicationWindow
 
 

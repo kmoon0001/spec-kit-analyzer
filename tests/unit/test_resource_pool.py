@@ -8,9 +8,8 @@ components of the resource management system.
 import pytest
 import threading
 import time
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, MagicMock
-from typing import Any
+from datetime import timedelta
+from unittest.mock import Mock
 
 from src.core.resource_pool import (
     ResourcePool, PooledResource, ResourceFactory, PoolConfiguration,
@@ -328,7 +327,7 @@ class TestResourcePool:
         pool = ResourcePool("test-pool", factory, config)
         time.sleep(0.1)  # Wait for preloading
         
-        initial_count = len(factory.created_resources)
+        _ = len(factory.created_resources)  # Track initial count
         
         # Wait for maintenance to run and clean up idle resources
         time.sleep(0.2)
@@ -391,8 +390,8 @@ class TestResourcePoolManager:
         config = PoolConfiguration(min_size=1, max_size=3, preload_resources=False)
         
         # Create multiple pools
-        pool1 = manager.create_pool("pool-1", factory1, config)
-        pool2 = manager.create_pool("pool-2", factory2, config)
+        _ = manager.create_pool("pool-1", factory1, config)
+        _ = manager.create_pool("pool-2", factory2, config)
         
         # Get all pool statuses
         all_status = manager.get_all_pools_status()

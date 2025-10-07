@@ -6,9 +6,8 @@ including all data providers and the main integration service.
 """
 
 import pytest
-import asyncio
-from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch
+from datetime import datetime
+from unittest.mock import Mock, AsyncMock
 
 from src.core.data_integration_service import (
     DataIntegrationService,

@@ -1,10 +1,8 @@
 """Tests for performance optimization functionality."""
 
 import pytest
-import asyncio
-import time
-from unittest.mock import Mock, patch, AsyncMock
-from datetime import datetime, timedelta
+from unittest.mock import patch, AsyncMock
+from datetime import datetime
 
 from src.core.performance_optimizer import (
     PerformanceOptimizer,

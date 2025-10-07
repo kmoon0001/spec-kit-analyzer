@@ -1,9 +1,8 @@
 
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QTabWidget, QWidget, QFormLayout, 
-    QCheckBox, QSlider, QSpinBox, QPushButton, QMessageBox, QDialogButtonBox,
-    QHBoxLayout, QLineEdit, QFileDialog, QScrollArea, QGroupBox, QGridLayout,
-    QLabel, QFrame
+    QDialog, QVBoxLayout, QTabWidget, QWidget, QCheckBox, QSlider, QSpinBox, QPushButton, QMessageBox, QDialogButtonBox,
+    QLineEdit, QFileDialog, QScrollArea, QGroupBox, QGridLayout,
+    QLabel, QComboBox
 )
 from PySide6.QtCore import Qt, QSettings
 from PySide6.QtGui import QFont

@@ -5,11 +5,9 @@ This module tests the core performance monitoring functionality including
 lifecycle management, configuration, and status tracking.
 """
 
-import pytest
-import time
 import tempfile
 import yaml
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
 from pathlib import Path
 

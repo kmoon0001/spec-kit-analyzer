@@ -5,9 +5,8 @@ This module tests the comprehensive metric collection functionality including
 system metrics, application metrics, and custom metric sources.
 """
 
-import pytest
 import time
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from datetime import datetime
 
 from src.core.metrics_collector import (
@@ -177,7 +176,7 @@ class TestSystemMetricsSource:
         source = SystemMetricsSource()
         
         # First collection to establish baseline
-        metrics1 = source.collect_metrics()
+        _ = source.collect_metrics()  # First collection to establish baseline
         
         # Wait a bit and collect again
         time.sleep(0.1)

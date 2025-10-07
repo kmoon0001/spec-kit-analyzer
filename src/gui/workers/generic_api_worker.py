@@ -158,7 +158,7 @@ class LogStreamWorker(QThread):
             # Clean up the event loop
             try:
                 loop.close()
-            except:
+            except Exception:
                 pass
 
     async def _run_client(self) -> None:

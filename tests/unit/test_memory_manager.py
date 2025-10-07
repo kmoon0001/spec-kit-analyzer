@@ -9,11 +9,11 @@ import pytest
 import threading
 import time
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from src.core.memory_manager import (
     MemoryMonitor, ResourceTracker, MemoryOptimizer, MemoryManager,
-    MemoryPressureLevel, MemoryMetrics, ResourceAllocation
+    MemoryPressureLevel, ResourceAllocation
 )
 
 
@@ -424,7 +424,8 @@ class TestIntegration:
         optimization_called = threading.Event()
         
         # Mock optimizer to signal when called
-        original_optimize = manager.optimizer.optimize_memory
+        # Store reference to original method
+        _ = manager.optimizer.optimize_memory
         def mock_optimize(*args, **kwargs):
             optimization_called.set()
             return {'success': True, 'bytes_freed': 100 * 1024 * 1024}

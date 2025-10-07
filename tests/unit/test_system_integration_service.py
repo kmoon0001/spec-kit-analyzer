@@ -5,9 +5,7 @@ This module tests the comprehensive system integration service that coordinates
 all performance optimization components.
 """
 
-import pytest
-import time
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
 
 from src.core.system_integration_service import (

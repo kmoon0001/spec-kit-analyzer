@@ -6,7 +6,7 @@ error messages and recovery suggestions for analysis workflow failures.
 """
 
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from enum import Enum
 from dataclasses import dataclass
 

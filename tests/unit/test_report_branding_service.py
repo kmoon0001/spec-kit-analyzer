@@ -9,9 +9,8 @@ import pytest
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 from PIL import Image
-import yaml
 
 from src.core.report_branding_service import (
     ReportBrandingService,

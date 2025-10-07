@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
     QLabel,
+    QListWidgetItem,
     QMainWindow,
     QMenu,
     QMessageBox,
@@ -42,7 +43,6 @@ from src.gui.dialogs.batch_analysis_dialog import BatchAnalysisDialog
 from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 from src.gui.dialogs.settings_dialog import SettingsDialog
 from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
-from src.gui.themes import get_theme_palette
 from src.gui.workers.generic_api_worker import GenericApiWorker, HealthCheckWorker, TaskMonitorWorker, LogStreamWorker, FeedbackWorker
 from src.gui.workers.single_analysis_polling_worker import SingleAnalysisPollingWorker
 
@@ -257,7 +257,7 @@ class MainViewModel(QObject):
         technical_button = msg.addButton("🔧 Technical Details", QMessageBox.ButtonRole.ActionRole)
         msg.addButton(QMessageBox.StandardButton.Ok)
         
-        result = msg.exec()
+        msg.exec()
         
         # Show technical details if requested
         if msg.clickedButton() == technical_button:
@@ -547,8 +547,8 @@ class MainApplicationWindow(QMainWindow):
             QMessageBox.critical(
                 self, 
                 "🚨 Analysis Prerequisites Failed", 
-                f"Cannot start analysis due to critical issues:\n\n" + "\n".join(error_messages) + 
-                f"\n\nPlease resolve these issues and try again."
+                "Cannot start analysis due to critical issues:\n\n" + "\n".join(error_messages) + 
+                "\n\nPlease resolve these issues and try again."
             )
             return
         
@@ -629,7 +629,7 @@ class MainApplicationWindow(QMainWindow):
             technical_button = msg.addButton("🔧 Technical Details", QMessageBox.ButtonRole.ActionRole)
             msg.addButton(QMessageBox.StandardButton.Ok)
             
-            result = msg.exec()
+            msg.exec()
             
             # Show technical details if requested
             if msg.clickedButton() == technical_button:
@@ -2997,7 +2997,7 @@ Memory:
                     error_count += 1
             
             # Add summary
-            results_text += f"📊 SUMMARY\n"
+            results_text += "📊 SUMMARY\n"
             results_text += f"✅ Healthy: {healthy_count}\n"
             results_text += f"⚠️ Warnings: {warning_count}\n"
             results_text += f"❌ Errors: {error_count}\n\n"
@@ -3079,8 +3079,11 @@ Memory:
     def _start_resource_monitoring(self) -> None:
         """Start system resource monitoring timer."""
         try:
-            import psutil
-            self.has_psutil = True
+            import importlib.util
+            if importlib.util.find_spec("psutil") is not None:
+                self.has_psutil = True
+            else:
+                self.has_psutil = False
         except ImportError:
             self.has_psutil = False
             self.resource_label.setText("💻 Resource monitoring unavailable")

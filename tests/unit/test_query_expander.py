@@ -2,7 +2,6 @@
 
 import pytest
 import tempfile
-import json
 from pathlib import Path
 
 from src.core.query_expander import (

@@ -6,7 +6,7 @@ detect timeouts, and trigger recovery mechanisms when analyses hang or fail.
 """
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional, Dict, Any, Callable
 from enum import Enum
 import logging

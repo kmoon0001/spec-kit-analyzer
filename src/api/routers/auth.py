@@ -15,7 +15,7 @@ from ...core.security_validator import SecurityValidator
 from ...database import crud, models, schemas
 from ...database import get_async_db as get_db
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(tags=["auth"])
 
 
 @router.post("/token", response_model=schemas.Token)
