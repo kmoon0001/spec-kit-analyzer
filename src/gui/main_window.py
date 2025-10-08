@@ -2,7 +2,7 @@
 """Primary GUI window for the Therapy Compliance Analyzer."""
 from __future__ import annotations
 
-import gc
+# Removed unused gc import
 import json
 import logging
 import webbrowser
@@ -61,6 +61,9 @@ from src.gui.widgets.medical_theme import medical_theme
 from src.gui.widgets.micro_interactions import AnimatedButton, LoadingSpinner
 
 from src.gui.widgets.mission_control_widget import MissionControlWidget, LogViewerWidget, SettingsEditorWidget
+from src.core.license_manager import license_manager
+from src.core.auto_updater import auto_updater
+from src.core.async_file_handler import async_file_handler
 from src.gui.widgets.dashboard_widget import DashboardWidget
 
 try:
@@ -339,12 +342,13 @@ class MainApplicationWindow(QMainWindow):
         self.section_checkboxes = {}
         self.analysis_summary_browser = None
         self.detailed_results_browser = None
-        self.chat_input = None
+        # Removed chat_input - using main chat dialog instead
         self.file_display = None
         self.open_file_button = None
         self.open_folder_button = None
         self.run_analysis_button = None
         self.repeat_analysis_button = None
+        self.stop_analysis_button = None
         self.view_report_button = None
         self.dashboard_widget = None
         self.settings_editor = None
@@ -357,7 +361,7 @@ class MainApplicationWindow(QMainWindow):
         self.performance_dock = None
         self.performance_widget = None
         self.log_viewer = None
-        self.chat_button = None
+        # Removed chat_button - using main chat dialog instead
         self.meta_analytics_action = None
         self.performance_action = None
         
@@ -385,12 +389,12 @@ class MainApplicationWindow(QMainWindow):
         self._build_menus()
         self._build_central_layout()
         self._build_status_bar()
-        self._build_floating_chat_button()
+        # Removed floating chat button - using main chat dialog instead
         self._setup_keyboard_shortcuts()
         self._apply_medical_theme()
 
     def _build_header(self) -> None:
-        """Build the beautiful medical-themed header with 🏥 emoji and theme toggle."""
+        """Build the professional application header with clean styling."""
         # Create header component
         self.header = HeaderComponent(self)
         self.header.theme_toggle_requested.connect(self._toggle_theme)
@@ -402,6 +406,9 @@ class MainApplicationWindow(QMainWindow):
         
         # Apply header stylesheet
         self.header.setStyleSheet(self.header.get_default_stylesheet())
+        
+        # Check license status and initialize trial if needed
+        self._check_license_status()
         
         # Note: Header will be added to central layout in _build_central_layout
 
@@ -474,15 +481,176 @@ class MainApplicationWindow(QMainWindow):
             self.statusBar().showMessage("🎉 Easter egg activated!", 5000)
 
     def _on_model_status_clicked(self, model_name: str) -> None:
-        """Handle clicks on AI model status indicators."""
+        """Handle clicks on AI model status indicators with detailed descriptions."""
         status = self.status_component.models.get(model_name, False)
-        status_text = "Ready" if status else "Not Ready"
-        QMessageBox.information(
-            self,
-            f"AI Model Status: {model_name}",
-            f"Model: {model_name}\nStatus: {status_text}\n\n"
-            f"This model is used for compliance analysis and documentation review."
-        )
+        status_text = "✅ Ready" if status else "❌ Not Ready"
+        
+        # Detailed model descriptions with complete transparency - Updated with real models
+        model_descriptions = {
+            "Phi-2 LLM": {
+                "full_name": "Natural Language Generation Model (Phi-2/Mistral-7B)",
+                "description": "Generates personalized compliance recommendations and improvement suggestions",
+                "function": "Creates human-readable explanations of compliance issues and actionable advice",
+                "technology": "Microsoft Phi-2 (2.7B parameters) or Mistral-7B (quantized) - chosen for medical accuracy and local processing capability",
+                "why_chosen": "Selected for excellent reasoning capabilities, medical knowledge, and ability to run locally for privacy",
+                "use_cases": ["Compliance recommendations", "Report generation", "Improvement suggestions", "Personalized feedback"]
+            },
+            "FAISS+BM25": {
+                "full_name": "Hybrid Retrieval-Augmented Generation (RAG) System",
+                "description": "Finds relevant compliance rules and guidelines for document analysis",
+                "function": "Combines semantic search (FAISS) with keyword matching (BM25) for precise rule retrieval",
+                "technology": "FAISS vector database + BM25 ranking algorithm with hybrid scoring",
+                "why_chosen": "Hybrid approach ensures both semantic understanding and exact keyword matching for comprehensive rule coverage",
+                "use_cases": ["Rule matching", "Guideline retrieval", "Context-aware search", "Compliance verification"]
+            },
+            "Fact Checker": {
+                "full_name": "AI Fact Verification & Confidence Scoring System",
+                "description": "Verifies accuracy of compliance findings and reduces false positives through secondary validation",
+                "function": "Cross-references findings against multiple sources and applies confidence scoring to ensure accuracy",
+                "technology": "Secondary transformer model with specialized verification algorithms and uncertainty quantification",
+                "why_chosen": "Critical for medical compliance - reduces false positives and provides confidence metrics for clinical decision-making",
+                "use_cases": ["Finding verification", "Accuracy validation", "Confidence scoring", "False positive reduction"]
+            },
+            "BioBERT": {
+                "full_name": "Biomedical Named Entity Recognition (BioBERT)",
+                "description": "Extracts biomedical terminology and general medical concepts from documents",
+                "function": "Identifies biomedical entities, drug names, diseases, and general medical terminology",
+                "technology": "BioBERT - BERT pre-trained on biomedical literature (PubMed abstracts and PMC full-text articles)",
+                "why_chosen": "Specifically trained on biomedical texts, excels at general medical terminology and research-based language",
+                "use_cases": ["Biomedical term extraction", "Drug and disease identification", "Research terminology", "General medical concepts"]
+            },
+            "ClinicalBERT": {
+                "full_name": "Clinical Named Entity Recognition (ClinicalBERT)",
+                "description": "Extracts medical terminology and clinical concepts from therapy documentation",
+                "function": "Identifies medical entities, conditions, treatments, and clinical terminology with high precision",
+                "technology": "BioBERT (biomedical BERT) + ClinicalBERT - dual model approach for comprehensive medical entity extraction",
+                "why_chosen": "BioBERT excels at general biomedical terms, ClinicalBERT specializes in clinical notes - together they provide comprehensive coverage",
+                "use_cases": ["Medical term extraction", "Clinical concept identification", "Entity linking", "Medical terminology validation"]
+            },
+            "Chat Assistant": {
+                "full_name": "Conversational AI Assistant (Local LLM)",
+                "description": "Provides interactive assistance and answers compliance questions in real-time",
+                "function": "Offers contextual help, clarification on compliance issues, and educational guidance",
+                "technology": "Local conversational model based on Phi-2/Mistral with compliance-specific fine-tuning",
+                "why_chosen": "Local processing ensures privacy while providing instant, contextual assistance for complex compliance questions",
+                "use_cases": ["Interactive help", "Question answering", "Compliance guidance", "Educational support"]
+            },
+            "MiniLM-L6": {
+                "full_name": "Semantic Embedding System (sentence-transformers/all-MiniLM-L6-v2)",
+                "description": "Converts text into numerical representations for semantic understanding and similarity matching",
+                "function": "Creates 384-dimensional vector representations of documents and rules for similarity matching",
+                "technology": "sentence-transformers/all-MiniLM-L6-v2 - optimized for semantic similarity with medical domain adaptation",
+                "why_chosen": "Excellent balance of performance, speed, and accuracy. Specifically chosen for medical text understanding and efficient local processing",
+                "use_cases": ["Semantic search", "Document similarity", "Context understanding", "Rule matching"]
+            }
+        }
+        
+        model_info = model_descriptions.get(model_name, {
+            "full_name": model_name,
+            "description": "AI model for compliance analysis",
+            "function": "Supports document analysis and compliance checking",
+            "technology": "Local AI processing",
+            "use_cases": ["Compliance analysis"]
+        })
+        
+        # Create detailed popup
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QTextBrowser, QPushButton
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"🤖 AI Model Details: {model_name}")
+        dialog.resize(600, 500)
+        dialog.setStyleSheet("""
+            QDialog {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #f8fafc, stop:1 #e2e8f0);
+                border: 2px solid #cbd5e0;
+                border-radius: 10px;
+            }
+        """)
+        
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+        
+        # Content browser
+        content_browser = QTextBrowser()
+        content_browser.setStyleSheet("""
+            QTextBrowser {
+                background: white;
+                border: 2px solid #d1d5db;
+                border-radius: 8px;
+                padding: 15px;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        """)
+        
+        # Generate detailed HTML content
+        html_content = f"""
+        <div style='font-family: Segoe UI; line-height: 1.6;'>
+            <h2 style='color: #1d4ed8; margin-top: 0;'>🤖 {model_info['full_name']}</h2>
+            
+            <div style='background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #0ea5e9;'>
+                <h3 style='color: #0ea5e9; margin-top: 0;'>Current Status</h3>
+                <p style='font-size: 16px; font-weight: bold; color: {"#059669" if status else "#dc2626"};'>{status_text}</p>
+            </div>
+            
+            <div style='background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+                <h3 style='color: #334155; margin-top: 0;'>Description</h3>
+                <p style='color: #475569;'>{model_info['description']}</p>
+            </div>
+            
+            <div style='background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+                <h3 style='color: #059669; margin-top: 0;'>Function in System</h3>
+                <p style='color: #475569;'>{model_info['function']}</p>
+            </div>
+            
+            <div style='background: #fef7ff; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+                <h3 style='color: #7c3aed; margin-top: 0;'>Technology</h3>
+                <p style='color: #475569;'>{model_info['technology']}</p>
+            </div>
+            
+            <div style='background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+                <h3 style='color: #0ea5e9; margin-top: 0;'>Why This Model Was Chosen</h3>
+                <p style='color: #475569;'>{model_info.get('why_chosen', 'Selected for optimal performance in medical compliance analysis.')}</p>
+            </div>
+            
+            <div style='background: #fffbeb; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+                <h3 style='color: #d97706; margin-top: 0;'>Use Cases</h3>
+                <ul style='color: #475569; margin: 0; padding-left: 20px;'>
+                    {"".join([f"<li>{use_case}</li>" for use_case in model_info['use_cases']])}
+                </ul>
+            </div>
+            
+            <div style='background: #f1f5f9; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #cbd5e0;'>
+                <h3 style='color: #1e293b; margin-top: 0;'>Privacy & Security</h3>
+                <p style='color: #475569;'>🔒 All processing occurs locally on your device. No data is sent to external servers, ensuring complete privacy and HIPAA compliance.</p>
+            </div>
+        </div>
+        """
+        
+        content_browser.setHtml(html_content)
+        layout.addWidget(content_browser)
+        
+        # Close button
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.close)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background: #1d4ed8;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: #1e40af;
+            }
+        """)
+        layout.addWidget(close_btn)
+        
+        dialog.exec()
 
     def _connect_view_model(self) -> None:
         self.view_model.status_message_changed.connect(self.statusBar().showMessage)
@@ -586,6 +754,7 @@ class MainApplicationWindow(QMainWindow):
         # Update UI state
         self.run_analysis_button.setEnabled(False)
         self.repeat_analysis_button.setEnabled(False)
+        self.stop_analysis_button.setEnabled(True)  # Enable stop button during analysis
         self.view_report_button.setEnabled(False)
         
         # Show loading indicators
@@ -645,6 +814,45 @@ class MainApplicationWindow(QMainWindow):
         
         self.statusBar().showMessage("Repeating analysis...", 2000)
         self._start_analysis()
+    
+    def _stop_analysis(self) -> None:
+        """Stop the currently running analysis with user confirmation."""
+        # Confirm with user before stopping
+        reply = QMessageBox.question(
+            self,
+            "⏹️ Stop Analysis",
+            "Are you sure you want to stop the current analysis?\n\n"
+            "This will cancel the analysis in progress and you'll need to restart it.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                # Stop the analysis worker if it exists
+                if hasattr(self.view_model, 'current_worker') and self.view_model.current_worker:
+                    self.view_model.current_worker.terminate()
+                
+                # Reset UI state
+                self.loading_spinner.stop_spinning()
+                self.run_analysis_button.setEnabled(True)
+                self.repeat_analysis_button.setEnabled(True)
+                self.stop_analysis_button.setEnabled(False)
+                
+                # Update status
+                self.statusBar().showMessage("⏹️ Analysis stopped by user", 5000)
+                
+                # Log the cancellation
+                logger.info("Analysis stopped by user request")
+                
+            except Exception as e:
+                logger.error(f"Error stopping analysis: {e}")
+                QMessageBox.warning(
+                    self,
+                    "Stop Analysis Error",
+                    f"Could not stop analysis cleanly: {str(e)}\n\n"
+                    "The analysis may continue in the background."
+                )
 
     def _on_strictness_selected(self, selected_button: AnimatedButton) -> None:
         """Handle strictness level selection (only one can be selected at a time)."""
@@ -656,6 +864,40 @@ class MainApplicationWindow(QMainWindow):
         # Get selected level
         level = selected_button.text().split()[-1]  # Extract level name
         self.statusBar().showMessage(f"Review strictness set to: {level}", 3000)
+    
+    def _on_strictness_selected_with_description(self, index: int) -> None:
+        """Handle strictness level selection with description update."""
+        # Uncheck all other buttons
+        for i, btn in enumerate(self.strictness_buttons):
+            btn.setChecked(i == index)
+        
+        # Update description
+        self._update_strictness_description(index)
+        
+        # Update status
+        level = self.strictness_levels[index][0]
+        self.statusBar().showMessage(f"Review strictness set to: {level}", 3000)
+    
+    def _update_strictness_description(self, index: int) -> None:
+        """Update the strictness description based on selected level."""
+        if hasattr(self, 'strictness_description') and hasattr(self, 'strictness_levels'):
+            level, emoji, info = self.strictness_levels[index]
+            
+            description_html = f"""
+            <div style='font-family: Segoe UI; line-height: 1.5;'>
+                <h3 style='color: #1d4ed8; margin-top: 0; margin-bottom: 10px;'>{emoji} {level} Analysis</h3>
+                <p style='color: #475569; margin-bottom: 15px; font-weight: 500;'>{info['description']}</p>
+                
+                <div style='background: #f1f5f9; padding: 12px; border-radius: 6px; margin-bottom: 12px;'>
+                    <h4 style='color: #334155; margin: 0 0 8px 0; font-size: 13px;'>Analysis Details:</h4>
+                    <div style='color: #64748b; font-size: 12px; white-space: pre-line;'>{info['details']}</div>
+                </div>
+                
+                <div style='color: #059669; font-weight: 500; font-size: 12px;'>{info['use_case']}</div>
+            </div>
+            """
+            
+            self.strictness_description.setText(description_html)
 
     def _open_report_popup(self) -> None:
         """Open the full report in a popup window."""
@@ -822,6 +1064,7 @@ class MainApplicationWindow(QMainWindow):
         self.statusBar().showMessage("✅ Analysis Complete - Report displayed automatically", 5000)
         self.run_analysis_button.setEnabled(True)
         self.repeat_analysis_button.setEnabled(True)
+        self.stop_analysis_button.setEnabled(False)  # Disable stop button when analysis complete
         self.view_report_button.setEnabled(True)
         self._current_payload = payload
         
@@ -1142,11 +1385,7 @@ You can also:
         
         tools_menu.addSeparator()
         
-        # AI Chat Assistant
-        chat_action = QAction("💬 AI Chat Assistant", self)
-        chat_action.setShortcut("Ctrl+Shift+C")
-        chat_action.triggered.connect(self._open_chat_dialog)
-        tools_menu.addAction(chat_action)
+        # AI Chat Assistant - Removed (redundant with main window chat)
         
         tools_menu.addSeparator()
         
@@ -1424,10 +1663,29 @@ You can also:
         strictness_layout.setSpacing(8)
         self.strictness_buttons = []
         
-        for level, emoji in [("Lenient", "😊"), ("Standard", "📋"), ("Strict", "🔍")]:
+        # Strictness definitions with detailed descriptions
+        self.strictness_levels = [
+            ("Lenient", "😊", {
+                "description": "Lenient analysis focusing on major compliance issues only",
+                "details": "• Identifies critical Medicare violations\n• Overlooks minor documentation gaps\n• Faster processing time\n• Suitable for initial reviews",
+                "use_case": "Best for: Quick assessments, high-volume processing"
+            }),
+            ("Standard", "📋", {
+                "description": "Balanced analysis covering most compliance requirements", 
+                "details": "• Comprehensive Medicare compliance checking\n• Identifies moderate to severe issues\n• Standard processing time\n• Recommended for most users",
+                "use_case": "Best for: Regular compliance reviews, quality assurance"
+            }),
+            ("Strict", "🔍", {
+                "description": "Thorough analysis with detailed scrutiny of all elements",
+                "details": "• Exhaustive compliance verification\n• Identifies all potential issues\n• Longer processing time\n• Maximum regulatory protection",
+                "use_case": "Best for: Audit preparation, high-risk documentation"
+            })
+        ]
+        
+        for i, (level, emoji, info) in enumerate(self.strictness_levels):
             btn = AnimatedButton(f"{emoji}\n{level}", section)
             btn.setCheckable(True)
-            btn.setMinimumHeight(45)  # Smaller than before (was 55)
+            btn.setMinimumHeight(45)
             btn.setMaximumHeight(50)
             btn.setStyleSheet(f"""
                 QPushButton {{
@@ -1449,15 +1707,34 @@ You can also:
                     border-color: {medical_theme.get_color('primary_blue')};
                 }}
             """)
-            btn.clicked.connect(lambda checked, b=btn: self._on_strictness_selected(b))
+            btn.clicked.connect(lambda checked, idx=i: self._on_strictness_selected_with_description(idx))
             self.strictness_buttons.append(btn)
             strictness_layout.addWidget(btn)
         
         layout.addLayout(strictness_layout)
         
-        # Set default to Standard
+        # Dynamic description area with complementary background
+        self.strictness_description = QLabel()
+        self.strictness_description.setWordWrap(True)
+        self.strictness_description.setStyleSheet("""
+            QLabel {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #f0f9ff, stop:1 #e0f2fe);
+                border: 2px solid #0ea5e9;
+                border-radius: 8px;
+                padding: 15px;
+                color: #0c4a6e;
+                font-size: 13px;
+                line-height: 1.4;
+            }
+        """)
+        self.strictness_description.setMinimumHeight(120)
+        layout.addWidget(self.strictness_description)
+        
+        # Set default to Standard and show its description
         if len(self.strictness_buttons) >= 2:
             self.strictness_buttons[1].setChecked(True)
+            self._update_strictness_description(1)
         
         return section
     
@@ -1556,9 +1833,7 @@ You can also:
         results_panel = self._create_analysis_right_panel_content()
         layout.addWidget(results_panel, stretch=1)
         
-        # Chat input bar at bottom
-        chat_bar = self._create_chat_input_bar()
-        layout.addWidget(chat_bar, stretch=0)
+        # Removed redundant chat input bar - use main AI chat instead
         
         return panel
     
@@ -1657,63 +1932,7 @@ You can also:
         layout.addWidget(results_tabs)
         return panel
     
-    def _create_chat_input_bar(self) -> QWidget:
-        """Create chat input bar below analysis results."""
-        bar = QWidget(self)
-        bar.setStyleSheet(f"""
-            QWidget {{
-                background-color: {medical_theme.get_color('bg_secondary')};
-                border: 2px solid {medical_theme.get_color('border_light')};
-                border-radius: 8px;
-                padding: 8px;
-            }}
-        """)
-        bar.setMaximumHeight(60)
-        
-        layout = QHBoxLayout(bar)
-        layout.setContentsMargins(10, 5, 10, 5)
-        layout.setSpacing(10)
-        
-        # Chat input field
-        self.chat_input = QTextEdit(bar)
-        self.chat_input.setPlaceholderText("💬 Ask AI about the analysis results...")
-        self.chat_input.setMaximumHeight(40)
-        self.chat_input.setStyleSheet(f"""
-            QTextEdit {{
-                border: 2px solid {medical_theme.get_color('border_medium')};
-                border-radius: 6px;
-                padding: 8px;
-                background: white;
-                font-size: 11px;
-                color: {medical_theme.get_color('text_primary')};
-            }}
-            QTextEdit:focus {{
-                border-color: {medical_theme.get_color('primary_blue')};
-            }}
-        """)
-        layout.addWidget(self.chat_input, stretch=1)
-        
-        # Send button
-        send_btn = AnimatedButton("Send", bar)
-        send_btn.setMinimumWidth(80)
-        send_btn.setMaximumHeight(40)
-        send_btn.clicked.connect(self._send_chat_message)
-        send_btn.setStyleSheet(medical_theme.get_button_stylesheet("primary"))
-        layout.addWidget(send_btn)
-        
-        return bar
-    
-    def _send_chat_message(self):
-        """Handle sending chat message."""
-        message = self.chat_input.toPlainText().strip()
-        if not message:
-            return
-        
-        # Clear input
-        self.chat_input.clear()
-        
-        # Open chat dialog with the message
-        self._open_chat_dialog(initial_message=message)
+    # Removed redundant chat input bar - use main AI chat dialog instead
     
     def _create_analysis_left_column(self) -> QWidget:
         """Create the left column with document upload and settings."""
@@ -1769,7 +1988,7 @@ You can also:
         self.file_display.setReadOnly(True)
         self.file_display.setMinimumHeight(90)
         self.file_display.setMaximumHeight(110)
-        self.file_display.setPlaceholderText("📄 Select a document to analyze\n\n👆 Click 'Upload Document' to choose a file\n\nSupported formats: PDF, DOCX, TXT")
+        self.file_display.setPlaceholderText("📋 DOCUMENT UPLOAD CENTER\n\n📁 This window displays your selected document for compliance analysis\n\n🔹 Click 'Upload Document' to browse and select a file\n🔹 Supported formats: PDF, DOCX, TXT\n🔹 Maximum file size: 50MB\n\n✨ Once uploaded, document details will appear here")
         self.file_display.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {medical_theme.get_color("bg_primary")};
@@ -1866,27 +2085,74 @@ You can also:
         separator.setStyleSheet(f"background-color: {medical_theme.get_color('border_light')}; border: none; margin: 8px 0px;")
         layout.addWidget(separator)
         
-        # Strictness selector
+        # Strictness selector with dynamic descriptions
         strictness_label = QLabel("Review Strictness:", section)
         strictness_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         strictness_label.setStyleSheet("background: transparent; border: none; color: #475569;")
         layout.addWidget(strictness_label)
         
+        # Create strictness container with description area
+        strictness_container = QWidget()
+        strictness_container_layout = QVBoxLayout(strictness_container)
+        strictness_container_layout.setSpacing(15)
+        
+        # Strictness buttons
         strictness_layout = QHBoxLayout()
         strictness_layout.setSpacing(10)
         self.strictness_buttons = []
         
-        for level, emoji in [("Moderate", "😊"), ("Standard", "📋"), ("Strict", "🔍")]:
+        # Strictness definitions with detailed descriptions
+        self.strictness_levels = [
+            ("Moderate", "😊", {
+                "description": "Lenient analysis focusing on major compliance issues only",
+                "details": "• Identifies critical Medicare violations\n• Overlooks minor documentation gaps\n• Faster processing time\n• Suitable for initial reviews",
+                "use_case": "Best for: Quick assessments, high-volume processing"
+            }),
+            ("Standard", "📋", {
+                "description": "Balanced analysis covering most compliance requirements", 
+                "details": "• Comprehensive Medicare compliance checking\n• Identifies moderate to severe issues\n• Standard processing time\n• Recommended for most users",
+                "use_case": "Best for: Regular compliance reviews, quality assurance"
+            }),
+            ("Strict", "🔍", {
+                "description": "Thorough analysis with detailed scrutiny of all elements",
+                "details": "• Exhaustive compliance verification\n• Identifies all potential issues\n• Longer processing time\n• Maximum regulatory protection",
+                "use_case": "Best for: Audit preparation, high-risk documentation"
+            })
+        ]
+        
+        for i, (level, emoji, info) in enumerate(self.strictness_levels):
             btn = AnimatedButton(f"{emoji}\n{level}", section)
             btn.setCheckable(True)
             btn.setMinimumHeight(55)
             btn.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
-            btn.clicked.connect(lambda checked, b=btn: self._on_strictness_selected(b))
+            btn.clicked.connect(lambda checked, idx=i: self._on_strictness_selected_with_description(idx))
             strictness_layout.addWidget(btn)
             self.strictness_buttons.append(btn)
         
+        strictness_container_layout.addLayout(strictness_layout)
+        
+        # Dynamic description area
+        self.strictness_description = QLabel()
+        self.strictness_description.setWordWrap(True)
+        self.strictness_description.setStyleSheet("""
+            QLabel {
+                background: #f8fafc;
+                border: 2px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 15px;
+                color: #475569;
+                font-size: 13px;
+                line-height: 1.4;
+            }
+        """)
+        self.strictness_description.setMinimumHeight(120)
+        strictness_container_layout.addWidget(self.strictness_description)
+        
+        # Set default to Standard and show its description
         self.strictness_buttons[1].setChecked(True)
-        layout.addLayout(strictness_layout)
+        self._update_strictness_description(1)
+        
+        layout.addWidget(strictness_container)
         
         return section
 
@@ -1924,6 +2190,14 @@ You can also:
         self.repeat_analysis_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
         self.repeat_analysis_button.setMinimumHeight(42)
         secondary_layout.addWidget(self.repeat_analysis_button)
+        
+        # Stop Analysis button - professional implementation
+        self.stop_analysis_button = AnimatedButton("⏹️ Stop Analysis", section)
+        self.stop_analysis_button.clicked.connect(self._stop_analysis)
+        self.stop_analysis_button.setEnabled(False)
+        self.stop_analysis_button.setStyleSheet(medical_theme.get_button_stylesheet("error"))
+        self.stop_analysis_button.setMinimumHeight(42)
+        secondary_layout.addWidget(self.stop_analysis_button)
         
         self.view_report_button = AnimatedButton("📊 View Report", section)
         self.view_report_button.clicked.connect(self._open_report_popup)
@@ -2246,13 +2520,18 @@ You can also:
         return tab
     
     def _create_user_preferences_widget(self) -> QWidget:
-        """Create user preferences settings widget."""
-        from PySide6.QtWidgets import QCheckBox
+        """Create user preferences settings widget with professional layout."""
+        from PySide6.QtWidgets import QCheckBox, QScrollArea
+        
+        # Create scroll area for better organization
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
         
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(20)
+        layout.setSpacing(25)  # Proper spacing between sections
         
         # Theme selection
         theme_section = QWidget()
@@ -2265,9 +2544,12 @@ You can also:
             }}
         """)
         theme_layout = QVBoxLayout(theme_section)
+        theme_layout.setContentsMargins(20, 20, 20, 20)  # Internal padding
+        theme_layout.setSpacing(15)  # Spacing within section
         
         theme_label = QLabel("🎨 Theme Selection", theme_section)
         theme_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        theme_label.setStyleSheet("margin-bottom: 10px;")  # Extra space after title
         theme_layout.addWidget(theme_label)
         
         theme_buttons = QHBoxLayout()
@@ -2297,9 +2579,12 @@ You can also:
             }}
         """)
         account_layout = QVBoxLayout(account_section)
+        account_layout.setContentsMargins(20, 20, 20, 20)  # Internal padding
+        account_layout.setSpacing(15)  # Spacing within section
         
         account_label = QLabel("👤 Account Settings", account_section)
         account_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        account_label.setStyleSheet("margin-bottom: 10px;")  # Extra space after title
         account_layout.addWidget(account_label)
         
         user_info = QLabel(f"Logged in as: {self.current_user.username}", account_section)
@@ -2345,7 +2630,17 @@ You can also:
         layout.addWidget(ui_section)
         
         layout.addStretch()
-        return widget
+        
+        # Set up scroll area
+        scroll_area.setWidget(widget)
+        
+        # Create container for scroll area
+        container = QWidget()
+        container_layout = QVBoxLayout(container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.addWidget(scroll_area)
+        
+        return container
     
     def _create_analysis_settings_widget(self) -> QWidget:
         """Create analysis settings widget."""
@@ -2416,37 +2711,64 @@ You can also:
         title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         section_layout.addWidget(title)
         
+        # Medicare Guidelines with description
+        medicare_container = QWidget()
+        medicare_layout = QVBoxLayout(medicare_container)
+        medicare_layout.setContentsMargins(0, 0, 0, 0)
+        medicare_layout.setSpacing(5)
+        
         include_medicare = QCheckBox("✅ Medicare Guidelines Compliance", section)
         include_medicare.setChecked(True)
-        section_layout.addWidget(include_medicare)
+        medicare_layout.addWidget(include_medicare)
+        
+        medicare_desc = QLabel("   Includes CMS compliance requirements and Medicare documentation standards")
+        medicare_desc.setStyleSheet("color: #64748b; font-size: 11px; margin-left: 20px;")
+        medicare_desc.setWordWrap(True)
+        medicare_layout.addWidget(medicare_desc)
+        section_layout.addWidget(medicare_container)
+        
+        # Strengths with description
+        strengths_container = QWidget()
+        strengths_layout = QVBoxLayout(strengths_container)
+        strengths_layout.setContentsMargins(0, 0, 0, 0)
+        strengths_layout.setSpacing(5)
         
         include_strengths = QCheckBox("💪 Strengths & Best Practices", section)
         include_strengths.setChecked(True)
-        section_layout.addWidget(include_strengths)
+        strengths_layout.addWidget(include_strengths)
         
-        include_weaknesses = QCheckBox("⚠️ Weaknesses & Areas for Improvement", section)
-        include_weaknesses.setChecked(True)
-        section_layout.addWidget(include_weaknesses)
+        strengths_desc = QLabel("   Highlights well-documented areas and exemplary practices in your documentation")
+        strengths_desc.setStyleSheet("color: #64748b; font-size: 11px; margin-left: 20px;")
+        strengths_desc.setWordWrap(True)
+        strengths_layout.addWidget(strengths_desc)
+        section_layout.addWidget(strengths_container)
         
-        include_suggestions = QCheckBox("💡 Actionable Suggestions", section)
-        include_suggestions.setChecked(True)
-        section_layout.addWidget(include_suggestions)
+        # Add descriptions for all remaining checkboxes
+        checkboxes_with_descriptions = [
+            ("⚠️ Weaknesses & Areas for Improvement", "Identifies documentation gaps and areas that need attention for compliance", True),
+            ("💡 Actionable Suggestions", "Provides specific, implementable recommendations to improve documentation quality", True),
+            ("📚 Educational Resources", "Includes links to relevant guidelines, training materials, and best practice examples", True),
+            ("🎯 7 Habits Framework Integration", "Incorporates Stephen Covey's 7 Habits for professional development and effectiveness", True),
+            ("📊 Compliance Score & Risk Level", "Shows overall compliance percentage and risk assessment for reimbursement", True),
+            ("🔍 Detailed Findings Analysis", "Comprehensive breakdown of all compliance issues with evidence and explanations", True)
+        ]
         
-        include_education_res = QCheckBox("📚 Educational Resources", section)
-        include_education_res.setChecked(True)
-        section_layout.addWidget(include_education_res)
-        
-        include_habits = QCheckBox("🎯 7 Habits Framework Integration", section)
-        include_habits.setChecked(True)
-        section_layout.addWidget(include_habits)
-        
-        include_score = QCheckBox("📊 Compliance Score & Risk Level", section)
-        include_score.setChecked(True)
-        section_layout.addWidget(include_score)
-        
-        include_findings = QCheckBox("🔍 Detailed Findings Analysis", section)
-        include_findings.setChecked(True)
-        section_layout.addWidget(include_findings)
+        for checkbox_text, description, checked in checkboxes_with_descriptions:
+            container = QWidget()
+            container_layout = QVBoxLayout(container)
+            container_layout.setContentsMargins(0, 0, 0, 0)
+            container_layout.setSpacing(5)
+            
+            checkbox = QCheckBox(checkbox_text, section)
+            checkbox.setChecked(checked)
+            container_layout.addWidget(checkbox)
+            
+            desc_label = QLabel(f"   {description}")
+            desc_label.setStyleSheet("color: #64748b; font-size: 11px; margin-left: 20px;")
+            desc_label.setWordWrap(True)
+            container_layout.addWidget(desc_label)
+            
+            section_layout.addWidget(container)
         
         layout.addWidget(section)
         layout.addStretch()
@@ -2628,31 +2950,7 @@ You can also:
             self._selected_file = Path(file_path)
             self._start_analysis()
 
-    def _build_floating_chat_button(self) -> None:
-        """Create floating AI chat button in bottom left corner with subtle animation."""
-        self.chat_button = AnimatedButton("💬 Ask AI Assistant", self)
-        self.chat_button.setObjectName("floatingChatButton")
-        self.chat_button.clicked.connect(self._open_chat_dialog)
-        self.chat_button.setStyleSheet("""
-            QPushButton#floatingChatButton {
-                background-color: #4a90e2;
-                color: white;
-                border-radius: 22px;
-                padding: 10px 20px;
-                font-weight: bold;
-                font-size: 13px;
-                border: none;
-            }
-            QPushButton#floatingChatButton:hover {
-                background-color: #357abd;
-                transform: scale(1.05);
-            }
-            QPushButton#floatingChatButton:pressed {
-                background-color: #2968a3;
-            }
-        """)
-        self.chat_button.resize(200, 44)
-        self.chat_button.raise_()
+    # Removed _build_floating_chat_button - redundant functionality eliminated
 
     def _apply_theme(self, theme_name: str) -> None:
         """Apply a specific theme."""
@@ -2757,13 +3055,16 @@ You can also:
         
         # Show clear document status instead of confusing description
         file_size_mb = len(content) / (1024 * 1024)
-        file_info = f"""✅ DOCUMENT LOADED
+        from datetime import datetime
+        file_info = f"""✅ DOCUMENT READY FOR ANALYSIS
 
 📄 {file_path.name}
 📊 Size: {file_size_mb:.1f} MB ({len(content):,} characters)
-📁 {file_path.parent.name}/
+📁 Location: {file_path.parent.name}/
+📅 Modified: {datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')}
 
-🚀 Ready to analyze!
+✨ Document successfully loaded and ready for compliance analysis!
+Click 'Run Analysis' to begin processing.
         """
         self.file_display.setPlainText(file_info)
         self.statusBar().showMessage(f"✅ Document loaded: {self._selected_file.name}", 3000)
@@ -2828,13 +3129,16 @@ You can also:
     def _show_about_dialog(self) -> None:
         """Show about dialog with easter eggs."""
         about_text = f"""
-🏥 Therapy Compliance Analyzer
+Therapy Compliance Analyzer
 Version 2.0.0
 
 Welcome, {self.current_user.username}!
 
 🌟 Created with love by Kevin Moon 🫶
-   (Two hands coming together to make a heart!)
+
+🙏 Special Thanks:
+   • Dennis Baloy - For unwavering professional support and guidance 🤝
+   • Rand Looper - For exceptional dedication and collaborative excellence 🌟
 
 🎯 AI-Powered Clinical Documentation Analysis
 🔒 Privacy-First Local Processing
@@ -2941,7 +3245,7 @@ Keep exploring! There are more secrets hidden throughout the app! 🕵️‍♂�
             "• Secret keyboard shortcuts active\n\n"
             "Welcome to the inner circle! 🕵️‍♂️\n\n"
             "Created with ❤️ by Kevin Moon\n"
-            "For all the amazing therapists out there! 🏥"
+            "For all the amazing therapists out there!"
         )
         
         # Enable developer mode
@@ -2960,8 +3264,79 @@ Keep exploring! There are more secrets hidden throughout the app! 🕵️‍♂�
             "while staying compliant with all those tricky regulations.\n\n"
             "Remember: You're making a real difference in people's lives! 💪\n\n"
             "Keep being awesome! 🌟\n\n"
-            "- Kevin 🫶 (Two hands making a heart!)"
+            "- Kevin 🫶"
         )
+    
+    def _check_license_status(self) -> None:
+        """Check license status and show trial information if needed."""
+        try:
+            is_valid, status_message, days_remaining = license_manager.check_license_status()
+            
+            if not is_valid:
+                # Show license expired dialog
+                from PySide6.QtWidgets import QMessageBox, QInputDialog
+                
+                msg = QMessageBox(self)
+                msg.setWindowTitle("🔐 License Status")
+                msg.setText(f"License Status: {status_message}")
+                msg.setIcon(QMessageBox.Icon.Warning)
+                
+                # Add activation button
+                activate_btn = msg.addButton("🔑 Activate Full License", QMessageBox.ButtonRole.ActionRole)
+                msg.addButton(QMessageBox.StandardButton.Ok)
+                
+                msg.exec()
+                
+                if msg.clickedButton() == activate_btn:
+                    self._show_license_activation_dialog()
+                    
+            elif days_remaining is not None and days_remaining <= 7:
+                # Show trial warning for last 7 days
+                QMessageBox.information(
+                    self,
+                    "🔔 Trial Period Notice",
+                    f"Trial period: {days_remaining} days remaining\n\n"
+                    f"Contact your administrator to activate the full license."
+                )
+                
+        except Exception as e:
+            logger.error(f"License check failed: {e}")
+    
+    def _show_license_activation_dialog(self) -> None:
+        """Show license activation dialog for admin users."""
+        if not self.current_user.is_admin:
+            QMessageBox.information(
+                self,
+                "🔐 License Activation",
+                "Only administrators can activate licenses.\n\n"
+                "Please contact your system administrator."
+            )
+            return
+        
+        from PySide6.QtWidgets import QInputDialog
+        
+        activation_code, ok = QInputDialog.getText(
+            self,
+            "🔑 License Activation",
+            "Enter activation code:",
+            echo=QInputDialog.EchoMode.Password
+        )
+        
+        if ok and activation_code:
+            if license_manager.activate_full_license(activation_code):
+                QMessageBox.information(
+                    self,
+                    "✅ License Activated",
+                    "Full license activated successfully!\n\n"
+                    "All features are now available."
+                )
+            else:
+                QMessageBox.warning(
+                    self,
+                    "❌ Activation Failed",
+                    "Invalid activation code.\n\n"
+                    "Please check the code and try again."
+                )
 
     def _show_developer_console(self) -> None:
         """Show developer console dialog."""
@@ -3241,12 +3616,9 @@ Memory:
             self.resource_label.setToolTip(f"Error getting resource info: {str(e)}")
 
     def resizeEvent(self, event) -> None:
-        """Handle window resize to reposition floating chat button."""
+        """Handle window resize events."""
         super().resizeEvent(event)
-        margin = 24
-        button_height = self.chat_button.height()
-        # Position in BOTTOM LEFT corner
-        self.chat_button.move(margin, self.height() - button_height - margin)
+        # No floating elements to reposition
 
 __all__ = ["MainApplicationWindow"]
 

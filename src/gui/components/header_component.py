@@ -1,11 +1,12 @@
 """
 Header Component - Reusable application header
+Built with PySide6 (Official Qt for Python) for professional desktop UI
 Provides consistent branding and controls across the application.
 """
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton
 
 
 class HeaderComponent(QWidget):
@@ -46,49 +47,100 @@ class HeaderComponent(QWidget):
         layout.addLayout(controls_section, stretch=0)
         
     def create_logo_section(self):
-        """Create the compact logo section."""
+        """Create the logo section with professional medical icon."""
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 10, 0)  # Minimal margins
         
-        # Logo placeholder (removed emoji as requested)
-        logo_label = QLabel("TCA")
-        logo_label.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
-        logo_label.setStyleSheet("color: #1d4ed8; background: transparent;")
-        logo_label.mousePressEvent = self.on_logo_clicked
-        logo_label.setCursor(Qt.CursorShape.PointingHandCursor)
-        logo_label.setToolTip("Therapy Compliance Analyzer")
-        logo_label.setFixedWidth(60)
-        layout.addWidget(logo_label)
+        # Professional medical compliance icon with easter egg
+        self.icon_label = QLabel("📋")
+        self.icon_label.setFont(QFont("Segoe UI", 32))  # Made bigger
+        self.icon_label.setStyleSheet("""
+            QLabel {
+                color: #1d4ed8;
+                background: rgba(29, 78, 216, 0.1);
+                border-radius: 25px;
+                padding: 12px;
+                margin: 5px;
+            }
+            QLabel:hover {
+                background: rgba(29, 78, 216, 0.2);
+                transform: scale(1.05);
+            }
+        """)
+        self.icon_label.setFixedSize(60, 60)  # Made bigger
+        self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.icon_label.setToolTip("Therapy Compliance Analyzer - Click me!")
+        self.icon_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        # Easter egg functionality
+        self.icon_click_count = 0
+        self.icon_label.mousePressEvent = self.on_icon_clicked
+        
+        layout.addWidget(self.icon_label)
         
         return layout
+    
+    def on_icon_clicked(self, event):
+        """Handle icon clicks for easter egg functionality."""
+        self.icon_click_count += 1
+        
+        if self.icon_click_count == 3:
+            self.icon_label.setText("📊")
+            self.icon_label.setToolTip("Keep clicking! You're getting warmer...")
+        elif self.icon_click_count == 5:
+            self.icon_label.setText("🎯")
+            self.icon_label.setToolTip("Almost there! A few more clicks...")
+        elif self.icon_click_count == 7:
+            self.icon_label.setText("🎉")
+            self.icon_label.setToolTip("Congratulations! You found the easter egg!")
+            # Emit signal to parent if needed
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self,
+                "🎉 Easter Egg Found!",
+                "Congratulations! You discovered the hidden easter egg!\n\n"
+                "🎯 You clicked the document icon 7 times!\n"
+                "🌟 This shows attention to detail - a key skill for compliance!\n\n"
+                "Keep up the great work! 🚀"
+            )
+            # Reset after showing message
+            self.icon_click_count = 0
+            self.icon_label.setText("📋")
+            self.icon_label.setToolTip("Therapy Compliance Analyzer - Click me!")
+        elif self.icon_click_count >= 10:
+            # Reset if too many clicks
+            self.icon_click_count = 0
+            self.icon_label.setText("📋")
+            self.icon_label.setToolTip("Therapy Compliance Analyzer - Click me!")
 
     def create_title_section(self):
-        """Create the centered title section with description."""
-        layout = QVBoxLayout()  # Changed to vertical layout for title + description
-        layout.setContentsMargins(20, 0, 20, 0)
-        layout.setSpacing(8)
+        """Create the centered title section with proper spacing to prevent border overlap."""
+        layout = QVBoxLayout()
+        layout.setContentsMargins(20, 10, 20, 10)
+        layout.setSpacing(25)  # Much more spacing to prevent border overlap
         
-        # Main title - even larger as requested
-        self.title_label = QLabel("THERAPY COMPLIANCE ANALYZER")
+        # Main title - clean and professional
+        self.title_label = QLabel("THERAPY REPORT COMPLIANCE ANALYSIS")
         self.title_label.setObjectName("titleLabel")
-        self.title_label.setFont(QFont("Segoe UI", 32, QFont.Weight.Bold))  # Larger font (was 28)
+        self.title_label.setFont(QFont("Segoe UI", 36, QFont.Weight.Bold))
         self.title_label.setStyleSheet("""
             QLabel#titleLabel {
                 color: #1d4ed8;
                 text-align: center;
-                padding: 18px 35px;
+                padding: 20px 35px;
                 background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
                 border-radius: 15px;
-                border: 3px solid #cbd5e0;
+                border: 2px solid #cbd5e0;
                 font-weight: 900;
                 letter-spacing: 1.5px;
+                margin-bottom: 15px;
             }
         """)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.title_label.setMinimumHeight(70)
+        self.title_label.setMinimumHeight(80)
         layout.addWidget(self.title_label)
         
-        # App description - new addition as requested
+        # App description - separate container to prevent border overlap
         self.description_label = QLabel("AI-powered clinical documentation analysis for Medicare compliance")
         self.description_label.setObjectName("descriptionLabel")
         self.description_label.setFont(QFont("Segoe UI", 14, QFont.Weight.Normal))
@@ -96,8 +148,11 @@ class HeaderComponent(QWidget):
             QLabel#descriptionLabel {
                 color: #64748b;
                 text-align: center;
-                padding: 8px 20px;
-                background: transparent;
+                padding: 12px 25px;
+                background: rgba(248, 250, 252, 0.8);
+                border-radius: 10px;
+                border: 1px solid #e2e8f0;
+                margin-top: 15px;
                 font-style: italic;
             }
         """)

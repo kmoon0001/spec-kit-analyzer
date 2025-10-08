@@ -22,10 +22,10 @@ class MedicalTheme(QObject):
                 "primary_green": "#047857",  # Darker medical green
                 "kiro_black": "#0f172a",  # Darker Kiro brand black
                 "medical_gray": "#475569",  # Darker professional gray
-                # Background colors
-                "bg_primary": "#ffffff",  # Main background
-                "bg_secondary": "#f8fafc",  # Secondary background
-                "bg_tertiary": "#e2e8f0",  # More contrasted tertiary background
+                # Background colors with complementary tones
+                "bg_primary": "#fefefe",  # Slightly off-white main background
+                "bg_secondary": "#f0f9ff",  # Light blue secondary background
+                "bg_tertiary": "#e0f2fe",  # Complementary blue tertiary background
                 "bg_card": "#ffffff",  # Card background
                 "bg_hover": "#f1f5f9",  # Hover background
                 # Text colors
@@ -48,35 +48,35 @@ class MedicalTheme(QObject):
                 "accent_2": "#0891b2",  # Cyan accent
             },
             "dark": {
-                # Primary medical colors (adjusted for dark theme)
-                "primary_blue": "#3b82f6",  # Brighter medical blue
-                "primary_green": "#10b981",  # Brighter medical green
-                "kiro_black": "#475569",  # Lighter Kiro brand black
-                "medical_gray": "#94a3b8",  # Lighter professional gray
-                # Background colors
-                "bg_primary": "#0f172a",  # Main dark background
-                "bg_secondary": "#1e293b",  # Secondary dark background
-                "bg_tertiary": "#334155",  # Tertiary dark background
-                "bg_card": "#1e293b",  # Card background
-                "bg_hover": "#334155",  # Hover background
-                # Text colors
-                "text_primary": "#f8fafc",  # Brighter main light text
-                "text_secondary": "#e2e8f0",  # Brighter secondary light text
-                "text_muted": "#94a3b8",  # Muted light text
-                "text_inverse": "#0f172a",  # Dark text for light backgrounds
+                # PyCharm Dracula-inspired colors with Kiro branding
+                "primary_blue": "#8be9fd",  # Dracula cyan (Kiro teal)
+                "primary_green": "#50fa7b",  # Dracula green
+                "kiro_black": "#6272a4",  # Dracula comment (muted)
+                "medical_gray": "#bd93f9",  # Dracula purple (Kiro purple)
+                # Background colors (Dracula palette)
+                "bg_primary": "#282a36",  # Dracula background
+                "bg_secondary": "#44475a",  # Dracula selection
+                "bg_tertiary": "#6272a4",  # Dracula comment
+                "bg_card": "#44475a",  # Card background
+                "bg_hover": "#6272a4",  # Hover background
+                # Text colors (Dracula palette)
+                "text_primary": "#f8f8f2",  # Dracula foreground
+                "text_secondary": "#f8f8f2",  # Dracula foreground
+                "text_muted": "#6272a4",  # Dracula comment
+                "text_inverse": "#282a36",  # Dark text for light backgrounds
                 # Border colors
-                "border_light": "#334155",  # Light borders
-                "border_medium": "#475569",  # Medium borders
-                "border_dark": "#64748b",  # Dark borders
-                "border_focus": "#3b82f6",  # Focus border color
-                # Status colors (compliance focused)
-                "success": "#22c55e",  # High confidence/good
-                "warning": "#fbbf24",  # Medium confidence/caution
-                "error": "#f87171",  # Low confidence/issues
-                "info": "#60a5fa",  # Information
-                # Accent colors
-                "accent_1": "#a78bfa",  # Purple accent
-                "accent_2": "#22d3ee",  # Cyan accent
+                "border_light": "#44475a",  # Dracula selection
+                "border_medium": "#6272a4",  # Dracula comment
+                "border_dark": "#bd93f9",  # Dracula purple
+                "border_focus": "#8be9fd",  # Dracula cyan (Kiro teal)
+                # Status colors (Dracula palette)
+                "success": "#50fa7b",  # Dracula green
+                "warning": "#f1fa8c",  # Dracula yellow
+                "error": "#ff5555",  # Dracula red
+                "info": "#8be9fd",  # Dracula cyan
+                # Accent colors (Kiro branding)
+                "accent_1": "#bd93f9",  # Dracula purple (Kiro purple)
+                "accent_2": "#8be9fd",  # Dracula cyan (Kiro teal)
             },
         }
 
@@ -96,12 +96,13 @@ class MedicalTheme(QObject):
         self.set_theme(new_theme)
 
     def get_main_window_stylesheet(self) -> str:
-        """Get main window stylesheet for current theme."""
+        """Get main window stylesheet for current theme with complementary background."""
         colors = self.colors[self.current_theme]
 
         return f"""
         QMainWindow {{
-            background-color: {colors["bg_primary"]};
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #f8fafc, stop:1 #f1f5f9);
             color: {colors["text_primary"]};
         }}
         

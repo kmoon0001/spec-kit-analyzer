@@ -115,7 +115,7 @@ class AILoaderWorker(QObject):
         Returns:
             Dictionary mapping component names to their health status
         """
-        self.status_updated.emit("🏥 Performing health checks...")
+        self.status_updated.emit("⚡ Performing health checks...")
         self.progress_updated.emit(90)
 
         health_map = {}
