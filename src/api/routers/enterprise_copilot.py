@@ -257,7 +257,7 @@ async def create_workflow_automation(
         
         return {
             "success": True,
-            "message": f"Workflow automation created successfully",
+            "message": "Workflow automation created successfully",
             "automation_id": automation_result.get("automation_id"),
             "workflow_type": request.workflow_type,
             "schedule": request.schedule,

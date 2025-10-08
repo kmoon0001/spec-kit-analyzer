@@ -37,6 +37,15 @@ from src.api.routers import (
     habits,
     meta_analytics,
 )
+
+# Import new enterprise features
+try:
+    from src.api.routers import ehr_integration, enterprise_copilot
+    EHR_AVAILABLE = True
+    COPILOT_AVAILABLE = True
+except ImportError:
+    EHR_AVAILABLE = False
+    COPILOT_AVAILABLE = False
 from src.api.global_exception_handler import (
     global_exception_handler,
     http_exception_handler,
@@ -209,6 +218,15 @@ app.include_router(compliance.router, tags=["Compliance"])
 app.include_router(habits.router, tags=["Habits"])
 app.include_router(meta_analytics.router, tags=["Meta Analytics"])
 app.include_router(feedback.router)
+
+# Include enterprise features if available
+if EHR_AVAILABLE:
+    app.include_router(ehr_integration.router, tags=["EHR Integration"])
+    logging.info("EHR Integration API enabled")
+
+if COPILOT_AVAILABLE:
+    app.include_router(enterprise_copilot.router, tags=["Enterprise Copilot"])
+    logging.info("Enterprise Copilot API enabled")
 
 
 # --- WebSocket Endpoint --- #

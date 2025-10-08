@@ -16,32 +16,38 @@ ThemeColors = Dict[QPalette.ColorRole, QColor]
 
 THEMES: Dict[str, ThemeColors] = {
     "dark": {
-        # PyCharm Dracula-inspired colors with teal and purple accents
-        QPalette.Window: QColor(40, 42, 54),          # Dracula background
-        QPalette.WindowText: QColor(248, 248, 242),   # Dracula foreground
-        QPalette.Base: QColor(33, 34, 44),            # Darker dracula for input fields
-        QPalette.AlternateBase: QColor(68, 71, 90),   # Dracula selection
-        QPalette.ToolTipBase: QColor(68, 71, 90),     # Dracula selection for tooltips
-        QPalette.ToolTipText: QColor(248, 248, 242),  # Dracula foreground for tooltips
-        QPalette.Text: QColor(248, 248, 242),         # Dracula foreground
-        QPalette.Button: QColor(68, 71, 90),          # Dracula selection for buttons
-        QPalette.ButtonText: QColor(248, 248, 242),   # Dracula foreground for buttons
-        QPalette.Highlight: QColor(139, 233, 253),    # Kiro teal for highlights
-        QPalette.HighlightedText: QColor(40, 42, 54), # Dark text on teal highlight
+        # True dark theme - no light colors
+        QPalette.Window: QColor(30, 30, 30),          # Dark background
+        QPalette.WindowText: QColor(220, 220, 220),   # Light text on dark
+        QPalette.Base: QColor(25, 25, 25),            # Darker for input fields
+        QPalette.AlternateBase: QColor(45, 45, 45),   # Slightly lighter for alternating rows
+        QPalette.ToolTipBase: QColor(50, 50, 50),     # Dark tooltips
+        QPalette.ToolTipText: QColor(220, 220, 220),  # Light tooltip text
+        QPalette.Text: QColor(220, 220, 220),         # Light text
+        QPalette.Button: QColor(45, 45, 45),          # Dark buttons
+        QPalette.ButtonText: QColor(220, 220, 220),   # Light button text
+        QPalette.Highlight: QColor(0, 120, 215),      # Blue highlight
+        QPalette.HighlightedText: QColor(255, 255, 255), # White text on highlight
+        QPalette.Link: QColor(100, 150, 255),         # Light blue links
+        QPalette.LinkVisited: QColor(150, 100, 255),  # Purple visited links
+        QPalette.Disabled: QColor(100, 100, 100),     # Disabled elements
     },
     "light": {
-        # Keep the original light theme
-        QPalette.Window: QColor(255, 255, 255),
-        QPalette.WindowText: QColor(0, 0, 0),
-        QPalette.Base: QColor(255, 255, 255),
-        QPalette.AlternateBase: QColor(245, 245, 245),
-        QPalette.ToolTipBase: QColor(255, 255, 220),
-        QPalette.ToolTipText: QColor(0, 0, 0),
-        QPalette.Text: QColor(0, 0, 0),
-        QPalette.Button: QColor(240, 240, 240),
-        QPalette.ButtonText: QColor(0, 0, 0),
-        QPalette.Highlight: QColor(0, 120, 215),
-        QPalette.HighlightedText: QColor(255, 255, 255),
+        # Clean light theme
+        QPalette.Window: QColor(248, 249, 250),       # Very light gray background
+        QPalette.WindowText: QColor(33, 37, 41),      # Dark text
+        QPalette.Base: QColor(255, 255, 255),         # White input fields
+        QPalette.AlternateBase: QColor(245, 245, 245), # Light gray alternating
+        QPalette.ToolTipBase: QColor(255, 255, 220),  # Light yellow tooltips
+        QPalette.ToolTipText: QColor(0, 0, 0),        # Black tooltip text
+        QPalette.Text: QColor(33, 37, 41),            # Dark text
+        QPalette.Button: QColor(240, 240, 240),       # Light gray buttons
+        QPalette.ButtonText: QColor(33, 37, 41),      # Dark button text
+        QPalette.Highlight: QColor(0, 120, 215),      # Blue highlight
+        QPalette.HighlightedText: QColor(255, 255, 255), # White text on highlight
+        QPalette.Link: QColor(0, 100, 200),           # Blue links
+        QPalette.LinkVisited: QColor(100, 0, 200),    # Purple visited links
+        QPalette.Disabled: QColor(150, 150, 150),     # Disabled elements
     }
 }
 

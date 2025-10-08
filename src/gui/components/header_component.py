@@ -114,49 +114,53 @@ class HeaderComponent(QWidget):
             self.icon_label.setToolTip("Therapy Compliance Analyzer - Click me!")
 
     def create_title_section(self):
-        """Create the centered title section with proper spacing to prevent border overlap."""
+        """Create the centered title section spanning the full width with large, bold text."""
         layout = QVBoxLayout()
-        layout.setContentsMargins(20, 10, 20, 10)
-        layout.setSpacing(25)  # Much more spacing to prevent border overlap
+        layout.setContentsMargins(30, 15, 30, 15)
+        layout.setSpacing(20)
         
-        # Main title - clean and professional
+        # Main title - large, bold, spanning full width
         self.title_label = QLabel("THERAPY REPORT COMPLIANCE ANALYSIS")
         self.title_label.setObjectName("titleLabel")
-        self.title_label.setFont(QFont("Segoe UI", 36, QFont.Weight.Bold))
+        self.title_label.setFont(QFont("Segoe UI", 48, QFont.Weight.ExtraBold))  # Much larger and bolder
         self.title_label.setStyleSheet("""
             QLabel#titleLabel {
                 color: #1d4ed8;
                 text-align: center;
-                padding: 20px 35px;
-                background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-                border-radius: 15px;
-                border: 2px solid #cbd5e0;
+                padding: 25px 40px;
+                background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+                border-radius: 20px;
+                border: 3px solid #cbd5e0;
                 font-weight: 900;
-                letter-spacing: 1.5px;
-                margin-bottom: 15px;
+                letter-spacing: 2px;
+                margin-bottom: 10px;
+                min-height: 100px;
             }
         """)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.title_label.setMinimumHeight(80)
+        self.title_label.setMinimumHeight(120)  # Taller for larger text
         layout.addWidget(self.title_label)
         
-        # App description - separate container to prevent border overlap
-        self.description_label = QLabel("AI-powered clinical documentation analysis for Medicare compliance")
+        # App description - large, bold, spanning full width
+        self.description_label = QLabel("AI-Powered Clinical Documentation Analysis for Medicare Compliance")
         self.description_label.setObjectName("descriptionLabel")
-        self.description_label.setFont(QFont("Segoe UI", 14, QFont.Weight.Normal))
+        self.description_label.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))  # Much larger and bold
         self.description_label.setStyleSheet("""
             QLabel#descriptionLabel {
-                color: #64748b;
+                color: #475569;
                 text-align: center;
-                padding: 12px 25px;
-                background: rgba(248, 250, 252, 0.8);
-                border-radius: 10px;
-                border: 1px solid #e2e8f0;
-                margin-top: 15px;
-                font-style: italic;
+                padding: 18px 35px;
+                background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                border-radius: 15px;
+                border: 2px solid #e2e8f0;
+                margin-top: 10px;
+                font-weight: 700;
+                letter-spacing: 1px;
+                min-height: 60px;
             }
         """)
         self.description_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.description_label.setMinimumHeight(80)  # Taller for larger text
         layout.addWidget(self.description_label)
         
         return layout

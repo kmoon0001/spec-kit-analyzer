@@ -6,7 +6,7 @@ Following industry best practices for secure software updates
 import hashlib
 import json
 import logging
-import os
+
 import shutil
 import tempfile
 from datetime import datetime, timedelta

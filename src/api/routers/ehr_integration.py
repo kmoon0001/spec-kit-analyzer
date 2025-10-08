@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from src.auth import get_current_user
 from src.database.models import User
 from src.core.ehr_connector import ehr_connector
-from src.core.ehr_data_mapper import ehr_data_mapper
+
 from src.core.compliance_sync_service import compliance_sync_service
 
 logger = logging.getLogger(__name__)
@@ -325,7 +325,7 @@ async def disconnect_ehr_system(
         )
     
     try:
-        result = await ehr_connector.disconnect()
+        await ehr_connector.disconnect()
         
         logger.info("EHR system disconnected")
         

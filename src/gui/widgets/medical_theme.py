@@ -22,12 +22,12 @@ class MedicalTheme(QObject):
                 "primary_green": "#047857",  # Darker medical green
                 "kiro_black": "#0f172a",  # Darker Kiro brand black
                 "medical_gray": "#475569",  # Darker professional gray
-                # Background colors with complementary tones
-                "bg_primary": "#fefefe",  # Slightly off-white main background
-                "bg_secondary": "#f0f9ff",  # Light blue secondary background
-                "bg_tertiary": "#e0f2fe",  # Complementary blue tertiary background
-                "bg_card": "#ffffff",  # Card background
-                "bg_hover": "#f1f5f9",  # Hover background
+                # Background colors with complementary contrasting tones
+                "bg_primary": "#f8fafc",  # Light blue-gray main background
+                "bg_secondary": "#e2e8f0",  # Complementary gray-blue secondary
+                "bg_tertiary": "#cbd5e0",  # Deeper complementary tertiary
+                "bg_card": "#ffffff",  # Pure white card background for contrast
+                "bg_hover": "#f1f5f9",  # Subtle hover background
                 # Text colors
                 "text_primary": "#0f172a",  # Darker main text
                 "text_secondary": "#334155",  # Darker secondary text
@@ -53,12 +53,12 @@ class MedicalTheme(QObject):
                 "primary_green": "#50fa7b",  # Dracula green
                 "kiro_black": "#6272a4",  # Dracula comment (muted)
                 "medical_gray": "#bd93f9",  # Dracula purple (Kiro purple)
-                # Background colors (Dracula palette)
-                "bg_primary": "#282a36",  # Dracula background
-                "bg_secondary": "#44475a",  # Dracula selection
-                "bg_tertiary": "#6272a4",  # Dracula comment
-                "bg_card": "#44475a",  # Card background
-                "bg_hover": "#6272a4",  # Hover background
+                # Background colors (True dark theme - no light colors)
+                "bg_primary": "#1a1a1a",  # Very dark main background
+                "bg_secondary": "#2d2d2d",  # Dark secondary background
+                "bg_tertiary": "#404040",  # Medium dark tertiary
+                "bg_card": "#2d2d2d",  # Dark card background
+                "bg_hover": "#404040",  # Darker hover background
                 # Text colors (Dracula palette)
                 "text_primary": "#f8f8f2",  # Dracula foreground
                 "text_secondary": "#f8f8f2",  # Dracula foreground

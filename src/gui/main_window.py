@@ -2839,47 +2839,107 @@ You can also:
         """Build status bar with AI indicators, progress, and branding at the bottom."""
         status: QStatusBar = self.statusBar()
         status.showMessage("Ready")
+        status.setStyleSheet("""
+            QStatusBar {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #f8fafc, stop:1 #e2e8f0);
+                border-top: 1px solid #cbd5e0;
+                padding: 4px;
+            }
+        """)
         
-        # AI Model Status Indicators (left side of status bar)
+        # AI Model Status Indicators (left side) - improved styling
         status.addPermanentWidget(self.status_component)
         
         # Add separator
         separator1 = QLabel(" | ")
-        separator1.setStyleSheet("color: #94a3b8;")
+        separator1.setStyleSheet("color: #94a3b8; font-weight: bold;")
         status.addPermanentWidget(separator1)
         
-        # System Resource Monitor
-        self.resource_label = QLabel("💻 CPU: 0% | RAM: 0MB")
-        self.resource_label.setStyleSheet("color: #64748b; font-size: 10px; font-family: monospace;")
+        # Progress bar - positioned prominently in feng shui center-left position
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setMaximumWidth(220)  # Wider for better visibility
+        self.progress_bar.setMinimumWidth(220)
+        self.progress_bar.setMaximumHeight(18)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 2px solid #cbd5e0;
+                border-radius: 9px;
+                background-color: #f1f5f9;
+                text-align: center;
+                font-weight: bold;
+                font-size: 11px;
+                color: #1e293b;
+            }
+            QProgressBar::chunk {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #10b981, stop:0.5 #059669, stop:1 #047857);
+                border-radius: 7px;
+                margin: 1px;
+            }
+        """)
+        self.progress_bar.hide()
+        status.addPermanentWidget(self.progress_bar)
+        
+        # System Resource Monitor - compact display
+        self.resource_label = QLabel("CPU: 0% | RAM: 0MB")
+        self.resource_label.setStyleSheet("""
+            color: #64748b; 
+            font-size: 10px; 
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: rgba(248, 250, 252, 0.8);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+        """)
         self.resource_label.setToolTip("System resource usage")
         status.addPermanentWidget(self.resource_label)
         
         # Add separator
         separator2 = QLabel(" | ")
-        separator2.setStyleSheet("color: #94a3b8;")
+        separator2.setStyleSheet("color: #94a3b8; font-weight: bold;")
         status.addPermanentWidget(separator2)
         
-        # Connection Status
-        self.connection_label = QLabel("🌐 API: Connected")
-        self.connection_label.setStyleSheet("color: #059669; font-size: 10px;")
-        self.connection_label.setToolTip("API connection status")
-        status.addPermanentWidget(self.connection_label)
+        # Connection Status - improved with colored box instead of green dot
+        self.connection_status_widget = QWidget()
+        connection_layout = QHBoxLayout(self.connection_status_widget)
+        connection_layout.setContentsMargins(0, 0, 0, 0)
+        connection_layout.setSpacing(4)
+        
+        # Status indicator box (changes color based on status)
+        self.connection_indicator = QLabel()
+        self.connection_indicator.setFixedSize(12, 12)
+        self.connection_indicator.setStyleSheet("""
+            background-color: #10b981;
+            border-radius: 6px;
+            border: 1px solid #059669;
+        """)
+        connection_layout.addWidget(self.connection_indicator)
+        
+        self.connection_label = QLabel("API Connected")
+        self.connection_label.setStyleSheet("""
+            color: #059669; 
+            font-size: 10px; 
+            font-weight: bold;
+            background: rgba(16, 185, 129, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        """)
+        connection_layout.addWidget(self.connection_label)
+        
+        self.connection_status_widget.setToolTip("API connection status")
+        status.addPermanentWidget(self.connection_status_widget)
         
         # Add separator
         separator3 = QLabel(" | ")
-        separator3.setStyleSheet("color: #94a3b8;")
+        separator3.setStyleSheet("color: #94a3b8; font-weight: bold;")
         status.addPermanentWidget(separator3)
         
         # Subtle loading spinner (hidden by default)
-        self.loading_spinner = LoadingSpinner(size=20, parent=self)
+        self.loading_spinner = LoadingSpinner(size=16, parent=self)
         self.loading_spinner.hide()
         status.addPermanentWidget(self.loading_spinner)
-        
-        # Progress bar
-        self.progress_bar = QProgressBar(self)
-        self.progress_bar.setMaximumWidth(180)
-        self.progress_bar.hide()
-        status.addPermanentWidget(self.progress_bar)
         
         # Pacific Coast Therapy branding in bottom right
         branding_label = QLabel("🌴 Pacific Coast Therapy")
@@ -2891,10 +2951,51 @@ You can also:
                 color: #94a3b8;
                 font-style: italic;
                 padding-right: 10px;
+                background: rgba(148, 163, 184, 0.1);
+                padding: 2px 8px;
+                border-radius: 4px;
             }
         """)
         branding_label.setToolTip("Powered by Pacific Coast Therapy")
         status.addPermanentWidget(branding_label)
+    
+    def update_connection_status(self, connected: bool, message: str = ""):
+        """Update the connection status indicator."""
+        if connected:
+            self.connection_indicator.setStyleSheet("""
+                background-color: #10b981;
+                border-radius: 6px;
+                border: 1px solid #059669;
+            """)
+            self.connection_label.setText("API Connected")
+            self.connection_label.setStyleSheet("""
+                color: #059669; 
+                font-size: 10px; 
+                font-weight: bold;
+                background: rgba(16, 185, 129, 0.1);
+                padding: 2px 6px;
+                border-radius: 4px;
+                border: 1px solid rgba(16, 185, 129, 0.3);
+            """)
+        else:
+            self.connection_indicator.setStyleSheet("""
+                background-color: #ef4444;
+                border-radius: 6px;
+                border: 1px solid #dc2626;
+            """)
+            self.connection_label.setText("API Disconnected")
+            self.connection_label.setStyleSheet("""
+                color: #dc2626; 
+                font-size: 10px; 
+                font-weight: bold;
+                background: rgba(239, 68, 68, 0.1);
+                padding: 2px 6px;
+                border-radius: 4px;
+                border: 1px solid rgba(239, 68, 68, 0.3);
+            """)
+        
+        if message:
+            self.connection_status_widget.setToolTip(f"API Status: {message}")
 
     def _build_docks(self) -> None:
         """Build optional dock widgets (Meta Analytics and Performance - hidden by default)."""

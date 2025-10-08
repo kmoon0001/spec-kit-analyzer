@@ -5,7 +5,7 @@ Following industry best practices for software licensing
 
 import hashlib
 import json
-import os
+
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Optional, Tuple
@@ -109,7 +109,7 @@ class LicenseManager:
             
             if now <= trial_end:
                 days_remaining = (trial_end - now).days
-                return True, f"Trial period active", days_remaining
+                return True, "Trial period active", days_remaining
             else:
                 return False, "Trial period expired", 0
                 

@@ -6,14 +6,11 @@ Implements cutting-edge performance optimization techniques with AI-driven insig
 import asyncio
 import logging
 import psutil
-import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Callable
+from datetime import datetime
+from typing import Dict, List, Any, Optional
 import numpy as np
-from pathlib import Path
 
 try:
     from src.core.performance_optimizer import performance_optimizer
@@ -161,7 +158,8 @@ class AdvancedPerformanceOptimizer:
             # Phase 1: System Analysis and Planning
             logger.info("Phase 1: AI-powered system analysis")
             analysis = await self.analyze_system_performance()
-            optimization_plan = analysis.get('optimization_plan', [])
+            # Get optimization plan from analysis
+            analysis.get('optimization_plan', [])
             
             baseline_metrics = analysis.get('current_metrics')
             optimization_results['baseline_metrics'] = baseline_metrics
@@ -935,121 +933,7 @@ class AdvancedMemoryOptimizer:
         return results
 
 
-class ParallelProcessingOptimizer:
-    """Optimize parallel processing capabilities."""
-    
-    async def optimize_parallel_processing(self) -> Dict[str, Any]:
-        """Optimize parallel processing configuration."""
-        results = {
-            'optimizations_applied': [],
-            'thread_pool_size': 0,
-            'process_pool_size': 0,
-            'performance_improvement': 0.0
-        }
-        
-        try:
-            # Optimize thread pool size
-            cpu_count = psutil.cpu_count()
-            optimal_threads = min(cpu_count * 2, 16)  # Cap at 16 threads
-            results['thread_pool_size'] = optimal_threads
-            results['optimizations_applied'].append('thread_pool_optimization')
-            
-            # Optimize process pool size
-            optimal_processes = min(cpu_count, 8)  # Cap at 8 processes
-            results['process_pool_size'] = optimal_processes
-            results['optimizations_applied'].append('process_pool_optimization')
-            
-            # Estimate performance improvement
-            results['performance_improvement'] = min(cpu_count * 0.15, 0.5)  # Up to 50% improvement
-            
-            logger.info("Parallel processing optimization completed")
-            
-        except Exception as e:
-            logger.error("Parallel processing optimization error: %s", e)
-            results['error'] = str(e)
-        
-        return results
-
-
-class AdvancedMemoryOptimizer:
-    """Advanced memory optimization techniques."""
-    
-    async def optimize_memory_advanced(self, aggressive: bool = False) -> Dict[str, Any]:
-        """Perform advanced memory optimization."""
-        results = {
-            'optimizations_applied': [],
-            'initial_memory_mb': 0.0,
-            'final_memory_mb': 0.0,
-            'memory_freed_mb': 0.0
-        }
-        
-        try:
-            # Get initial memory usage
-            initial_memory = psutil.virtual_memory()
-            results['initial_memory_mb'] = initial_memory.used / (1024 * 1024)
-            
-            # Force garbage collection
-            import gc
-            gc.collect()
-            results['optimizations_applied'].append('garbage_collection')
-            
-            # Memory compression (simulated)
-            if aggressive:
-                results['optimizations_applied'].append('memory_compression')
-                results['memory_freed_mb'] += 100.0  # Estimated savings
-            
-            # Advanced cache optimization
-            try:
-                from src.core.memory_manager import memory_manager
-                if hasattr(memory_manager, 'optimize_memory_usage'):
-                    await memory_manager.optimize_memory_usage(aggressive)
-                    results['optimizations_applied'].append('advanced_cache_optimization')
-            except ImportError:
-                pass  # Memory manager not available
-            
-            # Get final memory usage
-            final_memory = psutil.virtual_memory()
-            results['final_memory_mb'] = final_memory.used / (1024 * 1024)
-            results['memory_freed_mb'] = max(0, results['initial_memory_mb'] - results['final_memory_mb'])
-            
-            logger.info("Advanced memory optimization completed - %.1fMB freed", results['memory_freed_mb'])
-            
-        except Exception as e:
-            logger.error("Advanced memory optimization error: %s", e)
-            results['error'] = str(e)
-        
-        return results
-
-
-class AIPerformanceOptimizer:
-    """AI-powered performance optimization and prediction."""
-    
-    async def analyze_performance_patterns(self, 
-                                         history: List[SystemResourceMetrics]) -> Dict[str, Any]:
-        """Analyze performance patterns using AI techniques."""
-        insights = {
-            'patterns_detected': [],
-            'anomalies': [],
-            'trends': {},
-            'recommendations': []
-        }
-        
-        try:
-            if len(history) < 10:
-                insights['recommendations'].append('Insufficient data for pattern analysis')
-                return insights
-            
-            # Simple pattern analysis (without complex ML)
-            cpu_values = [m.cpu_usage_percent for m in history[-10:]]
-            memory_values = [m.memory_usage_percent for m in history[-10:]]
-            
-            # Detect high usage patterns
-            avg_cpu = sum(cpu_values) / len(cpu_values)
-            avg_memory = sum(memory_values) / len(memory_values)
-            
-            if avg_cpu > 80:
-                insights['patterns_detected'].append('high_cpu_usage')
-                insights['recommendations'].append('Consider CPU optimization strategies')
+# Duplicate class definitions removed - classes are already defined above
             
             if avg_memory > 80:
                 insights['patterns_detected'].append('high_memory_usage')
