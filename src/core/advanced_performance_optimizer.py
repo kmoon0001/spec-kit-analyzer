@@ -12,20 +12,28 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 import numpy as np
 
-try:
-    from src.core.performance_optimizer import performance_optimizer
-except ImportError:
-    performance_optimizer = None
+# Initialize optional dependencies
+_performance_optimizer: Optional['PerformanceOptimizer'] = None
+_advanced_cache_service: Optional['AdvancedCacheService'] = None
+_memory_manager: Optional['MemoryManager'] = None
 
 try:
-    from src.core.advanced_cache_service import advanced_cache_service
+    from src.core.performance_optimizer import PerformanceOptimizer
+    _performance_optimizer = PerformanceOptimizer()
 except ImportError:
-    advanced_cache_service = None
+    pass
 
 try:
-    from src.core.memory_manager import memory_manager
+    from src.core.advanced_cache_service import AdvancedCacheService
+    _advanced_cache_service = AdvancedCacheService()
 except ImportError:
-    memory_manager = None
+    pass
+
+try:
+    from src.core.memory_manager import MemoryManager
+    _memory_manager = MemoryManager()
+except ImportError:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +153,7 @@ class AdvancedPerformanceOptimizer:
         logger.info(f"Starting intelligent optimization (target: {target_improvement}%)")
         
         start_time = time.time()
-        optimization_results = {
+        optimization_results: Dict[str, Any] = {
             'status': 'in_progress',
             'optimizations_applied': [],
             'performance_improvements': {},
@@ -252,7 +260,7 @@ class AdvancedPerformanceOptimizer:
     
     async def _optimize_ai_models(self, aggressive: bool = False) -> Dict[str, Any]:
         """Optimize AI model performance and memory usage."""
-        results = {
+        results: Dict[str, Any] = {
             'models_optimized': [],
             'memory_freed_mb': 0.0,
             'inference_speed_improvement': 0.0,
@@ -288,7 +296,7 @@ class AdvancedPerformanceOptimizer:
     
     async def _optimize_system_level(self) -> Dict[str, Any]:
         """Apply system-level optimizations."""
-        results = {
+        results: Dict[str, Any] = {
             'optimizations_applied': [],
             'warnings': []
         }
@@ -350,14 +358,14 @@ class AdvancedPerformanceOptimizer:
             disk_score = max(0, 100 - min(100, disk_io_total))
             
             # Temperature score
-            temp_score = 100
+            temp_score: float = 100.0
             if metrics.temperature_celsius:
-                temp_score = max(0, 100 - max(0, metrics.temperature_celsius - 40) * 2)
+                temp_score = max(0.0, 100.0 - max(0.0, metrics.temperature_celsius - 40) * 2)
             
             # GPU score
-            gpu_score = 100
+            gpu_score: float = 100.0
             if metrics.gpu_usage_percent is not None:
-                gpu_score = max(0, 100 - metrics.gpu_usage_percent)
+                gpu_score = max(0.0, 100.0 - metrics.gpu_usage_percent)
             
             # Calculate weighted average
             health_score = (
@@ -503,7 +511,7 @@ class AdvancedPerformanceOptimizer:
     
     def _calculate_advanced_improvements(self, 
                                        baseline: SystemResourceMetrics, 
-                                       final: SystemResourceMetrics) -> Dict[str, float]:
+                                       final: SystemResourceMetrics) -> Dict[str, Any]:
         """Calculate advanced performance improvements."""
         improvements = {}
         
@@ -648,7 +656,7 @@ class AIPerformanceOptimizer:
     async def analyze_performance_patterns(self, 
                                          history: List[SystemResourceMetrics]) -> Dict[str, Any]:
         """Analyze performance patterns using AI techniques."""
-        insights = {
+        insights: Dict[str, Any] = {
             'patterns_detected': [],
             'anomalies': [],
             'trends': {},
@@ -762,7 +770,7 @@ class AIPerformanceOptimizer:
     async def predict_performance_issues(self, 
                                        history: List[SystemResourceMetrics]) -> Dict[str, Any]:
         """Predict future performance issues using ML techniques."""
-        predictions = {
+        predictions: Dict[str, Any] = {
             'cpu_predictions': {},
             'memory_predictions': {},
             'risk_assessment': {},
@@ -841,7 +849,7 @@ class ParallelProcessingOptimizer:
     
     async def optimize_parallel_processing(self) -> Dict[str, Any]:
         """Optimize parallel processing configuration."""
-        results = {
+        results: Dict[str, Any] = {
             'optimizations_applied': [],
             'thread_pool_optimized': False,
             'process_pool_optimized': False,
@@ -888,7 +896,7 @@ class AdvancedMemoryOptimizer:
     
     async def optimize_memory_advanced(self, aggressive: bool = False) -> Dict[str, Any]:
         """Execute advanced memory optimization."""
-        results = {
+        results: Dict[str, Any] = {
             'initial_memory_mb': 0.0,
             'final_memory_mb': 0.0,
             'memory_freed_mb': 0.0,
@@ -915,8 +923,8 @@ class AdvancedMemoryOptimizer:
                 results['memory_freed_mb'] += 100.0  # Estimated savings
             
             # Advanced cache optimization
-            if hasattr(memory_manager, 'optimize_memory_usage'):
-                await memory_manager.optimize_memory_usage(aggressive)
+            if _memory_manager and hasattr(_memory_manager, 'optimize_memory_usage'):
+                await _memory_manager.optimize_memory_usage(aggressive)
                 results['optimizations_applied'].append('advanced_cache_optimization')
             
             # Get final memory usage
@@ -931,116 +939,6 @@ class AdvancedMemoryOptimizer:
             results['error'] = str(e)
         
         return results
-
-
-# Duplicate class definitions removed - classes are already defined above
-            
-            if avg_memory > 80:
-                insights['patterns_detected'].append('high_memory_usage')
-                insights['recommendations'].append('Implement memory optimization')
-            
-            # Simple trend analysis
-            if len(cpu_values) >= 5:
-                recent_cpu = sum(cpu_values[-3:]) / 3
-                older_cpu = sum(cpu_values[:3]) / 3
-                if recent_cpu > older_cpu * 1.2:
-                    insights['trends']['cpu'] = 'increasing'
-                elif recent_cpu < older_cpu * 0.8:
-                    insights['trends']['cpu'] = 'decreasing'
-                else:
-                    insights['trends']['cpu'] = 'stable'
-            
-            logger.info("Performance pattern analysis completed")
-            
-        except Exception as e:
-            logger.error("Performance pattern analysis error: %s", e)
-            insights['error'] = str(e)
-        
-        return insights
-    
-    async def generate_optimization_plan(self, 
-                                       current_metrics: SystemResourceMetrics,
-                                       insights: Dict[str, Any]) -> List[PerformanceOptimizationPlan]:
-        """Generate AI-driven optimization plan."""
-        plans = []
-        
-        try:
-            # CPU optimization plan
-            if current_metrics.cpu_usage_percent > 80:
-                plans.append(PerformanceOptimizationPlan(
-                    priority_level="High",
-                    optimization_type="CPU",
-                    description="Optimize CPU-intensive operations",
-                    expected_improvement_percent=20.0,
-                    implementation_complexity="Moderate",
-                    estimated_duration_minutes=15,
-                    prerequisites=["System analysis", "Process identification"],
-                    risks=["Temporary performance impact"],
-                    success_metrics=["CPU usage reduction", "Response time improvement"]
-                ))
-            
-            # Memory optimization plan
-            if current_metrics.memory_usage_percent > 75:
-                plans.append(PerformanceOptimizationPlan(
-                    priority_level="High",
-                    optimization_type="Memory",
-                    description="Optimize memory usage and cleanup",
-                    expected_improvement_percent=25.0,
-                    implementation_complexity="Simple",
-                    estimated_duration_minutes=10,
-                    prerequisites=["Memory analysis"],
-                    risks=["Temporary memory spike during cleanup"],
-                    success_metrics=["Memory usage reduction", "Available memory increase"]
-                ))
-            
-            logger.info("Optimization plan generated with %d recommendations", len(plans))
-            
-        except Exception as e:
-            logger.error("Optimization plan generation error: %s", e)
-        
-        return plans
-    
-    async def predict_performance_issues(self, 
-                                       history: List[SystemResourceMetrics]) -> Dict[str, Any]:
-        """Predict future performance issues."""
-        predictions = {
-            'potential_issues': [],
-            'time_to_issue': {},
-            'confidence': 0.0
-        }
-        
-        try:
-            if len(history) < 5:
-                predictions['confidence'] = 0.0
-                return predictions
-            
-            # Simple trend-based prediction
-            recent_metrics = history[-5:]
-            cpu_trend = [m.cpu_usage_percent for m in recent_metrics]
-            memory_trend = [m.memory_usage_percent for m in recent_metrics]
-            
-            # Check for increasing trends
-            if len(cpu_trend) >= 3:
-                if cpu_trend[-1] > cpu_trend[0] * 1.3:
-                    predictions['potential_issues'].append('cpu_overload')
-                    predictions['time_to_issue']['cpu_overload'] = 'within_1_hour'
-            
-            if len(memory_trend) >= 3:
-                if memory_trend[-1] > memory_trend[0] * 1.2:
-                    predictions['potential_issues'].append('memory_exhaustion')
-                    predictions['time_to_issue']['memory_exhaustion'] = 'within_30_minutes'
-            
-            # Set confidence based on data quality
-            predictions['confidence'] = min(len(history) / 20.0, 0.8)
-            
-            logger.info("Performance prediction completed")
-            
-        except Exception as e:
-            logger.error("Performance prediction error: %s", e)
-            predictions['error'] = str(e)
-        
-        return predictions
-
 
 # Global advanced performance optimizer instance
 advanced_performance_optimizer = AdvancedPerformanceOptimizer()

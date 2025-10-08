@@ -20,9 +20,9 @@ try:
     OCR_AVAILABLE = True
 except ImportError:
     OCR_AVAILABLE = False
-    pytesseract = None
-    cv2 = None
-    np = None
+    pytesseract = None  # type: ignore[assignment]
+    cv2 = None  # type: ignore[assignment]
+    np = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 

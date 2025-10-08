@@ -25,10 +25,10 @@ class ComplianceAnalyzer:
         self,
         retriever: HybridRetriever,
         ner_service: Optional[ClinicalNERService] = None,
-        llm_service: LLMService = None,
-        explanation_engine: ExplanationEngine = None,
-        prompt_manager: PromptManager = None,
-        fact_checker_service: FactCheckerService = None,
+        llm_service: Optional[LLMService] = None,
+        explanation_engine: Optional[ExplanationEngine] = None,
+        prompt_manager: Optional[PromptManager] = None,
+        fact_checker_service: Optional[FactCheckerService] = None,
         nlg_service: Optional[NLGService] = None,
         deterministic_focus: Optional[str] = None,
         ner_analyzer: Optional[ClinicalNERService] = None,
@@ -78,7 +78,7 @@ class ComplianceAnalyzer:
         """Load existing calibrator or prepare for training with new data."""
         calibrator_path = Path("models/confidence_calibrator.pkl")
         
-        if calibrator_path.exists():
+        if calibrator_path.exists() and self.confidence_calibrator:
             try:
                 self.confidence_calibrator.load(calibrator_path)
                 logger.info("Loaded existing confidence calibrator")
@@ -90,7 +90,7 @@ class ComplianceAnalyzer:
 
     def _calibrate_confidence_scores(self, findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Apply confidence calibration to findings if calibrator is fitted."""
-        if not self.confidence_calibrator.is_fitted:
+        if not self.confidence_calibrator or not self.confidence_calibrator.is_fitted:
             logger.debug("Confidence calibrator not fitted yet. Using raw scores.")
             return findings
         
@@ -109,7 +109,10 @@ class ComplianceAnalyzer:
             
             # Calibrate confidence scores
             raw_confidences_array = np.array(raw_confidences)
-            calibrated_confidences = self.confidence_calibrator.calibrate(raw_confidences_array)
+            if self.confidence_calibrator:
+                calibrated_confidences = self.confidence_calibrator.calibrate(raw_confidences_array)
+            else:
+                calibrated_confidences = raw_confidences_array
             
             # Update findings with calibrated scores
             for i, finding in enumerate(findings):
@@ -164,15 +167,18 @@ class ComplianceAnalyzer:
             confidences_array = np.array(confidences)
             labels_array = np.array(labels)
             
-            self.confidence_calibrator.fit(confidences_array, labels_array)
-            
-            # Save the trained calibrator
-            calibrator_path = Path("models")
-            calibrator_path.mkdir(exist_ok=True)
-            self.confidence_calibrator.save(calibrator_path / "confidence_calibrator.pkl")
-            
-            # Log calibration metrics
-            metrics = self.confidence_calibrator.get_calibration_metrics()
+            if self.confidence_calibrator:
+                self.confidence_calibrator.fit(confidences_array, labels_array)
+                
+                # Save the trained calibrator
+                calibrator_path = Path("models")
+                calibrator_path.mkdir(exist_ok=True)
+                self.confidence_calibrator.save(calibrator_path / "confidence_calibrator.pkl")
+                
+                # Log calibration metrics
+                metrics = self.confidence_calibrator.get_calibration_metrics()
+            else:
+                metrics = {}
             logger.info(f"Confidence calibrator trained with {len(confidences)} samples")
             logger.info(f"Calibration metrics: {metrics}")
             
@@ -181,7 +187,7 @@ class ComplianceAnalyzer:
 
     def get_calibration_metrics(self) -> Dict[str, Any]:
         """Get calibration quality metrics."""
-        if not self.confidence_calibrator.is_fitted:
+        if not self.confidence_calibrator or not self.confidence_calibrator.is_fitted:
             return {"status": "not_fitted", "message": "Calibrator has not been trained yet"}
         
         metrics = self.confidence_calibrator.get_calibration_metrics()
@@ -214,7 +220,7 @@ class ComplianceAnalyzer:
         """
         logger.info("Starting compliance analysis for document type: %s", doc_type)
 
-        entities = self.ner_service.extract_entities(document_text)
+        entities = self.ner_service.extract_entities(document_text) if self.ner_service else []
         entity_list_str = (
             ", ".join(
                 f"{entity['entity_group']}: {entity['word']}" for entity in entities
@@ -234,16 +240,22 @@ class ComplianceAnalyzer:
         logger.info("Retrieved %d rules for analysis.", len(retrieved_rules))
 
         formatted_rules = self._format_rules_for_prompt(retrieved_rules)
-        prompt = self.prompt_manager.get_prompt(
-            document_text=document_text,
-            entity_list=entity_list_str,
-            context=formatted_rules,
-            discipline=discipline,
-            doc_type=doc_type,
-            deterministic_focus=self.deterministic_focus,
-        )
+        if self.prompt_manager:
+            prompt = self.prompt_manager.get_prompt(
+                document_text=document_text,
+                entity_list=entity_list_str,
+                context=formatted_rules,
+                discipline=discipline,
+                doc_type=doc_type,
+                deterministic_focus=self.deterministic_focus,
+            )
+        else:
+            prompt = f"Analyze this document for compliance:\n{document_text}\n\nRules:\n{formatted_rules}"
 
-        raw_analysis_result = await asyncio.to_thread(self.llm_service.generate, prompt)
+        if self.llm_service:
+            raw_analysis_result = await asyncio.to_thread(self.llm_service.generate, prompt)
+        else:
+            raw_analysis_result = '{"findings": [], "error": "No LLM service available"}'
         try:
             initial_analysis = json.loads(raw_analysis_result)
         except json.JSONDecodeError:
@@ -259,9 +271,12 @@ class ComplianceAnalyzer:
             rubric_name=f"{discipline.upper()} Compliance Rubric",
         )
 
-        explained_analysis = self.explanation_engine.add_explanations(
-            initial_analysis, document_text, explanation_context, retrieved_rules
-        )
+        if self.explanation_engine:
+            explained_analysis = self.explanation_engine.add_explanations(
+                initial_analysis, document_text, explanation_context, retrieved_rules
+            )
+        else:
+            explained_analysis = initial_analysis
 
         # Apply confidence calibration before final post-processing
         if "findings" in explained_analysis and isinstance(explained_analysis["findings"], list):
@@ -302,7 +317,7 @@ class ComplianceAnalyzer:
                 (r for r in retrieved_rules if r.get("id") == rule_id), None
             )
 
-            if associated_rule and not self.fact_checker_service.is_finding_plausible(
+            if associated_rule and self.fact_checker_service and not self.fact_checker_service.is_finding_plausible(
                 finding, associated_rule
             ):
                 finding["is_disputed"] = True

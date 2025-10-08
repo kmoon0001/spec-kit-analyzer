@@ -14,7 +14,7 @@ from .query_expander import QueryExpander
 try:  # pragma: no cover - optional dependency during tests
     from src.database import crud
 except Exception:  # pragma: no cover - fallback when database layer unavailable
-    crud = None
+    crud = None  # type: ignore[assignment]
 
 
 logger = logging.getLogger(__name__)
@@ -77,7 +77,7 @@ class HybridRetriever:
 
     @staticmethod
     def _load_rules_from_db() -> List[Dict[str, str]]:
-        if crud is None:
+        if crud is None or not hasattr(crud, 'get_all_rubrics'):
             return []
         try:
             rubric_models = crud.get_all_rubrics()

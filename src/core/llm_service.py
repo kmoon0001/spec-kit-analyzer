@@ -137,8 +137,9 @@ class LLMService:
             self.seq2seq = True
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.llm.to(device)
-        self.llm.eval()
+        if self.llm is not None:
+            self.llm.to(device)
+            self.llm.eval()
 
     def _ensure_model_loaded(self) -> None:
         if self.llm or self.is_loading:
@@ -175,8 +176,8 @@ class LLMService:
         stop_sequences = gen_params.pop("stop_sequences", None)
 
         try:
-            if self.backend == "ctransformers":
-                output = self.llm(  # type: ignore[operator]
+            if self.backend == "ctransformers" and self.llm is not None:
+                output = self.llm(  # type: ignore[misc]
                     prompt,
                     max_new_tokens=max_new_tokens,
                     temperature=temperature,

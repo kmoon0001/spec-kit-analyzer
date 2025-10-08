@@ -62,19 +62,18 @@ from src.gui.widgets.micro_interactions import AnimatedButton, LoadingSpinner
 
 from src.gui.widgets.mission_control_widget import MissionControlWidget, LogViewerWidget, SettingsEditorWidget
 from src.core.license_manager import license_manager
-from src.core.auto_updater import auto_updater
-from src.core.async_file_handler import async_file_handler
+
 from src.gui.widgets.dashboard_widget import DashboardWidget
 
 try:
     from src.gui.widgets.meta_analytics_widget import MetaAnalyticsWidget
 except ImportError:
-    MetaAnalyticsWidget = None
+    MetaAnalyticsWidget = None  # type: ignore
 
 try:
     from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
 except ImportError:
-    PerformanceStatusWidget = None
+    PerformanceStatusWidget = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -327,47 +326,47 @@ class MainApplicationWindow(QMainWindow):
         self.mission_control_widget = MissionControlWidget(self)
         
         # Initialize UI attributes to prevent "defined outside __init__" warnings
-        self.auto_analysis_queue_list = None
+        self.auto_analysis_queue_list: Optional[Any] = None
         self.auth_token = token
-        self.report_preview_browser = None
-        self.header = None
-        self.status_component = None
-        self.tab_widget = None
-        self.analysis_tab = None
-        self.dashboard_tab = None
-        self.mission_control_tab = None
-        self.settings_tab = None
-        self.rubric_selector = None
-        self.strictness_buttons = []
-        self.section_checkboxes = {}
-        self.analysis_summary_browser = None
-        self.detailed_results_browser = None
+        self.report_preview_browser: Optional[QTextBrowser] = None
+        self.header: Optional[HeaderComponent] = None
+        self.status_component: Optional[StatusComponent] = None
+        self.tab_widget: Optional[QTabWidget] = None
+        self.analysis_tab: Optional[QWidget] = None
+        self.dashboard_tab: Optional[QWidget] = None
+        self.mission_control_tab: Optional[QWidget] = None
+        self.settings_tab: Optional[QWidget] = None
+        self.rubric_selector: Optional[QComboBox] = None
+        self.strictness_buttons: list[Any] = []
+        self.section_checkboxes: dict[str, Any] = {}
+        self.analysis_summary_browser: Optional[QTextBrowser] = None
+        self.detailed_results_browser: Optional[QTextBrowser] = None
         # Removed chat_input - using main chat dialog instead
-        self.file_display = None
-        self.open_file_button = None
-        self.open_folder_button = None
-        self.run_analysis_button = None
-        self.repeat_analysis_button = None
-        self.stop_analysis_button = None
-        self.view_report_button = None
-        self.dashboard_widget = None
-        self.settings_editor = None
-        self.resource_label = None
-        self.connection_label = None
-        self.loading_spinner = None
-        self.progress_bar = None
-        self.meta_analytics_dock = None
-        self.meta_widget = None
-        self.performance_dock = None
-        self.performance_widget = None
-        self.log_viewer = None
+        self.file_display: Optional[QTextEdit] = None
+        self.open_file_button: Optional[AnimatedButton] = None
+        self.open_folder_button: Optional[AnimatedButton] = None
+        self.run_analysis_button: Optional[AnimatedButton] = None
+        self.repeat_analysis_button: Optional[AnimatedButton] = None
+        self.stop_analysis_button: Optional[AnimatedButton] = None
+        self.view_report_button: Optional[AnimatedButton] = None
+        self.dashboard_widget: Optional[DashboardWidget] = None
+        self.settings_editor: Optional[SettingsEditorWidget] = None
+        self.resource_label: Optional[QLabel] = None
+        self.connection_label: Optional[QLabel] = None
+        self.loading_spinner: Optional[LoadingSpinner] = None
+        self.progress_bar: Optional[QProgressBar] = None
+        self.meta_analytics_dock: Optional[QDockWidget] = None
+        self.meta_widget: Optional[Any] = None
+        self.performance_dock: Optional[QDockWidget] = None
+        self.performance_widget: Optional[Any] = None
+        self.log_viewer: Optional[LogViewerWidget] = None
         # Removed chat_button - using main chat dialog instead
-        self.meta_analytics_action = None
-        self.performance_action = None
+        self.meta_analytics_action: Optional[QAction] = None
+        self.performance_action: Optional[QAction] = None
         
         # System monitoring attributes
-        self.has_psutil = False
-        self.resource_timer = None
+        self.has_psutil: bool = False
+        self.resource_timer: Optional[Any] = None
         
         # Easter egg attributes
         self.konami_sequence = []
@@ -1100,19 +1099,8 @@ You can also:
         
         # AUTOMATICALLY DISPLAY THE ENHANCED REPORT POPUP (Best Practice: Immediate Results)
         try:
-            # Prepare the result data for the enhanced report display
-            result_data = {
-                'document_name': doc_name,
-                'discipline': self.rubric_selector.currentText(),
-                'compliance_score': analysis.get('compliance_score', 0),
-                'findings': analysis.get('findings', []),
-                'report_html': self._generate_enhanced_report_html(payload),
-                'habits_analysis': analysis.get('habits_analysis', {}),
-                'timestamp': payload.get('timestamp', 'N/A')
-            }
-            
             # Display the enhanced report popup immediately
-            self._display_report(result_data)
+            self._open_report_popup()
             
         except Exception as e:
             # Fallback: Log error but don't break the workflow
@@ -3053,15 +3041,6 @@ You can also:
 
     # Removed _build_floating_chat_button - redundant functionality eliminated
 
-    def _apply_theme(self, theme_name: str) -> None:
-        """Apply a specific theme."""
-        medical_theme.set_theme(theme_name)
-        self._apply_medical_theme()
-        
-        # Update status bar message
-        theme_display = "Dark" if theme_name == "dark" else "Light"
-        self.statusBar().showMessage(f"Applied {theme_display} theme", 3000)
-
     def _save_gui_settings(self) -> None:
         """Save GUI settings including window geometry, theme, and preferences."""
         self.settings.setValue("geometry", self.saveGeometry())
@@ -3375,7 +3354,7 @@ Keep exploring! There are more secrets hidden throughout the app! 🕵️‍♂�
             
             if not is_valid:
                 # Show license expired dialog
-                from PySide6.QtWidgets import QMessageBox, QInputDialog
+                from PySide6.QtWidgets import QMessageBox
                 
                 msg = QMessageBox(self)
                 msg.setWindowTitle("🔐 License Status")
@@ -3414,13 +3393,13 @@ Keep exploring! There are more secrets hidden throughout the app! 🕵️‍♂�
             )
             return
         
-        from PySide6.QtWidgets import QInputDialog
+        from PySide6.QtWidgets import QInputDialog, QLineEdit
         
         activation_code, ok = QInputDialog.getText(
             self,
             "🔑 License Activation",
             "Enter activation code:",
-            echo=QInputDialog.EchoMode.Password
+            echo=QLineEdit.EchoMode.Password
         )
         
         if ok and activation_code:
@@ -3456,7 +3435,7 @@ System Information:
 - Current Payload: {'Available' if self._current_payload else 'None'}
 
 Memory Usage:
-- Python Objects: {len(gc.get_objects())} objects
+- Python Objects: {len(__import__('gc').get_objects())} objects
 - Cache Status: Active
 
 Debug Commands Available:
@@ -3495,6 +3474,7 @@ This console is only available in developer mode! 🎮
                     self._cached_preview_content = ""
                 
                 # Force garbage collection
+                import gc
                 gc.collect()
                 
                 self.statusBar().showMessage("✅ All caches cleared successfully", 5000)
@@ -3541,7 +3521,7 @@ Application:
 • Developer Mode: {'Enabled' if hasattr(self, 'developer_mode') and self.developer_mode else 'Disabled'}
 
 Memory:
-• Python Objects: {len(gc.get_objects())}
+• Python Objects: {len(__import__('gc').get_objects())}
 • Selected File: {self._selected_file.name if self._selected_file else 'None'}
 • Analysis Data: {'Available' if self._current_payload else 'None'}
         """

@@ -144,7 +144,7 @@ class ReportGenerator:
         report_html = report_html.replace("<!-- Placeholder for overall confidence -->", confidence_text)
         return report_html
 
-    def _generate_findings_table(self, findings: list, analysis_result: dict = None) -> str:
+    def _generate_findings_table(self, findings: list, analysis_result: Optional[dict] = None) -> str:
         if not findings:
             return '<tr><td colspan="6">No compliance findings identified.</td></tr>'
         findings_rows_html = ""
@@ -194,7 +194,7 @@ class ReportGenerator:
         encoded_payload = urllib.parse.quote(combined_payload)
         return f'<a href="highlight://{encoded_payload}" class="highlight-link">{problematic_text}</a>'
 
-    def _generate_issue_cell(self, finding: dict, analysis_result: dict = None) -> str:
+    def _generate_issue_cell(self, finding: dict, analysis_result: Optional[dict] = None) -> str:
         issue_title = sanitize_human_text(finding.get("issue_title", "Compliance Issue"))
         regulation = sanitize_human_text(finding.get("regulation", ""))
         issue_html = f"<strong>{issue_title}</strong>"
@@ -211,7 +211,7 @@ class ReportGenerator:
                 issue_html += habit_html
         return issue_html
 
-    def _get_habit_info_for_finding(self, finding: dict, analysis_result: dict = None) -> Optional[Dict[str, Any]]:
+    def _get_habit_info_for_finding(self, finding: dict, analysis_result: Optional[dict] = None) -> Optional[Dict[str, Any]]:
         if self.habits_framework:
             context = {"document_type": analysis_result.get("document_type", "Unknown") if analysis_result else "Unknown", "discipline": analysis_result.get("discipline", "Unknown") if analysis_result else "Unknown", "risk_level": finding.get("risk", "Unknown"), "issue_category": finding.get("issue_category", "General")}
             return self.habits_framework.map_finding_to_habit(finding, context)
@@ -265,7 +265,7 @@ class ReportGenerator:
             )
         return recommendation
 
-    def _generate_prevention_cell(self, finding: dict, analysis_result: dict = None) -> str:
+    def _generate_prevention_cell(self, finding: dict, analysis_result: Optional[dict] = None) -> str:
         if not self.habits_enabled:
             return '<div class="habit-explanation">Review documentation practices regularly</div>'
 

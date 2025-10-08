@@ -22,7 +22,6 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QSpinBox,
     QDoubleSpinBox,
-    QScrollArea,
 )
 
 

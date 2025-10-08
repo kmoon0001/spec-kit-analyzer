@@ -50,7 +50,7 @@ class ClinicalNERService:
         self.model_names = list(model_names or [])
         self.pipelines = self._initialize_pipelines()
 
-    def _initialize_pipelines(self) -> List[pipeline]:
+    def _initialize_pipelines(self) -> List[Any]:
         """Loads the transformer models into NER pipelines."""
         pipelines = []
         for model_name in self.model_names:
@@ -59,7 +59,7 @@ class ClinicalNERService:
                 tokenizer = AutoTokenizer.from_pretrained(model_name)
                 model = AutoModelForTokenClassification.from_pretrained(model_name)
                 pipelines.append(
-                    pipeline(
+                    pipeline(  # type: ignore[call-overload]
                         "ner",
                         model=model,
                         tokenizer=tokenizer,
@@ -126,7 +126,7 @@ class ClinicalNERService:
         # Sort by start position, then by score descending to prioritize higher-confidence entities
         entities.sort(key=lambda e: (e["start"], -e["score"]))
 
-        merged = []
+        merged: List[Dict[str, Any]] = []
         for entity in entities:
             if not merged or entity["start"] >= merged[-1]["end"]:
                 # If no overlap with the last merged entity, just add it
@@ -199,7 +199,7 @@ class NERAnalyzer:
         return matches
 
     def extract_medical_entities(self, text: Optional[str]) -> Dict[str, List[str]]:
-        categories = {
+        categories: Dict[str, List[str]] = {
             "conditions": [],
             "medications": [],
             "procedures": [],

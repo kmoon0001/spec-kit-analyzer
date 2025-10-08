@@ -72,7 +72,6 @@ def run_analysis_and_save(
             }
     
     # Run the async function in a new event loop
-    import asyncio
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

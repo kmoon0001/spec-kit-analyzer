@@ -115,7 +115,7 @@ class AnalysisService:
                 chunks = parse_document_content(str(temp_file_path))
                 text_to_process = " ".join(c.get("sentence", "") for c in chunks if isinstance(c, dict)).strip()
             else: # document_text must exist
-                text_to_process = document_text
+                text_to_process = document_text or ""
 
             if not text_to_process:
                 raise ValueError("Could not extract any text from the provided document.")

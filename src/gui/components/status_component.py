@@ -237,18 +237,19 @@ class StatusComponent(QWidget):
         self.error_message = message
         if message:
             # Truncate message for display but keep full message in tooltip
-            display_message = message[:50] + "..." if len(message) > 50 else message
+            # Truncate message for display but keep full message in tooltip
+            # display_message = message[:50] + "..." if len(message) > 50 else message
             self.setToolTip(f"Error Details: {message}")
-            self.setStyleSheet(f"""
-                QWidget {{
+            self.setStyleSheet("""
+                QWidget {
                     background: rgba(220, 38, 38, 0.1);
                     border: 1px solid #dc2626;
                     border-radius: 4px;
                     padding: 2px;
-                }}
-                QWidget:hover {{
+                }
+                QWidget:hover {
                     background: rgba(220, 38, 38, 0.2);
-                }}
+                }
             """)
         else:
             self.setToolTip("")

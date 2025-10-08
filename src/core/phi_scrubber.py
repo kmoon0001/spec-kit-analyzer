@@ -47,8 +47,7 @@ class PhiScrubberService:
         if analyzer is None and AnalyzerEngine is not None:
             try:
                 analyzer = AnalyzerEngine(
-                    registry=registry,
-                    nlp_engine_name="spacy",
+                    registry=registry if registry is not None else RecognizerRegistry(),
                     supported_languages=["en"],
                 )
             except Exception as exc:
@@ -76,11 +75,15 @@ class PhiScrubberService:
         token = replacement_token or self.default_replacement
 
         try:
+            if not self.analyzer or not self.anonymizer:
+                logger.warning("Analyzer or anonymizer not available, returning original text")
+                return text
+                
             if self._custom_wrapper:
-                analyzer_results = self.analyzer.analyze(text)
+                analyzer_results = self.analyzer.analyze(text)  # type: ignore[attr-defined]
             else:
-                analyzer_results = self.analyzer.analyze(text=text, language="en")
-            anonymized_result = self.anonymizer.anonymize(
+                analyzer_results = self.analyzer.analyze(text=text, language="en")  # type: ignore[attr-defined]
+            anonymized_result = self.anonymizer.anonymize(  # type: ignore[attr-defined]
                 text=text,
                 analyzer_results=analyzer_results,
                 operators={"DEFAULT": OperatorConfig("replace", {"new_value": token})},

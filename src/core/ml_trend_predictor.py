@@ -6,9 +6,9 @@ Provides machine learning-based trend analysis and predictions for compliance pa
 import logging
 import numpy as np
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
-import json
+
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +198,6 @@ class MLTrendPredictor:
         
         try:
             # Simple linear trend analysis
-            x = np.arange(len(scores))
             y = np.array(scores)
             
             # Calculate trend
