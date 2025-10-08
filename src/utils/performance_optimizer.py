@@ -276,4 +276,4 @@ if __name__ == "__main__":
     # Run optimization when script is executed directly
     logging.basicConfig(level=logging.INFO)
     result = optimize_system_performance()
-    print(f"Performance optimization complete. Profile: {result['profile']}")
+    logger.info(f"Performance optimization complete. Profile: {result['profile']}")

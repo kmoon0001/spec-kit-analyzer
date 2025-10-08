@@ -170,7 +170,7 @@ class ContentSafetyGuardrail(BaseGuardrail):
     def _contains_inappropriate_medical_claims(self, content: str) -> bool:
         """Check for inappropriate medical claims"""
         claim_patterns = [
-            r'\b(?:will|shall|guaranteed to)\s+(?:cure|heal|fix|resolve)',
+            r'\b(?:will|shall|guaranteed to)\s+(?:\w+\s+){0,3}?(?:cure|heal|fix|resolve)',
             r'\b(?:always|never|100%|completely)\s+(?:effective|successful)',
             r'\b(?:best|only|perfect)\s+(?:treatment|solution|approach)'
         ]
@@ -251,7 +251,7 @@ class AccuracyValidationGuardrail(BaseGuardrail):
         
         # Define patterns that indicate potential hallucinations
         self.hallucination_indicators = [
-            r'\b(?:according to|based on|research shows|studies indicate)\s+(?:recent|new|latest)\s+(?:research|study|findings)',
+            r'\b(?:according to|based on|research shows|studies indicate)\s+(?:recent|new|latest)\s+(?:\w+\s+){0,3}?(?:research|study|findings)',
             r'\b(?:FDA|CMS|Medicare)\s+(?:recently|just|newly)\s+(?:approved|released|published)',
             r'\b(?:specific|exact|precise)\s+(?:percentage|number|statistic)\s+(?:of|for|in)',
             r'\b(?:Dr\.|Professor|Expert)\s+[A-Z][a-z]+\s+(?:states|says|recommends|suggests)',
@@ -331,7 +331,7 @@ class EthicalComplianceGuardrail(BaseGuardrail):
         
         # Define ethical violations
         self.ethical_violations = [
-            r'\b(?:force|coerce|pressure)\s+(?:patient|client)',
+            r'\b(?:force|coerce|pressure)\s+(?:\w+\s+){0,2}?(?:patient|client)',
             r'\b(?:withhold|deny|refuse)\s+(?:information|treatment|care)',
             r'\b(?:discriminate|exclude|reject)\s+(?:based on|due to)',
             r'\b(?:experimental|unproven|untested)\s+(?:without|lacking)\s+(?:consent|approval)'
@@ -430,10 +430,14 @@ class TransparencyEnforcementGuardrail(BaseGuardrail):
         missing = []
         content_lower = content.lower()
         
+        # If content is empty, don't flag transparency violations
+        if not content_lower.strip():
+            return []
+        
         # Check if this is AI-generated content that needs transparency
         if context.get('ai_generated', True):
             for element, indicators in self.transparency_requirements.items():
-                if not any(indicator in content_lower for indicator in indicators):
+                if not any(indicator.lower() in content_lower for indicator in indicators):
                     missing.append(element)
         
         return missing
@@ -539,8 +543,6 @@ class AIGuardrailsService:
         if risk_counts[RiskLevel.CRITICAL] > 0:
             return RiskLevel.CRITICAL
         elif risk_counts[RiskLevel.HIGH] > 0:
-            return RiskLevel.HIGH
-        elif risk_counts[RiskLevel.MEDIUM] > 2:  # Multiple medium risks = high overall risk
             return RiskLevel.HIGH
         elif risk_counts[RiskLevel.MEDIUM] > 0:
             return RiskLevel.MEDIUM

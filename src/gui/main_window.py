@@ -1104,7 +1104,7 @@ You can also:
             
         except Exception as e:
             # Fallback: Log error but don't break the workflow
-            print(f"Warning: Could not auto-display report popup: {e}")
+            logger.warning(f"Warning: Could not auto-display report popup: {e}")
             self.statusBar().showMessage("✅ Analysis Complete - Click 'View Report' to see results", 5000)
         
         # Refresh dashboard after analysis

@@ -1,6 +1,9 @@
 import re
 import pickle
+import logging
 from rank_bm25 import BM25Okapi  # type: ignore
+
+logger = logging.getLogger(__name__)
 
 
 def preprocess_text(text):
@@ -17,7 +20,7 @@ def create_bm25_index():
     Reads the Medicare Benefit Policy Manual, creates a BM25 index,
     and saves the index and the text corpus to disk.
     """
-    print("Reading Medicare guideline text...")
+    logger.info("Reading Medicare guideline text...")
     with open(
         "medicare_benefit_policy_manual_chapter_8.txt", "r", encoding="utf-8"
     ) as f:
@@ -41,32 +44,32 @@ def create_bm25_index():
         # Add the rest of the sections
         corpus.extend([s.strip() for s in sections[1:] if s.strip()])
 
-    print(f"Split text into {len(corpus)} documents.")
+    logger.info(f"Split text into {len(corpus)} documents.")
 
     if len(corpus) <= 1:
-        print(
+        logger.error(
             "Error: The document was not split into multiple sections. The index will not be effective."
         )
         return  # Exit if we still can't split the document
 
     # Preprocess and tokenize the corpus
-    print("Tokenizing documents...")
+    logger.info("Tokenizing documents...")
     tokenized_corpus = [preprocess_text(doc) for doc in corpus]
 
     # Create the BM25 index
-    print("Creating BM25 index...")
+    logger.info("Creating BM25 index...")
     bm25 = BM25Okapi(tokenized_corpus)
 
     # Save the index and the original corpus to disk
-    print("Saving index and corpus to disk...")
+    logger.info("Saving index and corpus to disk...")
     with open("bm25_index.pkl", "wb") as f:
         pickle.dump(bm25, f)
 
     with open("medicare_guideline_corpus.pkl", "wb") as f:
         pickle.dump(corpus, f)
 
-    print("BM25 index created and saved successfully to 'bm25_index.pkl'.")
-    print("Text corpus saved successfully to 'medicare_guideline_corpus.pkl'.")
+    logger.info("BM25 index created and saved successfully to 'bm25_index.pkl'.")
+    logger.info("Text corpus saved successfully to 'medicare_guideline_corpus.pkl'.")
 
 
 if __name__ == "__main__":

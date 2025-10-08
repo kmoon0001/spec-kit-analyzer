@@ -77,7 +77,7 @@
 
 ### User Guides
 - **[Quick Start Guide](.kiro/USER_GUIDE_QUICK_START.md)** - Get up and running in 5 minutes
-- **[User Manual](.kiro/steering/user story.md)** - Complete feature documentation
+- **[User Manual](.kiro/steering/user_story.md)** - Complete feature documentation
 - **[Testing Guide](.kiro/TESTING_CHECKLIST_NOW.md)** - How to test all features
 
 ### Developer Resources
@@ -88,7 +88,7 @@
 
 ### Project Management
 - **[Workflow Documentation](.kiro/steering/WORKFLOW.md)** - Complete system workflow
-- **[Feature Checklist](.kiro/steering/workflow checklist.md)** - Development progress
+- **[Feature Checklist](.kiro/steering/workflow_checklist.md)** - Development progress
 - **[Security Guidelines](.kiro/steering/security_validation.md)** - Security best practices
 
 ## 🏗️ Architecture

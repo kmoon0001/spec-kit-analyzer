@@ -6,7 +6,7 @@ Provides AI-powered enterprise assistance and automation capabilities.
 import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
 from pydantic import BaseModel, Field
 
 from src.auth import get_current_user
@@ -435,7 +435,7 @@ async def get_performance_analytics(
 @router.post("/feedback")
 async def submit_copilot_feedback(
     query_id: str,
-    rating: int = Field(..., ge=1, le=5, description="Rating from 1-5"),
+    rating: int = Query(..., ge=1, le=5, description="Rating from 1-5"),
     feedback: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
