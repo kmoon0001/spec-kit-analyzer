@@ -57,17 +57,11 @@ def start_gui():
     """Start the PySide6 GUI application."""
     print("🖥️  Starting PySide6 GUI application...")
     try:
-        # Import and run the GUI
-        from src.gui.main_window import MainApplicationWindow
-        from PySide6.QtWidgets import QApplication
-        import sys
-        
-        app = QApplication(sys.argv)
-        window = MainApplicationWindow()
-        window.show()
+        # Use the proper authentication flow from src.gui.main
+        from src.gui.main import main as gui_main
         
         print("✅ GUI application started successfully!")
-        return app.exec()
+        return gui_main()
         
     except Exception as e:
         print(f"❌ Failed to start GUI: {e}")

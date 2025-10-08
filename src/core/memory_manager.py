@@ -512,3 +512,6 @@ class MemoryManager:
         elif metrics.pressure_level == MemoryPressureLevel.HIGH:
             logger.info(f"High memory pressure detected: {metrics.memory_percent:.1f}%")
             self.optimize_if_needed()
+
+# Global memory manager instance
+memory_manager = MemoryManager()
