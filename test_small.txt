@@ -1,0 +1,7 @@
+
+Patient: John Doe
+Date: 2024-01-15
+Diagnosis: Lower back pain
+Treatment: Physical therapy exercises
+Progress: Patient shows improvement in range of motion
+Plan: Continue current treatment plan

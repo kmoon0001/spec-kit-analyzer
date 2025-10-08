@@ -1,0 +1,75 @@
+use_ai_mocks: false
+enable_director_dashboard: true
+database:
+  url: sqlite:///./compliance.db
+  echo: false
+auth:
+  # The secret_key is NOT configured here. It MUST be set via the
+  # SECRET_KEY environment variable for security reasons.
+  algorithm: HS256
+  access_token_expire_minutes: 30
+maintenance:
+  purge_retention_days: 30
+  purge_interval_days: 1
+paths:
+  temp_upload_dir: ./temp
+  api_url: http://localhost:8001
+  rule_dir: ./src/resources
+  medical_dictionary: src/resources/medical_dictionary.txt
+  cache_dir: .cache
+  logs_dir: logs
+models:
+  generator: TheBloke/meditron-7B-GGUF
+  generator_filename: meditron-7b.Q4_K_M.gguf
+  generator_local_path: models/meditron
+  generator_profiles:
+    clinical_q4_balanced:
+      repo: TheBloke/meditron-7B-GGUF
+      filename: meditron-7b.Q4_K_M.gguf
+      revision: main
+      max_system_gb: 16.0
+    clinical_q5_quality:
+      repo: TheBloke/meditron-7B-GGUF
+      filename: meditron-7b.Q5_K_M.gguf
+      revision: main
+      min_system_gb: 16.0
+      max_system_gb: 24.0
+    clinical_q6_precision:
+      repo: TheBloke/meditron-7B-GGUF
+      filename: meditron-7b.Q6_K.gguf
+      revision: main
+      min_system_gb: 24.0
+  retriever: pritamdeka/S-PubMedBert-MS-MARCO
+  reranker: cross-encoder/ms-marco-MiniLM-L-6-v2
+  fact_checker: microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext
+  ner_ensemble:
+    - d4data/biomedical-ner-all
+    - OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M
+  doc_classifier_prompt: src/resources/prompts/doc_classifier_prompt.txt
+  analysis_prompt_template: src/resources/prompts/analysis_prompt_template.txt
+  nlg_prompt_template: src/resources/prompts/nlg_prompt_template.txt
+llm:
+  model_type: ctransformers
+  context_length: 4096
+  generation_params:
+    temperature: 0.1
+    max_new_tokens: 1024
+    top_p: 0.9
+    repeat_penalty: 1.1
+    stop_sequences:
+    - </analysis>
+    - \n\n---
+retrieval:
+  similarity_top_k: 10
+  dense_model_name: pritamdeka/S-PubMedBert-MS-MARCO
+  rrf_k: 60
+  batch_size: 16
+  max_sequence_length: 512
+analysis:
+  confidence_threshold: 0.75
+  deterministic_focus: '- Treatment frequency documented\n- Goals reviewed or adjusted\n- Medical necessity justified'
+  max_document_length: 50000
+  chunk_overlap: 100
+habits_framework:
+  enabled: true
+  visibility_level: moderate
