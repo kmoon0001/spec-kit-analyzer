@@ -8,20 +8,24 @@ the UI and allows it to be accessed from different parts of the application.
 """
 
 from PySide6.QtCore import QObject, Signal
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, ClassVar
 
 class QueueManager(QObject):
     """A singleton class to manage the auto-analysis queue."""
-    _instance = None
+    _instance: ClassVar[Optional["QueueManager"]] = None
+
+    queue: List[Dict[str, Any]]
+    is_running: bool
 
     queue_updated = Signal()
     progress_updated = Signal(int, int)
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(QueueManager, cls).__new__(cls)
-            cls._instance.queue: List[Dict[str, Any]] = []
-            cls._instance.is_running = False
+            instance = super(QueueManager, cls).__new__(cls)
+            instance.queue = []
+            instance.is_running = False
+            cls._instance = instance
         return cls._instance
 
     def add_files(self, files: List[str]):

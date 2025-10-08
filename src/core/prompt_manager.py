@@ -46,9 +46,9 @@ class PromptManager:
             return self.template_string.format(**kwargs)
         except KeyError as e:
             logger.error(
-                "Missing variable in prompt template",
-                template=self.template_path,
-                error=str(e),
+                "Missing variable in prompt template %s: %s",
+                self.template_path,
+                e,
             )
             raise
 

@@ -8,7 +8,7 @@ import json
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 import logging
 
 logger = logging.getLogger(__name__)
@@ -104,7 +104,11 @@ class LicenseManager:
                 return True, "Full license active", None
             
             # Check trial period
-            trial_end = datetime.fromisoformat(license_data.get("trial_end"))
+            trial_end_raw = license_data.get("trial_end")
+            if not isinstance(trial_end_raw, str):
+                return False, "Invalid license data: missing trial end date", None
+
+            trial_end = datetime.fromisoformat(trial_end_raw)
             now = datetime.now()
             
             if now <= trial_end:
@@ -167,7 +171,7 @@ class LicenseManager:
         code_hash = hashlib.sha256(code.encode()).hexdigest()
         return code_hash == expected_hash
     
-    def _encrypt_license_data(self, data: Dict) -> Dict:
+    def _encrypt_license_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Encrypt license data for secure storage."""
         # Simple XOR encryption for demo - use proper encryption in production
         json_str = json.dumps(data)
@@ -182,7 +186,7 @@ class LicenseManager:
             "checksum": hashlib.md5(json_str.encode()).hexdigest()
         }
     
-    def _decrypt_license_data(self, encrypted_data: Dict) -> Dict:
+    def _decrypt_license_data(self, encrypted_data: Dict[str, Any]) -> Dict[str, Any]:
         """Decrypt license data."""
         try:
             encrypted = bytes.fromhex(encrypted_data["data"]).decode('latin1')

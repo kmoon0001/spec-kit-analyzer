@@ -3666,7 +3666,7 @@ Memory:
             return
         
         try:
-            import psutil
+            import psutil  # type: ignore[import-untyped]
             
             # Get CPU and memory usage
             cpu_percent = psutil.cpu_percent(interval=None)

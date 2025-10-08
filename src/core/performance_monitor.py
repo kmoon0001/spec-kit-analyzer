@@ -11,11 +11,17 @@ import time
 import yaml
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Any, Callable, TYPE_CHECKING
 from dataclasses import dataclass, asdict
 from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from .alert_router import AlertRouter
+    from .analytics_agent import AnalyticsAgent
+    from .data_aggregator import DataAggregator
+    from .metrics_collector import MetricsCollector
 
 
 class MonitoringState(Enum):
@@ -79,10 +85,10 @@ class PerformanceMonitor:
         self.start_time: Optional[datetime] = None
         
         # Core components (will be initialized when needed)
-        self.metrics_collector = None
-        self.data_aggregator = None
-        self.analytics_agent = None
-        self.alert_router = None
+        self.metrics_collector: Optional["MetricsCollector"] = None
+        self.data_aggregator: Optional["DataAggregator"] = None
+        self.analytics_agent: Optional["AnalyticsAgent"] = None
+        self.alert_router: Optional["AlertRouter"] = None
         
         # Threading and synchronization
         self._monitor_thread: Optional[threading.Thread] = None

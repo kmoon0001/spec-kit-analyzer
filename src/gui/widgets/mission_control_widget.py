@@ -140,7 +140,7 @@ class SettingsEditorWidget(QWidget):
     
     def _generate_realtime_system_info(self) -> str:
         """Generate realtime system information HTML."""
-        import psutil
+        import psutil  # type: ignore[import-untyped]
         import platform
         from datetime import datetime
         import os
@@ -404,7 +404,7 @@ class SettingsEditorWidget(QWidget):
 
     def _on_save(self) -> None:
         """Collects data from the form and emits the save_requested signal."""
-        new_settings = {}
+        new_settings: Dict[str, Any] = {}
         for i in range(self.form_layout.rowCount()):
             field = self.form_layout.itemAt(i, QFormLayout.FieldRole)
             if field and field.widget():
@@ -550,7 +550,7 @@ class MissionControlWidget(QWidget):
         layout.setHorizontalSpacing(24)
 
         title = QLabel("AI Subsystem Status")
-        title.setFont(QFont("Segoe UI", 11, QFont.Medium))
+        title.setFont(QFont("Segoe UI", 11, QFont.Weight.Medium))
         layout.addWidget(title, 0, 0, 1, 4)
 
         self.ai_health_labels: Dict[str, QLabel] = {}
@@ -584,7 +584,7 @@ class MissionControlWidget(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
 
         title = QLabel("API Status")
-        title.setFont(QFont("Segoe UI", 11, QFont.Medium))
+        title.setFont(QFont("Segoe UI", 11, QFont.Weight.Medium))
         layout.addWidget(title)
 
         self.api_status_label = QLabel("Pending...")
@@ -604,7 +604,7 @@ class MissionControlWidget(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
 
         title = QLabel("Live Task Monitor")
-        title.setFont(QFont("Segoe UI", 11, QFont.Medium))
+        title.setFont(QFont("Segoe UI", 11, QFont.Weight.Medium))
         layout.addWidget(title)
 
         self.task_monitor = TaskMonitorWidget(self)

@@ -9,7 +9,7 @@ import json
 import logging
 import os
 import platform
-import psutil
+import psutil  # type: ignore[import-untyped]
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -223,7 +223,7 @@ class PerformanceOptimizer:
 
         return False
 
-    def get_model_recommendations(self) -> Dict[str, str]:
+    def get_model_recommendations(self) -> Dict[str, Any]:
         """Get model recommendations based on system capabilities."""
         memory_gb = self.system_info["total_memory_gb"]
 

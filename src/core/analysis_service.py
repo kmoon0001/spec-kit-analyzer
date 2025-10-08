@@ -6,7 +6,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import psutil
+import psutil  # type: ignore[import-untyped]
 
 from src.config import get_settings as _get_settings
 from src.core.cache_service import cache_service

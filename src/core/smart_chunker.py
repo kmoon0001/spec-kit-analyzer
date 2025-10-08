@@ -1,4 +1,4 @@
-import nltk
+import nltk  # type: ignore[import-untyped]
 import logging
 
 # Set up logging

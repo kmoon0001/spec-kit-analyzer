@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Optional dependencies with graceful fallback
 try:
-    import pandas as pd
+    import pandas as pd  # type: ignore[import-untyped]
 
     PANDAS_AVAILABLE = True
 except ImportError:

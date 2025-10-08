@@ -324,7 +324,7 @@ class ConfigValidator:
 
     def generate_health_report(self) -> Dict[str, Any]:
         """Generate a comprehensive health report for the configuration."""
-        report = {
+        report: Dict[str, Any] = {
             "timestamp": "2025-10-02",  # Would use datetime in real implementation
             "overall_status": "unknown",
             "config_validation": {},
@@ -332,6 +332,8 @@ class ConfigValidator:
             "permissions_check": {},
             "recommendations": [],
         }
+
+        recommendations: List[str] = report["recommendations"]
 
         # Validate configuration
         config_valid, config_errors, config_warnings = self.validate_config_file()
@@ -362,17 +364,17 @@ class ConfigValidator:
 
         # Generate recommendations
         if config_warnings:
-            report["recommendations"].append(
+            recommendations.append(
                 "Review configuration warnings and consider adjustments"
             )
 
         if env_missing:
-            report["recommendations"].append(
+            recommendations.append(
                 "Set recommended environment variables for production use"
             )
 
         if not config_valid:
-            report["recommendations"].append(
+            recommendations.append(
                 "Fix configuration errors before running the application"
             )
 

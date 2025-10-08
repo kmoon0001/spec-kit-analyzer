@@ -617,7 +617,7 @@ class DataAggregator:
                 return
             
             # Group metrics by name and source
-            grouped_metrics = {}
+            grouped_metrics: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
             for metric in raw_metrics:
                 key = (metric['name'], metric['source'])
                 if key not in grouped_metrics:
@@ -625,7 +625,7 @@ class DataAggregator:
                 grouped_metrics[key].append(metric)
             
             # Create aggregated metrics
-            aggregated_metrics = []
+            aggregated_metrics: List[AggregatedMetric] = []
             for (name, source), metric_group in grouped_metrics.items():
                 if not metric_group:
                     continue

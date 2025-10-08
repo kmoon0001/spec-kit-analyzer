@@ -8,7 +8,7 @@ headers, footers, and medical document styling.
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Any
+from typing import Any, Dict, List, Optional
 from pathlib import Path
 
 # Initialize logger first
@@ -16,15 +16,15 @@ logger = logging.getLogger(__name__)
 
 # PDF generation imports with fallback
 try:
-    from weasyprint import HTML
-    from weasyprint.text.fonts import FontConfiguration
+    from weasyprint import HTML  # type: ignore[import-untyped]
+    from weasyprint.text.fonts import FontConfiguration  # type: ignore[import-untyped]
     WEASYPRINT_AVAILABLE = True
 except (ImportError, OSError) as e:
     logger.warning(f"WeasyPrint not available: {e}. WeasyPrint is the preferred PDF generation backend.")
     WEASYPRINT_AVAILABLE = False
 
 try:
-    import pdfkit
+    import pdfkit  # type: ignore[import-not-found]
     PDFKIT_AVAILABLE = True
 except ImportError:
     logger.warning("pdfkit not available. This is a fallback PDF generation backend.")
@@ -79,8 +79,8 @@ class PDFExportService:
     def export_to_pdf(
         self, 
         html_content: str, 
-        document_name: str = None,
-        filename: str = None,
+        document_name: Optional[str] = None,
+        filename: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
@@ -131,7 +131,7 @@ class PDFExportService:
                 file_size = output_path.stat().st_size if output_path.exists() else 0
                 
                 # Calculate purge time if auto-purge is enabled
-                purge_at = None
+                purge_at: Optional[str] = None
                 if self.enable_auto_purge:
                     from datetime import timezone
                     purge_at = (datetime.now(timezone.utc) + timedelta(hours=self.retention_hours)).isoformat()
@@ -198,7 +198,12 @@ class PDFExportService:
             logger.error(f"PDF export failed: {e}")
             return False
     
-    def _add_pdf_styling(self, html_content: str, metadata: Optional[Dict[str, Any]] = None, document_name: str = None) -> str:
+    def _add_pdf_styling(
+        self,
+        html_content: str,
+        metadata: Optional[Dict[str, Any]] = None,
+        document_name: Optional[str] = None,
+    ) -> str:
         """Add PDF-specific CSS styling for professional medical documents."""
         
         # Professional medical document CSS
@@ -600,7 +605,7 @@ class PDFExportService:
             logger.error(f"Failed to get PDF info: {e}")
             return None
     
-    def list_pdfs(self) -> list:
+    def list_pdfs(self) -> List[Dict[str, Any]]:
         """List all PDF files in the output directory."""
         try:
             pdf_files = []

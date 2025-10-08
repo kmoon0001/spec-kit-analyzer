@@ -297,7 +297,7 @@ class AnalysisWorkflowLogger:
             return
         
         session = self.current_session
-        step_counts = {}
+        step_counts: Dict[str, int] = {}
         
         # Count step types
         for step in session["steps"]:

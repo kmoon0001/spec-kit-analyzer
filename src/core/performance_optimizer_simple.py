@@ -7,7 +7,7 @@ Compliance Analyzer with synchronous operations.
 import logging
 import time
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 import threading
 
@@ -32,8 +32,8 @@ class PerformanceOptimizer:
     
     def __init__(self):
         """Initialize performance optimizer."""
-        self.optimization_history = []
-        self.last_optimization = None
+        self.optimization_history: List[Dict[str, Any]] = []
+        self.last_optimization: Optional[datetime] = None
         self.optimization_in_progress = False
         self._lock = threading.Lock()
         logger.info("Performance optimizer initialized")
@@ -97,7 +97,7 @@ class PerformanceOptimizer:
             # Get baseline performance metrics
             baseline_metrics = self.analyze_performance()
             
-            optimization_results = {
+            optimization_results: Dict[str, Any] = {
                 'status': 'completed',
                 'baseline_metrics': baseline_metrics,
                 'optimizations_applied': [],

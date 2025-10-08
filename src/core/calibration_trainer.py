@@ -4,7 +4,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, Generator, List, Optional
 import sqlite3
 from contextlib import contextmanager
 
@@ -21,7 +21,7 @@ class CalibrationTrainer:
             db_path: Path to SQLite database for storing training data
         """
         self.db_path = db_path
-        self._shared_conn = None  # For in-memory databases
+        self._shared_conn: Optional[sqlite3.Connection] = None  # For in-memory databases
         
         if db_path != ":memory:":
             db_path_obj = Path(db_path)
@@ -37,6 +37,7 @@ class CalibrationTrainer:
                 self._shared_conn = sqlite3.connect(self.db_path)
                 self._shared_conn.row_factory = sqlite3.Row
             conn = self._shared_conn
+            assert conn is not None
         else:
             conn = sqlite3.connect(self.db_path)
         
@@ -78,12 +79,13 @@ class CalibrationTrainer:
             raise
     
     @contextmanager
-    def _get_db_connection(self):
+    def _get_db_connection(self) -> Generator[sqlite3.Connection, None, None]:
         """Get database connection with proper cleanup."""
         if self.db_path == ":memory:":
             # Use shared connection for in-memory database
             if self._shared_conn is None:
                 self._init_database()
+            assert self._shared_conn is not None
             yield self._shared_conn
         else:
             conn = sqlite3.connect(self.db_path)
@@ -165,7 +167,7 @@ class CalibrationTrainer:
         self._init_database()
         
         query = "SELECT * FROM training_data WHERE user_feedback != 'uncertain'"
-        params = []
+        params: List[Any] = []
         
         if confidence_range:
             query += " AND original_confidence BETWEEN ? AND ?"
@@ -258,23 +260,23 @@ class CalibrationTrainer:
         """
         training_data = self.get_training_data(min_samples=1)  # Get all data
         
-        output_path = Path(output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path_obj = Path(output_path)
+        output_path_obj.parent.mkdir(parents=True, exist_ok=True)
         
         if format.lower() == 'json':
-            with open(output_path, 'w') as f:
+            with open(output_path_obj, 'w') as f:
                 json.dump(training_data, f, indent=2, default=str)
         elif format.lower() == 'csv':
             import csv
             if training_data:
-                with open(output_path, 'w', newline='') as f:
+                with open(output_path_obj, 'w', newline='') as f:
                     writer = csv.DictWriter(f, fieldnames=training_data[0].keys())
                     writer.writeheader()
                     writer.writerows(training_data)
         else:
             raise ValueError("Format must be 'json' or 'csv'")
         
-        logger.info(f"Exported {len(training_data)} training samples to {output_path}")
+        logger.info(f"Exported {len(training_data)} training samples to {output_path_obj}")
     
     def clear_training_data(self, confirm: bool = False) -> None:
         """Clear all training data (use with caution).

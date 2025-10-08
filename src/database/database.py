@@ -204,7 +204,10 @@ async def get_db_health() -> Dict[str, Any]:
             result.fetchone()
 
             # Get basic stats if SQLite
-            stats = {"status": "healthy", "engine": str(engine.url).split("://")[0]}
+            stats: Dict[str, Any] = {
+                "status": "healthy",
+                "engine": str(engine.url).split("://")[0],
+            }
 
             if "sqlite" in DATABASE_URL:
                 # Get SQLite-specific stats

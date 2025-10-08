@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Union, Tuple
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from jinja2.exceptions import TemplateError
 
@@ -606,9 +606,10 @@ class TemplateLibrary:
     
     def _create_default_templates(self) -> None:
         """Create default report templates"""
-        default_templates = {
-            "performance_analysis": {
-                "metadata": TemplateMetadata(
+        default_templates: List[Tuple[str, TemplateMetadata, str]] = [
+            (
+                "performance_analysis",
+                TemplateMetadata(
                     template_id="performance_analysis",
                     name="Performance Analysis Report",
                     description="Comprehensive performance analysis with metrics and trends",
@@ -619,9 +620,9 @@ class TemplateLibrary:
                     updated_at=datetime.now(),
                     supported_formats=[RenderFormat.HTML, RenderFormat.PDF],
                     required_data_fields=["performance_metrics", "optimization_results"],
-                    tags=["performance", "analysis", "metrics"]
+                    tags=["performance", "analysis", "metrics"],
                 ),
-                "content": """
+                """
 <!DOCTYPE html>
 <html>
 <head>
@@ -676,21 +677,21 @@ class TemplateLibrary:
     {% endif %}
 </body>
 </html>
-                """.strip()
-            }
-        }
+                """.strip(),
+            ),
+        ]
         
         # Create default templates
-        for template_id, template_data in default_templates.items():
-            self.templates[template_id] = template_data["metadata"]
+        for template_id, metadata, content in default_templates:
+            self.templates[template_id] = metadata
             
             # Save template file
             template_file = self.templates_dir / f"{template_id}.html"
             with open(template_file, 'w', encoding='utf-8') as f:
-                f.write(template_data["content"])
+                f.write(content)
             
             # Save metadata
-            self._save_metadata(template_id, template_data["metadata"])
+            self._save_metadata(template_id, metadata)
         
         logger.info("Created default report templates")
     

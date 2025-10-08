@@ -7,7 +7,7 @@ detect timeouts, and trigger recovery mechanisms when analyses hang or fail.
 
 import time
 from datetime import datetime
-from typing import Optional, Dict, Any, Callable
+from typing import Any, Callable, Dict, List, Optional
 from enum import Enum
 import logging
 
@@ -46,8 +46,8 @@ class AnalysisStatusTracker:
         self.reset()
         
         # Callbacks for status changes
-        self._status_callbacks: Dict[AnalysisState, list] = {}
-        self._timeout_callbacks: list = []
+        self._status_callbacks: Dict[AnalysisState, List[Callable[[Dict[str, Any]], None]]] = {}
+        self._timeout_callbacks: List[Callable[[Dict[str, Any]], None]] = []
     
     def reset(self) -> None:
         """Reset tracker to idle state."""
@@ -90,8 +90,13 @@ class AnalysisStatusTracker:
         logger.info(f"Started tracking analysis: {analysis_id}")
         self._trigger_status_callback(AnalysisState.STARTING)
     
-    def update_status(self, state: AnalysisState, progress: int = None, 
-                     message: str = None, task_id: str = None) -> None:
+    def update_status(
+        self,
+        state: AnalysisState,
+        progress: Optional[int] = None,
+        message: Optional[str] = None,
+        task_id: Optional[str] = None,
+    ) -> None:
         """
         Update analysis status.
         
@@ -273,7 +278,7 @@ class AnalysisStatusTracker:
             "metadata": self.metadata.copy()
         }
     
-    def add_status_callback(self, state: AnalysisState, callback: Callable) -> None:
+    def add_status_callback(self, state: AnalysisState, callback: Callable[[Dict[str, Any]], None]) -> None:
         """
         Add callback for specific state changes.
         
@@ -285,7 +290,7 @@ class AnalysisStatusTracker:
             self._status_callbacks[state] = []
         self._status_callbacks[state].append(callback)
     
-    def add_timeout_callback(self, callback: Callable) -> None:
+    def add_timeout_callback(self, callback: Callable[[Dict[str, Any]], None]) -> None:
         """
         Add callback for timeout events.
         

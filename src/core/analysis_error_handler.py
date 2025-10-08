@@ -6,7 +6,7 @@ error messages and recovery suggestions for analysis workflow failures.
 """
 
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TypedDict
 from enum import Enum
 from dataclasses import dataclass
 
@@ -44,6 +44,15 @@ class AnalysisError:
     icon: str
 
 
+class ErrorConfig(TypedDict):
+    """Typed configuration for a categorized error response."""
+    title: str
+    message: str
+    solutions: List[ErrorSolution]
+    severity: str
+    icon: str
+
+
 class AnalysisErrorHandler:
     """
     Comprehensive error handler for analysis workflow.
@@ -55,7 +64,7 @@ class AnalysisErrorHandler:
     def __init__(self):
         self.error_patterns = self._initialize_error_patterns()
     
-    def categorize_and_handle_error(self, error_message: str, context: Optional[Dict] = None) -> AnalysisError:
+    def categorize_and_handle_error(self, error_message: str, context: Optional[Dict[str, object]] = None) -> AnalysisError:
         """
         Categorize an error and provide comprehensive handling information.
         
@@ -152,10 +161,10 @@ class AnalysisErrorHandler:
             ]
         }
     
-    def _create_error_response(self, category: ErrorCategory, original_error: str, context: Optional[Dict] = None) -> AnalysisError:
+    def _create_error_response(self, category: ErrorCategory, original_error: str, context: Optional[Dict[str, object]] = None) -> AnalysisError:
         """Create a comprehensive error response for a specific category."""
-        
-        error_configs = {
+
+        error_configs: Dict[ErrorCategory, ErrorConfig] = {
             ErrorCategory.API_CONNECTION: {
                 "title": "Cannot Connect to Analysis Service",
                 "message": "The application cannot connect to the backend analysis service. This is required for document analysis to work.",

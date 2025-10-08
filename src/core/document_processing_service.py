@@ -19,10 +19,10 @@ class DocumentProcessingService:
         Lazy load dependencies to avoid circular imports and improve startup time.
         """
         try:
-            from pdf2image import convert_from_path
-            import pytesseract
-            from docx import Document
-            import fitz  # PyMuPDF
+            from pdf2image import convert_from_path  # type: ignore[import-not-found]
+            import pytesseract  # type: ignore[import-untyped]
+            from docx import Document  # type: ignore[import-untyped]
+            import fitz  # type: ignore[import-untyped]
 
             self.convert_from_path = convert_from_path
             self.pytesseract = pytesseract

@@ -98,7 +98,7 @@ class BaseGuardrail(ABC):
         self.description = description
         self.enabled = enabled
         self.violation_count = 0
-        self.last_triggered = None
+        self.last_triggered: Optional[datetime] = None
     
     @abstractmethod
     def evaluate(self, content: str, context: Dict[str, Any]) -> List[GuardrailViolation]:
@@ -665,7 +665,7 @@ class AIGuardrailsService:
     
     def _calculate_confidence_adjustments(self, violations: List[GuardrailViolation]) -> Dict[str, float]:
         """Calculate confidence adjustments based on violations"""
-        adjustments = {}
+        adjustments: Dict[str, float] = {}
         
         # Reduce confidence based on violation types
         for violation in violations:
@@ -684,7 +684,7 @@ class AIGuardrailsService:
         total_violations = sum(len(result.violations) for result in self.violation_history)
         
         # Calculate violation rates by type
-        violation_types = defaultdict(int)
+        violation_types: defaultdict[str, int] = defaultdict(int)
         for result in self.violation_history:
             for violation in result.violations:
                 violation_types[violation.guardrail_type.value] += 1

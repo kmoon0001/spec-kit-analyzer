@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 
 from jinja2 import Template
 from PySide6.QtWidgets import QFileDialog
-from xhtml2pdf import pisa
+from xhtml2pdf import pisa  # type: ignore[import-untyped]
 
 
 DEFAULT_LIMITATIONS_TEXT = "This AI-generated report should be reviewed by a clinical compliance expert before use."

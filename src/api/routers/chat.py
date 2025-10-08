@@ -31,7 +31,8 @@ async def chat_with_ai(
     chat_service = ChatService(chat_llm)
 
     try:
-        response_text = chat_service.process_message(chat_request.history)
+        history_payload = [message.model_dump() for message in chat_request.history]
+        response_text = chat_service.process_message(history_payload)
         return schemas.ChatResponse(response=response_text)
     except Exception as e:
         raise HTTPException(

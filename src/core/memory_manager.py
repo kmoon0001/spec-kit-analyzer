@@ -8,11 +8,11 @@ resource allocation optimization.
 
 import gc
 import logging
-import psutil
+import psutil  # type: ignore[import-untyped]
 import threading
 import time
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Callable, Any, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 from enum import Enum
 import weakref

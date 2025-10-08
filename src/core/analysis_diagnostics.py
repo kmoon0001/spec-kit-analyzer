@@ -290,7 +290,7 @@ class AnalysisDiagnostics:
     def check_system_resources(self) -> DiagnosticResult:
         """Check system resource availability."""
         try:
-            import psutil
+            import psutil  # type: ignore[import-untyped]
             
             # Get system metrics
             cpu_percent = psutil.cpu_percent(interval=1)

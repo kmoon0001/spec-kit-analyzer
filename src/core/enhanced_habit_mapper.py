@@ -13,9 +13,34 @@ This enhanced version includes:
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple, TypedDict
 
 logger = logging.getLogger(__name__)
+
+
+class HabitDefinition(TypedDict):
+    """Structured definition for a single habit."""
+
+    number: int
+    name: str
+    principle: str
+    clinical_application: str
+    description: str
+    keywords: List[str]
+    clinical_examples: List[str]
+    improvement_strategies: List[str]
+    common_issues: List[str]
+
+
+class HabitMetrics(TypedDict):
+    """Metrics describing habit prevalence and focus."""
+
+    habit_number: int
+    habit_name: str
+    finding_count: int
+    percentage: float
+    needs_focus: bool
+    mastery_level: str
 
 
 class SevenHabitsFramework:
@@ -25,7 +50,7 @@ class SevenHabitsFramework:
     """
 
     # Complete 7 Habits definitions with clinical applications
-    HABITS = {
+    HABITS: Dict[str, HabitDefinition] = {
         "habit_1": {
             "number": 1,
             "name": "Be Proactive",
@@ -356,7 +381,7 @@ class SevenHabitsFramework:
 
         # Score each habit based on keyword matches (using word boundaries)
         import re
-        habit_scores = {}
+        habit_scores: Dict[str, int] = {}
         for habit_id, habit_info in self.HABITS.items():
             score = sum(
                 1 for keyword in habit_info["keywords"] 
@@ -365,7 +390,7 @@ class SevenHabitsFramework:
             habit_scores[habit_id] = score
 
         # Get habit with highest score (default to Habit 1 if no matches)
-        best_habit_id = max(habit_scores, key=habit_scores.get)
+        best_habit_id = max(habit_scores, key=lambda habit_id: habit_scores[habit_id])
         if habit_scores[best_habit_id] == 0:
             best_habit_id = "habit_1"  # Default to Be Proactive
 
@@ -475,7 +500,7 @@ Return a JSON object:
 """
         return prompt
 
-    def get_habit_details(self, habit_id: str) -> Dict[str, Any]:
+    def get_habit_details(self, habit_id: str) -> HabitDefinition:
         """
         Get complete details for a specific habit.
 
@@ -519,7 +544,7 @@ Return a JSON object:
                 habit_counts[habit_id] += 1
 
         # Calculate percentages and identify focus areas
-        habit_metrics = {}
+        habit_metrics: Dict[str, HabitMetrics] = {}
         for habit_id, count in habit_counts.items():
             habit = self.HABITS[habit_id]
             percentage = (count / total_findings * 100) if total_findings > 0 else 0
@@ -533,18 +558,20 @@ Return a JSON object:
                 "mastery_level": self._calculate_mastery_level(percentage),
             }
 
+        top_focus_areas: List[Tuple[str, HabitMetrics]] = sorted(
+            [
+                (hid, metrics)
+                for hid, metrics in habit_metrics.items()
+                if metrics["needs_focus"]
+            ],
+            key=lambda item: item[1]["percentage"],
+            reverse=True,
+        )[:3]
+
         return {
             "total_findings": total_findings,
             "habit_breakdown": habit_metrics,
-            "top_focus_areas": sorted(
-                [
-                    (hid, metrics)
-                    for hid, metrics in habit_metrics.items()
-                    if metrics["needs_focus"]
-                ],
-                key=lambda x: x[1]["percentage"],
-                reverse=True,
-            )[:3],
+            "top_focus_areas": top_focus_areas,
         }
 
     def _calculate_mastery_level(self, percentage: float) -> str:

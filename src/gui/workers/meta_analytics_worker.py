@@ -30,8 +30,8 @@ class MetaAnalyticsWorker(QObject):
         self.base_url = settings.paths.api_url.rstrip("/")
         self.token = token
         self.days_back = 90
-        self.discipline = None
-        self.load_type = "overview"
+        self.discipline: Optional[str] = None
+        self.load_type: str = "overview"
 
     def set_parameters(
         self,
@@ -97,7 +97,7 @@ class MetaAnalyticsWorker(QObject):
         """Load comprehensive organizational overview."""
         self.progress_updated.emit("Loading organizational overview...")
 
-        params = {"days_back": self.days_back}
+        params: Dict[str, Any] = {"days_back": self.days_back}
         if self.discipline:
             params["discipline"] = self.discipline
 
@@ -115,7 +115,7 @@ class MetaAnalyticsWorker(QObject):
         """Load training needs analysis."""
         self.progress_updated.emit("Analyzing training needs...")
 
-        params = {"days_back": self.days_back}
+        params: Dict[str, Any] = {"days_back": self.days_back}
         if self.discipline:
             params["discipline"] = self.discipline
 
@@ -134,7 +134,7 @@ class MetaAnalyticsWorker(QObject):
         self.progress_updated.emit("Loading performance trends...")
 
         weeks_back = max(4, self.days_back // 7)
-        params = {"weeks_back": weeks_back}
+        params: Dict[str, Any] = {"weeks_back": weeks_back}
         if self.discipline:
             params["discipline"] = self.discipline
 
@@ -152,7 +152,7 @@ class MetaAnalyticsWorker(QObject):
         """Load benchmarking data."""
         self.progress_updated.emit("Loading benchmark data...")
 
-        params = {"days_back": self.days_back}
+        params: Dict[str, Any] = {"days_back": self.days_back}
 
         response = requests.get(
             f"{self.base_url}/meta-analytics/benchmarks",
@@ -181,7 +181,7 @@ class MetaAnalyticsWorker(QObject):
         """Load discipline comparison data."""
         self.progress_updated.emit("Loading discipline comparison...")
 
-        params = {"days_back": self.days_back}
+        params: Dict[str, Any] = {"days_back": self.days_back}
 
         response = requests.get(
             f"{self.base_url}/meta-analytics/discipline-comparison",
@@ -199,7 +199,7 @@ class MetaAnalyticsWorker(QObject):
         """Load peer comparison data for a specific user."""
         self.progress_updated.emit("Loading peer comparison...")
 
-        params = {"days_back": self.days_back}
+        params: Dict[str, Any] = {"days_back": self.days_back}
 
         response = requests.get(
             f"{self.base_url}/meta-analytics/peer-comparison/{user_id}",

@@ -6,11 +6,11 @@ components including system resources, application metrics, and custom sources.
 """
 
 import logging
-import psutil
+import psutil  # type: ignore[import-untyped]
 import threading
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
 
@@ -65,10 +65,10 @@ class SystemMetricsSource(MetricSource):
     """Collects system-level metrics using psutil."""
     
     def __init__(self):
-        self._last_cpu_times = None
-        self._last_network_io = None
-        self._last_disk_io = None
-        self._collection_time = None
+        self._last_cpu_times: Optional[Any] = None
+        self._last_network_io: Optional[Any] = None
+        self._last_disk_io: Optional[Any] = None
+        self._collection_time: Optional[datetime] = None
     
     def get_source_name(self) -> str:
         return "system"
@@ -243,9 +243,9 @@ class ApplicationMetricsSource(MetricSource):
     """Collects application-specific metrics."""
     
     def __init__(self):
-        self._response_times = []
-        self._error_counts = {}
-        self._request_counts = {}
+        self._response_times: List[float] = []
+        self._error_counts: Dict[str, int] = {}
+        self._request_counts: Dict[str, int] = {}
         self._lock = threading.Lock()
     
     def get_source_name(self) -> str:
@@ -361,7 +361,7 @@ class CustomMetricsSource(MetricSource):
     
     def __init__(self, name: str):
         self.name = name
-        self._metrics = []
+        self._metrics: List[PerformanceMetric] = []
         self._lock = threading.Lock()
     
     def get_source_name(self) -> str:

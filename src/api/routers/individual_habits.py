@@ -7,7 +7,7 @@ achievements, and individual analytics.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -235,11 +235,13 @@ async def create_personal_goal(
             "message": "Personal goal created successfully",
             "goal": {
                 "id": goal.id,
-                "habit_id": goal.habit_id,
-                "habit_name": goal.habit_name,
-                "goal_type": goal.goal_type,
-                "target_value": goal.target_value,
-                "target_date": goal.target_date.isoformat(),
+                "habit_id": goal_create_data["habit_id"],
+                "habit_name": goal_create_data["habit_name"],
+                "goal_type": goal_create_data["goal_type"],
+                "target_value": goal_create_data["target_value"],
+                "target_date": goal.target_date.isoformat()
+                if goal.target_date
+                else None,
                 "status": goal.status,
             },
         }
@@ -279,27 +281,27 @@ async def get_personal_achievements(
         achievements = await crud.get_user_achievements(db, current_user.id, category)
 
         # Group by category
-        by_category = {}
+        by_category: Dict[str, List[Dict[str, Any]]] = {}
         total_points = 0
 
         for achievement in achievements:
-            cat = achievement.category
-            if cat not in by_category:
-                by_category[cat] = []
-
-            by_category[cat].append(
+            cat = str(achievement.get("category", "Uncategorized"))
+            by_category.setdefault(cat, []).append(
                 {
-                    "id": achievement.achievement_id,
-                    "name": achievement.achievement_name,
-                    "description": achievement.achievement_description,
-                    "icon": achievement.achievement_icon,
-                    "points": achievement.points_earned,
-                    "earned_date": achievement.earned_date.isoformat(),
-                    "metadata": achievement.metadata,
+                    "id": achievement.get("achievement_id", ""),
+                    "name": achievement.get("achievement_name", ""),
+                    "description": achievement.get("achievement_description", ""),
+                    "icon": achievement.get("achievement_icon", "??"),
+                    "points": achievement.get("points_earned", 0),
+                    "earned_date": (
+                        achievement["earned_date"].isoformat()
+                        if isinstance(achievement.get("earned_date"), datetime)
+                        else ""
+                    ),
+                    "metadata": achievement.get("metadata", {}),
                 }
             )
-
-            total_points += achievement.points_earned
+            total_points += int(achievement.get("points_earned", 0))
 
         return {
             "user_id": current_user.id,

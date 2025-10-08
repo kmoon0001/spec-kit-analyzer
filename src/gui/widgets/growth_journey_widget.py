@@ -6,7 +6,7 @@ and personalized recommendations in the dashboard.
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QFont
@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..workers.api_worker import APIWorker
+from ..workers.generic_api_worker import GenericApiWorker
 
 logger = logging.getLogger(__name__)
 
@@ -240,7 +240,7 @@ class GrowthJourneyWidget(QWidget):
         super().__init__()
         self.api_base_url = api_base_url
         self.auth_token = auth_token
-        self.progression_data = None
+        self.progression_data: Optional[Dict[str, Any]] = None
         self.setup_ui()
         self.setup_refresh_timer()
         self.load_progression_data()
@@ -300,10 +300,9 @@ class GrowthJourneyWidget(QWidget):
         self.refresh_button.setText("Loading...")
 
         # Create API worker
-        self.api_worker = APIWorker(
-            method="GET",
-            url=f"{self.api_base_url}/habits/progression",
-            headers={"Authorization": f"Bearer {self.auth_token}"},
+        self.api_worker = GenericApiWorker(
+            endpoint="/habits/progression",
+            token=self.auth_token,
         )
 
         self.api_worker.success.connect(self.on_data_loaded)
