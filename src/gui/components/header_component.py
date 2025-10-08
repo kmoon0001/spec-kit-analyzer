@@ -27,7 +27,7 @@ class HeaderComponent(QWidget):
         
     def init_ui(self):
         """Initialize the header UI."""
-        self.setFixedHeight(120)  # Even larger height for bigger title
+        self.setFixedHeight(140)  # Larger height for title + description
         self.setObjectName("headerComponent")
         
         layout = QHBoxLayout(self)
@@ -50,41 +50,59 @@ class HeaderComponent(QWidget):
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 10, 0)  # Minimal margins
         
-        # Medical emoji (clickable for easter eggs) - slightly smaller to save space
-        emoji_label = QLabel("🏥")
-        emoji_label.setFont(QFont("Segoe UI", 28))  # Slightly smaller emoji
-        emoji_label.mousePressEvent = self.on_logo_clicked
-        emoji_label.setCursor(Qt.CursorShape.PointingHandCursor)
-        emoji_label.setToolTip("Click 7 times for easter egg!")
-        emoji_label.setFixedWidth(40)  # Fixed width to prevent expansion
-        layout.addWidget(emoji_label)
+        # Logo placeholder (removed emoji as requested)
+        logo_label = QLabel("TCA")
+        logo_label.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
+        logo_label.setStyleSheet("color: #1d4ed8; background: transparent;")
+        logo_label.mousePressEvent = self.on_logo_clicked
+        logo_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        logo_label.setToolTip("Therapy Compliance Analyzer")
+        logo_label.setFixedWidth(60)
+        layout.addWidget(logo_label)
         
         return layout
 
     def create_title_section(self):
-        """Create the centered title section."""
-        layout = QHBoxLayout()
-        layout.setContentsMargins(20, 0, 20, 0)  # More horizontal padding
+        """Create the centered title section with description."""
+        layout = QVBoxLayout()  # Changed to vertical layout for title + description
+        layout.setContentsMargins(20, 0, 20, 0)
+        layout.setSpacing(8)
         
-        # Main title - much larger and stretched across
-        self.title_label = QLabel("THERAPY DOCUMENTATION COMPLIANCE ANALYSIS")
+        # Main title - even larger as requested
+        self.title_label = QLabel("THERAPY COMPLIANCE ANALYZER")
         self.title_label.setObjectName("titleLabel")
-        self.title_label.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))  # Much larger font (was 22)
+        self.title_label.setFont(QFont("Segoe UI", 32, QFont.Weight.Bold))  # Larger font (was 28)
         self.title_label.setStyleSheet("""
             QLabel#titleLabel {
                 color: #1d4ed8;
                 text-align: center;
-                padding: 15px 30px;
+                padding: 18px 35px;
                 background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
                 border-radius: 15px;
                 border: 3px solid #cbd5e0;
                 font-weight: 900;
-                letter-spacing: 1px;
+                letter-spacing: 1.5px;
             }
         """)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.title_label.setMinimumHeight(60)  # Ensure minimum height
+        self.title_label.setMinimumHeight(70)
         layout.addWidget(self.title_label)
+        
+        # App description - new addition as requested
+        self.description_label = QLabel("AI-powered clinical documentation analysis for Medicare compliance")
+        self.description_label.setObjectName("descriptionLabel")
+        self.description_label.setFont(QFont("Segoe UI", 14, QFont.Weight.Normal))
+        self.description_label.setStyleSheet("""
+            QLabel#descriptionLabel {
+                color: #64748b;
+                text-align: center;
+                padding: 8px 20px;
+                background: transparent;
+                font-style: italic;
+            }
+        """)
+        self.description_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.description_label)
         
         return layout
         
@@ -93,10 +111,10 @@ class HeaderComponent(QWidget):
         layout = QHBoxLayout()
         layout.setContentsMargins(10, 0, 0, 0)  # Minimal margins
         
-        # Theme toggle button - compact but still functional
-        self.theme_button = QPushButton("🌙")
+        # Theme toggle button - removed emoji as requested
+        self.theme_button = QPushButton("Theme")
         self.theme_button.setObjectName("themeButton")
-        self.theme_button.setFixedSize(45, 45)  # Slightly smaller button
+        self.theme_button.setFixedSize(70, 45)  # Wider for text
         self.theme_button.setToolTip("Toggle Dark/Light Theme (Ctrl+T)")
         self.theme_button.clicked.connect(self.on_theme_toggle)
         self.theme_button.setStyleSheet("""

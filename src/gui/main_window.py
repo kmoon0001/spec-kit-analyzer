@@ -814,10 +814,12 @@ class MainApplicationWindow(QMainWindow):
                 QMessageBox.warning(self, "Export Failed", f"Failed to export report: {str(e)}")
 
     def _handle_analysis_success(self, payload: Dict[str, Any]) -> None:
+        """Handle successful analysis completion with automatic report display."""
         # Hide loading spinner
         self.loading_spinner.stop_spinning()
         
-        self.statusBar().showMessage("✅ Analysis Complete - Click 'View Report' to see results", 5000)
+        # Update UI state
+        self.statusBar().showMessage("✅ Analysis Complete - Report displayed automatically", 5000)
         self.run_analysis_button.setEnabled(True)
         self.repeat_analysis_button.setEnabled(True)
         self.view_report_button.setEnabled(True)
@@ -842,17 +844,125 @@ Total Findings: {len(analysis.get('findings', []))}
 Compliance Score: {analysis.get('compliance_score', 'N/A')}%
 Risk Level: {analysis.get('risk_level', 'N/A')}
 
-Click the "📊 View Report" button to see the full detailed report.
+The detailed report has been automatically displayed in a popup window.
 
 You can also:
 - Click "🔄 Repeat" to run analysis again
+- Click "📊 View Report" to see the report again
 - Click "📄 Export PDF" or "🌐 Export HTML" to save the report
         """
         
         self.analysis_summary_browser.setPlainText(summary_text)
         self.detailed_results_browser.setPlainText(json.dumps(payload, indent=2))
         
-        self.view_model.load_dashboard_data() # Refresh dashboard after analysis
+        # AUTOMATICALLY DISPLAY THE ENHANCED REPORT POPUP (Best Practice: Immediate Results)
+        try:
+            # Prepare the result data for the enhanced report display
+            result_data = {
+                'document_name': doc_name,
+                'discipline': self.rubric_selector.currentText(),
+                'compliance_score': analysis.get('compliance_score', 0),
+                'findings': analysis.get('findings', []),
+                'report_html': self._generate_enhanced_report_html(payload),
+                'habits_analysis': analysis.get('habits_analysis', {}),
+                'timestamp': payload.get('timestamp', 'N/A')
+            }
+            
+            # Display the enhanced report popup immediately
+            self._display_report(result_data)
+            
+        except Exception as e:
+            # Fallback: Log error but don't break the workflow
+            print(f"Warning: Could not auto-display report popup: {e}")
+            self.statusBar().showMessage("✅ Analysis Complete - Click 'View Report' to see results", 5000)
+        
+        # Refresh dashboard after analysis
+        self.view_model.load_dashboard_data()
+    
+    def _generate_enhanced_report_html(self, payload: Dict[str, Any]) -> str:
+        """Generate enhanced HTML report from analysis payload following best practices."""
+        analysis = payload.get("analysis", {})
+        findings = analysis.get('findings', [])
+        compliance_score = analysis.get('compliance_score', 0)
+        doc_name = self._selected_file.name if self._selected_file else "Document"
+        
+        # Determine score color based on compliance level
+        score_color = '#059669' if compliance_score >= 80 else '#d97706' if compliance_score >= 60 else '#dc2626'
+        
+        # Generate findings HTML
+        findings_html = ""
+        for i, finding in enumerate(findings, 1):
+            severity = finding.get('severity', 'medium')
+            severity_color = '#dc2626' if severity == 'high' else '#d97706' if severity == 'medium' else '#059669'
+            
+            findings_html += f"""
+            <div style='margin: 15px 0; padding: 15px; border-left: 4px solid {severity_color}; background: #f8fafc; border-radius: 6px;'>
+                <h4 style='color: {severity_color}; margin-top: 0;'>Finding #{i} - {severity.title()} Risk</h4>
+                <p><strong>Issue:</strong> {finding.get('description', 'No description available')}</p>
+                <p><strong>Evidence:</strong> "{finding.get('evidence', 'No evidence provided')}"</p>
+                <p><strong>Recommendation:</strong> {finding.get('recommendation', 'No recommendation provided')}</p>
+                <p><strong>Confidence:</strong> {finding.get('confidence', 0)}%</p>
+            </div>
+            """
+        
+        # Generate complete HTML report
+        html_report = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Compliance Analysis Report</title>
+            <style>
+                body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; margin: 20px; background: #f8fafc; }}
+                .header {{ background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 2px solid #e2e8f0; }}
+                .score-card {{ background: white; padding: 20px; border-radius: 10px; margin: 20px 0; border: 2px solid #e2e8f0; text-align: center; }}
+                .findings-section {{ background: white; padding: 20px; border-radius: 10px; border: 2px solid #e2e8f0; }}
+                h1 {{ color: #1d4ed8; margin-top: 0; }}
+                h2 {{ color: #1d4ed8; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }}
+                .score {{ font-size: 48px; font-weight: bold; color: {score_color}; }}
+                .timestamp {{ color: #64748b; font-size: 14px; }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>📊 Clinical Compliance Analysis Report</h1>
+                <p><strong>Document:</strong> {doc_name}</p>
+                <p><strong>Analysis Date:</strong> {payload.get('timestamp', 'N/A')}</p>
+                <p><strong>Discipline:</strong> {self.rubric_selector.currentText()}</p>
+            </div>
+            
+            <div class="score-card">
+                <h2>Overall Compliance Score</h2>
+                <div class="score">{compliance_score}%</div>
+                <p>Based on {len(findings)} findings analyzed</p>
+            </div>
+            
+            <div class="findings-section">
+                <h2>Detailed Findings</h2>
+                {findings_html if findings_html else '<p style="text-align: center; color: #059669; font-size: 18px;">🎉 No compliance issues found! Excellent documentation.</p>'}
+            </div>
+            
+            <div style="background: white; padding: 20px; border-radius: 10px; margin-top: 20px; border: 2px solid #e2e8f0;">
+                <h2>Next Steps</h2>
+                <ul>
+                    <li>Review all findings and implement recommended changes</li>
+                    <li>Update documentation templates to prevent recurring issues</li>
+                    <li>Schedule regular compliance reviews</li>
+                    <li>Consider additional training for areas with multiple findings</li>
+                </ul>
+            </div>
+            
+            <div style="background: #f0f9ff; padding: 15px; border-radius: 10px; margin-top: 20px; border: 1px solid #0ea5e9;">
+                <p style="margin: 0; color: #0ea5e9; font-size: 14px;">
+                    <strong>AI Transparency:</strong> This report was generated using local AI models. 
+                    All analysis occurred on your device with no external data transmission. 
+                    Please review findings with professional judgment.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return html_report
 
     def on_analysis_error(self, message: str) -> None:
         """Handles analysis errors by re-enabling controls and surfacing the status."""
@@ -964,7 +1074,7 @@ You can also:
         self._build_file_menu(menu_bar)
         self._build_view_menu(menu_bar)
         self._build_tools_menu(menu_bar)
-        self._build_admin_menu(menu_bar)
+        self._build_admin_menu(menu_bar)  # Now available to all users
         self._build_help_menu(menu_bar)
 
     def _build_file_menu(self, menu_bar) -> None:
@@ -994,13 +1104,13 @@ You can also:
         view_menu.addSeparator()
         
         # Theme submenu
-        theme_menu = QMenu("🎨 Theme", self)
+        theme_menu = QMenu("Theme", self)
         
-        light_action = QAction("☀️ Light Theme", self)
+        light_action = QAction("Light Theme", self)
         light_action.triggered.connect(lambda: self._apply_theme("light"))
         theme_menu.addAction(light_action)
         
-        dark_action = QAction("🌙 Dark Theme", self)
+        dark_action = QAction("Dark Theme", self)
         dark_action.triggered.connect(lambda: self._apply_theme("dark"))
         theme_menu.addAction(dark_action)
         
@@ -1063,38 +1173,37 @@ You can also:
         tools_menu.addAction(start_api_action)
 
     def _build_admin_menu(self, menu_bar) -> None:
-        if not self.current_user.is_admin:
-            return
         admin_menu = menu_bar.addMenu("&Admin")
         
-        # Rubric Management
-        rubrics_action = QAction("📋 Manage Rubrics…", self)
-        rubrics_action.triggered.connect(self._open_rubric_manager)
-        admin_menu.addAction(rubrics_action)
-        
-        admin_menu.addSeparator()
-        
-        # User Management
-        users_action = QAction("👥 Manage Users", self)
-        users_action.triggered.connect(self._show_user_management)
-        admin_menu.addAction(users_action)
-        
-        # Change Password
-        password_action = QAction("🔑 Change Password", self)
+        # Non-critical features available to all users
+        # Change Password (all users need this)
+        password_action = QAction("Change Password", self)
         password_action.triggered.connect(self.show_change_password_dialog)
         admin_menu.addAction(password_action)
         
-        admin_menu.addSeparator()
-        
-        # Settings
-        settings_action = QAction("⚙️ Settings…", self)
+        # Settings (all users need this)
+        settings_action = QAction("Settings…", self)
         settings_action.triggered.connect(self._open_settings_dialog)
         admin_menu.addAction(settings_action)
         
-        # System Info
-        system_info_action = QAction("ℹ️ System Information", self)
+        # System Info (informational, safe for all users)
+        system_info_action = QAction("System Information", self)
         system_info_action.triggered.connect(self._show_system_info)
         admin_menu.addAction(system_info_action)
+        
+        # CRITICAL ADMIN-ONLY FEATURES (keep protected)
+        if self.current_user.is_admin:
+            admin_menu.addSeparator()
+            
+            # Rubric Management (ADMIN ONLY - affects compliance rules)
+            rubrics_action = QAction("Manage Rubrics… (Admin)", self)
+            rubrics_action.triggered.connect(self._open_rubric_manager)
+            admin_menu.addAction(rubrics_action)
+            
+            # User Management (ADMIN ONLY - security critical)
+            users_action = QAction("Manage Users (Admin)", self)
+            users_action.triggered.connect(self._show_user_management)
+            admin_menu.addAction(users_action)
 
     def _build_help_menu(self, menu_bar) -> None:
         help_menu = menu_bar.addMenu("&Help")
@@ -1660,7 +1769,7 @@ You can also:
         self.file_display.setReadOnly(True)
         self.file_display.setMinimumHeight(90)
         self.file_display.setMaximumHeight(110)
-        self.file_display.setPlaceholderText("📄 No Document Selected\n\n👆 Click 'Upload Document' to choose a file\n\nSupported formats: PDF, DOCX, TXT")
+        self.file_display.setPlaceholderText("📄 Select a document to analyze\n\n👆 Click 'Upload Document' to choose a file\n\nSupported formats: PDF, DOCX, TXT")
         self.file_display.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {medical_theme.get_color("bg_primary")};
