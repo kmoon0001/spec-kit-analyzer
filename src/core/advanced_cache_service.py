@@ -189,21 +189,25 @@ class CachePerformanceMonitor:
     
     def _calculate_efficiency_score(self) -> float:
         """Calculate overall cache efficiency score (0-100)."""
-        overall_stats = self._calculate_overall_stats()
-        
-        if 'no_data' in overall_stats:
+        if not self.operation_times:
             return 0.0
-        
-        hit_rate = overall_stats['overall_hit_rate']
-        avg_time = overall_stats['avg_response_time_ms']
-        
+
+        recent_ops = list(self.operation_times)
+        total_ops = len(recent_ops)
+        if total_ops == 0:
+            return 0.0
+
+        total_hits = sum(1 for op in recent_ops if op["hit"])
+        hit_rate = total_hits / total_ops
+        avg_time = sum(op["duration_ms"] for op in recent_ops) / total_ops
+
         # Score based on hit rate (70% weight) and response time (30% weight)
         hit_rate_score = hit_rate * 70
-        
+
         # Response time score (lower is better, normalize to 0-30 scale)
         # Assume 100ms is excellent, 1000ms is poor
         time_score = max(0, 30 - (avg_time / 1000) * 30)
-        
+
         return min(100, hit_rate_score + time_score)
     
     def _generate_recommendations(self) -> List[str]:

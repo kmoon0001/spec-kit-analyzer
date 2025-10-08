@@ -53,7 +53,7 @@ class PerformanceOptimizer:
         
         logger.info("Performance optimizer initialized")
     
-    def analyze_performance(self) -> PerformanceMetrics:
+    async def analyze_performance(self) -> PerformanceMetrics:
         """Analyze current system performance and identify optimization opportunities."""
         logger.info("Starting performance analysis")
         
@@ -135,7 +135,7 @@ class PerformanceOptimizer:
         
         try:
             # Get baseline performance metrics
-            baseline_metrics = self.analyze_performance()
+            baseline_metrics = await self.analyze_performance()
             
             optimization_results = {
                 'status': 'in_progress',
@@ -183,7 +183,7 @@ class PerformanceOptimizer:
             logger.info("Phase 4: Validating performance improvements")
             await asyncio.sleep(1)  # Allow optimizations to take effect
             
-            final_metrics = self.analyze_performance()
+            final_metrics = await self.analyze_performance()
             optimization_results['final_metrics'] = final_metrics
             
             # Calculate improvements

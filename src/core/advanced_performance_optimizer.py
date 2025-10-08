@@ -75,7 +75,7 @@ class AdvancedPerformanceOptimizer:
     """
     
     def __init__(self):
-        self.base_optimizer = performance_optimizer
+        self.base_optimizer = _performance_optimizer
         self.resource_monitor = SystemResourceMonitor()
         self.ai_optimizer = AIPerformanceOptimizer()
         self.parallel_processor = ParallelProcessingOptimizer()
