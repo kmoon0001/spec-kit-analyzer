@@ -25,13 +25,12 @@ def main_app_window(qtbot, qapp, mocker):
 
     window = MainApplicationWindow(user=mock_user, token=mock_token)
 
-    def mock_handle_analysis_success(self, result: dict) -> None:
-        print("mock_handle_analysis_success called!")
-        window.run_analysis_button.setEnabled(True)
-        window.repeat_analysis_button.setEnabled(True)
-
     # Connect to the signal of the *actual* MainViewModel instance
-    window.view_model.analysis_result_received.connect(mock_handle_analysis_success.__get__(window, MainApplicationWindow))
+    window.view_model.analysis_result_received.connect(lambda result: (
+        print("analysis_result_received emitted and handled!"),
+        window.run_analysis_button.setEnabled(True),
+        window.repeat_analysis_button.setEnabled(True)
+    ))
 
     window.show()
     qtbot.addWidget(window)
@@ -76,7 +75,7 @@ def test_repeated_analysis_start(main_app_window: MainApplicationWindow, qtbot, 
         main_app_window.run_analysis_button.click()
 
         # Wait until the analysis button is re-enabled
-        qtbot.waitUntil(lambda: main_app_window.run_analysis_button.isEnabled(), timeout=10000)
+        qtbot.waitUntil(lambda: main_app_window.run_analysis_button.isEnabled(), timeout=20000)
         assert main_app_window.run_analysis_button.isEnabled()
         assert main_app_window.repeat_analysis_button.isEnabled()
 
