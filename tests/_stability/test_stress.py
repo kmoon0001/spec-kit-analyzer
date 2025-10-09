@@ -64,12 +64,20 @@ def test_repeated_analysis_start(main_app_window: MainApplicationWindow, qtbot, 
     mocker.patch.object(main_app_window.view_model, "start_analysis", mock_start_analysis)
     mocker.patch("src.gui.main_window.diagnostics")
 
+    # Mock _open_report_popup to prevent it from blocking the test
+    mocker.patch.object(main_app_window, "_open_report_popup")
+
     mock_qmessagebox = mocker.patch("src.gui.main_window.QMessageBox")
     mock_qmessagebox.return_value.exec.return_value = QMessageBox.StandardButton.Ok
     mock_qmessagebox.return_value.clickedButton.return_value = mock_qmessagebox.return_value.addButton("Ok", QMessageBox.ButtonRole.AcceptRole)
 
     mock_qdialog = mocker.patch("PySide6.QtWidgets.QDialog")
     mock_qdialog.return_value.exec.return_value = QDialog.DialogCode.Accepted
+
+    main_app_window.is_testing = True  # Enable testing mode
+    main_app_window._selected_file = Path("dummy_document.txt")
+    main_app_window.rubric_selector.addItem("Dummy Rubric", "dummy_rubric_data")
+    main_app_window.rubric_selector.setCurrentIndex(0)
 
     for _ in range(2):
         main_app_window.run_analysis_button.click()
