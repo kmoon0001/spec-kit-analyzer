@@ -1,6 +1,7 @@
 import pytest
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QMessageBox, QDialog
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from pathlib import Path
 from src.gui.main_window import MainApplicationWindow
 
@@ -23,13 +24,6 @@ def main_app_window(qtbot, qapp, mocker):
     mock_token = "mock_token_string"
 
     window = MainApplicationWindow(user=mock_user, token=mock_token)
-
-    # Patch the _on_analysis_polling_success method of the *instance*
-    def mock_on_analysis_polling_success(result: dict) -> None:
-        print("mock_on_analysis_polling_success called!")
-        window.view_model.analysis_result_received.emit(result)
-
-    window.view_model._on_analysis_polling_success = mock_on_analysis_polling_success
 
     def mock_handle_analysis_success(self, result: dict) -> None:
         print("mock_handle_analysis_success called!")
@@ -64,18 +58,11 @@ def test_rapid_tab_switching(main_app_window: MainApplicationWindow, qtbot):
 @pytest.mark.stability
 def test_repeated_analysis_start(main_app_window: MainApplicationWindow, qtbot, mocker):
     """A stress test for the analysis workflow with cleanup."""
-    main_app_window.is_testing = True  # Enable testing mode
+    def mock_start_analysis(self, file_path: str, options: dict) -> None:
+        print("mock_start_analysis called!")
+        main_app_window.view_model.analysis_result_received.emit({"score": 0.9, "findings": []})
 
-    def mock_starter_run(self):
-        print("mock_starter_run called!")
-        self.success.emit("mock-task-123")
-
-    def mock_poller_run(self):
-        print("mock_poller_run called!")
-        self.success.emit({"score": 0.9, "findings": []})
-
-    mocker.patch("src.gui.workers.analysis_starter_worker.AnalysisStarterWorker.run", mock_starter_run)
-    mocker.patch("src.gui.workers.single_analysis_polling_worker.SingleAnalysisPollingWorker.run", mock_poller_run)
+    mocker.patch.object(main_app_window.view_model, "start_analysis", mock_start_analysis)
     mocker.patch("src.gui.main_window.diagnostics")
 
     mock_qmessagebox = mocker.patch("src.gui.main_window.QMessageBox")
