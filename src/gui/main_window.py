@@ -1082,7 +1082,6 @@ class MainApplicationWindow(QMainWindow):
                 QMessageBox.warning(self, "Export Failed", f"Failed to export report: {str(e)}")
 
     def _handle_analysis_success(self, payload: Dict[str, Any]) -> None:
-        print("MainApplicationWindow._handle_analysis_success called!")
         """Handle successful analysis completion with automatic report display."""
         # Hide loading spinner
         self.loading_spinner.stop_spinning()

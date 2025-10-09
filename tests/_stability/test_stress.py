@@ -9,25 +9,25 @@ from src.gui.main_window import MainApplicationWindow
 
 @pytest.fixture
 def main_app_window(qtbot, qapp, mocker):
-    # Mock dependencies that would normally be injected or initialized
-
-    # Mock the MainViewModel to prevent actual logic execution during UI setup
-    mock_view_model = mocker.patch("src.gui.main_window.MainViewModel")
-    mock_view_model.return_value.show_message_box_signal = MagicMock()
-    mock_view_model.return_value.meta_analytics_loaded = MagicMock()
-
-    from src.gui.main_window import MainApplicationWindow
+    from src.gui.main_window import MainApplicationWindow, MainViewModel
     from src.database import models
 
     mock_user = MagicMock(spec=models.User)
     mock_user.username = "testuser"
     mock_token = "mock_token_string"
 
+    # Create the actual MainApplicationWindow instance
     window = MainApplicationWindow(user=mock_user, token=mock_token)
 
-    # Connect to the signal of the *actual* MainViewModel instance
+    # Now, replace the view_model with a MagicMock and configure its signals/methods
+    window.view_model = MagicMock(spec=MainViewModel)
+    window.view_model.show_message_box_signal = MagicMock()
+    window.view_model.meta_analytics_loaded = MagicMock()
+    window.view_model.analysis_result_received = MagicMock() # Mock the signal too
+
+    # Connect to the mocked signal
     window.view_model.analysis_result_received.connect(lambda result: (
-        print("analysis_result_received emitted and handled!"),
+        print("analysis_result_received emitted and handled!"), # Keeping this print for now to confirm execution
         window.run_analysis_button.setEnabled(True),
         window.repeat_analysis_button.setEnabled(True)
     ))
@@ -58,7 +58,6 @@ def test_rapid_tab_switching(main_app_window: MainApplicationWindow, qtbot):
 def test_repeated_analysis_start(main_app_window: MainApplicationWindow, qtbot, mocker):
     """A stress test for the analysis workflow with cleanup."""
     def mock_start_analysis(self, file_path: str, options: dict) -> None:
-        print("mock_start_analysis called! Emitting analysis_result_received.")
         main_app_window.view_model.analysis_result_received.emit({"score": 0.9, "findings": []})
 
     mocker.patch.object(main_app_window.view_model, "start_analysis", mock_start_analysis)
