@@ -24,8 +24,8 @@ from PySide6.QtWidgets import (
     QScrollArea,
 )
 
-class AdvancedAdminWidget(QWidget):
-    """Advanced administration settings widget."""
+class SettingsEditorWidget(QWidget):
+    """A widget to dynamically edit application settings."""
 
     save_requested = Signal(dict)
 
@@ -39,7 +39,7 @@ class AdvancedAdminWidget(QWidget):
         layout.setSpacing(20)
 
         # Header
-        header = QLabel("🔧 Advanced Administration Settings")
+        header = QLabel("🔧 Settings Editor")
         header.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         header.setStyleSheet("color: #1d4ed8; margin-bottom: 15px;")
         layout.addWidget(header)
