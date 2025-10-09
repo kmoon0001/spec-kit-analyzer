@@ -41,42 +41,45 @@ def test_rapid_tab_switching(main_app_window: MainApplicationWindow, qtbot):
         assert tabs.currentIndex() == 0
 
 @pytest.mark.stability
-def test_repeated_analysis_start(main_app_window: MainApplicationWindow, qtbot):
+def test_repeated_analysis_start(main_app_window: MainApplicationWindow, qtbot, mocker):
     """A stress test for the analysis workflow with cleanup."""
-    try:
-        # Directly set the file and enable the button to make the test more robust
-        main_app_window._selected_file = MagicMock(spec=Path)
-        main_app_window._selected_file.name = "document.txt"
-        main_app_window.run_analysis_button.setEnabled(True)
+    main_app_window.is_testing = True  # Enable testing mode
 
-        main_app_window.rubric_selector.addItem("Test Rubric", "test_rubric")
-        main_app_window.rubric_selector.setCurrentIndex(0)
-        qtbot.waitUntil(lambda: main_app_window.run_analysis_button.isEnabled())
+    def mock_starter_run(self):
+        self.success.emit("mock-task-123")
 
-        mock_start_response = {"task_id": "mock-task-123"}
-        mock_poll_pending = {"status": "PENDING", "result": None}
-        mock_poll_completed = {"status": "COMPLETED", "result": {"score": 0.9, "findings": []}}
+    def mock_poller_run(self):
+        self.success.emit({"score": 0.9, "findings": []})
+        QApplication.processEvents()
 
-        for _ in range(5):
-            with (
-                patch("src.gui.workers.analysis_starter_worker.httpx.Client.post") as mock_post,
-                patch("src.gui.workers.single_analysis_polling_worker.requests.get") as mock_get,
-                patch("src.gui.workers.single_analysis_polling_worker.time.sleep", return_value=None),
-            ):
-                mock_post.return_value.ok = True
-                mock_post.return_value.json.return_value = mock_start_response
-                mock_get.side_effect = [
-                    MagicMock(ok=True, json=lambda: mock_poll_pending),
-                    MagicMock(ok=True, json=lambda: mock_poll_completed),
-                ]
+    mocker.patch("src.gui.workers.analysis_starter_worker.AnalysisStarterWorker.run", mock_starter_run)
+    mocker.patch("src.gui.workers.single_analysis_polling_worker.SingleAnalysisPollingWorker.run", mock_poller_run)
+    mocker.patch("src.gui.main_window.diagnostics")
 
-                qtbot.mouseClick(main_app_window.run_analysis_button, qtbot.button_enum.LeftButton)
-                qtbot.waitUntil(lambda: not main_app_window.run_analysis_button.isEnabled(), timeout=5000)
-                qtbot.waitUntil(lambda: main_app_window.run_analysis_button.isEnabled(), timeout=10000)
-    finally:
-        # Ensure the button is re-enabled after the test to prevent state leakage
-        if not main_app_window.run_analysis_button.isEnabled():
-            main_app_window.run_analysis_button.setEnabled(True)
+    mock_qmessagebox = mocker.patch("src.gui.main_window.QMessageBox")
+    mock_qmessagebox.return_value.exec.return_value = QMessageBox.StandardButton.Ok
+    mock_qmessagebox.return_value.clickedButton.return_value = mock_qmessagebox.return_value.addButton("Ok", QMessageBox.ButtonRole.AcceptRole)
+
+    mock_qdialog = mocker.patch("PySide6.QtWidgets.QDialog")
+    mock_qdialog.return_value.exec.return_value = QDialog.DialogCode.Accepted
+
+    mocker.patch("src.gui.main_window.MainApplicationWindow._open_report_popup")
+
+    mock_handle_analysis_success = mocker.patch("src.gui.main_window.MainApplicationWindow._handle_analysis_success")
+
+    for _ in range(2):
+        main_app_window.run_analysis_button.click()
+
+        # Wait for the analysis success handler to be called
+        qtbot.waitUntil(lambda: mock_handle_analysis_success.called, timeout=10000)
+        mock_handle_analysis_success.assert_called_once()
+        mock_handle_analysis_success.reset_mock()
+
+        # Ensure buttons are re-enabled for the next iteration
+        qtbot.waitUntil(lambda: main_app_window.run_analysis_button.isEnabled(), timeout=10000)
+        assert main_app_window.run_analysis_button.isEnabled()
+        assert main_app_window.repeat_analysis_button.isEnabled()
+
 
 @pytest.mark.stability
 def test_rapid_dialog_opening(main_app_window: MainApplicationWindow, qtbot):

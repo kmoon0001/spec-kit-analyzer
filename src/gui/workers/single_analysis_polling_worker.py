@@ -59,6 +59,7 @@ class SingleAnalysisPollingWorker(QObject):
                     return
 
                 status_data: Dict[str, Any] = response.json()
+                logger.info(f"Polling response: {status_data}")
                 status = status_data.get("status", "unknown")
                 progress = status_data.get("progress", 0)
 

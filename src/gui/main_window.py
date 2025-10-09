@@ -97,6 +97,7 @@ class MainViewModel(QObject):
     rubrics_loaded = Signal(list)
     dashboard_data_loaded = Signal(dict)
     meta_analytics_loaded = Signal(dict)
+    show_message_box_signal = Signal(str, str, str, list, str)
 
     def __init__(self, auth_token: str, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -221,23 +222,23 @@ class MainViewModel(QObject):
         status_tracker.update_status(AnalysisState.PROCESSING, 20, f"Analysis task created: {task_id[:8]}...")
         
         self.status_message_changed.emit(f"Analysis running (Task: {task_id[:8]}...)…")
-        
+
         # Start polling for results
         self._run_worker(
-            SingleAnalysisPollingWorker, 
-            on_success=self._handle_analysis_success_with_logging, 
-            on_error=self._handle_analysis_error_with_logging, 
-            task_id=task_id
+            SingleAnalysisPollingWorker,
+            on_success=self._on_analysis_polling_success,
+            on_error=self._handle_analysis_error_with_logging,
+            task_id=task_id,
         )
     
-    def _handle_analysis_success_with_logging(self, result: dict) -> None:
+    def _on_analysis_polling_success(self, result: dict) -> None:
         """Handle successful analysis with comprehensive logging."""
         # Log successful completion
         workflow_logger.log_workflow_completion(True, result)
         status_tracker.complete_analysis(result)
         
-        # Call the original success handler
-        self._handle_analysis_success(result)
+        # Emit signal for the view to handle
+        self.analysis_result_received.emit(result)
     
     def _handle_analysis_error_with_logging(self, error_msg: str) -> None:
         """Handle analysis error with comprehensive logging and user-friendly messaging."""
@@ -249,25 +250,17 @@ class MainViewModel(QObject):
         analysis_error = error_handler.categorize_and_handle_error(error_msg)
         formatted_message = error_handler.format_error_message(analysis_error, include_technical=False)
         
-        # Show user-friendly error dialog
-        msg = QMessageBox(self)
-        msg.setWindowTitle(f"{analysis_error.icon} Analysis Error")
-        msg.setText(formatted_message)
-        msg.setIcon(QMessageBox.Icon.Warning if analysis_error.severity == "warning" else QMessageBox.Icon.Critical)
-        
-        # Add "Show Technical Details" button
-        technical_button = msg.addButton("🔧 Technical Details", QMessageBox.ButtonRole.ActionRole)
-        msg.addButton(QMessageBox.StandardButton.Ok)
-        
-        msg.exec()
-        
-        # Show technical details if requested
-        if msg.clickedButton() == technical_button:
-            technical_msg = error_handler.format_error_message(analysis_error, include_technical=True)
-            QMessageBox.information(self, "🔧 Technical Details", technical_msg)
+        # Emit signal for the view to show the message box
+        self.show_message_box_signal.emit(
+            f"{analysis_error.icon} Analysis Error",
+            formatted_message,
+            str(QMessageBox.Icon.Warning if analysis_error.severity == "warning" else QMessageBox.Icon.Critical),
+            ["🔧 Technical Details", "Ok"],
+            error_handler.format_error_message(analysis_error, include_technical=True)
+        )
         
         # Call the original error handler for UI cleanup
-        self.on_analysis_error(error_msg)
+        # self.on_analysis_error(error_msg) # This is now handled by the view after the message box
 
     def load_settings(self) -> None:
         self._run_worker(GenericApiWorker, on_success=self.settings_loaded.emit, on_error=lambda msg: self.status_message_changed.emit(f"Failed to load settings: {msg}"), endpoint="/admin/settings", token=self.auth_token)
@@ -376,6 +369,7 @@ class MainApplicationWindow(QMainWindow):
             Qt.Key.Key_B, Qt.Key.Key_A
         ]
         self.developer_mode = False
+        self.is_testing = False
 
         self._build_ui()
         self._connect_view_model()
@@ -662,6 +656,39 @@ class MainApplicationWindow(QMainWindow):
         self.view_model.dashboard_data_loaded.connect(self.dashboard_widget.load_data)
         if MetaAnalyticsWidget:
             self.view_model.meta_analytics_loaded.connect(self.meta_widget.update_data)
+        self.view_model.show_message_box_signal.connect(self._show_message_box)
+
+    def _show_message_box(self, title: str, text: str, icon_str: str, buttons: list[str], technical_details: str = "") -> None:
+        msg = QMessageBox(self)
+        msg.setWindowTitle(title)
+        msg.setText(text)
+        
+        # Convert icon_str back to QMessageBox.Icon
+        icon_map = {
+            str(QMessageBox.Icon.Warning): QMessageBox.Icon.Warning,
+            str(QMessageBox.Icon.Critical): QMessageBox.Icon.Critical,
+            str(QMessageBox.Icon.Information): QMessageBox.Icon.Information,
+            str(QMessageBox.Icon.Question): QMessageBox.Icon.Question,
+            str(QMessageBox.Icon.NoIcon): QMessageBox.Icon.NoIcon,
+        }
+        msg.setIcon(icon_map.get(icon_str, QMessageBox.Icon.Information))
+
+        technical_button = None
+        for button_text in buttons:
+            if button_text == "🔧 Technical Details":
+                technical_button = msg.addButton(button_text, QMessageBox.ButtonRole.ActionRole)
+            elif button_text == "Ok":
+                msg.addButton(QMessageBox.StandardButton.Ok)
+            # Add other standard buttons if needed
+
+        msg.exec()
+
+        if technical_button and msg.clickedButton() == technical_button:
+            QMessageBox.information(self, "🔧 Technical Details", technical_details)
+
+        # Call the original error handler for UI cleanup if it was an error message
+        if "Error" in title:
+            self.on_analysis_error(text)
 
     def _load_initial_state(self) -> None:
         # Load default rubrics immediately (fallback if API fails)
@@ -1196,13 +1223,8 @@ You can also:
         return html_report
 
     def on_analysis_error(self, message: str) -> None:
-        """Handles analysis errors by re-enabling controls and surfacing the status."""
-        # Hide loading spinner
-        self.loading_spinner.stop_spinning()
-        
+        """Handles analysis errors by surfacing the status."""
         self.statusBar().showMessage(f"Analysis failed: {message}", 5000)
-        self.run_analysis_button.setEnabled(True)
-        self.repeat_analysis_button.setEnabled(True)
 
     def _on_rubrics_loaded(self, rubrics: list[dict]) -> None:
         """Load rubrics into dropdown with comprehensive Medicare defaults."""
