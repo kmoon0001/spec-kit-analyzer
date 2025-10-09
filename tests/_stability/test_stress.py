@@ -27,7 +27,6 @@ def main_app_window(qtbot, qapp, mocker):
 
     # Connect to the mocked signal
     window.view_model.analysis_result_received.connect(lambda result: (
-        print("analysis_result_received emitted and handled!"), # Keeping this print for now to confirm execution
         window.run_analysis_button.setEnabled(True),
         window.repeat_analysis_button.setEnabled(True)
     ))
@@ -68,8 +67,7 @@ def test_repeated_analysis_start(main_app_window: MainApplicationWindow, qtbot, 
     mock_qmessagebox.return_value.clickedButton.return_value = mock_qmessagebox.return_value.addButton("Ok", QMessageBox.ButtonRole.AcceptRole)
 
     mock_qdialog = mocker.patch("PySide6.QtWidgets.QDialog")
-    main_app_window.is_testing = True  # Enable testing mode
-    main_app_window._selected_file = Path("dummy_document.txt")
+    main_app_window._set_selected_file(Path("dummy_document.txt"))
     main_app_window.rubric_selector.addItem("Dummy Rubric", "dummy_rubric_data")
     main_app_window.rubric_selector.setCurrentIndex(0)
     mock_qdialog.return_value.exec.return_value = QDialog.DialogCode.Accepted
