@@ -18,7 +18,7 @@ import yaml
 logger = logging.getLogger(__name__)
 
 
-class TestStatus(Enum):
+class ExecutionStatus(Enum):
     """Test execution status enumeration"""
     PENDING = "pending"
     RUNNING = "running"
@@ -27,7 +27,7 @@ class TestStatus(Enum):
     SKIPPED = "skipped"
 
 
-class TestCategory(Enum):
+class PerformanceCategory(Enum):
     """Test category enumeration"""
     BASELINE = "baseline"
     OPTIMIZATION = "optimization"
@@ -38,10 +38,10 @@ class TestCategory(Enum):
 
 
 @dataclass
-class TestConfiguration:
+class PerformanceTestConfig:
     """Configuration for individual performance tests"""
     name: str
-    category: TestCategory
+    category: PerformanceCategory
     description: str
     timeout_seconds: int = 300
     retry_count: int = 3
@@ -51,11 +51,11 @@ class TestConfiguration:
 
 
 @dataclass
-class TestResult:
+class SingleTestResult:
     """Result of a single performance test"""
     test_name: str
-    category: TestCategory
-    status: TestStatus
+    category: PerformanceCategory
+    status: ExecutionStatus
     start_time: datetime
     end_time: Optional[datetime] = None
     duration_seconds: Optional[float] = None
@@ -71,17 +71,17 @@ class PerformanceTestResults:
     start_time: datetime
     end_time: Optional[datetime] = None
     total_duration_seconds: Optional[float] = None
-    test_results: List[TestResult] = field(default_factory=list)
+    test_results: List[SingleTestResult] = field(default_factory=list)
     summary_metrics: Dict[str, Any] = field(default_factory=dict)
     recommendations: List[str] = field(default_factory=list)
 
 
-class TestSuiteManager:
+class SuiteManager:
     """Manages test suite configurations and organization"""
     
     def __init__(self, config_path: Optional[Path] = None):
         self.config_path = config_path or Path("config/performance_tests.yaml")
-        self.test_configurations: Dict[str, TestConfiguration] = {}
+        self.test_configurations: Dict[str, PerformanceTestConfig] = {}
         self.test_suites: Dict[str, List[str]] = {}
         self._load_configurations()
     
@@ -94,9 +94,9 @@ class TestSuiteManager:
                     
                 # Load individual test configurations
                 for test_config in config_data.get('tests', []):
-                    test = TestConfiguration(
+                    test = PerformanceTestConfig(
                         name=test_config['name'],
-                        category=TestCategory(test_config['category']),
+                        category=PerformanceCategory(test_config['category']),
                         description=test_config['description'],
                         timeout_seconds=test_config.get('timeout_seconds', 300),
                         retry_count=test_config.get('retry_count', 3),
@@ -121,27 +121,27 @@ class TestSuiteManager:
     def _create_default_configuration(self) -> None:
         """Create default test configuration"""
         default_tests = [
-            TestConfiguration(
+            PerformanceTestConfig(
                 name="baseline_response_time",
-                category=TestCategory.BASELINE,
+                category=PerformanceCategory.BASELINE,
                 description="Measure baseline response times without optimizations",
                 parameters={"document_count": 10, "iterations": 5}
             ),
-            TestConfiguration(
+            PerformanceTestConfig(
                 name="cache_optimization_test",
-                category=TestCategory.OPTIMIZATION,
+                category=PerformanceCategory.OPTIMIZATION,
                 description="Test cache optimization effectiveness",
                 parameters={"cache_enabled": True, "document_count": 20}
             ),
-            TestConfiguration(
+            PerformanceTestConfig(
                 name="memory_optimization_test",
-                category=TestCategory.OPTIMIZATION,
+                category=PerformanceCategory.OPTIMIZATION,
                 description="Test memory optimization effectiveness",
                 parameters={"memory_optimization": True, "document_count": 15}
             ),
-            TestConfiguration(
+            PerformanceTestConfig(
                 name="load_test_standard",
-                category=TestCategory.LOAD,
+                category=PerformanceCategory.LOAD,
                 description="Standard load testing with realistic document volumes",
                 parameters={"documents_per_minute": 30, "duration_minutes": 5}
             )
@@ -160,11 +160,11 @@ class TestSuiteManager:
             "load_suite": ["load_test_standard"]
         }
     
-    def get_test_configuration(self, test_name: str) -> Optional[TestConfiguration]:
+    def get_test_configuration(self, test_name: str) -> Optional[PerformanceTestConfig]:
         """Get configuration for a specific test"""
         return self.test_configurations.get(test_name)
     
-    def get_suite_tests(self, suite_name: str) -> List[TestConfiguration]:
+    def get_suite_tests(self, suite_name: str) -> List[PerformanceTestConfig]:
         """Get all test configurations for a test suite"""
         test_names = self.test_suites.get(suite_name, [])
         return [self.test_configurations[name] for name in test_names 
@@ -175,24 +175,24 @@ class TestSuiteManager:
         return list(self.test_suites.keys())
 
 
-class TestExecutionEngine:
+class ExecutionEngine:
     """Executes individual tests and collects results"""
     
     def __init__(self):
-        self.test_runners: Dict[TestCategory, Callable] = {}
+        self.test_runners: Dict[PerformanceCategory, Callable] = {}
         self.active_tests: Dict[str, asyncio.Task] = {}
     
-    def register_test_runner(self, category: TestCategory, runner: Callable) -> None:
+    def register_test_runner(self, category: PerformanceCategory, runner: Callable) -> None:
         """Register a test runner for a specific category"""
         self.test_runners[category] = runner
         logger.info(f"Registered test runner for category: {category.value}")
     
-    async def execute_test(self, config: TestConfiguration) -> TestResult:
+    async def execute_test(self, config: PerformanceTestConfig) -> SingleTestResult:
         """Execute a single performance test"""
-        result = TestResult(
+        result = SingleTestResult(
             test_name=config.name,
             category=config.category,
-            status=TestStatus.RUNNING,
+            status=ExecutionStatus.RUNNING,
             start_time=datetime.now()
         )
         
@@ -212,15 +212,15 @@ class TestExecutionEngine:
             try:
                 test_metrics = await asyncio.wait_for(test_task, timeout=config.timeout_seconds)
                 result.metrics = test_metrics
-                result.status = TestStatus.COMPLETED
+                result.status = ExecutionStatus.COMPLETED
                 
             except asyncio.TimeoutError:
                 test_task.cancel()
-                result.status = TestStatus.FAILED
+                result.status = ExecutionStatus.FAILED
                 result.error_message = f"Test timed out after {config.timeout_seconds} seconds"
                 
             except Exception as e:
-                result.status = TestStatus.FAILED
+                result.status = ExecutionStatus.FAILED
                 result.error_message = str(e)
             
             end_time = time.time()
@@ -230,14 +230,14 @@ class TestExecutionEngine:
             logger.info(f"Test {config.name} completed with status: {result.status.value}")
             
         except Exception as e:
-            result.status = TestStatus.FAILED
+            result.status = ExecutionStatus.FAILED
             result.error_message = str(e)
             result.end_time = datetime.now()
             logger.error(f"Test {config.name} failed: {e}")
         
         return result
     
-    async def execute_tests_parallel(self, configs: List[TestConfiguration]) -> List[TestResult]:
+    async def execute_tests_parallel(self, configs: List[PerformanceTestConfig]) -> List[SingleTestResult]:
         """Execute multiple tests in parallel"""
         tasks = []
         for config in configs:
@@ -254,10 +254,10 @@ class TestExecutionEngine:
         test_results = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                failed_result = TestResult(
+                failed_result = SingleTestResult(
                     test_name=configs[i].name,
                     category=configs[i].category,
-                    status=TestStatus.FAILED,
+                    status=ExecutionStatus.FAILED,
                     start_time=datetime.now(),
                     end_time=datetime.now(),
                     error_message=str(result)
@@ -273,8 +273,8 @@ class PerformanceTestOrchestrator:
     """Main orchestrator for performance testing activities"""
     
     def __init__(self, config_path: Optional[Path] = None):
-        self.suite_manager = TestSuiteManager(config_path)
-        self.execution_engine = TestExecutionEngine()
+        self.suite_manager = SuiteManager(config_path)
+        self.execution_engine = ExecutionEngine()
         self.results_history: List[PerformanceTestResults] = []
         
         # Register default test runners
@@ -283,7 +283,7 @@ class PerformanceTestOrchestrator:
     def _register_default_runners(self) -> None:
         """Register default test runners for each category"""
         
-        async def baseline_runner(config: TestConfiguration) -> Dict[str, Any]:
+        async def baseline_runner(config: PerformanceTestConfig) -> Dict[str, Any]:
             """Default baseline test runner"""
             # Simulate baseline performance measurement
             await asyncio.sleep(1)  # Simulate test execution
@@ -294,7 +294,7 @@ class PerformanceTestOrchestrator:
                 "test_type": "baseline"
             }
         
-        async def optimization_runner(config: TestConfiguration) -> Dict[str, Any]:
+        async def optimization_runner(config: PerformanceTestConfig) -> Dict[str, Any]:
             """Default optimization test runner"""
             # Simulate optimization performance measurement
             await asyncio.sleep(1.5)  # Simulate test execution
@@ -307,7 +307,7 @@ class PerformanceTestOrchestrator:
                 "test_type": "optimization"
             }
         
-        async def load_runner(config: TestConfiguration) -> Dict[str, Any]:
+        async def load_runner(config: PerformanceTestConfig) -> Dict[str, Any]:
             """Default load test runner"""
             # Simulate load testing
             await asyncio.sleep(2)  # Simulate test execution
@@ -321,12 +321,12 @@ class PerformanceTestOrchestrator:
             }
         
         # Register runners
-        self.execution_engine.register_test_runner(TestCategory.BASELINE, baseline_runner)
-        self.execution_engine.register_test_runner(TestCategory.OPTIMIZATION, optimization_runner)
-        self.execution_engine.register_test_runner(TestCategory.LOAD, load_runner)
-        self.execution_engine.register_test_runner(TestCategory.STRESS, load_runner)  # Reuse for now
-        self.execution_engine.register_test_runner(TestCategory.INTEGRATION, optimization_runner)  # Reuse for now
-        self.execution_engine.register_test_runner(TestCategory.BENCHMARK, baseline_runner)  # Reuse for now
+        self.execution_engine.register_test_runner(PerformanceCategory.BASELINE, baseline_runner)
+        self.execution_engine.register_test_runner(PerformanceCategory.OPTIMIZATION, optimization_runner)
+        self.execution_engine.register_test_runner(PerformanceCategory.LOAD, load_runner)
+        self.execution_engine.register_test_runner(PerformanceCategory.STRESS, load_runner)  # Reuse for now
+        self.execution_engine.register_test_runner(PerformanceCategory.INTEGRATION, optimization_runner)  # Reuse for now
+        self.execution_engine.register_test_runner(PerformanceCategory.BENCHMARK, baseline_runner)  # Reuse for now
     
     async def run_test_suite(self, suite_name: str) -> PerformanceTestResults:
         """Run a complete test suite"""
@@ -379,7 +379,7 @@ class PerformanceTestOrchestrator:
         """Run baseline performance tests"""
         baseline_configs = [
             config for config in self.suite_manager.test_configurations.values()
-            if config.category == TestCategory.BASELINE and config.enabled
+            if config.category == PerformanceCategory.BASELINE and config.enabled
         ]
         
         suite_result = PerformanceTestResults(
@@ -399,7 +399,7 @@ class PerformanceTestOrchestrator:
         """Run optimization performance tests"""
         optimization_configs = [
             config for config in self.suite_manager.test_configurations.values()
-            if config.category == TestCategory.OPTIMIZATION and config.enabled
+            if config.category == PerformanceCategory.OPTIMIZATION and config.enabled
         ]
         
         suite_result = PerformanceTestResults(
@@ -415,13 +415,13 @@ class PerformanceTestOrchestrator:
         suite_result.end_time = datetime.now()
         return suite_result
     
-    def _calculate_summary_metrics(self, test_results: List[TestResult]) -> Dict[str, Any]:
+    def _calculate_summary_metrics(self, test_results: List[SingleTestResult]) -> Dict[str, Any]:
         """Calculate summary metrics from test results"""
         if not test_results:
             return {}
         
-        completed_tests = [r for r in test_results if r.status == TestStatus.COMPLETED]
-        failed_tests = [r for r in test_results if r.status == TestStatus.FAILED]
+        completed_tests = [r for r in test_results if r.status == ExecutionStatus.COMPLETED]
+        failed_tests = [r for r in test_results if r.status == ExecutionStatus.FAILED]
         
         summary = {
             "total_tests": len(test_results),
@@ -459,17 +459,17 @@ class PerformanceTestOrchestrator:
         
         return summary
     
-    def _generate_recommendations(self, test_results: List[TestResult]) -> List[str]:
+    def _generate_recommendations(self, test_results: List[SingleTestResult]) -> List[str]:
         """Generate recommendations based on test results"""
         recommendations = []
         
-        failed_tests = [r for r in test_results if r.status == TestStatus.FAILED]
+        failed_tests = [r for r in test_results if r.status == ExecutionStatus.FAILED]
         if failed_tests:
             recommendations.append(
                 f"Address {len(failed_tests)} failed tests to improve system reliability"
             )
         
-        completed_tests = [r for r in test_results if r.status == TestStatus.COMPLETED]
+        completed_tests = [r for r in test_results if r.status == ExecutionStatus.COMPLETED]
         
         # Analyze response times
         response_times = [

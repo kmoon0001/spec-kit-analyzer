@@ -385,9 +385,9 @@ class TestPerformanceOptimizer:
         
         improvements = optimizer._calculate_performance_improvements(baseline, final)
         
-        assert improvements['response_time_improvement_percent'] == 40.0
+        assert improvements['response_time_improvement_percent'] == pytest.approx(40.0)
         assert improvements['hit_rate_improvement_percent'] == pytest.approx(20.0, rel=1e-7)
-        assert improvements['memory_usage_improvement_percent'] == 25.0
+        assert improvements['memory_usage_improvement_percent'] == pytest.approx(25.0)
         assert improvements['efficiency_improvement_percent'] > 30.0
         assert 'overall_improvement_percent' in improvements
     

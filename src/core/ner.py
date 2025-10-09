@@ -11,6 +11,14 @@ import re
 import time
 from typing import Any, Dict, List, Optional
 
+# MONKEY-PATCH: Add back the file_utils module which was removed in transformers > 4.21
+# This is required to load older models that have not been updated.
+import sys
+import transformers
+if 'file_utils' not in dir(transformers):
+    import transformers.utils
+    sys.modules['transformers.file_utils'] = transformers.utils
+
 from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
 from src.core.cache_service import NERCache
 
@@ -151,8 +159,8 @@ class NERPipeline(ClinicalNERService):
     """Convenience wrapper around ClinicalNERService with sensible defaults."""
 
     DEFAULT_MODELS = [
-        "d4data/biomedical-ner-all",
-        "Clinical-AI-Apollo/Medical-NER",
+        "dslim/bert-base-NER",
+        "Jean-Baptiste/roberta-large-ner-english",
     ]
 
     def __init__(self, model_names: Optional[List[str]] = None) -> None:

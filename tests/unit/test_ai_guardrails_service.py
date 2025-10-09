@@ -6,7 +6,8 @@ ensuring responsible AI controls, bias mitigation, and ethical compliance.
 """
 
 import pytest
-from unittest.mock import Mock
+from datetime import datetime
+from unittest.mock import Mock, patch
 
 from src.core.ai_guardrails_service import (
     AIGuardrailsService,
@@ -15,6 +16,8 @@ from src.core.ai_guardrails_service import (
     AccuracyValidationGuardrail,
     EthicalComplianceGuardrail,
     TransparencyEnforcementGuardrail,
+    GuardrailViolation,
+    GuardrailResult,
     GuardrailType,
     RiskLevel,
     ActionType

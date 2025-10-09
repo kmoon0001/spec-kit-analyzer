@@ -14,31 +14,31 @@ import yaml
 
 from src.core.performance_test_orchestrator import (
     PerformanceTestOrchestrator,
-    TestSuiteManager,
-    TestExecutionEngine,
-    TestConfiguration,
-    TestResult,
-    TestStatus,
-    TestCategory,
+    SuiteManager,
+    ExecutionEngine,
+    PerformanceTestConfig,
+    SingleTestResult,
+    ExecutionStatus,
+    PerformanceCategory,
     PerformanceTestResults
 )
 
 
-class TestTestConfiguration:
-    """Test TestConfiguration dataclass"""
+class TestPerformanceTestConfig:
+    """Test PerformanceTestConfig dataclass"""
     
-    def test_test_configuration_creation(self):
+    def test_performance_test_config_creation(self):
         """Test creating a test configuration"""
-        config = TestConfiguration(
+        config = PerformanceTestConfig(
             name="test_config",
-            category=TestCategory.BASELINE,
+            category=PerformanceCategory.BASELINE,
             description="Test configuration",
             timeout_seconds=120,
             parameters={"param1": "value1"}
         )
         
         assert config.name == "test_config"
-        assert config.category == TestCategory.BASELINE
+        assert config.category == PerformanceCategory.BASELINE
         assert config.description == "Test configuration"
         assert config.timeout_seconds == 120
         assert config.parameters == {"param1": "value1"}
@@ -46,12 +46,12 @@ class TestTestConfiguration:
         assert config.retry_count == 3
 
 
-class TestTestSuiteManager:
-    """Test TestSuiteManager functionality"""
+class TestSuiteManager:
+    """Test SuiteManager functionality"""
     
     def test_initialization_with_default_config(self):
         """Test initialization with default configuration"""
-        manager = TestSuiteManager()
+        manager = SuiteManager()
         
         # Should have default configurations
         assert len(manager.test_configurations) > 0
@@ -87,7 +87,7 @@ class TestTestSuiteManager:
             config_path = Path(f.name)
         
         try:
-            manager = TestSuiteManager(config_path)
+            manager = SuiteManager(config_path)
             
             # Verify configurations loaded
             assert len(manager.test_configurations) == 2
@@ -95,7 +95,7 @@ class TestTestSuiteManager:
             assert 'test2' in manager.test_configurations
             
             test1 = manager.test_configurations['test1']
-            assert test1.category == TestCategory.BASELINE
+            assert test1.category == PerformanceCategory.BASELINE
             assert test1.timeout_seconds == 60
             assert test1.parameters == {'param1': 'value1'}
             
@@ -111,7 +111,7 @@ class TestTestSuiteManager:
     
     def test_get_test_configuration(self):
         """Test getting specific test configuration"""
-        manager = TestSuiteManager()
+        manager = SuiteManager()
         
         # Should return existing configuration
         config = manager.get_test_configuration("baseline_response_time")
@@ -124,12 +124,12 @@ class TestTestSuiteManager:
     
     def test_get_suite_tests(self):
         """Test getting test configurations for a suite"""
-        manager = TestSuiteManager()
+        manager = SuiteManager()
         
         # Should return configurations for existing suite
         configs = manager.get_suite_tests("optimization_suite")
         assert len(configs) > 0
-        assert all(isinstance(config, TestConfiguration) for config in configs)
+        assert all(isinstance(config, PerformanceTestConfig) for config in configs)
         
         # Should return empty list for non-existent suite
         configs = manager.get_suite_tests("non_existent_suite")
@@ -137,7 +137,7 @@ class TestTestSuiteManager:
     
     def test_get_available_suites(self):
         """Test getting list of available suites"""
-        manager = TestSuiteManager()
+        manager = SuiteManager()
         
         suites = manager.get_available_suites()
         assert isinstance(suites, list)
@@ -145,12 +145,12 @@ class TestTestSuiteManager:
         assert "full_suite" in suites
 
 
-class TestTestExecutionEngine:
-    """Test TestExecutionEngine functionality"""
+class TestExecutionEngine:
+    """Test ExecutionEngine functionality"""
     
     def test_initialization(self):
         """Test engine initialization"""
-        engine = TestExecutionEngine()
+        engine = ExecutionEngine()
         
         assert isinstance(engine.test_runners, dict)
         assert isinstance(engine.active_tests, dict)
@@ -158,32 +158,32 @@ class TestTestExecutionEngine:
     
     def test_register_test_runner(self):
         """Test registering test runners"""
-        engine = TestExecutionEngine()
+        engine = ExecutionEngine()
         
         async def mock_runner(config):
             return {"result": "success"}
         
-        engine.register_test_runner(TestCategory.BASELINE, mock_runner)
+        engine.register_test_runner(PerformanceCategory.BASELINE, mock_runner)
         
-        assert TestCategory.BASELINE in engine.test_runners
-        assert engine.test_runners[TestCategory.BASELINE] == mock_runner
+        assert PerformanceCategory.BASELINE in engine.test_runners
+        assert engine.test_runners[PerformanceCategory.BASELINE] == mock_runner
     
     @pytest.mark.asyncio
     async def test_execute_test_success(self):
         """Test successful test execution"""
-        engine = TestExecutionEngine()
+        engine = ExecutionEngine()
         
         # Register mock runner
         async def mock_runner(config):
             await asyncio.sleep(0.1)  # Simulate work
             return {"response_time_ms": 100.0, "success": True}
         
-        engine.register_test_runner(TestCategory.BASELINE, mock_runner)
+        engine.register_test_runner(PerformanceCategory.BASELINE, mock_runner)
         
         # Create test configuration
-        config = TestConfiguration(
+        config = PerformanceTestConfig(
             name="test_success",
-            category=TestCategory.BASELINE,
+            category=PerformanceCategory.BASELINE,
             description="Successful test"
         )
         
@@ -191,8 +191,8 @@ class TestTestExecutionEngine:
         result = await engine.execute_test(config)
         
         assert result.test_name == "test_success"
-        assert result.category == TestCategory.BASELINE
-        assert result.status == TestStatus.COMPLETED
+        assert result.category == PerformanceCategory.BASELINE
+        assert result.status == ExecutionStatus.COMPLETED
         assert result.start_time is not None
         assert result.end_time is not None
         assert result.duration_seconds is not None
@@ -203,69 +203,69 @@ class TestTestExecutionEngine:
     @pytest.mark.asyncio
     async def test_execute_test_failure(self):
         """Test test execution with failure"""
-        engine = TestExecutionEngine()
+        engine = ExecutionEngine()
         
         # Register failing runner
         async def failing_runner(config):
             raise ValueError("Test failed")
         
-        engine.register_test_runner(TestCategory.BASELINE, failing_runner)
+        engine.register_test_runner(PerformanceCategory.BASELINE, failing_runner)
         
-        config = TestConfiguration(
+        config = PerformanceTestConfig(
             name="test_failure",
-            category=TestCategory.BASELINE,
+            category=PerformanceCategory.BASELINE,
             description="Failing test"
         )
         
         result = await engine.execute_test(config)
         
-        assert result.status == TestStatus.FAILED
+        assert result.status == ExecutionStatus.FAILED
         assert "Test failed" in result.error_message
     
     @pytest.mark.asyncio
     async def test_execute_test_timeout(self):
         """Test test execution with timeout"""
-        engine = TestExecutionEngine()
+        engine = ExecutionEngine()
         
         # Register slow runner
         async def slow_runner(config):
             await asyncio.sleep(2)  # Longer than timeout
             return {"result": "success"}
         
-        engine.register_test_runner(TestCategory.BASELINE, slow_runner)
+        engine.register_test_runner(PerformanceCategory.BASELINE, slow_runner)
         
-        config = TestConfiguration(
+        config = PerformanceTestConfig(
             name="test_timeout",
-            category=TestCategory.BASELINE,
+            category=PerformanceCategory.BASELINE,
             description="Timeout test",
             timeout_seconds=1  # Short timeout
         )
         
         result = await engine.execute_test(config)
         
-        assert result.status == TestStatus.FAILED
+        assert result.status == ExecutionStatus.FAILED
         assert "timed out" in result.error_message.lower()
     
     @pytest.mark.asyncio
     async def test_execute_test_no_runner(self):
         """Test test execution with no registered runner"""
-        engine = TestExecutionEngine()
+        engine = ExecutionEngine()
         
-        config = TestConfiguration(
+        config = PerformanceTestConfig(
             name="test_no_runner",
-            category=TestCategory.BASELINE,
+            category=PerformanceCategory.BASELINE,
             description="Test with no runner"
         )
         
         result = await engine.execute_test(config)
         
-        assert result.status == TestStatus.FAILED
+        assert result.status == ExecutionStatus.FAILED
         assert "No test runner registered" in result.error_message
     
     @pytest.mark.asyncio
     async def test_execute_tests_parallel(self):
         """Test parallel test execution"""
-        engine = TestExecutionEngine()
+        engine = ExecutionEngine()
         
         # Register mock runners
         async def fast_runner(config):
@@ -276,13 +276,13 @@ class TestTestExecutionEngine:
             await asyncio.sleep(0.2)
             return {"speed": "slow"}
         
-        engine.register_test_runner(TestCategory.BASELINE, fast_runner)
-        engine.register_test_runner(TestCategory.OPTIMIZATION, slow_runner)
+        engine.register_test_runner(PerformanceCategory.BASELINE, fast_runner)
+        engine.register_test_runner(PerformanceCategory.OPTIMIZATION, slow_runner)
         
         configs = [
-            TestConfiguration("test1", TestCategory.BASELINE, "Fast test"),
-            TestConfiguration("test2", TestCategory.OPTIMIZATION, "Slow test"),
-            TestConfiguration("test3", TestCategory.BASELINE, "Another fast test")
+            PerformanceTestConfig("test1", PerformanceCategory.BASELINE, "Fast test"),
+            PerformanceTestConfig("test2", PerformanceCategory.OPTIMIZATION, "Slow test"),
+            PerformanceTestConfig("test3", PerformanceCategory.BASELINE, "Another fast test")
         ]
         
         start_time = asyncio.get_event_loop().time()
@@ -293,29 +293,29 @@ class TestTestExecutionEngine:
         assert end_time - start_time < 0.5  # Much less than sequential execution
         
         assert len(results) == 3
-        assert all(result.status == TestStatus.COMPLETED for result in results)
+        assert all(result.status == ExecutionStatus.COMPLETED for result in results)
     
     @pytest.mark.asyncio
     async def test_execute_tests_parallel_with_disabled(self):
         """Test parallel execution with disabled tests"""
-        engine = TestExecutionEngine()
+        engine = ExecutionEngine()
         
         async def mock_runner(config):
             return {"result": "success"}
         
-        engine.register_test_runner(TestCategory.BASELINE, mock_runner)
+        engine.register_test_runner(PerformanceCategory.BASELINE, mock_runner)
         
         configs = [
-            TestConfiguration("test1", TestCategory.BASELINE, "Enabled test", enabled=True),
-            TestConfiguration("test2", TestCategory.BASELINE, "Disabled test", enabled=False),
-            TestConfiguration("test3", TestCategory.BASELINE, "Another enabled test", enabled=True)
+            PerformanceTestConfig("test1", PerformanceCategory.BASELINE, "Enabled test", enabled=True),
+            PerformanceTestConfig("test2", PerformanceCategory.BASELINE, "Disabled test", enabled=False),
+            PerformanceTestConfig("test3", PerformanceCategory.BASELINE, "Another enabled test", enabled=True)
         ]
         
         results = await engine.execute_tests_parallel(configs)
         
         # Should only execute enabled tests
         assert len(results) == 2
-        assert all(result.status == TestStatus.COMPLETED for result in results)
+        assert all(result.status == ExecutionStatus.COMPLETED for result in results)
 
 
 class TestPerformanceTestOrchestrator:
@@ -325,8 +325,8 @@ class TestPerformanceTestOrchestrator:
         """Test orchestrator initialization"""
         orchestrator = PerformanceTestOrchestrator()
         
-        assert isinstance(orchestrator.suite_manager, TestSuiteManager)
-        assert isinstance(orchestrator.execution_engine, TestExecutionEngine)
+        assert isinstance(orchestrator.suite_manager, SuiteManager)
+        assert isinstance(orchestrator.execution_engine, ExecutionEngine)
         assert isinstance(orchestrator.results_history, list)
         
         # Should have default runners registered
@@ -346,7 +346,7 @@ class TestPerformanceTestOrchestrator:
         assert len(results.test_results) > 0
         
         # Should only contain baseline tests
-        baseline_results = [r for r in results.test_results if r.category == TestCategory.BASELINE]
+        baseline_results = [r for r in results.test_results if r.category == PerformanceCategory.BASELINE]
         assert len(baseline_results) == len(results.test_results)
     
     @pytest.mark.asyncio
@@ -361,7 +361,7 @@ class TestPerformanceTestOrchestrator:
         assert len(results.test_results) > 0
         
         # Should only contain optimization tests
-        optimization_results = [r for r in results.test_results if r.category == TestCategory.OPTIMIZATION]
+        optimization_results = [r for r in results.test_results if r.category == PerformanceCategory.OPTIMIZATION]
         assert len(optimization_results) == len(results.test_results)
     
     @pytest.mark.asyncio
@@ -417,28 +417,28 @@ class TestPerformanceTestOrchestrator:
         
         # Create mock test results
         test_results = [
-            TestResult(
+            SingleTestResult(
                 test_name="test1",
-                category=TestCategory.BASELINE,
-                status=TestStatus.COMPLETED,
+                category=PerformanceCategory.BASELINE,
+                status=ExecutionStatus.COMPLETED,
                 start_time=datetime.now(),
                 end_time=datetime.now(),
                 duration_seconds=1.5,
                 metrics={"response_time_ms": 100.0, "memory_usage_mb": 200.0}
             ),
-            TestResult(
+            SingleTestResult(
                 test_name="test2",
-                category=TestCategory.OPTIMIZATION,
-                status=TestStatus.COMPLETED,
+                category=PerformanceCategory.OPTIMIZATION,
+                status=ExecutionStatus.COMPLETED,
                 start_time=datetime.now(),
                 end_time=datetime.now(),
                 duration_seconds=2.0,
                 metrics={"response_time_ms": 80.0, "memory_usage_mb": 150.0}
             ),
-            TestResult(
+            SingleTestResult(
                 test_name="test3",
-                category=TestCategory.LOAD,
-                status=TestStatus.FAILED,
+                category=PerformanceCategory.LOAD,
+                status=ExecutionStatus.FAILED,
                 start_time=datetime.now(),
                 error_message="Test failed"
             )
@@ -464,8 +464,8 @@ class TestPerformanceTestOrchestrator:
         
         # Test with failed tests
         test_results_with_failures = [
-            TestResult("test1", TestCategory.BASELINE, TestStatus.FAILED, datetime.now()),
-            TestResult("test2", TestCategory.OPTIMIZATION, TestStatus.COMPLETED, datetime.now(),
+            SingleTestResult("test1", PerformanceCategory.BASELINE, ExecutionStatus.FAILED, datetime.now()),
+            SingleTestResult("test2", PerformanceCategory.OPTIMIZATION, ExecutionStatus.COMPLETED, datetime.now(),
                       metrics={"response_time_ms": 50.0, "memory_usage_mb": 100.0})
         ]
         
@@ -474,7 +474,7 @@ class TestPerformanceTestOrchestrator:
         
         # Test with high response times
         test_results_slow = [
-            TestResult("test1", TestCategory.BASELINE, TestStatus.COMPLETED, datetime.now(),
+            SingleTestResult("test1", PerformanceCategory.BASELINE, ExecutionStatus.COMPLETED, datetime.now(),
                       metrics={"response_time_ms": 300.0})
         ]
         
@@ -483,7 +483,7 @@ class TestPerformanceTestOrchestrator:
         
         # Test with high memory usage
         test_results_memory = [
-            TestResult("test1", TestCategory.BASELINE, TestStatus.COMPLETED, datetime.now(),
+            SingleTestResult("test1", PerformanceCategory.BASELINE, ExecutionStatus.COMPLETED, datetime.now(),
                       metrics={"memory_usage_mb": 500.0})
         ]
         
@@ -492,7 +492,7 @@ class TestPerformanceTestOrchestrator:
         
         # Test with good performance
         test_results_good = [
-            TestResult("test1", TestCategory.BASELINE, TestStatus.COMPLETED, datetime.now(),
+            SingleTestResult("test1", PerformanceCategory.BASELINE, ExecutionStatus.COMPLETED, datetime.now(),
                       metrics={"response_time_ms": 50.0, "memory_usage_mb": 100.0})
         ]
         
@@ -548,7 +548,7 @@ async def test_integration_full_workflow():
     assert isinstance(results.recommendations, list)
     
     # Verify all tests completed successfully (with default runners)
-    completed_tests = [r for r in results.test_results if r.status == TestStatus.COMPLETED]
+    completed_tests = [r for r in results.test_results if r.status == ExecutionStatus.COMPLETED]
     assert len(completed_tests) > 0
     
     # Verify metrics are present

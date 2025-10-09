@@ -354,6 +354,9 @@ class PerformanceTestSuite:
 performance_test_suite = PerformanceTestSuite()
 
 
+import pytest
+
+
 # Test functions for pytest
 @pytest.mark.asyncio
 async def test_performance_suite():

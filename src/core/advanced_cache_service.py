@@ -140,7 +140,7 @@ class CachePerformanceMonitor:
         }
         overall_stats_dict['cache_efficiency_score'] = self._calculate_efficiency_score(overall_stats_dict)
         return overall_stats_dict
-    
+
     def _analyze_recent_performance(self) -> Dict[str, Any]:
         """Analyze recent performance trends."""
         if len(self.operation_times) < 10:
@@ -190,21 +190,27 @@ class CachePerformanceMonitor:
     
     def _calculate_efficiency_score(self, overall_stats: Dict[str, Any]) -> float:
         """Calculate overall cache efficiency score (0-100)."""
-        # overall_stats is now passed as an argument, no need to call _calculate_overall_stats again
+        overall_stats = self._calculate_overall_stats()
         
         if 'no_data' in overall_stats:
             return 0.0
-        
-        hit_rate = overall_stats['overall_hit_rate']
-        avg_time = overall_stats['avg_response_time_ms']
-        
+
+        recent_ops = list(self.operation_times)
+        total_ops = len(recent_ops)
+        if total_ops == 0:
+            return 0.0
+
+        total_hits = sum(1 for op in recent_ops if op["hit"])
+        hit_rate = total_hits / total_ops
+        avg_time = sum(op["duration_ms"] for op in recent_ops) / total_ops
+
         # Score based on hit rate (70% weight) and response time (30% weight)
         hit_rate_score = hit_rate * 70
-        
+
         # Response time score (lower is better, normalize to 0-30 scale)
         # Assume 100ms is excellent, 1000ms is poor
         time_score = max(0, 30 - (avg_time / 1000) * 30)
-        
+
         return min(100, hit_rate_score + time_score)
     
     def _generate_recommendations(self) -> List[str]:
