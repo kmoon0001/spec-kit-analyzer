@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QSpinBox,
     QDoubleSpinBox,
+    QScrollArea,
 )
 
 
@@ -43,6 +44,19 @@ class SettingsEditorWidget(QWidget):
         header.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         header.setStyleSheet("color: #1d4ed8; margin-bottom: 15px;")
         layout.addWidget(header)
+        
+        # Create a scroll area for the form layout
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        
+        form_container = QWidget()
+        self.form_layout = QFormLayout(form_container) # Initialize form_layout here
+        self.form_layout.setContentsMargins(0, 0, 0, 0)
+        self.form_layout.setSpacing(10)
+        
+        scroll_area.setWidget(form_container)
+        layout.addWidget(scroll_area)
         
         # Create tabbed interface for different admin sections
         from PySide6.QtWidgets import QTabWidget
@@ -114,8 +128,8 @@ class SettingsEditorWidget(QWidget):
         layout.setSpacing(15)
         
         # System info display
-        info_browser = QTextBrowser()
-        info_browser.setStyleSheet("""
+        self.info_browser = QTextBrowser() # Make it an instance variable
+        self.info_browser.setStyleSheet("""
             QTextBrowser {
                 background: #f8fafc;
                 border: 2px solid #e2e8f0;
@@ -127,14 +141,14 @@ class SettingsEditorWidget(QWidget):
         
         # Generate realtime system info
         system_info = self._generate_realtime_system_info()
-        info_browser.setHtml(system_info)
+        self.info_browser.setHtml(system_info)
         
         # Set up timer for realtime updates
         from PySide6.QtCore import QTimer
         self.system_timer = QTimer()
-        self.system_timer.timeout.connect(lambda: info_browser.setHtml(self._generate_realtime_system_info()))
+        self.system_timer.timeout.connect(lambda: self.info_browser.setHtml(self._generate_realtime_system_info())) # Use instance variable
         self.system_timer.start(5000)  # Update every 5 seconds
-        layout.addWidget(info_browser)
+        layout.addWidget(self.info_browser) # Use instance variable
         
         return tab
     

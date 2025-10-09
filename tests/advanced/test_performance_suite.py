@@ -3,6 +3,7 @@ Advanced Performance Testing Suite
 Comprehensive performance testing with benchmarking and stress testing.
 """
 
+import pytest
 import asyncio
 import time
 import threading
@@ -354,6 +355,7 @@ performance_test_suite = PerformanceTestSuite()
 
 
 # Test functions for pytest
+@pytest.mark.asyncio
 async def test_performance_suite():
     """Test the performance test suite."""
     results = await performance_test_suite.run_comprehensive_performance_tests()

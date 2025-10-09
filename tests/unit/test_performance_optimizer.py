@@ -266,7 +266,7 @@ class TestPerformanceOptimizer:
             }
         }
         
-        with patch.object(optimizer.advanced_cache, 'get_comprehensive_stats', return_value=mock_stats):
+        with patch.object(optimizer.advanced_cache, 'get_comprehensive_stats', new_callable=AsyncMock, return_value=mock_stats):
             metrics = await optimizer.analyze_performance()
             
             assert isinstance(metrics, PerformanceMetrics)
@@ -386,7 +386,7 @@ class TestPerformanceOptimizer:
         improvements = optimizer._calculate_performance_improvements(baseline, final)
         
         assert improvements['response_time_improvement_percent'] == 40.0
-        assert improvements['hit_rate_improvement_percent'] == 20.0
+        assert improvements['hit_rate_improvement_percent'] == pytest.approx(20.0, rel=1e-7)
         assert improvements['memory_usage_improvement_percent'] == 25.0
         assert improvements['efficiency_improvement_percent'] > 30.0
         assert 'overall_improvement_percent' in improvements

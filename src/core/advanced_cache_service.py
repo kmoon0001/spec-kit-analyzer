@@ -132,13 +132,14 @@ class CachePerformanceMonitor:
         
         avg_duration = sum(op['duration_ms'] for op in recent_ops) / total_ops
         
-        return {
+        overall_stats_dict = {
             'total_operations': total_ops,
             'overall_hit_rate': total_hits / total_ops if total_ops > 0 else 0.0,
             'avg_response_time_ms': avg_duration,
             'operations_per_minute': self._calculate_ops_per_minute(),
-            'cache_efficiency_score': self._calculate_efficiency_score()
         }
+        overall_stats_dict['cache_efficiency_score'] = self._calculate_efficiency_score(overall_stats_dict)
+        return overall_stats_dict
     
     def _analyze_recent_performance(self) -> Dict[str, Any]:
         """Analyze recent performance trends."""
@@ -187,9 +188,9 @@ class CachePerformanceMonitor:
         time_span_minutes = (datetime.now() - recent_ops[0]['timestamp']).total_seconds() / 60
         return len(recent_ops) / max(time_span_minutes, 1.0)
     
-    def _calculate_efficiency_score(self) -> float:
+    def _calculate_efficiency_score(self, overall_stats: Dict[str, Any]) -> float:
         """Calculate overall cache efficiency score (0-100)."""
-        overall_stats = self._calculate_overall_stats()
+        # overall_stats is now passed as an argument, no need to call _calculate_overall_stats again
         
         if 'no_data' in overall_stats:
             return 0.0

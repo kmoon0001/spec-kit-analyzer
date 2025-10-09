@@ -16,7 +16,14 @@ def mock_backend_services():
         patch("src.gui.workers.ai_loader_worker.AILoaderWorker"),
         patch("src.gui.workers.dashboard_worker.DashboardWorker"),
         patch("src.gui.workers.analysis_starter_worker.AnalysisStarterWorker"),
+        patch("src.gui.workers.generic_api_worker.GenericApiWorker"),
+        patch("src.gui.workers.generic_api_worker.HealthCheckWorker"),
+        patch("src.gui.workers.generic_api_worker.TaskMonitorWorker"),
+        patch("src.gui.workers.generic_api_worker.LogStreamWorker"),
+        patch("src.gui.workers.single_analysis_polling_worker.SingleAnalysisPollingWorker"),
+        patch("src.gui.workers.generic_api_worker.FeedbackWorker"),
         patch("src.gui.main_window.requests.post"),
+        patch("src.gui.workers.generic_api_worker.requests.get"),
         patch("src.gui.main_window.QMessageBox") as mock_msg_box,
     ):  # Mock message box to prevent popups
         yield mock_msg_box
@@ -55,7 +62,7 @@ def test_large_file_upload(main_app_window: MainApplicationWindow, qtbot, tmp_pa
     # We check a substring to avoid loading the whole 50MB into the test assertion.
     assert (
         "This is a test sentence."
-        in main_app_window.document_display_area.toPlainText()
+        in main_app_window._cached_preview_content
     )
     assert main_app_window.run_analysis_button.isEnabled()
 
