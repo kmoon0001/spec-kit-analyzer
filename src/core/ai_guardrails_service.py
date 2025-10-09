@@ -122,11 +122,11 @@ class ContentSafetyGuardrail(BaseGuardrail):
         
         # Define prohibited content patterns
         self.prohibited_patterns = [
-            r'\b(?:kill|die|death|suicide|harm)\b.*(?:patient|client|individual)',
-            r'\b(?:illegal|unlawful|criminal)\b.*(?:activity|action|behavior)',
+            r'\b(?:kill|die|death|suicide|harm).*?(?:patient|client|individual)',
+            r'\b(?:illegal|unlawful|criminal).*?(?:activity|action|behavior)',
             r'\b(?:discriminat|racist|sexist|homophobic)\b',
-            r'\b(?:personal|private|confidential)\s+(?:information|data)\b',
-            r'\b(?:guarantee|promise|ensure)\s+(?:cure|recovery|outcome)',
+            r'\b(?:personal|private|confidential).*?(?:information|data)\b',
+            r'\b(?:guarantee|promise|ensure).*?(?:cure|recovery|outcome)',
         ]
         
         # Define sensitive medical terms requiring careful handling
@@ -154,32 +154,35 @@ class ContentSafetyGuardrail(BaseGuardrail):
                 ))
         
         # Check for inappropriate medical claims
-        if self._contains_inappropriate_medical_claims(content):
+        claim_evidence = self._get_inappropriate_medical_claims(content)
+        if claim_evidence:
             violations.append(GuardrailViolation(
                 guardrail_type=GuardrailType.CONTENT_SAFETY,
                 violation_type="inappropriate_medical_claims",
                 description="Content contains inappropriate medical claims or guarantees",
                 risk_level=RiskLevel.MEDIUM,
                 confidence=0.8,
-                evidence=["Medical claims detected"],
+                evidence=claim_evidence,
                 suggested_action=ActionType.MODIFY,
                 mitigation_strategy="Add appropriate disclaimers and qualify statements"
             ))
         
         return violations
     
-    def _contains_inappropriate_medical_claims(self, content: str) -> bool:
-        """Check for inappropriate medical claims"""
+    def _get_inappropriate_medical_claims(self, content: str) -> List[str]:
+        """Check for inappropriate medical claims and return evidence."""
         claim_patterns = [
-            r'\b(?:will|shall|guaranteed to)\s+(?:cure|heal|fix|resolve)',
-            r'\b(?:always|never|100%|completely)\s+(?:effective|successful)',
-            r'\b(?:best|only|perfect)\s+(?:treatment|solution|approach)'
+            r'\b(?:will|shall|guaranteed to).*?(?:cure|heal|fix|resolve)',
+            r'\b(?:always|never|100%|completely).*?(?:effective|successful)',
+            r'\b(?:best|only|perfect).*?(?:treatment|solution|approach)'
         ]
         
+        evidence = []
         for pattern in claim_patterns:
-            if re.search(pattern, content, re.IGNORECASE):
-                return True
-        return False
+            matches = re.finditer(pattern, content, re.IGNORECASE)
+            for match in matches:
+                evidence.append(match.group())
+        return evidence
 
 
 class BiasDetectionGuardrail(BaseGuardrail):
@@ -194,19 +197,19 @@ class BiasDetectionGuardrail(BaseGuardrail):
         # Define bias indicators
         self.bias_indicators = {
             'demographic': [
-                r'\b(?:typical|normal|standard)\s+(?:patient|client|individual)',
-                r'\b(?:all|most|many)\s+(?:women|men|elderly|young)\s+(?:are|have|do|typically)',
-                r'\b(?:cultural|ethnic|racial)\s+(?:factors|issues|problems)',
+                r'\b(?:typical|normal|standard).*?(?:patient|client|individual)',
+                r'\b(?:all|most|many).*?(?:women|men|elderly|young).*?(?:are|have|do|typically)',
+                r'\b(?:cultural|ethnic|racial).*?(?:factors|issues|problems)',
                 r'\ball\s+elderly\s+patients\s+typically'
             ],
             'socioeconomic': [
-                r'\b(?:low-income|poor|wealthy|rich)\s+(?:patients|clients)',
-                r'\b(?:education level|social status)\s+(?:affects|determines|causes)',
-                r'\b(?:compliance|adherence)\s+(?:issues|problems)\s+(?:in|among)\s+(?:certain|specific)\s+(?:groups|populations)'
+                r'\b(?:low-income|poor|wealthy|rich).*?(?:patients|clients)',
+                r'\b(?:education level|social status).*?(?:affects|determines|causes)',
+                r'\b(?:compliance|adherence).*?(?:issues|problems).*?(?:in|among).*?(?:certain|specific).*?(?:groups|populations)'
             ],
             'geographic': [
-                r'\b(?:urban|rural|suburban)\s+(?:patients|populations)\s+(?:typically|usually|often)',
-                r'\b(?:regional|local|area)\s+(?:differences|variations)\s+(?:in|of)\s+(?:care|treatment)'
+                r'\b(?:urban|rural|suburban).*?(?:patients|populations).*?(?:typically|usually|often)',
+                r'\b(?:regional|local|area).*?(?:differences|variations).*?(?:in|of).*?(?:care|treatment)'
             ]
         }
         
@@ -252,11 +255,11 @@ class AccuracyValidationGuardrail(BaseGuardrail):
         
         # Define patterns that indicate potential hallucinations
         self.hallucination_indicators = [
-            r'\b(?:according to|based on|research shows|studies indicate)\s+(?:recent|new|latest)\s+(?:research|study|findings)',
-            r'\b(?:FDA|CMS|Medicare)\s+(?:recently|just|newly)\s+(?:approved|released|published)',
-            r'\b(?:specific|exact|precise)\s+(?:percentage|number|statistic)\s+(?:of|for|in)',
-            r'\b(?:Dr\.|Professor|Expert)\s+[A-Z][a-z]+\s+(?:states|says|recommends|suggests)',
-            r'\b(?:version|update|revision)\s+\d+\.\d+\s+(?:of|for)',
+            r'\b(?:according to|based on|research shows|studies indicate).*?(?:recent|new|latest).*?(?:research|study|findings)',
+            r'\b(?:FDA|CMS|Medicare).*?(?:recently|just|newly).*?(?:approved|released|published)',
+            r'\b(?:specific|exact|precise).*?(?:percentage|number|statistic).*?(?:of|for|in)',
+            r'\b(?:Dr\.|Professor|Expert)\s+[A-Z][a-z]+.*?(?:states|says|recommends|suggests)',
+            r'\b(?:version|update|revision)\s+\d+\.\d+.*?(?:of|for)',
         ]
         
         # Define confidence-reducing patterns
@@ -285,32 +288,35 @@ class AccuracyValidationGuardrail(BaseGuardrail):
                 ))
         
         # Check for overconfident statements
-        if self._contains_overconfident_statements(content):
+        overconfident_evidence = self._get_overconfident_statements(content)
+        if overconfident_evidence:
             violations.append(GuardrailViolation(
                 guardrail_type=GuardrailType.ACCURACY_VALIDATION,
                 violation_type="overconfident_statements",
                 description="Content contains overconfident statements without appropriate qualifiers",
                 risk_level=RiskLevel.MEDIUM,
                 confidence=0.7,
-                evidence=["Overconfident language detected"],
+                evidence=overconfident_evidence,
                 suggested_action=ActionType.MODIFY,
                 mitigation_strategy="Add appropriate qualifiers and uncertainty indicators"
             ))
         
         return violations
     
-    def _contains_overconfident_statements(self, content: str) -> bool:
-        """Check for overconfident statements"""
+    def _get_overconfident_statements(self, content: str) -> List[str]:
+        """Check for overconfident statements and return evidence."""
         overconfident_patterns = [
-            r'\b(?:definitely|certainly|absolutely|undoubtedly)\s+(?:will|should|must)',
-            r'\b(?:always|never|all|none|every)\s+(?:patients|clients|cases)',
-            r'\b(?:proven|established|confirmed)\s+(?:fact|truth|reality)'
+            r'\b(?:definitely|certainly|absolutely|undoubtedly).*?(?:will|should|must)',
+            r'\b(?:always|never|all|none|every).*?(?:patients|clients|cases)',
+            r'\b(?:proven|established|confirmed).*?(?:fact|truth|reality)'
         ]
         
+        evidence = []
         for pattern in overconfident_patterns:
-            if re.search(pattern, content, re.IGNORECASE):
-                return True
-        return False
+            matches = re.finditer(pattern, content, re.IGNORECASE)
+            for match in matches:
+                evidence.append(match.group())
+        return evidence
 
 
 class EthicalComplianceGuardrail(BaseGuardrail):
@@ -332,10 +338,10 @@ class EthicalComplianceGuardrail(BaseGuardrail):
         
         # Define ethical violations
         self.ethical_violations = [
-            r'\b(?:force|coerce|pressure)\s+(?:patient|client)',
-            r'\b(?:withhold|deny|refuse)\s+(?:information|treatment|care)',
-            r'\b(?:discriminate|exclude|reject)\s+(?:based on|due to)',
-            r'\b(?:experimental|unproven|untested)\s+(?:without|lacking)\s+(?:consent|approval)'
+            r'\b(?:force|coerce|pressure).*?(?:patient|client)',
+            r'\b(?:withhold|deny|refuse).*?(?:information|treatment|care)',
+            r'\b(?:discriminate|exclude|reject).*?(?:based on|due to)',
+            r'\b(?:experimental|unproven|untested).*?(?:without|lacking).*?(?:consent|approval)'
         ]
     
     def evaluate(self, content: str, context: Dict[str, Any]) -> List[GuardrailViolation]:
@@ -398,9 +404,9 @@ class TransparencyEnforcementGuardrail(BaseGuardrail):
             "Ensures AI outputs include appropriate transparency and explainability information"
         )
         
-        # Define required transparency elements
+        # Define required transparency elements (all lowercase for case-insensitive matching)
         self.transparency_requirements = {
-            'ai_disclosure': ['AI-generated', 'artificial intelligence', 'automated analysis'],
+            'ai_disclosure': ['ai-generated', 'artificial intelligence', 'automated analysis'],
             'confidence_indicators': ['confidence', 'certainty', 'likelihood'],
             'limitations': ['limitation', 'constraint', 'boundary'],
             'human_oversight': ['professional judgment', 'clinical expertise', 'human review']
@@ -409,6 +415,10 @@ class TransparencyEnforcementGuardrail(BaseGuardrail):
     def evaluate(self, content: str, context: Dict[str, Any]) -> List[GuardrailViolation]:
         violations = []
         
+        # Only run this guardrail if content is not empty
+        if not content.strip():
+            return violations
+
         # Check for missing transparency elements
         missing_elements = self._check_transparency_elements(content, context)
         
