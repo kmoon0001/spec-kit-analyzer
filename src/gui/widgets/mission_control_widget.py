@@ -26,13 +26,11 @@ from PySide6.QtWidgets import (
 )
 
 
-class SettingsEditorWidget(QWidget):
-    """A widget to dynamically edit application settings."""
-    save_requested = Signal(dict)
-
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._build_ui()
+
+
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -145,7 +143,7 @@ class SettingsEditorWidget(QWidget):
         
         # Set up timer for realtime updates
         from PySide6.QtCore import QTimer
-        self.system_timer = QTimer()
+        self.system_timer = QTimer(self) # Make timer a child of the widget
         self.system_timer.timeout.connect(lambda: self.info_browser.setHtml(self._generate_realtime_system_info())) # Use instance variable
         self.system_timer.start(5000)  # Update every 5 seconds
         layout.addWidget(self.info_browser) # Use instance variable

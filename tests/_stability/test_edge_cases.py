@@ -90,7 +90,7 @@ def test_corrupted_file_upload(
     # Assert: The application should not crash. It should display an error message in the text area.
     assert (
         "Could not display preview"
-        in main_app_window.document_display_area.toPlainText()
+        in main_app_window.file_display.toPlainText()
     )
     # The run button should remain disabled because no valid document was loaded.
     assert not main_app_window.run_analysis_button.isEnabled()
