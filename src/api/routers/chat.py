@@ -36,7 +36,7 @@ async def chat_with_ai(
         response_text = chat_service.process_message(history_payload)
         return schemas.ChatResponse(response=response_text)
     except Exception as e:
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred during the chat session: {e}",
         )

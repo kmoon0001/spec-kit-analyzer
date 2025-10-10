@@ -203,7 +203,7 @@ async def export_report_to_pdf(
 
     except Exception as e:
         logger.exception("PDF export failed", task_id=task_id, error=str(e))
-        raise HTTPException(status_code=500, detail=f"PDF export failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"PDF export failed: {str(e)}") from e
 
 
 @router.post("/feedback", response_model=schemas.FeedbackAnnotation, status_code=status.HTTP_201_CREATED)
@@ -217,7 +217,7 @@ async def submit_feedback(
         return await crud.create_feedback_annotation(db=db, feedback=feedback, user_id=current_user.id)
     except Exception as e:
         logger.exception("Failed to save feedback", error=str(e))
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save feedback: {e}",
         )

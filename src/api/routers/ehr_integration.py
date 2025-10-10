@@ -99,7 +99,7 @@ async def connect_ehr_system(
 
     except Exception as e:
         logger.error(f"EHR connection failed: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"EHR connection failed: {str(e)}"
         )
@@ -125,7 +125,7 @@ async def get_ehr_connection_status(
 
     except Exception as e:
         logger.error(f"Failed to get EHR status: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get EHR status: {str(e)}"
         )
@@ -177,7 +177,7 @@ async def sync_ehr_data(
 
     except Exception as e:
         logger.error(f"EHR sync failed to start: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to start EHR sync: {str(e)}"
         )
@@ -202,7 +202,7 @@ async def get_sync_status(
 
     except Exception as e:
         logger.error(f"Failed to get sync status: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get sync status: {str(e)}"
         )
@@ -235,7 +235,7 @@ async def list_ehr_documents(
 
     except Exception as e:
         logger.error(f"Failed to list EHR documents: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list EHR documents: {str(e)}"
         )
@@ -279,7 +279,7 @@ async def analyze_ehr_document(
 
     except Exception as e:
         logger.error(f"Failed to start EHR document analysis: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to start document analysis: {str(e)}"
         )
@@ -307,7 +307,7 @@ async def get_ehr_compliance_trends(
 
     except Exception as e:
         logger.error(f"Failed to get compliance trends: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get compliance trends: {str(e)}"
         )
@@ -337,7 +337,7 @@ async def disconnect_ehr_system(
 
     except Exception as e:
         logger.error(f"Failed to disconnect EHR system: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to disconnect EHR system: {str(e)}"
         )

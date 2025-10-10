@@ -72,7 +72,7 @@ async def ask_copilot(
 
     except Exception as e:
         logger.error(f"Copilot query failed: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Copilot query failed: {str(e)}"
         )
@@ -165,7 +165,7 @@ async def create_workflow_automation(
 
     except Exception as e:
         logger.error(f"Failed to create workflow automation: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create workflow automation: {str(e)}"
         )
@@ -190,7 +190,7 @@ async def list_workflow_automations(
 
     except Exception as e:
         logger.error(f"Failed to list workflow automations: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list workflow automations: {str(e)}"
         )

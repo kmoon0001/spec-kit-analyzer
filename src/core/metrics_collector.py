@@ -57,6 +57,7 @@ class MetricSource(ABC):
         """Check if this metric source is available."""
         pass
 
+    @abstractmethod
     def cleanup(self) -> None:
         """Cleanup resources used by this source."""
         pass
@@ -239,6 +240,11 @@ class SystemMetricsSource(MetricSource):
         except Exception:
             return False
 
+    def cleanup(self) -> None:
+        """Cleanup system metrics resources."""
+        # No specific cleanup needed for system metrics
+        pass
+
 
 class ApplicationMetricsSource(MetricSource):
     """Collects application-specific metrics."""
@@ -356,6 +362,13 @@ class ApplicationMetricsSource(MetricSource):
         """Application metrics are always available."""
         return True
 
+    def cleanup(self) -> None:
+        """Cleanup application metrics resources."""
+        with self._lock:
+            self._response_times.clear()
+            self._error_counts.clear()
+            self._request_counts.clear()
+
 
 class CustomMetricsSource(MetricSource):
     """Allows registration of custom metrics."""
@@ -383,6 +396,11 @@ class CustomMetricsSource(MetricSource):
     def is_available(self) -> bool:
         """Custom metrics are always available."""
         return True
+
+    def cleanup(self) -> None:
+        """Cleanup custom metrics resources."""
+        with self._lock:
+            self._metrics.clear()
 
 
 class MetricsCollector:

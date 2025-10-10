@@ -85,7 +85,7 @@ async def discover_plugins(
 
     except Exception as e:
         logger.error(f"Plugin discovery failed: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Plugin discovery failed: {str(e)}"
         )
@@ -123,7 +123,7 @@ async def list_plugins(
 
     except Exception as e:
         logger.error(f"Failed to list plugins: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list plugins: {str(e)}"
         )
@@ -191,7 +191,7 @@ async def get_plugin_status(
         raise
     except Exception as e:
         logger.error(f"Failed to get plugin status for {plugin_name}: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get plugin status: {str(e)}"
         )
@@ -251,7 +251,7 @@ async def load_plugin(
         raise
     except Exception as e:
         logger.error(f"Failed to load plugin {plugin_name}: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to load plugin: {str(e)}"
         )
@@ -298,7 +298,7 @@ async def unload_plugin(
         raise
     except Exception as e:
         logger.error(f"Failed to unload plugin {plugin_name}: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to unload plugin: {str(e)}"
         )
@@ -336,7 +336,7 @@ async def load_all_plugins(
 
     except Exception as e:
         logger.error(f"Failed to start plugin loading: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to start plugin loading: {str(e)}"
         )
@@ -376,7 +376,7 @@ async def list_extension_points(
 
     except Exception as e:
         logger.error(f"Failed to list extension points: {e}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list extension points: {str(e)}"
         )

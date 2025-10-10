@@ -58,7 +58,7 @@ async def get_personal_habit_profile(
 
     except Exception as e:
         logger.exception(f"Failed to get habit profile for user {current_user.id}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate habit profile: {str(e)}",
         )
@@ -106,7 +106,7 @@ async def get_habit_timeline(
         logger.exception(
             f"Failed to get habit timeline for user {current_user.id}, habit {habit_id}"
         )
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate habit timeline: {str(e)}",
         )
@@ -159,7 +159,7 @@ async def get_personal_goals(
 
     except Exception as e:
         logger.exception(f"Failed to get goals for user {current_user.id}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get goals: {str(e)}",
         )
@@ -247,13 +247,13 @@ async def create_personal_goal(
         }
 
     except ValueError as e:
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid data format: {str(e)}",
         )
     except Exception as e:
         logger.exception(f"Failed to create goal for user {current_user.id}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create goal: {str(e)}",
         )
@@ -313,7 +313,7 @@ async def get_personal_achievements(
 
     except Exception as e:
         logger.exception(f"Failed to get achievements for user {current_user.id}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get achievements: {str(e)}",
         )
@@ -340,7 +340,7 @@ async def get_personal_statistics(
 
     except Exception as e:
         logger.exception(f"Failed to get statistics for user {current_user.id}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get statistics: {str(e)}",
         )
@@ -439,7 +439,7 @@ async def create_progress_snapshot(
 
     except Exception as e:
         logger.exception(f"Failed to create snapshot for user {current_user.id}")
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create snapshot: {str(e)}",
         )

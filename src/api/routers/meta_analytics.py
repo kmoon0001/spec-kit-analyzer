@@ -42,7 +42,7 @@ async def get_widget_meta_analytics_data(
         return overview_data
     except Exception:
         logger.exception("Failed to get organizational overview for widget")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve organizational analytics for widget",
         )
@@ -91,7 +91,7 @@ async def get_organizational_overview(
 
     except Exception:
         logger.exception("Failed to get organizational overview")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve organizational analytics",
         )
@@ -141,7 +141,7 @@ async def get_training_needs(
 
     except Exception:
         logger.exception("Failed to get training needs")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve training needs",
         )
@@ -191,7 +191,7 @@ async def get_team_trends(
 
     except Exception:
         logger.exception("Failed to get team trends")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve team trends",
         )
@@ -235,7 +235,7 @@ async def get_benchmarks(
 
     except Exception:
         logger.exception("Failed to get benchmarks")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve benchmarks",
         )
@@ -281,7 +281,7 @@ async def get_peer_comparison(
 
     except Exception:
         logger.exception(f"Failed to get peer comparison for user {user_id}")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve peer comparison data",
         )
@@ -339,7 +339,7 @@ async def get_discipline_comparison(
 
     except Exception:
         logger.exception("Failed to get discipline comparison")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve discipline comparison",
         )
@@ -398,7 +398,7 @@ async def get_performance_alerts(
 
     except Exception:
         logger.exception("Failed to get performance alerts")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve performance alerts",
         )

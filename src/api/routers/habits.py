@@ -55,7 +55,7 @@ async def get_habit_progression(
 
     except Exception:
         logger.exception(f"Failed to get habit progression for user {current_user.id}")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve habit progression data",
         )
@@ -125,7 +125,7 @@ async def get_progress_summary(
 
     except Exception:
         logger.exception(f"Failed to get progress summary for user {current_user.id}")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve progress summary",
         )
@@ -152,7 +152,7 @@ async def get_user_goals(
 
     except Exception:
         logger.exception(f"Failed to get goals for user {current_user.id}")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve goals",
         )
@@ -179,7 +179,7 @@ async def create_goal(
 
     except Exception:
         logger.exception(f"Failed to create goal for user {current_user.id}")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create goal",
         )
@@ -217,7 +217,7 @@ async def update_goal_progress(
         raise
     except Exception:
         logger.exception(f"Failed to update goal progress for user {current_user.id}")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update goal progress",
         )
@@ -243,7 +243,7 @@ async def get_user_achievements(
 
     except Exception:
         logger.exception(f"Failed to get achievements for user {current_user.id}")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve achievements",
         )
@@ -276,7 +276,7 @@ async def get_weekly_trends(
 
     except Exception:
         logger.exception(f"Failed to get weekly trends for user {current_user.id}")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve weekly trends",
         )
@@ -310,7 +310,7 @@ async def get_habit_recommendations(
 
     except Exception:
         logger.exception(f"Failed to get recommendations for user {current_user.id}")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve recommendations",
         )
@@ -340,7 +340,7 @@ async def get_habit_details(
 
     except Exception:
         logger.exception(f"Failed to get habit details for habit {habit_number}")
-        raise HTTPException(
+        raise HTTPException( from None
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve habit details",
         )

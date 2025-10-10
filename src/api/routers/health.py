@@ -19,7 +19,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         await db.execute(text("SELECT 1"))
         return {"status": "ok", "database": "connected"}
     except Exception as e:
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={"status": "error", "database": "disconnected", "reason": str(e)},
         )

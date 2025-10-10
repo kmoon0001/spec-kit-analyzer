@@ -269,7 +269,7 @@ async def generate_coaching_focus(
         return CoachingFocus(**coaching_data)
     except Exception as e:
         logger.exception("Failed to generate coaching focus", error=str(e))
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate coaching focus: {e}",
         )

@@ -28,7 +28,7 @@ async def submit_feedback(
         return db_feedback
     except Exception as e:
         # In a production system, you might catch more specific database errors.
-        raise HTTPException(
+        raise HTTPException( from e
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred while saving feedback: {e}",
         )
