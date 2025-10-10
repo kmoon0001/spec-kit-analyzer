@@ -63,12 +63,12 @@ class ConfigValidator:
             try:
                 Settings(**config_data)  # Just validate, don't store
                 logger.info("Configuration successfully validated with Pydantic models")
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 self.validation_errors.append(f"Pydantic validation failed: {e!s}")
 
         except yaml.YAMLError as e:
             self.validation_errors.append(f"YAML parsing error: {e!s}")
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             self.validation_errors.append(
                 f"Unexpected error during validation: {e!s}",
             )
@@ -120,7 +120,7 @@ class ConfigValidator:
                 try:
                     Path(path_value).mkdir(parents=True, exist_ok=True)
                     logger.info("Ensured directory exists: %s", path_value)
-                except Exception as e:
+                except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                     self.validation_errors.append(
                         f"Cannot create directory {path_value}: {e!s}",
                     )
@@ -147,7 +147,7 @@ class ConfigValidator:
                 try:
                     os.makedirs(db_dir, exist_ok=True)
                     logger.info("Created database directory: %s", db_dir)
-                except Exception as e:
+                except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                     self.validation_errors.append(
                         f"Cannot create database directory: {e!s}",
                     )
@@ -317,7 +317,7 @@ class ConfigValidator:
                     f"No write permission for logs directory: {logs_dir}",
                 )
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             permission_errors.append(f"Error checking permissions: {e!s}")
 
         return len(permission_errors) == 0, permission_errors
@@ -409,7 +409,7 @@ def validate_configuration() -> bool:
         with open("config_health_report.json", "w") as f:
             json.dump(health_report, f, indent=2)
         logger.info("Health report saved to config_health_report.json")
-    except Exception as e:
+    except (FileNotFoundError, PermissionError, OSError, IOError) as e:
         logger.warning("Failed to save health report: %s", e)
 
     return status in ["healthy", "warning"]

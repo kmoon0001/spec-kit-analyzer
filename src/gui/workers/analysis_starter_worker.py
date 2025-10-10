@@ -47,5 +47,5 @@ class AnalysisStarterWorker(QObject):
                 except (TypeError, ValueError, json.JSONDecodeError):
                     pass
             self.error.emit(f"Failed to start analysis: {error_detail}")
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             self.error.emit(f"An unexpected error occurred: {e}")

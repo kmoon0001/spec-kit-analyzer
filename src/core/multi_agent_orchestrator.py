@@ -226,7 +226,7 @@ class MultiAgentOrchestrator:
                 next_agents=result_data.get("next_agents", []),
             )
 
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
             logger.exception("Agent %s failed: {e}", agent_role.value)
 

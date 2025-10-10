@@ -54,7 +54,7 @@ class LLMResourceFactory(ResourceFactory[LLMService]):
             response = resource.generate_response(test_prompt, max_length=10)
             return response is not None and len(response.strip()) > 0
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.warning("LLM resource validation failed: %s", e)
             return False
 
@@ -74,7 +74,7 @@ class LLMResourceFactory(ResourceFactory[LLMService]):
 
             logger.debug("LLM resource disposed successfully")
 
-        except Exception as e:
+        except (ImportError, ModuleNotFoundError, AttributeError) as e:
             logger.exception("Error disposing LLM resource: %s", e)
 
     def get_resource_size(self, resource: LLMService) -> int:
@@ -158,7 +158,7 @@ class EmbeddingModelResourceFactory(ResourceFactory[SentenceTransformer]):
 
             logger.debug("Embedding model resource disposed successfully")
 
-        except Exception as e:
+        except (ImportError, ModuleNotFoundError, AttributeError) as e:
             logger.exception("Error disposing embedding model resource: %s", e)
 
     def get_resource_size(self, resource: SentenceTransformer) -> int:
@@ -230,7 +230,7 @@ class TokenizerResourceFactory(ResourceFactory[AutoTokenizer]):
 
             logger.debug("Tokenizer resource disposed successfully")
 
-        except Exception as e:
+        except (ImportError, ModuleNotFoundError, AttributeError) as e:
             logger.exception("Error disposing tokenizer resource: %s", e)
 
     def get_resource_size(self, resource: AutoTokenizer) -> int:
@@ -259,7 +259,7 @@ class ModelResourceManager:
             self._initialized = True
             logger.info("Model resource manager initialized")
 
-        except Exception as e:
+        except (RuntimeError, AttributeError) as e:
             logger.exception("Failed to initialize model resource manager: %s", e)
             raise
 

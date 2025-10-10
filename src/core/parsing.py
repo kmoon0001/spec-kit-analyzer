@@ -86,7 +86,7 @@ def parse_document_content(file_path: str) -> list[dict[str, str]]:
         cache_service.set_to_disk(cache_key, result)
         return result
 
-    except Exception as e:
+    except (FileNotFoundError, PermissionError, OSError, IOError) as e:
         logger.exception("Error parsing %s: {e}", file_path)
         return [
             {
@@ -233,7 +233,7 @@ def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
                                         })
                                 ocr_pages.append(page_num + 1)
 
-                        except Exception as e:
+                        except (PIL.UnidentifiedImageError, OSError, ValueError) as e:
                             logger.warning("OCR failed for page %s: {e}", page_num + 1)
                             text_content.append({
                                 "sentence": f"Warning: Page {page_num + 1} could not be processed (may be scanned image without OCR capability)",

@@ -53,7 +53,7 @@ class DashboardWorker(QObject):
                 except requests.exceptions.JSONDecodeError:
                     pass
             self.error.emit(f"Failed to fetch dashboard data: {error_detail}")
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             self.error.emit(f"An unexpected error occurred: {e}")
         finally:
             self.finished.emit()

@@ -84,7 +84,7 @@ async def discover_plugins(
             discovery_paths=[str(path) for path in plugin_manager.plugin_directories],
         )
 
-    except Exception as e:
+    except (FileNotFoundError, PermissionError, OSError, IOError) as e:
         logger.exception("Plugin discovery failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -121,7 +121,7 @@ async def list_plugins(
             "loaded_plugin_names": list(loaded_plugins.keys()),
         }
 
-    except Exception as e:
+    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
         logger.exception("Failed to list plugins: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -294,7 +294,7 @@ async def unload_plugin(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
         logger.exception("Failed to unload plugin %s: {e}", plugin_name)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -331,7 +331,7 @@ async def load_all_plugins(
             "status": "loading",
         }
 
-    except Exception as e:
+    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
         logger.exception("Failed to start plugin loading: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -370,7 +370,7 @@ async def list_extension_points(
             "extension_points": extension_points_info,
         }
 
-    except Exception as e:
+    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
         logger.exception("Failed to list extension points: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -389,5 +389,5 @@ async def _load_all_plugins_background():
 
         logger.info("Background plugin loading complete: %s/{total_plugins} successful", successful_loads)
 
-    except Exception as e:
+    except (json.JSONDecodeError, ValueError, KeyError) as e:
         logger.exception("Background plugin loading failed: %s", e)

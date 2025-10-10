@@ -46,7 +46,7 @@ class HybridRetriever:
         if self.use_reranker and reranker_model_name:
             try:
                 self.reranker = CrossEncoder(reranker_model_name)
-            except Exception as exc:  # pragma: no cover - optional dependency fallback
+            except Exception as exc:
                 logger.warning("Failed to initialize reranker '%s': %s", reranker_model_name, exc)
                 self.use_reranker = False
 
@@ -116,7 +116,7 @@ class HybridRetriever:
                 expanded_query = expansion_result.get_expanded_query(max_terms=8)
                 logger.debug(f"Query expanded from '{query}' to '{expanded_query}' "
                            f"({expansion_result.total_terms} total terms)")
-            except Exception as e:
+            except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
                 logger.warning("Query expansion failed, using original query: %s", e)
                 expanded_query = query
 
@@ -151,7 +151,7 @@ class HybridRetriever:
                 cross_scores = self.reranker.predict(cross_inp)
                 reranked_results = zip([doc_id for doc_id, _ in sorted_initial_docs], cross_scores, strict=False)
                 sorted_reranked_docs = sorted(reranked_results, key=lambda item: item[1], reverse=True)
-            except Exception as exc:  # pragma: no cover - prediction errors fall back to RRF order
+            except Exception as exc:
                 logger.warning("Reranker prediction failed; falling back to RRF order: %s", exc)
                 sorted_reranked_docs = sorted_initial_docs
         else:

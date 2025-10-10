@@ -65,7 +65,7 @@ async def get_total_findings_count(
 
         result = await db.execute(query)
         return result.scalar() or 0
-    except Exception as e:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
         logger.exception("Error getting findings count: %s", e)
         return 0
 
@@ -96,7 +96,7 @@ async def get_findings_summary(db: AsyncSession):
         # We need to format it as a list of dictionaries.
         summary = [{"issue_title": rule_id, "count": count} for rule_id, count in result]
         return summary
-    except Exception as e:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
         logger.exception("Error getting findings summary: %s", e)
         return []
 

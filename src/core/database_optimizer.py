@@ -106,7 +106,7 @@ class DatabaseOptimizer:
                 "needs_optimization": needs_optimization,
                 "analyzed_at": datetime.now().isoformat(),
             }
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Error analyzing table %s: {e}", table_name)
             return {
                 "table_name": table_name,
@@ -163,7 +163,7 @@ class DatabaseOptimizer:
                 },
             )
 
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Error getting optimization recommendations: %s", e)
 
         return recommendations
@@ -210,7 +210,7 @@ class DatabaseOptimizer:
                 "status": "completed",
                 "records_cleaned": num_deleted,
             }
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Error during cleanup: %s", e)
             return {
                 "cleanup_date": cutoff_date.isoformat(),

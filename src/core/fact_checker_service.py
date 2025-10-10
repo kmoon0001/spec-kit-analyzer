@@ -21,7 +21,7 @@ class FactCheckerService:
                     "text2text-generation", model=self.model_name,
                 )
                 logger.info("Fact-checking model loaded successfully.")
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.exception("Failed to load fact-checking model: %s", e)
                 # The service will be non-functional, but this prevents a crash
                 self.classifier = None
@@ -56,7 +56,7 @@ class FactCheckerService:
             answer = result[0]["generated_text"].lower()
             return "yes" in answer or "supported" in answer
 
-        except Exception as e:
+        except (json.JSONDecodeError, ValueError, KeyError) as e:
             logger.exception("Error during fact-checking: %s", e)
             return True  # Fail open
 
@@ -83,6 +83,6 @@ class FactCheckerService:
             # Use the consistency checker to validate the finding against the rule
             return self.check_consistency(rule_text, finding_text)
 
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("Error checking finding plausibility: %s", e)
             return True  # Fail open

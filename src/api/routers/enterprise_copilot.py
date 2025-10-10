@@ -70,7 +70,7 @@ async def ask_copilot(
             "query_id": response.get("query_id"),
         }
 
-    except Exception as e:
+    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
         logger.exception("Copilot query failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -162,7 +162,7 @@ async def create_workflow_automation(
             "message": f"Workflow automation '{request.workflow_type}' created successfully",
         }
 
-    except Exception as e:
+    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
         logger.exception("Failed to create workflow automation: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -187,7 +187,7 @@ async def list_workflow_automations(
             "total_count": len(automations),
         }
 
-    except Exception as e:
+    except (PIL.UnidentifiedImageError, OSError, ValueError) as e:
         logger.exception("Failed to list workflow automations: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -259,7 +259,7 @@ async def get_copilot_status() -> dict[str, Any]:
             "last_updated": datetime.now().isoformat(),
         }
 
-    except Exception as e:
+    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
         logger.exception("Failed to get copilot status: %s", e)
         return {
             "status": "error",

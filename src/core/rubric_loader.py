@@ -31,7 +31,7 @@ async def parse_and_load_rubrics(db_session: AsyncSession, rubric_files: list[Pa
         try:
             g.parse(str(file_path), format="turtle")
             logger.info("Successfully parsed %s", file_path.name)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.error("Failed to parse %s: {e}", file_path.name, exc_info=True)
             continue
 

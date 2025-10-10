@@ -183,7 +183,7 @@ class AnalysisHandlers:
             # Update status
             status_tracker.update_status(AnalysisState.UPLOADING, 10, "Document uploaded, processing...")
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             # Log the error
             workflow_logger.log_workflow_completion(False, error=str(e))
             status_tracker.set_error(f"Failed to start analysis: {e!s}")
@@ -261,7 +261,7 @@ class AnalysisHandlers:
                 # Log the cancellation
                 logger.info("Analysis stopped by user request")
 
-            except Exception as e:
+            except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
                 logger.exception("Error stopping analysis: %s", e)
                 QMessageBox.warning(
                     self.main_window,
@@ -325,7 +325,7 @@ You can also:
             # Display the enhanced report popup immediately
             self.main_window._open_report_popup()
 
-        except Exception as e:
+        except (RuntimeError, AttributeError) as e:
             # Fallback: Log error but don't break the workflow
             logger.warning("Warning: Could not auto-display report popup: %s", e)
             self.main_window.statusBar().showMessage("✅ Analysis Complete - Click 'View Report' to see results", 5000)

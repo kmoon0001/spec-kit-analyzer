@@ -36,7 +36,7 @@ class ServiceErrorHandler:
                     f"Database operation failed in {func.__name__}",
                     details={"original_error": str(e)},
                 ) from e
-            except Exception as e:
+            except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
                 logger.exception("Unexpected error in %s: %s", func.__name__, str(e))
                 raise
 
@@ -50,7 +50,7 @@ class ServiceErrorHandler:
                     f"Database operation failed in {func.__name__}",
                     details={"original_error": str(e)},
                 ) from e
-            except Exception as e:
+            except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
                 logger.exception("Unexpected error in %s: %s", func.__name__, str(e))
                 raise
 

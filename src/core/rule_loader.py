@@ -36,7 +36,7 @@ class RuleLoader:
         for subject in graph.subjects(RDF.type, rule_class_uri):
             try:
                 rules.append(self._create_rule_from_graph(graph, subject, default_ns))  # type: ignore[arg-type]
-            except Exception as exc:  # pragma: no cover - defensive
+            except Exception as exc:
                 logger.exception(
                     "Failed to parse rule %s in %s: %s", subject, filepath, exc,
                 )

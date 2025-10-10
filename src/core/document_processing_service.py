@@ -51,7 +51,7 @@ class DocumentProcessingService:
         try:
             with open(file_path, encoding="utf-8") as f:
                 return f.read()
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error processing TXT file: %s", e)
             raise
 
@@ -64,7 +64,7 @@ class DocumentProcessingService:
             for page in doc:
                 text += page.get_text()
             return text
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error processing PDF file: %s", e)
             raise
 
@@ -74,7 +74,7 @@ class DocumentProcessingService:
         try:
             doc = self.Document(file_path)
             return "\n".join([para.text for para in doc.paragraphs])
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error processing DOCX file: %s", e)
             raise
 
@@ -87,6 +87,6 @@ class DocumentProcessingService:
             for image in images:
                 text += self.pytesseract.image_to_string(image)
             return text
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error processing image file: %s", e)
             raise

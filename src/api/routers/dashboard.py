@@ -262,7 +262,7 @@ async def generate_coaching_focus(
         logger.info("LLM coaching focus generation complete", duration_s=duration)
         coaching_data = llm_service.parse_json_output(raw_response)
         return CoachingFocus(**coaching_data)
-    except Exception as e:
+    except (json.JSONDecodeError, ValueError, KeyError) as e:
         logger.exception("Failed to generate coaching focus", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

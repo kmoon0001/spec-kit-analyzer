@@ -116,7 +116,7 @@ class AutoUpdater:
             self._rollback_update()
             return False
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Update installation failed: %s", e)
             self._rollback_update()
             return False
@@ -142,7 +142,7 @@ class AutoUpdater:
             data = {"last_check": datetime.now().isoformat()}
             with open(self.last_check_file, "w") as f:
                 json.dump(data, f)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.warning("Failed to record update check: %s", e)
 
     def _create_backup(self) -> bool:
@@ -171,7 +171,7 @@ class AutoUpdater:
             logger.info("Backup created successfully")
             return True
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Backup creation failed: %s", e)
             return False
 
@@ -234,7 +234,7 @@ class AutoUpdater:
             logger.error("Update integrity check failed")
             return False
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Update verification failed: %s", e)
             return False
 
@@ -261,7 +261,7 @@ class AutoUpdater:
 
             return True
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Update installation failed: %s", e)
             return False
 
@@ -291,7 +291,7 @@ class AutoUpdater:
             logger.info("Rollback completed successfully")
             return True
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Rollback failed: %s", e)
             return False
 

@@ -329,7 +329,7 @@ class HabitProgressionService:
         """Get total analysis count for user."""
         try:
             return await crud.get_user_analysis_count(db, user_id)
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Error getting user analysis count: %s", e)
             return 0
 
@@ -352,7 +352,7 @@ class HabitProgressionService:
                 }
                 for goal in goals
             ]
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Error getting user goals: %s", e)
             return []
 

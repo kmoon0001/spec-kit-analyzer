@@ -103,7 +103,7 @@ class ComplianceAnalyzer:
             try:
                 self.confidence_calibrator.load(calibrator_path)
                 logger.info("Loaded existing confidence calibrator")
-            except Exception as e:
+            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                 logger.warning("Failed to load calibrator: %s. Will create new one.", e)
                 self.confidence_calibrator = ConfidenceCalibrator(method="auto")
         else:
@@ -255,7 +255,7 @@ class ComplianceAnalyzer:
         except TimeoutError:
             logger.exception("NER extraction timed out after 30 seconds")
             entities = []
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("NER extraction failed: %s", e)
             entities = []
         entity_list_str = (
@@ -283,7 +283,7 @@ class ComplianceAnalyzer:
         except TimeoutError:
             logger.exception("Rule retrieval timed out after 1 minute")
             retrieved_rules = []
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Rule retrieval failed: %s", e)
             retrieved_rules = []
 
@@ -329,7 +329,7 @@ class ComplianceAnalyzer:
                     "summary": "Analysis timed out - basic compliance check completed",
                     "timeout": true
                 }'''
-            except Exception as e:
+            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                 logger.exception("LLM generation failed: %s", e)
                 # Provide a basic fallback analysis when LLM fails
                 raw_analysis_result = f'''{{

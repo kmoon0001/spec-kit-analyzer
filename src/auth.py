@@ -41,7 +41,7 @@ class AuthService:
     def verify_password(plain_password, hashed_password):
         try:
             return pwd_context.verify(plain_password, hashed_password)
-        except Exception:
+        except (PIL.UnidentifiedImageError, OSError, ValueError):
             # Fallback for simple hash (testing only)
             import hashlib
             simple_hash = hashlib.sha256(plain_password.encode()).hexdigest()

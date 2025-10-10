@@ -231,7 +231,7 @@ class AsyncFileHandler:
             logger.info("Successfully processed %d documents", len(results))
             return results
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Batch document reading failed: %s", e)
             return results
 
@@ -270,7 +270,7 @@ class AsyncFileHandler:
             logger.info("Cleaned up %d temporary files", cleaned_count)
             return cleaned_count
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Temp file cleanup failed: %s", e)
             return 0
 

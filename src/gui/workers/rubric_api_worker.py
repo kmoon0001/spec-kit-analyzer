@@ -35,7 +35,7 @@ class RubricApiWorker(QObject):
                 except ValueError:
                     pass
             self.error.emit(f"API Error: {error_msg}")
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             self.error.emit(f"An unexpected error occurred: {e}")
 
     @Slot()

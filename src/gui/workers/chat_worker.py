@@ -45,7 +45,7 @@ class ChatWorker(QObject):
                     self.error.emit(f"API Error: {e.response.status_code} {e.response.reason}")
             else:
                 self.error.emit(f"Failed to connect to the AI service: {e}")
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             self.error.emit(f"An unexpected error occurred: {e}")
         finally:
             self.finished.emit()

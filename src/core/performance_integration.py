@@ -84,7 +84,7 @@ class PerformanceIntegrationService(QObject):
                         ),
                     },
                 )
-            except Exception as e:
+            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                 logger.exception("Error getting performance manager status: %s", e)
                 status["performance_error"] = str(e)
 
@@ -100,7 +100,7 @@ class PerformanceIntegrationService(QObject):
                         "cache_hit_rate": self._get_cache_hit_rate(),
                     },
                 )
-            except Exception as e:
+            except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
                 logger.exception("Error getting cache status: %s", e)
                 status["cache_error"] = str(e)
 
@@ -190,7 +190,7 @@ class PerformanceIntegrationService(QObject):
                     "warning", f"High process memory usage: {process_memory} MB",
                 )
 
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("Error in performance check: %s", e)
 
     def _emit_warning(self, level: str, message: str):

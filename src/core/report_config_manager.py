@@ -38,7 +38,7 @@ class ReportConfigurationManager:
                     config_data = yaml.safe_load(f)
                     self.configurations[config_id] = self._dict_to_config(config_data)
                 logger.debug("Loaded configuration: %s", config_id)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error loading configurations: %s", e)
             self._create_default_configurations()
 
@@ -144,7 +144,7 @@ class ReportConfigurationManager:
             with open(config_file, "w", encoding="utf-8") as f:
                 yaml.dump(config_dict, f, default_flow_style=False)
             logger.info("Saved configuration: %s", config_id)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error saving configuration %s: {e}", config_id)
 
     def delete_configuration(self, config_id: str) -> bool:
@@ -159,7 +159,7 @@ class ReportConfigurationManager:
                     config_file.unlink()
                 logger.info("Deleted configuration: %s", config_id)
                 return True
-            except Exception as e:
+            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                 logger.exception("Error deleting configuration file %s: {e}", config_id)
         return False
 

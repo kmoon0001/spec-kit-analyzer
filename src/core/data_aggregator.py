@@ -193,7 +193,7 @@ class TimeSeriesStorage:
                 conn.commit()
                 return len(metrics)
 
-            except Exception as e:
+            except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
                 logger.exception("Error storing raw metrics: %s", e)
                 conn.rollback()
                 return 0
@@ -242,7 +242,7 @@ class TimeSeriesStorage:
                 conn.commit()
                 return len(metrics)
 
-            except Exception as e:
+            except (json.JSONDecodeError, ValueError, KeyError) as e:
                 logger.exception("Error storing aggregated metrics: %s", e)
                 conn.rollback()
                 return 0
@@ -416,7 +416,7 @@ class TimeSeriesStorage:
 
                 return raw_deleted, aggregated_deleted
 
-            except Exception as e:
+            except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
                 logger.exception("Error cleaning up old data: %s", e)
                 conn.rollback()
                 return 0, 0
@@ -458,7 +458,7 @@ class TimeSeriesStorage:
                     "newest_metric": raw_range[1] if raw_range[1] else None,
                 }
 
-            except Exception as e:
+            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                 logger.exception("Error getting storage stats: %s", e)
                 return {}
             finally:
@@ -733,7 +733,7 @@ class DataAggregator:
 
             return result
 
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Error getting metrics: %s", e)
             return []
 
@@ -789,7 +789,7 @@ class DataAggregator:
 
             return results
 
-        except Exception as e:
+        except (RuntimeError, AttributeError) as e:
             logger.exception("Error forcing aggregation: %s", e)
             return {}
 

@@ -54,7 +54,7 @@ class AILoaderWorker(QObject):
                 self._compliance_service, True, "AI Systems: Online", health_map,
             )
 
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.error("AI loader worker failed: %s", str(e), exc_info=True)
             self.status_updated.emit(f"AI Systems: Offline - {e}")
             self.finished.emit(None, False, f"AI Systems: Offline - {e}", {})

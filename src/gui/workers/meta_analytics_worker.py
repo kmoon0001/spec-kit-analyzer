@@ -86,7 +86,7 @@ class MetaAnalyticsWorker(QObject):
                     pass
             logger.exception("Failed to load meta analytics data")
             self.error.emit(f"Failed to load analytics: {error_detail}")
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("Unexpected error loading meta analytics data")
             self.error.emit(f"An unexpected error occurred: {e!s}")
         finally:

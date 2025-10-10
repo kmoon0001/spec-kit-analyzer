@@ -453,7 +453,7 @@ class SevenHabitsFramework:
                 "ai_generated": True,
             }
 
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("AI mapping failed: %s", e)
             return self._rule_based_mapping(finding)
 

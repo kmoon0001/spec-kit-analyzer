@@ -62,7 +62,7 @@ class PerformanceOptimizer:
                 "gpu_memory_gb": round(gpu_memory_gb, 1),
                 "gpu_name": gpu_name,
             }
-        except Exception as e:
+        except (ImportError, ModuleNotFoundError, AttributeError) as e:
             logger.warning("Failed to gather system info: %s", e)
             return {
                 "total_memory_gb": 8.0,  # Conservative default
@@ -158,7 +158,7 @@ class PerformanceOptimizer:
                 json.dump(config, f, indent=2)
             logger.info("Performance configuration saved to %s", filepath)
             return filepath
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Failed to save performance config: %s", e)
             raise
 
@@ -176,7 +176,7 @@ class PerformanceOptimizer:
                 config = json.load(f)
             logger.info("Performance configuration loaded from %s", filepath)
             return config
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.warning("Failed to load performance config: %s, using defaults", e)
             return self.get_optimized_config()
 

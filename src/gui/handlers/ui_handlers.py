@@ -443,7 +443,7 @@ class UIHandlers:
 
                 self.main_window.statusBar().showMessage("✅ All caches cleared successfully", 5000)
                 QMessageBox.information(self.main_window, "Cache Cleared", "All application caches have been cleared successfully!")
-            except Exception as e:
+            except (ImportError, ModuleNotFoundError, AttributeError) as e:
                 QMessageBox.warning(self.main_window, "Error", f"Failed to clear caches: {e!s}")
 
     def run_diagnostics(self) -> None:
@@ -709,7 +709,7 @@ Memory:
                     f"Contact your administrator to activate the full license.",
                 )
 
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("License check failed: %s", e)
 
     def show_license_activation_dialog(self) -> None:

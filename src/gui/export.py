@@ -112,7 +112,7 @@ def generate_pdf_report(analysis_results_str: str, parent=None):
             pisa_status = pisa.CreatePDF(html_content, dest=handle)
         if getattr(pisa_status, "err", 0):
             return False, f"PDF generation failed: {pisa_status.err}"
-    except Exception as exc:  # pragma: no cover - defensive
+    except (FileNotFoundError, PermissionError, OSError, IOError) as exc:
         return False, f"An error occurred while saving the PDF: {exc}"
 
     return True, file_path

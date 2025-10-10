@@ -24,7 +24,7 @@ async def submit_feedback(
             db=db, feedback=feedback, user_id=current_user.id,
         )
         return db_feedback
-    except Exception as e:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
         # In a production system, you might catch more specific database errors.
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -162,7 +162,7 @@ class ComponentLibrary:
 
             logger.info("Loaded %s report components", len(self.components))
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error loading components: %s", e)
             self._create_default_components()
 
@@ -552,7 +552,7 @@ class AdvancedTemplateRenderer:
 
             return self.validator.validate_template(content, metadata)
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             return [f"Error reading template file: {e}"]
 
 

@@ -346,5 +346,5 @@ class FeedbackCollector:
         try:
             self.trainer.record_feedback(finding, feedback_value, user_id, notes)
             logger.info("Processed feedback: %s for finding {finding.get(", feedback_value, id', 'unknown')}")
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("Failed to process feedback: %s", e)

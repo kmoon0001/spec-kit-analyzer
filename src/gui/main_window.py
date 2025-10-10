@@ -538,7 +538,7 @@ class MainApplicationWindow(QMainWindow):
 
             self.resource_label.setStyleSheet(f"color: {color}; font-size: 10px; font-family: monospace;")
 
-        except Exception as e:
+        except (ImportError, ModuleNotFoundError, AttributeError) as e:
             if self.resource_label:
                 self.resource_label.setText("💻 Resource info unavailable")
                 self.resource_label.setToolTip(f"Error getting resource info: {e!s}")
@@ -677,7 +677,7 @@ class MainApplicationWindow(QMainWindow):
         """Handle application close - exit quickly."""
         try:
             self._save_gui_settings()
-        except Exception:
+        except (RuntimeError, AttributeError):
             pass
 
         try:

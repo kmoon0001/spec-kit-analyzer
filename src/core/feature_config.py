@@ -94,7 +94,7 @@ class FeatureConfig:
             else:
                 logger.info("No user feature configuration found, using defaults")
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.warning("Could not load user config: %s, using defaults", e)
 
     def _merge_config(self, default: dict[str, Any], user: dict[str, Any]):
@@ -112,7 +112,7 @@ class FeatureConfig:
             with open(self.config_file, "w") as f:
                 json.dump(self.features, f, indent=2)
             logger.info("Feature configuration saved to %s", self.config_file)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Could not save feature configuration: %s", e)
 
     def is_feature_enabled(self, feature_path: str) -> bool:
@@ -138,7 +138,7 @@ class FeatureConfig:
 
             return bool(current)
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error checking feature %s: {e}", feature_path)
             return False
 
@@ -176,7 +176,7 @@ class FeatureConfig:
             current[parts[-1]] = enabled
             logger.info("Feature %s set to {enabled}", feature_path)
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error setting feature %s: {e}", feature_path)
 
     def get_enabled_features(self) -> list[str]:

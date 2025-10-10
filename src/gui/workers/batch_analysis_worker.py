@@ -37,7 +37,7 @@ class BatchAnalysisWorker(QObject):
             if self._is_running:
                 self.finished.emit(found_files)
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             self.error.emit(f"An error occurred while scanning the folder: {e}")
 
     def stop(self):

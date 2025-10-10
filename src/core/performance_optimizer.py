@@ -176,7 +176,7 @@ class PerformanceOptimizer:
                     warming_optimization = await self._execute_proactive_warming()
                     optimization_results["optimizations_applied"].append("proactive_warming")
                     optimization_results["warming_optimization_results"] = warming_optimization
-                except Exception as e:
+                except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
                     error_msg = f"Proactive warming failed: {e!s}"
                     optimization_results["errors"].append(error_msg)
                     logger.warning(error_msg)
@@ -261,7 +261,7 @@ class PerformanceOptimizer:
                     if hasattr(cache_class._cache, "clear_expired"):
                         cache_class._cache.clear_expired()
                         memory_results["caches_cleaned"].append(f"{cache_name}_expired")
-                except Exception as e:
+                except (ImportError, ModuleNotFoundError, AttributeError) as e:
                     logger.warning("Error cleaning %s cache: {e}", cache_name)
 
             # Aggressive memory optimization
@@ -522,7 +522,7 @@ class PerformanceOptimizer:
                 else:
                     logger.warning("Scheduled optimization had issues: %s", result.get('status'))
 
-            except Exception as e:
+            except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
                 logger.exception("Error in scheduled optimization: %s", e)
                 # Continue the loop even if one optimization fails
                 continue

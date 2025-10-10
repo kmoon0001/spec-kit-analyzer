@@ -65,7 +65,7 @@ class LLMService:
                 "LLM loaded successfully",
                 extra={"backend": self.backend, "model": self.model_repo_id},
             )
-        except Exception as exc:  # noqa: BLE001 - preserve error detail for operators
+        except Exception as exc:
             logger.critical(
                 "Fatal error: Failed to load LLM",
                 exc_info=True,
@@ -274,7 +274,7 @@ class LLMService:
             logger.debug("LLM generation completed in %ss, cached with TTL {ttl_hours}h", generation_time)
             return result
 
-        except Exception as exc:  # noqa: BLE001 - capture inference issues
+        except Exception as exc:
             logger.error("An error occurred during text generation", exc_info=True, extra={"error": str(exc)})
             return "An error occurred during text generation."
 

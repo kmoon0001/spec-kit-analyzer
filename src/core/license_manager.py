@@ -67,7 +67,7 @@ class LicenseManager:
             logger.info("Trial period initialized successfully")
             return True
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Failed to initialize trial: %s", e)
             return False
 
@@ -112,7 +112,7 @@ class LicenseManager:
                 return True, "Trial period active", days_remaining
             return False, "Trial period expired", 0
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("License check failed: %s", e)
             return False, "License verification failed", None
 
@@ -154,7 +154,7 @@ class LicenseManager:
             logger.info("Full license activated successfully")
             return True
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("License activation failed: %s", e)
             return False
 
@@ -197,7 +197,7 @@ class LicenseManager:
 
             return json.loads(decrypted)
 
-        except Exception as e:
+        except (json.JSONDecodeError, ValueError, KeyError) as e:
             logger.exception("License decryption failed: %s", e)
             raise
 

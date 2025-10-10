@@ -250,7 +250,7 @@ class PluginManager:
                         self.plugin_metadata[metadata.name] = metadata
                         logger.info("Discovered plugin: %s v{metadata.version}", metadata.name)
 
-                except Exception as e:
+                except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                     logger.warning("Failed to discover plugin %s: {e}", plugin_file)
 
             # Look for plugin packages
@@ -265,7 +265,7 @@ class PluginManager:
                                 self.plugin_metadata[metadata.name] = metadata
                                 logger.info("Discovered plugin package: %s v{metadata.version}", metadata.name)
 
-                        except Exception as e:
+                        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                             logger.warning("Failed to discover plugin package %s: {e}", plugin_package)
 
         logger.info("Plugin discovery complete. Found %s plugins.", len(discovered_plugins))
@@ -488,7 +488,7 @@ class PluginManager:
                 created_at=datetime.now(),
             )
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Failed to extract metadata from %s: {e}", plugin_file)
             return None
 
@@ -521,7 +521,7 @@ class PluginManager:
             logger.warning("Plugin loading not fully implemented for %s", metadata.name)
             return None
 
-        except Exception as e:
+        except (ImportError, ModuleNotFoundError, AttributeError) as e:
             logger.exception("Failed to load plugin instance for %s: {e}", metadata.name)
             return None
 

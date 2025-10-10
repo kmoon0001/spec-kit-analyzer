@@ -406,7 +406,7 @@ class HabitsDashboardWidget(QWidget):
             self.update_progress_display()
             self.update_weekly_focus()
 
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Failed to refresh habit data: %s", e)
 
     def update_progress_display(self):

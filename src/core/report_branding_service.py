@@ -161,12 +161,12 @@ class LogoProcessor:
                     with Image.open(path) as img:
                         # Basic image validation
                         img.verify()
-                except Exception as e:
+                except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                     return False, f"Invalid image file: {e!s}"
 
             return True, None
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             return False, f"Error validating logo file: {e!s}"
 
     def process_logo(self, config: LogoConfiguration) -> dict[str, Any] | None:
@@ -188,7 +188,7 @@ class LogoProcessor:
                 return self._process_svg_logo(path, config)
             return self._process_raster_logo(path, config)
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error processing logo: %s", e)
             return None
 
@@ -275,7 +275,7 @@ class ReportBrandingService:
                 logger.info("No branding configuration found, using defaults")
                 self._save_configuration()
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error loading branding configuration: %s", e)
             self.branding_config = BrandingConfiguration()
 
@@ -289,7 +289,7 @@ class ReportBrandingService:
 
             logger.info("Saved branding configuration")
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error saving branding configuration: %s", e)
 
     def configure_logo(self, file_path: str, position: LogoPosition = LogoPosition.TOP_RIGHT,
@@ -321,7 +321,7 @@ class ReportBrandingService:
             logger.info("Logo configured: %s", file_path)
             return True
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error configuring logo: %s", e)
             return False
 

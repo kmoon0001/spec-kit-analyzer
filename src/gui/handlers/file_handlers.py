@@ -115,7 +115,7 @@ class FileHandlers:
             if self.main_window.run_analysis_button:
                 self.main_window.run_analysis_button.setEnabled(True)
             return
-        except Exception as exc:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as exc:
             self.main_window._selected_file = None
             error_message = f"Could not display preview: {exc}"
             if self.main_window.file_display:
@@ -187,7 +187,7 @@ Click 'Run Analysis' to begin processing.
                 Path(file_path).write_text(report_html, encoding="utf-8")
 
             self.main_window.statusBar().showMessage(f"Report exported to {file_path}", 5000)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             QMessageBox.warning(self.main_window, "Export Failed", f"Failed to export report: {e!s}")
 
     def export_report_pdf(self) -> None:
@@ -269,7 +269,7 @@ Click 'Run Analysis' to begin processing.
 
                 self.main_window.statusBar().showMessage(f"✅ Report exported to: {file_path}", 5000)
                 QMessageBox.information(self.main_window, "Export Successful", f"Report exported successfully to:\n{file_path}")
-            except Exception as e:
+            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                 QMessageBox.warning(self.main_window, "Export Failed", f"Failed to export report: {e!s}")
 
     def open_document_preview(self) -> None:

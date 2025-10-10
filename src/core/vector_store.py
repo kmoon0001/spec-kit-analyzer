@@ -75,7 +75,7 @@ class VectorStore:
                     if similarity >= threshold:
                         results.append((i, similarity))
             return results
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Failed to search FAISS index: %s", e)
             return []
 

@@ -141,7 +141,7 @@ class MemoryMonitor:
 
                 time.sleep(self.check_interval)
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.exception("Error in memory monitoring: %s", e)
                 time.sleep(self.check_interval)
 

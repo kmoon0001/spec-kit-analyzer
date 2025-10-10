@@ -73,7 +73,7 @@ async def update_settings(
 
     except ValidationError as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=e.errors()) from e
-    except Exception as e:
+    except (FileNotFoundError, PermissionError, OSError, IOError) as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
 

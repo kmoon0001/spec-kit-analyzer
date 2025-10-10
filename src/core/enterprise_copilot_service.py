@@ -248,7 +248,7 @@ class EnterpriseCopilotService:
                 "message": "Thank you for your feedback! It will help improve future responses.",
             }
 
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Feedback processing failed: %s", e)
             return {
                 "feedback_id": None,

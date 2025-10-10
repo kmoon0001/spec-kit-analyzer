@@ -80,7 +80,7 @@ class ReportGenerationEngine:
             try:
                 if hasattr(provider, "provider_id"):
                     self.data_integration_service.register_provider(provider)
-            except Exception as e:
+            except (ImportError, ModuleNotFoundError, AttributeError) as e:
                 logger.warning("Could not register provider with data integration service: %s", e)
 
     def register_report_exporter(self, format: ReportFormat, exporter: ReportExporter) -> None:
@@ -225,7 +225,7 @@ class ReportGenerationEngine:
                     section.content = safe_content
                     filtered_sections.append(section)
 
-            except Exception as e:
+            except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
                 logger.warning("Error applying guardrails to section %s: {e}", section.id)
                 filtered_sections.append(section)  # Include original on error
 
@@ -324,7 +324,7 @@ class ReportGenerationEngine:
                     if success:
                         exported_files[format] = output_path
                         report.file_paths[format] = output_path
-                except Exception as e:
+                except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                     logger.exception("Error exporting report %s to {format.value}: {e}", report_id)
             else:
                 logger.warning("No exporter registered for format: %s", format.value)
@@ -363,7 +363,7 @@ class ReportGenerationEngine:
                 primary_color=primary_color,
                 secondary_color=secondary_color,
             )
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error configuring branding: %s", e)
             return False
 

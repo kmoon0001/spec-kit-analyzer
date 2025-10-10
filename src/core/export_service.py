@@ -94,7 +94,7 @@ class ExportService:
             logger.error("Unsupported or disabled export format: %s", format_type)
             return False
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Export failed: %s", e)
             return False
 
@@ -160,7 +160,7 @@ class ExportService:
 
             return True
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error checking size limit: %s", e)
             return True  # Allow export if size check fails
 
@@ -173,7 +173,7 @@ class ExportService:
             logger.info("JSON export completed: %s", output_path)
             return True
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("JSON export failed: %s", e)
             return False
 
@@ -205,7 +205,7 @@ class ExportService:
             logger.info("CSV export completed: %s", reports_path)
             return True
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("CSV export failed: %s", e)
             return False
 
@@ -236,7 +236,7 @@ class ExportService:
             logger.info("Excel export completed: %s", output_path)
             return True
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Excel export failed: %s", e)
             return False
 
@@ -277,7 +277,7 @@ class ExportService:
             logger.error("Unsupported format for analytics export: %s", format_type)
             return False
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Analytics export failed: %s", e)
             return False
 
@@ -305,7 +305,7 @@ class ExportService:
                         min_date = min(parsed_dates).strftime("%Y-%m-%d")
                         max_date = max(parsed_dates).strftime("%Y-%m-%d")
                         date_range = f"{min_date} to {max_date}"
-                except Exception:
+                except (json.JSONDecodeError, ValueError, KeyError):
                     pass
 
             # Document types
@@ -323,7 +323,7 @@ class ExportService:
                 "estimated_size_mb": self._estimate_export_size(reports_data),
             }
 
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("Error creating export summary: %s", e)
             return {}
 
@@ -345,7 +345,7 @@ class ExportService:
 
             return round(estimated_size, 2)
 
-        except Exception as e:
+        except (json.JSONDecodeError, ValueError, KeyError) as e:
             logger.exception("Error estimating export size: %s", e)
             return 0.0
 

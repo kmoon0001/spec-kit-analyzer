@@ -42,7 +42,7 @@ class TemplateEngine:
                         self.template_metadata[template_id] = yaml.safe_load(f)
 
                 logger.debug("Loaded template: %s", template_id)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error loading templates: %s", e)
             self._create_default_templates()
 

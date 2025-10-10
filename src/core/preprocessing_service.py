@@ -43,7 +43,7 @@ class PreprocessingService:
                 "Spell-checking accuracy will be reduced.",
                 self.settings.paths.medical_dictionary,
             )
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.error(
                 "Failed to load custom medical dictionary: %s", e, exc_info=True,
             )

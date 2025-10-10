@@ -329,7 +329,7 @@ async def get_discipline_comparison(
             "disciplines_analyzed": list(discipline_data.keys()),
         }
 
-    except Exception:
+    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError):
         logger.exception("Failed to get discipline comparison")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

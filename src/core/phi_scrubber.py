@@ -40,7 +40,7 @@ class PhiScrubberService:
         if analyzer is None and RecognizerRegistry is not None:
             try:
                 registry = RecognizerRegistry()
-            except Exception as exc:  # pragma: no cover - defensive
+            except Exception as exc:
                 logger.warning("Failed to initialize Presidio recognizer registry: %s", exc)
         if analyzer is None and AnalyzerEngine is not None:
             try:

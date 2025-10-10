@@ -125,7 +125,7 @@ class MLScheduler:
             elif result["status"] == "error":
                 self._log_training_error(result)
 
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             duration = (datetime.now() - job_start).total_seconds()
             logger.error("ML training job failed after %ss: {e}", duration, exc_info=True)
 
@@ -143,7 +143,7 @@ class MLScheduler:
             else:
                 logger.error("ML system health check: Issues detected - %s", health_status['errors'])
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.error("ML health check failed: %s", e, exc_info=True)
 
     async def _check_system_health(self) -> dict[str, Any]:

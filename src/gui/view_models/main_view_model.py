@@ -283,7 +283,7 @@ class MainViewModel(QObject):
                     self.success.emit(response.json().get("message", "Success!"))
                 except (requests.RequestException, ValueError, KeyError) as e:
                     self.error.emit(str(e))
-                except Exception as e:
+                except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
                     self.error.emit(f"Unexpected error: {e!s}")
         self._run_worker(SettingsSaveWorker, on_success=lambda msg: self.status_message_changed.emit(msg), on_error=lambda msg: self.status_message_changed.emit(f"Failed to save settings: {msg}"))
 

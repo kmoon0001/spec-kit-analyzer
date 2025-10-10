@@ -21,7 +21,7 @@ try:
 except ImportError:
     WEASYPRINT_AVAILABLE = False
     logging.warning("WeasyPrint not available. Using ReportLab fallback for PDF export.")
-except Exception as e:
+except (ImportError, ModuleNotFoundError, AttributeError) as e:
     WEASYPRINT_AVAILABLE = False
     logging.warning("WeasyPrint not available due to system dependencies: %s. Using ReportLab fallback.", e)
 
@@ -239,7 +239,7 @@ class PDFExportService:
                             "file_size_bytes": len(pdf_bytes),
                         })
 
-                except Exception as e:
+                except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                     logger.exception("Failed to export report %s: {e}", i)
                     results.append({
                         "index": i,
@@ -307,7 +307,7 @@ class PDFExportService:
                 chart_copy["image_data"] = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
                 converted_charts.append(chart_copy)
 
-            except Exception as e:
+            except (PIL.UnidentifiedImageError, OSError, ValueError) as e:
                 logger.warning("Failed to convert chart for PDF: %s", e)
                 # Include chart data without image as fallback
                 converted_charts.append(chart)

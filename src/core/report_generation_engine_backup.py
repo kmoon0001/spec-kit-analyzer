@@ -255,7 +255,7 @@ class DataAggregationService:
 
                 aggregated_data[provider_name] = provider_data
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.exception("Error getting data from provider %s: {e}", provider_name)
                 # Continue with other providers
                 aggregated_data[provider_name] = {"error": str(e)}
@@ -311,7 +311,7 @@ class TemplateEngine:
 
             logger.info("Loaded %s report templates", len(self.templates))
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error loading templates: %s", e)
             self._create_default_templates()
 
@@ -415,7 +415,7 @@ class ReportConfigurationManager:
 
             logger.info("Loaded %s report configurations", len(self.configurations))
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error loading configurations: %s", e)
             self._create_default_configurations()
 
@@ -585,7 +585,7 @@ class ReportGenerationEngine:
                 # Convert DataProvider to BaseDataProvider if needed
                 if hasattr(provider, "provider_id"):
                     self.data_integration_service.register_provider(provider)
-            except Exception as e:
+            except (ImportError, ModuleNotFoundError, AttributeError) as e:
                 logger.warning("Could not register provider with data integration service: %s", e)
 
     def register_report_exporter(self, format: ReportFormat, exporter: ReportExporter) -> None:
@@ -847,7 +847,7 @@ class ReportGenerationEngine:
                     exported_files[format] = exported_file
                     report.file_paths[format] = exported_file
 
-                except Exception as e:
+                except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                     logger.exception("Error exporting report %s to {format.value}: {e}", report_id)
             else:
                 logger.warning("No exporter registered for format: %s", format.value)
@@ -915,7 +915,7 @@ class ReportGenerationEngine:
             logger.info("Report branding configured successfully")
             return True
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error configuring branding: %s", e)
             return False
 

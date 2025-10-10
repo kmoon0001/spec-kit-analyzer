@@ -195,7 +195,7 @@ class PerformanceDialog(QDialog):
             self.settings_changed.emit()
             logger.info("Performance settings applied")
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error applying settings: %s", e)
 
     def auto_detect(self):
@@ -216,7 +216,7 @@ class PerformanceDialog(QDialog):
 
             self.apply_settings()
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error in auto-detect: %s", e)
 
     def closeEvent(self, event):

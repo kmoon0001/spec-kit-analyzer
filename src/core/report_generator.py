@@ -73,7 +73,7 @@ class ReportGenerator:
                 mime_type, _ = mimetypes.guess_type(logo_path)
                 if mime_type:
                     return f'<div class="logo-container"><img src="data:{mime_type};base64,{encoded_string}" alt="Logo" class="logo"></div>'
-            except Exception as e:
+            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                 logger.exception("Could not embed logo: %s", e)
         return ""
 

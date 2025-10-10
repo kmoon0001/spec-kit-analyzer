@@ -54,7 +54,7 @@ async def get_personal_habit_profile(
         profile = await tracker.get_personal_habit_profile(db, days_back)
         return profile
 
-    except Exception as e:
+    except (FileNotFoundError, PermissionError, OSError, IOError) as e:
         logger.exception("Failed to get habit profile for user %s", current_user.id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -99,7 +99,7 @@ async def get_habit_timeline(
         timeline = await tracker.get_habit_timeline(db, habit_id, days_back)
         return timeline
 
-    except Exception as e:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
         logger.exception(
             f"Failed to get habit timeline for user {current_user.id}, habit {habit_id}",
         )
@@ -334,7 +334,7 @@ async def get_personal_statistics(
         stats = await crud.get_user_habit_statistics(db, current_user.id, days_back)
         return stats
 
-    except Exception as e:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
         logger.exception("Failed to get statistics for user %s", current_user.id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

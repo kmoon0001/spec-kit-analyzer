@@ -60,7 +60,7 @@ def run_analysis_and_save(
                 "timestamp": datetime.datetime.now(datetime.UTC),
             }
             logger.info("Analysis completed for task %s", task_id)
-        except Exception as exc:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as exc:
             logger.exception("Analysis task failed", task_id=task_id, error=str(exc))
             tasks[task_id] = {
                 "status": "failed",
@@ -213,7 +213,7 @@ async def submit_feedback(
     """Endpoint to receive and store user feedback on AI findings."""
     try:
         return await crud.create_feedback_annotation(db=db, feedback=feedback, user_id=current_user.id)
-    except Exception as e:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
         logger.exception("Failed to save feedback", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

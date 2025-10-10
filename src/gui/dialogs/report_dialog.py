@@ -84,6 +84,6 @@ class ReportDialog(QDialog):
 
                 self.report_display.document().print(printer)
                 logger.info("Report successfully saved to %s", file_path)
-            except Exception as e:
+            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                 logger.error("Failed to print report to PDF: %s", e, exc_info=True)
                 QMessageBox.critical(self, "Error", f"Could not save PDF: {e}")

@@ -88,7 +88,7 @@ class DataAggregationService:
                     "supports_types": [rt.value for rt in ReportType if provider.supports_report_type(rt)],
                     "last_check": datetime.now().isoformat(),
                 }
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 status[name] = {
                     "status": "error",
                     "error": str(e),

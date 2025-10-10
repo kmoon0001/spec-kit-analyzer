@@ -97,7 +97,7 @@ async def connect_ehr_system(
             detail=f"Failed to connect to EHR system: {connection_result.get('error', 'Unknown error')}",
         )
 
-    except Exception as e:
+    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
         logger.exception("EHR connection failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -123,7 +123,7 @@ async def get_ehr_connection_status(
             "error_count": status_info.get("error_count", 0),
         }
 
-    except Exception as e:
+    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
         logger.exception("Failed to get EHR status: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -199,7 +199,7 @@ async def get_sync_status(
 
         return sync_status
 
-    except Exception as e:
+    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
         logger.exception("Failed to get sync status: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -232,7 +232,7 @@ async def list_ehr_documents(
             "has_more": documents.get("has_more", False),
         }
 
-    except Exception as e:
+    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
         logger.exception("Failed to list EHR documents: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

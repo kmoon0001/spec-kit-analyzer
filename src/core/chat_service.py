@@ -74,7 +74,7 @@ class ChatService:
         try:
             response = self.llm_service.generate_analysis(prompt)
             return sanitize_human_text(response)
-        except Exception as exc:  # pragma: no cover - defensive
+        except Exception as exc:
             logger.error("Chat generation failed: %s", exc, exc_info=True)
             return "I encountered an unexpected error while generating a response."
 

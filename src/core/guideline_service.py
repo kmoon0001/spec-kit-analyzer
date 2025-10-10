@@ -113,7 +113,7 @@ class GuidelineService:
                 "Loaded %d guideline chunks from cache", len(self.guideline_chunks),
             )
             return True
-        except Exception as exc:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as exc:
             logger.warning("Failed to load guideline cache: %s", exc)
             self.faiss_index = None
             self.guideline_chunks = []

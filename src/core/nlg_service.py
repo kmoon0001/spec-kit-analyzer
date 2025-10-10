@@ -54,7 +54,7 @@ class NLGService:
             # For example, removing leading/trailing whitespace
             return generated_tip.strip()
 
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("Error generating personalized tip: %s", e)
             # Fallback to the original suggestion if generation fails
             return finding.get("suggestion", "Error generating tip.")

@@ -328,7 +328,7 @@ class ResourcePool(Generic[T]):
 
                 time.sleep(self.config.validation_interval.total_seconds())
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.exception("Error in resource pool maintenance: %s", e)
                 time.sleep(5)  # Brief pause before retrying
 
@@ -374,7 +374,7 @@ class ResourcePool(Generic[T]):
                         if not self.factory.validate_resource(resource.resource):
                             resource.mark_expired()
                             invalid_resources.append(resource_id)
-                    except Exception as e:
+                    except (ValueError, TypeError, AttributeError) as e:
                         logger.exception("Error validating resource %s: {e}", resource_id)
                         resource.mark_expired()
                         invalid_resources.append(resource_id)

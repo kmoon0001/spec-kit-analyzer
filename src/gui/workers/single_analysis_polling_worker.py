@@ -133,7 +133,7 @@ class SingleAnalysisPollingWorker(QObject):
                 self.finished.emit()
                 return
 
-            except Exception as exc:  # pragma: no cover - defensive
+            except Exception as exc:
                 logger.exception("Unexpected error polling task %s: {exc}", self.task_id)
                 workflow_logger.log_api_response(0, error=str(exc))
                 self.error.emit(f"An unexpected error occurred while checking analysis status: {exc}")

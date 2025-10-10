@@ -309,7 +309,7 @@ class AdvancedPerformanceOptimizer:
                     available_cpus = list(range(psutil.cpu_count()))
                     os.sched_setaffinity(0, available_cpus)
                     results["optimizations_applied"].append("cpu_affinity")
-            except Exception as e:
+            except (ImportError, ModuleNotFoundError, AttributeError) as e:
                 results["warnings"].append(f"CPU affinity optimization failed: {e}")
 
             # Process priority optimization
@@ -614,7 +614,7 @@ class SystemResourceMonitor:
                                 if entries:
                                     temperature = entries[0].current
                                     break
-            except Exception:
+            except (ImportError, ModuleNotFoundError, AttributeError):
                 pass  # Temperature monitoring not available
 
             return SystemResourceMetrics(
@@ -631,7 +631,7 @@ class SystemResourceMonitor:
                 timestamp=datetime.now(),
             )
 
-        except Exception as e:
+        except (ImportError, ModuleNotFoundError, AttributeError) as e:
             logger.exception("Error collecting system metrics: %s", e)
             # Return default metrics on error
             return SystemResourceMetrics(
@@ -883,7 +883,7 @@ class ParallelProcessingOptimizer:
 
             logger.info("Parallel processing optimization completed - %s optimizations", len(results['optimizations_applied']))
 
-        except Exception as e:
+        except (ImportError, ModuleNotFoundError, AttributeError) as e:
             logger.exception("Parallel processing optimization error: %s", e)
             results["error"] = str(e)
 

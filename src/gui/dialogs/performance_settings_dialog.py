@@ -39,7 +39,7 @@ class SystemInfoWorker(QThread):
 
             system_info = SystemProfiler.get_system_info()
             self.info_ready.emit(system_info)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error gathering system info: %s", e)
             self.info_ready.emit({})
 
@@ -402,7 +402,7 @@ class PerformanceSettingsDialog(QDialog):
 
             self.update_profile_description()
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error loading settings: %s", e)
 
     def on_profile_changed(self):
@@ -500,7 +500,7 @@ class PerformanceSettingsDialog(QDialog):
                 f"• GPU: {'Available' if system_info.get('cuda_available') else 'Not available'}",
             )
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error in auto-detection: %s", e)
             QMessageBox.warning(
                 self, "Auto-Detection Failed", f"Could not detect optimal settings: {e}",
@@ -558,7 +558,7 @@ class PerformanceSettingsDialog(QDialog):
             except ImportError:
                 pass
 
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("Error updating monitoring: %s", e)
 
     def update_recommendations(self):
@@ -649,7 +649,7 @@ class PerformanceSettingsDialog(QDialog):
                 "Performance settings have been applied successfully.",
             )
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error applying settings: %s", e)
             QMessageBox.warning(self, "Error", f"Failed to apply settings: {e}")
 
@@ -697,7 +697,7 @@ class PerformanceSettingsDialog(QDialog):
                 "cache_enabled": True,
                 "performance_status": self._get_performance_status(),
             }
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error getting performance summary: %s", e)
             return {"performance_status": "Error"}
 
@@ -716,7 +716,7 @@ class PerformanceSettingsDialog(QDialog):
             if memory_percent > 70:
                 return "Moderate Load"
             return "Optimal"
-        except Exception:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError):
             return "Unknown"
 
     def start_system_monitoring(self):

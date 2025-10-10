@@ -118,7 +118,7 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
             yield session
             # Only commit if no exception occurred
             await session.commit()
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             # Log the error for debugging (without PHI)
             logger.exception(
                 "Database transaction failed, rolling back: %s", type(e).__name__,
@@ -182,7 +182,7 @@ async def close_db_connections() -> None:
     try:
         await engine.dispose()
         logger.info("Database connections closed successfully")
-    except Exception as e:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
         logger.exception("Error during database shutdown: %s", e)
         raise
 
@@ -213,7 +213,7 @@ async def get_db_health() -> dict[str, Any]:
 
             return stats
 
-    except Exception as e:
+    except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
         logger.exception("Database health check failed: %s", e)
         return {"status": "unhealthy", "error": str(e)}
 
@@ -243,7 +243,7 @@ async def optimize_database() -> None:
 
             await session.commit()
 
-    except Exception as e:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
         logger.exception("Database optimization failed: %s", e)
 
 

@@ -482,7 +482,7 @@ class CacheWarmingService:
 
                     warmed_items += len(items)
 
-                except Exception as e:
+                except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
                     error_msg = f"Error warming {cache_type} cache: {e!s}"
                     warming_results["errors"].append(error_msg)
                     logger.warning(error_msg)
@@ -535,7 +535,7 @@ class CacheWarmingService:
                 await self.batch_operations.batch_set_embeddings(new_embeddings)
                 logger.debug("Warmed %s embeddings", len(new_embeddings))
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error computing embeddings for warming: %s", e)
 
     async def _warm_ner_results(self, items: list[dict[str, str]], compute_func: Callable | None) -> None:
@@ -562,7 +562,7 @@ class CacheWarmingService:
 
                     logger.debug("Warmed %s NER results for model {model_name}", len(missing_texts))
 
-                except Exception as e:
+                except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                     logger.exception("Error computing NER results for warming: %s", e)
 
     async def _warm_llm_responses(self, items: list[dict[str, str]], compute_func: Callable | None) -> None:
@@ -582,7 +582,7 @@ class CacheWarmingService:
                     if response is not None:
                         LLMResponseCache.set_llm_response(prompt, model_name, response)
 
-                except Exception as e:
+                except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                     logger.exception("Error computing LLM response for warming: %s", e)
 
         logger.debug("Warmed %s LLM responses", len(items))
@@ -607,7 +607,7 @@ class CacheWarmingService:
 
                 logger.debug("Warmed %s document classifications", len(missing_hashes))
 
-            except Exception as e:
+            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                 logger.exception("Error computing document classifications for warming: %s", e)
 
     def get_warming_status(self) -> dict[str, Any]:
@@ -679,7 +679,7 @@ class AdvancedCacheService:
 
             logger.info("Cache performance optimization completed")
 
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("Error during cache optimization: %s", e)
             optimization_results["error"] = str(e)
 

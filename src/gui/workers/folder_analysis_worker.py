@@ -68,7 +68,7 @@ class FolderAnalysisWorker(QObject):
                 self.error.emit(f"Failed to connect to backend: {exc}")
                 self.finished.emit()
                 return
-            except Exception as exc:  # pragma: no cover - defensive
+            except Exception as exc:
                 self.error.emit(f"An unexpected error occurred: {exc}")
                 self.finished.emit()
                 return

@@ -153,7 +153,7 @@ class BaseDataProvider(ABC):
             self.is_available = metadata.availability
             self.last_health_check = datetime.now()
             return self.is_available
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.exception("Health check failed for provider %s: {e}", self.provider_id)
             self.is_available = False
             return False
@@ -218,7 +218,7 @@ class PerformanceDataProvider(BaseDataProvider):
             result = await self.query_data(query)
             return result.data
 
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("Error getting performance data: %s", e)
             return {"error": str(e), "provider": self.provider_id}
 
@@ -259,7 +259,7 @@ class PerformanceDataProvider(BaseDataProvider):
 
             return result
 
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("Error querying performance data: %s", e)
             raise
 
@@ -487,7 +487,7 @@ class DataIntegrationService:
         """Query a provider with comprehensive error handling"""
         try:
             return await provider.query_data(query)
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Provider %s query failed: {e}", provider.provider_id)
             # Create error result
             error_metadata = DataSourceMetadata(

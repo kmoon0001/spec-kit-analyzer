@@ -31,7 +31,7 @@ class FolderWatcherWorker(QObject):
         # Initial scan to establish a baseline
         try:
             self.seen_files = {p for p in self.folder_path.rglob("*") if p.is_file()}
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             self.error.emit(f"Failed to perform initial scan: {e}")
             return
 
@@ -46,7 +46,7 @@ class FolderWatcherWorker(QObject):
 
                 self.seen_files = current_files
 
-            except Exception as e:
+            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                 self.error.emit(f"Error during folder scan: {e}")
                 # Continue running even if one scan fails
 

@@ -120,7 +120,7 @@ class SuiteManager:
                 logger.warning("Test configuration file not found: %s", self.config_path)
                 self._create_default_configuration()
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Error loading test configurations: %s", e)
             self._create_default_configuration()
 
@@ -371,7 +371,7 @@ class PerformanceTestOrchestrator:
 
             logger.info("Test suite %s completed in {suite_result.total_duration_seconds} seconds", suite_name)
 
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Error running test suite %s: {e}", suite_name)
             suite_result.end_time = datetime.now()
 

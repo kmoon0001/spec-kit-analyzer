@@ -177,7 +177,7 @@ class PDFExportServiceFallback:
 
             return pdf_bytes
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("PDF export failed: %s", e)
             raise
 

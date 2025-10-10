@@ -230,7 +230,7 @@ class ErrorHandler:
 
                 return await operation() if asyncio.iscoroutinefunction(operation) else operation()
 
-            except Exception as e:
+            except (ImportError, ModuleNotFoundError, AttributeError) as e:
                 last_exception = e
 
                 # Check if error is retryable

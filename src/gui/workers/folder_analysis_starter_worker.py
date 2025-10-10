@@ -51,7 +51,7 @@ class FolderAnalysisStarterWorker(QObject):
                 except requests.exceptions.JSONDecodeError:
                     pass
             self.error.emit(f"Failed to start folder analysis: {error_detail}")
-        except Exception as exc:  # pragma: no cover - defensive
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as exc:
             self.error.emit(f"An unexpected error occurred: {exc}")
         finally:
             for _, file_tuple in self.files:

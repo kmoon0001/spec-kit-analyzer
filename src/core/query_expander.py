@@ -74,7 +74,7 @@ class MedicalVocabulary:
 
             logger.info("Loaded medical vocabulary from %s", vocab_file)
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.warning("Failed to load vocabulary file %s: {e}", vocab_file)
             self._initialize_default_vocabulary()
 
@@ -224,7 +224,7 @@ class MedicalVocabulary:
             with open(vocab_file, "w", encoding="utf-8") as f:
                 json.dump(vocab_data, f, indent=2, ensure_ascii=False)
             logger.info("Saved medical vocabulary to %s", vocab_file)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Failed to save vocabulary to %s: {e}", vocab_file)
 
 
@@ -282,7 +282,7 @@ class SemanticExpander:
             similarities.sort(key=lambda x: x[1], reverse=True)
             return similarities[:max_expansions]
 
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.warning("Semantic expansion failed: %s", e)
             return []
 

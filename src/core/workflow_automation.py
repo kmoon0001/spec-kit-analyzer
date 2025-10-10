@@ -250,7 +250,7 @@ class WorkflowAutomationService:
                 "summary": f"Checked {check_count} documents, found {check_count // 4} compliance issues",
             }
 
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             return {
                 "success": False,
                 "error": str(e),
@@ -274,7 +274,7 @@ class WorkflowAutomationService:
                 "summary": f"Generated {report_type} report for {time_period}",
             }
 
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             return {
                 "success": False,
                 "error": str(e),
@@ -300,7 +300,7 @@ class WorkflowAutomationService:
                 "summary": f"Synchronized {records_synced} records from {source_system}",
             }
 
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             return {
                 "success": False,
                 "error": str(e),
@@ -323,7 +323,7 @@ class WorkflowAutomationService:
                 "summary": f"Sent {reminder_type} reminders to {len(recipients)} recipients",
             }
 
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             return {
                 "success": False,
                 "error": str(e),

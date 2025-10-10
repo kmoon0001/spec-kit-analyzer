@@ -56,7 +56,7 @@ class DatabaseMaintenanceService:
                     )
                 else:
                     logger.info("No old reports found to purge.")
-            except Exception as e:
+            except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
                 logger.error(
                     "An error occurred during the database purge operation: %s",
                     e,
@@ -85,7 +85,7 @@ class DatabaseMaintenanceService:
         try:
             asyncio.run(self._purge_old_reports_async())
             logger.info("Database maintenance task finished.")
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.error(
                 "An unexpected error occurred while running the database maintenance task: %s",
                 e,

@@ -187,7 +187,7 @@ class NERAnalyzer:
             return []
         try:
             entities = self.ner_pipeline.extract_entities(text)
-        except Exception as exc:  # pragma: no cover - defensive guard
+        except Exception as exc:
             logger.warning("NER extraction failed: %s", exc)
             return []
         return self._deduplicate_entities(entities)

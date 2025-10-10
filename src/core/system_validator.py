@@ -112,7 +112,7 @@ class SystemValidator:
                     timestamp=datetime.now(),
                 ))
 
-            except Exception as e:
+            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                 duration = (datetime.now() - start_time).total_seconds() * 1000
                 results.append(ValidationResult(
                     component="core_services",
@@ -147,7 +147,7 @@ class SystemValidator:
                 timestamp=datetime.now(),
             ))
 
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
             results.append(ValidationResult(
                 component="api_endpoints",
@@ -190,7 +190,7 @@ class SystemValidator:
                     timestamp=datetime.now(),
                 ))
 
-            except Exception as e:
+            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                 duration = (datetime.now() - start_time).total_seconds() * 1000
                 results.append(ValidationResult(
                     component="new_features",

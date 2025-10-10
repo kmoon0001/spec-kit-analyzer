@@ -319,7 +319,7 @@ class HelpSystem:
 
             return True
 
-        except Exception as e:
+        except (RuntimeError, AttributeError) as e:
             logger.exception("Error showing tooltip: %s", e)
             return False
 
@@ -360,7 +360,7 @@ class HelpSystem:
         try:
             guide = ComplianceGuideDialog(parent)
             guide.show()
-        except Exception as e:
+        except (RuntimeError, AttributeError) as e:
             logger.exception("Error showing compliance guide: %s", e)
 
     def _remove_bubble(self, bubble: HelpBubble):

@@ -77,7 +77,7 @@ class BatchProcessorWorker(QObject):
                     except ValueError:
                         pass
                 self.file_completed.emit(filename, f"Error: {error_detail}")
-            except Exception as e:
+            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                 self.file_completed.emit(filename, f"Error: {e!s}")
 
         self.finished.emit()

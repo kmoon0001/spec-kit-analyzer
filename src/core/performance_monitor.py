@@ -396,7 +396,7 @@ class PerformanceMonitor:
                 # Sleep for monitoring interval
                 time.sleep(30)  # Monitor every 30 seconds
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.exception("Background monitoring error: %s", e)
                 time.sleep(60)  # Wait longer on error
 

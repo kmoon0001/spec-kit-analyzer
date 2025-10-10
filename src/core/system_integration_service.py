@@ -108,7 +108,7 @@ class SystemIntegrationService:
 
             logger.info("System Integration Service started successfully")
 
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             logger.exception("Failed to start System Integration Service: %s", e)
             self.stop()
             raise
@@ -343,7 +343,7 @@ class SystemIntegrationService:
 
                 time.sleep(self.config.health_check_interval.total_seconds())
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.exception("Error in monitoring loop: %s", e)
                 time.sleep(5)
 
@@ -370,7 +370,7 @@ class SystemIntegrationService:
                     logger.info("Auto-optimization triggered based on system metrics")
                     self.optimize_system(aggressive=metrics.health_status == SystemHealthStatus.CRITICAL)
 
-            except Exception as e:
+            except (ValueError, TypeError, AttributeError) as e:
                 logger.exception("Error in optimization loop: %s", e)
                 time.sleep(30)  # Wait longer on error
 

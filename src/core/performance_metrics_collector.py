@@ -338,7 +338,7 @@ class OptimizationMetricsCollector:
                 eviction_count=10,
                 average_lookup_time_ms=2.5,
             )
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("Error collecting cache metrics: %s", e)
             return CacheMetrics(0, 0, 0, 0, 0, 0)
 

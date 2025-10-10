@@ -92,7 +92,7 @@ class PerformanceManager:
 
             cleanup_all_caches()
             logger.info("Adaptive cleanup executed: caches cleared")
-        except Exception as exc:
+        except (ImportError, ModuleNotFoundError, AttributeError) as exc:
             logger.warning("Adaptive cleanup failed: %s", exc)
 
     def get_cpu_usage(self) -> float:

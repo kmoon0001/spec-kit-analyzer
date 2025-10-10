@@ -248,7 +248,7 @@ class MLTrainingPipeline:
                     logger.info("Training not due for %s days", self.training_interval_days - time_since_training.days)
                     return False
 
-            except Exception as e:
+            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
                 logger.warning("Could not read training metadata: %s", e)
 
         # Check if we have enough new data
