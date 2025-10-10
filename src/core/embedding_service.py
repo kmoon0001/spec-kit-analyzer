@@ -1,6 +1,6 @@
 import logging
-from typing import Any, Optional
 from threading import Lock
+from typing import Any
 
 from sentence_transformers import SentenceTransformer
 
@@ -21,7 +21,7 @@ class EmbeddingService:
     _model = None
     _lock = Lock()
 
-    def __init__(self, model_name: Optional[str] = None):
+    def __init__(self, model_name: str | None = None):
         """
         Initializes the EmbeddingService configuration.
 

@@ -6,9 +6,10 @@ This module provides validation and health checks for the application configurat
 
 import logging
 import os
-import yaml
 from pathlib import Path
-from typing import Dict, List, Any, Tuple
+from typing import Any
+
+import yaml
 
 from src.config import Settings, get_settings
 
@@ -19,12 +20,12 @@ class ConfigValidator:
     """Validate and health-check application configuration."""
 
     def __init__(self):
-        self.validation_errors: List[str] = []
-        self.validation_warnings: List[str] = []
+        self.validation_errors: list[str] = []
+        self.validation_warnings: list[str] = []
 
     def validate_config_file(
         self, config_path: str = "config.yaml"
-    ) -> Tuple[bool, List[str], List[str]]:
+    ) -> tuple[bool, list[str], list[str]]:
         """Validate the configuration file structure and values."""
         self.validation_errors.clear()
         self.validation_warnings.clear()
@@ -38,7 +39,7 @@ class ConfigValidator:
 
         try:
             # Load and parse YAML
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 config_data = yaml.safe_load(f)
 
             # Validate structure
@@ -76,7 +77,7 @@ class ConfigValidator:
         is_valid = len(self.validation_errors) == 0
         return is_valid, self.validation_errors, self.validation_warnings
 
-    def _validate_structure(self, config: Dict[str, Any]) -> None:
+    def _validate_structure(self, config: dict[str, Any]) -> None:
         """Validate the basic structure of the configuration."""
         required_sections = [
             "database",
@@ -95,7 +96,7 @@ class ConfigValidator:
                     f"Missing required configuration section: {section}"
                 )
 
-    def _validate_paths(self, paths_config: Dict[str, Any]) -> None:
+    def _validate_paths(self, paths_config: dict[str, Any]) -> None:
         """Validate path configurations."""
         required_paths = ["temp_upload_dir", "api_url", "rule_dir"]
 
@@ -130,7 +131,7 @@ class ConfigValidator:
                 if not os.path.exists(path_value):
                     self.validation_warnings.append(f"File not found: {path_value}")
 
-    def _validate_database(self, db_config: Dict[str, Any]) -> None:
+    def _validate_database(self, db_config: dict[str, Any]) -> None:
         """Validate database configuration."""
         if "url" not in db_config:
             self.validation_errors.append("Missing database URL")
@@ -164,7 +165,7 @@ class ConfigValidator:
                 "Database max_overflow should be non-negative"
             )
 
-    def _validate_models(self, models_config: Dict[str, Any]) -> None:
+    def _validate_models(self, models_config: dict[str, Any]) -> None:
         """Validate model configuration."""
         required_models = ["retriever", "fact_checker", "ner_ensemble"]
 
@@ -198,7 +199,7 @@ class ConfigValidator:
                 if not os.path.exists(path):
                     self.validation_warnings.append(f"Prompt file not found: {path}")
 
-    def _validate_performance(self, perf_config: Dict[str, Any]) -> None:
+    def _validate_performance(self, perf_config: dict[str, Any]) -> None:
         """Validate performance configuration."""
         if not perf_config:
             self.validation_warnings.append(
@@ -238,7 +239,7 @@ class ConfigValidator:
                 if timeout_value <= 0:
                     self.validation_errors.append(f"{timeout_key} must be positive")
 
-    def _validate_security(self, security_config: Dict[str, Any]) -> None:
+    def _validate_security(self, security_config: dict[str, Any]) -> None:
         """Validate security configuration."""
         if not security_config:
             self.validation_warnings.append(
@@ -276,7 +277,7 @@ class ConfigValidator:
                     "max_requests_per_minute is very low, may impact usability"
                 )
 
-    def check_environment_variables(self) -> Tuple[bool, List[str]]:
+    def check_environment_variables(self) -> tuple[bool, list[str]]:
         """Check for required environment variables."""
         missing_vars = []
 
@@ -289,7 +290,7 @@ class ConfigValidator:
 
         return len(missing_vars) == 0, missing_vars
 
-    def validate_file_permissions(self) -> Tuple[bool, List[str]]:
+    def validate_file_permissions(self) -> tuple[bool, list[str]]:
         """Validate file and directory permissions."""
         permission_errors = []
 
@@ -322,9 +323,9 @@ class ConfigValidator:
 
         return len(permission_errors) == 0, permission_errors
 
-    def generate_health_report(self) -> Dict[str, Any]:
+    def generate_health_report(self) -> dict[str, Any]:
         """Generate a comprehensive health report for the configuration."""
-        report: Dict[str, Any] = {
+        report: dict[str, Any] = {
             "timestamp": "2025-10-02",  # Would use datetime in real implementation
             "overall_status": "unknown",
             "config_validation": {},
@@ -333,7 +334,7 @@ class ConfigValidator:
             "recommendations": [],
         }
 
-        recommendations: List[str] = report["recommendations"]
+        recommendations: list[str] = report["recommendations"]
 
         # Validate configuration
         config_valid, config_errors, config_warnings = self.validate_config_file()

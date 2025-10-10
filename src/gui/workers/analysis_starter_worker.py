@@ -1,6 +1,7 @@
 
-import httpx
 import os
+
+import httpx
 from PySide6.QtCore import QObject, Signal
 
 from src.config import get_settings

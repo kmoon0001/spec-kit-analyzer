@@ -1,6 +1,7 @@
 import os
-import structlog
 from typing import Any
+
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -29,7 +30,7 @@ class PromptManager:
             logger.error("Prompt template not found", path=self.template_path)
             raise FileNotFoundError(f"Prompt template not found: {self.template_path}")
 
-        with open(self.template_path, "r", encoding="utf-8") as f:
+        with open(self.template_path, encoding="utf-8") as f:
             return f.read()
 
     def get_prompt(self, **kwargs: Any) -> str:

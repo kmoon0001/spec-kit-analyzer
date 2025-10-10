@@ -1,32 +1,34 @@
 
+from typing import Any
+
+from PySide6.QtCore import QThread
 from PySide6.QtWidgets import (
     QDialog,
-    QVBoxLayout,
-    QTableWidget,
-    QTableWidgetItem,
-    QLabel,
-    QProgressBar,
-    QMessageBox,
     QDialogButtonBox,
     QHeaderView,
+    QLabel,
+    QMessageBox,
+    QProgressBar,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
 )
-from PySide6.QtCore import QThread
-from typing import List, Dict, Any
 
-from ..workers.file_scanner_worker import FileScannerWorker
 from ..workers.batch_processor_worker import BatchProcessorWorker
+from ..workers.file_scanner_worker import FileScannerWorker
+
 
 class BatchAnalysisDialog(QDialog):
     """Dialog to manage scanning a folder and running a real-time batch analysis."""
 
     SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".json"]
 
-    def __init__(self, folder_path: str, token: str, analysis_data: Dict[str, Any], parent=None):
+    def __init__(self, folder_path: str, token: str, analysis_data: dict[str, Any], parent=None):
         super().__init__(parent)
         self.folder_path = folder_path
         self.token = token
         self.analysis_data = analysis_data
-        self.files_to_process: List[str] = []
+        self.files_to_process: list[str] = []
         self.worker_thread: QThread | None = None
         self.scanner_worker: FileScannerWorker | None = None
         self.processor_worker: BatchProcessorWorker | None = None
@@ -82,7 +84,7 @@ class BatchAnalysisDialog(QDialog):
         self.results_table.setItem(row_position, 0, QTableWidgetItem(file_name))
         self.results_table.setItem(row_position, 1, QTableWidgetItem("Pending"))
 
-    def on_scan_finished(self, found_files: List[str]):
+    def on_scan_finished(self, found_files: list[str]):
         self.files_to_process = found_files
         if not found_files:
             self.status_label.setText(f"No supported documents found in {self.folder_path}.")

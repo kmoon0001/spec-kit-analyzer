@@ -2,15 +2,16 @@
 API Documentation generator - Safe and stable implementation.
 """
 
+import logging
+from typing import Any
+
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
-from typing import Dict, Any
-import logging
 
 logger = logging.getLogger(__name__)
 
 
-def create_enhanced_openapi(app: FastAPI) -> Dict[str, Any]:
+def create_enhanced_openapi(app: FastAPI) -> dict[str, Any]:
     """Create enhanced OpenAPI documentation with examples."""
     if app.openapi_schema:
         return app.openapi_schema
@@ -40,5 +41,5 @@ def setup_documentation(app: FastAPI) -> None:
     def enhanced_openapi():
         return create_enhanced_openapi(app)
 
-    setattr(app, "openapi", enhanced_openapi)
+    app.openapi = enhanced_openapi
     logger.info("Enhanced API documentation configured")

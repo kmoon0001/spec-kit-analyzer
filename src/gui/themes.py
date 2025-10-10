@@ -7,15 +7,13 @@ main application logic.
 """
 from __future__ import annotations
 
-from typing import Dict
-
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
 ColorRole = QPalette.ColorRole
-ThemeColors = Dict[ColorRole, QColor]
+ThemeColors = dict[ColorRole, QColor]
 
-THEMES: Dict[str, ThemeColors] = {
+THEMES: dict[str, ThemeColors] = {
     "dark": {
         # True dark theme - no light colors
         ColorRole.Window: QColor(30, 30, 30),          # Dark background

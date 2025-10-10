@@ -6,7 +6,8 @@ for database initialization and connection management with performance optimizat
 """
 
 import logging
-from typing import Any, AsyncGenerator, Dict, Optional
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -27,7 +28,7 @@ if "sqlite" in DATABASE_URL and "aiosqlite" not in DATABASE_URL:
 
 
 # --- Performance Configuration ---
-def _get_performance_config() -> Optional[Any]:
+def _get_performance_config() -> Any | None:
     """Safely get performance configuration with fallback."""
     # Temporarily disabled for faster startup
     logger.debug("Performance manager disabled for faster startup")
@@ -53,7 +54,7 @@ logger.info(
 logger.info("Connection pool size: %s", POOL_SIZE)
 
 # --- Engine Configuration ---
-engine_args: Dict[str, Any] = {
+engine_args: dict[str, Any] = {
     "echo": settings.database.echo,
     "future": True,  # Use SQLAlchemy 2.0 style
 }
@@ -190,7 +191,7 @@ async def close_db_connections() -> None:
         raise
 
 
-async def get_db_health() -> Dict[str, Any]:
+async def get_db_health() -> dict[str, Any]:
     """
     Check database health and return status information.
 
@@ -204,7 +205,7 @@ async def get_db_health() -> Dict[str, Any]:
             result.fetchone()
 
             # Get basic stats if SQLite
-            stats: Dict[str, Any] = {
+            stats: dict[str, Any] = {
                 "status": "healthy",
                 "engine": str(engine.url).split("://")[0],
             }

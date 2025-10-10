@@ -1,6 +1,7 @@
-import re
-import pickle
 import logging
+import pickle
+import re
+
 from rank_bm25 import BM25Okapi  # type: ignore
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ def create_bm25_index():
     """
     logger.info("Reading Medicare guideline text...")
     with open(
-        "medicare_benefit_policy_manual_chapter_8.txt", "r", encoding="utf-8"
+        "medicare_benefit_policy_manual_chapter_8.txt", encoding="utf-8"
     ) as f:
         text = f.read()
 

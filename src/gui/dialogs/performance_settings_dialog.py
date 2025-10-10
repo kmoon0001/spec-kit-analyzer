@@ -4,25 +4,26 @@ Integrates with the performance manager and help system for optimal user experie
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Any
+
+from PySide6.QtCore import QThread, QTimer, Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
     QDialog,
-    QVBoxLayout,
-    QHBoxLayout,
     QGridLayout,
     QGroupBox,
+    QHBoxLayout,
     QLabel,
-    QComboBox,
-    QSpinBox,
-    QCheckBox,
-    QPushButton,
-    QProgressBar,
-    QTextEdit,
-    QTabWidget,
-    QWidget,
     QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QSpinBox,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtCore import QTimer, Signal, QThread
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class PerformanceSettingsDialog(QDialog):
 
     settings_changed = Signal(dict)
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setWindowTitle("Performance Settings")
         self.setModal(True)
@@ -61,8 +62,8 @@ class PerformanceSettingsDialog(QDialog):
         # Initialize performance manager
         try:
             from ...core.performance_manager import (
-                performance_manager,
                 PerformanceProfile,
+                performance_manager,
             )
 
             self.performance_manager = performance_manager
@@ -81,8 +82,8 @@ class PerformanceSettingsDialog(QDialog):
             logger.warning("Help system not available")
             self.help_system = None  # type: ignore
 
-        self.system_info: Dict[str, Any] = {}
-        self.current_settings: Dict[str, Any] = {}
+        self.system_info: dict[str, Any] = {}
+        self.current_settings: dict[str, Any] = {}
 
         self.setup_ui()
         self.load_current_settings()
@@ -507,7 +508,7 @@ class PerformanceSettingsDialog(QDialog):
                 self, "Auto-Detection Failed", f"Could not detect optimal settings: {e}"
             )
 
-    def update_system_info(self, system_info: Dict[str, Any]):
+    def update_system_info(self, system_info: dict[str, Any]):
         """Update system information display."""
         self.system_info = system_info
 
@@ -659,7 +660,7 @@ class PerformanceSettingsDialog(QDialog):
         self.apply_settings()
         self.accept()
 
-    def get_current_settings(self) -> Dict[str, Any]:
+    def get_current_settings(self) -> dict[str, Any]:
         """Get current settings as dictionary."""
         return {
             "profile": self.profile_combo.currentData(),
@@ -677,7 +678,7 @@ class PerformanceSettingsDialog(QDialog):
             "connection_pool_size": self.pool_size_spin.value(),
         }
 
-    def get_performance_summary(self) -> Dict[str, Any]:
+    def get_performance_summary(self) -> dict[str, Any]:
         """Get a summary of current performance status for main window display."""
         try:
             memory_stats = (

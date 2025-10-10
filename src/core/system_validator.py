@@ -4,12 +4,12 @@ System Validator - Clean Version
 Comprehensive system validation to ensure all components are properly integrated.
 """
 
-import logging
 import asyncio
-from datetime import datetime
-from typing import Dict, List, Any
+import logging
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -29,33 +29,33 @@ class ValidationResult:
     test_name: str
     status: ValidationStatus
     message: str
-    details: Dict[str, Any]
+    details: dict[str, Any]
     duration_ms: float
     timestamp: datetime
 
 
 class SystemValidator:
     """Comprehensive system validation for all components."""
-    
+
     def __init__(self):
         """Initialize the system validator."""
-        self.validation_results: List[ValidationResult] = []
+        self.validation_results: list[ValidationResult] = []
         logger.info("System validator initialized")
-    
-    async def run_full_validation(self) -> List[ValidationResult]:
+
+    async def run_full_validation(self) -> list[ValidationResult]:
         """Run comprehensive system validation."""
         logger.info("Starting comprehensive system validation")
         start_time = datetime.now()
-        
+
         validation_tasks = [
             self._validate_core_services(),
             self._validate_api_endpoints(),
             self._validate_new_features(),
         ]
-        
+
         # Run all validations concurrently
         results = await asyncio.gather(*validation_tasks, return_exceptions=True)
-        
+
         # Flatten results and handle exceptions
         all_results = []
         for result in results:
@@ -73,18 +73,18 @@ class SystemValidator:
                 all_results.extend(result)
             else:
                 all_results.append(result)
-        
+
         self.validation_results = all_results
-        
+
         total_time = (datetime.now() - start_time).total_seconds() * 1000
         logger.info(f"System validation completed in {total_time:.1f}ms")
-        
+
         return all_results
-    
-    async def _validate_core_services(self) -> List[ValidationResult]:
+
+    async def _validate_core_services(self) -> list[ValidationResult]:
         """Validate core service initialization and functionality."""
         results = []
-        
+
         # Test core service imports
         services_to_test = [
             ("pdf_export_service", "src.core.pdf_export_service"),
@@ -92,14 +92,14 @@ class SystemValidator:
             ("enhanced_error_handler", "src.core.enhanced_error_handler"),
             ("enterprise_copilot_service", "src.core.enterprise_copilot_service"),
         ]
-        
+
         for service_name, module_path in services_to_test:
             start_time = datetime.now()
             try:
                 import importlib
                 module = importlib.import_module(module_path)
                 assert module is not None
-                
+
                 duration = (datetime.now() - start_time).total_seconds() * 1000
                 results.append(ValidationResult(
                     component="core_services",
@@ -110,7 +110,7 @@ class SystemValidator:
                     duration_ms=duration,
                     timestamp=datetime.now()
                 ))
-                
+
             except Exception as e:
                 duration = (datetime.now() - start_time).total_seconds() * 1000
                 results.append(ValidationResult(
@@ -122,19 +122,19 @@ class SystemValidator:
                     duration_ms=duration,
                     timestamp=datetime.now()
                 ))
-        
+
         return results
-    
-    async def _validate_api_endpoints(self) -> List[ValidationResult]:
+
+    async def _validate_api_endpoints(self) -> list[ValidationResult]:
         """Validate API endpoint availability."""
         results = []
-        
+
         # Test API imports
         start_time = datetime.now()
         try:
             from src.api.main import app
             assert app is not None
-            
+
             duration = (datetime.now() - start_time).total_seconds() * 1000
             results.append(ValidationResult(
                 component="api_endpoints",
@@ -145,7 +145,7 @@ class SystemValidator:
                 duration_ms=duration,
                 timestamp=datetime.now()
             ))
-            
+
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
             results.append(ValidationResult(
@@ -157,27 +157,27 @@ class SystemValidator:
                 duration_ms=duration,
                 timestamp=datetime.now()
             ))
-        
+
         return results
-    
-    async def _validate_new_features(self) -> List[ValidationResult]:
+
+    async def _validate_new_features(self) -> list[ValidationResult]:
         """Validate new features functionality."""
         results = []
-        
+
         # Test new feature imports
         features_to_test = [
             ("plugin_system", "src.core.plugin_system"),
             ("multi_agent_orchestrator", "src.core.multi_agent_orchestrator"),
             ("workflow_automation", "src.core.workflow_automation"),
         ]
-        
+
         for feature_name, module_path in features_to_test:
             start_time = datetime.now()
             try:
                 import importlib
                 module = importlib.import_module(module_path)
                 assert module is not None
-                
+
                 duration = (datetime.now() - start_time).total_seconds() * 1000
                 results.append(ValidationResult(
                     component="new_features",
@@ -188,7 +188,7 @@ class SystemValidator:
                     duration_ms=duration,
                     timestamp=datetime.now()
                 ))
-                
+
             except Exception as e:
                 duration = (datetime.now() - start_time).total_seconds() * 1000
                 results.append(ValidationResult(
@@ -200,14 +200,14 @@ class SystemValidator:
                     duration_ms=duration,
                     timestamp=datetime.now()
                 ))
-        
+
         return results
-    
-    def get_overall_status(self, results: List[ValidationResult]) -> ValidationStatus:
+
+    def get_overall_status(self, results: list[ValidationResult]) -> ValidationStatus:
         """Get overall system validation status."""
         if not results:
             return ValidationStatus.SKIP
-        
+
         # Count status types
         status_counts = {
             ValidationStatus.PASS: 0,
@@ -215,10 +215,10 @@ class SystemValidator:
             ValidationStatus.FAIL: 0,
             ValidationStatus.SKIP: 0
         }
-        
+
         for result in results:
             status_counts[result.status] += 1
-        
+
         # Determine overall status
         if status_counts[ValidationStatus.FAIL] > 0:
             return ValidationStatus.FAIL

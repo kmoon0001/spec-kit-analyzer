@@ -1,0 +1,52 @@
+# Ruff configuration for Therapy Compliance Analyzer
+
+# Global settings
+line-length = 120
+target-version = "py311"
+
+# Exclude directories and files from linting
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    ".mypy_cache",
+    ".pytest_cache", 
+    ".ruff_cache",
+    "__pycache__",
+    ".idea",
+    ".vscode",
+    "node_modules",
+    "build",
+    "dist",
+    "*.egg-info",
+    ".cache",
+    "temp",
+    "data",
+    "models",
+    "database/*.db*",
+    "examples",
+    "docs",
+    ".github",
+    ".codacy",
+    ".qodo",
+    "bin",
+    "config",
+    "test_data",
+]
+
+[lint]
+# Enable specific rule categories
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings  
+    "F",   # Pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+]
+
+# Ignore specific rules
+ignore = [
+    "E501",  # Line too long (handled by formatter)
+    "B008",  # Do not perform function calls in argument defaults
+]

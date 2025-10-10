@@ -1,13 +1,13 @@
 
 import logging
-from typing import Dict, List, Optional
 
 import numpy as np
 from rank_bm25 import BM25Okapi
-from sentence_transformers import SentenceTransformer, CrossEncoder
+from sentence_transformers import CrossEncoder, SentenceTransformer
 from sentence_transformers.util import cos_sim
 
 from src.config import get_settings
+
 from .cache_service import cache_service
 from .query_expander import QueryExpander
 
@@ -23,13 +23,13 @@ logger = logging.getLogger(__name__)
 class HybridRetriever:
     """Combine keyword, dense retrieval, and reranking with cached embeddings and query expansion."""
 
-    def __init__(self, 
-                 rules: Optional[List[Dict[str, str]]] = None, 
-                 model_name: Optional[str] = None,
-                 query_expander: Optional[QueryExpander] = None) -> None:
+    def __init__(self,
+                 rules: list[dict[str, str]] | None = None,
+                 model_name: str | None = None,
+                 query_expander: QueryExpander | None = None) -> None:
         settings = get_settings()
         self.rules = rules or self._load_rules_from_db()
-        
+
         dense_model_name = getattr(settings.retrieval, "dense_model_name", "pritamdeka/S-PubMedBert-MS-MARCO")
         reranker_model_name = getattr(settings.models, "reranker", "cross-encoder/ms-marco-MiniLM-L-6-v2")
 
@@ -52,7 +52,7 @@ class HybridRetriever:
 
         # Initialize query expander
         self.query_expander = query_expander or QueryExpander()
-        
+
         self._build_indices()
 
     def _build_indices(self) -> None:
@@ -76,7 +76,7 @@ class HybridRetriever:
         self._build_indices()
 
     @staticmethod
-    def _load_rules_from_db() -> List[Dict[str, str]]:
+    def _load_rules_from_db() -> list[dict[str, str]]:
         if crud is None or not hasattr(crud, 'get_all_rubrics'):
             return []
         try:
@@ -93,18 +93,18 @@ class HybridRetriever:
         query: str,
         top_k: int = 5,
         k: int = 60,
-        category_filter: Optional[str] = None,
-        discipline: Optional[str] = None,
-        document_type: Optional[str] = None,
-        context_entities: Optional[List[str]] = None,
-    ) -> List[Dict[str, str]]:
+        category_filter: str | None = None,
+        discipline: str | None = None,
+        document_type: str | None = None,
+        context_entities: list[str] | None = None,
+    ) -> list[dict[str, str]]:
         if not self.rules or not self.corpus:
             return []
 
         # 0. Query Expansion (if enabled)
         expanded_query = query
         expansion_result = None
-        
+
         if self.use_query_expansion:
             try:
                 expansion_result = self.query_expander.expand_query(
@@ -142,14 +142,14 @@ class HybridRetriever:
         # Take a larger set for the reranker to work with (e.g., top 20)
         initial_top_n = min(len(rrf_scores), 20)
         sorted_initial_docs = sorted(rrf_scores.items(), key=lambda item: item[1], reverse=True)[:initial_top_n]
-        
+
         # 2. Reranking with Cross-Encoder (use original query for reranking)
         cross_inp = [[query, self.corpus[doc_id]] for doc_id, _ in sorted_initial_docs]
 
         if self.use_reranker and self.reranker is not None:
             try:
                 cross_scores = self.reranker.predict(cross_inp)
-                reranked_results = zip([doc_id for doc_id, _ in sorted_initial_docs], cross_scores)
+                reranked_results = zip([doc_id for doc_id, _ in sorted_initial_docs], cross_scores, strict=False)
                 sorted_reranked_docs = sorted(reranked_results, key=lambda item: item[1], reverse=True)
             except Exception as exc:  # pragma: no cover - prediction errors fall back to RRF order
                 logger.warning("Reranker prediction failed; falling back to RRF order: %s", exc)
@@ -162,7 +162,7 @@ class HybridRetriever:
         for doc_id, score in sorted_reranked_docs:
             rule = self.rules[doc_id].copy()
             rule['relevance_score'] = float(score)
-            
+
             # Add expansion metadata if query expansion was used
             if expansion_result and self.use_query_expansion:
                 rule['query_expansion'] = {
@@ -171,7 +171,7 @@ class HybridRetriever:
                     'expansion_sources': list(expansion_result.expansion_sources.keys()),
                     'total_expansions': expansion_result.total_terms - 1
                 }
-            
+
             final_rules.append(rule)
 
         if category_filter:

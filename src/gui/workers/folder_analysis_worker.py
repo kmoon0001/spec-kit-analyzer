@@ -1,8 +1,9 @@
 import time
-from typing import Any, Dict
+from typing import Any
 
 import requests
-from PySide6.QtCore import QObject, Signal as Signal
+from PySide6.QtCore import QObject
+from PySide6.QtCore import Signal as Signal
 
 from src.config import get_settings
 
@@ -43,7 +44,7 @@ class FolderAnalysisWorker(QObject):
                     self.finished.emit()
                     return
 
-                status_data: Dict[str, Any] = response.json()
+                status_data: dict[str, Any] = response.json()
                 status = status_data.get("status")
 
                 if status == "processing":

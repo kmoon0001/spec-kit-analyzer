@@ -3,8 +3,8 @@ from __future__ import annotations
 import importlib
 import logging
 import sys
+from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Iterable, List, Sequence, Tuple
 
 import faiss
 import joblib
@@ -29,7 +29,7 @@ def _get_sentence_transformer_cls():
     global _DEFAULT_SENTENCE_TRANSFORMER, SentenceTransformer
     if SentenceTransformer is None:
         _module = importlib.import_module("sentence_transformers")
-        _DEFAULT_SENTENCE_TRANSFORMER = getattr(_module, "SentenceTransformer")
+        _DEFAULT_SENTENCE_TRANSFORMER = _module.SentenceTransformer
         SentenceTransformer = _DEFAULT_SENTENCE_TRANSFORMER
 
     public_module = sys.modules.get("src.guideline_service")
@@ -60,7 +60,7 @@ class GuidelineService:
         self._index_path: Path | None = None
         self._chunks_path: Path | None = None
 
-        self.guideline_chunks: List[Tuple[str, str]] = []
+        self.guideline_chunks: list[tuple[str, str]] = []
         self.faiss_index = None
         self.model = _get_sentence_transformer_cls()(self.model_name)
         self.is_index_ready = False
@@ -120,7 +120,7 @@ class GuidelineService:
             return False
 
     def _build_index_from_sources(self) -> None:
-        chunks: List[Tuple[str, str]] = []
+        chunks: list[tuple[str, str]] = []
         for source in self.sources:
             chunks.extend(self._load_from_source(Path(source)))
 
@@ -139,7 +139,7 @@ class GuidelineService:
         self.faiss_index = index
         self.is_index_ready = True
 
-    def _load_from_source(self, path: Path) -> List[Tuple[str, str]]:
+    def _load_from_source(self, path: Path) -> list[tuple[str, str]]:
         if not path.exists() or not path.is_file():
             logger.warning("Guideline source %s does not exist", path)
             return []
@@ -152,13 +152,13 @@ class GuidelineService:
         logger.warning("Unsupported guideline format for %s", path)
         return []
 
-    def _encode_texts(self, texts: Iterable[str]) -> "np.ndarray":
+    def _encode_texts(self, texts: Iterable[str]) -> np.ndarray:
         embeddings = self.model.encode(list(texts), convert_to_numpy=True)
         if not isinstance(embeddings, np.ndarray):
             embeddings = np.asarray(embeddings)
         return embeddings.astype(np.float32)
 
-    def search(self, query: str, top_k: int = 5) -> List[dict]:
+    def search(self, query: str, top_k: int = 5) -> list[dict]:
         import numpy as np
 
         if not self.is_index_ready or self.faiss_index is None:
@@ -169,8 +169,8 @@ class GuidelineService:
 
         distances, indices = self.faiss_index.search(query_array, top_k)
 
-        results: List[dict] = []
-        for i, dist in zip(indices[0], distances[0]):
+        results: list[dict] = []
+        for i, dist in zip(indices[0], distances[0], strict=False):
             if i != -1:
                 text, source = self.guideline_chunks[i]
                 results.append({"text": text, "source": source, "score": float(dist)})

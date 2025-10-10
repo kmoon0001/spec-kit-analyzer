@@ -6,8 +6,12 @@ training needs identification, and benchmarking data for administrators.
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QComboBox,
@@ -22,10 +26,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-import matplotlib.pyplot as plt
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -209,7 +209,7 @@ class MetaAnalyticsWidget(QWidget):
         }
         self.refresh_requested.emit(params)
 
-    def update_data(self, data: Dict[str, Any]):
+    def update_data(self, data: dict[str, Any]):
         """Update the widget with new analytics data."""
         self.current_data = data
 
@@ -225,7 +225,7 @@ class MetaAnalyticsWidget(QWidget):
         # Update benchmarks tab
         self.update_benchmarks_tab(data)
 
-    def update_overview_tab(self, data: Dict[str, Any]):
+    def update_overview_tab(self, data: dict[str, Any]):
         """Update the overview tab with new data."""
         metrics = data.get("organizational_metrics", {})
 
@@ -250,7 +250,7 @@ class MetaAnalyticsWidget(QWidget):
         # Update insights
         self.update_insights(data.get("insights", []))
 
-    def update_discipline_chart(self, discipline_data: Dict[str, Any]):
+    def update_discipline_chart(self, discipline_data: dict[str, Any]):
         """Update the discipline breakdown chart."""
         ax = self.discipline_canvas.axes
         ax.clear()
@@ -323,7 +323,7 @@ class MetaAnalyticsWidget(QWidget):
 
         self.discipline_canvas.draw()
 
-    def update_habits_chart(self, habits_data: Dict[str, Any]):
+    def update_habits_chart(self, habits_data: dict[str, Any]):
         """Update the habits distribution pie chart."""
         ax = self.habits_canvas.axes
         ax.clear()
@@ -366,7 +366,7 @@ class MetaAnalyticsWidget(QWidget):
 
         self.habits_canvas.draw()
 
-    def update_training_tab(self, data: Dict[str, Any]):
+    def update_training_tab(self, data: dict[str, Any]):
         """Update the training needs tab."""
         training_needs = data.get("training_needs", [])
 
@@ -405,7 +405,7 @@ class MetaAnalyticsWidget(QWidget):
             ax.set_xlim(0, max(percentages) * 1.1 if percentages else 1)
 
             # Add percentage labels
-            for i, (bar, pct) in enumerate(zip(bars, percentages)):
+            for _i, (bar, pct) in enumerate(zip(bars, percentages, strict=False)):
                 ax.text(
                     bar.get_width() + 0.5,
                     bar.get_y() + bar.get_height() / 2,
@@ -435,7 +435,7 @@ class MetaAnalyticsWidget(QWidget):
                 "No specific training needs identified."
             )
 
-    def update_trends_tab(self, data: Dict[str, Any]):
+    def update_trends_tab(self, data: dict[str, Any]):
         """Update the performance trends tab."""
         trends = data.get("team_trends", [])
 
@@ -488,7 +488,7 @@ class MetaAnalyticsWidget(QWidget):
 
         self.trends_canvas.draw()
 
-    def update_benchmarks_tab(self, data: Dict[str, Any]):
+    def update_benchmarks_tab(self, data: dict[str, Any]):
         """Update the benchmarks tab."""
         benchmarks = data.get("benchmarks", {})
 
@@ -527,7 +527,7 @@ class MetaAnalyticsWidget(QWidget):
                 ax.set_ylim(0, 100)
 
                 # Add value labels on bars
-                for bar, value in zip(bars, values):
+                for bar, value in zip(bars, values, strict=False):
                     ax.text(
                         bar.get_x() + bar.get_width() / 2.0,
                         bar.get_height() + 1,
@@ -559,7 +559,7 @@ This data represents anonymous performance distribution across your organization
         else:
             self.benchmarks_summary.setText("No benchmark data available.")
 
-    def update_insights(self, insights: List[Dict[str, Any]]):
+    def update_insights(self, insights: list[dict[str, Any]]):
         """Update the insights display."""
         # Clear existing insights
         for i in reversed(range(self.insights_layout.count())):
@@ -573,7 +573,7 @@ This data represents anonymous performance distribution across your organization
                 insight_widget = self.create_insight_widget(insight)
                 self.insights_layout.addWidget(insight_widget)
 
-    def create_insight_widget(self, insight: Dict[str, Any]) -> QWidget:
+    def create_insight_widget(self, insight: dict[str, Any]) -> QWidget:
         """Create a widget for displaying a single insight."""
         widget = QGroupBox(insight.get("title", "Insight"))
         layout = QVBoxLayout(widget)

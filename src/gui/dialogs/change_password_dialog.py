@@ -2,8 +2,8 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
-    QLineEdit,
     QLabel,
+    QLineEdit,
     QMessageBox,
 )
 

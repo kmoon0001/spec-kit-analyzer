@@ -1,8 +1,8 @@
 import logging
 import sys
-import structlog
 import uuid
 
+import structlog
 
 # --- Correlation ID Middleware ---
 

@@ -1,4 +1,3 @@
-from typing import List
 from dataclasses import dataclass, field
 
 
@@ -16,8 +15,8 @@ class ComplianceRule:
     document_type: str
     suggestion: str
     financial_impact: int
-    positive_keywords: List[str] = field(default_factory=list)
-    negative_keywords: List[str] = field(default_factory=list)
+    positive_keywords: list[str] = field(default_factory=list)
+    negative_keywords: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -44,5 +43,5 @@ class ComplianceResult:
     """Represents the overall result of a compliance evaluation."""
 
     document: TherapyDocument
-    findings: List[ComplianceFinding]
+    findings: list[ComplianceFinding]
     is_compliant: bool

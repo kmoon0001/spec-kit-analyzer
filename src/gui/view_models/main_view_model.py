@@ -2,22 +2,29 @@
 from __future__ import annotations
 
 import logging
-import requests
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
+import requests
 from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtWidgets import QMessageBox
 
 from src.config import get_settings
-from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
-from src.gui.workers.generic_api_worker import GenericApiWorker, HealthCheckWorker, TaskMonitorWorker, LogStreamWorker, FeedbackWorker
-from src.gui.workers.single_analysis_polling_worker import SingleAnalysisPollingWorker
+from src.core.analysis_error_handler import error_handler
+from src.core.analysis_status_tracker import AnalysisState, status_tracker
 
 # Import diagnostic tools
 from src.core.analysis_workflow_logger import workflow_logger
-from src.core.analysis_status_tracker import status_tracker, AnalysisState
-from src.core.analysis_error_handler import error_handler
+from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker
+from src.gui.workers.generic_api_worker import (
+    FeedbackWorker,
+    GenericApiWorker,
+    HealthCheckWorker,
+    LogStreamWorker,
+    TaskMonitorWorker,
+)
+from src.gui.workers.single_analysis_polling_worker import SingleAnalysisPollingWorker
 
 logger = logging.getLogger(__name__)
 SETTINGS = get_settings()
@@ -27,12 +34,12 @@ API_URL = SETTINGS.paths.api_url
 class MainViewModel(QObject):
     """
     ViewModel for the MainApplicationWindow, managing state and business logic.
-    
+
     This class implements the MVVM (Model-View-ViewModel) pattern, serving as the
     intermediary between the UI (View) and the business logic/data (Model). It
     handles all state management, API communications, background task coordination,
     and provides a clean interface for the UI to interact with backend services.
-    
+
     Key Responsibilities:
     - State management for the main application window
     - API communication with the FastAPI backend
@@ -40,7 +47,7 @@ class MainViewModel(QObject):
     - Data loading and caching for UI components
     - Error handling and user feedback coordination
     - Thread management for non-blocking operations
-    
+
     Signals:
         status_message_changed: Emitted when status bar message should update
         api_status_changed: Emitted when API connectivity status changes
@@ -52,7 +59,7 @@ class MainViewModel(QObject):
         dashboard_data_loaded: Emitted when dashboard data is ready
         meta_analytics_loaded: Emitted when analytics data is loaded
         show_message_box_signal: Emitted to request message box display
-        
+
     Example:
         >>> view_model = MainViewModel(auth_token="jwt_token")
         >>> view_model.start_workers()  # Initialize background services
@@ -63,30 +70,30 @@ class MainViewModel(QObject):
     api_status_changed = Signal(str, str)  # API connectivity status (status, message)
     task_list_changed = Signal(dict)  # Background task list updates
     log_message_received = Signal(str)  # Application log messages
-    
+
     # Data Loading Signals
     settings_loaded = Signal(dict)  # Application settings loaded
     analysis_result_received = Signal(dict)  # Analysis results ready
     rubrics_loaded = Signal(list)  # Compliance rubrics loaded
     dashboard_data_loaded = Signal(dict)  # Dashboard data ready
     meta_analytics_loaded = Signal(dict)  # Analytics data loaded
-    
+
     # User Interaction Signals
     show_message_box_signal = Signal(str, str, str, list, str)  # Message box requests
 
     def __init__(self, auth_token: str, parent: QObject | None = None) -> None:
         """
         Initialize the MainViewModel with authentication and state management.
-        
+
         Args:
             auth_token: JWT authentication token for API communications.
                        Must be a valid token obtained from the authentication system.
             parent: Optional parent QObject for Qt object hierarchy management.
                    Defaults to None for top-level object.
-                   
+
         Raises:
             ValueError: If auth_token is empty or None.
-            
+
         Side Effects:
             - Initializes the Qt object hierarchy
             - Sets up authentication for API calls
@@ -94,10 +101,10 @@ class MainViewModel(QObject):
             - Prepares signal/slot connections
         """
         super().__init__(parent)
-        
+
         if not auth_token:
             raise ValueError("auth_token cannot be empty or None")
-            
+
         self.auth_token = auth_token
         self._active_threads: list[QThread] = []  # Track background threads for cleanup
 
@@ -120,8 +127,8 @@ class MainViewModel(QObject):
         on_success: Callable | None = None,
         on_error: Callable | None = None,
         *,
-        success_signal: Optional[str] = "success",
-        error_signal: Optional[str] = "error",
+        success_signal: str | None = "success",
+        error_signal: str | None = "error",
         auto_stop: bool = True,
         start_slot: str = "run",
         **kwargs: Any,
@@ -129,9 +136,9 @@ class MainViewModel(QObject):
         thread = QThread()
         worker = worker_class(**kwargs)
         worker.moveToThread(thread)
-        setattr(thread, "_worker_ref", worker)
+        thread._worker_ref = worker
 
-        def connect_signal(signal_name: Optional[str], callback: Callable | None, should_quit: bool) -> None:
+        def connect_signal(signal_name: str | None, callback: Callable | None, should_quit: bool) -> None:
             if not signal_name:
                 return
             if not hasattr(worker, signal_name):
@@ -148,7 +155,7 @@ class MainViewModel(QObject):
         connect_signal(error_signal, on_error, auto_stop)
 
         if hasattr(worker, "finished"):
-            getattr(worker, "finished").connect(thread.quit)
+            worker.finished.connect(thread.quit)
 
         thread.finished.connect(thread.deleteLater)
         if hasattr(worker, "deleteLater"):
@@ -156,7 +163,7 @@ class MainViewModel(QObject):
 
         def _cleanup() -> None:
             if hasattr(thread, "_worker_ref"):
-                setattr(thread, "_worker_ref", None)
+                thread._worker_ref = None
             if thread in self._active_threads:
                 self._active_threads.remove(thread)
 
@@ -202,7 +209,7 @@ class MainViewModel(QObject):
     def load_dashboard_data(self) -> None:
         self._run_worker(GenericApiWorker, on_success=self.dashboard_data_loaded.emit, on_error=lambda msg: self.status_message_changed.emit(f"Could not load dashboard data: {msg}"), endpoint="/dashboard/statistics", token=self.auth_token)
 
-    def load_meta_analytics(self, params: Optional[Dict[str, Any]] = None) -> None:
+    def load_meta_analytics(self, params: dict[str, Any] | None = None) -> None:
         endpoint = "/meta-analytics/widget_data"
         if params:
             param_str = f"days_back={params.get('days_back', 90)}&discipline={params.get('discipline', '')}"
@@ -216,11 +223,11 @@ class MainViewModel(QObject):
     def _handle_analysis_task_started(self, task_id: str) -> None:
         # Log successful task creation
         workflow_logger.log_api_response(200, {"task_id": task_id})
-        
+
         # Update status tracker with task ID
         status_tracker.set_task_id(task_id)
         status_tracker.update_status(AnalysisState.PROCESSING, 20, f"Analysis task created: {task_id[:8]}...")
-        
+
         self.status_message_changed.emit(f"Analysis running (Task: {task_id[:8]}...)…")
 
         # Start polling for results
@@ -230,26 +237,26 @@ class MainViewModel(QObject):
             on_error=self._handle_analysis_error_with_logging,
             task_id=task_id,
         )
-    
+
     def _on_analysis_polling_success(self, result: dict) -> None:
         """Handle successful analysis with comprehensive logging."""
         # Log successful completion
         workflow_logger.log_workflow_completion(True, result)
         status_tracker.complete_analysis(result)
-        
+
         # Emit signal for the view to handle
         self.analysis_result_received.emit(result)
-    
+
     def _handle_analysis_error_with_logging(self, error_msg: str) -> None:
         """Handle analysis error with comprehensive logging and user-friendly messaging."""
         # Log the error
         workflow_logger.log_workflow_completion(False, error=error_msg)
         status_tracker.set_error(error_msg)
-        
+
         # Process error through error handler for better user experience
         analysis_error = error_handler.categorize_and_handle_error(error_msg)
         formatted_message = error_handler.format_error_message(analysis_error, include_technical=False)
-        
+
         # Emit signal for the view to show the message box
         self.show_message_box_signal.emit(
             f"{analysis_error.icon} Analysis Error",
@@ -264,7 +271,7 @@ class MainViewModel(QObject):
 
     def save_settings(self, settings: dict) -> None:
         auth_token = self.auth_token  # Capture in local scope
-        
+
         class SettingsSaveWorker(QThread):
             success = Signal(str)
             error = Signal(str)
@@ -279,7 +286,7 @@ class MainViewModel(QObject):
                     self.error.emit(f"Unexpected error: {str(e)}")
         self._run_worker(SettingsSaveWorker, on_success=lambda msg: self.status_message_changed.emit(msg), on_error=lambda msg: self.status_message_changed.emit(f"Failed to save settings: {msg}"))
 
-    def submit_feedback(self, feedback_data: Dict[str, Any]) -> None:
+    def submit_feedback(self, feedback_data: dict[str, Any]) -> None:
         self._run_worker(FeedbackWorker, on_success=self.status_message_changed.emit, on_error=lambda msg: self.status_message_changed.emit(f"Feedback Error: {msg}"), token=self.auth_token, feedback_data=feedback_data)
 
     def stop_all_workers(self) -> None:

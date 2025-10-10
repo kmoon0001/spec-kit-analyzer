@@ -7,9 +7,9 @@ while maintaining data privacy and security.
 """
 
 import logging
-from datetime import datetime
-from typing import Dict, List, Any, Optional
 import uuid
+from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -17,60 +17,60 @@ logger = logging.getLogger(__name__)
 class EnterpriseCopilotService:
     """
     AI-powered enterprise assistance service for healthcare compliance.
-    
+
     This service provides intelligent responses to user queries, contextual
     suggestions, and automated assistance for compliance-related tasks.
     All processing is done locally to maintain data privacy.
-    
+
     Features:
     - Natural language query processing
     - Contextual assistance and suggestions
     - Compliance knowledge base integration
     - Workflow automation support
     - Learning from user feedback
-    
+
     Example:
         >>> copilot = EnterpriseCopilotService()
         >>> response = await copilot.process_query("How do I document PT progress?")
         >>> print(response["answer"])
     """
-    
+
     def __init__(self):
         """Initialize the Enterprise Copilot service."""
         self.knowledge_base = self._initialize_knowledge_base()
         self.query_history = {}
         self.feedback_data = []
-        
+
         logger.info("Enterprise Copilot service initialized")
-    
-    async def process_query(self, 
+
+    async def process_query(self,
                           query: str,
-                          context: Dict[str, Any],
+                          context: dict[str, Any],
                           user_id: int,
-                          department: Optional[str] = None,
-                          priority: str = "normal") -> Dict[str, Any]:
+                          department: str | None = None,
+                          priority: str = "normal") -> dict[str, Any]:
         """
         Process a natural language query and provide an intelligent response.
-        
+
         Args:
             query: The user's natural language query
             context: Additional context information
             user_id: ID of the user making the query
             department: User's department for context
             priority: Query priority level
-            
+
         Returns:
             Dict containing the response, confidence, sources, and suggestions
         """
         try:
             start_time = datetime.now()
             query_id = str(uuid.uuid4())
-            
+
             logger.info(f"Processing copilot query: {query[:100]}...")
-            
+
             # Analyze the query to determine intent and extract key information
             query_analysis = await self._analyze_query(query, context, department)
-            
+
             # Generate response based on query type
             if query_analysis["intent"] == "compliance_question":
                 response = await self._handle_compliance_question(query, query_analysis, context)
@@ -82,10 +82,10 @@ class EnterpriseCopilotService:
                 response = await self._handle_data_analysis(query, query_analysis, context)
             else:
                 response = await self._handle_general_query(query, query_analysis, context)
-            
+
             # Calculate processing time
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
-            
+
             # Store query in history for learning
             self.query_history[query_id] = {
                 "query": query,
@@ -97,7 +97,7 @@ class EnterpriseCopilotService:
                 "timestamp": start_time.isoformat(),
                 "processing_time_ms": processing_time
             }
-            
+
             # Prepare final response
             final_response = {
                 "answer": response.get("answer", "I'm sorry, I couldn't process that request."),
@@ -109,10 +109,10 @@ class EnterpriseCopilotService:
                 "query_id": query_id,
                 "intent": query_analysis["intent"]
             }
-            
+
             logger.info(f"Copilot query processed successfully in {processing_time:.1f}ms")
             return final_response
-            
+
         except Exception as e:
             logger.error(f"Copilot query processing failed: {e}")
             return {
@@ -125,30 +125,30 @@ class EnterpriseCopilotService:
                 "query_id": str(uuid.uuid4()),
                 "error": str(e)
             }
-    
+
     async def get_contextual_suggestions(self,
-                                       context: Optional[str] = None,
-                                       document_type: Optional[str] = None,
-                                       user_id: int = None) -> Dict[str, Any]:
+                                       context: str | None = None,
+                                       document_type: str | None = None,
+                                       user_id: int = None) -> dict[str, Any]:
         """
         Get contextual suggestions based on current user activity.
-        
+
         Args:
             context: Current context or activity
             document_type: Type of document being worked on
             user_id: ID of the user requesting suggestions
-            
+
         Returns:
             Dict containing suggestions, tips, and quick actions
         """
         try:
             logger.info(f"Generating contextual suggestions for context: {context}")
-            
+
             suggestions = []
             tips = []
             best_practices = []
             quick_actions = []
-            
+
             # Generate suggestions based on context
             if context == "document_creation":
                 suggestions.extend([
@@ -165,7 +165,7 @@ class EnterpriseCopilotService:
                     {"action": "Insert template", "description": "Add a progress note template"},
                     {"action": "Check compliance", "description": "Run compliance check on current document"}
                 ])
-            
+
             elif context == "compliance_review":
                 suggestions.extend([
                     "Review Medicare documentation requirements for this document type",
@@ -181,7 +181,7 @@ class EnterpriseCopilotService:
                     {"action": "Run full analysis", "description": "Perform comprehensive compliance analysis"},
                     {"action": "Generate report", "description": "Create compliance summary report"}
                 ])
-            
+
             # Document type specific suggestions
             if document_type == "progress_note":
                 best_practices.extend([
@@ -197,7 +197,7 @@ class EnterpriseCopilotService:
                     "Justify medical necessity for treatment",
                     "Document patient's prior level of function"
                 ])
-            
+
             return {
                 "suggestions": suggestions,
                 "tips": tips,
@@ -206,7 +206,7 @@ class EnterpriseCopilotService:
                 "context_analyzed": context,
                 "document_type_analyzed": document_type
             }
-            
+
         except Exception as e:
             logger.error(f"Contextual suggestions generation failed: {e}")
             return {
@@ -216,21 +216,21 @@ class EnterpriseCopilotService:
                 "quick_actions": [],
                 "error": str(e)
             }
-    
-    async def process_feedback(self, feedback_data: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+
+    async def process_feedback(self, feedback_data: dict[str, Any], user_id: int) -> dict[str, Any]:
         """
         Process user feedback to improve future responses.
-        
+
         Args:
             feedback_data: Feedback information including rating, comments, etc.
             user_id: ID of the user providing feedback
-            
+
         Returns:
             Dict containing feedback processing results
         """
         try:
             feedback_id = str(uuid.uuid4())
-            
+
             # Store feedback for analysis
             feedback_entry = {
                 "feedback_id": feedback_id,
@@ -238,17 +238,17 @@ class EnterpriseCopilotService:
                 "feedback_data": feedback_data,
                 "timestamp": datetime.now().isoformat()
             }
-            
+
             self.feedback_data.append(feedback_entry)
-            
+
             logger.info(f"Processed feedback from user {user_id}: {feedback_id}")
-            
+
             return {
                 "feedback_id": feedback_id,
                 "status": "processed",
                 "message": "Thank you for your feedback! It will help improve future responses."
             }
-            
+
         except Exception as e:
             logger.error(f"Feedback processing failed: {e}")
             return {
@@ -256,8 +256,8 @@ class EnterpriseCopilotService:
                 "status": "error",
                 "message": f"Failed to process feedback: {str(e)}"
             }
-    
-    def _initialize_knowledge_base(self) -> Dict[str, Any]:
+
+    def _initialize_knowledge_base(self) -> dict[str, Any]:
         """Initialize the comprehensive compliance knowledge base with enhanced training data."""
         return {
             "compliance_rules": {
@@ -413,11 +413,11 @@ class EnterpriseCopilotService:
                 }
             }
         }
-    
-    async def _analyze_query(self, query: str, context: Dict[str, Any], department: Optional[str]) -> Dict[str, Any]:
+
+    async def _analyze_query(self, query: str, context: dict[str, Any], department: str | None) -> dict[str, Any]:
         """Analyze the user's query to determine intent and extract key information."""
         query_lower = query.lower()
-        
+
         # Simple intent classification (in production, this would use NLP models)
         if any(word in query_lower for word in ["compliance", "requirement", "medicare", "regulation"]):
             intent = "compliance_question"
@@ -429,38 +429,38 @@ class EnterpriseCopilotService:
             intent = "data_analysis"
         else:
             intent = "general_query"
-        
+
         return {
             "intent": intent,
             "keywords": self._extract_keywords(query),
             "department": department,
             "context": context
         }
-    
-    def _extract_keywords(self, query: str) -> List[str]:
+
+    def _extract_keywords(self, query: str) -> list[str]:
         """Extract key terms from the query."""
         # Simple keyword extraction (in production, this would use NLP)
         common_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "how", "what", "when", "where", "why", "is", "are", "was", "were", "do", "does", "did", "can", "could", "should", "would"}
         words = query.lower().split()
         keywords = [word for word in words if word not in common_words and len(word) > 2]
         return keywords[:10]  # Return top 10 keywords
-    
-    async def _handle_compliance_question(self, query: str, analysis: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def _handle_compliance_question(self, query: str, analysis: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """Handle compliance-related questions."""
         # Search knowledge base for relevant compliance information
         relevant_rules = []
-        for rule_category, rules in self.knowledge_base["compliance_rules"].items():
+        for _rule_category, rules in self.knowledge_base["compliance_rules"].items():
             for rule in rules:
                 if any(keyword in rule.lower() for keyword in analysis["keywords"]):
                     relevant_rules.append(rule)
-        
+
         if relevant_rules:
             answer = "Based on current compliance requirements:\n\n" + "\n".join(f"• {rule}" for rule in relevant_rules[:3])
             confidence = 0.8
         else:
             answer = "I found some general compliance guidance that may help. For specific requirements, please consult your compliance team or the latest Medicare guidelines."
             confidence = 0.5
-        
+
         return {
             "answer": answer,
             "confidence": confidence,
@@ -474,8 +474,8 @@ class EnterpriseCopilotService:
                 "Would you like me to check your current documentation?"
             ]
         }
-    
-    async def _handle_documentation_help(self, query: str, analysis: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def _handle_documentation_help(self, query: str, analysis: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """Handle documentation assistance requests."""
         # Determine document type from keywords
         doc_type = None
@@ -483,7 +483,7 @@ class EnterpriseCopilotService:
             doc_type = "progress_note"
         elif "evaluation" in analysis["keywords"] or "eval" in analysis["keywords"]:
             doc_type = "evaluation"
-        
+
         if doc_type and doc_type in self.knowledge_base["documentation_templates"]:
             template = self.knowledge_base["documentation_templates"][doc_type]
             answer = f"For {doc_type.replace('_', ' ')} documentation:\n\n"
@@ -493,7 +493,7 @@ class EnterpriseCopilotService:
         else:
             answer = "Here are some general documentation best practices:\n\n" + "\n".join(f"• {practice}" for practice in self.knowledge_base["best_practices"][:3])
             confidence = 0.7
-        
+
         return {
             "answer": answer,
             "confidence": confidence,
@@ -507,8 +507,8 @@ class EnterpriseCopilotService:
                 "Do you need help with any particular section?"
             ]
         }
-    
-    async def _handle_workflow_assistance(self, query: str, analysis: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def _handle_workflow_assistance(self, query: str, analysis: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """Handle workflow automation requests."""
         answer = "I can help you automate various workflows including:\n\n"
         answer += "• Compliance checking for documents\n"
@@ -516,7 +516,7 @@ class EnterpriseCopilotService:
         answer += "• Scheduled data synchronization\n"
         answer += "• Reminder notifications\n\n"
         answer += "What specific workflow would you like to automate?"
-        
+
         return {
             "answer": answer,
             "confidence": 0.8,
@@ -530,8 +530,8 @@ class EnterpriseCopilotService:
                 "Would you like to set up scheduled reports?"
             ]
         }
-    
-    async def _handle_data_analysis(self, query: str, analysis: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def _handle_data_analysis(self, query: str, analysis: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """Handle data analysis requests."""
         answer = "I can help analyze your compliance data to identify:\n\n"
         answer += "• Compliance trends over time\n"
@@ -539,7 +539,7 @@ class EnterpriseCopilotService:
         answer += "• Performance improvements\n"
         answer += "• Risk areas requiring attention\n\n"
         answer += "What specific analysis would you like me to perform?"
-        
+
         return {
             "answer": answer,
             "confidence": 0.8,
@@ -553,8 +553,8 @@ class EnterpriseCopilotService:
                 "Are you interested in specific departments?"
             ]
         }
-    
-    async def _handle_general_query(self, query: str, analysis: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def _handle_general_query(self, query: str, analysis: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """Handle general queries that don't fit specific categories."""
         answer = "I'm here to help with healthcare compliance and documentation questions. I can assist with:\n\n"
         answer += "• Compliance requirements and guidelines\n"
@@ -562,7 +562,7 @@ class EnterpriseCopilotService:
         answer += "• Workflow automation\n"
         answer += "• Data analysis and reporting\n\n"
         answer += "Could you please be more specific about what you need help with?"
-        
+
         return {
             "answer": answer,
             "confidence": 0.6,

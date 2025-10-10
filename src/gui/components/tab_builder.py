@@ -5,10 +5,11 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QTextBrowser, QVBoxLayout, QWidget
 
+from src.gui.widgets.dashboard_widget import DashboardWidget
+from src.gui.widgets.mission_control_widget import MissionControlWidget
+
 from .analysis_tab_builder import AnalysisTabBuilder
 from .settings_tab_builder import SettingsTabBuilder
-from src.gui.widgets.mission_control_widget import MissionControlWidget
-from src.gui.widgets.dashboard_widget import DashboardWidget
 
 if TYPE_CHECKING:
     from src.gui.main_window import MainApplicationWindow
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
 
 class TabBuilder:
     """Builds tabs for the main application window using specialized builders."""
-    
+
     def __init__(self, main_window: MainApplicationWindow) -> None:
         self.main_window = main_window
         self.analysis_builder = AnalysisTabBuilder(main_window)
@@ -36,7 +37,7 @@ class TabBuilder:
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        
+
         try:
             self.main_window.dashboard_widget = DashboardWidget()
             self.main_window.dashboard_widget.refresh_requested.connect(self.main_window.view_model.load_dashboard_data)

@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +10,7 @@ class DocumentProcessingService:
     with validation and text extraction.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         self.config = config
         self._initialize_dependencies()
 
@@ -19,10 +19,10 @@ class DocumentProcessingService:
         Lazy load dependencies to avoid circular imports and improve startup time.
         """
         try:
-            from pdf2image import convert_from_path  # type: ignore[import-not-found]
+            import fitz  # type: ignore[import-untyped]
             import pytesseract  # type: ignore[import-untyped]
             from docx import Document  # type: ignore[import-untyped]
-            import fitz  # type: ignore[import-untyped]
+            from pdf2image import convert_from_path  # type: ignore[import-not-found]
 
             self.convert_from_path = convert_from_path
             self.pytesseract = pytesseract
@@ -54,7 +54,7 @@ class DocumentProcessingService:
         Extract text from a TXT document.
         """
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 return f.read()
         except Exception as e:
             logger.error(f"Error processing TXT file: {e}")

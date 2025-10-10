@@ -6,7 +6,7 @@ in clinical documentation compliance.
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class HabitsEducationService:
         """Initialize the habits education service."""
         logger.info("Initializing HabitsEducationService")
 
-    def get_habit_education(self, habit_number: int) -> Dict[str, Any]:
+    def get_habit_education(self, habit_number: int) -> dict[str, Any]:
         """
         Get educational content for a specific habit.
 
@@ -113,7 +113,7 @@ class HabitsEducationService:
             },
         )
 
-    def get_all_habits_overview(self) -> List[Dict[str, Any]]:
+    def get_all_habits_overview(self) -> list[dict[str, Any]]:
         """
         Get overview of all 7 habits.
 
@@ -122,7 +122,7 @@ class HabitsEducationService:
         """
         return [self.get_habit_education(i) for i in range(1, 8)]
 
-    def get_habit_resources(self, habit_number: int) -> Dict[str, Any]:
+    def get_habit_resources(self, habit_number: int) -> dict[str, Any]:
         """
         Get additional resources for a specific habit.
 

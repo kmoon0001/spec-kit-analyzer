@@ -4,19 +4,19 @@ Safe, optional feature that enhances user experience without affecting core func
 """
 
 import logging
-from typing import Dict, Optional
+
+from PySide6.QtCore import QPoint, Qt, QTimer, Signal
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QWidget,
-    QLabel,
-    QVBoxLayout,
-    QHBoxLayout,
-    QPushButton,
-    QTextEdit,
     QDialog,
     QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtCore import Qt, QTimer, Signal, QPoint
-from PySide6.QtGui import QFont
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class HelpTooltip(QLabel):
     Enhanced tooltip widget with rich text support and auto-positioning.
     """
 
-    def __init__(self, text: str, parent: Optional[QWidget] = None):
+    def __init__(self, text: str, parent: QWidget | None = None):
         super().__init__(parent)
         self.help_text = text
         self.setup_ui()
@@ -71,7 +71,7 @@ class HelpBubble(QFrame):
 
     closed = Signal()
 
-    def __init__(self, title: str, content: str, parent: Optional[QWidget] = None):
+    def __init__(self, title: str, content: str, parent: QWidget | None = None):
         super().__init__(parent)
         self.title = title
         self.content = content
@@ -148,7 +148,7 @@ class ComplianceGuideDialog(QDialog):
     Dialog showing embedded compliance guide and Medicare/CMS requirements.
     """
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setWindowTitle("Compliance Guide")
         self.setModal(False)
@@ -254,7 +254,7 @@ class HelpSystem:
 
         logger.info("Help system initialized")
 
-    def _load_help_content(self) -> Dict[str, Dict[str, str]]:
+    def _load_help_content(self) -> dict[str, dict[str, str]]:
         """Load help content for different UI elements."""
         return {
             "upload_button": {
@@ -328,7 +328,7 @@ class HelpSystem:
             logger.error(f"Error showing tooltip: {e}")
             return False
 
-    def show_help_bubble(self, parent: QWidget, help_key: str) -> Optional[HelpBubble]:
+    def show_help_bubble(self, parent: QWidget, help_key: str) -> HelpBubble | None:
         """
         Show help bubble widget that can be embedded in UI.
 
@@ -357,7 +357,7 @@ class HelpSystem:
             logger.error(f"Error creating help bubble: {e}")
             return None
 
-    def show_compliance_guide(self, parent: Optional[QWidget] = None) -> None:
+    def show_compliance_guide(self, parent: QWidget | None = None) -> None:
         """Show the comprehensive compliance guide dialog."""
         if not self.enabled:
             return

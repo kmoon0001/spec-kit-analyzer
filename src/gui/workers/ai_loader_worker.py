@@ -2,9 +2,9 @@
 
 import asyncio
 import logging
-from typing import Dict, Optional
 
-from PySide6.QtCore import QObject, Signal as Signal
+from PySide6.QtCore import QObject
+from PySide6.QtCore import Signal as Signal
 
 from src.core.analysis_service import AnalysisService
 from src.core.compliance_service import ComplianceService
@@ -30,8 +30,8 @@ class AILoaderWorker(QObject):
     def __init__(self) -> None:
         """Initialize the AI loader worker."""
         super().__init__()
-        self._analysis_service: Optional[AnalysisService] = None
-        self._compliance_service: Optional[ComplianceService] = None
+        self._analysis_service: AnalysisService | None = None
+        self._compliance_service: ComplianceService | None = None
 
     def run(self) -> None:
         """
@@ -108,7 +108,7 @@ class AILoaderWorker(QObject):
         self.progress_updated.emit(80)
         logger.info("AI services loaded successfully")
 
-    def _perform_health_checks(self) -> Dict[str, bool]:
+    def _perform_health_checks(self) -> dict[str, bool]:
         """
         Perform health checks on all AI components.
 

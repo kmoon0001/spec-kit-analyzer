@@ -3,7 +3,6 @@
 State-of-the-art PHI scrubbing service built on the Presidio framework.
 """
 import logging
-from typing import Optional
 
 try:
     from presidio_analyzer import AnalyzerEngine, RecognizerRegistry
@@ -24,9 +23,9 @@ class PhiScrubberService:
     def __init__(
         self,
         replacement: str = "<PHI>",
-        wrapper: Optional[object] = None,
-        analyzer: Optional[AnalyzerEngine] = None,
-        anonymizer: Optional[AnonymizerEngine] = None,
+        wrapper: object | None = None,
+        analyzer: AnalyzerEngine | None = None,
+        anonymizer: AnonymizerEngine | None = None,
     ) -> None:
         """Initialise Presidio-based scrubbing service with injectable components."""
         self.default_replacement = replacement
@@ -63,7 +62,7 @@ class PhiScrubberService:
         self.analyzer = analyzer
         self.anonymizer = anonymizer
 
-    def scrub(self, text: str, replacement_token: Optional[str] = None) -> str:
+    def scrub(self, text: str, replacement_token: str | None = None) -> str:
         """Analyze and scrub PHI from text using Presidio components."""
         if not isinstance(text, str) or not text.strip():
             return text
@@ -78,7 +77,7 @@ class PhiScrubberService:
             if not self.analyzer or not self.anonymizer:
                 logger.warning("Analyzer or anonymizer not available, returning original text")
                 return text
-                
+
             if self._custom_wrapper:
                 analyzer_results = self.analyzer.analyze(text)  # type: ignore[attr-defined]
             else:

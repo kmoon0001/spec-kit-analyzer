@@ -8,7 +8,6 @@ file uploads, and API parameters to prevent common security vulnerabilities.
 import logging
 import re
 from pathlib import Path
-from typing import List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
@@ -17,15 +16,15 @@ class SecurityValidator:
     """Centralized security validation for all user inputs."""
 
     # File upload security
-    ALLOWED_FILE_EXTENSIONS: Set[str] = {".pdf", ".docx", ".txt", ".doc"}
+    ALLOWED_FILE_EXTENSIONS: set[str] = {".pdf", ".docx", ".txt", ".doc"}
     MAX_FILE_SIZE_MB: int = 50
     MAX_FILE_SIZE_BYTES: int = MAX_FILE_SIZE_MB * 1024 * 1024
 
     # Discipline validation
-    ALLOWED_DISCIPLINES: Set[str] = {"pt", "ot", "slp"}
+    ALLOWED_DISCIPLINES: set[str] = {"pt", "ot", "slp"}
 
     # Analysis mode validation
-    ALLOWED_ANALYSIS_MODES: Set[str] = {"rubric", "checklist", "hybrid"}
+    ALLOWED_ANALYSIS_MODES: set[str] = {"rubric", "checklist", "hybrid"}
 
     # String length limits
     MAX_USERNAME_LENGTH: int = 50
@@ -34,7 +33,7 @@ class SecurityValidator:
     MAX_TEXT_INPUT_LENGTH: int = 10000
 
     # Dangerous patterns to block
-    DANGEROUS_PATTERNS: List[str] = [
+    DANGEROUS_PATTERNS: list[str] = [
         r"<script",
         r"javascript:",
         r"onerror=",
@@ -44,7 +43,7 @@ class SecurityValidator:
     ]
 
     @staticmethod
-    def validate_filename(filename: str) -> tuple[bool, Optional[str]]:
+    def validate_filename(filename: str) -> tuple[bool, str | None]:
         """
         Validate uploaded filename for security.
 
@@ -91,7 +90,7 @@ class SecurityValidator:
         return safe_name[: SecurityValidator.MAX_FILENAME_LENGTH]
 
     @staticmethod
-    def validate_file_size(file_size: int) -> tuple[bool, Optional[str]]:
+    def validate_file_size(file_size: int) -> tuple[bool, str | None]:
         """
         Validate file size.
 
@@ -113,7 +112,7 @@ class SecurityValidator:
         return True, None
 
     @staticmethod
-    def validate_discipline(discipline: str) -> tuple[bool, Optional[str]]:
+    def validate_discipline(discipline: str) -> tuple[bool, str | None]:
         """
         Validate discipline parameter.
 
@@ -135,7 +134,7 @@ class SecurityValidator:
         return True, None
 
     @staticmethod
-    def validate_analysis_mode(mode: str) -> tuple[bool, Optional[str]]:
+    def validate_analysis_mode(mode: str) -> tuple[bool, str | None]:
         """
         Validate analysis mode parameter.
 
@@ -157,7 +156,7 @@ class SecurityValidator:
         return True, None
 
     @staticmethod
-    def sanitize_text_input(text: str, max_length: Optional[int] = None) -> str:
+    def sanitize_text_input(text: str, max_length: int | None = None) -> str:
         """
         Sanitize text input to prevent XSS and injection attacks.
 
@@ -187,7 +186,7 @@ class SecurityValidator:
         return text
 
     @staticmethod
-    def validate_username(username: str) -> tuple[bool, Optional[str]]:
+    def validate_username(username: str) -> tuple[bool, str | None]:
         """
         Validate username for security and format.
 
@@ -216,7 +215,7 @@ class SecurityValidator:
         return True, None
 
     @staticmethod
-    def validate_password_strength(password: str) -> tuple[bool, Optional[str]]:
+    def validate_password_strength(password: str) -> tuple[bool, str | None]:
         """
         Validate password strength.
 

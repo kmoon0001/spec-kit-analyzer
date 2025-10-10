@@ -1,7 +1,7 @@
 """Utility helpers for sanitising text prior to displaying it to users."""
 
 import string
-from typing import Iterable, List
+from collections.abc import Iterable
 
 _ALLOWED_CHARS = set(string.printable) - {"", ""}
 
@@ -16,10 +16,10 @@ def sanitize_human_text(value: str, *, collapse_whitespace: bool = True) -> str:
     return filtered.strip()
 
 
-def sanitize_bullets(items: Iterable[str], *, limit: int = 6) -> List[str]:
+def sanitize_bullets(items: Iterable[str], *, limit: int = 6) -> list[str]:
     """Sanitise and de-duplicate bullet strings while preserving order."""
     seen = set()
-    bullets: List[str] = []
+    bullets: list[str] = []
     for raw in items:
         clean = sanitize_human_text(raw)
         if not clean:

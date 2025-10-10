@@ -1,12 +1,10 @@
 import logging
 from pathlib import Path
-from typing import List
 
 from rdflib import Graph, URIRef
 from rdflib.namespace import RDF
 
 from src.core.domain_models import ComplianceRule
-
 
 logger = logging.getLogger(__name__)
 
@@ -17,23 +15,23 @@ class RuleLoader:
     def __init__(self, rule_dir: str) -> None:
         self.rule_dir = Path(rule_dir)
 
-    def load_rules(self) -> List[ComplianceRule]:
+    def load_rules(self) -> list[ComplianceRule]:
         if not self.rule_dir.is_dir():
             raise FileNotFoundError(f"Rules directory not found: {self.rule_dir}")
 
-        rules: List[ComplianceRule] = []
+        rules: list[ComplianceRule] = []
         for path in sorted(self.rule_dir.glob("*.ttl")):
             rules.extend(self._parse_rule_file(path))
         return rules
 
-    def _parse_rule_file(self, filepath: Path) -> List[ComplianceRule]:
+    def _parse_rule_file(self, filepath: Path) -> list[ComplianceRule]:
         graph = Graph()
         graph.parse(str(filepath), format="turtle")
         namespaces = dict(graph.namespace_manager.namespaces())
         default_ns = namespaces.get("", "")
 
         rule_class_uri = URIRef(default_ns + "ComplianceRule")
-        rules: List[ComplianceRule] = []
+        rules: list[ComplianceRule] = []
 
         for subject in graph.subjects(RDF.type, rule_class_uri):
             try:
@@ -51,8 +49,8 @@ class RuleLoader:
             value = graph.value(rule_uri, URIRef(default_ns + predicate))
             return value.toPython() if value is not None else None  # type: ignore[attr-defined]
 
-        def keywords(predicate: str) -> List[str]:
-            keyword_list: List[str] = []
+        def keywords(predicate: str) -> list[str]:
+            keyword_list: list[str] = []
             keyword_node = graph.value(rule_uri, URIRef(default_ns + predicate))
             if keyword_node is None:
                 return keyword_list

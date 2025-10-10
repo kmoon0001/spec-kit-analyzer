@@ -8,7 +8,7 @@ Separated from the main engine for better maintainability and testing.
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Any, Protocol
+from typing import Any, Protocol
 
 
 class ReportType(Enum):
@@ -44,18 +44,18 @@ class TimeRange:
     """Time range specification for reports"""
     start_time: datetime
     end_time: datetime
-    
+
     def __post_init__(self):
         if self.start_time >= self.end_time:
             raise ValueError("Start time must be before end time")
-    
+
     @classmethod
     def last_hours(cls, hours: int) -> 'TimeRange':
         """Create time range for last N hours"""
         end_time = datetime.now()
         start_time = end_time - timedelta(hours=hours)
         return cls(start_time, end_time)
-    
+
     @classmethod
     def last_days(cls, days: int) -> 'TimeRange':
         """Create time range for last N days"""
@@ -70,12 +70,12 @@ class ReportConfig:
     report_type: ReportType
     title: str
     description: str = ""
-    time_range: Optional[TimeRange] = None
-    template_id: Optional[str] = None
-    export_formats: List[ReportFormat] = field(default_factory=lambda: [ReportFormat.HTML])
-    filters: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    
+    time_range: TimeRange | None = None
+    template_id: str | None = None
+    export_formats: list[ReportFormat] = field(default_factory=lambda: [ReportFormat.HTML])
+    filters: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
     def __post_init__(self):
         if not self.title.strip():
             raise ValueError("Report title cannot be empty")
@@ -87,8 +87,8 @@ class ReportSection:
     id: str
     title: str
     content: str = ""
-    data: Dict[str, Any] = field(default_factory=dict)
-    template_id: Optional[str] = None
+    data: dict[str, Any] = field(default_factory=dict)
+    template_id: str | None = None
 
 
 @dataclass
@@ -99,20 +99,20 @@ class Report:
     status: ReportStatus = ReportStatus.PENDING
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
-    sections: List[ReportSection] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    error_message: Optional[str] = None
-    file_paths: Dict[ReportFormat, str] = field(default_factory=dict)
-    
+    sections: list[ReportSection] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    error_message: str | None = None
+    file_paths: dict[ReportFormat, str] = field(default_factory=dict)
+
     def add_section(self, section: ReportSection) -> None:
         """Add a section to the report"""
         self.sections.append(section)
-    
-    def get_section(self, section_id: str) -> Optional[ReportSection]:
+
+    def get_section(self, section_id: str) -> ReportSection | None:
         """Get a section by ID"""
         return next((s for s in self.sections if s.id == section_id), None)
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert report to dictionary for serialization"""
         return {
             "id": self.id,
@@ -146,11 +146,11 @@ class Report:
 
 class DataProvider(Protocol):
     """Protocol for data providers that supply data to reports"""
-    
-    def get_data(self, report_type: ReportType, filters: Dict[str, Any]) -> Dict[str, Any]:
+
+    def get_data(self, report_type: ReportType, filters: dict[str, Any]) -> dict[str, Any]:
         """Get data for the specified report type and filters"""
         ...
-    
+
     def supports_report_type(self, report_type: ReportType) -> bool:
         """Check if this provider supports the given report type"""
         ...
@@ -158,23 +158,23 @@ class DataProvider(Protocol):
 
 class TemplateRenderer(Protocol):
     """Protocol for template rendering engines"""
-    
-    def render_template(self, template_id: str, context: Dict[str, Any]) -> str:
+
+    def render_template(self, template_id: str, context: dict[str, Any]) -> str:
         """Render a template with the given context"""
         ...
-    
-    def get_available_templates(self) -> List[str]:
+
+    def get_available_templates(self) -> list[str]:
         """Get list of available template IDs"""
         ...
 
 
 class ReportExporter(Protocol):
     """Protocol for report export functionality"""
-    
+
     def export_report(self, report: Report, format: ReportFormat, output_path: str) -> bool:
         """Export a report to the specified format and path"""
         ...
-    
+
     def supports_format(self, format: ReportFormat) -> bool:
         """Check if this exporter supports the given format"""
         ...

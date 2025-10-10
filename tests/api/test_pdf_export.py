@@ -3,7 +3,7 @@ Tests for PDF export functionality.
 """
 
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import patch
 from src.core.pdf_export_service import PDFExportService, PDFExportError
 
 

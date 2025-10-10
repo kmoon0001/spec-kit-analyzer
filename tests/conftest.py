@@ -1,8 +1,7 @@
 import sys
 import os
 import pytest
-from unittest.mock import patch, MagicMock
-from pathlib import Path
+from unittest.mock import patch
 
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))

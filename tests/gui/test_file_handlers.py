@@ -6,7 +6,7 @@ file validation, content preview generation, and batch processing workflows.
 """
 
 import pytest
-from unittest.mock import Mock, patch, mock_open, MagicMock
+from unittest.mock import Mock, patch, mock_open
 from pathlib import Path
 from PySide6.QtWidgets import QApplication, QMainWindow
 

@@ -1,7 +1,6 @@
-from typing import Dict
 
 
-def get_habit_for_finding(finding: Dict) -> Dict:
+def get_habit_for_finding(finding: dict) -> dict:
     """
     Maps a compliance finding to one of the 7 Habits and provides an explanation.
 

@@ -1,20 +1,20 @@
+
+from PySide6.QtCore import Qt, QThread
+from PySide6.QtGui import QKeySequence, QShortcut, QTextCursor
 from PySide6.QtWidgets import (
     QDialog,
-    QVBoxLayout,
-    QLineEdit,
-    QTextEdit,
-    QPushButton,
-    QLabel,
-    QWidget,
     QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtCore import QThread, Qt
-from PySide6.QtGui import QKeySequence, QShortcut, QTextCursor
-from typing import List, Dict
-
-from ..workers.chat_worker import ChatWorker
 
 from src.config import get_settings
+
+from ..workers.chat_worker import ChatWorker
 
 settings = get_settings()
 API_URL = settings.paths.api_url
@@ -27,7 +27,7 @@ class ChatDialog(QDialog):
         self.setMinimumSize(600, 500)
         self.resize(700, 600)  # Better default size
         self.token = token
-        self.history: List[Dict[str, str]] = [
+        self.history: list[dict[str, str]] = [
             { # This system prompt is for the local history, the service has its own
                 "role": "system",
                 "content": "You are a helpful assistant for clinical compliance.",
@@ -176,7 +176,7 @@ class ChatDialog(QDialog):
 
     def on_chat_success(self, ai_response: str):
         self.history.append({"role": "assistant", "content": ai_response})
-        
+
         # A more robust way to remove the "thinking" message
         cursor = self.chat_display.textCursor()
         cursor.select(QTextCursor.SelectionType.BlockUnderCursor)
@@ -206,7 +206,7 @@ class ChatDialog(QDialog):
             margin-bottom: 8px;
             max-width: 80%;
         """
-        
+
         text = text.replace("\n", "<br>")
 
         if role == "user":

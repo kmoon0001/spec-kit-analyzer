@@ -6,7 +6,7 @@ import subprocess
 import sys
 import webbrowser
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
 
 from PySide6.QtCore import QUrl
@@ -30,55 +30,55 @@ logger = logging.getLogger(__name__)
 class UIHandlers:
     """
     Handles UI-related events and operations for the main application window.
-    
+
     This class encapsulates all user interface event handling logic, including
     theme management, dialog operations, and user interactions. It follows the
     separation of concerns principle by isolating UI logic from business logic.
-    
+
     Attributes:
         main_window: Reference to the main application window instance
-        
+
     Example:
         >>> ui_handlers = UIHandlers(main_window)
         >>> ui_handlers.toggle_theme()  # Switch between light/dark themes
         >>> ui_handlers.show_settings_dialog()  # Open settings dialog
     """
-    
+
     def __init__(self, main_window: MainApplicationWindow) -> None:
         """
         Initialize the UI handlers with a reference to the main window.
-        
+
         Args:
             main_window: The main application window instance that this handler
                         will operate on. Must be a fully initialized MainApplicationWindow.
-                        
+
         Raises:
             TypeError: If main_window is not a MainApplicationWindow instance.
         """
         if not hasattr(main_window, 'statusBar'):
             raise TypeError("main_window must be a valid MainApplicationWindow instance")
         self.main_window = main_window
-    
+
     def toggle_theme(self) -> None:
         """
         Toggle between light and dark theme modes.
-        
+
         This method switches the application's visual theme between light and dark modes,
         applying the new theme to all UI components and providing user feedback via the
         status bar. The theme preference is automatically persisted for future sessions.
-        
+
         Side Effects:
             - Updates the global medical_theme state
             - Reapplies theme styling to all UI components
             - Shows confirmation message in status bar for 3 seconds
             - Persists theme preference to user settings
-            
+
         Example:
             >>> ui_handlers.toggle_theme()  # Switches from light to dark or vice versa
         """
         medical_theme.toggle_theme()
         self.main_window._apply_medical_theme()
-        
+
         # Update status bar message with user-friendly feedback
         theme_name = "Dark" if medical_theme.current_theme == "dark" else "Light"
         self.main_window.statusBar().showMessage(f"Switched to {theme_name} theme", 3000)
@@ -86,34 +86,34 @@ class UIHandlers:
     def apply_theme(self, theme_name: str) -> None:
         """
         Apply a specific theme by name.
-        
+
         This method sets the application to use a specific theme variant,
         applying all associated styling and color schemes to the UI components.
-        
+
         Args:
             theme_name: The name of the theme to apply. Valid values are:
                        - "light": Light theme with bright backgrounds
                        - "dark": Dark theme with dark backgrounds
                        - "auto": System-based theme selection
-                       
+
         Raises:
             ValueError: If theme_name is not a valid theme identifier.
-            
+
         Side Effects:
             - Updates the global medical_theme state
             - Reapplies theme styling to all UI components
             - Shows confirmation message in status bar
-            
+
         Example:
             >>> ui_handlers.apply_theme("dark")  # Apply dark theme
             >>> ui_handlers.apply_theme("light")  # Apply light theme
         """
         if theme_name not in ["light", "dark", "auto"]:
             raise ValueError(f"Invalid theme name: {theme_name}. Must be 'light', 'dark', or 'auto'")
-            
+
         medical_theme.set_theme(theme_name)
         self.main_window._apply_medical_theme()
-        
+
         # Update status bar message with confirmation
         theme_display = "Dark" if theme_name == "dark" else "Light"
         self.main_window.statusBar().showMessage(f"Applied {theme_display} theme", 3000)
@@ -134,7 +134,7 @@ class UIHandlers:
         """Handle clicks on AI model status indicators with detailed descriptions."""
         status = self.main_window.status_component.models.get(model_name, False) if self.main_window.status_component else False
         status_text = "✅ Ready" if status else "❌ Not Ready"
-        
+
         # Detailed model descriptions with complete transparency - Updated with real models
         model_descriptions = {
             "Phi-2 LLM": {
@@ -194,7 +194,7 @@ class UIHandlers:
                 "use_cases": ["Semantic search", "Document similarity", "Context understanding", "Rule matching"]
             }
         }
-        
+
         model_info = model_descriptions.get(model_name, {
             "full_name": model_name,
             "description": "AI model for compliance analysis",
@@ -202,7 +202,7 @@ class UIHandlers:
             "technology": "Local AI processing",
             "use_cases": ["Compliance analysis"]
         })
-        
+
         # Create detailed popup
         dialog = QDialog(self.main_window)
         dialog.setWindowTitle(f"🤖 AI Model Details: {model_name}")
@@ -215,11 +215,11 @@ class UIHandlers:
                 border-radius: 10px;
             }
         """)
-        
+
         layout = QVBoxLayout(dialog)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
-        
+
         # Content browser
         content_browser = QTextBrowser()
         content_browser.setStyleSheet("""
@@ -232,54 +232,54 @@ class UIHandlers:
                 line-height: 1.6;
             }
         """)
-        
+
         # Generate detailed HTML content
         html_content = f"""
         <div style='font-family: Segoe UI; line-height: 1.6;'>
             <h2 style='color: #1d4ed8; margin-top: 0;'>🤖 {model_info['full_name']}</h2>
-            
+
             <div style='background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #0ea5e9;'>
                 <h3 style='color: #0ea5e9; margin-top: 0;'>Current Status</h3>
                 <p style='font-size: 16px; font-weight: bold; color: {"#059669" if status else "#dc2626"};'>{status_text}</p>
             </div>
-            
+
             <div style='background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;'>
                 <h3 style='color: #334155; margin-top: 0;'>Description</h3>
                 <p style='color: #475569;'>{model_info['description']}</p>
             </div>
-            
+
             <div style='background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 15px 0;'>
                 <h3 style='color: #059669; margin-top: 0;'>Function in System</h3>
                 <p style='color: #475569;'>{model_info['function']}</p>
             </div>
-            
+
             <div style='background: #fef7ff; padding: 15px; border-radius: 8px; margin: 15px 0;'>
                 <h3 style='color: #7c3aed; margin-top: 0;'>Technology</h3>
                 <p style='color: #475569;'>{model_info['technology']}</p>
             </div>
-            
+
             <div style='background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 15px 0;'>
                 <h3 style='color: #0ea5e9; margin-top: 0;'>Why This Model Was Chosen</h3>
                 <p style='color: #475569;'>{model_info.get('why_chosen', 'Selected for optimal performance in medical compliance analysis.')}</p>
             </div>
-            
+
             <div style='background: #fffbeb; padding: 15px; border-radius: 8px; margin: 15px 0;'>
                 <h3 style='color: #d97706; margin-top: 0;'>Use Cases</h3>
                 <ul style='color: #475569; margin: 0; padding-left: 20px;'>
                     {"".join([f"<li>{use_case}</li>" for use_case in model_info['use_cases']])}
                 </ul>
             </div>
-            
+
             <div style='background: #f1f5f9; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #cbd5e0;'>
                 <h3 style='color: #1e293b; margin-top: 0;'>Privacy & Security</h3>
                 <p style='color: #475569;'>🔒 All processing occurs locally on your device. No data is sent to external servers, ensuring complete privacy and HIPAA compliance.</p>
             </div>
         </div>
         """
-        
+
         content_browser.setHtml(html_content)
         layout.addWidget(content_browser)
-        
+
         # Close button
         close_btn = AnimatedButton("Close", dialog)
         close_btn.clicked.connect(dialog.close)
@@ -297,7 +297,7 @@ class UIHandlers:
             }
         """)
         layout.addWidget(close_btn)
-        
+
         dialog.exec()
 
     def handle_link_clicked(self, url: QUrl) -> None:
@@ -327,7 +327,7 @@ class UIHandlers:
         if not self.main_window._current_payload:
             QMessageBox.information(self.main_window, "No Report", "No analysis report available yet. Please run an analysis first.")
             return
-        
+
         # Create popup dialog
         dialog = QDialog(self.main_window)
         dialog.setWindowTitle("📊 Compliance Analysis Report")
@@ -336,15 +336,15 @@ class UIHandlers:
         dialog_width = min(1000, int(parent_size.width() * 0.8))
         dialog_height = min(700, int(parent_size.height() * 0.8))
         dialog.resize(dialog_width, dialog_height)
-        
+
         layout = QVBoxLayout(dialog)
         layout.setContentsMargins(0, 0, 0, 0)
-        
+
         # Report browser
         report_browser = QTextBrowser(dialog)
         report_browser.setOpenExternalLinks(False)
         report_browser.anchorClicked.connect(self.handle_link_clicked)
-        
+
         # Load report
         analysis = self.main_window._current_payload.get("analysis", {})
         doc_name = self.main_window._selected_file.name if self.main_window._selected_file else "Document"
@@ -352,22 +352,22 @@ class UIHandlers:
             analysis_result=analysis, doc_name=doc_name
         )
         report_browser.setHtml(report_html)
-        
+
         layout.addWidget(report_browser)
-        
+
         # Close button
         close_btn = AnimatedButton("✖️ Close", dialog)
         close_btn.clicked.connect(dialog.close)
         close_btn.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
         layout.addWidget(close_btn)
-        
+
         dialog.exec()
 
     def toggle_all_sections(self, checked: bool) -> None:
         """Toggle all report section checkboxes."""
         for checkbox in self.main_window.section_checkboxes.values():
             checkbox.setChecked(checked)
-        
+
         status = "selected" if checked else "deselected"
         self.main_window.statusBar().showMessage(f"All sections {status}", 2000)
 
@@ -387,7 +387,7 @@ class UIHandlers:
         dialog = ChangePasswordDialog(self.main_window)
         dialog.exec()
 
-    def open_chat_dialog(self, initial_message: Optional[str] = None) -> None:
+    def open_chat_dialog(self, initial_message: str | None = None) -> None:
         """Open the AI chat dialog with optional initial message."""
         if initial_message:
             initial_context = f"User question: {initial_message}\n\nContext: {self.main_window.analysis_summary_browser.toPlainText()}"
@@ -404,7 +404,7 @@ class UIHandlers:
             else:
                 self.main_window.meta_analytics_dock.show()
                 self.main_window.view_model.load_meta_analytics()
-    
+
     def toggle_performance_dock(self) -> None:
         """Toggle Performance Status dock widget visibility."""
         if self.main_window.performance_dock:
@@ -428,7 +428,7 @@ class UIHandlers:
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
-        
+
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 # Clear various caches
@@ -436,11 +436,11 @@ class UIHandlers:
                     self.main_window._current_payload = {}
                 if hasattr(self.main_window, '_cached_preview_content'):
                     self.main_window._cached_preview_content = ""
-                
+
                 # Force garbage collection
                 import gc
                 gc.collect()
-                
+
                 self.main_window.statusBar().showMessage("✅ All caches cleared successfully", 5000)
                 QMessageBox.information(self.main_window, "Cache Cleared", "All application caches have been cleared successfully!")
             except Exception as e:
@@ -449,18 +449,18 @@ class UIHandlers:
     def run_diagnostics(self) -> None:
         """Run comprehensive system diagnostics."""
         self.main_window.statusBar().showMessage("🔍 Running system diagnostics...", 0)
-        
+
         try:
             # Run diagnostics
             diagnostic_results = diagnostics.run_full_diagnostic()
-            
+
             # Format results for display
             results_text = "🔍 SYSTEM DIAGNOSTICS REPORT\n\n"
-            
+
             healthy_count = 0
             warning_count = 0
             error_count = 0
-            
+
             for component, result in diagnostic_results.items():
                 status_icon = {
                     "healthy": "✅",
@@ -468,38 +468,38 @@ class UIHandlers:
                     "error": "❌",
                     "unknown": "❓"
                 }.get(result.status.value, "❓")
-                
+
                 results_text += f"{status_icon} {component.replace('_', ' ').title()}\n"
                 results_text += f"   {result.message}\n\n"
-                
+
                 if result.status.value == "healthy":
                     healthy_count += 1
                 elif result.status.value == "warning":
                     warning_count += 1
                 elif result.status.value == "error":
                     error_count += 1
-            
+
             # Add summary
             results_text += "📊 SUMMARY\n"
             results_text += f"✅ Healthy: {healthy_count}\n"
             results_text += f"⚠️ Warnings: {warning_count}\n"
             results_text += f"❌ Errors: {error_count}\n\n"
-            
+
             if error_count > 0:
                 results_text += "💡 RECOMMENDATIONS\n"
                 results_text += "• Fix critical errors before running analysis\n"
                 results_text += "• Check that the API server is running\n"
                 results_text += "• Use Tools → Start API Server if needed\n"
-            
+
             # Show results in a dialog
             msg = QMessageBox(self.main_window)
             msg.setWindowTitle("🔍 System Diagnostics")
             msg.setText(results_text)
             msg.setIcon(QMessageBox.Icon.Information)
             msg.exec()
-            
+
             self.main_window.statusBar().showMessage("✅ Diagnostics completed", 5000)
-            
+
         except Exception as e:
             QMessageBox.critical(self.main_window, "Diagnostics Error", f"Failed to run diagnostics:\n{str(e)}")
             self.main_window.statusBar().showMessage("❌ Diagnostics failed", 5000)
@@ -515,19 +515,19 @@ class UIHandlers:
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes
         )
-        
+
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 # Start the API server
                 api_script = Path("scripts/run_api.py")
                 if api_script.exists():
                     self.main_window.statusBar().showMessage("🚀 Starting API server...", 0)
-                    
+
                     # Start in a separate process
                     subprocess.Popen([
                         sys.executable, str(api_script)
                     ], creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0)
-                    
+
                     QMessageBox.information(
                         self.main_window,
                         "🚀 API Server Starting",
@@ -535,7 +535,7 @@ class UIHandlers:
                         "Please wait a moment for it to initialize, then try your analysis again.\n\n"
                         "You can also run diagnostics (Tools → Run Diagnostics) to check the status."
                     )
-                    
+
                     self.main_window.statusBar().showMessage("✅ API server started", 5000)
                 else:
                     QMessageBox.warning(
@@ -545,7 +545,7 @@ class UIHandlers:
                         "Please start the API server manually:\n"
                         "python scripts/run_api.py"
                     )
-                    
+
             except Exception as e:
                 QMessageBox.critical(
                     self.main_window,
@@ -573,25 +573,25 @@ Welcome, {self.main_window.current_user.username}!
 🔒 Privacy-First Local Processing
 📊 Medicare & CMS Compliance Focused
 
-Special thanks to all the therapists who make 
+Special thanks to all the therapists who make
 healthcare better every day! 💪
 
 🎮 Try the Konami Code: ↑↑↓↓←→←→BA
 🎨 Press Ctrl+T to toggle themes
 🎉 Click the logo 7 times for a surprise!
         """
-        
+
         msg = QMessageBox(self.main_window)
         msg.setWindowTitle("About Therapy Compliance Analyzer")
         msg.setText(about_text)
         msg.setIcon(QMessageBox.Icon.Information)
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
-        
+
         # Add custom button for more easter eggs
         easter_egg_button = msg.addButton("🥚 More Easter Eggs", QMessageBox.ButtonRole.ActionRole)
-        
+
         msg.exec()
-        
+
         if msg.clickedButton() == easter_egg_button:
             self.show_easter_eggs_dialog()
 
@@ -629,15 +629,16 @@ healthcare better every day! 💪
 
 Keep exploring! There are more secrets hidden throughout the app! 🕵️‍♂️
         """
-        
+
         QMessageBox.information(self.main_window, "🥚 Easter Eggs Collection", easter_text)
 
     def show_system_info(self) -> None:
         """Show system information dialog."""
         import platform
         import sys
+
         from PySide6 import __version__ as pyside_version
-        
+
         system_info = f"""
 🖥️ SYSTEM INFORMATION
 
@@ -662,7 +663,7 @@ Memory:
 • Selected File: {self.main_window._selected_file.name if self.main_window._selected_file else 'None'}
 • Analysis Data: {'Available' if self.main_window._current_payload else 'None'}
         """
-        
+
         QMessageBox.information(self.main_window, "ℹ️ System Information", system_info)
 
     def show_user_management(self) -> None:
@@ -682,23 +683,23 @@ Memory:
         """Check license status and show trial information if needed."""
         try:
             is_valid, status_message, days_remaining = license_manager.check_license_status()
-            
+
             if not is_valid:
                 # Show license expired dialog
                 msg = QMessageBox(self.main_window)
                 msg.setWindowTitle("🔐 License Status")
                 msg.setText(f"License Status: {status_message}")
                 msg.setIcon(QMessageBox.Icon.Warning)
-                
+
                 # Add activation button
                 activate_btn = msg.addButton("🔑 Activate Full License", QMessageBox.ButtonRole.ActionRole)
                 msg.addButton(QMessageBox.StandardButton.Ok)
-                
+
                 msg.exec()
-                
+
                 if msg.clickedButton() == activate_btn:
                     self.show_license_activation_dialog()
-                    
+
             elif days_remaining is not None and days_remaining <= 7:
                 # Show trial warning for last 7 days
                 QMessageBox.information(
@@ -707,10 +708,10 @@ Memory:
                     f"Trial period: {days_remaining} days remaining\n\n"
                     f"Contact your administrator to activate the full license."
                 )
-                
+
         except Exception as e:
             logger.error(f"License check failed: {e}")
-    
+
     def show_license_activation_dialog(self) -> None:
         """Show license activation dialog for admin users."""
         if not self.main_window.current_user.is_admin:
@@ -721,14 +722,14 @@ Memory:
                 "Please contact your system administrator."
             )
             return
-        
+
         activation_code, ok = QInputDialog.getText(
             self.main_window,
             "🔑 License Activation",
             "Enter activation code:",
             echo=QLineEdit.EchoMode.Password
         )
-        
+
         if ok and activation_code:
             if license_manager.activate_full_license(activation_code):
                 QMessageBox.information(

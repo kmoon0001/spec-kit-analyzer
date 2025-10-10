@@ -3,7 +3,7 @@ Dashboard widget for displaying compliance analytics and overview metrics.
 """
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -112,7 +112,7 @@ class DashboardWidget(QWidget):
         box.setProperty("value_label", value_label)
         return box
 
-    def load_data(self, data: Dict[str, Any]) -> None:
+    def load_data(self, data: dict[str, Any]) -> None:
         """
         Populates the dashboard with data from the API.
         """

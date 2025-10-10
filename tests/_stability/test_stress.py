@@ -1,6 +1,6 @@
 import pytest
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QApplication, QMessageBox, QDialog
+from PySide6.QtWidgets import QMessageBox, QDialog
 from unittest.mock import MagicMock, patch
 from pathlib import Path
 from src.gui.main_window import MainApplicationWindow

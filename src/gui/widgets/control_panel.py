@@ -1,13 +1,13 @@
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QComboBox,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
     QPushButton,
     QVBoxLayout,
-    QHBoxLayout,
-    QListWidget,
-    QComboBox,
-    QLabel,
-    QGroupBox,
 )
-from PySide6.QtCore import Qt
 
 
 class ControlPanel(QGroupBox):

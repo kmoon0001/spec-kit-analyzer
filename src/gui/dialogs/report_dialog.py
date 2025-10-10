@@ -1,16 +1,17 @@
 import logging
 import urllib.parse
+
+from PySide6.QtCore import QUrl
+from PySide6.QtPrintSupport import QPrinter
 from PySide6.QtWidgets import (
     QDialog,
-    QVBoxLayout,
-    QTextBrowser,
     QDialogButtonBox,
-    QPushButton,
     QFileDialog,
     QMessageBox,
+    QPushButton,
+    QTextBrowser,
+    QVBoxLayout,
 )
-from PySide6.QtPrintSupport import QPrinter
-from PySide6.QtCore import QUrl
 
 # Local imports
 from .chat_dialog import ChatDialog

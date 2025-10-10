@@ -32,7 +32,7 @@ async def get_ai_status():
         "status": "ready",
         "models": {
             "llm": "loaded",
-            "embeddings": "loaded", 
+            "embeddings": "loaded",
             "ner": "loaded"
         },
         "last_updated": "2025-10-07T16:28:15Z"

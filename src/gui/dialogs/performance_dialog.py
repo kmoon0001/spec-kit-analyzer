@@ -2,21 +2,22 @@
 Performance Settings Dialog - Simplified version for system configuration.
 """
 
+import logging
+
+from PySide6.QtCore import QTimer, Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
     QDialog,
-    QVBoxLayout,
+    QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
-    QComboBox,
-    QPushButton,
-    QGroupBox,
     QProgressBar,
-    QFormLayout,
+    QPushButton,
     QSpinBox,
-    QCheckBox,
+    QVBoxLayout,
 )
-from PySide6.QtCore import QTimer, Signal
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +35,8 @@ class PerformanceDialog(QDialog):
 
         try:
             from ...core.performance_manager import (
-                performance_manager,
                 PerformanceProfile,
+                performance_manager,
             )
 
             self.performance_manager = performance_manager

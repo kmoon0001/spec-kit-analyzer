@@ -1,6 +1,7 @@
 import logging
+from collections.abc import Iterable
 from dataclasses import asdict
-from typing import Any, Iterable, List, Optional
+from typing import Any
 
 from .domain_models import (
     ComplianceFinding,
@@ -8,7 +9,6 @@ from .domain_models import (
     ComplianceRule,
     TherapyDocument,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +18,8 @@ class ComplianceService:
 
     def __init__(
         self,
-        rules: Optional[Iterable[ComplianceRule]] = None,
-        analysis_service: Optional[Any] = None,
+        rules: Iterable[ComplianceRule] | None = None,
+        analysis_service: Any | None = None,
         **_unused: Any,
     ) -> None:
         """Initializes the ComplianceService.
@@ -30,10 +30,10 @@ class ComplianceService:
             **_unused: Unused keyword arguments.
         """
         provided_rules = list(rules or [])
-        self.rules: List[ComplianceRule] = provided_rules or self._default_rules()
+        self.rules: list[ComplianceRule] = provided_rules or self._default_rules()
         self.analysis_service = analysis_service
 
-    def get_available_rubrics(self) -> List[dict]:
+    def get_available_rubrics(self) -> list[dict]:
         """Returns a list of available compliance rules/rubrics for UI consumption.
 
         Returns:
@@ -42,7 +42,7 @@ class ComplianceService:
         """Return available rules/rubrics for UI consumption."""
         return [asdict(rule) for rule in self.rules]
 
-    def get_analysis_service(self) -> Optional[Any]:
+    def get_analysis_service(self) -> Any | None:
         """Exposes the underlying analysis service when available.
 
         Returns:
@@ -61,7 +61,7 @@ class ComplianceService:
             A ComplianceResult object containing the document and any compliance findings.
         """
         logger.info("Evaluating compliance for document %s", document.id)
-        findings: List[ComplianceFinding] = []
+        findings: list[ComplianceFinding] = []
         normalized_text = document.text.lower()
 
         for rule in self.rules:
@@ -89,7 +89,7 @@ class ComplianceService:
         )
         return result
 
-    def _default_rules(self) -> List[ComplianceRule]:
+    def _default_rules(self) -> list[ComplianceRule]:
         """Loads a set of default Medicare Benefits Policy Manual compliance rules.
 
         These rules serve as a baseline for compliance checking when no specific

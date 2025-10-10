@@ -3,7 +3,7 @@ import logging
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 from dotenv import load_dotenv
@@ -47,45 +47,45 @@ class MaintenanceSettings(BaseModel):
 class GeneratorProfile(BaseModel):
     repo: str
     filename: str
-    revision: Optional[str] = None
-    min_system_gb: Optional[float] = None
-    max_system_gb: Optional[float] = None
+    revision: str | None = None
+    min_system_gb: float | None = None
+    max_system_gb: float | None = None
 
 
 class ChatModelSettings(BaseModel):
     repo: str
     filename: str
-    revision: Optional[str] = None
-    model_type: Optional[str] = None
-    context_length: Optional[int] = None
-    generation_params: Optional[Dict[str, Any]] = None
+    revision: str | None = None
+    model_type: str | None = None
+    context_length: int | None = None
+    generation_params: dict[str, Any] | None = None
 
 
 class PhiScrubberModelSettings(BaseModel):
-    general_model: Optional[str] = None
-    biomedical_model: Optional[str] = None
+    general_model: str | None = None
+    biomedical_model: str | None = None
     replacement_token: str = "<PHI>"
 
 
 class ModelsSettings(BaseModel):
-    generator: Optional[str] = None
-    generator_filename: Optional[str] = None
-    generator_local_path: Optional[str] = None
-    generator_profiles: Optional[Dict[str, GeneratorProfile]] = None
-    chat: Optional[ChatModelSettings] = None
+    generator: str | None = None
+    generator_filename: str | None = None
+    generator_local_path: str | None = None
+    generator_profiles: dict[str, GeneratorProfile] | None = None
+    chat: ChatModelSettings | None = None
     retriever: str
     fact_checker: str
-    ner_ensemble: List[str]
+    ner_ensemble: list[str]
     doc_classifier_prompt: str
     analysis_prompt_template: str
     nlg_prompt_template: str
-    phi_scrubber: Optional[PhiScrubberModelSettings] = None
+    phi_scrubber: PhiScrubberModelSettings | None = None
 
 
 class LLMSettings(BaseModel):
     model_type: str
     context_length: int
-    generation_params: Dict[str, Any] = {
+    generation_params: dict[str, Any] = {
         "temperature": 0.1,
         "max_new_tokens": 1024,
         "top_p": 0.9,
@@ -104,7 +104,7 @@ class RetrievalSettings(BaseModel):
 
 class AnalysisSettings(BaseModel):
     confidence_threshold: float = 0.75
-    deterministic_focus: Optional[str] = None
+    deterministic_focus: str | None = None
     max_document_length: int = 50000
     chunk_overlap: int = 100
 
@@ -162,7 +162,7 @@ class HabitsFrameworkSettings(BaseModel):
 
 
 class ReportingSettings(BaseModel):
-    logo_path: Optional[str] = None
+    logo_path: str | None = None
 
 
 class PDFExportSettings(BaseModel):
@@ -174,14 +174,14 @@ class PDFExportSettings(BaseModel):
     margin_left: str = "0.75in"
     margin_right: str = "0.75in"
     include_charts: bool = True
-    watermark: Optional[str] = None
+    watermark: str | None = None
     pdf_version: str = "1.7"
 
 
 class PluginSettings(BaseModel):
     """Plugin system configuration settings."""
     enabled: bool = True
-    plugin_directories: List[str] = ["plugins", "src/plugins"]
+    plugin_directories: list[str] = ["plugins", "src/plugins"]
     security_enabled: bool = True
     auto_load_plugins: bool = False
     max_plugins: int = 50
@@ -203,7 +203,7 @@ class EHRIntegrationSettings(BaseModel):
     connection_timeout_seconds: int = 30
     max_retry_attempts: int = 3
     sync_batch_size: int = 100
-    supported_systems: List[str] = ["epic", "cerner", "allscripts", "athenahealth", "nethealth"]
+    supported_systems: list[str] = ["epic", "cerner", "allscripts", "athenahealth", "nethealth"]
 
 
 class Settings(BaseSettings):
@@ -231,23 +231,23 @@ class Settings(BaseSettings):
     plugins: PluginSettings = PluginSettings()
     enterprise_copilot: EnterpriseCopilotSettings = EnterpriseCopilotSettings()
     ehr_integration: EHRIntegrationSettings = EHRIntegrationSettings()
-    performance: Dict[str, Any] = {}
-    logging: Dict[str, Any] = {}
-    security: Dict[str, Any] = {}
-    features: Dict[str, Any] = {}
+    performance: dict[str, Any] = {}
+    logging: dict[str, Any] = {}
+    security: dict[str, Any] = {}
+    features: dict[str, Any] = {}
     host: str = "127.0.0.1"
     port: int = 8001
     log_level: str = "INFO"
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """
     Initializes and returns the application settings, ensuring security best practices.
     """
     load_dotenv()
     config_path = Path(__file__).parent.parent / "config.yaml"
-    with open(config_path, "r", encoding="utf-8") as f:
+    with open(config_path, encoding="utf-8") as f:
         config_data = yaml.safe_load(f)
 
     # Load settings from config file and environment variables

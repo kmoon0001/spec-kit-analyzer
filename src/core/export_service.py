@@ -3,12 +3,12 @@ Data Export Service - Safe, configurable export functionality.
 Supports multiple formats with optional features that can be enabled/disabled.
 """
 
-import logging
-import json
 import csv
-from typing import Dict, Any, List
+import json
+import logging
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class ExportService:
             f"CSV: {self.enable_csv}, JSON: {self.enable_json}"
         )
 
-    def get_available_formats(self) -> List[str]:
+    def get_available_formats(self) -> list[str]:
         """Get list of available export formats."""
         formats = []
         if self.enable_json:
@@ -58,7 +58,7 @@ class ExportService:
 
     def export_compliance_data(
         self,
-        reports_data: List[Dict[str, Any]],
+        reports_data: list[dict[str, Any]],
         format_type: str,
         output_path: str,
         include_findings: bool = True,
@@ -104,8 +104,8 @@ class ExportService:
             return False
 
     def _prepare_export_data(
-        self, reports_data: List[Dict[str, Any]], include_findings: bool
-    ) -> Dict[str, Any]:
+        self, reports_data: list[dict[str, Any]], include_findings: bool
+    ) -> dict[str, Any]:
         """Prepare data for export with metadata."""
 
         # Basic report data
@@ -150,7 +150,7 @@ class ExportService:
             "findings": all_findings if include_findings else [],
         }
 
-    def _check_size_limit(self, data: Dict[str, Any]) -> bool:
+    def _check_size_limit(self, data: dict[str, Any]) -> bool:
         """Check if export data is within size limits."""
         try:
             # Rough size estimate
@@ -169,7 +169,7 @@ class ExportService:
             logger.error(f"Error checking size limit: {e}")
             return True  # Allow export if size check fails
 
-    def _export_json(self, data: Dict[str, Any], output_path: str) -> bool:
+    def _export_json(self, data: dict[str, Any], output_path: str) -> bool:
         """Export data as JSON file."""
         try:
             with open(output_path, "w", encoding="utf-8") as f:
@@ -183,7 +183,7 @@ class ExportService:
             return False
 
     def _export_csv(
-        self, data: Dict[str, Any], output_path: str, include_findings: bool
+        self, data: dict[str, Any], output_path: str, include_findings: bool
     ) -> bool:
         """Export data as CSV file(s)."""
         try:
@@ -215,7 +215,7 @@ class ExportService:
             return False
 
     def _export_excel(
-        self, data: Dict[str, Any], output_path: str, include_findings: bool
+        self, data: dict[str, Any], output_path: str, include_findings: bool
     ) -> bool:
         """Export data as Excel file with multiple sheets."""
         if not self.enable_excel:
@@ -247,7 +247,7 @@ class ExportService:
 
     def export_analytics_summary(
         self,
-        analytics_data: Dict[str, Any],
+        analytics_data: dict[str, Any],
         output_path: str,
         format_type: str = "json",
     ) -> bool:
@@ -288,8 +288,8 @@ class ExportService:
             return False
 
     def create_export_summary(
-        self, reports_data: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, reports_data: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Create a summary of exportable data for user preview."""
         try:
             total_reports = len(reports_data)
@@ -315,7 +315,7 @@ class ExportService:
                     pass
 
             # Document types
-            doc_types: Dict[str, int] = {}
+            doc_types: dict[str, int] = {}
             for report in reports_data:
                 doc_type = report.get("document_type", "Unknown")
                 doc_types[doc_type] = doc_types.get(doc_type, 0) + 1
@@ -333,7 +333,7 @@ class ExportService:
             logger.error(f"Error creating export summary: {e}")
             return {}
 
-    def _estimate_export_size(self, reports_data: List[Dict[str, Any]]) -> float:
+    def _estimate_export_size(self, reports_data: list[dict[str, Any]]) -> float:
         """Estimate export file size in MB."""
         try:
             # Sample a few reports to estimate size
@@ -370,7 +370,7 @@ def get_export_service(
 
 
 # Configuration
-EXPORT_CONFIG: Dict[str, Any] = {
+EXPORT_CONFIG: dict[str, Any] = {
     "enable_excel": True,
     "enable_csv": True,
     "enable_json": True,

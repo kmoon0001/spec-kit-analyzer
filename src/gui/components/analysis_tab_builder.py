@@ -5,8 +5,17 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QCheckBox, QComboBox, QGridLayout, QHBoxLayout, QLabel, 
-    QSizePolicy, QTabWidget, QTextBrowser, QTextEdit, QVBoxLayout, QWidget
+    QCheckBox,
+    QComboBox,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QSizePolicy,
+    QTabWidget,
+    QTextBrowser,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 
 from src.gui.widgets.medical_theme import medical_theme
@@ -19,17 +28,17 @@ if TYPE_CHECKING:
 class AnalysisTabBuilder:
     """
     Specialized builder for constructing the Analysis tab and its components.
-    
+
     This class is responsible for creating the complete Analysis tab interface,
     including document upload areas, rubric selection, compliance settings,
     report configuration, and analysis results display. It follows the Builder
     pattern to separate the complex construction logic from the main window.
-    
+
     The Analysis tab consists of three main columns:
     1. Left Column (25%): Document upload and rubric selection
-    2. Middle Column (30%): Compliance settings and report configuration  
+    2. Middle Column (30%): Compliance settings and report configuration
     3. Right Column (45%): Analysis results and interactive reports
-    
+
     Key Features:
     - Document upload with drag-and-drop support
     - Rubric selection with detailed descriptions
@@ -37,57 +46,57 @@ class AnalysisTabBuilder:
     - Report section customization
     - Interactive analysis results display
     - Real-time progress monitoring
-    
+
     Attributes:
         main_window: Reference to the main application window instance
-        
+
     Example:
         >>> builder = AnalysisTabBuilder(main_window)
         >>> analysis_tab = builder.create_analysis_tab()
         >>> tab_widget.addTab(analysis_tab, "Analysis")
     """
-    
+
     def __init__(self, main_window: MainApplicationWindow) -> None:
         """
         Initialize the Analysis tab builder.
-        
+
         Args:
             main_window: The main application window instance that will contain
                         the analysis tab. Must have all required UI components
                         and handlers for analysis operations.
-                        
+
         Raises:
             TypeError: If main_window is not a valid MainApplicationWindow instance.
         """
         if not hasattr(main_window, 'statusBar'):
             raise TypeError("main_window must be a valid MainApplicationWindow instance")
         self.main_window = main_window
-    
+
     def create_analysis_tab(self) -> QWidget:
         """
         Create the complete Analysis tab with optimized layout and responsive design.
-        
+
         This method constructs the main analysis interface using a three-column layout
         that adapts to different screen sizes while maintaining usability. The layout
         is designed for efficient clinical workflow with logical grouping of related
         functions and clear visual hierarchy.
-        
+
         Layout Structure:
         - Left Column (25%): Document management and rubric selection
         - Middle Column (30%): Analysis configuration and report settings
         - Right Column (45%): Results display and interactive reports
-        
+
         Returns:
             QWidget: The complete analysis tab widget ready for integration
                     into the main tab widget. Contains all necessary UI components
                     with proper event handling and styling applied.
-                    
+
         Side Effects:
             - Creates and configures all child UI components
             - Establishes signal/slot connections for user interactions
             - Applies medical theme styling to all components
             - Sets up responsive layout with appropriate stretch factors
-            
+
         Example:
             >>> builder = AnalysisTabBuilder(main_window)
             >>> tab = builder.create_analysis_tab()
@@ -97,47 +106,47 @@ class AnalysisTabBuilder:
         main_layout = QHBoxLayout(tab)
         main_layout.setContentsMargins(15, 15, 15, 15)  # Professional spacing
         main_layout.setSpacing(15)  # Consistent gap between columns
-        
+
         # Left column: Rubric Selection (25%)
         left_column = self._create_rubric_selection_panel()
         main_layout.addWidget(left_column, stretch=25)
-        
+
         # Middle column: Compliance Guidelines & Report Sections (30%)
         middle_column = self._create_middle_column_panel()
         main_layout.addWidget(middle_column, stretch=30)
-        
+
         # Right column: Analysis Results with Chat (45%)
         right_column = self._create_analysis_results_with_chat()
         main_layout.addWidget(right_column, stretch=45)
-        
+
         return tab
-    
+
     def _create_rubric_selection_panel(self) -> QWidget:
         """Create left panel with rubric selection and document upload."""
         panel = QWidget(self.main_window)
         panel.setMinimumWidth(280)
         panel.setMaximumWidth(400)
         panel.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
-        
+
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(15)
-        
+
         # Document Upload Section
         upload_section = self._create_document_upload_section()
         layout.addWidget(upload_section)
-        
+
         # Rubric Selection Section
         rubric_section = self._create_rubric_selector_section()
         layout.addWidget(rubric_section)
-        
+
         # Action Buttons
         actions_section = self._create_action_buttons_section()
         layout.addWidget(actions_section)
-        
+
         layout.addStretch(1)
         return panel
-    
+
     def _create_rubric_selector_section(self) -> QWidget:
         """Create rubric selector section."""
         section = QWidget(self.main_window)
@@ -148,17 +157,17 @@ class AnalysisTabBuilder:
                 border-radius: 12px;
             }}
         """)
-        
+
         layout = QVBoxLayout(section)
         layout.setContentsMargins(15, 15, 15, 15)
         layout.setSpacing(12)
-        
+
         # Title
         title = QLabel("📚 Select Rubric", section)
         title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {medical_theme.get_color('primary_blue')}; background: transparent; border: none;")
         layout.addWidget(title)
-        
+
         # Rubric selector
         self.main_window.rubric_selector = QComboBox(section)
         self.main_window.rubric_selector.setMinimumHeight(40)
@@ -181,29 +190,29 @@ class AnalysisTabBuilder:
             }}
         """)
         layout.addWidget(self.main_window.rubric_selector)
-        
+
         return section
-    
+
     def _create_middle_column_panel(self) -> QWidget:
         """Create middle panel with compliance guidelines and report sections."""
         panel = QWidget(self.main_window)
         panel.setMinimumWidth(300)
         panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        
+
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(15)
-        
+
         # Compliance Guidelines Section
         guidelines_section = self._create_compliance_guidelines_section()
         layout.addWidget(guidelines_section, stretch=1)
-        
+
         # Report Sections
         report_section = self._create_report_sections_panel()
         layout.addWidget(report_section, stretch=1)
-        
+
         return panel
-    
+
     def _create_compliance_guidelines_section(self) -> QWidget:
         """Create compliance guidelines section with smaller buttons."""
         section = QWidget(self.main_window)
@@ -214,22 +223,22 @@ class AnalysisTabBuilder:
                 border-radius: 12px;
             }}
         """)
-        
+
         layout = QVBoxLayout(section)
         layout.setContentsMargins(15, 15, 15, 15)
         layout.setSpacing(12)
-        
+
         # Title
         title = QLabel("⚙️ Review Strictness", section)
         title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {medical_theme.get_color('primary_blue')}; background: transparent; border: none;")
         layout.addWidget(title)
-        
+
         # Strictness buttons
         strictness_layout = QHBoxLayout()
         strictness_layout.setSpacing(8)
         self.main_window.strictness_buttons = []
-        
+
         # Strictness definitions
         self.main_window.strictness_levels = [
             ("Lenient", "😊", {
@@ -238,7 +247,7 @@ class AnalysisTabBuilder:
                 "use_case": "Best for: Quick assessments, high-volume processing"
             }),
             ("Standard", "📋", {
-                "description": "Balanced analysis covering most compliance requirements", 
+                "description": "Balanced analysis covering most compliance requirements",
                 "details": "• Comprehensive Medicare compliance checking\n• Identifies moderate to severe issues\n• Standard processing time\n• Recommended for most users",
                 "use_case": "Best for: Regular compliance reviews, quality assurance"
             }),
@@ -248,8 +257,8 @@ class AnalysisTabBuilder:
                 "use_case": "Best for: Audit preparation, high-risk documentation"
             })
         ]
-        
-        for i, (level, emoji, info) in enumerate(self.main_window.strictness_levels):
+
+        for i, (level, emoji, _info) in enumerate(self.main_window.strictness_levels):
             btn = AnimatedButton(f"{emoji}\n{level}", section)
             btn.setCheckable(True)
             btn.setMinimumHeight(45)
@@ -277,9 +286,9 @@ class AnalysisTabBuilder:
             btn.clicked.connect(lambda checked, idx=i: self.main_window._on_strictness_selected_with_description(idx))
             self.main_window.strictness_buttons.append(btn)
             strictness_layout.addWidget(btn)
-        
+
         layout.addLayout(strictness_layout)
-        
+
         # Dynamic description area
         self.main_window.strictness_description = QLabel()
         self.main_window.strictness_description.setWordWrap(True)
@@ -297,14 +306,14 @@ class AnalysisTabBuilder:
         """)
         self.main_window.strictness_description.setMinimumHeight(120)
         layout.addWidget(self.main_window.strictness_description)
-        
+
         # Set default to Standard
         if len(self.main_window.strictness_buttons) >= 2:
             self.main_window.strictness_buttons[1].setChecked(True)
             self.main_window._update_strictness_description(1)
-        
+
         return section
-    
+
     def _create_report_sections_panel(self) -> QWidget:
         """Create report sections panel."""
         section = QWidget(self.main_window)
@@ -315,28 +324,28 @@ class AnalysisTabBuilder:
                 border-radius: 12px;
             }}
         """)
-        
+
         layout = QVBoxLayout(section)
         layout.setContentsMargins(15, 15, 15, 15)
         layout.setSpacing(12)
-        
+
         # Title
         title = QLabel("📋 Report Sections", section)
         title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {medical_theme.get_color('primary_blue')}; background: transparent; border: none;")
         layout.addWidget(title)
-        
+
         # Checkboxes in grid
         grid = QGridLayout()
         grid.setSpacing(8)
-        
+
         sections = [
             "Executive Summary", "Detailed Findings",
             "Risk Assessment", "Recommendations",
             "Regulatory Citations", "Action Plan",
             "AI Transparency", "Improvement Strategies"
         ]
-        
+
         self.main_window.section_checkboxes = {}
         for i, section_name in enumerate(sections):
             checkbox = QCheckBox(section_name)
@@ -363,49 +372,49 @@ class AnalysisTabBuilder:
             """)
             self.main_window.section_checkboxes[section_name] = checkbox
             grid.addWidget(checkbox, i // 2, i % 2)
-        
+
         layout.addLayout(grid)
-        
+
         # Export buttons
         export_layout = QHBoxLayout()
         export_layout.setSpacing(8)
-        
+
         pdf_btn = AnimatedButton("📄 PDF", section)
         pdf_btn.clicked.connect(self.main_window._export_report_pdf)
         pdf_btn.setMinimumHeight(35)
         pdf_btn.setStyleSheet(medical_theme.get_button_stylesheet("primary"))
         export_layout.addWidget(pdf_btn)
-        
+
         html_btn = AnimatedButton("🌐 HTML", section)
         html_btn.clicked.connect(self.main_window._export_report_html)
         html_btn.setMinimumHeight(35)
         html_btn.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
         export_layout.addWidget(html_btn)
-        
+
         layout.addLayout(export_layout)
-        
+
         return section
-    
+
     def _create_analysis_results_with_chat(self) -> QWidget:
         """Create right panel with analysis results."""
         panel = QWidget(self.main_window)
-        
+
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
-        
+
         # Analysis results
         results_panel = self._create_analysis_right_panel_content()
         layout.addWidget(results_panel, stretch=1)
-        
+
         return panel
-    
+
     def _create_analysis_right_panel_content(self) -> QWidget:
         """Create the analysis results content."""
         panel = QWidget(self.main_window)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
-        
+
         # Modern styled tabs
         results_tabs = QTabWidget(panel)
         results_tabs.setStyleSheet(f"""
@@ -436,7 +445,7 @@ class AnalysisTabBuilder:
                 background: {medical_theme.get_color('hover_bg')};
             }}
         """)
-        
+
         # Summary tab
         self.main_window.analysis_summary_browser = QTextBrowser(panel)
         self.main_window.analysis_summary_browser.setOpenExternalLinks(False)
@@ -462,7 +471,7 @@ class AnalysisTabBuilder:
             }}
         """)
         results_tabs.addTab(self.main_window.analysis_summary_browser, "📊 Summary")
-        
+
         # Detailed results tab
         self.main_window.detailed_results_browser = QTextBrowser(panel)
         self.main_window.detailed_results_browser.setOpenExternalLinks(False)
@@ -489,10 +498,10 @@ class AnalysisTabBuilder:
             }}
         """)
         results_tabs.addTab(self.main_window.detailed_results_browser, "📋 Details")
-        
+
         layout.addWidget(results_tabs)
         return panel
-    
+
     def _create_document_upload_section(self) -> QWidget:
         """Create the document upload section."""
         section = QWidget(self.main_window)
@@ -503,17 +512,17 @@ class AnalysisTabBuilder:
                 border-radius: 12px;
             }}
         """)
-        
+
         layout = QVBoxLayout(section)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
-        
+
         # Title
         title = QLabel("📁 Upload Document", section)
         title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {medical_theme.get_color('primary_blue')}; background: transparent; border: none;")
         layout.addWidget(title)
-        
+
         # File display
         self.main_window.file_display = QTextEdit(section)
         self.main_window.file_display.setReadOnly(True)
@@ -531,24 +540,24 @@ class AnalysisTabBuilder:
             }}
         """)
         layout.addWidget(self.main_window.file_display)
-        
+
         # Upload buttons
         buttons_layout = QHBoxLayout()
         buttons_layout.setSpacing(10)
-        
+
         self.main_window.open_file_button = AnimatedButton("📄 Upload Document", section)
         self.main_window.open_file_button.clicked.connect(self.main_window._prompt_for_document)
         self.main_window.open_file_button.setStyleSheet(medical_theme.get_button_stylesheet("primary"))
         self.main_window.open_file_button.setMinimumHeight(42)
         buttons_layout.addWidget(self.main_window.open_file_button)
-        
+
         self.main_window.open_folder_button = AnimatedButton("📂 Batch", section)
         self.main_window.open_folder_button.clicked.connect(self.main_window._prompt_for_folder)
         self.main_window.open_folder_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
         self.main_window.open_folder_button.setMinimumHeight(42)
         self.main_window.open_folder_button.setMaximumWidth(100)
         buttons_layout.addWidget(self.main_window.open_folder_button)
-        
+
         layout.addLayout(buttons_layout)
         return section
 
@@ -562,11 +571,11 @@ class AnalysisTabBuilder:
                 border-radius: 12px;
             }}
         """)
-        
+
         layout = QVBoxLayout(section)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
-        
+
         # Run Analysis button (big and prominent)
         self.main_window.run_analysis_button = AnimatedButton("▶️  Run Compliance Analysis", section)
         self.main_window.run_analysis_button.clicked.connect(self.main_window._start_analysis)
@@ -575,18 +584,18 @@ class AnalysisTabBuilder:
         self.main_window.run_analysis_button.setMinimumHeight(55)
         self.main_window.run_analysis_button.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
         layout.addWidget(self.main_window.run_analysis_button)
-        
+
         # Secondary actions
         secondary_layout = QHBoxLayout()
         secondary_layout.setSpacing(10)
-        
+
         self.main_window.repeat_analysis_button = AnimatedButton("🔄 Repeat", section)
         self.main_window.repeat_analysis_button.clicked.connect(self.main_window._repeat_analysis)
         self.main_window.repeat_analysis_button.setEnabled(False)
         self.main_window.repeat_analysis_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
         self.main_window.repeat_analysis_button.setMinimumHeight(42)
         secondary_layout.addWidget(self.main_window.repeat_analysis_button)
-        
+
         # Stop Analysis button
         self.main_window.stop_analysis_button = AnimatedButton("⏹️ Stop Analysis", section)
         self.main_window.stop_analysis_button.clicked.connect(self.main_window._stop_analysis)
@@ -594,13 +603,13 @@ class AnalysisTabBuilder:
         self.main_window.stop_analysis_button.setStyleSheet(medical_theme.get_button_stylesheet("error"))
         self.main_window.stop_analysis_button.setMinimumHeight(42)
         secondary_layout.addWidget(self.main_window.stop_analysis_button)
-        
+
         self.main_window.view_report_button = AnimatedButton("📊 View Report", section)
         self.main_window.view_report_button.clicked.connect(self.main_window._open_report_popup)
         self.main_window.view_report_button.setEnabled(False)
         self.main_window.view_report_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
         self.main_window.view_report_button.setMinimumHeight(42)
         secondary_layout.addWidget(self.main_window.view_report_button)
-        
+
         layout.addLayout(secondary_layout)
         return section

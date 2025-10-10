@@ -1,13 +1,14 @@
 
 import sys
-from typing import Optional, Tuple
+
 from PySide6.QtWidgets import QApplication, QMessageBox
 
-from src.gui.main_window import MainApplicationWindow
-from src.gui.dialogs.login_dialog import LoginDialog
 from src.auth import AuthService
+from src.gui.dialogs.login_dialog import LoginDialog
+from src.gui.main_window import MainApplicationWindow
 
-def authenticate_user() -> Optional[Tuple[str, str]]:
+
+def authenticate_user() -> tuple[str, str] | None:
     """Handles the user authentication process, returning username and JWT on success."""
     dialog = LoginDialog()
     auth_service = AuthService()
@@ -15,7 +16,7 @@ def authenticate_user() -> Optional[Tuple[str, str]]:
     while True:
         if dialog.exec():
             username, password = dialog.get_credentials()
-            
+
             # For now, use simple authentication without database
             # In production, this would check against the database
             if username and password:  # Basic validation
@@ -37,15 +38,15 @@ def main():
 
     if auth_result:
         username, access_token = auth_result
-        
+
         # Create a mock user object for compatibility
         class MockUser:
             def __init__(self, username: str):
                 self.username = username
                 self.is_admin = True  # For demo purposes
-        
+
         mock_user = MockUser(username)
-        
+
         # Pass the authenticated user and token to the main window
         main_win = MainApplicationWindow(user=mock_user, token=access_token)
         main_win.show()

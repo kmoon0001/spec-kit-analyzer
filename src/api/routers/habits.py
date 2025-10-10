@@ -6,7 +6,6 @@ achievement tracking, and habit analytics.
 """
 
 import logging
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -132,12 +131,12 @@ async def get_progress_summary(
         )
 
 
-@router.get("/goals", response_model=List[schemas.HabitGoal])
+@router.get("/goals", response_model=list[schemas.HabitGoal])
 async def get_user_goals(
     active_only: bool = Query(True, description="Return only active goals"),
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
-) -> List[schemas.HabitGoal]:
+) -> list[schemas.HabitGoal]:
     """Get user's habit goals."""
     settings = get_settings()
 
@@ -224,11 +223,11 @@ async def update_goal_progress(
         )
 
 
-@router.get("/achievements", response_model=List[schemas.HabitAchievement])
+@router.get("/achievements", response_model=list[schemas.HabitAchievement])
 async def get_user_achievements(
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
-) -> List[schemas.HabitAchievement]:
+) -> list[schemas.HabitAchievement]:
     """Get user's habit achievements."""
     settings = get_settings()
 
@@ -250,12 +249,12 @@ async def get_user_achievements(
         )
 
 
-@router.get("/weekly-trends", response_model=List[schemas.WeeklyHabitTrend])
+@router.get("/weekly-trends", response_model=list[schemas.WeeklyHabitTrend])
 async def get_weekly_trends(
     weeks_back: int = Query(12, ge=4, le=52, description="Number of weeks to analyze"),
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
-) -> List[schemas.WeeklyHabitTrend]:
+) -> list[schemas.WeeklyHabitTrend]:
     """Get weekly habit trend data for visualization."""
     settings = get_settings()
 
@@ -283,11 +282,11 @@ async def get_weekly_trends(
         )
 
 
-@router.get("/recommendations", response_model=List[schemas.HabitRecommendation])
+@router.get("/recommendations", response_model=list[schemas.HabitRecommendation])
 async def get_habit_recommendations(
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
-) -> List[schemas.HabitRecommendation]:
+) -> list[schemas.HabitRecommendation]:
     """Get personalized habit recommendations."""
     settings = get_settings()
 

@@ -1,20 +1,23 @@
 
+from collections.abc import Callable
+from typing import Any
+
+from PySide6.QtCore import Qt, QThread
 from PySide6.QtWidgets import (
     QDialog,
-    QVBoxLayout,
-    QListWidget,
     QDialogButtonBox,
-    QMessageBox,
-    QListWidgetItem,
-    QTextEdit,
-    QLineEdit,
     QFormLayout,
     QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QTextEdit,
+    QVBoxLayout,
 )
-from PySide6.QtCore import Qt, QThread
-from typing import List, Dict, Any, Callable, Optional
 
 from src.config import get_settings
+
 from ..workers.rubric_api_worker import RubricApiWorker
 
 settings = get_settings()
@@ -23,7 +26,7 @@ API_URL = settings.paths.api_url
 
 class RubricEditorDialog(QDialog):
     """Dialog for creating and editing a single rubric."""
-    def __init__(self, rubric_data: Dict[str, Any], parent=None):
+    def __init__(self, rubric_data: dict[str, Any], parent=None):
         super().__init__(parent)
         self.setWindowTitle("Edit Rubric")
         self.setMinimumWidth(450)
@@ -49,7 +52,7 @@ class RubricEditorDialog(QDialog):
         self.button_box.rejected.connect(self.reject)
         self.layout.addWidget(self.button_box)
 
-    def get_data(self) -> Dict[str, Any]:
+    def get_data(self) -> dict[str, Any]:
         """Returns the data entered in the editor fields."""
         return {
             "name": self.name_editor.text(),
@@ -65,8 +68,8 @@ class RubricManagerDialog(QDialog):
     def __init__(self, token: str, parent=None):
         super().__init__(parent)
         self.token = token
-        self.worker_thread: Optional[QThread] = None
-        self.worker: Optional[RubricApiWorker] = None
+        self.worker_thread: QThread | None = None
+        self.worker: RubricApiWorker | None = None
 
         self.setWindowTitle("Rubric Manager")
         self.setMinimumSize(500, 400)
@@ -143,13 +146,13 @@ class RubricManagerDialog(QDialog):
         """Loads all rubrics from the API asynchronously."""
         self._run_api_call(RubricApiWorker.get_all, on_success=self._on_load_success)
 
-    def _on_load_success(self, rubrics: List[Dict[str, Any]]):
+    def _on_load_success(self, rubrics: list[dict[str, Any]]):
         """Populate the list widget when rubrics are loaded."""
         self.rubric_list.clear()
         if not rubrics:
             self.status_label.setText("No rubrics found.")
             return
-            
+
         for rubric in rubrics:
             item = QListWidgetItem(rubric.get("name", "Unnamed Rubric"))
             item.setData(Qt.ItemDataRole.UserRole, rubric)

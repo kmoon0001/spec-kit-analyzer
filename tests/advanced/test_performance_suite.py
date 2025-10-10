@@ -6,8 +6,6 @@ Comprehensive performance testing with benchmarking and stress testing.
 import pytest
 import asyncio
 import time
-import threading
-from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Any
 from dataclasses import dataclass
 
@@ -122,7 +120,7 @@ class PerformanceTestSuite:
         
         results['test_summary']['total_duration'] = time.time() - start_time
         
-        print(f"\n✅ Performance Test Suite Complete")
+        print("\n✅ Performance Test Suite Complete")
         print(f"   Total Tests: {results['test_summary']['total_tests']}")
         print(f"   Passed: {results['test_summary']['passed_tests']}")
         print(f"   Failed: {results['test_summary']['failed_tests']}")
@@ -140,7 +138,7 @@ class PerformanceTestSuite:
             # Simulate basic operations
             for i in range(1000):
                 # Simple CPU-bound operation
-                result = sum(range(100))
+                sum(range(100))
                 operations += 1
                 
                 # Simulate some async operations
@@ -286,11 +284,11 @@ class PerformanceTestSuite:
             # Simulate multiple I/O operations
             for i in range(50):
                 # Simulate read operation
-                data_length = len(test_data)
+                len(test_data)
                 operations += 1
                 
                 # Simulate write operation
-                processed_data = test_data.upper()
+                test_data.upper()
                 operations += 1
                 
                 # Simulate processing
@@ -354,7 +352,6 @@ class PerformanceTestSuite:
 performance_test_suite = PerformanceTestSuite()
 
 
-import pytest
 
 
 # Test functions for pytest

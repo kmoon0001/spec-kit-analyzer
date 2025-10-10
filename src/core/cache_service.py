@@ -6,7 +6,7 @@ from collections import OrderedDict
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache, wraps
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import psutil  # type: ignore[import-untyped]
 
@@ -23,7 +23,7 @@ class CacheService:
         self.disk_cache_dir = cache_dir
         self.disk_cache_dir.mkdir(exist_ok=True)
         self.in_memory_cache = lru_cache(maxsize=max_in_memory_size)
-        self._direct_cache: Dict[str, Any] = {}
+        self._direct_cache: dict[str, Any] = {}
 
     def _get_cache_key(self, func_name: str, *args, **kwargs) -> str:
         """Creates a deterministic cache key from the function and its arguments."""
@@ -128,7 +128,7 @@ class MemoryAwareLRUCache:
         self.default_ttl = (
             timedelta(hours=default_ttl_hours) if default_ttl_hours > 0 else None
         )
-        self.cache: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
+        self.cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self.current_size_bytes: int = 0
 
     def _estimate_size(self, value: Any) -> int:
@@ -142,12 +142,12 @@ class MemoryAwareLRUCache:
         if entry:
             self.current_size_bytes = max(self.current_size_bytes - entry["size"], 0)
 
-    def set(self, key: str, value: Any, ttl_hours: Optional[float] = None) -> None:
+    def set(self, key: str, value: Any, ttl_hours: float | None = None) -> None:
         self.clear_expired()
         ttl = ttl_hours
         if ttl is None and self.default_ttl is not None:
             ttl = self.default_ttl.total_seconds() / 3600
-        expires_at: Optional[datetime]
+        expires_at: datetime | None
         if ttl is not None and ttl > 0:
             expires_at = datetime.now(UTC) + timedelta(hours=ttl)
         else:
@@ -165,7 +165,7 @@ class MemoryAwareLRUCache:
         self.current_size_bytes += size
         self._cleanup_if_needed()
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         entry = self.cache.get(key)
         if entry is None:
             return None
@@ -205,7 +205,7 @@ class MemoryAwareLRUCache:
             else:
                 break
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         return {
             "entries": len(self.cache),
             "memory_usage_mb": round(self._current_memory_mb(), 3),
@@ -230,11 +230,11 @@ class EmbeddingCache:
     _cache = MemoryAwareLRUCache(max_memory_mb=384)
 
     @classmethod
-    def get_embedding(cls, text: str) -> Optional[List[float]]:
+    def get_embedding(cls, text: str) -> list[float] | None:
         return cls._cache.get(_hash_key(text))
 
     @classmethod
-    def set_embedding(cls, text: str, embedding: List[float], ttl_hours: Optional[float] = None) -> None:
+    def set_embedding(cls, text: str, embedding: list[float], ttl_hours: float | None = None) -> None:
         cls._cache.set(_hash_key(text), embedding, ttl_hours=ttl_hours)
 
     @classmethod
@@ -256,7 +256,7 @@ class NERCache:
     _cache = MemoryAwareLRUCache(max_memory_mb=256)
 
     @classmethod
-    def get_ner_results(cls, text: str, model_name: str) -> Optional[List[Dict[str, Any]]]:
+    def get_ner_results(cls, text: str, model_name: str) -> list[dict[str, Any]] | None:
         return cls._cache.get(_hash_key(model_name, text))
 
     @classmethod
@@ -264,8 +264,8 @@ class NERCache:
         cls,
         text: str,
         model_name: str,
-        results: List[Dict[str, Any]],
-        ttl_hours: Optional[float] = None,
+        results: list[dict[str, Any]],
+        ttl_hours: float | None = None,
     ) -> None:
         cls._cache.set(_hash_key(model_name, text), results, ttl_hours=ttl_hours)
 
@@ -288,15 +288,15 @@ class DocumentCache:
     _cache = MemoryAwareLRUCache(max_memory_mb=128)
 
     @classmethod
-    def get_document_classification(cls, doc_hash: str) -> Optional[Dict[str, Any]]:
+    def get_document_classification(cls, doc_hash: str) -> dict[str, Any] | None:
         return cls._cache.get(doc_hash)
 
     @classmethod
     def set_document_classification(
         cls,
         doc_hash: str,
-        classification: Dict[str, Any],
-        ttl_hours: Optional[float] = None,
+        classification: dict[str, Any],
+        ttl_hours: float | None = None,
     ) -> None:
         cls._cache.set(doc_hash, classification, ttl_hours=ttl_hours)
 
@@ -319,7 +319,7 @@ class LLMResponseCache:
     _cache = MemoryAwareLRUCache(max_memory_mb=256, default_ttl_hours=6)
 
     @classmethod
-    def get_llm_response(cls, prompt: str, model_name: str) -> Optional[str]:
+    def get_llm_response(cls, prompt: str, model_name: str) -> str | None:
         return cls._cache.get(_hash_key(model_name, prompt))
 
     @classmethod
@@ -328,7 +328,7 @@ class LLMResponseCache:
         prompt: str,
         model_name: str,
         response: str,
-        ttl_hours: Optional[float] = None,
+        ttl_hours: float | None = None,
     ) -> None:
         cls._cache.set(_hash_key(model_name, prompt), response, ttl_hours=ttl_hours)
 
@@ -345,7 +345,7 @@ class LLMResponseCache:
         return cls._cache._current_memory_mb()
 
 
-def get_cache_stats() -> Dict[str, float]:
+def get_cache_stats() -> dict[str, float]:
     """Return basic statistics about in-memory caches."""
     vm = psutil.virtual_memory()
     embedding_usage = EmbeddingCache.memory_usage_mb()

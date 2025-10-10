@@ -2,18 +2,18 @@
 Micro-interactions and Animations - Smooth transitions and visual feedback.
 """
 
-from PySide6.QtWidgets import QPushButton, QWidget, QGraphicsOpacityEffect, QLabel
 from PySide6.QtCore import (
-    QPropertyAnimation,
     QEasingCurve,
-    Qt,
+    QPoint,
+    QPropertyAnimation,
+    QRect,
     QSequentialAnimationGroup,
+    Qt,
     QTimer,
     Signal,
-    QRect,
-    QPoint,
 )
 from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QGraphicsOpacityEffect, QLabel, QPushButton, QWidget
 
 
 class AnimatedButton(QPushButton):
@@ -347,7 +347,7 @@ class ProgressRipple(QWidget):
 
     def paintEvent(self, event):
         """Paint ripples."""
-        from PySide6.QtGui import QPainter, QBrush
+        from PySide6.QtGui import QBrush, QPainter
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)

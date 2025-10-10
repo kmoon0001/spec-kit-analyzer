@@ -7,14 +7,16 @@ statuses, and the overall progress. This decouples the queue management from
 the UI and allows it to be accessed from different parts of the application.
 """
 
+from typing import Any, ClassVar, Optional
+
 from PySide6.QtCore import QObject, Signal
-from typing import List, Dict, Any, Optional, ClassVar
+
 
 class QueueManager(QObject):
     """A singleton class to manage the auto-analysis queue."""
     _instance: ClassVar[Optional["QueueManager"]] = None
 
-    queue: List[Dict[str, Any]]
+    queue: list[dict[str, Any]]
     is_running: bool
 
     queue_updated = Signal()
@@ -22,19 +24,19 @@ class QueueManager(QObject):
 
     def __new__(cls):
         if cls._instance is None:
-            instance = super(QueueManager, cls).__new__(cls)
+            instance = super().__new__(cls)
             instance.queue = []
             instance.is_running = False
             cls._instance = instance
         return cls._instance
 
-    def add_files(self, files: List[str]):
+    def add_files(self, files: list[str]):
         """Adds a list of files to the queue."""
         for file in files:
             self.queue.append({"path": file, "status": "Pending"})
         self.queue_updated.emit()
 
-    def get_queue(self) -> List[Dict[str, Any]]:
+    def get_queue(self) -> list[dict[str, Any]]:
         """Returns the current state of the queue."""
         return self.queue
 

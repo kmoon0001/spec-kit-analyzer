@@ -7,7 +7,7 @@ achievements, and individual analytics.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional, List
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +28,7 @@ async def get_personal_habit_profile(
     days_back: int = Query(90, ge=7, le=365, description="Days to analyze (7-365)"),
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get comprehensive personal habit profile for the current user.
 
@@ -70,7 +70,7 @@ async def get_habit_timeline(
     days_back: int = Query(30, ge=7, le=90, description="Days to analyze (7-90)"),
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get detailed timeline for a specific habit.
 
@@ -117,7 +117,7 @@ async def get_personal_goals(
     active_only: bool = Query(True, description="Return only active goals"),
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get user's personal habit improvement goals."""
     settings = get_settings()
 
@@ -167,10 +167,10 @@ async def get_personal_goals(
 
 @router.post("/goals")
 async def create_personal_goal(
-    goal_data: Dict[str, Any],
+    goal_data: dict[str, Any],
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create a new personal habit improvement goal.
 
@@ -261,10 +261,10 @@ async def create_personal_goal(
 
 @router.get("/achievements")
 async def get_personal_achievements(
-    category: Optional[str] = Query(None, description="Filter by achievement category"),
+    category: str | None = Query(None, description="Filter by achievement category"),
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get user's personal achievements and badges."""
     settings = get_settings()
 
@@ -281,7 +281,7 @@ async def get_personal_achievements(
         achievements = await crud.get_user_achievements(db, current_user.id, category)
 
         # Group by category
-        by_category: Dict[str, List[Dict[str, Any]]] = {}
+        by_category: dict[str, list[dict[str, Any]]] = {}
         total_points = 0
 
         for achievement in achievements:
@@ -324,7 +324,7 @@ async def get_personal_statistics(
     days_back: int = Query(90, ge=7, le=365, description="Days to analyze (7-365)"),
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get comprehensive personal habit statistics."""
     settings = get_settings()
 
@@ -349,7 +349,7 @@ async def get_personal_statistics(
 @router.get("/habits-info")
 async def get_all_habits_info(
     current_user: models.User = Depends(get_current_active_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get information about all 7 habits for reference."""
     settings = get_settings()
 
@@ -381,7 +381,7 @@ async def get_all_habits_info(
 async def create_progress_snapshot(
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create a progress snapshot for trend tracking.
 

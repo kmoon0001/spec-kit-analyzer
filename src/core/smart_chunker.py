@@ -1,5 +1,6 @@
-import nltk  # type: ignore[import-untyped]
 import logging
+
+import nltk  # type: ignore[import-untyped]
 
 # Set up logging
 logger = logging.getLogger(__name__)

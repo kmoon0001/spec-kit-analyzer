@@ -1,7 +1,6 @@
-from typing import List
 
 
-def chunk_text(text: str, max_chars: int = 4000) -> List[str]:
+def chunk_text(text: str, max_chars: int = 4000) -> list[str]:
     chunks = []
     start_index = 0
     while start_index < len(text):

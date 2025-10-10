@@ -1,7 +1,7 @@
 
+
 import requests
 from PySide6.QtCore import QObject, Signal, Slot
-from typing import Dict, Optional
 
 from src.config import get_settings
 
@@ -21,7 +21,7 @@ class RubricApiWorker(QObject):
     def _get_headers(self):
         return {"Authorization": f"Bearer {self.token}"}
 
-    def _handle_request(self, method: str, endpoint: str, json_data: Optional[Dict] = None):
+    def _handle_request(self, method: str, endpoint: str, json_data: dict | None = None):
         try:
             url = f"{API_URL}{endpoint}"
             response = requests.request(method, url, headers=self._get_headers(), json=json_data, timeout=15)
@@ -43,11 +43,11 @@ class RubricApiWorker(QObject):
         self._handle_request("GET", "/rubrics/")
 
     @Slot(dict)
-    def create(self, data: Dict):
+    def create(self, data: dict):
         self._handle_request("POST", "/rubrics/", json_data=data)
 
     @Slot(str, dict)
-    def update(self, rubric_id: str, data: Dict):
+    def update(self, rubric_id: str, data: dict):
         self._handle_request("PUT", f"/rubrics/{rubric_id}", json_data=data)
 
     @Slot(str)

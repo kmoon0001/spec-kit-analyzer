@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from PySide6.QtCore import Qt, QSettings, QTimer
+from PySide6.QtCore import QSettings, Qt, QTimer
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
@@ -23,26 +23,25 @@ from PySide6.QtWidgets import (
 )
 
 from src.config import get_settings
-from src.database import models
 from src.core.report_generator import ReportGenerator
+from src.database import models
 
-# Import refactored components
-from src.gui.view_models.main_view_model import MainViewModel
+# Import beautiful medical-themed components
+from src.gui.components.header_component import HeaderComponent
 from src.gui.components.menu_builder import MenuBuilder
+from src.gui.components.status_component import StatusComponent
 from src.gui.components.tab_builder import TabBuilder
 from src.gui.handlers.analysis_handlers import AnalysisHandlers
 from src.gui.handlers.file_handlers import FileHandlers
 from src.gui.handlers.ui_handlers import UIHandlers
 
-# Import beautiful medical-themed components
-from src.gui.components.header_component import HeaderComponent
-from src.gui.components.status_component import StatusComponent
+# Import refactored components
+from src.gui.view_models.main_view_model import MainViewModel
 from src.gui.widgets.medical_theme import medical_theme
 
 # Import minimal micro-interactions (subtle animations only)
 from src.gui.widgets.micro_interactions import AnimatedButton, LoadingSpinner
-
-from src.gui.widgets.mission_control_widget import MissionControlWidget, LogViewerWidget, SettingsEditorWidget
+from src.gui.widgets.mission_control_widget import LogViewerWidget, MissionControlWidget, SettingsEditorWidget
 
 try:
     from src.gui.widgets.meta_analytics_widget import MetaAnalyticsWidget
@@ -73,8 +72,8 @@ class MainApplicationWindow(QMainWindow):
         self.auth_token = token
         self.settings = QSettings("TherapyCo", "ComplianceAnalyzer")
         self.report_generator = ReportGenerator()
-        self._current_payload: Dict[str, Any] = {}
-        self._selected_file: Optional[Path] = None
+        self._current_payload: dict[str, Any] = {}
+        self._selected_file: Path | None = None
         self._cached_preview_content: str = ""
 
         # Initialize handlers and builders
@@ -96,64 +95,64 @@ class MainApplicationWindow(QMainWindow):
     def _initialize_ui_attributes(self) -> None:
         """Initialize all UI attributes to prevent warnings."""
         # Core UI components
-        self.header: Optional[HeaderComponent] = None
-        self.status_component: Optional[StatusComponent] = None
-        self.tab_widget: Optional[QTabWidget] = None
-        
+        self.header: HeaderComponent | None = None
+        self.status_component: StatusComponent | None = None
+        self.tab_widget: QTabWidget | None = None
+
         # Tab widgets
-        self.analysis_tab: Optional[QWidget] = None
-        self.dashboard_tab: Optional[QWidget] = None
-        self.mission_control_tab: Optional[QWidget] = None
-        self.settings_tab: Optional[QWidget] = None
-        
+        self.analysis_tab: QWidget | None = None
+        self.dashboard_tab: QWidget | None = None
+        self.mission_control_tab: QWidget | None = None
+        self.settings_tab: QWidget | None = None
+
         # Analysis components
-        self.rubric_selector: Optional[QComboBox] = None
-        self.strictness_buttons: List[Any] = []
-        self.strictness_levels: List[Any] = []
-        self.strictness_description: Optional[QWidget] = None
-        self.section_checkboxes: Dict[str, Any] = {}
-        self.analysis_summary_browser: Optional[QTextBrowser] = None
-        self.detailed_results_browser: Optional[QTextBrowser] = None
-        self.file_display: Optional[QTextEdit] = None
-        
+        self.rubric_selector: QComboBox | None = None
+        self.strictness_buttons: list[Any] = []
+        self.strictness_levels: list[Any] = []
+        self.strictness_description: QWidget | None = None
+        self.section_checkboxes: dict[str, Any] = {}
+        self.analysis_summary_browser: QTextBrowser | None = None
+        self.detailed_results_browser: QTextBrowser | None = None
+        self.file_display: QTextEdit | None = None
+
         # Action buttons
-        self.open_file_button: Optional[AnimatedButton] = None
-        self.open_folder_button: Optional[AnimatedButton] = None
-        self.run_analysis_button: Optional[AnimatedButton] = None
-        self.repeat_analysis_button: Optional[AnimatedButton] = None
-        self.stop_analysis_button: Optional[AnimatedButton] = None
-        self.view_report_button: Optional[AnimatedButton] = None
-        
+        self.open_file_button: AnimatedButton | None = None
+        self.open_folder_button: AnimatedButton | None = None
+        self.run_analysis_button: AnimatedButton | None = None
+        self.repeat_analysis_button: AnimatedButton | None = None
+        self.stop_analysis_button: AnimatedButton | None = None
+        self.view_report_button: AnimatedButton | None = None
+
         # Dashboard and mission control
-        self.dashboard_widget: Optional[Any] = None
-        self.mission_control_widget: Optional[MissionControlWidget] = None
-        self.settings_editor: Optional[SettingsEditorWidget] = None
-        
+        self.dashboard_widget: Any | None = None
+        self.mission_control_widget: MissionControlWidget | None = None
+        self.settings_editor: SettingsEditorWidget | None = None
+
         # Status bar components
-        self.resource_label: Optional[QWidget] = None
-        self.connection_label: Optional[QWidget] = None
-        self.connection_indicator: Optional[QWidget] = None
-        self.connection_status_widget: Optional[QWidget] = None
-        self.loading_spinner: Optional[LoadingSpinner] = None
-        self.progress_bar: Optional[QProgressBar] = None
-        
+        self.resource_label: QWidget | None = None
+        self.connection_label: QWidget | None = None
+        self.connection_indicator: QWidget | None = None
+        self.connection_status_widget: QWidget | None = None
+        self.loading_spinner: LoadingSpinner | None = None
+        self.progress_bar: QProgressBar | None = None
+
         # Dock widgets
-        self.meta_analytics_dock: Optional[QDockWidget] = None
-        self.meta_widget: Optional[Any] = None
-        self.performance_dock: Optional[QDockWidget] = None
-        self.performance_widget: Optional[Any] = None
-        self.log_viewer: Optional[LogViewerWidget] = None
-        
+        self.meta_analytics_dock: QDockWidget | None = None
+        self.meta_widget: Any | None = None
+        self.performance_dock: QDockWidget | None = None
+        self.performance_widget: Any | None = None
+        self.log_viewer: LogViewerWidget | None = None
+
         # Menu actions
-        self.meta_analytics_action: Optional[QAction] = None
-        self.performance_action: Optional[QAction] = None
-        
+        self.meta_analytics_action: QAction | None = None
+        self.performance_action: QAction | None = None
+
         # System monitoring
         self.has_psutil: bool = False
-        self.resource_timer: Optional[QTimer] = None
-        
+        self.resource_timer: QTimer | None = None
+
         # Easter egg attributes
-        self.konami_sequence: List[Qt.Key] = []
+        self.konami_sequence: list[Qt.Key] = []
         self.konami_code = [
             Qt.Key.Key_Up, Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Down,
             Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Left, Qt.Key.Key_Right,
@@ -179,11 +178,11 @@ class MainApplicationWindow(QMainWindow):
         if screen:
             screen_size = screen.size()
             screen_width = screen_size.width()
-            
+
             # Calculate scale factor based on screen size
             base_width = 1920  # Base design width
             scale_factor = min(1.2, max(0.8, screen_width / base_width))
-            
+
             # Apply responsive font scaling
             app = QApplication.instance()
             if app:
@@ -198,10 +197,10 @@ class MainApplicationWindow(QMainWindow):
         self.header = HeaderComponent(self)
         self.header.theme_toggle_requested.connect(self.ui_handlers.toggle_theme)
         self.header.logo_clicked.connect(self.ui_handlers.on_logo_clicked)
-        
+
         self.status_component = StatusComponent(self)
         self.status_component.status_clicked.connect(self.ui_handlers.on_model_status_clicked)
-        
+
         self.header.setStyleSheet(self.header.get_default_stylesheet())
         self.ui_handlers.check_license_status()
 
@@ -212,29 +211,29 @@ class MainApplicationWindow(QMainWindow):
         root_layout = QVBoxLayout(central)
         root_layout.setContentsMargins(12, 12, 12, 12)
         root_layout.setSpacing(12)
-        
+
         # Add header at the top
         root_layout.addWidget(self.header)
-        
+
         # Create main tab widget
         self.tab_widget = QTabWidget(self)
         self.tab_widget.setDocumentMode(False)
         self.tab_widget.setStyleSheet(self._get_tab_stylesheet())
         root_layout.addWidget(self.tab_widget, stretch=1)
-        
+
         # Create tabs using tab builder
         self.analysis_tab = self.tab_builder.create_analysis_tab()
         self.tab_widget.addTab(self.analysis_tab, "Analysis")
-        
+
         self.dashboard_tab = self.tab_builder.create_dashboard_tab()
         self.tab_widget.addTab(self.dashboard_tab, "Dashboard")
-        
+
         self.mission_control_tab = self.tab_builder.create_mission_control_tab()
         self.tab_widget.addTab(self.mission_control_tab, "Mission Control")
-        
+
         self.settings_tab = self.tab_builder.create_settings_tab()
         self.tab_widget.addTab(self.settings_tab, "Settings")
-        
+
         # Set Analysis as default tab
         self.tab_widget.setCurrentWidget(self.analysis_tab)
 
@@ -284,7 +283,7 @@ class MainApplicationWindow(QMainWindow):
             self.meta_analytics_dock.setWidget(self.meta_widget)
             self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.meta_analytics_dock)
             self.meta_analytics_dock.hide()
-        
+
         # Performance Status Dock
         if PerformanceStatusWidget:
             self.performance_dock = QDockWidget("Performance Status", self)
@@ -294,7 +293,7 @@ class MainApplicationWindow(QMainWindow):
             self.performance_dock.setWidget(self.performance_widget)
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.performance_dock)
             self.performance_dock.hide()
-        
+
         # Log Viewer
         self.log_viewer = LogViewerWidget(self)
 
@@ -310,10 +309,10 @@ class MainApplicationWindow(QMainWindow):
                 padding: 4px;
             }
         """)
-        
+
         # Add status components
         status.addPermanentWidget(self.status_component)
-        
+
         # Progress bar
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setMaximumWidth(220)
@@ -338,7 +337,7 @@ class MainApplicationWindow(QMainWindow):
         """)
         self.progress_bar.hide()
         status.addPermanentWidget(self.progress_bar)
-        
+
         # Loading spinner
         self.loading_spinner = LoadingSpinner(size=16, parent=self)
         self.loading_spinner.hide()
@@ -352,7 +351,7 @@ class MainApplicationWindow(QMainWindow):
             ("Ctrl+3", lambda: self.tab_widget.setCurrentIndex(2)),
             ("Ctrl+4", lambda: self.tab_widget.setCurrentIndex(3)),
         ]
-        
+
         for shortcut_key, callback in shortcuts:
             shortcut = QAction(self)
             shortcut.setShortcut(shortcut_key)
@@ -379,14 +378,14 @@ class MainApplicationWindow(QMainWindow):
                 border: 1px solid {medical_theme.get_color('border_light')};
             }}
         """
-        
-        combined_style = (main_style + 
-                         medical_theme.get_main_window_stylesheet() + 
-                         medical_theme.get_form_stylesheet() + 
+
+        combined_style = (main_style +
+                         medical_theme.get_main_window_stylesheet() +
+                         medical_theme.get_form_stylesheet() +
                          medical_theme.get_card_stylesheet())
-        
+
         self.setStyleSheet(combined_style)
-        
+
         # Update header theme
         is_dark = medical_theme.current_theme == "dark"
         if self.header:
@@ -413,12 +412,12 @@ class MainApplicationWindow(QMainWindow):
             self.view_model.meta_analytics_loaded.connect(self.meta_widget.update_data)
         self.view_model.show_message_box_signal.connect(self._show_message_box)
 
-    def _show_message_box(self, title: str, text: str, icon_str: str, buttons: List[str], technical_details: str = "") -> None:
+    def _show_message_box(self, title: str, text: str, icon_str: str, buttons: list[str], technical_details: str = "") -> None:
         """Show a message box with the given parameters."""
         msg = QMessageBox(self)
         msg.setWindowTitle(title)
         msg.setText(text)
-        
+
         # Convert icon_str back to QMessageBox.Icon
         icon_map = {
             str(QMessageBox.Icon.Warning): QMessageBox.Icon.Warning,
@@ -450,10 +449,10 @@ class MainApplicationWindow(QMainWindow):
         self.view_model.start_workers()
         if self.current_user.is_admin:
             self.view_model.load_settings()
-        
+
         if self.status_component:
             self.status_component.set_all_loading()
-        
+
         QTimer.singleShot(2000, self.analysis_handlers.on_ai_models_ready)
         self._start_resource_monitoring()
 
@@ -461,7 +460,7 @@ class MainApplicationWindow(QMainWindow):
         """Load default rubrics immediately as fallback."""
         if hasattr(self, 'rubric_selector') and self.rubric_selector:
             self.rubric_selector.clear()
-            
+
             # Add comprehensive default Medicare rubrics
             default_rubrics = [
                 ("📋 Medicare Benefits Policy Manual - Chapter 15 (Covered Medical Services)", "medicare_benefits_policy_manual_ch15"),
@@ -473,30 +472,30 @@ class MainApplicationWindow(QMainWindow):
                 ("🖐️ Occupational Therapy - AOTA Standards", "aota_ot_standards"),
                 ("🗣️ Speech-Language Pathology - ASHA Guidelines", "asha_slp_guidelines"),
             ]
-            
+
             for name, value in default_rubrics:
                 self.rubric_selector.addItem(name, value)
-            
+
             self.rubric_selector.setCurrentIndex(0)
 
-    def _on_rubrics_loaded(self, rubrics: List[Dict]) -> None:
+    def _on_rubrics_loaded(self, rubrics: list[dict]) -> None:
         """Load rubrics into dropdown with comprehensive Medicare defaults."""
         if not self.rubric_selector:
             return
-            
+
         self.rubric_selector.clear()
         self._load_default_rubrics()
-        
+
         # Add separator if there are custom rubrics
         if rubrics:
             self.rubric_selector.insertSeparator(self.rubric_selector.count())
             self.rubric_selector.addItem("--- Custom Rubrics ---", "")
             self.rubric_selector.model().item(self.rubric_selector.count() - 1).setEnabled(False)
-        
+
         # Add custom rubrics from API
         for rubric in rubrics:
             self.rubric_selector.addItem(f"📝 {rubric.get('name', 'Unnamed rubric')}", rubric.get("value"))
-        
+
         self._load_gui_settings()
 
     def _start_resource_monitoring(self) -> None:
@@ -517,18 +516,18 @@ class MainApplicationWindow(QMainWindow):
         """Update system resource information in status bar."""
         if not self.has_psutil or not self.resource_label:
             return
-        
+
         try:
             import psutil  # type: ignore[import-untyped]
-            
+
             cpu_percent = psutil.cpu_percent(interval=None)
             memory = psutil.virtual_memory()
             memory_mb = memory.used // (1024 * 1024)
             memory_percent = memory.percent
-            
+
             resource_text = f"💻 CPU: {cpu_percent:.1f}% | RAM: {memory_mb}MB ({memory_percent:.1f}%)"
             self.resource_label.setText(resource_text)
-            
+
             # Change color based on usage
             if cpu_percent > 80 or memory_percent > 80:
                 color = "#dc2626"
@@ -536,9 +535,9 @@ class MainApplicationWindow(QMainWindow):
                 color = "#d97706"
             else:
                 color = "#059669"
-            
+
             self.resource_label.setStyleSheet(f"color: {color}; font-size: 10px; font-family: monospace;")
-            
+
         except Exception as e:
             if self.resource_label:
                 self.resource_label.setText("💻 Resource info unavailable")
@@ -561,11 +560,11 @@ class MainApplicationWindow(QMainWindow):
             self.restoreGeometry(geometry)
         if window_state := self.settings.value("windowState"):
             self.restoreState(window_state)
-        
+
         last_tab = self.settings.value("ui/last_active_tab", 0, type=int)
         if 0 <= last_tab < self.tab_widget.count():
             self.tab_widget.setCurrentIndex(last_tab)
-        
+
         saved_theme = self.settings.value("theme", "light", type=str)
         self.ui_handlers.apply_theme(saved_theme)
 
@@ -625,7 +624,7 @@ class MainApplicationWindow(QMainWindow):
     def show_change_password_dialog(self) -> None:
         self.ui_handlers.show_change_password_dialog()
 
-    def _open_chat_dialog(self, initial_message: Optional[str] = None) -> None:
+    def _open_chat_dialog(self, initial_message: str | None = None) -> None:
         self.ui_handlers.open_chat_dialog(initial_message)
 
     def _toggle_meta_analytics_dock(self) -> None:
@@ -669,7 +668,7 @@ class MainApplicationWindow(QMainWindow):
         self.tab_widget.setCurrentWidget(self.analysis_tab)
         self.file_handlers.prompt_for_document()
 
-    def _handle_mission_control_review(self, doc_info: Dict) -> None:
+    def _handle_mission_control_review(self, doc_info: dict) -> None:
         """Handle review document request from Mission Control."""
         doc_name = doc_info.get("title") or doc_info.get("name") or doc_info.get("document_name") or "Document"
         self.statusBar().showMessage(f"Detailed replay for '{doc_name}' will be available in a future update.")
@@ -680,32 +679,32 @@ class MainApplicationWindow(QMainWindow):
             self._save_gui_settings()
         except Exception:
             pass
-        
+
         try:
             self.view_model.stop_all_workers()
         except Exception:
             pass
-        
+
         QApplication.quit()
         event.accept()
 
     def keyPressEvent(self, event) -> None:
         """Handle key press events for Konami code and other shortcuts."""
         super().keyPressEvent(event)
-        
+
         # Initialize konami sequence if not exists
         if not hasattr(self, 'konami_sequence'):
             self.konami_sequence = []
-        
+
         # Track konami code
         self.konami_sequence.append(event.key())
         if len(self.konami_sequence) > len(self.konami_code):
             self.konami_sequence.pop(0)
-        
+
         if self.konami_sequence == self.konami_code:
             self._activate_konami_code()
             self.konami_sequence = []
-        
+
         # Special shortcuts
         if event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
             if event.key() == Qt.Key.Key_K:
@@ -728,7 +727,7 @@ class MainApplicationWindow(QMainWindow):
             "Created with ❤️ by Kevin Moon\n"
             "For all the amazing therapists out there!"
         )
-        
+
         self.developer_mode = True
         self.statusBar().showMessage("🎮 Developer Mode Activated! Press Ctrl+Shift+D for console", 10000)
 
@@ -752,7 +751,7 @@ class MainApplicationWindow(QMainWindow):
         if not hasattr(self, 'developer_mode') or not self.developer_mode:
             QMessageBox.warning(self, "Access Denied", "Developer console requires Konami code activation!")
             return
-        
+
         console_text = f"""
 🔧 DEVELOPER CONSOLE 🔧
 
@@ -769,19 +768,19 @@ Memory Usage:
 
 Debug Commands Available:
 - Clear all caches
-- Reset UI state  
+- Reset UI state
 - Force garbage collection
 - Export debug logs
 
 This console is only available in developer mode! 🎮
         """
-        
+
         QMessageBox.information(self, "🔧 Developer Console", console_text)
 
     def resizeEvent(self, event) -> None:
         """Handle window resize events with responsive scaling."""
         super().resizeEvent(event)
-        
+
         if hasattr(self, 'tab_widget') and self.tab_widget:
             self.tab_widget.updateGeometry()
 

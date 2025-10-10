@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional
 
 from .text_utils import sanitize_human_text
 
@@ -28,8 +28,8 @@ class ChecklistItem:
     keywords: Iterable[str]
     recommendation: str
     optional: bool = False
-    discipline_specific: Optional[str] = None
-    doc_types: Optional[List[str]] = None
+    discipline_specific: str | None = None
+    doc_types: list[str] | None = None
 
 
 class DeterministicChecklistService:
@@ -46,7 +46,7 @@ class DeterministicChecklistService:
         self.sentence_pattern = re.compile(r"[.!?]+\s+")
         self._checks = self._initialize_checklist_items()
 
-    def _initialize_checklist_items(self) -> List[ChecklistItem]:
+    def _initialize_checklist_items(self) -> list[ChecklistItem]:
         """Initialize the standard checklist items for compliance checking."""
         return [
             # Core documentation requirements (all disciplines)
@@ -271,8 +271,8 @@ class DeterministicChecklistService:
         return "\n".join(lines)
 
     def _filter_applicable_checks(
-        self, doc_type: Optional[str], discipline: Optional[str]
-    ) -> List[ChecklistItem]:
+        self, doc_type: str | None, discipline: str | None
+    ) -> list[ChecklistItem]:
         """Filter checklist items based on document type and discipline.
 
         Args:
@@ -304,9 +304,9 @@ class DeterministicChecklistService:
         self,
         document_text: str,
         *,
-        doc_type: Optional[str] = None,
-        discipline: Optional[str] = None,
-    ) -> List[Dict[str, str]]:
+        doc_type: str | None = None,
+        discipline: str | None = None,
+    ) -> list[dict[str, str]]:
         """Return checklist results with evidence snippets when available.
 
         Args:
@@ -340,7 +340,7 @@ class DeterministicChecklistService:
         sentences = self._split_sentences(document_text)
         sentences_lower = [sentence.lower() for sentence in sentences]
 
-        results: List[Dict[str, str]] = []
+        results: list[dict[str, str]] = []
         for item in applicable_checks:
             evidence_sentence = self._locate_sentence(
                 sentences, sentences_lower, item.keywords
@@ -359,7 +359,7 @@ class DeterministicChecklistService:
             )
         return results
 
-    def _split_sentences(self, text: str) -> List[str]:
+    def _split_sentences(self, text: str) -> list[str]:
         """Split text into sentences using regex patterns."""
         # Split on sentence endings followed by whitespace
         sentences = self.sentence_pattern.split(text)
@@ -367,8 +367,8 @@ class DeterministicChecklistService:
         return [sent.strip() for sent in sentences if sent.strip()]
 
     def get_checklist_summary(
-        self, discipline: Optional[str] = None, doc_type: Optional[str] = None
-    ) -> Dict[str, int]:
+        self, discipline: str | None = None, doc_type: str | None = None
+    ) -> dict[str, int]:
         """Get a summary of checklist items by category.
 
         Args:
@@ -394,11 +394,11 @@ class DeterministicChecklistService:
 
     @staticmethod
     def _locate_sentence(
-        sentences: List[str], sentences_lower: List[str], keywords: Iterable[str]
-    ) -> Optional[str]:
+        sentences: list[str], sentences_lower: list[str], keywords: Iterable[str]
+    ) -> str | None:
         """Locate the first sentence containing any of the specified keywords."""
         keyword_set = [kw.lower() for kw in keywords]
-        for original, lowered in zip(sentences, sentences_lower):
+        for original, lowered in zip(sentences, sentences_lower, strict=False):
             if any(keyword in lowered for keyword in keyword_set):
                 return original
         return None

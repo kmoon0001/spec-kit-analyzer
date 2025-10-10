@@ -68,7 +68,6 @@ def check_consistency():
     checks_total += 1
     try:
         from src.database import models
-        from src.database.database import get_async_db
         
         # Check key models exist
         required_models = ['User', 'ComplianceRubric', 'AnalysisReport']

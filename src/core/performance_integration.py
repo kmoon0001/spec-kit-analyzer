@@ -4,8 +4,10 @@ Provides a unified interface for performance monitoring and optimization.
 """
 
 import logging
-from typing import Dict, Any, Callable
-from PySide6.QtCore import QObject, Signal, QTimer
+from collections.abc import Callable
+from typing import Any
+
+from PySide6.QtCore import QObject, QTimer, Signal
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +62,7 @@ class PerformanceIntegrationService(QObject):
         except ImportError as e:
             logger.warning(f"Cache service not available: {e}")
 
-    def get_performance_status(self) -> Dict[str, Any]:
+    def get_performance_status(self) -> dict[str, Any]:
         """Get comprehensive performance status."""
         status = {
             "timestamp": self._get_current_timestamp(),
@@ -106,9 +108,9 @@ class PerformanceIntegrationService(QObject):
 
         return status
 
-    def optimize_for_analysis(self) -> Dict[str, Any]:
+    def optimize_for_analysis(self) -> dict[str, Any]:
         """Optimize system performance before running analysis."""
-        optimization_results: Dict[str, Any] = {
+        optimization_results: dict[str, Any] = {
             "cache_cleanup": False,
             "memory_freed_mb": 0,
             "recommendations": [],
@@ -248,11 +250,11 @@ def get_performance_integration() -> PerformanceIntegrationService:
     return performance_integration
 
 
-def optimize_for_analysis() -> Dict[str, Any]:
+def optimize_for_analysis() -> dict[str, Any]:
     """Convenience function to optimize performance before analysis."""
     return performance_integration.optimize_for_analysis()
 
 
-def get_performance_status() -> Dict[str, Any]:
+def get_performance_status() -> dict[str, Any]:
     """Convenience function to get current performance status."""
     return performance_integration.get_performance_status()

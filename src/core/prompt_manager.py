@@ -1,5 +1,5 @@
-import os
 import logging
+import os
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class PromptManager:
             logger.error("Prompt template not found: %s", self.template_path)
             raise FileNotFoundError(f"Prompt template not found: {self.template_path}")
 
-        with open(self.template_path, "r", encoding="utf-8") as f:
+        with open(self.template_path, encoding="utf-8") as f:
             return f.read()
 
     def get_prompt(self, **kwargs: Any) -> str:
@@ -55,7 +55,7 @@ class PromptManager:
     def build_prompt(self, **kwargs: Any) -> str:
         """
         Alias for get_prompt to maintain backward compatibility.
-        
+
         Args:
             **kwargs: The variables to substitute into the prompt template.
 

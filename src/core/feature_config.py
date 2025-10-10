@@ -3,10 +3,10 @@ Feature Configuration Service - Manages optional features and their settings.
 Allows safe enabling/disabling of enhanced features without affecting core functionality.
 """
 
-import logging
-from typing import Dict, Any
 import json
+import logging
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class FeatureConfig:
         self.features = self._load_default_config()
         self._load_user_config()
 
-    def _load_default_config(self) -> Dict[str, Any]:
+    def _load_default_config(self) -> dict[str, Any]:
         """Load default feature configuration."""
         return {
             # Documentation Features
@@ -85,7 +85,7 @@ class FeatureConfig:
         try:
             config_path = Path(self.config_file)
             if config_path.exists():
-                with open(config_path, "r") as f:
+                with open(config_path) as f:
                     user_config = json.load(f)
 
                 # Merge user config with defaults
@@ -99,7 +99,7 @@ class FeatureConfig:
         except Exception as e:
             logger.warning(f"Could not load user config: {e}, using defaults")
 
-    def _merge_config(self, default: Dict[str, Any], user: Dict[str, Any]):
+    def _merge_config(self, default: dict[str, Any], user: dict[str, Any]):
         """Recursively merge user configuration with defaults."""
         for key, value in user.items():
             if key in default:
@@ -144,7 +144,7 @@ class FeatureConfig:
             logger.error(f"Error checking feature {feature_path}: {e}")
             return False
 
-    def get_feature_config(self, feature_name: str) -> Dict[str, Any]:
+    def get_feature_config(self, feature_name: str) -> dict[str, Any]:
         """
         Get configuration for a specific feature.
 
@@ -185,7 +185,7 @@ class FeatureConfig:
         """Get list of all enabled features."""
         enabled = []
 
-        def check_features(config: Dict[str, Any], prefix: str = ""):
+        def check_features(config: dict[str, Any], prefix: str = ""):
             for key, value in config.items():
                 current_path = f"{prefix}.{key}" if prefix else key
 
@@ -199,7 +199,7 @@ class FeatureConfig:
         check_features(self.features)
         return enabled
 
-    def validate_dependencies(self) -> Dict[str, str]:
+    def validate_dependencies(self) -> dict[str, str]:
         """
         Validate that required dependencies are available for enabled features.
 
@@ -243,7 +243,7 @@ class FeatureConfig:
 
         return issues
 
-    def get_feature_summary(self) -> Dict[str, Any]:
+    def get_feature_summary(self) -> dict[str, Any]:
         """Get summary of feature status and configuration."""
         enabled_features = self.get_enabled_features()
         dependency_issues = self.validate_dependencies()
@@ -266,7 +266,7 @@ def is_feature_enabled(feature_path: str) -> bool:
     return feature_config.is_feature_enabled(feature_path)
 
 
-def get_feature_config(feature_name: str) -> Dict[str, Any]:
+def get_feature_config(feature_name: str) -> dict[str, Any]:
     """Global function to get feature configuration."""
     return feature_config.get_feature_config(feature_name)
 

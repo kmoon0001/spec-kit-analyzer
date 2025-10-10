@@ -6,7 +6,7 @@ theme management, dialog operations, and user interactions.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from PySide6.QtWidgets import QApplication, QMainWindow
 
 from src.gui.handlers.ui_handlers import UIHandlers

@@ -1,13 +1,14 @@
-import time
-from typing import Any, Dict
 import logging
+import time
+from typing import Any
 
 import requests
-from PySide6.QtCore import QObject, Signal as Signal
+from PySide6.QtCore import QObject
+from PySide6.QtCore import Signal as Signal
 
 from src.config import get_settings
+from src.core.analysis_status_tracker import AnalysisState, status_tracker
 from src.core.analysis_workflow_logger import workflow_logger
-from src.core.analysis_status_tracker import status_tracker, AnalysisState
 
 settings = get_settings()
 API_URL = settings.paths.api_url
@@ -32,17 +33,17 @@ class SingleAnalysisPollingWorker(QObject):
         poll_interval = 3  # seconds
         max_attempts = 400  # 20 minutes (3 * 400 = 1200 seconds)
         attempts = 0
-        
+
         logger = logging.getLogger(__name__)
         logger.info(f"Starting polling for task: {self.task_id}")
 
         while self.is_running and attempts < max_attempts:
             attempts += 1
-            
+
             try:
                 # Log polling attempt
                 workflow_logger.log_polling_attempt(self.task_id, attempts)
-                
+
                 response = requests.get(
                     f"{API_URL}/analysis/status/{self.task_id}",
                     timeout=15,
@@ -58,7 +59,7 @@ class SingleAnalysisPollingWorker(QObject):
                     self.finished.emit()
                     return
 
-                status_data: Dict[str, Any] = response.json()
+                status_data: dict[str, Any] = response.json()
                 logger.info(f"Polling response: {status_data}")
                 status = status_data.get("status", "unknown")
                 progress = status_data.get("progress", 0)
@@ -68,58 +69,58 @@ class SingleAnalysisPollingWorker(QObject):
 
                 if status == "processing":
                     reported_progress = int(progress if progress else (attempts * 100 // max_attempts))
-                    
+
                     # Update status tracker
                     status_tracker.update_status(
-                        AnalysisState.PROCESSING, 
-                        reported_progress, 
+                        AnalysisState.PROCESSING,
+                        reported_progress,
                         f"Processing... ({reported_progress}%)"
                     )
-                    
+
                     self.progress.emit(max(0, min(100, reported_progress)))
                     logger.debug(f"Task {self.task_id} processing: {reported_progress}%")
-                    
+
                 elif status == "failed":
                     error_msg = status_data.get("error", "Unknown error during analysis.")
                     logger.error(f"Task {self.task_id} failed: {error_msg}")
-                    
+
                     # Update status tracker
                     status_tracker.set_error(error_msg)
-                    
+
                     self.error.emit(error_msg)
                     self.finished.emit()
                     return
-                    
+
                 elif status == "completed":
                     result = status_data.get("result")
                     logger.info(f"Task {self.task_id} completed successfully")
-                    
+
                     # Update status tracker
                     status_tracker.complete_analysis(result)
-                    
+
                     self.success.emit(result)
                     self.finished.emit()
                     return
-                    
+
                 elif status == "pending":
                     logger.debug(f"Task {self.task_id} still pending (attempt {attempts})")
                     status_tracker.update_status(
-                        AnalysisState.POLLING, 
-                        5, 
+                        AnalysisState.POLLING,
+                        5,
                         "Analysis queued, waiting to start..."
                     )
                 else:
                     logger.warning(f"Unknown status '{status}' for task {self.task_id}")
                     status_tracker.update_status(
-                        AnalysisState.POLLING, 
-                        attempts * 100 // max_attempts, 
+                        AnalysisState.POLLING,
+                        attempts * 100 // max_attempts,
                         f"Unknown status: {status}"
                     )
 
             except requests.RequestException as exc:
                 logger.error(f"Network error polling task {self.task_id}: {exc}")
                 workflow_logger.log_api_response(0, error=str(exc))
-                
+
                 # For connection errors, provide more specific guidance
                 if "Connection refused" in str(exc):
                     error_msg = "Cannot connect to analysis service. Please check if the API server is running."
@@ -127,11 +128,11 @@ class SingleAnalysisPollingWorker(QObject):
                     error_msg = "Request timed out while checking analysis status. The server may be overloaded."
                 else:
                     error_msg = f"Network error while checking analysis status: {exc}"
-                
+
                 self.error.emit(error_msg)
                 self.finished.emit()
                 return
-                
+
             except Exception as exc:  # pragma: no cover - defensive
                 logger.error(f"Unexpected error polling task {self.task_id}: {exc}")
                 workflow_logger.log_api_response(0, error=str(exc))

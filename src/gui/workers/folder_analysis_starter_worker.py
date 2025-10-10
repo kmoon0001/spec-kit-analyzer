@@ -1,7 +1,8 @@
-from typing import Iterable, Tuple
+from collections.abc import Iterable
 
 import requests
-from PySide6.QtCore import QObject, Signal as Signal
+from PySide6.QtCore import QObject
+from PySide6.QtCore import Signal as Signal
 
 from src.config import get_settings
 
@@ -19,7 +20,7 @@ class FolderAnalysisStarterWorker(QObject):
 
     def __init__(
         self,
-        files: Iterable[Tuple[str, Tuple[str, object, str]]],
+        files: Iterable[tuple[str, tuple[str, object, str]]],
         data: dict,
         token: str,
     ):

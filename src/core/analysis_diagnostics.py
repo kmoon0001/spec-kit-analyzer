@@ -5,13 +5,14 @@ This module provides comprehensive diagnostic capabilities to verify system
 health and identify common issues that prevent analysis from completing.
 """
 
+import logging
 import time
-import requests
-from pathlib import Path
-from typing import Dict, Any
 from dataclasses import dataclass
 from enum import Enum
-import logging
+from pathlib import Path
+from typing import Any
+
+import requests
 
 from src.config import get_settings
 
@@ -33,10 +34,10 @@ class DiagnosticResult:
     component: str
     status: DiagnosticStatus
     message: str
-    details: Dict[str, Any]
+    details: dict[str, Any]
     timestamp: float
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary format."""
         return {
             "component": self.component,
@@ -50,26 +51,26 @@ class DiagnosticResult:
 class AnalysisDiagnostics:
     """
     Comprehensive diagnostic system for analysis workflow.
-    
+
     Provides health checks for all components involved in document analysis
     including API connectivity, file processing, AI models, and system resources.
     """
-    
+
     def __init__(self):
         self.api_url = settings.paths.api_url
         self.timeout = 10  # seconds
-    
-    def run_full_diagnostic(self) -> Dict[str, DiagnosticResult]:
+
+    def run_full_diagnostic(self) -> dict[str, DiagnosticResult]:
         """
         Run comprehensive diagnostic checks.
-        
+
         Returns:
             Dictionary of diagnostic results keyed by component name
         """
         logger.info("Starting comprehensive analysis workflow diagnostics")
-        
+
         diagnostics = {}
-        
+
         # Run all diagnostic checks
         checks = [
             self.check_api_connectivity,
@@ -79,7 +80,7 @@ class AnalysisDiagnostics:
             self.check_file_system_access,
             self.check_ai_model_status,
         ]
-        
+
         for check in checks:
             try:
                 result = check()
@@ -94,20 +95,20 @@ class AnalysisDiagnostics:
                     details={"error": str(e)},
                     timestamp=time.time()
                 )
-        
+
         # Generate overall health summary
         overall_status = self._calculate_overall_status(diagnostics)
         logger.info(f"Diagnostic summary: {overall_status}")
-        
+
         return diagnostics
-    
+
     def check_api_connectivity(self) -> DiagnosticResult:
         """Check basic API connectivity."""
         try:
             start_time = time.time()
             response = requests.get(f"{self.api_url}/health", timeout=self.timeout)
             response_time = time.time() - start_time
-            
+
             if response.status_code == 200:
                 return DiagnosticResult(
                     component="api_connectivity",
@@ -133,7 +134,7 @@ class AnalysisDiagnostics:
                     },
                     timestamp=time.time()
                 )
-                
+
         except requests.exceptions.ConnectionError:
             return DiagnosticResult(
                 component="api_connectivity",
@@ -166,12 +167,12 @@ class AnalysisDiagnostics:
                 details={"error": str(e)},
                 timestamp=time.time()
             )
-    
+
     def check_api_health(self) -> DiagnosticResult:
         """Check detailed API health status."""
         try:
             response = requests.get(f"{self.api_url}/health", timeout=self.timeout)
-            
+
             if response.status_code == 200:
                 try:
                     health_data = response.json()
@@ -184,11 +185,11 @@ class AnalysisDiagnostics:
                         details={"response_text": response.text[:500]},
                         timestamp=time.time()
                     )
-                
+
                 # Handle the actual API response format
                 api_status = health_data.get("status", "unknown")
                 database_status = health_data.get("database", "unknown")
-                
+
                 if api_status == "ok" and database_status == "connected":
                     status = DiagnosticStatus.HEALTHY
                     message = "API and database are healthy"
@@ -198,7 +199,7 @@ class AnalysisDiagnostics:
                 else:
                     status = DiagnosticStatus.ERROR
                     message = f"API health check failed: {api_status}"
-                
+
                 return DiagnosticResult(
                     component="api_health",
                     status=status,
@@ -218,7 +219,7 @@ class AnalysisDiagnostics:
                     details={"status_code": response.status_code},
                     timestamp=time.time()
                 )
-                
+
         except Exception as e:
             return DiagnosticResult(
                 component="api_health",
@@ -227,17 +228,17 @@ class AnalysisDiagnostics:
                 details={"error": str(e)},
                 timestamp=time.time()
             )
-    
+
     def check_analysis_endpoints(self) -> DiagnosticResult:
         """Check analysis-specific API endpoints."""
         endpoints_to_check = [
             ("/analysis/analyze", "POST"),
             ("/analysis/status/{task_id}", "GET"),
         ]
-        
+
         endpoint_results = {}
         overall_status = DiagnosticStatus.HEALTHY
-        
+
         for endpoint, method in endpoints_to_check:
             try:
                 # For GET endpoints, we can test directly
@@ -245,7 +246,7 @@ class AnalysisDiagnostics:
                     # Test with a dummy task ID to see if endpoint exists
                     test_url = f"{self.api_url}{endpoint.replace('{task_id}', 'test')}"
                     response = requests.get(test_url, timeout=self.timeout)
-                    
+
                     # We expect 404 for non-existent task, which means endpoint exists
                     if response.status_code in [200, 404]:
                         endpoint_results[endpoint] = "accessible"
@@ -257,7 +258,7 @@ class AnalysisDiagnostics:
                     # by looking at the response to an invalid request
                     test_url = f"{self.api_url}{endpoint}"
                     response = requests.post(test_url, json={}, timeout=self.timeout)
-                    
+
                     # We expect 422 (validation error) or 400, not 404 (not found)
                     if response.status_code in [400, 422]:
                         endpoint_results[endpoint] = "accessible"
@@ -267,18 +268,18 @@ class AnalysisDiagnostics:
                     else:
                         endpoint_results[endpoint] = f"status_{response.status_code}"
                         overall_status = DiagnosticStatus.WARNING
-                        
+
             except Exception as e:
                 endpoint_results[endpoint] = f"error: {str(e)}"
                 overall_status = DiagnosticStatus.ERROR
-        
+
         if overall_status == DiagnosticStatus.HEALTHY:
             message = "All analysis endpoints are accessible"
         elif overall_status == DiagnosticStatus.WARNING:
             message = "Some analysis endpoints have issues"
         else:
             message = "Critical analysis endpoints are not accessible"
-        
+
         return DiagnosticResult(
             component="analysis_endpoints",
             status=overall_status,
@@ -286,38 +287,38 @@ class AnalysisDiagnostics:
             details={"endpoints": endpoint_results},
             timestamp=time.time()
         )
-    
+
     def check_system_resources(self) -> DiagnosticResult:
         """Check system resource availability."""
         try:
             import psutil  # type: ignore[import-untyped]
-            
+
             # Get system metrics
             cpu_percent = psutil.cpu_percent(interval=1)
             memory = psutil.virtual_memory()
             disk = psutil.disk_usage('/')
-            
+
             # Determine status based on resource usage
             status = DiagnosticStatus.HEALTHY
             issues = []
-            
+
             if cpu_percent > 90:
                 status = DiagnosticStatus.WARNING
                 issues.append(f"High CPU usage: {cpu_percent:.1f}%")
-            
+
             if memory.percent > 90:
                 status = DiagnosticStatus.WARNING
                 issues.append(f"High memory usage: {memory.percent:.1f}%")
-            
+
             if disk.percent > 95:
                 status = DiagnosticStatus.ERROR
                 issues.append(f"Very low disk space: {disk.percent:.1f}% used")
             elif disk.percent > 85:
                 status = DiagnosticStatus.WARNING
                 issues.append(f"Low disk space: {disk.percent:.1f}% used")
-            
+
             message = "System resources are adequate" if not issues else "; ".join(issues)
-            
+
             return DiagnosticResult(
                 component="system_resources",
                 status=status,
@@ -331,7 +332,7 @@ class AnalysisDiagnostics:
                 },
                 timestamp=time.time()
             )
-            
+
         except ImportError:
             return DiagnosticResult(
                 component="system_resources",
@@ -348,26 +349,26 @@ class AnalysisDiagnostics:
                 details={"error": str(e)},
                 timestamp=time.time()
             )
-    
+
     def check_file_system_access(self) -> DiagnosticResult:
         """Check file system access for document processing."""
         try:
             # Check if we can create temporary files
             temp_dir = Path.cwd() / "temp"
             temp_dir.mkdir(exist_ok=True)
-            
+
             test_file = temp_dir / "diagnostic_test.txt"
             test_content = "Diagnostic test file"
-            
+
             # Test write access
             test_file.write_text(test_content)
-            
+
             # Test read access
             read_content = test_file.read_text()
-            
+
             # Clean up
             test_file.unlink()
-            
+
             if read_content == test_content:
                 return DiagnosticResult(
                     component="file_system_access",
@@ -392,7 +393,7 @@ class AnalysisDiagnostics:
                     },
                     timestamp=time.time()
                 )
-                
+
         except PermissionError:
             return DiagnosticResult(
                 component="file_system_access",
@@ -412,20 +413,20 @@ class AnalysisDiagnostics:
                 details={"error": str(e)},
                 timestamp=time.time()
             )
-    
+
     def check_ai_model_status(self) -> DiagnosticResult:
         """Check AI model loading status."""
         try:
             # Try to get AI model status from the API
             response = requests.get(f"{self.api_url}/ai/status", timeout=self.timeout)
-            
+
             if response.status_code == 200:
                 ai_status = response.json()
-                
+
                 models_ready = ai_status.get("models_ready", 0)
                 total_models = ai_status.get("total_models", 0)
                 loading_status = ai_status.get("status", "unknown")
-                
+
                 if loading_status == "ready" and models_ready == total_models:
                     status = DiagnosticStatus.HEALTHY
                     message = f"All AI models are ready ({models_ready}/{total_models})"
@@ -435,7 +436,7 @@ class AnalysisDiagnostics:
                 else:
                     status = DiagnosticStatus.ERROR
                     message = f"AI models are not ready ({models_ready}/{total_models})"
-                
+
                 return DiagnosticResult(
                     component="ai_model_status",
                     status=status,
@@ -466,7 +467,7 @@ class AnalysisDiagnostics:
                     details={"status_code": response.status_code},
                     timestamp=time.time()
                 )
-                
+
         except Exception as e:
             return DiagnosticResult(
                 component="ai_model_status",
@@ -475,20 +476,20 @@ class AnalysisDiagnostics:
                 details={"error": str(e)},
                 timestamp=time.time()
             )
-    
+
     def validate_file_format(self, file_path: str) -> DiagnosticResult:
         """
         Validate if a file can be processed for analysis.
-        
+
         Args:
             file_path: Path to the file to validate
-            
+
         Returns:
             Diagnostic result for file validation
         """
         try:
             path = Path(file_path)
-            
+
             if not path.exists():
                 return DiagnosticResult(
                     component="file_validation",
@@ -497,11 +498,11 @@ class AnalysisDiagnostics:
                     details={"file_path": file_path},
                     timestamp=time.time()
                 )
-            
+
             # Check file size
             file_size = path.stat().st_size
             max_size = 50 * 1024 * 1024  # 50MB
-            
+
             if file_size == 0:
                 return DiagnosticResult(
                     component="file_validation",
@@ -510,7 +511,7 @@ class AnalysisDiagnostics:
                     details={"file_path": file_path, "file_size": file_size},
                     timestamp=time.time()
                 )
-            
+
             if file_size > max_size:
                 return DiagnosticResult(
                     component="file_validation",
@@ -523,11 +524,11 @@ class AnalysisDiagnostics:
                     },
                     timestamp=time.time()
                 )
-            
+
             # Check file extension
             supported_extensions = {'.txt', '.pdf', '.docx', '.doc'}
             file_extension = path.suffix.lower()
-            
+
             if file_extension not in supported_extensions:
                 return DiagnosticResult(
                     component="file_validation",
@@ -540,7 +541,7 @@ class AnalysisDiagnostics:
                     },
                     timestamp=time.time()
                 )
-            
+
             return DiagnosticResult(
                 component="file_validation",
                 status=DiagnosticStatus.HEALTHY,
@@ -552,7 +553,7 @@ class AnalysisDiagnostics:
                 },
                 timestamp=time.time()
             )
-            
+
         except Exception as e:
             return DiagnosticResult(
                 component="file_validation",
@@ -561,15 +562,15 @@ class AnalysisDiagnostics:
                 details={"file_path": file_path, "error": str(e)},
                 timestamp=time.time()
             )
-    
-    def _calculate_overall_status(self, diagnostics: Dict[str, DiagnosticResult]) -> str:
+
+    def _calculate_overall_status(self, diagnostics: dict[str, DiagnosticResult]) -> str:
         """Calculate overall system health status."""
         if not diagnostics:
             return "no_diagnostics"
-        
+
         error_count = sum(1 for d in diagnostics.values() if d.status == DiagnosticStatus.ERROR)
         warning_count = sum(1 for d in diagnostics.values() if d.status == DiagnosticStatus.WARNING)
-        
+
         if error_count > 0:
             return f"unhealthy ({error_count} errors, {warning_count} warnings)"
         elif warning_count > 0:

@@ -8,8 +8,8 @@ personalized improvement suggestions.
 """
 
 import logging
-from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -18,10 +18,10 @@ logger = logging.getLogger(__name__)
 class ExplanationContext:
     """Context information for generating explanations."""
 
-    document_type: Optional[str] = None
-    discipline: Optional[str] = None  # PT, OT, SLP
-    rubric_name: Optional[str] = None
-    analysis_confidence: Optional[float] = None
+    document_type: str | None = None
+    discipline: str | None = None  # PT, OT, SLP
+    rubric_name: str | None = None
+    analysis_confidence: float | None = None
 
 
 class ExplanationEngine:
@@ -42,11 +42,11 @@ class ExplanationEngine:
 
     def add_explanations(
         self,
-        analysis_result: Dict[str, Any],
+        analysis_result: dict[str, Any],
         full_document_text: str,
-        context: Optional[ExplanationContext] = None,
-        retrieved_rules: Optional[List[Dict[str, Any]]] = None,
-    ) -> Dict[str, Any]:
+        context: ExplanationContext | None = None,
+        retrieved_rules: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         """
         Add comprehensive explanations to analysis findings.
 
@@ -80,10 +80,10 @@ retrieved_rules: List of compliance rules that were matched during analysis
 
     def _enhance_finding(
         self,
-        finding: Dict[str, Any],
+        finding: dict[str, Any],
         full_document_text: str,
         context: ExplanationContext,
-        retrieved_rules: Optional[List[Dict[str, Any]]] = None,
+        retrieved_rules: list[dict[str, Any]] | None = None,
     ) -> None:
         """Enhance a single finding with explanations and context."""
         problematic_text = finding.get("text", "")
@@ -115,7 +115,7 @@ retrieved_rules: List of compliance rules that were matched during analysis
             finding, context, retrieved_rules
         )
     def _generate_regulatory_explanation(
-        self, finding: Dict[str, Any], context: ExplanationContext
+        self, finding: dict[str, Any], context: ExplanationContext
     ) -> str:
         """Generate explanation of why this finding violates regulations."""
         issue_type = finding.get("issue_type", "compliance")
@@ -148,9 +148,9 @@ retrieved_rules: List of compliance rules that were matched during analysis
 
     def _generate_recommendation(
         self,
-        finding: Dict[str, Any],
+        finding: dict[str, Any],
         context: ExplanationContext,
-        retrieved_rules: Optional[List[Dict[str, Any]]] = None,
+        retrieved_rules: list[dict[str, Any]] | None = None,
     ) -> str:
         """Generate specific, actionable recommendation for the finding."""
         # First, try to get specific recommendations from retrieved rules
@@ -216,7 +216,7 @@ retrieved_rules: List of compliance rules that were matched during analysis
         )
 
     def _calculate_confidence(
-        self, finding: Dict[str, Any], context: ExplanationContext
+        self, finding: dict[str, Any], context: ExplanationContext
     ) -> float:
         """Calculate confidence score based on finding characteristics."""
         base_confidence = 0.85
@@ -278,7 +278,7 @@ retrieved_rules: List of compliance rules that were matched during analysis
             base_confidence = base_confidence * 0.7 + weighted_upstream
         return round(min(max(base_confidence, 0.60), 0.98), 2)
 
-    def _assess_severity(self, finding: Dict[str, Any]) -> str:
+    def _assess_severity(self, finding: dict[str, Any]) -> str:
         """Assess the severity level of a compliance finding."""
         issue_type = finding.get("issue_type", "")
         confidence = finding.get("confidence", 0.0)
@@ -325,9 +325,9 @@ retrieved_rules: List of compliance rules that were matched during analysis
 
     def _get_regulatory_citation(
         self,
-        finding: Dict[str, Any],
+        finding: dict[str, Any],
         context: ExplanationContext,
-        retrieved_rules: Optional[List[Dict[str, Any]]] = None,
+        retrieved_rules: list[dict[str, Any]] | None = None,
     ) -> str:
         """Get appropriate regulatory citation for the finding."""
         # First, try to find specific citation from retrieved rules

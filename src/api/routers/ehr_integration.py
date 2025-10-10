@@ -4,16 +4,16 @@ Provides APIs for integrating with Electronic Health Record systems.
 """
 
 import logging
-from typing import Dict, List, Any, Optional
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from typing import Any
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from src.auth import get_current_user
-from src.database.models import User
-from src.core.ehr_connector import ehr_connector
-
 from src.core.compliance_sync_service import compliance_sync_service
+from src.core.ehr_connector import ehr_connector
+from src.database.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -28,15 +28,15 @@ class EHRConnectionConfig(BaseModel):
     client_secret: str = Field(..., description="OAuth client secret")
     scope: str = Field(default="patient/*.read", description="FHIR scopes")
     facility_id: str = Field(..., description="Healthcare facility identifier")
-    department_codes: List[str] = Field(default=[], description="Department codes to sync")
+    department_codes: list[str] = Field(default=[], description="Department codes to sync")
 
 
 class EHRSyncRequest(BaseModel):
     """EHR data synchronization request."""
-    patient_ids: Optional[List[str]] = Field(default=None, description="Specific patient IDs to sync")
-    date_range_start: Optional[datetime] = Field(default=None, description="Start date for data sync")
-    date_range_end: Optional[datetime] = Field(default=None, description="End date for data sync")
-    document_types: List[str] = Field(default=["progress_notes", "evaluations", "treatment_plans"], 
+    patient_ids: list[str] | None = Field(default=None, description="Specific patient IDs to sync")
+    date_range_start: datetime | None = Field(default=None, description="Start date for data sync")
+    date_range_end: datetime | None = Field(default=None, description="End date for data sync")
+    document_types: list[str] = Field(default=["progress_notes", "evaluations", "treatment_plans"],
                                     description="Types of documents to sync")
     auto_analyze: bool = Field(default=False, description="Automatically analyze synced documents")
 
@@ -57,10 +57,10 @@ class EHRDocumentMetadata(BaseModel):
 async def connect_ehr_system(
     config: EHRConnectionConfig,
     current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Connect to an EHR system and validate the connection.
-    
+
     Requires admin privileges for security.
     """
     if not current_user.is_admin:
@@ -68,10 +68,10 @@ async def connect_ehr_system(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin privileges required for EHR integration"
         )
-    
+
     try:
         logger.info(f"Attempting EHR connection to {config.system_type} system")
-        
+
         # Validate and establish connection
         connection_result = await ehr_connector.connect(
             system_type=config.system_type,
@@ -81,7 +81,7 @@ async def connect_ehr_system(
             scope=config.scope,
             facility_id=config.facility_id
         )
-        
+
         if connection_result.get("success"):
             logger.info(f"Successfully connected to {config.system_type} EHR system")
             return {
@@ -96,7 +96,7 @@ async def connect_ehr_system(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Failed to connect to EHR system: {connection_result.get('error', 'Unknown error')}"
             )
-    
+
     except Exception as e:
         logger.error(f"EHR connection failed: {e}")
         raise HTTPException(
@@ -108,11 +108,11 @@ async def connect_ehr_system(
 @router.get("/status")
 async def get_ehr_connection_status(
     current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get the current EHR connection status."""
     try:
         status_info = await ehr_connector.get_connection_status()
-        
+
         return {
             "connected": status_info.get("connected", False),
             "system_type": status_info.get("system_type"),
@@ -122,7 +122,7 @@ async def get_ehr_connection_status(
             "capabilities": status_info.get("capabilities", []),
             "error_count": status_info.get("error_count", 0)
         }
-    
+
     except Exception as e:
         logger.error(f"Failed to get EHR status: {e}")
         raise HTTPException(
@@ -136,10 +136,10 @@ async def sync_ehr_data(
     sync_request: EHRSyncRequest,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Synchronize data from the connected EHR system.
-    
+
     This operation runs in the background to avoid timeout issues.
     """
     try:
@@ -150,10 +150,10 @@ async def sync_ehr_data(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No active EHR connection. Please connect to an EHR system first."
             )
-        
+
         # Start background sync task
         sync_task_id = f"ehr_sync_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
+
         background_tasks.add_task(
             compliance_sync_service.sync_ehr_documents,
             sync_task_id=sync_task_id,
@@ -164,9 +164,9 @@ async def sync_ehr_data(
             auto_analyze=sync_request.auto_analyze,
             user_id=str(current_user.id)
         )
-        
+
         logger.info(f"Started EHR sync task: {sync_task_id}")
-        
+
         return {
             "success": True,
             "message": "EHR data synchronization started",
@@ -174,7 +174,7 @@ async def sync_ehr_data(
             "estimated_duration": "5-15 minutes",
             "status_endpoint": f"/ehr/sync/{sync_task_id}/status"
         }
-    
+
     except Exception as e:
         logger.error(f"EHR sync failed to start: {e}")
         raise HTTPException(
@@ -187,19 +187,19 @@ async def sync_ehr_data(
 async def get_sync_status(
     sync_task_id: str,
     current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get the status of an EHR synchronization task."""
     try:
         sync_status = await compliance_sync_service.get_sync_status(sync_task_id)
-        
+
         if not sync_status:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Sync task {sync_task_id} not found"
             )
-        
+
         return sync_status
-    
+
     except Exception as e:
         logger.error(f"Failed to get sync status: {e}")
         raise HTTPException(
@@ -212,10 +212,10 @@ async def get_sync_status(
 async def list_ehr_documents(
     limit: int = 50,
     offset: int = 0,
-    document_type: Optional[str] = None,
+    document_type: str | None = None,
     analyzed_only: bool = False,
     current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """List documents synchronized from the EHR system."""
     try:
         documents = await ehr_connector.list_synced_documents(
@@ -224,7 +224,7 @@ async def list_ehr_documents(
             document_type=document_type,
             analyzed_only=analyzed_only
         )
-        
+
         return {
             "documents": documents.get("documents", []),
             "total_count": documents.get("total_count", 0),
@@ -232,7 +232,7 @@ async def list_ehr_documents(
             "offset": offset,
             "has_more": documents.get("has_more", False)
         }
-    
+
     except Exception as e:
         logger.error(f"Failed to list EHR documents: {e}")
         raise HTTPException(
@@ -246,7 +246,7 @@ async def analyze_ehr_document(
     document_id: str,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Analyze a specific EHR document for compliance."""
     try:
         # Validate document exists
@@ -256,19 +256,19 @@ async def analyze_ehr_document(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Document {document_id} not found"
             )
-        
+
         # Start background analysis
         analysis_task_id = f"ehr_analysis_{document_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
+
         background_tasks.add_task(
             compliance_sync_service.analyze_ehr_document,
             document_id=document_id,
             analysis_task_id=analysis_task_id,
             user_id=str(current_user.id)
         )
-        
+
         logger.info(f"Started EHR document analysis: {analysis_task_id}")
-        
+
         return {
             "success": True,
             "message": f"Analysis started for document {document_id}",
@@ -276,7 +276,7 @@ async def analyze_ehr_document(
             "document_id": document_id,
             "estimated_duration": "2-5 minutes"
         }
-    
+
     except Exception as e:
         logger.error(f"Failed to start EHR document analysis: {e}")
         raise HTTPException(
@@ -288,23 +288,23 @@ async def analyze_ehr_document(
 @router.get("/analytics/compliance-trends")
 async def get_ehr_compliance_trends(
     days: int = 30,
-    department: Optional[str] = None,
+    department: str | None = None,
     current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get compliance trends from EHR-synchronized documents."""
     try:
         trends = await compliance_sync_service.get_compliance_trends(
             days=days,
             department=department
         )
-        
+
         return {
             "trends": trends,
             "period_days": days,
             "department": department,
             "generated_at": datetime.now().isoformat()
         }
-    
+
     except Exception as e:
         logger.error(f"Failed to get compliance trends: {e}")
         raise HTTPException(
@@ -316,25 +316,25 @@ async def get_ehr_compliance_trends(
 @router.post("/disconnect")
 async def disconnect_ehr_system(
     current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Disconnect from the current EHR system."""
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin privileges required for EHR integration"
         )
-    
+
     try:
         await ehr_connector.disconnect()
-        
+
         logger.info("EHR system disconnected")
-        
+
         return {
             "success": True,
             "message": "Successfully disconnected from EHR system",
             "disconnected_at": datetime.now().isoformat()
         }
-    
+
     except Exception as e:
         logger.error(f"Failed to disconnect EHR system: {e}")
         raise HTTPException(
@@ -344,7 +344,7 @@ async def disconnect_ehr_system(
 
 
 @router.get("/supported-systems")
-async def get_supported_ehr_systems() -> Dict[str, Any]:
+async def get_supported_ehr_systems() -> dict[str, Any]:
     """Get list of supported EHR systems."""
     return {
         "supported_systems": [

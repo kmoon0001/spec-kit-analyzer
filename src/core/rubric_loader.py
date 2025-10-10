@@ -1,12 +1,14 @@
 import asyncio
 import logging
 from pathlib import Path
+
 from rdflib import Graph, Namespace
 from rdflib.namespace import RDF
-from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
-from ..database import engine as async_engine, AsyncSessionLocal, Base
+from ..database import AsyncSessionLocal, Base
+from ..database import engine as async_engine
 from ..database.models import Rubric
 
 # --- Configuration ---

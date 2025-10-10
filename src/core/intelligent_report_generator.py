@@ -9,7 +9,7 @@ professional presentation and compliance standards.
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -45,14 +45,14 @@ class Insight:
     title: str
     description: str
     reasoning: str
-    evidence: List[str]
+    evidence: list[str]
     confidence_score: float
     impact_level: str  # high, medium, low
-    actionable_steps: List[str]
+    actionable_steps: list[str]
     training_value: str
-    compliance_relevance: Optional[str] = None
-    
-    def to_dict(self) -> Dict[str, Any]:
+    compliance_relevance: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "insight_type": self.insight_type.value,
             "title": self.title,
@@ -73,7 +73,7 @@ class ReportContent:
     section: ReportSection
     title: str
     content: str
-    insights: List[Insight] = field(default_factory=list)
-    visualizations: List[Dict[str, Any]] = field(default_factory=list)
-    key_metrics: Dict[str, Any] = field(default_factory=dict)
+    insights: list[Insight] = field(default_factory=list)
+    visualizations: list[dict[str, Any]] = field(default_factory=list)
+    key_metrics: dict[str, Any] = field(default_factory=dict)
     priority_level: int = 1  # 1=highest, 5=lowest

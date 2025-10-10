@@ -11,13 +11,13 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.core.exceptions import (
-    ApplicationError,
-    DatabaseError,
-    SecurityError,
     AIModelError,
-    ValidationError,
+    ApplicationError,
     ConfigurationError,
+    DatabaseError,
     DocumentProcessingError,
+    SecurityError,
+    ValidationError,
 )
 
 logger = structlog.get_logger(__name__)

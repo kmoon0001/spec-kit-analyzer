@@ -4,11 +4,11 @@ Provides safe, stable analytics features with optional advanced capabilities.
 """
 
 import logging
-from typing import Dict, Any, List
-from datetime import datetime, timedelta
-from dataclasses import dataclass
 import statistics
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class ComplianceTrend:
     date: str
     avg_score: float
     document_count: int
-    risk_distribution: Dict[str, int]
+    risk_distribution: dict[str, int]
 
 
 @dataclass
@@ -32,7 +32,7 @@ class AnalyticsInsight:
     description: str
     impact_level: str  # High, Medium, Low
     recommendation: str
-    data_points: Dict[str, Any]
+    data_points: dict[str, Any]
 
 
 class AnalyticsService:
@@ -43,14 +43,14 @@ class AnalyticsService:
 
     def __init__(self, enable_advanced_features: bool = True):
         self.enable_advanced_features = enable_advanced_features
-        self.cache: Dict[str, Any] = {}  # Simple caching for expensive calculations
+        self.cache: dict[str, Any] = {}  # Simple caching for expensive calculations
         logger.info(
             f"Analytics service initialized (advanced features: {enable_advanced_features})"
         )
 
     def calculate_compliance_trends(
-        self, reports_data: List[Dict[str, Any]], days: int = 30
-    ) -> List[ComplianceTrend]:
+        self, reports_data: list[dict[str, Any]], days: int = 30
+    ) -> list[ComplianceTrend]:
         """
         Calculate compliance trends over time.
 
@@ -99,7 +99,7 @@ class AnalyticsService:
                 avg_score = statistics.mean(scores) if scores else 0
 
                 # Calculate risk distribution
-                risk_dist: Dict[str, int] = defaultdict(int)
+                risk_dist: dict[str, int] = defaultdict(int)
                 for report in day_reports:
                     findings = report.get("findings", [])
                     for finding in findings:
@@ -122,8 +122,8 @@ class AnalyticsService:
             return []
 
     def identify_common_issues(
-        self, reports_data: List[Dict[str, Any]], min_frequency: int = 3
-    ) -> List[Dict[str, Any]]:
+        self, reports_data: list[dict[str, Any]], min_frequency: int = 3
+    ) -> list[dict[str, Any]]:
         """
         Identify commonly occurring compliance issues.
 
@@ -199,8 +199,8 @@ class AnalyticsService:
             return []
 
     def calculate_performance_metrics(
-        self, reports_data: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, reports_data: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Calculate key performance metrics for compliance analysis.
 
@@ -234,7 +234,7 @@ class AnalyticsService:
 
             # Risk analysis
             total_findings = 0
-            risk_counts: Dict[str, int] = defaultdict(int)
+            risk_counts: dict[str, int] = defaultdict(int)
 
             for report in reports_data:
                 findings = report.get("findings", [])
@@ -283,8 +283,8 @@ class AnalyticsService:
             return {"error": str(e)}
 
     def generate_insights(
-        self, reports_data: List[Dict[str, Any]], trends: List[ComplianceTrend]
-    ) -> List[AnalyticsInsight]:
+        self, reports_data: list[dict[str, Any]], trends: list[ComplianceTrend]
+    ) -> list[AnalyticsInsight]:
         """
         Generate actionable insights from compliance data.
 
@@ -388,8 +388,8 @@ class AnalyticsService:
             return []
 
     def export_analytics_data(
-        self, reports_data: List[Dict[str, Any]], format_type: str = "summary"
-    ) -> Dict[str, Any]:
+        self, reports_data: list[dict[str, Any]], format_type: str = "summary"
+    ) -> dict[str, Any]:
         """
         Export analytics data in various formats for external analysis.
 

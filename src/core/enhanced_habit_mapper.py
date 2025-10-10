@@ -13,7 +13,7 @@ This enhanced version includes:
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple, TypedDict
+from typing import Any, TypedDict
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +26,10 @@ class HabitDefinition(TypedDict):
     principle: str
     clinical_application: str
     description: str
-    keywords: List[str]
-    clinical_examples: List[str]
-    improvement_strategies: List[str]
-    common_issues: List[str]
+    keywords: list[str]
+    clinical_examples: list[str]
+    improvement_strategies: list[str]
+    common_issues: list[str]
 
 
 class HabitMetrics(TypedDict):
@@ -50,7 +50,7 @@ class SevenHabitsFramework:
     """
 
     # Complete 7 Habits definitions with clinical applications
-    HABITS: Dict[str, HabitDefinition] = {
+    HABITS: dict[str, HabitDefinition] = {
         "habit_1": {
             "number": 1,
             "name": "Be Proactive",
@@ -348,8 +348,8 @@ class SevenHabitsFramework:
         self.llm_service = llm_service
 
     def map_finding_to_habit(
-        self, finding: Dict[str, Any], context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, finding: dict[str, Any], context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Map a compliance finding to the most appropriate habit.
 
@@ -365,7 +365,7 @@ class SevenHabitsFramework:
         else:
             return self._rule_based_mapping(finding)
 
-    def _rule_based_mapping(self, finding: Dict[str, Any]) -> Dict[str, Any]:
+    def _rule_based_mapping(self, finding: dict[str, Any]) -> dict[str, Any]:
         """
         Map finding to habit using keyword-based rules.
 
@@ -381,10 +381,10 @@ class SevenHabitsFramework:
 
         # Score each habit based on keyword matches (using word boundaries)
         import re
-        habit_scores: Dict[str, int] = {}
+        habit_scores: dict[str, int] = {}
         for habit_id, habit_info in self.HABITS.items():
             score = sum(
-                1 for keyword in habit_info["keywords"] 
+                1 for keyword in habit_info["keywords"]
                 if re.search(r'\b' + re.escape(keyword) + r'\b', combined_text)
             )
             habit_scores[habit_id] = score
@@ -410,8 +410,8 @@ class SevenHabitsFramework:
         }
 
     def _ai_powered_mapping(
-        self, finding: Dict[str, Any], context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, finding: dict[str, Any], context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Use AI to map finding to habit with contextual understanding.
 
@@ -461,7 +461,7 @@ class SevenHabitsFramework:
             return self._rule_based_mapping(finding)
 
     def _build_ai_mapping_prompt(
-        self, finding: Dict[str, Any], context: Optional[Dict[str, Any]] = None
+        self, finding: dict[str, Any], context: dict[str, Any] | None = None
     ) -> str:
         """Build prompt for AI-powered habit mapping."""
         habits_summary = "\n".join(
@@ -512,7 +512,7 @@ Return a JSON object:
         """
         return self.HABITS.get(habit_id, self.HABITS["habit_1"])
 
-    def get_all_habits(self) -> List[Dict[str, Any]]:
+    def get_all_habits(self) -> list[dict[str, Any]]:
         """
         Get information for all 7 habits.
 
@@ -524,8 +524,8 @@ Return a JSON object:
         ]
 
     def get_habit_progression_metrics(
-        self, findings_history: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, findings_history: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Calculate habit progression metrics from historical findings.
 
@@ -544,7 +544,7 @@ Return a JSON object:
                 habit_counts[habit_id] += 1
 
         # Calculate percentages and identify focus areas
-        habit_metrics: Dict[str, HabitMetrics] = {}
+        habit_metrics: dict[str, HabitMetrics] = {}
         for habit_id, count in habit_counts.items():
             habit = self.HABITS[habit_id]
             percentage = (count / total_findings * 100) if total_findings > 0 else 0
@@ -558,7 +558,7 @@ Return a JSON object:
                 "mastery_level": self._calculate_mastery_level(percentage),
             }
 
-        top_focus_areas: List[Tuple[str, HabitMetrics]] = sorted(
+        top_focus_areas: list[tuple[str, HabitMetrics]] = sorted(
             [
                 (hid, metrics)
                 for hid, metrics in habit_metrics.items()
@@ -587,7 +587,7 @@ Return a JSON object:
 
 
 # Backward compatibility function
-def get_habit_for_finding(finding: Dict[str, Any]) -> Dict[str, Any]:
+def get_habit_for_finding(finding: dict[str, Any]) -> dict[str, Any]:
     """
     Legacy function for backward compatibility.
 

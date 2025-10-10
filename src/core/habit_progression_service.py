@@ -7,7 +7,7 @@ Provides individual analytics, goal setting, and achievement tracking.
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,7 +34,7 @@ class HabitProgressionService:
 
     async def get_user_habit_progression(
         self, db: AsyncSession, user_id: int, days_back: int = 90
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get comprehensive habit progression data for a user.
 
@@ -106,8 +106,8 @@ class HabitProgressionService:
         return progression_data
 
     def _calculate_progression_metrics(
-        self, all_findings: List[Dict], findings_by_date: Dict, days_back: int
-    ) -> Dict[str, Any]:
+        self, all_findings: list[dict], findings_by_date: dict, days_back: int
+    ) -> dict[str, Any]:
         """Calculate detailed progression metrics."""
 
         # Overall metrics
@@ -150,8 +150,8 @@ class HabitProgressionService:
         }
 
     def _calculate_weekly_trends(
-        self, findings_by_date: Dict, days_back: int
-    ) -> List[Dict[str, Any]]:
+        self, findings_by_date: dict, days_back: int
+    ) -> list[dict[str, Any]]:
         """Calculate weekly trend data for visualization."""
         weeks = []
         current_date = datetime.now(UTC).date()
@@ -186,7 +186,7 @@ class HabitProgressionService:
 
         return list(reversed(weeks))  # Chronological order
 
-    def _calculate_improvement_rate(self, weekly_trends: List[Dict]) -> float:
+    def _calculate_improvement_rate(self, weekly_trends: list[dict]) -> float:
         """Calculate improvement rate based on weekly trends."""
         if len(weekly_trends) < 2:
             return 0.0
@@ -206,7 +206,7 @@ class HabitProgressionService:
         improvement_rate = (recent_avg - earlier_avg) / earlier_avg * 100
         return -improvement_rate  # Flip sign so positive = improvement
 
-    def _calculate_current_streak(self, findings_by_date: Dict) -> int:
+    def _calculate_current_streak(self, findings_by_date: dict) -> int:
         """Calculate current streak of days without findings."""
         current_date = datetime.now(UTC).date()
         streak = 0
@@ -222,7 +222,7 @@ class HabitProgressionService:
         return streak
 
     def _calculate_consistency_score(
-        self, findings_by_date: Dict, days_back: int
+        self, findings_by_date: dict, days_back: int
     ) -> float:
         """Calculate consistency score (0-100) based on regular improvement."""
         if days_back < 7:
@@ -235,7 +235,7 @@ class HabitProgressionService:
         consistency = min(analysis_days / max(expected_days, 1), 1.0) * 100
         return round(consistency, 1)
 
-    def _calculate_overall_progress(self, habit_metrics: Dict) -> Dict[str, Any]:
+    def _calculate_overall_progress(self, habit_metrics: dict) -> dict[str, Any]:
         """Calculate overall progress score and status."""
         habit_breakdown = habit_metrics["habit_breakdown"]
 
@@ -276,8 +276,8 @@ class HabitProgressionService:
         }
 
     async def _calculate_achievements(
-        self, db: AsyncSession, user_id: int, all_findings: List[Dict]
-    ) -> List[Dict[str, Any]]:
+        self, db: AsyncSession, user_id: int, all_findings: list[dict]
+    ) -> list[dict[str, Any]]:
         """Calculate and award achievements."""
         achievements = []
 
@@ -337,11 +337,11 @@ class HabitProgressionService:
 
     async def _get_user_goals(
         self, db: AsyncSession, user_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get user's current goals from the database."""
         try:
             goals = await crud.get_user_habit_goals(db, user_id=user_id, active_only=True)
-            
+
             # Format goals into the dictionary structure expected by the frontend
             return [
                 {
@@ -358,7 +358,7 @@ class HabitProgressionService:
             logger.error(f"Error getting user goals: {e}")
             return []
 
-    def _generate_recommendations(self, progression_data: Dict) -> List[Dict[str, Any]]:
+    def _generate_recommendations(self, progression_data: dict) -> list[dict[str, Any]]:
         """Generate personalized recommendations based on progression data."""
         recommendations = []
 
@@ -425,7 +425,7 @@ class HabitProgressionService:
 
         return recommendations
 
-    def _empty_progression_data(self) -> Dict[str, Any]:
+    def _empty_progression_data(self) -> dict[str, Any]:
         """Return empty progression data structure."""
         return {
             "total_findings": 0,
@@ -449,8 +449,8 @@ class HabitProgressionService:
         }
 
     async def set_user_goal(
-        self, db: AsyncSession, user_id: int, goal_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, db: AsyncSession, user_id: int, goal_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Set a new goal for the user."""
         # This would create a new goal in the database
         # For now, return the goal data with an ID

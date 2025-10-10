@@ -4,7 +4,8 @@ Provides comprehensive API documentation with examples and security schemes.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any
+
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 
@@ -32,7 +33,7 @@ def setup_api_documentation(app: FastAPI) -> None:
     def custom_openapi():
         return create_custom_openapi(app)
 
-    setattr(app, "openapi", custom_openapi)
+    app.openapi = custom_openapi
 
     # Add custom documentation endpoint
     @app.get("/docs/api", include_in_schema=False)
@@ -43,7 +44,7 @@ def setup_api_documentation(app: FastAPI) -> None:
     logger.info("API documentation setup completed")
 
 
-def create_custom_openapi(app: FastAPI) -> Dict[str, Any]:
+def create_custom_openapi(app: FastAPI) -> dict[str, Any]:
     """Generate enhanced OpenAPI schema with examples and security."""
     if app.openapi_schema:
         return app.openapi_schema
@@ -68,7 +69,7 @@ def create_custom_openapi(app: FastAPI) -> Dict[str, Any]:
     return schema
 
 
-def _add_security_schemes(schema: Dict[str, Any]) -> None:
+def _add_security_schemes(schema: dict[str, Any]) -> None:
     """Add security scheme definitions."""
     if "components" not in schema:
         schema["components"] = {}
@@ -93,7 +94,7 @@ def _add_security_schemes(schema: Dict[str, Any]) -> None:
                         operation["security"] = [{"BearerAuth": []}]
 
 
-def _add_common_examples(schema: Dict[str, Any]) -> None:
+def _add_common_examples(schema: dict[str, Any]) -> None:
     """Add common request/response examples for API endpoints."""
     if "components" not in schema:
         schema["components"] = {}
@@ -135,7 +136,7 @@ def _add_common_examples(schema: Dict[str, Any]) -> None:
     schema["components"]["examples"].update(common_examples)
 
 
-def _add_response_examples(schema: Dict[str, Any]) -> None:
+def _add_response_examples(schema: dict[str, Any]) -> None:
     """Add detailed response examples for API endpoints."""
     # Add examples for specific endpoints
     if "paths" not in schema:

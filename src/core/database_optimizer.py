@@ -12,7 +12,7 @@ Provides database optimization features including:
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,7 +55,7 @@ class DatabaseOptimizer:
 
     async def analyze_table_statistics(
         self, db: AsyncSession, table_name: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Analyzes statistics for a given database table.
 
         Retrieves row count, table size, and average row size to identify
@@ -116,7 +116,7 @@ class DatabaseOptimizer:
 
     async def get_optimization_recommendations(
         self, db: AsyncSession
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Generates a list of database optimization recommendations.
 
         These recommendations can include suggestions for regular maintenance tasks
@@ -169,7 +169,7 @@ class DatabaseOptimizer:
 
     async def cleanup_old_data(
         self, db: AsyncSession, days_to_keep: int = 90
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Cleans up old data from the database based on a retention policy.
 
         This method deletes records older than a specified number of days,
@@ -199,9 +199,9 @@ class DatabaseOptimizer:
         try:
             # Call the existing CRUD function to delete old reports
             num_deleted = await delete_reports_older_than(db, days=days_to_keep)
-            
+
             logger.info(f"Successfully cleaned up {num_deleted} old reports.")
-            
+
             return {
                 "cleanup_date": cutoff_date.isoformat(),
                 "days_kept": days_to_keep,
@@ -223,4 +223,4 @@ class DatabaseOptimizer:
 
         This includes vacuuming the database to reclaim space and reindexing
         all tables to improve query performance.
-        """ 
+        """

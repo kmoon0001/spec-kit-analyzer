@@ -9,11 +9,12 @@ import asyncio
 import datetime
 import logging
 import sys
+from collections.abc import Coroutine
+from contextlib import asynccontextmanager
+from typing import Any
+
 import numpy as np
 import structlog
-from contextlib import asynccontextmanager
-from typing import Any, Coroutine, Dict, List
-
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -23,6 +24,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.api.dependencies import (
     shutdown_event as api_shutdown,
+)
+from src.api.dependencies import (
     startup_event as api_startup,
 )
 from src.api.routers import (
@@ -33,8 +36,8 @@ from src.api.routers import (
     compliance,
     dashboard,
     feedback,
-    health,
     habits,
+    health,
     meta_analytics,
 )
 
@@ -50,8 +53,8 @@ from src.api.global_exception_handler import (
     global_exception_handler,
     http_exception_handler,
 )
-from src.core.vector_store import get_vector_store
 from src.config import get_settings
+from src.core.vector_store import get_vector_store
 from src.database import crud, get_async_db
 from src.logging_config import CorrelationIdMiddleware, configure_logging
 
@@ -65,7 +68,7 @@ logger = structlog.get_logger(__name__)
 class WebSocketManager:
     """Manages active WebSocket connections."""
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
+        self.active_connections: list[WebSocket] = []
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -95,7 +98,7 @@ class WebSocketLogHandler(logging.Handler):
 
 class InMemoryTaskPurgeService:
     """A service to purge expired tasks from the in-memory task dictionary."""
-    def __init__(self, tasks: Dict[str, Any], retention_period_minutes: int, purge_interval_seconds: int):
+    def __init__(self, tasks: dict[str, Any], retention_period_minutes: int, purge_interval_seconds: int):
         self.tasks = tasks
         self.retention_period = datetime.timedelta(minutes=retention_period_minutes)
         self.purge_interval = purge_interval_seconds
@@ -138,7 +141,7 @@ async def initialize_vector_store():
 
     vector_store.initialize_index()
     logger.info("Populating vector store with existing report embeddings...")
-    
+
     db_session_gen = get_async_db()
     db = await db_session_gen.__anext__()
     try:
@@ -146,11 +149,11 @@ async def initialize_vector_store():
         if reports:
             embeddings = [np.frombuffer(report.document_embedding, dtype=np.float32) for report in reports]
             report_ids = [report.id for report in reports]
-            
+
             # Ensure all embeddings have the same dimension
             embedding_dim = embeddings[0].shape[0]
             valid_embeddings = [emb for emb in embeddings if emb.shape[0] == embedding_dim]
-            valid_ids = [id for emb, id in zip(embeddings, report_ids) if emb.shape[0] == embedding_dim]
+            valid_ids = [id for emb, id in zip(embeddings, report_ids, strict=False) if emb.shape[0] == embedding_dim]
 
             if valid_embeddings:
                 vector_store.add_vectors(np.array(valid_embeddings), valid_ids)
@@ -175,7 +178,7 @@ async def lifespan(app: FastAPI):
 
     await api_startup()
     await initialize_vector_store()
-    
+
     run_maintenance_jobs()
     scheduler.add_job(run_maintenance_jobs, "interval", days=1)
     scheduler.start()
@@ -264,21 +267,21 @@ async def get_rubrics():
         "rubrics": [
             {
                 "id": "pt_compliance",
-                "name": "PT Compliance Rubric", 
+                "name": "PT Compliance Rubric",
                 "discipline": "pt",
                 "description": "Physical Therapy compliance guidelines"
             },
             {
-                "id": "ot_compliance", 
+                "id": "ot_compliance",
                 "name": "OT Compliance Rubric",
-                "discipline": "ot", 
+                "discipline": "ot",
                 "description": "Occupational Therapy compliance guidelines"
             },
             {
                 "id": "slp_compliance",
                 "name": "SLP Compliance Rubric",
                 "discipline": "slp",
-                "description": "Speech-Language Pathology compliance guidelines" 
+                "description": "Speech-Language Pathology compliance guidelines"
             }
         ]
     }
@@ -291,7 +294,7 @@ async def get_ai_status():
         "status": "ready",
         "models": {
             "llm": "loaded",
-            "embeddings": "loaded", 
+            "embeddings": "loaded",
             "ner": "loaded"
         },
         "last_updated": "2025-10-07T16:28:15Z"

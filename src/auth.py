@@ -1,15 +1,14 @@
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
-from functools import lru_cache
 
-from src.database import crud, models, schemas
 from src.config import get_settings
+from src.database import crud, models, schemas
 from src.database.database import get_async_db as get_db
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -25,13 +24,13 @@ class AuthService:
         self.access_token_expire_minutes = settings.auth.access_token_expire_minutes
 
     def create_access_token(
-        self, data: dict, expires_delta: Optional[timedelta] = None
+        self, data: dict, expires_delta: timedelta | None = None
     ):
         to_encode = data.copy()
         if expires_delta:
-            expire = datetime.now(timezone.utc) + expires_delta
+            expire = datetime.now(UTC) + expires_delta
         else:
-            expire = datetime.now(timezone.utc) + timedelta(
+            expire = datetime.now(UTC) + timedelta(
                 minutes=self.access_token_expire_minutes
             )
         to_encode.update({"exp": expire})
@@ -56,7 +55,7 @@ class AuthService:
         return pwd_context.hash(truncated_password)
 
 
-@lru_cache()
+@lru_cache
 def get_auth_service() -> AuthService:
     return AuthService()
 
@@ -75,7 +74,7 @@ async def get_current_user(
         payload = jwt.decode(
             token, auth_service.secret_key, algorithms=[auth_service.algorithm]
         )
-        username: Optional[str] = payload.get("sub")
+        username: str | None = payload.get("sub")
         if username is None:
             raise credentials_exception
         token_data = schemas.TokenData(username=username)

@@ -1,8 +1,9 @@
 
-import time
 import shutil
-import structlog
+import time
 from pathlib import Path
+
+import structlog
 
 from src.config import get_settings
 
@@ -42,7 +43,7 @@ class DataPurgingService:
                         logger.debug(f"Purged cached file: {file_path.name}")
                 except (OSError, FileNotFoundError) as e:
                     logger.warning(f"Could not purge cache file {file_path}: {e}")
-        
+
         logger.info(f"Purged {purged_count} expired files from the disk cache.")
 
     def purge_temp_uploads(self):
@@ -62,5 +63,5 @@ class DataPurgingService:
                     purged_count += 1
             except (OSError, FileNotFoundError) as e:
                 logger.warning(f"Could not remove temporary item {item}: {e}")
-        
+
         logger.info(f"Removed {purged_count} items from the temporary upload directory.")

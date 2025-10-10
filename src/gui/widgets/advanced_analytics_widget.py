@@ -2,24 +2,25 @@
 Advanced Analytics Widget with Predictive Insights and Data Visualization
 """
 
-from datetime import datetime, timedelta
 import random
-from typing import Dict, List, Any
+from datetime import datetime, timedelta
+from typing import Any
+
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QFont, QPainter, QPen, QColor
+from PySide6.QtGui import QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QGridLayout,
-    QLabel,
-    QPushButton,
-    QComboBox,
     QCheckBox,
-    QGroupBox,
-    QProgressBar,
-    QTabWidget,
+    QComboBox,
     QFrame,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QProgressBar,
+    QPushButton,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
 )
 
 try:
@@ -35,7 +36,7 @@ class AnalyticsDataGenerator:
     """Generate realistic analytics data for demonstration"""
 
     @staticmethod
-    def generate_compliance_trends(days: int = 30) -> Dict[str, List]:
+    def generate_compliance_trends(days: int = 30) -> dict[str, list]:
         """Generate compliance trend data"""
         dates = [
             (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
@@ -61,7 +62,7 @@ class AnalyticsDataGenerator:
         }
 
     @staticmethod
-    def generate_risk_predictions() -> Dict[str, Any]:
+    def generate_risk_predictions() -> dict[str, Any]:
         """Generate risk prediction data"""
         return {
             "audit_risk": {
@@ -104,7 +105,7 @@ class AnalyticsDataGenerator:
         }
 
     @staticmethod
-    def generate_benchmark_data() -> Dict[str, Any]:
+    def generate_benchmark_data() -> dict[str, Any]:
         """Generate industry benchmark comparison data"""
         return {
             "industry_averages": {
@@ -132,7 +133,7 @@ class AnalyticsDataGenerator:
 class ComplianceChart(QWidget):
     """Custom chart widget for compliance visualization"""
 
-    def __init__(self, title: str, data: Dict[str, List]):
+    def __init__(self, title: str, data: dict[str, list]):
         super().__init__()
         self.title = title
         self.data = data
@@ -420,7 +421,7 @@ class AdvancedAnalyticsWidget(QWidget):
             "Progress Tracking",
         ]
 
-        for metric, name in zip(metrics, metric_names):
+        for metric, name in zip(metrics, metric_names, strict=False):
             your_score = benchmark_data["your_performance"][metric]
             industry_avg = benchmark_data["industry_averages"][metric]
             top_performer = benchmark_data["top_performers"][metric]
@@ -610,7 +611,7 @@ class AdvancedAnalyticsWidget(QWidget):
 
         return widget
 
-    def create_risk_factor_widget(self, factor: Dict):
+    def create_risk_factor_widget(self, factor: dict):
         """Create risk factor display widget"""
         widget = QFrame()
         widget.setStyleSheet("""
@@ -642,7 +643,7 @@ class AdvancedAnalyticsWidget(QWidget):
 
         return widget
 
-    def create_recommendation_widget(self, rec: Dict):
+    def create_recommendation_widget(self, rec: dict):
         """Create recommendation display widget"""
         widget = QFrame()
         priority_colors = {"high": "#dc3545", "medium": "#ffc107", "low": "#28a745"}
@@ -793,7 +794,7 @@ class AdvancedAnalyticsWidget(QWidget):
 
         return widget
 
-    def create_strategy_widget(self, strategy: Dict):
+    def create_strategy_widget(self, strategy: dict):
         """Create strategy display widget"""
         widget = QGroupBox(strategy["title"])
         layout = QVBoxLayout(widget)

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, Dict
+from typing import Any
 
 import requests
 import websockets
@@ -23,7 +23,7 @@ class FeedbackWorker(QThread):
     success = Signal(str)
     error = Signal(str)
 
-    def __init__(self, token: str, feedback_data: Dict[str, Any], parent: QThread | None = None) -> None:
+    def __init__(self, token: str, feedback_data: dict[str, Any], parent: QThread | None = None) -> None:
         super().__init__(parent)
         self.token = token
         self.feedback_data = feedback_data
@@ -94,7 +94,7 @@ class HealthCheckWorker(QThread):
                     self.status_update.emit("Error", "#dc2626")  # Red
             except requests.RequestException:
                 self.status_update.emit("Offline", "#dc2626")  # Red
-            
+
             time.sleep(15)  # Wait 15 seconds before next check
 
     def stop(self) -> None:
@@ -127,7 +127,7 @@ class TaskMonitorWorker(QThread):
                 self.error.emit(f"Task monitor API error: {e.response.status_code}")
             except requests.RequestException as e:
                 self.error.emit(f"Task monitor network error: {e}")
-            
+
             time.sleep(5)  # Update every 5 seconds
 
     def stop(self) -> None:

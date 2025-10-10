@@ -1,12 +1,11 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from typing import Optional
 import datetime
 import logging
-from sqlalchemy import func
 
-from src.database import models
-from src.database import schemas
+from sqlalchemy import func
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+
+from src.database import models, schemas
 
 logger = logging.getLogger(__name__)
 
@@ -48,22 +47,22 @@ async def create_user(db: AsyncSession, user: schemas.UserCreate, hashed_passwor
 
 async def get_total_findings_count(
     db: AsyncSession,
-    start_date: Optional[datetime.date] = None,
-    end_date: Optional[datetime.date] = None,
-    discipline: Optional[str] = None,
+    start_date: datetime.date | None = None,
+    end_date: datetime.date | None = None,
+    discipline: str | None = None,
 ) -> int:
     """Retrieve the total count of findings, optionally filtered by date and discipline."""
     # Implement actual database query for findings count
     try:
         query = select(func.count(models.Finding.id))
-        
+
         if start_date:
             query = query.where(models.Finding.created_at >= start_date)
         if end_date:
             query = query.where(models.Finding.created_at <= end_date)
         if discipline:
             query = query.where(models.Finding.discipline == discipline)
-            
+
         result = await db.execute(query)
         return result.scalar() or 0
     except Exception as e:

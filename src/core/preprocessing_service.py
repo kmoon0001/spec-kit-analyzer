@@ -1,6 +1,5 @@
 import logging
 import re
-from typing import Dict
 
 from spellchecker import SpellChecker
 
@@ -25,7 +24,7 @@ class PreprocessingService:
         self.settings = get_settings()
         self.spell = SpellChecker()
         # A simple in-memory cache to store corrections for common misspellings.
-        self.correction_cache: Dict[str, str] = {}
+        self.correction_cache: dict[str, str] = {}
         # A robust regex to split text while preserving punctuation and contractions.
         self.word_tokenizer = re.compile(r"\b\w+(?:['’]\w+)*\b|[.,;?!]")
         self._load_medical_dictionary()

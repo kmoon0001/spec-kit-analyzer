@@ -7,10 +7,10 @@ and retrieving analysis results.
 
 import asyncio
 import datetime
-import structlog
 import uuid
-from typing import Any, Dict
+from typing import Any
 
+import structlog
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -26,14 +26,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...auth import get_current_active_user
 from ...core.analysis_service import AnalysisService
 from ...core.security_validator import SecurityValidator
-from ...database import crud, schemas, models
+from ...database import crud, models, schemas
 from ...database.database import get_async_db
 from ..dependencies import get_analysis_service
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
-tasks: Dict[str, Dict[str, Any]] = {}
+tasks: dict[str, dict[str, Any]] = {}
 
 def run_analysis_and_save(
     file_content: bytes,
@@ -59,7 +59,7 @@ def run_analysis_and_save(
                 "status": "completed",
                 "result": result,
                 "filename": original_filename,
-                "timestamp": datetime.datetime.now(datetime.timezone.utc),
+                "timestamp": datetime.datetime.now(datetime.UTC),
             }
             logger.info(f"Analysis completed for task {task_id}")
         except Exception as exc:
@@ -68,9 +68,9 @@ def run_analysis_and_save(
                 "status": "failed",
                 "error": str(exc),
                 "filename": original_filename,
-                "timestamp": datetime.datetime.now(datetime.timezone.utc),
+                "timestamp": datetime.datetime.now(datetime.UTC),
             }
-    
+
     # Run the async function in a new event loop
     try:
         loop = asyncio.new_event_loop()
@@ -88,7 +88,7 @@ async def analyze_document(
     analysis_mode: str = Form("rubric"),
     _current_user: models.User = Depends(get_current_active_user),
     analysis_service: AnalysisService = Depends(get_analysis_service),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Upload and analyze a clinical document for compliance from in-memory content."""
     if analysis_service is None:
         raise HTTPException(
@@ -107,7 +107,7 @@ async def analyze_document(
     tasks[task_id] = {
         "status": "processing",
         "filename": safe_filename,
-        "timestamp": datetime.datetime.now(datetime.timezone.utc),
+        "timestamp": datetime.datetime.now(datetime.UTC),
     }
 
     background_tasks.add_task(
@@ -131,7 +131,7 @@ async def submit_document(
     analysis_mode: str = Form("rubric"),
     _current_user: models.User = Depends(get_current_active_user),
     analysis_service: AnalysisService = Depends(get_analysis_service),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Submit document for compliance analysis (alias for analyze_document for GUI compatibility)."""
     return await analyze_document(
         background_tasks, file, discipline, analysis_mode, _current_user, analysis_service
@@ -141,7 +141,7 @@ async def submit_document(
 @router.get("/status/{task_id}")
 async def get_analysis_status(
     task_id: str, _current_user: models.User = Depends(get_current_active_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Retrieves the status of a background analysis task."""
     task = tasks.get(task_id)
     if not task:
@@ -154,7 +154,7 @@ async def get_analysis_status(
 
 
 @router.get("/all-tasks")
-async def get_all_tasks(_current_user: models.User = Depends(get_current_active_user)) -> Dict[str, Dict[str, Any]]:
+async def get_all_tasks(_current_user: models.User = Depends(get_current_active_user)) -> dict[str, dict[str, Any]]:
     """Retrieves all current analysis tasks."""
     return tasks
 
@@ -163,7 +163,7 @@ async def get_all_tasks(_current_user: models.User = Depends(get_current_active_
 async def export_report_to_pdf(
     task_id: str,
     _current_user: models.User = Depends(get_current_active_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Export analysis report to PDF format."""
     from ...core.pdf_export_service import PDFExportService
     from ...core.report_generator import ReportGenerator

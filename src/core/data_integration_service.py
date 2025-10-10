@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Any, TypeVar, Generic
+from typing import Any, Generic, TypeVar
 
 from .report_models import ReportConfig, ReportType, TimeRange
 
@@ -49,9 +49,9 @@ class DataSourceMetadata:
     data_quality: DataQuality = DataQuality.UNKNOWN
     availability: bool = True
     schema_version: str = "1.0"
-    tags: List[str] = field(default_factory=list)
-    
-    def to_dict(self) -> Dict[str, Any]:
+    tags: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
         return {
             "source_id": self.source_id,
@@ -68,14 +68,14 @@ class DataSourceMetadata:
 @dataclass
 class DataQuery:
     """Query specification for data retrieval"""
-    source_types: List[DataSourceType]
-    time_range: Optional[TimeRange] = None
-    filters: Dict[str, Any] = field(default_factory=dict)
+    source_types: list[DataSourceType]
+    time_range: TimeRange | None = None
+    filters: dict[str, Any] = field(default_factory=dict)
     aggregation_level: str = "raw"  # raw, hourly, daily, weekly
     include_metadata: bool = True
-    max_records: Optional[int] = None
-    
-    def to_dict(self) -> Dict[str, Any]:
+    max_records: int | None = None
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
         return {
             "source_types": [st.value for st in self.source_types],
@@ -99,9 +99,9 @@ class DataResult(Generic[T]):
     retrieved_at: datetime
     record_count: int = 0
     has_more: bool = False
-    next_cursor: Optional[str] = None
-    
-    def to_dict(self) -> Dict[str, Any]:
+    next_cursor: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
         return {
             "data": self.data,
@@ -116,36 +116,36 @@ class DataResult(Generic[T]):
 
 class BaseDataProvider(ABC):
     """Abstract base class for all data providers"""
-    
+
     def __init__(self, provider_id: str, description: str):
         self.provider_id = provider_id
         self.description = description
         self.is_available = True
         self.last_health_check = datetime.now()
-        self._cache: Dict[str, Any] = {}
-        self._cache_ttl: Dict[str, datetime] = {}
+        self._cache: dict[str, Any] = {}
+        self._cache_ttl: dict[str, datetime] = {}
         self.default_cache_duration = timedelta(minutes=5)
-    
+
     @abstractmethod
-    async def get_data(self, config: ReportConfig) -> Dict[str, Any]:
+    async def get_data(self, config: ReportConfig) -> dict[str, Any]:
         """Get data for report generation (required by DataProvider protocol)"""
         pass
-    
+
     @abstractmethod
     def supports_report_type(self, report_type: ReportType) -> bool:
         """Check if this provider supports the given report type"""
         pass
-    
+
     @abstractmethod
-    async def query_data(self, query: DataQuery) -> DataResult[Dict[str, Any]]:
+    async def query_data(self, query: DataQuery) -> DataResult[dict[str, Any]]:
         """Execute a data query and return results"""
         pass
-    
+
     @abstractmethod
     async def get_metadata(self) -> DataSourceMetadata:
         """Get metadata about this data source"""
         pass
-    
+
     async def health_check(self) -> bool:
         """Check if the data provider is healthy and available"""
         try:
@@ -157,27 +157,27 @@ class BaseDataProvider(ABC):
             logger.error(f"Health check failed for provider {self.provider_id}: {e}")
             self.is_available = False
             return False
-    
+
     def _get_cache_key(self, query: DataQuery) -> str:
         """Generate cache key for query"""
         return f"{self.provider_id}_{hash(str(query.to_dict()))}"
-    
+
     def _is_cache_valid(self, cache_key: str) -> bool:
         """Check if cached data is still valid"""
         if cache_key not in self._cache:
             return False
-        
+
         if cache_key not in self._cache_ttl:
             return False
-        
+
         return datetime.now() < self._cache_ttl[cache_key]
-    
-    def _cache_data(self, cache_key: str, data: Any, ttl: Optional[timedelta] = None) -> None:
+
+    def _cache_data(self, cache_key: str, data: Any, ttl: timedelta | None = None) -> None:
         """Cache data with TTL"""
         self._cache[cache_key] = data
         cache_duration = ttl or self.default_cache_duration
         self._cache_ttl[cache_key] = datetime.now() + cache_duration
-    
+
     def clear_cache(self) -> None:
         """Clear all cached data"""
         self._cache.clear()
@@ -186,7 +186,7 @@ class BaseDataProvider(ABC):
 
 class PerformanceDataProvider(BaseDataProvider):
     """Data provider for performance metrics and optimization results"""
-    
+
     def __init__(self):
         super().__init__(
             provider_id="performance_metrics",
@@ -198,12 +198,12 @@ class PerformanceDataProvider(BaseDataProvider):
             ReportType.EXECUTIVE_SUMMARY,
             ReportType.TREND_ANALYSIS
         }
-    
+
     def supports_report_type(self, report_type: ReportType) -> bool:
         """Check if this provider supports the given report type"""
         return report_type in self.supported_report_types
-    
-    async def get_data(self, config: ReportConfig) -> Dict[str, Any]:
+
+    async def get_data(self, config: ReportConfig) -> dict[str, Any]:
         """Get performance data for report generation"""
         try:
             # Create query from report config
@@ -211,40 +211,40 @@ class PerformanceDataProvider(BaseDataProvider):
                 source_types=[DataSourceType.PERFORMANCE_METRICS, DataSourceType.OPTIMIZATION_RESULTS],
                 time_range=config.time_range,
                 filters=config.filters,
-                aggregation_level="hourly" if config.time_range and 
+                aggregation_level="hourly" if config.time_range and
                     (config.time_range.end_time - config.time_range.start_time).days > 7 else "raw"
             )
-            
+
             result = await self.query_data(query)
             return result.data
-            
+
         except Exception as e:
             logger.error(f"Error getting performance data: {e}")
             return {"error": str(e), "provider": self.provider_id}
-    
-    async def query_data(self, query: DataQuery) -> DataResult[Dict[str, Any]]:
+
+    async def query_data(self, query: DataQuery) -> DataResult[dict[str, Any]]:
         """Execute performance data query"""
         cache_key = self._get_cache_key(query)
-        
+
         # Check cache first
         if self._is_cache_valid(cache_key):
             cached_data = self._cache[cache_key]
             logger.debug("Using cached performance data for query")
             return cached_data
-        
+
         try:
             # Simulate data retrieval from performance systems
             performance_data = await self._fetch_performance_metrics(query)
             optimization_data = await self._fetch_optimization_results(query)
-            
+
             combined_data = {
                 "performance_metrics": performance_data,
                 "optimization_results": optimization_data,
                 "summary": self._calculate_performance_summary(performance_data, optimization_data)
             }
-            
+
             metadata = await self.get_metadata()
-            
+
             result = DataResult(
                 data=combined_data,
                 metadata=metadata,
@@ -253,20 +253,20 @@ class PerformanceDataProvider(BaseDataProvider):
                 record_count=len(performance_data.get("metrics", [])),
                 has_more=False
             )
-            
+
             # Cache the result
             self._cache_data(cache_key, result)
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"Error querying performance data: {e}")
             raise
-    
-    async def _fetch_performance_metrics(self, query: DataQuery) -> Dict[str, Any]:
+
+    async def _fetch_performance_metrics(self, query: DataQuery) -> dict[str, Any]:
         """Fetch performance metrics from monitoring systems"""
         await asyncio.sleep(0.1)  # Simulate async operation
-        
+
         return {
             "metrics": [
                 {
@@ -284,11 +284,11 @@ class PerformanceDataProvider(BaseDataProvider):
                 "end_time": query.time_range.end_time.isoformat()
             } if query.time_range else None
         }
-    
-    async def _fetch_optimization_results(self, query: DataQuery) -> Dict[str, Any]:
+
+    async def _fetch_optimization_results(self, query: DataQuery) -> dict[str, Any]:
         """Fetch optimization results from performance optimizer"""
         await asyncio.sleep(0.1)  # Simulate async operation
-        
+
         return {
             "optimizations": [
                 {
@@ -305,9 +305,9 @@ class PerformanceDataProvider(BaseDataProvider):
                 "throughput_improvement_percent": 20.0
             }
         }
-    
-    def _calculate_performance_summary(self, performance_data: Dict[str, Any], 
-                                     optimization_data: Dict[str, Any]) -> Dict[str, Any]:
+
+    def _calculate_performance_summary(self, performance_data: dict[str, Any],
+                                     optimization_data: dict[str, Any]) -> dict[str, Any]:
         """Calculate performance summary statistics"""
         return {
             "overall_health_score": 85.0,
@@ -316,7 +316,7 @@ class PerformanceDataProvider(BaseDataProvider):
             "recommendations_count": 3,
             "critical_issues_count": 0
         }
-    
+
     async def get_metadata(self) -> DataSourceMetadata:
         """Get metadata about performance data source"""
         return DataSourceMetadata(
@@ -332,25 +332,25 @@ class PerformanceDataProvider(BaseDataProvider):
 
 class DataIntegrationService:
     """Main service for coordinating data integration across all providers"""
-    
+
     def __init__(self):
-        self.providers: Dict[str, BaseDataProvider] = {}
-        self.provider_registry: Dict[DataSourceType, List[str]] = {}
+        self.providers: dict[str, BaseDataProvider] = {}
+        self.provider_registry: dict[DataSourceType, list[str]] = {}
         self.health_check_interval = timedelta(minutes=5)
         self.last_health_check = datetime.now()
-        
+
         # Register default providers
         self._register_default_providers()
-    
+
     def _register_default_providers(self) -> None:
         """Register default data providers"""
         performance_provider = PerformanceDataProvider()
         self.register_provider(performance_provider)
-    
+
     def register_provider(self, provider: BaseDataProvider) -> None:
         """Register a data provider"""
         self.providers[provider.provider_id] = provider
-        
+
         # Update provider registry - use a sync approach to avoid asyncio.run() issues
         try:
             # Create a simple metadata object for registry purposes
@@ -367,30 +367,30 @@ class DataIntegrationService:
                     source_type = DataSourceType.PERFORMANCE_METRICS  # Default
             else:
                 source_type = DataSourceType.PERFORMANCE_METRICS  # Default
-            
+
             if source_type not in self.provider_registry:
                 self.provider_registry[source_type] = []
-            
+
             if provider.provider_id not in self.provider_registry[source_type]:
                 self.provider_registry[source_type].append(provider.provider_id)
-            
+
             logger.info(f"Registered data provider: {provider.provider_id}")
-            
+
         except Exception as e:
             logger.error(f"Error registering provider {provider.provider_id}: {e}")
             # Still add to providers dict even if registry update fails
             logger.info(f"Registered data provider: {provider.provider_id} (registry update failed)")
-    
-    async def query_data(self, query: DataQuery) -> Dict[str, DataResult[Dict[str, Any]]]:
+
+    async def query_data(self, query: DataQuery) -> dict[str, DataResult[dict[str, Any]]]:
         """Query data from multiple providers based on source types"""
         results = {}
-        
+
         # Find providers for requested source types
         providers_to_query = set()
         for source_type in query.source_types:
             if source_type in self.provider_registry:
                 providers_to_query.update(self.provider_registry[source_type])
-        
+
         # Query providers in parallel
         tasks = []
         for provider_id in providers_to_query:
@@ -401,7 +401,7 @@ class DataIntegrationService:
                         self._query_provider_with_error_handling(provider, query)
                     )
                     tasks.append((provider_id, task))
-        
+
         # Collect results
         if tasks:
             for provider_id, task in tasks:
@@ -425,42 +425,42 @@ class DataIntegrationService:
                         query=query,
                         retrieved_at=datetime.now()
                     )
-        
+
         return results
-    
-    async def get_available_providers(self) -> Dict[str, DataSourceMetadata]:
+
+    async def get_available_providers(self) -> dict[str, DataSourceMetadata]:
         """Get metadata for all available providers"""
         metadata = {}
-        
+
         for provider_id, provider in self.providers.items():
             try:
                 provider_metadata = await provider.get_metadata()
                 metadata[provider_id] = provider_metadata
             except Exception as e:
                 logger.error(f"Error getting metadata for provider {provider_id}: {e}")
-        
-        return metadata   
- 
+
+        return metadata
+
     def unregister_provider(self, provider_id: str) -> None:
         """Unregister a data provider"""
         if provider_id in self.providers:
             # Remove from registry
-            for source_type, provider_list in self.provider_registry.items():
+            for _source_type, provider_list in self.provider_registry.items():
                 if provider_id in provider_list:
                     provider_list.remove(provider_id)
-            
+
             del self.providers[provider_id]
             logger.info(f"Unregistered data provider: {provider_id}")
-    
-    async def health_check_all_providers(self) -> Dict[str, bool]:
+
+    async def health_check_all_providers(self) -> dict[str, bool]:
         """Perform health check on all providers"""
         health_status = {}
-        
+
         tasks = []
         for provider_id, provider in self.providers.items():
             task = asyncio.create_task(provider.health_check())
             tasks.append((provider_id, task))
-        
+
         for provider_id, task in tasks:
             try:
                 is_healthy = await task
@@ -468,22 +468,22 @@ class DataIntegrationService:
             except Exception as e:
                 logger.error(f"Health check failed for provider {provider_id}: {e}")
                 health_status[provider_id] = False
-        
+
         self.last_health_check = datetime.now()
         return health_status
-    
-    def get_provider_registry(self) -> Dict[DataSourceType, List[str]]:
+
+    def get_provider_registry(self) -> dict[DataSourceType, list[str]]:
         """Get the current provider registry"""
         return self.provider_registry.copy()
-    
+
     def clear_all_caches(self) -> None:
         """Clear caches for all providers"""
         for provider in self.providers.values():
             provider.clear_cache()
         logger.info("Cleared caches for all data providers")
-    
-    async def _query_provider_with_error_handling(self, provider: BaseDataProvider, 
-                                                 query: DataQuery) -> DataResult[Dict[str, Any]]:
+
+    async def _query_provider_with_error_handling(self, provider: BaseDataProvider,
+                                                 query: DataQuery) -> DataResult[dict[str, Any]]:
         """Query a provider with comprehensive error handling"""
         try:
             return await provider.query_data(query)

@@ -4,12 +4,12 @@ Demonstrates how to integrate the cache service with the analysis pipeline.
 """
 
 import logging
-from typing import Dict, List
+
 from .cache_service import (
-    EmbeddingCache,
-    NERCache,
     DocumentCache,
+    EmbeddingCache,
     LLMResponseCache,
+    NERCache,
     cleanup_all_caches,
     get_cache_stats,
 )
@@ -27,7 +27,7 @@ class CacheIntegrationService:
         self.cache_hits = 0
         self.cache_misses = 0
 
-    def get_or_compute_embedding(self, text: str, embedding_func) -> List[float]:
+    def get_or_compute_embedding(self, text: str, embedding_func) -> list[float]:
         """
         Get embedding from cache or compute and cache it.
 
@@ -52,7 +52,7 @@ class CacheIntegrationService:
         EmbeddingCache.set_embedding(text, embedding)
         return embedding
 
-    def get_or_compute_ner(self, text: str, model_name: str, ner_func) -> List[Dict]:
+    def get_or_compute_ner(self, text: str, model_name: str, ner_func) -> list[dict]:
         """
         Get NER results from cache or compute and cache them.
 
@@ -108,7 +108,7 @@ class CacheIntegrationService:
 
     def get_or_compute_document_classification(
         self, doc_hash: str, text: str, classify_func
-    ) -> Dict:
+    ) -> dict:
         """
         Get document classification from cache or compute and cache it.
 
@@ -134,7 +134,7 @@ class CacheIntegrationService:
         DocumentCache.set_document_classification(doc_hash, classification)
         return classification
 
-    def get_cache_performance_stats(self) -> Dict:
+    def get_cache_performance_stats(self) -> dict:
         """Get cache performance statistics."""
         total_requests = self.cache_hits + self.cache_misses
         hit_rate = (self.cache_hits / total_requests * 100) if total_requests > 0 else 0

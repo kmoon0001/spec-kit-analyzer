@@ -15,7 +15,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from core.report_generation_engine import ReportGenerationEngine, ReportConfig, ReportType
 from core.ai_guardrails_service import AIGuardrailsService
-from core.data_integration_service import DataQuery, DataSourceType
 
 
 async def demonstrate_responsible_ai_reporting():

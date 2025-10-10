@@ -5,7 +5,6 @@ Tests for the MainApplicationWindow.
 import pytest
 from unittest.mock import MagicMock, patch
 from pathlib import Path
-from PySide6.QtWidgets import QApplication
 from src.database.models import User
 from src.gui.main_window import MainApplicationWindow
 

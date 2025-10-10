@@ -1,4 +1,3 @@
-from typing import List
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -28,8 +27,8 @@ class ComplianceRuleModel(BaseModel):
     document_type: str
     suggestion: str
     financial_impact: int
-    positive_keywords: List[str]
-    negative_keywords: List[str]
+    positive_keywords: list[str]
+    negative_keywords: list[str]
 
 
 class ComplianceFindingModel(BaseModel):
@@ -40,7 +39,7 @@ class ComplianceFindingModel(BaseModel):
 
 class ComplianceResultModel(BaseModel):
     document: TherapyDocumentRequest
-    findings: List[ComplianceFindingModel]
+    findings: list[ComplianceFindingModel]
     is_compliant: bool
 
 
@@ -51,21 +50,21 @@ async def get_rubrics():
         "rubrics": [
             {
                 "id": "pt_compliance",
-                "name": "PT Compliance Rubric", 
+                "name": "PT Compliance Rubric",
                 "discipline": "pt",
                 "description": "Physical Therapy compliance guidelines"
             },
             {
-                "id": "ot_compliance", 
+                "id": "ot_compliance",
                 "name": "OT Compliance Rubric",
-                "discipline": "ot", 
+                "discipline": "ot",
                 "description": "Occupational Therapy compliance guidelines"
             },
             {
                 "id": "slp_compliance",
                 "name": "SLP Compliance Rubric",
                 "discipline": "slp",
-                "description": "Speech-Language Pathology compliance guidelines" 
+                "description": "Speech-Language Pathology compliance guidelines"
             }
         ]
     }

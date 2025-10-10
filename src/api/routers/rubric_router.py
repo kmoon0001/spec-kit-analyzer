@@ -1,10 +1,10 @@
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
 
+from ...auth import get_current_admin_user
 from ...database import crud, schemas
 from ...database.database import get_async_db as get_db
-from ...auth import get_current_admin_user
 
 router = APIRouter(prefix="/rubrics", tags=["rubrics"])
 
@@ -18,7 +18,7 @@ async def create_rubric(
     return await crud.create_rubric(db=db, rubric=rubric)
 
 
-@router.get("/", response_model=List[schemas.Rubric])
+@router.get("/", response_model=list[schemas.Rubric])
 async def read_rubrics(
     skip: int = 0,
     limit: int = 100,

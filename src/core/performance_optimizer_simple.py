@@ -5,11 +5,11 @@ Compliance Analyzer with synchronous operations.
 """
 
 import logging
-import time
-from datetime import datetime
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass
 import threading
+import time
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -22,26 +22,26 @@ class PerformanceMetrics:
     memory_usage_mb: float
     operations_per_minute: float
     efficiency_score: float
-    bottlenecks: List[str]
-    recommendations: List[str]
+    bottlenecks: list[str]
+    recommendations: list[str]
     timestamp: datetime
 
 
 class PerformanceOptimizer:
     """Simplified performance optimization service."""
-    
+
     def __init__(self):
         """Initialize performance optimizer."""
-        self.optimization_history: List[Dict[str, Any]] = []
-        self.last_optimization: Optional[datetime] = None
+        self.optimization_history: list[dict[str, Any]] = []
+        self.last_optimization: datetime | None = None
         self.optimization_in_progress = False
         self._lock = threading.Lock()
         logger.info("Performance optimizer initialized")
-    
+
     def analyze_performance(self) -> PerformanceMetrics:
         """Analyze current system performance and identify optimization opportunities."""
         logger.info("Starting performance analysis")
-        
+
         try:
             # Simplified performance analysis
             return PerformanceMetrics(
@@ -54,7 +54,7 @@ class PerformanceOptimizer:
                 recommendations=["Increase cache size", "Optimize memory usage"],
                 timestamp=datetime.now()
             )
-            
+
         except Exception as e:
             logger.error(f"Performance analysis failed: {e}")
             # Return default metrics on error
@@ -68,36 +68,36 @@ class PerformanceOptimizer:
                 recommendations=["Check system health"],
                 timestamp=datetime.now()
             )
-    
-    def optimize_performance(self, 
+
+    def optimize_performance(self,
                            aggressive: bool = False,
-                           target_improvement: float = 20.0) -> Dict[str, Any]:
+                           target_improvement: float = 20.0) -> dict[str, Any]:
         """Execute comprehensive performance optimization.
-        
+
         Args:
             aggressive: Whether to use aggressive optimization strategies
             target_improvement: Target performance improvement percentage
-            
+
         Returns:
             Dictionary with optimization results and metrics
         """
         if self.optimization_in_progress:
             return {'status': 'already_in_progress', 'message': 'Optimization already running'}
-        
+
         with self._lock:
             if self.optimization_in_progress:
                 return {'status': 'already_in_progress', 'message': 'Optimization already running'}
             self.optimization_in_progress = True
-        
+
         start_time = time.time()
         logger.info(f"Starting performance optimization (aggressive: {aggressive}, "
                    f"target: {target_improvement}% improvement)")
-        
+
         try:
             # Get baseline performance metrics
             baseline_metrics = self.analyze_performance()
-            
-            optimization_results: Dict[str, Any] = {
+
+            optimization_results: dict[str, Any] = {
                 'status': 'completed',
                 'baseline_metrics': baseline_metrics,
                 'optimizations_applied': [],
@@ -106,41 +106,41 @@ class PerformanceOptimizer:
                 'target_improvement': target_improvement,
                 'start_time': datetime.now()
             }
-            
+
             # Simplified optimization phases
             logger.info("Executing cache optimization")
             optimization_results['optimizations_applied'].append('cache_optimization')
-            
+
             logger.info("Executing memory optimization")
             optimization_results['optimizations_applied'].append('memory_optimization')
-            
+
             if not aggressive:
                 logger.info("Executing proactive warming")
                 optimization_results['optimizations_applied'].append('proactive_warming')
-            
+
             # Get final metrics
             final_metrics = self.analyze_performance()
             optimization_results['final_metrics'] = final_metrics
-            
+
             # Calculate improvement
-            improvement = ((final_metrics.efficiency_score - baseline_metrics.efficiency_score) 
+            improvement = ((final_metrics.efficiency_score - baseline_metrics.efficiency_score)
                           / baseline_metrics.efficiency_score * 100)
             optimization_results['actual_improvement'] = improvement
             optimization_results['target_achieved'] = improvement >= target_improvement
-            
+
             # Update history
             self.optimization_history.append(optimization_results)
             self.last_optimization = datetime.now()
-            
+
             execution_time = time.time() - start_time
             optimization_results['execution_time_seconds'] = execution_time
             optimization_results['status'] = 'completed'
-            
+
             logger.info(f"Performance optimization completed in {execution_time:.2f}s. "
                        f"Improvement: {improvement:.1f}%")
-            
+
             return optimization_results
-            
+
         except Exception as e:
             logger.error(f"Performance optimization failed: {e}")
             return {

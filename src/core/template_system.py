@@ -5,15 +5,16 @@ This module provides a comprehensive template system with advanced rendering,
 component libraries, validation, and version management for professional reports.
 """
 
+import json
 import logging
 import re
-import json
-import yaml
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union, Tuple
+from typing import Any
+
+import yaml
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from jinja2.exceptions import TemplateError
 
@@ -59,11 +60,11 @@ class ComponentDefinition:
     name: str
     component_type: ComponentType
     template_content: str
-    required_props: List[str] = field(default_factory=list)
-    default_props: Dict[str, Any] = field(default_factory=dict)
-    css_classes: List[str] = field(default_factory=list)
-    javascript_code: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    required_props: list[str] = field(default_factory=list)
+    default_props: dict[str, Any] = field(default_factory=dict)
+    css_classes: list[str] = field(default_factory=list)
+    javascript_code: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
     MARKDOWN = "markdown"
     PLAIN_TEXT = "plain_text"
 
@@ -79,13 +80,13 @@ class TemplateMetadata:
     author: str
     created_at: datetime
     updated_at: datetime
-    supported_formats: List[RenderFormat] = field(default_factory=list)
-    required_data_fields: List[str] = field(default_factory=list)
-    optional_data_fields: List[str] = field(default_factory=list)
-    tags: List[str] = field(default_factory=list)
+    supported_formats: list[RenderFormat] = field(default_factory=list)
+    required_data_fields: list[str] = field(default_factory=list)
+    optional_data_fields: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     compatibility_version: str = "1.0"
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
         return {
             "template_id": self.template_id,
@@ -102,9 +103,9 @@ class TemplateMetadata:
             "tags": self.tags,
             "compatibility_version": self.compatibility_version
         }
-    
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'TemplateMetadata':
+    def from_dict(cls, data: dict[str, Any]) -> 'TemplateMetadata':
         """Create from dictionary"""
         return cls(
             template_id=data["template_id"],
@@ -125,42 +126,42 @@ class TemplateMetadata:
 
 class ComponentLibrary:
     """Library of reusable report components"""
-    
-    def __init__(self, components_dir: Optional[Path] = None):
+
+    def __init__(self, components_dir: Path | None = None):
         self.components_dir = components_dir or Path("src/resources/report_components")
-        self.components: Dict[str, ComponentDefinition] = {}
+        self.components: dict[str, ComponentDefinition] = {}
         self.validator = TemplateValidator()
         self._load_components()
-    
+
     def _load_components(self) -> None:
         """Load components from the components directory"""
         if not self.components_dir.exists():
             self.components_dir.mkdir(parents=True, exist_ok=True)
             self._create_default_components()
             return
-        
+
         try:
             for component_file in self.components_dir.glob("*.yaml"):
                 component_id = component_file.stem
-                with open(component_file, 'r', encoding='utf-8') as f:
+                with open(component_file, encoding='utf-8') as f:
                     component_data = yaml.safe_load(f)
-                
+
                 component = self._dict_to_component(component_data)
-                
+
                 # Validate component
                 issues = self.validator.validate_component(component)
                 if issues:
                     logger.warning(f"Component {component_id} has validation issues: {issues}")
-                
+
                 self.components[component_id] = component
                 logger.debug(f"Loaded component: {component_id}")
-            
+
             logger.info(f"Loaded {len(self.components)} report components")
-            
+
         except Exception as e:
             logger.error(f"Error loading components: {e}")
             self._create_default_components()
-    
+
     def _create_default_components(self) -> None:
         """Create default components"""
         default_components = {
@@ -191,7 +192,7 @@ class ComponentLibrary:
                 default_props={"unit": "", "css_class": ""},
                 css_classes=["metric-card", "card"]
             ),
-            
+
             "progress_bar": ComponentDefinition(
                 id="progress_bar",
                 name="Progress Bar",
@@ -218,15 +219,15 @@ class ComponentLibrary:
                 css_classes=["progress-container"]
             )
         }
-        
+
         # Save default components
         for comp_id, component in default_components.items():
             self.components[comp_id] = component
             self._save_component(comp_id, component)
-        
+
         logger.info("Created default report components")
-    
-    def _dict_to_component(self, data: Dict[str, Any]) -> ComponentDefinition:
+
+    def _dict_to_component(self, data: dict[str, Any]) -> ComponentDefinition:
         """Convert dictionary to ComponentDefinition"""
         return ComponentDefinition(
             id=data['id'],
@@ -239,7 +240,7 @@ class ComponentLibrary:
             javascript_code=data.get('javascript_code'),
             metadata=data.get('metadata', {})
         )
-    
+
     def _save_component(self, comp_id: str, component: ComponentDefinition) -> None:
         """Save component to file"""
         component_file = self.components_dir / f"{comp_id}.yaml"
@@ -256,12 +257,12 @@ class ComponentLibrary:
         }
         with open(component_file, 'w', encoding='utf-8') as f:
             yaml.dump(component_dict, f, default_flow_style=False)
-    
-    def get_component(self, component_id: str) -> Optional[ComponentDefinition]:
+
+    def get_component(self, component_id: str) -> ComponentDefinition | None:
         """Get a component by ID"""
         return self.components.get(component_id)
-    
-    def list_components(self, component_type: Optional[ComponentType] = None) -> List[str]:
+
+    def list_components(self, component_type: ComponentType | None = None) -> list[str]:
         """List available components, optionally filtered by type"""
         if component_type:
             return [
@@ -269,39 +270,39 @@ class ComponentLibrary:
                 if comp.component_type == component_type
             ]
         return list(self.components.keys())
-    
+
     def register_component(self, component: ComponentDefinition) -> None:
         """Register a new component"""
         # Validate component
         issues = self.validator.validate_component(component)
         if issues:
             raise ValueError(f"Component validation failed: {issues}")
-        
+
         self.components[component.id] = component
         self._save_component(component.id, component)
         logger.info(f"Registered component: {component.id}")
-    
-    def render_component(self, component_id: str, props: Dict[str, Any]) -> str:
+
+    def render_component(self, component_id: str, props: dict[str, Any]) -> str:
         """Render a component with given props"""
         component = self.get_component(component_id)
         if not component:
             raise ValueError(f"Component not found: {component_id}")
-        
+
         # Merge default props with provided props
         render_props = {**component.default_props, **props}
-        
+
         # Check required props
         missing_props = set(component.required_props) - set(render_props.keys())
         if missing_props:
             raise ValueError(f"Missing required props for component {component_id}: {missing_props}")
-        
+
         # Simple template rendering (basic variable substitution)
         try:
             rendered = component.template_content
             for key, value in render_props.items():
                 placeholder = f"{{{{ {key} }}}}"
                 rendered = rendered.replace(placeholder, str(value))
-            
+
             return rendered
         except Exception as e:
             logger.error(f"Error rendering component {component_id}: {e}")
@@ -309,7 +310,7 @@ class ComponentLibrary:
 
 class TemplateValidator:
     """Validates template content and structure"""
-    
+
     def __init__(self):
         self.validation_rules = {
             'max_template_size': 1024 * 1024,  # 1MB
@@ -317,39 +318,39 @@ class TemplateValidator:
             'required_sections': ['title', 'content'],
             'allowed_file_extensions': ['.html', '.jinja2', '.j2']
         }
-    
-    def validate_template(self, template_content: str, metadata: TemplateMetadata) -> List[str]:
+
+    def validate_template(self, template_content: str, metadata: TemplateMetadata) -> list[str]:
         """Validate template content and return list of issues"""
         issues = []
-        
+
         # Check template size
         if len(template_content) > self.validation_rules['max_template_size']:
             issues.append("Template exceeds maximum size limit")
-        
+
         # Check for forbidden tags
         for tag in self.validation_rules['forbidden_tags']:
             if f'<{tag}' in template_content.lower():
                 issues.append(f"Forbidden tag found: {tag}")
-        
+
         # Check required data availability
         template_vars = self._extract_template_variables(template_content)
         missing_required = set(metadata.required_data_fields) - set(template_vars)
         if missing_required:
             issues.append(f"Required data not used in template: {missing_required}")
-        
+
         return issues
-    
-    def _extract_template_variables(self, template_content: str) -> List[str]:
+
+    def _extract_template_variables(self, template_content: str) -> list[str]:
         """Extract variable names from template content"""
         # Simple regex to find template variables
         pattern = r'\{\{\s*([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\}\}'
         matches = re.findall(pattern, template_content)
         return [match.split('.')[0] for match in matches]
-    
-    def validate_component(self, component: ComponentDefinition) -> List[str]:
+
+    def validate_component(self, component: ComponentDefinition) -> list[str]:
         """Validate component definition"""
         issues = []
-        
+
         # Validate template content
         template_metadata = TemplateMetadata(
             template_id=component.id,
@@ -362,25 +363,25 @@ class TemplateValidator:
             updated_at=datetime.now(),
             required_data_fields=component.required_props
         )
-        
+
         template_issues = self.validate_template(component.template_content, template_metadata)
         issues.extend(template_issues)
-        
+
         # Check required props are defined
         if not component.required_props:
             issues.append("Component should define required props")
-        
+
         return issues
 
 
 class AdvancedTemplateRenderer:
     """Advanced template renderer with Jinja2 support"""
-    
-    def __init__(self, templates_dir: Optional[Path] = None):
+
+    def __init__(self, templates_dir: Path | None = None):
         self.templates_dir = templates_dir or Path("src/resources/report_templates")
         self.component_library = ComponentLibrary()
         self.validator = TemplateValidator()
-        
+
         # Initialize Jinja2 environment
         self.jinja_env = Environment(
             loader=FileSystemLoader(str(self.templates_dir)),
@@ -388,29 +389,29 @@ class AdvancedTemplateRenderer:
             trim_blocks=True,
             lstrip_blocks=True
         )
-        
+
         # Register custom filters and functions
         self._register_custom_filters()
         self._register_custom_functions()
-    
+
     def _register_custom_filters(self) -> None:
         """Register custom Jinja2 filters"""
-        
-        def format_number(value: Union[int, float], precision: int = 2) -> str:
+
+        def format_number(value: int | float, precision: int = 2) -> str:
             """Format number with specified precision"""
             try:
                 return f"{float(value):.{precision}f}"
             except (ValueError, TypeError):
                 return str(value)
-        
-        def format_percentage(value: Union[int, float], precision: int = 1) -> str:
+
+        def format_percentage(value: int | float, precision: int = 1) -> str:
             """Format value as percentage"""
             try:
                 return f"{float(value):.{precision}f}%"
             except (ValueError, TypeError):
                 return str(value)
-        
-        def format_datetime(value: Union[str, datetime], format_str: str = "%Y-%m-%d %H:%M:%S") -> str:
+
+        def format_datetime(value: str | datetime, format_str: str = "%Y-%m-%d %H:%M:%S") -> str:
             """Format datetime value"""
             try:
                 if isinstance(value, str):
@@ -420,15 +421,15 @@ class AdvancedTemplateRenderer:
                 return dt.strftime(format_str)
             except (ValueError, TypeError):
                 return str(value)
-        
+
         # Register filters
         self.jinja_env.filters['format_number'] = format_number
         self.jinja_env.filters['format_percentage'] = format_percentage
         self.jinja_env.filters['format_datetime'] = format_datetime
-    
+
     def _register_custom_functions(self) -> None:
         """Register custom Jinja2 global functions"""
-        
+
         def render_component(component_id: str, **props) -> str:
             """Render a component within a template"""
             try:
@@ -436,8 +437,8 @@ class AdvancedTemplateRenderer:
             except Exception as e:
                 logger.error(f"Error rendering component {component_id}: {e}")
                 return f"<div class='component-error'>Error: {component_id}</div>"
-        
-        def get_chart_config(chart_type: str, data: Dict[str, Any]) -> str:
+
+        def get_chart_config(chart_type: str, data: dict[str, Any]) -> str:
             """Generate chart configuration JSON"""
             # Basic chart configuration generator
             config = {
@@ -449,18 +450,18 @@ class AdvancedTemplateRenderer:
                 }
             }
             return json.dumps(config)
-        
+
         # Register global functions
         self.jinja_env.globals['render_component'] = render_component
         self.jinja_env.globals['get_chart_config'] = get_chart_config
-    
-    def render_template(self, template_id: str, context: Dict[str, Any], 
+
+    def render_template(self, template_id: str, context: dict[str, Any],
                        format: RenderFormat = RenderFormat.HTML) -> str:
         """Render template with advanced features"""
         try:
             # Load template
             template = self.jinja_env.get_template(f"{template_id}.html")
-            
+
             # Add format-specific context
             enhanced_context = {
                 **context,
@@ -468,25 +469,25 @@ class AdvancedTemplateRenderer:
                 'generated_at': datetime.now(),
                 'template_id': template_id
             }
-            
+
             # Render template
             rendered = template.render(**enhanced_context)
-            
+
             # Post-process based on format
             if format == RenderFormat.PLAIN_TEXT:
                 rendered = self._html_to_text(rendered)
             elif format == RenderFormat.MARKDOWN:
                 rendered = self._html_to_markdown(rendered)
-            
+
             return rendered
-            
+
         except TemplateError as e:
             logger.error(f"Template rendering error for {template_id}: {e}")
             return self._render_error_template(template_id, str(e))
         except Exception as e:
             logger.error(f"Unexpected error rendering template {template_id}: {e}")
             return self._render_error_template(template_id, str(e))
-    
+
     def _html_to_text(self, html_content: str) -> str:
         """Convert HTML to plain text"""
         # Simple HTML to text conversion
@@ -494,28 +495,28 @@ class AdvancedTemplateRenderer:
         text = re.sub(r'<[^>]+>', '', html_content)
         text = re.sub(r'\s+', ' ', text)
         return text.strip()
-    
+
     def _html_to_markdown(self, html_content: str) -> str:
         """Convert HTML to Markdown"""
         # Basic HTML to Markdown conversion
         import re
-        
+
         # Convert headers
         html_content = re.sub(r'<h1[^>]*>(.*?)</h1>', r'# \1\n', html_content)
         html_content = re.sub(r'<h2[^>]*>(.*?)</h2>', r'## \1\n', html_content)
         html_content = re.sub(r'<h3[^>]*>(.*?)</h3>', r'### \1\n', html_content)
-        
+
         # Convert paragraphs
         html_content = re.sub(r'<p[^>]*>(.*?)</p>', r'\1\n\n', html_content)
-        
+
         # Convert lists
         html_content = re.sub(r'<li[^>]*>(.*?)</li>', r'- \1\n', html_content)
-        
+
         # Remove remaining HTML tags
         html_content = re.sub(r'<[^>]+>', '', html_content)
-        
+
         return html_content.strip()
-    
+
     def _render_error_template(self, template_id: str, error_message: str) -> str:
         """Render error template when main template fails"""
         return f"""
@@ -526,13 +527,13 @@ class AdvancedTemplateRenderer:
             <p>Please check the template configuration and try again.</p>
         </div>
         """
-    
-    def validate_template_file(self, template_path: Path) -> List[str]:
+
+    def validate_template_file(self, template_path: Path) -> list[str]:
         """Validate a template file"""
         try:
-            with open(template_path, 'r', encoding='utf-8') as f:
+            with open(template_path, encoding='utf-8') as f:
                 content = f.read()
-            
+
             # Create dummy metadata for validation
             metadata = TemplateMetadata(
                 template_id=template_path.stem,
@@ -544,41 +545,41 @@ class AdvancedTemplateRenderer:
                 created_at=datetime.now(),
                 updated_at=datetime.now()
             )
-            
+
             return self.validator.validate_template(content, metadata)
-            
+
         except Exception as e:
             return [f"Error reading template file: {e}"]
 
 
 class TemplateLibrary:
     """Library for managing and versioning report templates"""
-    
-    def __init__(self, templates_dir: Optional[Path] = None):
+
+    def __init__(self, templates_dir: Path | None = None):
         self.templates_dir = templates_dir or Path("src/resources/report_templates")
         self.metadata_dir = self.templates_dir / "metadata"
-        self.templates: Dict[str, TemplateMetadata] = {}
+        self.templates: dict[str, TemplateMetadata] = {}
         self.renderer = AdvancedTemplateRenderer(self.templates_dir)
-        
+
         # Ensure directories exist
         self.templates_dir.mkdir(parents=True, exist_ok=True)
         self.metadata_dir.mkdir(parents=True, exist_ok=True)
-        
+
         self._load_templates()
-    
+
     def _load_templates(self) -> None:
         """Load templates and their metadata"""
         try:
             # Load metadata files
             for metadata_file in self.metadata_dir.glob("*.yaml"):
                 template_id = metadata_file.stem
-                with open(metadata_file, 'r', encoding='utf-8') as f:
+                with open(metadata_file, encoding='utf-8') as f:
                     metadata_data = yaml.safe_load(f)
-                
+
                 metadata = TemplateMetadata.from_dict(metadata_data)
                 self.templates[template_id] = metadata
                 logger.debug(f"Loaded template metadata: {template_id}")
-            
+
             # Check for template files without metadata
             for template_file in self.templates_dir.glob("*.html"):
                 template_id = template_file.stem
@@ -597,16 +598,16 @@ class TemplateLibrary:
                     )
                     self.templates[template_id] = metadata
                     self._save_metadata(template_id, metadata)
-            
+
             logger.info(f"Loaded {len(self.templates)} report templates")
-            
+
         except Exception as e:
             logger.error(f"Error loading templates: {e}")
             self._create_default_templates()
-    
+
     def _create_default_templates(self) -> None:
         """Create default report templates"""
-        default_templates: List[Tuple[str, TemplateMetadata, str]] = [
+        default_templates: list[tuple[str, TemplateMetadata, str]] = [
             (
                 "performance_analysis",
                 TemplateMetadata(
@@ -646,24 +647,24 @@ class TemplateLibrary:
         <p>{{ description }}</p>
         {% endif %}
     </div>
-    
+
     <div class="section">
         <h2>Performance Summary</h2>
         <div class="metric-grid">
-            {{ render_component('metric_card', 
-                title='Response Time', 
+            {{ render_component('metric_card',
+                title='Response Time',
                 value=performance_metrics.avg_response_time | format_number,
                 unit='ms',
-                trend={'direction': 'up' if performance_metrics.response_time_trend > 0 else 'down', 
+                trend={'direction': 'up' if performance_metrics.response_time_trend > 0 else 'down',
                        'value': performance_metrics.response_time_trend | format_percentage}) }}
-            
+
             {{ render_component('metric_card',
                 title='Memory Usage',
                 value=performance_metrics.avg_memory_usage | format_number,
                 unit='MB') }}
         </div>
     </div>
-    
+
     {% if optimization_results %}
     <div class="section">
         <h2>Optimization Results</h2>
@@ -680,32 +681,32 @@ class TemplateLibrary:
                 """.strip(),
             ),
         ]
-        
+
         # Create default templates
         for template_id, metadata, content in default_templates:
             self.templates[template_id] = metadata
-            
+
             # Save template file
             template_file = self.templates_dir / f"{template_id}.html"
             with open(template_file, 'w', encoding='utf-8') as f:
                 f.write(content)
-            
+
             # Save metadata
             self._save_metadata(template_id, metadata)
-        
+
         logger.info("Created default report templates")
-    
+
     def _save_metadata(self, template_id: str, metadata: TemplateMetadata) -> None:
         """Save template metadata to file"""
         metadata_file = self.metadata_dir / f"{template_id}.yaml"
         with open(metadata_file, 'w', encoding='utf-8') as f:
             yaml.dump(metadata.to_dict(), f, default_flow_style=False)
-    
-    def get_template(self, template_id: str) -> Optional[TemplateMetadata]:
+
+    def get_template(self, template_id: str) -> TemplateMetadata | None:
         """Get template metadata by ID"""
         return self.templates.get(template_id)
-    
-    def list_templates(self, template_type: Optional[TemplateType] = None) -> List[str]:
+
+    def list_templates(self, template_type: TemplateType | None = None) -> list[str]:
         """List available templates, optionally filtered by type"""
         if template_type:
             return [
@@ -713,40 +714,40 @@ class TemplateLibrary:
                 if tmpl.template_type == template_type
             ]
         return list(self.templates.keys())
-    
-    def render_template(self, template_id: str, context: Dict[str, Any],
+
+    def render_template(self, template_id: str, context: dict[str, Any],
                        format: RenderFormat = RenderFormat.HTML) -> str:
         """Render template using the advanced renderer"""
         if template_id not in self.templates:
             raise ValueError(f"Template not found: {template_id}")
-        
+
         return self.renderer.render_template(template_id, context, format)
-    
-    def validate_template(self, template_id: str) -> List[str]:
+
+    def validate_template(self, template_id: str) -> list[str]:
         """Validate a template"""
         if template_id not in self.templates:
             return [f"Template not found: {template_id}"]
-        
+
         template_file = self.templates_dir / f"{template_id}.html"
         if not template_file.exists():
             return [f"Template file not found: {template_file}"]
-        
+
         return self.renderer.validate_template_file(template_file)
-    
+
     def register_template(self, metadata: TemplateMetadata, content: str) -> None:
         """Register a new template"""
         # Validate template content
         issues = self.renderer.validator.validate_template(content, metadata)
         if issues:
             raise ValueError(f"Template validation failed: {issues}")
-        
+
         # Save template file
         template_file = self.templates_dir / f"{metadata.template_id}.html"
         with open(template_file, 'w', encoding='utf-8') as f:
             f.write(content)
-        
+
         # Save metadata
         self.templates[metadata.template_id] = metadata
         self._save_metadata(metadata.template_id, metadata)
-        
+
         logger.info(f"Registered template: {metadata.template_id}")

@@ -3,10 +3,10 @@ Compliance Sync Service
 Handles synchronization and analysis of compliance data from EHR systems.
 """
 
-import logging
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
 import asyncio
+import logging
+from datetime import datetime, timedelta
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -15,22 +15,22 @@ class ComplianceSyncService:
     """
     Service for synchronizing and analyzing compliance data from EHR systems.
     """
-    
+
     def __init__(self):
         self.sync_tasks = {}
         self.analysis_tasks = {}
-        
+
     async def sync_ehr_documents(self,
                                sync_task_id: str,
-                               patient_ids: Optional[List[str]] = None,
-                               date_range_start: Optional[datetime] = None,
-                               date_range_end: Optional[datetime] = None,
-                               document_types: Optional[List[str]] = None,
+                               patient_ids: list[str] | None = None,
+                               date_range_start: datetime | None = None,
+                               date_range_end: datetime | None = None,
+                               document_types: list[str] | None = None,
                                auto_analyze: bool = False,
-                               user_id: Optional[str] = None) -> None:
+                               user_id: str | None = None) -> None:
         """
         Synchronize documents from EHR system (background task).
-        
+
         Args:
             sync_task_id: Unique task identifier
             patient_ids: Specific patient IDs to sync
@@ -42,7 +42,7 @@ class ComplianceSyncService:
         """
         try:
             logger.info(f"Starting EHR document sync: {sync_task_id}")
-            
+
             # Initialize sync task status
             self.sync_tasks[sync_task_id] = {
                 "status": "running",
@@ -63,7 +63,7 @@ class ComplianceSyncService:
                     "errors": []
                 }
             }
-            
+
             # Simulate sync process
             sync_steps = [
                 ("Connecting to EHR system...", 10),
@@ -72,29 +72,29 @@ class ComplianceSyncService:
                 ("Processing documents...", 90),
                 ("Finalizing sync...", 100)
             ]
-            
+
             documents_synced = 0
             documents_analyzed = 0
-            
+
             for step_message, progress in sync_steps:
                 self.sync_tasks[sync_task_id]["message"] = step_message
                 self.sync_tasks[sync_task_id]["progress"] = progress
-                
+
                 # Simulate processing time
                 await asyncio.sleep(2)
-                
+
                 # Simulate document processing
                 if "downloading" in step_message.lower():
                     # Simulate downloading documents
                     total_docs = len(patient_ids) * 3 if patient_ids else 50
                     documents_synced = total_docs
                     self.sync_tasks[sync_task_id]["results"]["documents_synced"] = documents_synced
-                
+
                 elif "processing" in step_message.lower() and auto_analyze:
                     # Simulate analyzing documents
                     documents_analyzed = int(documents_synced * 0.8)  # 80% analyzed
                     self.sync_tasks[sync_task_id]["results"]["documents_analyzed"] = documents_analyzed
-            
+
             # Complete the sync task
             self.sync_tasks[sync_task_id].update({
                 "status": "completed",
@@ -113,9 +113,9 @@ class ComplianceSyncService:
                     }
                 }
             })
-            
+
             logger.info(f"EHR document sync completed: {sync_task_id}")
-            
+
         except Exception as e:
             logger.error(f"EHR document sync failed: {e}")
             self.sync_tasks[sync_task_id] = {
@@ -125,18 +125,18 @@ class ComplianceSyncService:
                 "error": str(e),
                 "failed_at": datetime.now().isoformat()
             }
-    
-    async def get_sync_status(self, sync_task_id: str) -> Optional[Dict[str, Any]]:
+
+    async def get_sync_status(self, sync_task_id: str) -> dict[str, Any] | None:
         """Get the status of an EHR synchronization task."""
         return self.sync_tasks.get(sync_task_id)
-    
+
     async def analyze_ehr_document(self,
                                  document_id: str,
                                  analysis_task_id: str,
                                  user_id: str) -> None:
         """
         Analyze a specific EHR document for compliance (background task).
-        
+
         Args:
             document_id: EHR document identifier
             analysis_task_id: Unique analysis task identifier
@@ -144,7 +144,7 @@ class ComplianceSyncService:
         """
         try:
             logger.info(f"Starting EHR document analysis: {analysis_task_id}")
-            
+
             # Initialize analysis task status
             self.analysis_tasks[analysis_task_id] = {
                 "status": "running",
@@ -154,7 +154,7 @@ class ComplianceSyncService:
                 "user_id": user_id,
                 "document_id": document_id
             }
-            
+
             # Simulate analysis process
             analysis_steps = [
                 ("Retrieving document content...", 20),
@@ -162,14 +162,14 @@ class ComplianceSyncService:
                 ("Running compliance analysis...", 80),
                 ("Generating report...", 100)
             ]
-            
+
             for step_message, progress in analysis_steps:
                 self.analysis_tasks[analysis_task_id]["message"] = step_message
                 self.analysis_tasks[analysis_task_id]["progress"] = progress
-                
+
                 # Simulate processing time
                 await asyncio.sleep(1.5)
-            
+
             # Generate sample analysis results
             analysis_results = {
                 "document_id": document_id,
@@ -192,7 +192,7 @@ class ComplianceSyncService:
                 "analysis_confidence": 0.92,
                 "processing_time_seconds": 6
             }
-            
+
             # Complete the analysis task
             self.analysis_tasks[analysis_task_id].update({
                 "status": "completed",
@@ -201,9 +201,9 @@ class ComplianceSyncService:
                 "completed_at": datetime.now().isoformat(),
                 "results": analysis_results
             })
-            
+
             logger.info(f"EHR document analysis completed: {analysis_task_id}")
-            
+
         except Exception as e:
             logger.error(f"EHR document analysis failed: {e}")
             self.analysis_tasks[analysis_task_id] = {
@@ -213,42 +213,42 @@ class ComplianceSyncService:
                 "error": str(e),
                 "failed_at": datetime.now().isoformat()
             }
-    
+
     async def get_compliance_trends(self,
                                   days: int = 30,
-                                  department: Optional[str] = None) -> Dict[str, Any]:
+                                  department: str | None = None) -> dict[str, Any]:
         """
         Get compliance trends from EHR-synchronized documents.
-        
+
         Args:
             days: Number of days to analyze
             department: Specific department to analyze
-            
+
         Returns:
             Compliance trends data
         """
         try:
             # Simulate trend analysis
             await asyncio.sleep(1)  # Simulate processing time
-            
+
             # Generate sample trend data
             dates = []
             compliance_scores = []
             document_counts = []
-            
+
             for i in range(days):
                 date = datetime.now() - timedelta(days=days - i - 1)
                 dates.append(date.strftime("%Y-%m-%d"))
-                
+
                 # Generate varying compliance scores
                 base_score = 0.80
                 variation = 0.15 * (i % 7) / 7  # Weekly variation
                 compliance_scores.append(min(1.0, base_score + variation))
-                
+
                 # Generate document counts
                 doc_count = 5 + (i % 10)  # Varying document counts
                 document_counts.append(doc_count)
-            
+
             trends = {
                 "period": {
                     "start_date": dates[0],
@@ -291,9 +291,9 @@ class ComplianceSyncService:
                     "national_benchmark": 0.85
                 }
             }
-            
+
             return trends
-            
+
         except Exception as e:
             logger.error(f"Failed to get compliance trends: {e}")
             return {

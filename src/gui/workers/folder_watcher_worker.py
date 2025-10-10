@@ -1,9 +1,9 @@
 
 import time
 from pathlib import Path
-from typing import Set
 
 from PySide6.QtCore import QObject, Signal, Slot
+
 
 class FolderWatcherWorker(QObject):
     """Periodically scans a folder for new documents and emits a signal."""
@@ -19,7 +19,7 @@ class FolderWatcherWorker(QObject):
         self.folder_path = Path(folder_path)
         self.interval = interval
         self._is_running = True
-        self.seen_files: Set[Path] = set()
+        self.seen_files: set[Path] = set()
 
     @Slot()
     def run(self):
@@ -43,7 +43,7 @@ class FolderWatcherWorker(QObject):
                 for file_path in new_files:
                     if file_path.suffix.lower() in self.SUPPORTED_EXTENSIONS:
                         self.new_file_found.emit(str(file_path))
-                
+
                 self.seen_files = current_files
 
             except Exception as e:
@@ -55,7 +55,7 @@ class FolderWatcherWorker(QObject):
                 if not self._is_running:
                     break
                 time.sleep(1)
-        
+
         self.finished.emit()
 
     def stop(self):

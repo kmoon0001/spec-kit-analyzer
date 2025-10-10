@@ -1,28 +1,29 @@
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
+    QCheckBox,
+    QDoubleSpinBox,
+    QFormLayout,
     QFrame,
     QGridLayout,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
+    QLineEdit,
     QPushButton,
-    QVBoxLayout,
-    QWidget,
+    QScrollArea,
+    QSpinBox,
     QTableWidget,
     QTableWidgetItem,
-    QHeaderView,
     QTextBrowser,
-    QFormLayout,
-    QLineEdit,
-    QCheckBox,
-    QSpinBox,
-    QDoubleSpinBox,
-    QScrollArea,
+    QVBoxLayout,
+    QWidget,
 )
+
 
 class SettingsEditorWidget(QWidget):
     """A widget to dynamically edit application settings."""
@@ -151,10 +152,11 @@ class SettingsEditorWidget(QWidget):
 
     def _generate_realtime_system_info(self) -> str:
         """Generate realtime system information HTML."""
-        import psutil  # type: ignore[import-untyped]
+        import os
         import platform
         from datetime import datetime
-        import os
+
+        import psutil  # type: ignore[import-untyped]
 
         try:
             # Get system metrics
@@ -373,7 +375,7 @@ class SettingsEditorWidget(QWidget):
 
         return tab
 
-    def set_settings(self, settings: Dict[str, Any]) -> None:
+    def set_settings(self, settings: dict[str, Any]) -> None:
         """Dynamically builds the form based on the settings dictionary."""
         # Clear old form
         while self.form_layout.count():
@@ -381,7 +383,7 @@ class SettingsEditorWidget(QWidget):
 
         self._build_form_recursively(settings)
 
-    def _build_form_recursively(self, settings: Dict[str, Any], prefix="") -> None:
+    def _build_form_recursively(self, settings: dict[str, Any], prefix="") -> None:
         for key, value in settings.items():
             full_key = f"{prefix}{key}"
             if isinstance(value, dict):
@@ -415,7 +417,7 @@ class SettingsEditorWidget(QWidget):
 
     def _on_save(self) -> None:
         """Collects data from the form and emits the save_requested signal."""
-        new_settings: Dict[str, Any] = {}
+        new_settings: dict[str, Any] = {}
         for i in range(self.form_layout.rowCount()):
             field = self.form_layout.itemAt(i, QFormLayout.ItemRole.FieldRole)
             if field and field.widget():
@@ -482,7 +484,7 @@ class TaskMonitorWidget(QWidget):
         self.task_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         layout.addWidget(self.task_table)
 
-    def update_tasks(self, tasks: Dict[str, Dict[str, Any]]) -> None:
+    def update_tasks(self, tasks: dict[str, dict[str, Any]]) -> None:
         """Updates the table with the latest task data."""
         self.task_table.setRowCount(0)
         sorted_tasks = sorted(tasks.items(), key=lambda item: item[1].get("timestamp", ""), reverse=True)
@@ -519,7 +521,7 @@ class MissionControlWidget(QWidget):
         self.api_status_label.setText(status)
         self.api_status_label.setStyleSheet(f"color: {color}; font-weight: bold;")
 
-    def update_task_list(self, tasks: Dict[str, Dict[str, Any]]) -> None:
+    def update_task_list(self, tasks: dict[str, dict[str, Any]]) -> None:
         """Passes task data to the task monitor widget."""
         self.task_monitor.update_tasks(tasks)
 
@@ -564,7 +566,7 @@ class MissionControlWidget(QWidget):
         title.setFont(QFont("Segoe UI", 11, QFont.Weight.Medium))
         layout.addWidget(title, 0, 0, 1, 4)
 
-        self.ai_health_labels: Dict[str, QLabel] = {}
+        self.ai_health_labels: dict[str, QLabel] = {}
         components = {
             "llm_service": "LLM Service",
             "ner_service": "NER Service",
@@ -626,7 +628,7 @@ class MissionControlWidget(QWidget):
         )
         return frame
 
-    def _update_ai_health_display(self, health_data: Dict[str, Any]) -> None:
+    def _update_ai_health_display(self, health_data: dict[str, Any]) -> None:
         for key, data in health_data.items():
             if key in self.ai_health_labels:
                 status = data.get("status", "Unknown")

@@ -6,7 +6,7 @@ and personalized recommendations in the dashboard.
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QFont
@@ -102,7 +102,7 @@ class HabitProgressBar(QWidget):
 class AchievementBadge(QWidget):
     """Widget for displaying achievement badges."""
 
-    def __init__(self, achievement: Dict[str, Any]):
+    def __init__(self, achievement: dict[str, Any]):
         super().__init__()
         self.achievement = achievement
         self.setup_ui()
@@ -149,7 +149,7 @@ class AchievementBadge(QWidget):
 class RecommendationCard(QWidget):
     """Widget for displaying habit recommendations."""
 
-    def __init__(self, recommendation: Dict[str, Any]):
+    def __init__(self, recommendation: dict[str, Any]):
         super().__init__()
         self.recommendation = recommendation
         self.setup_ui()
@@ -240,7 +240,7 @@ class GrowthJourneyWidget(QWidget):
         super().__init__()
         self.api_base_url = api_base_url
         self.auth_token = auth_token
-        self.progression_data: Optional[Dict[str, Any]] = None
+        self.progression_data: dict[str, Any] | None = None
         self.setup_ui()
         self.setup_refresh_timer()
         self.load_progression_data()
@@ -309,7 +309,7 @@ class GrowthJourneyWidget(QWidget):
         self.api_worker.error.connect(self.on_data_error)
         self.api_worker.start()
 
-    def on_data_loaded(self, data: Dict[str, Any]):
+    def on_data_loaded(self, data: dict[str, Any]):
         """Handle successful data loading."""
         self.progression_data = data
         self.update_ui()

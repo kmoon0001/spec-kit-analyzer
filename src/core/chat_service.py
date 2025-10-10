@@ -1,5 +1,4 @@
 import logging
-from typing import Dict, List
 
 from .llm_service import LLMService
 from .text_utils import sanitize_human_text
@@ -44,7 +43,7 @@ class MixtureOfExpertsRouter:
             if any(keyword in query_lower for keyword in config["keywords"]):
                 logger.info(f"Routing query to {expert_name} expert.")
                 return config["prompt"]
-        
+
         logger.info("Routing query to default expert.")
         return DEFAULT_EXPERT
 
@@ -58,7 +57,7 @@ class ChatService:
         self.llm_service = llm_service
         self.router = MixtureOfExpertsRouter()
 
-    def process_message(self, history: List[Dict[str, str]]) -> str:
+    def process_message(self, history: list[dict[str, str]]) -> str:
         if not self.llm_service.is_ready():
             logger.warning("Chat model is not ready; returning availability notice.")
             return "The chat assistant is still loading. Please try again once the models are online."
@@ -79,7 +78,7 @@ class ChatService:
             logger.error("Chat generation failed: %s", exc, exc_info=True)
             return "I encountered an unexpected error while generating a response."
 
-    def _build_prompt(self, history: List[Dict[str, str]], system_prompt: str) -> str:
+    def _build_prompt(self, history: list[dict[str, str]], system_prompt: str) -> str:
         lines = [system_prompt, "", "Conversation log:"]
         for message in history:
             role = (

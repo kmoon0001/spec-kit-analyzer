@@ -13,7 +13,7 @@ import os
 import platform
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict
+from typing import Any
 
 import psutil
 
@@ -50,8 +50,8 @@ class PerformanceManager:
             logger.info("PerformanceManager initialized.")
         return cls._instance
 
-    def _gather_system_info(self) -> Dict[str, Any]:
-        info: Dict[str, Any] = {
+    def _gather_system_info(self) -> dict[str, Any]:
+        info: dict[str, Any] = {
             "cpu_count": psutil.cpu_count(logical=True) or 0,
             "platform": platform.platform(),
             "total_memory_gb": psutil.virtual_memory().total / (1024 ** 3),
@@ -84,7 +84,7 @@ class PerformanceManager:
     def record_cache_miss(self) -> None:
         self._cache_metrics["misses"] += 1
 
-    def cache_metrics(self) -> Dict[str, int]:
+    def cache_metrics(self) -> dict[str, int]:
         return dict(self._cache_metrics)
 
     def adaptive_cleanup(self) -> None:
@@ -103,7 +103,7 @@ class PerformanceManager:
             logger.error("Could not retrieve CPU usage: %s", exc)
             return 0.0
 
-    def get_memory_usage(self) -> Dict[str, Any]:
+    def get_memory_usage(self) -> dict[str, Any]:
         try:
             vmem = psutil.virtual_memory()
             process_mem_info = self.process.memory_info()

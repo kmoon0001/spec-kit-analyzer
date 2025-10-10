@@ -105,31 +105,31 @@ class MedicalTheme(QObject):
                 stop:0 #f8fafc, stop:1 #f1f5f9);
             color: {colors["text_primary"]};
         }}
-        
+
         QMenuBar {{
             background-color: {colors["bg_secondary"]};
             color: {colors["text_primary"]};
             border-bottom: 1px solid {colors["border_light"]};
             padding: 4px;
         }}
-        
+
         QMenuBar::item {{
             background-color: transparent;
             padding: 6px 12px;
             border-radius: 4px;
         }}
-        
+
         QMenuBar::item:selected {{
             background-color: {colors["primary_blue"]};
             color: white;
         }}
-        
+
         QStatusBar {{
             background-color: {colors["bg_secondary"]};
             color: {colors["text_secondary"]};
             border-top: 1px solid {colors["border_light"]};
         }}
-        
+
         QStatusBar QLabel#easter_egg {{
             font-family: "Brush Script MT", "Lucida Handwriting", cursive;
             font-size: 10px;
@@ -137,12 +137,12 @@ class MedicalTheme(QObject):
             font-style: italic;
             opacity: 0.6;
         }}
-        
+
         QTabWidget::pane {{
             border: 1px solid {colors["border_light"]};
             background-color: {colors["bg_primary"]};
         }}
-        
+
         QTabBar::tab {{
             background-color: {colors["bg_secondary"]};
             color: {colors["text_secondary"]};
@@ -151,12 +151,12 @@ class MedicalTheme(QObject):
             border-top-left-radius: 6px;
             border-top-right-radius: 6px;
         }}
-        
+
         QTabBar::tab:selected {{
             background-color: {colors["primary_blue"]};
             color: white;
         }}
-        
+
         QTabBar::tab:hover {{
             background-color: {colors["border_medium"]};
         }}
@@ -257,7 +257,7 @@ class MedicalTheme(QObject):
             border-radius: 8px;
             padding: 12px;
         }}
-        
+
         QGroupBox {{
             background-color: {colors["bg_card"]};
             border: 1px solid {colors["border_light"]};
@@ -267,7 +267,7 @@ class MedicalTheme(QObject):
             color: {colors["text_primary"]};
             padding-top: 16px;
         }}
-        
+
         QGroupBox::title {{
             subcontrol-origin: margin;
             subcontrol-position: top left;
@@ -293,16 +293,16 @@ class MedicalTheme(QObject):
             font-size: 14px;
             min-height: 20px;
         }}
-        
+
         QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {{
             border-color: {colors["border_focus"]};
             background-color: {colors["bg_primary"]};
         }}
-        
+
         QLineEdit:hover, QTextEdit:hover, QPlainTextEdit:hover {{
             border-color: {colors["border_medium"]};
         }}
-        
+
         QComboBox {{
             background-color: {colors["bg_primary"]};
             border: 2px solid {colors["border_light"]};
@@ -313,20 +313,20 @@ class MedicalTheme(QObject):
             min-height: 20px;
             min-width: 120px;
         }}
-        
+
         QComboBox:focus {{
             border-color: {colors["border_focus"]};
         }}
-        
+
         QComboBox:hover {{
             border-color: {colors["border_medium"]};
         }}
-        
+
         QComboBox::drop-down {{
             border: none;
             width: 30px;
         }}
-        
+
         QComboBox::down-arrow {{
             image: none;
             border-left: 5px solid transparent;
@@ -334,7 +334,7 @@ class MedicalTheme(QObject):
             border-top: 5px solid {colors["text_secondary"]};
             margin-right: 5px;
         }}
-        
+
         QSpinBox, QDoubleSpinBox {{
             background-color: {colors["bg_primary"]};
             border: 2px solid {colors["border_light"]};
@@ -344,17 +344,17 @@ class MedicalTheme(QObject):
             font-size: 14px;
             min-height: 20px;
         }}
-        
+
         QSpinBox:focus, QDoubleSpinBox:focus {{
             border-color: {colors["border_focus"]};
         }}
-        
+
         QCheckBox {{
             color: {colors["text_primary"]};
             font-size: 14px;
             spacing: 8px;
         }}
-        
+
         QCheckBox::indicator {{
             width: 18px;
             height: 18px;
@@ -362,25 +362,25 @@ class MedicalTheme(QObject):
             border-radius: 4px;
             background-color: {colors["bg_primary"]};
         }}
-        
+
         QCheckBox::indicator:checked {{
             background-color: {colors["primary_blue"]};
             border-color: {colors["primary_blue"]};
         }}
-        
+
         QCheckBox::indicator:checked::after {{
             content: "✓";
             color: white;
             font-weight: bold;
         }}
-        
+
         QSlider::groove:horizontal {{
             border: 1px solid {colors["border_light"]};
             height: 6px;
             background: {colors["bg_tertiary"]};
             border-radius: 3px;
         }}
-        
+
         QSlider::handle:horizontal {{
             background: {colors["primary_blue"]};
             border: 2px solid {colors["primary_blue"]};
@@ -389,12 +389,12 @@ class MedicalTheme(QObject):
             margin: -7px 0;
             border-radius: 9px;
         }}
-        
+
         QSlider::handle:horizontal:hover {{
             background: {colors["kiro_black"]};
             border-color: {colors["kiro_black"]};
         }}
-        
+
         QLabel {{
             color: {colors["text_primary"]};
             font-size: 14px;
@@ -411,7 +411,7 @@ class MedicalTheme(QObject):
             background-color: {colors["bg_primary"]};
             border-radius: 8px;
         }}
-        
+
         QTabBar::tab {{
             background-color: {colors["bg_secondary"]};
             color: {colors["text_secondary"]};
@@ -423,12 +423,12 @@ class MedicalTheme(QObject):
             font-weight: 500;
             min-width: 100px;
         }}
-        
+
         QTabBar::tab:selected {{
             background-color: {colors["primary_blue"]};
             color: {colors["text_inverse"]};
         }}
-        
+
         QTabBar::tab:hover:!selected {{
             background-color: {colors["bg_hover"]};
             color: {colors["text_primary"]};

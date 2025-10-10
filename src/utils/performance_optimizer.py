@@ -9,8 +9,9 @@ import json
 import logging
 import os
 import platform
+from typing import Any
+
 import psutil  # type: ignore[import-untyped]
-from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ class PerformanceOptimizer:
         self.system_info = self._get_system_info()
         self.performance_profile = self._determine_performance_profile()
 
-    def _get_system_info(self) -> Dict[str, Any]:
+    def _get_system_info(self) -> dict[str, Any]:
         """Gather system information for optimization."""
         try:
             # Memory information
@@ -88,7 +89,7 @@ class PerformanceOptimizer:
         else:
             return "conservative"
 
-    def get_optimized_config(self) -> Dict[str, Any]:
+    def get_optimized_config(self) -> dict[str, Any]:
         """Generate optimized configuration based on system capabilities."""
         base_config = {
             "profile": self.performance_profile,
@@ -147,7 +148,7 @@ class PerformanceOptimizer:
         base_config["config"] = config
         return base_config
 
-    def save_performance_config(self, filepath: Optional[str] = None) -> str:
+    def save_performance_config(self, filepath: str | None = None) -> str:
         """Save the optimized performance configuration to a file."""
         if filepath is None:
             filepath = "performance_config.json"
@@ -163,7 +164,7 @@ class PerformanceOptimizer:
             logger.error(f"Failed to save performance config: {e}")
             raise
 
-    def load_performance_config(self, filepath: Optional[str] = None) -> Dict[str, Any]:
+    def load_performance_config(self, filepath: str | None = None) -> dict[str, Any]:
         """Load performance configuration from file."""
         if filepath is None:
             filepath = "performance_config.json"
@@ -173,7 +174,7 @@ class PerformanceOptimizer:
             return self.get_optimized_config()
 
         try:
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 config = json.load(f)
             logger.info(f"Performance configuration loaded from {filepath}")
             return config
@@ -181,7 +182,7 @@ class PerformanceOptimizer:
             logger.warning(f"Failed to load performance config: {e}, using defaults")
             return self.get_optimized_config()
 
-    def monitor_performance(self) -> Dict[str, Any]:
+    def monitor_performance(self) -> dict[str, Any]:
         """Monitor current system performance metrics."""
         try:
             # Memory usage
@@ -206,7 +207,7 @@ class PerformanceOptimizer:
             logger.warning(f"Failed to monitor performance: {e}")
             return {}
 
-    def should_adjust_performance(self, current_metrics: Dict[str, Any]) -> bool:
+    def should_adjust_performance(self, current_metrics: dict[str, Any]) -> bool:
         """Determine if performance settings should be adjusted based on current metrics."""
         memory_usage = current_metrics.get("memory_usage_percent", 0)
         cpu_usage = current_metrics.get("cpu_usage_percent", 0)
@@ -223,7 +224,7 @@ class PerformanceOptimizer:
 
         return False
 
-    def get_model_recommendations(self) -> Dict[str, Any]:
+    def get_model_recommendations(self) -> dict[str, Any]:
         """Get model recommendations based on system capabilities."""
         memory_gb = self.system_info["total_memory_gb"]
 
@@ -250,7 +251,7 @@ class PerformanceOptimizer:
             }
 
 
-def optimize_system_performance() -> Dict[str, Any]:
+def optimize_system_performance() -> dict[str, Any]:
     """Main function to optimize system performance configuration."""
     optimizer = PerformanceOptimizer()
 

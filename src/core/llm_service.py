@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import logging
 import time
-from threading import Lock
-from typing import Any, Dict, Optional
 from pathlib import Path
+from threading import Lock
+from typing import Any
 
 from src.core.cache_service import LLMResponseCache
 
@@ -22,9 +22,9 @@ class LLMService:
         self,
         model_repo_id: str,
         model_filename: str,
-        llm_settings: Optional[Dict[str, Any]] = None,
-        revision: Optional[str] = None,
-        local_model_path: Optional[str] = None,
+        llm_settings: dict[str, Any] | None = None,
+        revision: str | None = None,
+        local_model_path: str | None = None,
     ) -> None:
         self.model_repo_id = model_repo_id
         self.model_filename = model_filename
@@ -38,7 +38,7 @@ class LLMService:
         self.seq2seq = False
         self.is_loading = False
 
-    def _resolve_model_source(self) -> tuple[str, Optional[str]]:
+    def _resolve_model_source(self) -> tuple[str, str | None]:
         """Resolve the repository/directory and optional model file for loading."""
         source = self.model_repo_id
         model_file = self.model_filename or None
@@ -86,7 +86,7 @@ class LLMService:
             raise ValueError("Model repository ID is required for ctransformers backend.")
 
         source, model_file = self._resolve_model_source()
-        model_kwargs: Dict[str, Any] = {
+        model_kwargs: dict[str, Any] = {
             "model_file": model_file,
             "model_type": self.settings.get("hf_model_type", "llama"),
             "context_length": self.settings.get("context_length", 2048),
@@ -109,20 +109,19 @@ class LLMService:
         if not model_id:
             model_id = "google/flan-t5-small"
 
+        import torch
         from transformers import (
             AutoModelForCausalLM,
             AutoModelForSeq2SeqLM,
             AutoTokenizer,
         )
 
-        import torch
-
-        tokenizer_kwargs: Dict[str, Any] = {}
+        tokenizer_kwargs: dict[str, Any] = {}
         if self.revision:
             tokenizer_kwargs["revision"] = self.revision
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_id, **tokenizer_kwargs)
-        model_kwargs: Dict[str, Any] = {"low_cpu_mem_usage": True}
+        model_kwargs: dict[str, Any] = {"low_cpu_mem_usage": True}
         if self.revision:
             model_kwargs["revision"] = self.revision
         model_kwargs["torch_dtype"] = (
@@ -188,12 +187,12 @@ class LLMService:
                     **gen_params,
                 )
                 result = output.strip() if isinstance(output, str) else str(output)
-                
+
                 # Cache the result for future use
                 generation_time = time.time() - start_time
                 ttl_hours = 6.0 if generation_time > 5.0 else 12.0  # Longer TTL for quick responses
                 LLMResponseCache.set_llm_response(prompt, model_identifier, result, ttl_hours)
-                
+
                 logger.debug(f"LLM generation completed in {generation_time:.2f}s, cached with TTL {ttl_hours}h")
                 return result
 
@@ -266,15 +265,15 @@ class LLMService:
                 outputs = self.llm.generate(**inputs, **generate_kwargs)
 
             result = self.tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
-            
+
             # Cache the result for future use
             generation_time = time.time() - start_time
             ttl_hours = 6.0 if generation_time > 5.0 else 12.0  # Longer TTL for quick responses
             LLMResponseCache.set_llm_response(prompt, model_identifier, result, ttl_hours)
-            
+
             logger.debug(f"LLM generation completed in {generation_time:.2f}s, cached with TTL {ttl_hours}h")
             return result
-            
+
         except Exception as exc:  # noqa: BLE001 - capture inference issues
             logger.error("An error occurred during text generation", exc_info=True, extra={"error": str(exc)})
             return "An error occurred during text generation."

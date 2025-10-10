@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Any
 
-from ...database import schemas, models
+from fastapi import APIRouter, Depends, HTTPException, status
+
 from ...auth import get_current_active_user
 from ...core.chat_service import ChatService
+from ...database import models, schemas
 
 # from ...core.analysis_service import AnalysisService # Removed to break import cycle
 from ..dependencies import get_analysis_service

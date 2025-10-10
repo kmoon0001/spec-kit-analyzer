@@ -8,22 +8,22 @@ Provides async database operations for users, rubrics, reports, and findings.
 import datetime
 import logging
 import math
-import numpy as np
-from typing import Any, Dict, List, Optional, Tuple
-from datetime import timezone, timedelta, date
 from collections import Counter
+from datetime import date, timedelta
+from typing import Any
 
-from sqlalchemy import select, func
+import numpy as np
+from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from . import models, schemas
 from ..core.vector_store import get_vector_store
+from . import models, schemas
 
 logger = logging.getLogger(__name__)
 
-async def get_user(db: AsyncSession, user_id: int) -> Optional[models.User]:
+async def get_user(db: AsyncSession, user_id: int) -> models.User | None:
     result = await db.execute(
         select(models.User).where(models.User.id == user_id)
     )
@@ -33,7 +33,7 @@ async def get_user(db: AsyncSession, user_id: int) -> Optional[models.User]:
 default_admin_flag = False
 
 
-async def get_user_by_username(db: AsyncSession, username: str) -> Optional[models.User]:
+async def get_user_by_username(db: AsyncSession, username: str) -> models.User | None:
     result = await db.execute(
         select(models.User).where(models.User.username == username)
     )
@@ -92,7 +92,7 @@ async def create_rubric(
 
 async def get_rubrics(
     db: AsyncSession, skip: int = 0, limit: int = 100
-) -> List[models.ComplianceRubric]:
+) -> list[models.ComplianceRubric]:
     """Return a page of rubrics."""
     query = (
         select(models.ComplianceRubric)
@@ -106,7 +106,7 @@ async def get_rubrics(
 
 async def get_rubric(
     db: AsyncSession, rubric_id: int
-) -> Optional[models.ComplianceRubric]:
+) -> models.ComplianceRubric | None:
     """Return a single rubric by identifier."""
     query = select(models.ComplianceRubric).where(
         models.ComplianceRubric.id == rubric_id
@@ -117,7 +117,7 @@ async def get_rubric(
 
 async def update_rubric(
     db: AsyncSession, rubric_id: int, rubric: schemas.RubricCreate
-) -> Optional[models.ComplianceRubric]:
+) -> models.ComplianceRubric | None:
     """Update an existing rubric."""
     db_rubric = await get_rubric(db, rubric_id)
     if db_rubric is None:
@@ -144,7 +144,7 @@ async def delete_rubric(db: AsyncSession, rubric_id: int) -> None:
     await db.delete(db_rubric)
     await db.commit()
 
-async def get_dashboard_statistics(db: AsyncSession) -> Dict[str, Any]:
+async def get_dashboard_statistics(db: AsyncSession) -> dict[str, Any]:
     """Computes and returns key statistics for the main dashboard."""
     total_docs_query = select(func.count(models.AnalysisReport.id))
     total_docs_result = await db.execute(total_docs_query)
@@ -171,17 +171,17 @@ async def get_dashboard_statistics(db: AsyncSession) -> Dict[str, Any]:
         "compliance_by_category": compliance_by_category,
     }
 
-async def get_organizational_metrics(db: AsyncSession, days_back: int) -> Dict[str, Any]:
+async def get_organizational_metrics(db: AsyncSession, days_back: int) -> dict[str, Any]:
     """Computes high-level organizational metrics."""
-    cutoff_date = datetime.datetime.now(timezone.utc) - timedelta(days=days_back)
-    
+    cutoff_date = datetime.datetime.now(datetime.UTC) - timedelta(days=days_back)
+
     report_query = select(models.AnalysisReport).filter(models.AnalysisReport.analysis_date >= cutoff_date)
     reports = list((await db.execute(report_query.options(selectinload(models.AnalysisReport.findings)))).scalars().unique().all())
-    
+
     total_analyses = len(reports)
     total_findings = sum(len(r.findings) for r in reports)
     avg_score = np.mean([r.compliance_score for r in reports]) if reports else 0
-    
+
     user_query = select(func.count(models.User.id))
     total_users = (await db.execute(user_query)).scalar_one_or_none() or 0
 
@@ -192,10 +192,10 @@ async def get_organizational_metrics(db: AsyncSession, days_back: int) -> Dict[s
         "total_analyses": total_analyses,
     }
 
-async def get_discipline_breakdown(db: AsyncSession, days_back: int) -> Dict[str, Dict[str, Any]]:
+async def get_discipline_breakdown(db: AsyncSession, days_back: int) -> dict[str, dict[str, Any]]:
     """Computes compliance metrics broken down by discipline, querying the JSON field."""
-    cutoff_date = datetime.datetime.now(timezone.utc) - timedelta(days=days_back)
-    
+    cutoff_date = datetime.datetime.now(datetime.UTC) - timedelta(days=days_back)
+
     query = (
         select(
             models.AnalysisReport.analysis_result["discipline"].as_string().label("discipline"),
@@ -208,7 +208,7 @@ async def get_discipline_breakdown(db: AsyncSession, days_back: int) -> Dict[str
     result = await db.execute(query)
     return {row.discipline: {"avg_compliance_score": row.avg_score, "user_count": row.user_count} for row in result.all()}
 
-async def get_team_habit_breakdown(db: AsyncSession, days_back: int) -> Dict[str, Dict[str, Any]]:
+async def get_team_habit_breakdown(db: AsyncSession, days_back: int) -> dict[str, dict[str, Any]]:
     """Computes the distribution of findings related to habits."""
     # This is a simplified example. A real implementation would join with a habits table.
     return {
@@ -217,7 +217,7 @@ async def get_team_habit_breakdown(db: AsyncSession, days_back: int) -> Dict[str
         "habit_3": {"habit_number": 3, "habit_name": "Put First Things First", "percentage": 20.0},
     }
 
-async def get_training_needs(db: AsyncSession, days_back: int) -> List[Dict[str, Any]]:
+async def get_training_needs(db: AsyncSession, days_back: int) -> list[dict[str, Any]]:
     """Identifies potential training needs based on finding frequency."""
     # This is a simplified example.
     return [
@@ -225,12 +225,12 @@ async def get_training_needs(db: AsyncSession, days_back: int) -> List[Dict[str,
         {"habit_name": "Be Proactive", "percentage_of_findings": 25.0, "priority": "medium", "affected_users": 15, "training_focus": "Identifying and addressing potential issues"},
     ]
 
-async def get_team_performance_trends(db: AsyncSession, days_back: int) -> List[Dict[str, Any]]:
+async def get_team_performance_trends(db: AsyncSession, days_back: int) -> list[dict[str, Any]]:
     """Computes team performance trends grouped by week."""
     if days_back <= 0:
         return []
 
-    now = datetime.datetime.now(timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     num_weeks = max(1, math.ceil(days_back / 7))
     cutoff_date = now - datetime.timedelta(days=days_back)
 
@@ -244,10 +244,10 @@ async def get_team_performance_trends(db: AsyncSession, days_back: int) -> List[
 
     def _as_aware(dt: datetime.datetime) -> datetime.datetime:
         if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
-            return dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(timezone.utc)
+            return dt.replace(tzinfo=datetime.UTC)
+        return dt.astimezone(datetime.UTC)
 
-    trends: List[Dict[str, Any]] = []
+    trends: list[dict[str, Any]] = []
     for index in range(num_weeks):
         week_end = now - datetime.timedelta(days=index * 7)
         week_start = week_end - datetime.timedelta(days=7)
@@ -275,11 +275,11 @@ async def get_team_performance_trends(db: AsyncSession, days_back: int) -> List[
 
     return trends
 
-async def get_benchmark_data(db: AsyncSession) -> Dict[str, Any]:
+async def get_benchmark_data(db: AsyncSession) -> dict[str, Any]:
     """Computes benchmark data across the organization."""
     query = select(models.AnalysisReport.compliance_score)
     scores = list((await db.execute(query)).scalars().all())
-    
+
     if not scores:
         return {}
 
@@ -294,7 +294,7 @@ async def get_benchmark_data(db: AsyncSession) -> Dict[str, Any]:
     }
 
 
-async def get_all_reports_with_embeddings(db: AsyncSession) -> List[models.AnalysisReport]:
+async def get_all_reports_with_embeddings(db: AsyncSession) -> list[models.AnalysisReport]:
     """Return all analysis reports that have an embedding stored."""
     query = (
         select(models.AnalysisReport)
@@ -309,7 +309,7 @@ async def get_all_reports_with_embeddings(db: AsyncSession) -> List[models.Analy
     return list(result.scalars().unique().all())
 
 
-async def get_report(db: AsyncSession, report_id: int) -> Optional[models.AnalysisReport]:
+async def get_report(db: AsyncSession, report_id: int) -> models.AnalysisReport | None:
     """Fetches a single analysis report with its findings eagerly loaded."""
     query = (
         select(models.AnalysisReport)
@@ -322,13 +322,13 @@ async def get_report(db: AsyncSession, report_id: int) -> Optional[models.Analys
 
 async def find_similar_report(
     db: AsyncSession,
-    document_type: Optional[str],
-    exclude_report_id: Optional[int] = None,
-    embedding: Optional[bytes] = None,
+    document_type: str | None,
+    exclude_report_id: int | None = None,
+    embedding: bytes | None = None,
     threshold: float = 0.85,
-) -> Optional[models.AnalysisReport]:
+) -> models.AnalysisReport | None:
     """Finds a similar report using the vector store, with a fallback to recency."""
-    candidate_ids: List[int] = []
+    candidate_ids: list[int] = []
     vector_store = get_vector_store()
 
     if embedding:
@@ -381,7 +381,7 @@ async def find_similar_report(
 
 async def get_reports(
     db: AsyncSession, skip: int = 0, limit: int = 100
-) -> List[models.AnalysisReport]:
+) -> list[models.AnalysisReport]:
     """Return analysis reports with their findings eagerly loaded."""
     query = (
         select(models.AnalysisReport)
@@ -394,7 +394,7 @@ async def get_reports(
     return list(result.scalars().unique().all())
 
 
-async def get_findings_summary(db: AsyncSession) -> List[Dict[str, Any]]:
+async def get_findings_summary(db: AsyncSession) -> list[dict[str, Any]]:
     """Aggregate findings by rule identifier for high level dashboards."""
     query = (
         select(
@@ -419,8 +419,8 @@ async def get_findings_summary(db: AsyncSession) -> List[Dict[str, Any]]:
 
 
 def _as_datetime(
-    value: Optional[date], *, end: bool = False
-) -> Optional[datetime.datetime]:
+    value: date | None, *, end: bool = False
+) -> datetime.datetime | None:
     """Convert a date into a naive UTC datetime for filtering."""
     if value is None:
         return None
@@ -434,9 +434,9 @@ def _as_datetime(
 async def get_total_findings_count(
     db: AsyncSession,
     *,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    discipline: Optional[str] = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    discipline: str | None = None,
 ) -> int:
     """Return the total number of findings in the specified window."""
     query = (
@@ -462,10 +462,10 @@ async def get_total_findings_count(
 async def get_team_habit_summary(
     db: AsyncSession,
     *,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    discipline: Optional[str] = None,
-) -> List[schemas.HabitSummary]:
+    start_date: date | None = None,
+    end_date: date | None = None,
+    discipline: str | None = None,
+) -> list[schemas.HabitSummary]:
     """Return an aggregate view of team habits based on progress snapshots."""
     # Discipline filtering is not currently tracked for snapshots; placeholder.
     query = select(models.HabitProgressSnapshot)
@@ -479,7 +479,7 @@ async def get_team_habit_summary(
     if not snapshots:
         return []
 
-    aggregate: Dict[str, float] = {f"habit_{i}": 0.0 for i in range(1, 8)}
+    aggregate: dict[str, float] = {f"habit_{i}": 0.0 for i in range(1, 8)}
     for snapshot in snapshots:
         aggregate["habit_1"] += snapshot.habit_1_percentage
         aggregate["habit_2"] += snapshot.habit_2_percentage
@@ -490,7 +490,7 @@ async def get_team_habit_summary(
         aggregate["habit_7"] += snapshot.habit_7_percentage
 
     denominator = max(len(snapshots), 1)
-    summaries: List[schemas.HabitSummary] = []
+    summaries: list[schemas.HabitSummary] = []
     for habit_index in range(1, 8):
         habit_id = f"habit_{habit_index}"
         average = aggregate[habit_id] / denominator
@@ -506,10 +506,10 @@ async def get_team_habit_summary(
 async def get_clinician_habit_breakdown(
     db: AsyncSession,
     *,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    discipline: Optional[str] = None,
-) -> List[schemas.ClinicianHabitBreakdown]:
+    start_date: date | None = None,
+    end_date: date | None = None,
+    discipline: str | None = None,
+) -> list[schemas.ClinicianHabitBreakdown]:
     """Return per-clinician habit focus based on their latest snapshots."""
     query = (
         select(models.HabitProgressSnapshot, models.User)
@@ -526,14 +526,14 @@ async def get_clinician_habit_breakdown(
         query = query.where(models.HabitProgressSnapshot.snapshot_date <= end_date)
 
     result = await db.execute(query)
-    latest_snapshots: Dict[int, Tuple[models.HabitProgressSnapshot, models.User]] = {}
+    latest_snapshots: dict[int, tuple[models.HabitProgressSnapshot, models.User]] = {}
     for snapshot, user in result.all():
         if discipline and user.license_key != discipline:
             continue
         latest_snapshots.setdefault(user.id, (snapshot, user))
 
-    breakdown: List[schemas.ClinicianHabitBreakdown] = []
-    for user_id, (snapshot, user) in latest_snapshots.items():
+    breakdown: list[schemas.ClinicianHabitBreakdown] = []
+    for _user_id, (snapshot, user) in latest_snapshots.items():
         habit_percentages = [
             ("habit_1", snapshot.habit_1_percentage),
             ("habit_2", snapshot.habit_2_percentage),
@@ -561,9 +561,9 @@ async def get_clinician_habit_breakdown(
 async def get_habit_trend_data(
     db: AsyncSession,
     *,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-) -> List[schemas.HabitTrendPoint]:
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> list[schemas.HabitTrendPoint]:
     """Return total findings trend over time using habit snapshots."""
     query = select(
         models.HabitProgressSnapshot.snapshot_date,
@@ -590,7 +590,7 @@ async def get_habit_trend_data(
 
 async def get_user_habit_goals(
     db: AsyncSession, user_id: int, active_only: bool = True
-) -> List[models.HabitGoal]:
+) -> list[models.HabitGoal]:
     """Return goals for the given user."""
     query = select(models.HabitGoal).where(models.HabitGoal.user_id == user_id)
     if active_only:
@@ -601,11 +601,11 @@ async def get_user_habit_goals(
 
 
 async def create_personal_habit_goal(
-    db: AsyncSession, user_id: int, goal_data: Dict[str, Any]
+    db: AsyncSession, user_id: int, goal_data: dict[str, Any]
 ) -> models.HabitGoal:
     """Create a personal habit goal for a user."""
     habit_identifier = goal_data.get("habit_id")
-    habit_number: Optional[int] = None
+    habit_number: int | None = None
     if isinstance(habit_identifier, str) and habit_identifier.startswith("habit_"):
         try:
             habit_number = int(habit_identifier.split("_")[-1])
@@ -630,16 +630,16 @@ async def create_personal_habit_goal(
         await db.rollback()
         raise
     await db.refresh(db_goal)
-    setattr(db_goal, "habit_id", habit_identifier)
-    setattr(db_goal, "habit_name", goal_data.get("habit_name"))
-    setattr(db_goal, "goal_type", goal_data.get("goal_type"))
-    setattr(db_goal, "target_value", db_goal.target_value)
-    setattr(db_goal, "target_date", db_goal.target_date)
+    db_goal.habit_id = habit_identifier
+    db_goal.habit_name = goal_data.get("habit_name")
+    db_goal.goal_type = goal_data.get("goal_type")
+    db_goal.target_value = db_goal.target_value
+    db_goal.target_date = db_goal.target_date
     return db_goal
 
 
 async def create_habit_goal(
-    db: AsyncSession, user_id: int, goal_data: Dict[str, Any]
+    db: AsyncSession, user_id: int, goal_data: dict[str, Any]
 ) -> models.HabitGoal:
     """Compatibility wrapper for legacy API."""
     return await create_personal_habit_goal(db, user_id, goal_data)
@@ -647,7 +647,7 @@ async def create_habit_goal(
 
 async def update_habit_goal_progress(
     db: AsyncSession, goal_id: int, progress: int, user_id: int
-) -> Optional[models.HabitGoal]:
+) -> models.HabitGoal | None:
     """Update the progress percentage for a user's goal."""
     query = select(models.HabitGoal).where(
         models.HabitGoal.id == goal_id, models.HabitGoal.user_id == user_id
@@ -666,8 +666,8 @@ async def update_habit_goal_progress(
 
 
 async def get_user_achievements(
-    db: AsyncSession, user_id: int, category: Optional[str] = None
-) -> List[Dict[str, Any]]:
+    db: AsyncSession, user_id: int, category: str | None = None
+) -> list[dict[str, Any]]:
     """Return achievements for a user grouped by category."""
     query = select(models.HabitAchievement).where(models.HabitAchievement.user_id == user_id)
     if category:
@@ -700,7 +700,7 @@ async def get_user_achievements(
 
 async def get_user_habit_statistics(
     db: AsyncSession, user_id: int, days_back: int
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Return high level habit statistics for a user."""
     cutoff = datetime.datetime.utcnow() - timedelta(days=days_back)
 
@@ -749,7 +749,7 @@ async def get_user_habit_statistics(
 
 
 async def create_habit_progress_snapshot(
-    db: AsyncSession, user_id: int, snapshot_data: Dict[str, Any]
+    db: AsyncSession, user_id: int, snapshot_data: dict[str, Any]
 ) -> models.HabitProgressSnapshot:
     """Persist a habit progress snapshot for a user."""
     habit_breakdown = snapshot_data.get("habit_breakdown", {})
@@ -781,12 +781,8 @@ async def create_habit_progress_snapshot(
     await db.refresh(snapshot)
 
     # Provide convenient attributes expected by the API layer.
-    setattr(snapshot, "mastery_score", snapshot.overall_progress_score)
-    setattr(
-        snapshot,
-        "primary_focus_habit",
-        snapshot_data.get("primary_focus_habit"),
-    )
+    snapshot.mastery_score = snapshot.overall_progress_score
+    snapshot.primary_focus_habit = snapshot_data.get("primary_focus_habit")
 
     return snapshot
 
@@ -828,8 +824,8 @@ async def create_feedback_annotation(
 async def get_user_reports_with_findings(
     db: AsyncSession,
     user_id: int,
-    start_date: Optional[datetime.datetime] = None,
-) -> List[models.AnalysisReport]:
+    start_date: datetime.datetime | None = None,
+) -> list[models.AnalysisReport]:
     """
     Fetch analysis reports associated with a user.
 

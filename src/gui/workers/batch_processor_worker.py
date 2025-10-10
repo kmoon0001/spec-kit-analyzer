@@ -1,9 +1,9 @@
 
-import time
-import requests
 import os
+import time
+
+import requests
 from PySide6.QtCore import QObject, Signal, Slot
-from typing import List
 
 from src.config import get_settings
 
@@ -18,7 +18,7 @@ class BatchProcessorWorker(QObject):
     finished = Signal()
     error = Signal(str)
 
-    def __init__(self, file_paths: List[str], token: str, analysis_data: dict):
+    def __init__(self, file_paths: list[str], token: str, analysis_data: dict):
         super().__init__()
         self.file_paths = file_paths
         self.token = token
@@ -58,7 +58,7 @@ class BatchProcessorWorker(QObject):
                     poll_response = requests.get(f"{API_URL}/analysis/status/{task_id}", headers=headers, timeout=10)
                     poll_response.raise_for_status()
                     status_data = poll_response.json()
-                    
+
                     if status_data["status"] == "completed":
                         self.file_completed.emit(filename, "Completed")
                         break
@@ -66,7 +66,7 @@ class BatchProcessorWorker(QObject):
                         error_msg = status_data.get("error", "Unknown error")
                         self.file_completed.emit(filename, f"Failed: {error_msg}")
                         break
-                    
+
                     time.sleep(2) # Wait before polling again
 
             except requests.RequestException as e:

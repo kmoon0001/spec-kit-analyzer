@@ -7,9 +7,9 @@ This is crucial for efficiently finding similar reports based on their embedding
 """
 
 import logging
-import numpy as np
+
 import faiss
-from typing import List, Tuple
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class VectorStore:
 
     def __new__(cls, embedding_dim: int = 768):
         if cls._instance is None:
-            cls._instance = super(VectorStore, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance.embedding_dim = embedding_dim
             cls._instance.index = None
             cls._instance.report_ids = []
@@ -41,7 +41,7 @@ class VectorStore:
             logger.error(f"Failed to initialize FAISS index: {e}")
             self.is_initialized = False
 
-    def add_vectors(self, vectors: np.ndarray, ids: List[int]):
+    def add_vectors(self, vectors: np.ndarray, ids: list[int]):
         """Adds vectors to the index."""
         if not self.is_initialized:
             logger.warning("Cannot add vectors: FAISS index is not initialized.")
@@ -58,7 +58,7 @@ class VectorStore:
         except Exception as e:
             logger.error(f"Failed to add vectors to FAISS index: {e}")
 
-    def search(self, query_vector: np.ndarray, k: int, threshold: float = 0.9) -> List[Tuple[int, float]]:
+    def search(self, query_vector: np.ndarray, k: int, threshold: float = 0.9) -> list[tuple[int, float]]:
         """Searches the index for similar vectors."""
         if not self.is_initialized or self.index.ntotal == 0:
             logger.warning("Cannot search: FAISS index is not initialized or is empty.")
@@ -67,7 +67,7 @@ class VectorStore:
         try:
             distances, indices = self.index.search(query_vector.astype('float32'), k)
             results = []
-            for i, dist in zip(indices[0], distances[0]):
+            for i, dist in zip(indices[0], distances[0], strict=False):
                 if i != -1:  # -1 indicates no result
                     # The distance is L2, so we can convert it to a similarity score
                     # This is a simple linear conversion; a more sophisticated one might be needed

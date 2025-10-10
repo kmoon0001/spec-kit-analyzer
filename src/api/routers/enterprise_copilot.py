@@ -6,15 +6,15 @@ Provides AI-powered enterprise assistance and automation capabilities.
 
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from src.auth import get_current_user
-from src.database.models import User
 from src.core.enterprise_copilot_service import enterprise_copilot_service
 from src.core.performance_monitor import performance_monitor
+from src.database.models import User
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/enterprise-copilot")
@@ -23,32 +23,32 @@ router = APIRouter(prefix="/enterprise-copilot")
 class CopilotQuery(BaseModel):
     """Enterprise copilot query."""
     query: str = Field(..., description="Natural language query or request")
-    context: Optional[Dict[str, Any]] = Field(default=None, description="Additional context")
-    department: Optional[str] = Field(default=None, description="User department")
+    context: dict[str, Any] | None = Field(default=None, description="Additional context")
+    department: str | None = Field(default=None, description="User department")
     priority: str = Field(default="normal", description="Query priority (low, normal, high)")
 
 
 class WorkflowAutomationRequest(BaseModel):
     """Workflow automation request."""
     workflow_type: str = Field(..., description="Type of workflow to automate")
-    parameters: Dict[str, Any] = Field(..., description="Workflow parameters")
-    schedule: Optional[str] = Field(default=None, description="Automation schedule")
+    parameters: dict[str, Any] = Field(..., description="Workflow parameters")
+    schedule: str | None = Field(default=None, description="Automation schedule")
 
 
 @router.post("/ask")
 async def ask_copilot(
     query: CopilotQuery,
     current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Ask the Enterprise Copilot a question or request assistance.
-    
+
     The copilot can help with compliance questions, workflow automation,
     data analysis, and general healthcare documentation guidance.
     """
     try:
         logger.info(f"Copilot query from {current_user.username}: {query.query[:100]}...")
-        
+
         # Process the query through the enhanced enterprise copilot service with performance monitoring
         with performance_monitor.track_operation("enterprise_copilot", "process_query"):
             response = await enterprise_copilot_service.process_query(
@@ -58,7 +58,7 @@ async def ask_copilot(
                 department=query.department,
                 priority=query.priority
             )
-        
+
         return {
             "success": True,
             "response": response.get("answer", "I'm sorry, I couldn't process that request."),
@@ -69,7 +69,7 @@ async def ask_copilot(
             "processing_time_ms": response.get("processing_time_ms", 0),
             "query_id": response.get("query_id")
         }
-        
+
     except Exception as e:
         logger.error(f"Copilot query failed: {e}")
         raise HTTPException(
@@ -79,7 +79,7 @@ async def ask_copilot(
 
 
 @router.get("/capabilities")
-async def get_copilot_capabilities() -> Dict[str, Any]:
+async def get_copilot_capabilities() -> dict[str, Any]:
     """Get the current capabilities of the Enterprise Copilot."""
     return {
         "capabilities": [
@@ -106,7 +106,7 @@ async def get_copilot_capabilities() -> Dict[str, Any]:
         ],
         "supported_queries": [
             "compliance questions",
-            "documentation guidance", 
+            "documentation guidance",
             "workflow automation",
             "data analysis requests",
             "best practice recommendations",
@@ -125,10 +125,10 @@ async def get_copilot_capabilities() -> Dict[str, Any]:
 async def create_workflow_automation(
     request: WorkflowAutomationRequest,
     current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create a new workflow automation.
-    
+
     Supported workflow types:
     - compliance_monitoring: Automated compliance checks
     - report_generation: Scheduled report creation
@@ -141,10 +141,10 @@ async def create_workflow_automation(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Workflow automation requires admin privileges"
         )
-    
+
     try:
         logger.info(f"Creating workflow automation: {request.workflow_type}")
-        
+
         # Create the automation through the copilot service
         automation_result = await enterprise_copilot_service.create_workflow_automation(
             workflow_type=request.workflow_type,
@@ -152,7 +152,7 @@ async def create_workflow_automation(
             schedule=request.schedule,
             user_id=current_user.id
         )
-        
+
         return {
             "success": True,
             "automation_id": automation_result.get("automation_id"),
@@ -162,7 +162,7 @@ async def create_workflow_automation(
             "next_run": automation_result.get("next_run"),
             "message": f"Workflow automation '{request.workflow_type}' created successfully"
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to create workflow automation: {e}")
         raise HTTPException(
@@ -174,20 +174,20 @@ async def create_workflow_automation(
 @router.get("/workflow/list")
 async def list_workflow_automations(
     current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """List all workflow automations."""
     try:
         automations = await enterprise_copilot_service.list_workflow_automations(
             user_id=current_user.id,
             include_system=current_user.is_admin
         )
-        
+
         return {
             "success": True,
             "automations": automations,
             "total_count": len(automations)
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to list workflow automations: {e}")
         raise HTTPException(
@@ -197,7 +197,7 @@ async def list_workflow_automations(
 
 
 @router.get("/help/topics")
-async def get_help_topics() -> Dict[str, Any]:
+async def get_help_topics() -> dict[str, Any]:
     """Get available help topics and examples."""
     return {
         "help_topics": [
@@ -244,11 +244,11 @@ async def get_help_topics() -> Dict[str, Any]:
 
 
 @router.get("/status")
-async def get_copilot_status() -> Dict[str, Any]:
+async def get_copilot_status() -> dict[str, Any]:
     """Get Enterprise Copilot system status."""
     try:
         status_info = await enterprise_copilot_service.get_system_status()
-        
+
         return {
             "status": "operational",
             "version": "1.0.0",
@@ -259,7 +259,7 @@ async def get_copilot_status() -> Dict[str, Any]:
             "capabilities_enabled": True,
             "last_updated": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to get copilot status: {e}")
         return {

@@ -4,9 +4,9 @@ API router for handling user feedback on AI-generated findings.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...database import crud, schemas, models
-from ...database import get_async_db as get_db
 from ...auth import get_current_active_user
+from ...database import crud, models, schemas
+from ...database import get_async_db as get_db
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 

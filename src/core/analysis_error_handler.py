@@ -6,9 +6,9 @@ error messages and recovery suggestions for analysis workflow failures.
 """
 
 import re
-from typing import Dict, List, Optional, TypedDict
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
+from typing import TypedDict
 
 
 class ErrorCategory(Enum):
@@ -28,7 +28,7 @@ class ErrorSolution:
     """Represents a solution for an error."""
     title: str
     description: str
-    action: Optional[str] = None
+    action: str | None = None
     priority: int = 1  # 1 = high, 2 = medium, 3 = low
 
 
@@ -39,7 +39,7 @@ class AnalysisError:
     title: str
     message: str
     technical_details: str
-    solutions: List[ErrorSolution]
+    solutions: list[ErrorSolution]
     severity: str  # "critical", "warning", "info"
     icon: str
 
@@ -48,7 +48,7 @@ class ErrorConfig(TypedDict):
     """Typed configuration for a categorized error response."""
     title: str
     message: str
-    solutions: List[ErrorSolution]
+    solutions: list[ErrorSolution]
     severity: str
     icon: str
 
@@ -56,38 +56,38 @@ class ErrorConfig(TypedDict):
 class AnalysisErrorHandler:
     """
     Comprehensive error handler for analysis workflow.
-    
+
     Categorizes errors and provides user-friendly messages with
     actionable solutions and troubleshooting guidance.
     """
-    
+
     def __init__(self):
         self.error_patterns = self._initialize_error_patterns()
-    
-    def categorize_and_handle_error(self, error_message: str, context: Optional[Dict[str, object]] = None) -> AnalysisError:
+
+    def categorize_and_handle_error(self, error_message: str, context: dict[str, object] | None = None) -> AnalysisError:
         """
         Categorize an error and provide comprehensive handling information.
-        
+
         Args:
             error_message: The raw error message
             context: Additional context about the error
-            
+
         Returns:
             AnalysisError with categorization and solutions
         """
         # Normalize error message for pattern matching
         normalized_error = error_message.lower().strip()
-        
+
         # Try to match against known error patterns
         for category, patterns in self.error_patterns.items():
             for pattern in patterns:
                 if re.search(pattern, normalized_error):
                     return self._create_error_response(category, error_message, context)
-        
+
         # If no pattern matches, return unknown error
         return self._create_error_response(ErrorCategory.UNKNOWN, error_message, context)
-    
-    def _initialize_error_patterns(self) -> Dict[ErrorCategory, List[str]]:
+
+    def _initialize_error_patterns(self) -> dict[ErrorCategory, list[str]]:
         """Initialize regex patterns for error categorization."""
         return {
             ErrorCategory.API_CONNECTION: [
@@ -160,11 +160,11 @@ class AnalysisErrorHandler:
                 r"cpu.*limit.*exceeded"
             ]
         }
-    
-    def _create_error_response(self, category: ErrorCategory, original_error: str, context: Optional[Dict[str, object]] = None) -> AnalysisError:
+
+    def _create_error_response(self, category: ErrorCategory, original_error: str, context: dict[str, object] | None = None) -> AnalysisError:
         """Create a comprehensive error response for a specific category."""
 
-        error_configs: Dict[ErrorCategory, ErrorConfig] = {
+        error_configs: dict[ErrorCategory, ErrorConfig] = {
             ErrorCategory.API_CONNECTION: {
                 "title": "Cannot Connect to Analysis Service",
                 "message": "The application cannot connect to the backend analysis service. This is required for document analysis to work.",
@@ -191,7 +191,7 @@ class AnalysisErrorHandler:
                 "severity": "critical",
                 "icon": "🔌"
             },
-            
+
             ErrorCategory.AI_MODEL_LOADING: {
                 "title": "AI Models Not Ready",
                 "message": "The AI models required for analysis are not loaded or failed to initialize. This may take a few minutes on first startup.",
@@ -218,7 +218,7 @@ class AnalysisErrorHandler:
                 "severity": "warning",
                 "icon": "🤖"
             },
-            
+
             ErrorCategory.FILE_PROCESSING: {
                 "title": "Document Processing Error",
                 "message": "There was a problem processing your document. The file may be corrupted, in an unsupported format, or inaccessible.",
@@ -245,7 +245,7 @@ class AnalysisErrorHandler:
                 "severity": "warning",
                 "icon": "📄"
             },
-            
+
             ErrorCategory.ANALYSIS_TIMEOUT: {
                 "title": "Analysis Timed Out",
                 "message": "The analysis is taking longer than expected and has timed out. This may indicate a system overload or processing issue.",
@@ -272,7 +272,7 @@ class AnalysisErrorHandler:
                 "severity": "warning",
                 "icon": "⏰"
             },
-            
+
             ErrorCategory.BACKEND_PROCESSING: {
                 "title": "Analysis Service Error",
                 "message": "The backend analysis service encountered an error while processing your document. This is usually a temporary issue.",
@@ -299,7 +299,7 @@ class AnalysisErrorHandler:
                 "severity": "critical",
                 "icon": "⚙️"
             },
-            
+
             ErrorCategory.AUTHENTICATION: {
                 "title": "Authentication Error",
                 "message": "There was a problem with user authentication. You may need to log in again or check your credentials.",
@@ -320,7 +320,7 @@ class AnalysisErrorHandler:
                 "severity": "warning",
                 "icon": "🔐"
             },
-            
+
             ErrorCategory.SYSTEM_RESOURCES: {
                 "title": "System Resource Issue",
                 "message": "Your system is running low on resources (memory, disk space, or CPU). This can prevent analysis from completing.",
@@ -347,7 +347,7 @@ class AnalysisErrorHandler:
                 "severity": "warning",
                 "icon": "💻"
             },
-            
+
             ErrorCategory.UNKNOWN: {
                 "title": "Unexpected Error",
                 "message": "An unexpected error occurred during analysis. This may be a temporary issue or a bug in the system.",
@@ -375,9 +375,9 @@ class AnalysisErrorHandler:
                 "icon": "❓"
             }
         }
-        
+
         config = error_configs.get(category, error_configs[ErrorCategory.UNKNOWN])
-        
+
         return AnalysisError(
             category=category,
             title=config["title"],
@@ -387,21 +387,21 @@ class AnalysisErrorHandler:
             severity=config["severity"],
             icon=config["icon"]
         )
-    
+
     def format_error_message(self, error: AnalysisError, include_technical: bool = False) -> str:
         """
         Format an error for display to the user.
-        
+
         Args:
             error: The AnalysisError to format
             include_technical: Whether to include technical details
-            
+
         Returns:
             Formatted error message string
         """
         message = f"{error.icon} {error.title}\n\n"
         message += f"{error.message}\n\n"
-        
+
         if error.solutions:
             message += "💡 Recommended Solutions:\n\n"
             for i, solution in enumerate(error.solutions, 1):
@@ -410,10 +410,10 @@ class AnalysisErrorHandler:
                 if solution.action:
                     message += f"   → {solution.action}\n"
                 message += "\n"
-        
+
         if include_technical and error.technical_details:
             message += f"🔧 Technical Details:\n{error.technical_details}\n"
-        
+
         return message.strip()
 
 

@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any
+from typing import Any
 
 from .llm_service import LLMService
 from .prompt_manager import PromptManager
@@ -26,7 +26,7 @@ class NLGService:
         template_name = os.path.basename(prompt_template_path)
         self.prompt_manager = PromptManager(template_name=template_name)
 
-    def generate_personalized_tip(self, finding: Dict[str, Any]) -> str:
+    def generate_personalized_tip(self, finding: dict[str, Any]) -> str:
         """
         Generates a personalized improvement tip for a given compliance finding.
 

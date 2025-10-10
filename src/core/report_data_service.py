@@ -7,7 +7,7 @@ Separated from the main engine for better maintainability and testing.
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Any
 
 from .report_models import DataProvider, ReportType
 
@@ -16,35 +16,35 @@ logger = logging.getLogger(__name__)
 
 class DataAggregationService:
     """Service for aggregating data from multiple sources for reports"""
-    
+
     def __init__(self):
-        self.data_providers: Dict[str, DataProvider] = {}
-        self.cache: Dict[str, Any] = {}
-        self.cache_ttl: Dict[str, datetime] = {}
+        self.data_providers: dict[str, DataProvider] = {}
+        self.cache: dict[str, Any] = {}
+        self.cache_ttl: dict[str, datetime] = {}
         self.default_cache_duration = timedelta(minutes=5)
-    
+
     def register_data_provider(self, name: str, provider: DataProvider) -> None:
         """Register a data provider"""
         self.data_providers[name] = provider
         logger.info(f"Registered data provider: {name}")
-    
+
     def unregister_data_provider(self, name: str) -> None:
         """Unregister a data provider"""
         if name in self.data_providers:
             del self.data_providers[name]
             logger.info(f"Unregistered data provider: {name}")
-    
-    def get_aggregated_data(self, report_type: ReportType, filters: Dict[str, Any]) -> Dict[str, Any]:
+
+    def get_aggregated_data(self, report_type: ReportType, filters: dict[str, Any]) -> dict[str, Any]:
         """Get aggregated data from all relevant providers"""
         cache_key = f"{report_type.value}_{hash(str(sorted(filters.items())))}"
-        
+
         # Check cache first
         if self._is_cache_valid(cache_key):
             logger.debug(f"Returning cached data for {cache_key}")
             return self.cache[cache_key]
-        
+
         aggregated_data = {}
-        
+
         for provider_name, provider in self.data_providers.items():
             try:
                 if provider.supports_report_type(report_type):
@@ -54,30 +54,30 @@ class DataAggregationService:
             except Exception as e:
                 logger.error(f"Error getting data from provider {provider_name}: {e}")
                 aggregated_data[provider_name] = {"error": str(e)}
-        
+
         # Cache the result
         self.cache[cache_key] = aggregated_data
         self.cache_ttl[cache_key] = datetime.now() + self.default_cache_duration
-        
+
         return aggregated_data
-    
+
     def _is_cache_valid(self, cache_key: str) -> bool:
         """Check if cached data is still valid"""
         if cache_key not in self.cache:
             return False
-        
+
         if cache_key not in self.cache_ttl:
             return False
-        
+
         return datetime.now() < self.cache_ttl[cache_key]
-    
+
     def clear_cache(self) -> None:
         """Clear all cached data"""
         self.cache.clear()
         self.cache_ttl.clear()
         logger.info("Cleared data aggregation cache")
-    
-    def get_provider_status(self) -> Dict[str, Dict[str, Any]]:
+
+    def get_provider_status(self) -> dict[str, dict[str, Any]]:
         """Get status information for all registered providers"""
         status = {}
         for name, provider in self.data_providers.items():

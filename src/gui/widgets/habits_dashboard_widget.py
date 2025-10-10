@@ -6,22 +6,21 @@ weekly focus, and personalized coaching recommendations.
 """
 
 import logging
-from typing import Dict, Optional
 
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QFont, QPainter, QPen, QBrush, QColor
+from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QFrame,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
     QScrollArea,
-    QFrame,
-    QTextEdit,
-    QTabWidget,
-    QGroupBox,
     QSplitter,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 
 from ...config import get_settings
@@ -211,7 +210,7 @@ class HabitDetailsWidget(QWidget):
         strategies_layout.addWidget(self.strategies_text)
         layout.addWidget(strategies_group)
 
-    def update_habit(self, habit_info: Dict):
+    def update_habit(self, habit_info: dict):
         """Update the widget with habit information."""
         self.title_label.setText(f"Habit {habit_info['number']}: {habit_info['name']}")
         self.principle_label.setText(f"Principle: {habit_info['principle']}")
@@ -460,7 +459,7 @@ class HabitsDashboardWidget(QWidget):
                 "Your documentation is well-balanced across all habits",
             )
 
-    def get_habit_metrics(self) -> Optional[Dict]:
+    def get_habit_metrics(self) -> dict | None:
         """Get current habit metrics."""
         return self.current_metrics
 

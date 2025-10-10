@@ -6,16 +6,15 @@ analysis reports, and findings using modern SQLAlchemy 2.0 syntax.
 """
 
 import datetime
-from typing import List, Optional
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Date,
     DateTime,
     Float,
     ForeignKey,
     Integer,
-    JSON,
     LargeBinary,
     String,
     Text,
@@ -35,7 +34,7 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
-    license_key: Mapped[Optional[str]] = mapped_column(
+    license_key: Mapped[str | None] = mapped_column(
         String, unique=True, index=True, nullable=True
     )
     created_at: Mapped[datetime.datetime] = mapped_column(
@@ -46,13 +45,13 @@ class User(Base):
     )
 
     # Habit tracking relationships
-    habit_goals: Mapped[List["HabitGoal"]] = relationship(
+    habit_goals: Mapped[list["HabitGoal"]] = relationship(
         "HabitGoal", back_populates="user", cascade="all, delete-orphan"
     )
-    habit_achievements: Mapped[List["HabitAchievement"]] = relationship(
+    habit_achievements: Mapped[list["HabitAchievement"]] = relationship(
         "HabitAchievement", back_populates="user", cascade="all, delete-orphan"
     )
-    habit_progress_snapshots: Mapped[List["HabitProgressSnapshot"]] = relationship(
+    habit_progress_snapshots: Mapped[list["HabitProgressSnapshot"]] = relationship(
         "HabitProgressSnapshot", back_populates="user", cascade="all, delete-orphan"
     )
 
@@ -68,7 +67,7 @@ class ComplianceRubric(Base):
     regulation: Mapped[str] = mapped_column(Text)
     common_pitfalls: Mapped[str] = mapped_column(Text)
     best_practice: Mapped[str] = mapped_column(Text)
-    category: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
+    category: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.utcnow
     )
@@ -88,16 +87,16 @@ class AnalysisReport(Base):
         DateTime, default=datetime.datetime.utcnow, index=True
     )
     compliance_score: Mapped[float] = mapped_column(Float, index=True)
-    document_type: Mapped[Optional[str]] = mapped_column(
+    document_type: Mapped[str | None] = mapped_column(
         String, index=True, nullable=True
     )
-    discipline: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
+    discipline: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
     analysis_result: Mapped[dict] = mapped_column(JSON)
-    document_embedding: Mapped[Optional[bytes]] = mapped_column(
+    document_embedding: Mapped[bytes | None] = mapped_column(
         LargeBinary, nullable=True
     )
 
-    findings: Mapped[List["Finding"]] = relationship(
+    findings: Mapped[list["Finding"]] = relationship(
         "Finding", back_populates="report", cascade="all, delete-orphan"
     )
 
@@ -131,8 +130,8 @@ class FeedbackAnnotation(Base):
     finding_id: Mapped[int] = mapped_column(Integer, ForeignKey("findings.id"), index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
     is_correct: Mapped[bool] = mapped_column(Boolean)
-    user_comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    correction: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    user_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    correction: Mapped[str | None] = mapped_column(Text, nullable=True)
     feedback_type: Mapped[str] = mapped_column(String, default="finding_accuracy")
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
 
@@ -153,25 +152,25 @@ class HabitGoal(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
     title: Mapped[str] = mapped_column(String(200))
-    description: Mapped[Optional[str]] = mapped_column(Text)
-    habit_number: Mapped[Optional[int]] = mapped_column(Integer)  # 1-7 for habits
-    target_value: Mapped[Optional[float]] = mapped_column(Float)
-    current_value: Mapped[Optional[float]] = mapped_column(Float, default=0.0)
+    description: Mapped[str | None] = mapped_column(Text)
+    habit_number: Mapped[int | None] = mapped_column(Integer)  # 1-7 for habits
+    target_value: Mapped[float | None] = mapped_column(Float)
+    current_value: Mapped[float | None] = mapped_column(Float, default=0.0)
     progress: Mapped[int] = mapped_column(Integer, default=0)  # 0-100 percentage
     status: Mapped[str] = mapped_column(String(20), default="active")
-    target_date: Mapped[Optional[datetime.datetime]] = mapped_column(
+    target_date: Mapped[datetime.datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        default=lambda: datetime.datetime.now(datetime.UTC),
     )
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.datetime.now(datetime.timezone.utc),
-        onupdate=lambda: datetime.datetime.now(datetime.timezone.utc),
+        default=lambda: datetime.datetime.now(datetime.UTC),
+        onupdate=lambda: datetime.datetime.now(datetime.UTC),
     )
-    completed_at: Mapped[Optional[datetime.datetime]] = mapped_column(
+    completed_at: Mapped[datetime.datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
 
@@ -193,7 +192,7 @@ class HabitAchievement(Base):
     category: Mapped[str] = mapped_column(String(50))
     earned_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        default=lambda: datetime.datetime.now(datetime.UTC),
     )
 
     # Relationships
@@ -226,7 +225,7 @@ class HabitProgressSnapshot(Base):
 
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        default=lambda: datetime.datetime.now(datetime.UTC),
     )
 
     # Relationships

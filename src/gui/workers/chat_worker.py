@@ -1,7 +1,7 @@
 
+
 import requests
 from PySide6.QtCore import QObject, Signal, Slot
-from typing import List, Dict
 
 from src.config import get_settings
 
@@ -15,7 +15,7 @@ class ChatWorker(QObject):
     error = Signal(str)
     finished = Signal()
 
-    def __init__(self, history: List[Dict[str, str]], token: str):
+    def __init__(self, history: list[dict[str, str]], token: str):
         super().__init__()
         self.history = history
         self.token = token
@@ -26,7 +26,7 @@ class ChatWorker(QObject):
         try:
             headers = {"Authorization": f"Bearer {self.token}"}
             payload = {"history": self.history}
-            
+
             response = requests.post(
                 f"{API_URL}/chat",
                 json=payload,

@@ -17,20 +17,20 @@ async def run_validation():
         results = await system_validator.run_full_validation()
         report = system_validator.generate_validation_report(results)
         
-        print(f'\n📊 Validation Results:')
+        print('\n📊 Validation Results:')
         print(f'Overall Status: {report["overall_status"].upper()}')
         print(f'Total Tests: {report["total_tests"]}')
         print(f'Duration: {report["total_duration_ms"]:.1f}ms')
-        print(f'\nStatus Breakdown:')
+        print('\nStatus Breakdown:')
         for status, count in report["status_counts"].items():
             if count > 0:
                 print(f'  {status}: {count}')
         
-        print(f'\n🔍 Component Results:')
+        print('\n🔍 Component Results:')
         for component, data in report["components"].items():
             print(f'  {component}: {data["status"]} ({data["test_count"]} tests)')
         
-        print(f'\n💡 Recommendations:')
+        print('\n💡 Recommendations:')
         for rec in report["recommendations"]:
             print(f'  • {rec}')
             

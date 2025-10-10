@@ -6,10 +6,10 @@ and anonymous benchmarking data. Admin-only access.
 """
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from ...config import get_settings
 from ...core.meta_analytics_service import MetaAnalyticsService
 from ...database import models
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/meta-analytics", tags=["Meta Analytics"])
 @router.get("/widget_data")
 async def get_widget_meta_analytics_data(
     days_back: int = Query(90, ge=7, le=365, description="Days to analyze (7-365)"),
-    discipline: Optional[str] = Query(
+    discipline: str | None = Query(
         None, description="Filter by discipline (PT, OT, SLP)"
     ),
     _admin_user: models.User = Depends(require_admin),
@@ -50,7 +50,7 @@ async def get_widget_meta_analytics_data(
 @router.get("/organizational-overview")
 async def get_organizational_overview(
     days_back: int = Query(90, ge=7, le=365, description="Days to analyze (7-365)"),
-    discipline: Optional[str] = Query(
+    discipline: str | None = Query(
         None, description="Filter by discipline (PT, OT, SLP)"
     ),
     _admin_user: models.User = Depends(require_admin),
@@ -100,7 +100,7 @@ async def get_organizational_overview(
 @router.get("/training-needs")
 async def get_training_needs(
     days_back: int = Query(90, ge=30, le=365, description="Days to analyze"),
-    discipline: Optional[str] = Query(None, description="Filter by discipline"),
+    discipline: str | None = Query(None, description="Filter by discipline"),
     _admin_user: models.User = Depends(require_admin),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict:
@@ -150,7 +150,7 @@ async def get_training_needs(
 @router.get("/team-trends")
 async def get_team_trends(
     weeks_back: int = Query(12, ge=4, le=52, description="Number of weeks to analyze"),
-    discipline: Optional[str] = Query(None, description="Filter by discipline"),
+    discipline: str | None = Query(None, description="Filter by discipline"),
     _admin_user: models.User = Depends(require_admin),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict:

@@ -1,28 +1,28 @@
 import datetime
-import structlog
 from time import perf_counter
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+import structlog
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
-from src.database.schemas import DirectorDashboardData, CoachingFocus
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database import crud, models, schemas
 from src.api.dependencies import require_admin
 from src.api.limiter import limiter
 from src.auth import get_current_active_user
 from src.config import Settings, get_settings
 from src.core.llm_service import LLMService
 from src.core.report_generator import ReportGenerator
+from src.database import crud, models, schemas
 from src.database.database import get_async_db
+from src.database.schemas import CoachingFocus, DirectorDashboardData
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
 report_generator = ReportGenerator()
 
 
-@router.get("/statistics", response_model=Dict[str, Any])
+@router.get("/statistics", response_model=dict[str, Any])
 async def get_dashboard_statistics(
     db: AsyncSession = Depends(get_async_db),
     current_user: models.User = Depends(get_current_active_user),
@@ -37,7 +37,7 @@ class AIHealthService:
     Provides functionality to check the health of various AI components.
     """
 
-    async def get_ai_component_health(self) -> Dict[str, Any]:
+    async def get_ai_component_health(self) -> dict[str, Any]:
         """
         Asynchronously checks the health of all registered AI components.
         """
@@ -50,19 +50,19 @@ class AIHealthService:
         logger.info("Completed AI component health check", statuses=health_statuses)
         return health_statuses
 
-    async def _check_llm_service(self) -> Dict[str, str]:
+    async def _check_llm_service(self) -> dict[str, str]:
         """Placeholder for LLM service health check."""
         return {"status": "Healthy", "details": "LLM is responsive."}
 
-    async def _check_ner_service(self) -> Dict[str, str]:
+    async def _check_ner_service(self) -> dict[str, str]:
         """Placeholder for NER (Presidio) service health check."""
         return {"status": "Healthy", "details": "NER models loaded successfully."}
 
-    async def _check_transformer_models(self) -> Dict[str, str]:
+    async def _check_transformer_models(self) -> dict[str, str]:
         """Placeholder for core transformer models health check."""
         return {"status": "Healthy", "details": "All models are loaded and accessible."}
 
-    async def _check_vector_database(self) -> Dict[str, str]:
+    async def _check_vector_database(self) -> dict[str, str]:
         """Placeholder for vector database (FAISS) health check."""
         return {"status": "Healthy", "details": "Index is loaded and searchable."}
 
@@ -71,7 +71,7 @@ class AIHealthService:
 
 def _resolve_generator_model(
     settings: Settings,
-) -> Tuple[str, str, Optional[str]]:
+) -> tuple[str, str, str | None]:
     """
     Resolves the generator model from settings, preferring generator_profiles.
     """
@@ -102,18 +102,18 @@ async def get_dashboard_overview(
     """Provides a comprehensive overview for the mission control dashboard."""
     ai_health_service = AIHealthService()
     ai_health = await ai_health_service.get_ai_component_health()
-    
+
     # Placeholder for other dashboard data
     # You can aggregate other data points here as needed
     other_data = {
         "recent_activity": [],
         "system_metrics": {"cpu_usage": 0.0, "memory_usage": 0.0}
     }
-    
+
     return {"ai_health": ai_health, **other_data}
 
 
-@router.get("/reports", response_model=List[schemas.Report])
+@router.get("/reports", response_model=list[schemas.Report])
 async def read_reports(
     skip: int = 0,
     limit: int = 100,
@@ -143,7 +143,7 @@ async def read_report(
     return HTMLResponse(content=report_html)
 
 
-@router.get("/findings-summary", response_model=List[schemas.FindingSummary])
+@router.get("/findings-summary", response_model=list[schemas.FindingSummary])
 async def read_findings_summary(
     db: AsyncSession = Depends(get_async_db),
     current_user: models.User = Depends(get_current_active_user),
@@ -163,9 +163,9 @@ async def get_director_dashboard_data(
     request: Request,
     db: AsyncSession = Depends(get_async_db),
     settings: Settings = Depends(get_settings),
-    start_date: Optional[datetime.date] = None,
-    end_date: Optional[datetime.date] = None,
-    discipline: Optional[str] = None,
+    start_date: datetime.date | None = None,
+    end_date: datetime.date | None = None,
+    discipline: str | None = None,
 ) -> DirectorDashboardData:
     """
     Provides aggregated analytics data for the director's dashboard.
@@ -277,7 +277,7 @@ async def generate_coaching_focus(
 
 @router.get(
     "/habit-trends",
-    response_model=List[schemas.HabitTrendPoint],
+    response_model=list[schemas.HabitTrendPoint],
     dependencies=[Depends(require_admin)],
 )
 @limiter.limit("60/minute")
@@ -285,9 +285,9 @@ async def get_habit_trends(
     request: Request,
     db: AsyncSession = Depends(get_async_db),
     settings: Settings = Depends(get_settings),
-    start_date: Optional[datetime.date] = None,
-    end_date: Optional[datetime.date] = None,
-) -> List[schemas.HabitTrendPoint]:
+    start_date: datetime.date | None = None,
+    end_date: datetime.date | None = None,
+) -> list[schemas.HabitTrendPoint]:
     """Provide habit trend analysis data over time."""
     if not settings.enable_director_dashboard:
         raise HTTPException(

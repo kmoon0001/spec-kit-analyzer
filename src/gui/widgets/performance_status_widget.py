@@ -6,10 +6,9 @@ helping to monitor and diagnose performance issues.
 """
 
 import logging
-from typing import Optional
 
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QProgressBar
 from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QWidget
 
 from ...core.performance_manager import get_performance_manager
 
@@ -20,7 +19,7 @@ class PerformanceStatusWidget(QWidget):
     A widget that displays real-time CPU and memory usage.
     """
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.performance_manager = get_performance_manager()
         self._setup_ui()

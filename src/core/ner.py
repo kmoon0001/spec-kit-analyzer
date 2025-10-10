@@ -8,18 +8,21 @@ resolve overlapping predictions.
 
 import logging
 import re
-import time
-from typing import Any, Dict, List, Optional
 
 # MONKEY-PATCH: Add back the file_utils module which was removed in transformers > 4.21
 # This is required to load older models that have not been updated.
 import sys
+import time
+from typing import Any
+
 import transformers
+
 if 'file_utils' not in dir(transformers):
     import transformers.utils
     sys.modules['transformers.file_utils'] = transformers.utils
 
-from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
+from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
+
 from src.core.cache_service import NERCache
 
 logger = logging.getLogger(__name__)
@@ -48,7 +51,7 @@ class ClinicalNERService:
     A service for high-accuracy clinical entity recognition using an ensemble of models.
     """
 
-    def __init__(self, model_names: Optional[List[str]] = None):
+    def __init__(self, model_names: list[str] | None = None):
         """
         Initializes the clinical NER ensemble.
 
@@ -58,7 +61,7 @@ class ClinicalNERService:
         self.model_names = list(model_names or [])
         self.pipelines = self._initialize_pipelines()
 
-    def _initialize_pipelines(self) -> List[Any]:
+    def _initialize_pipelines(self) -> list[Any]:
         """Loads the transformer models into NER pipelines."""
         pipelines = []
         for model_name in self.model_names:
@@ -79,7 +82,7 @@ class ClinicalNERService:
                 logger.error(f"Failed to load NER model {model_name}: {e}", exc_info=True)
         return pipelines
 
-    def extract_entities(self, text: str) -> List[Dict[str, Any]]:
+    def extract_entities(self, text: str) -> list[dict[str, Any]]:
         """
         Extracts and merges clinical entities from the text using the model ensemble.
 
@@ -110,16 +113,16 @@ class ClinicalNERService:
                 logger.warning(f"A clinical NER pipeline failed during execution: {e}")
 
         merged_entities = self._merge_entities(all_entities)
-        
+
         # Cache the results for future use
         processing_time = time.time() - start_time
         ttl_hours = 24.0 if processing_time > 2.0 else 48.0  # Longer TTL for quick processing
         NERCache.set_ner_results(text, model_identifier, merged_entities, ttl_hours)
-        
+
         logger.debug(f"NER processing completed in {processing_time:.2f}s, cached with TTL {ttl_hours}h")
         return merged_entities
 
-    def _merge_entities(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _merge_entities(self, entities: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Merges overlapping entities based on score and span length."""
         if not entities:
             return []
@@ -134,7 +137,7 @@ class ClinicalNERService:
         # Sort by start position, then by score descending to prioritize higher-confidence entities
         entities.sort(key=lambda e: (e["start"], -e["score"]))
 
-        merged: List[Dict[str, Any]] = []
+        merged: list[dict[str, Any]] = []
         for entity in entities:
             if not merged or entity["start"] >= merged[-1]["end"]:
                 # If no overlap with the last merged entity, just add it
@@ -163,7 +166,7 @@ class NERPipeline(ClinicalNERService):
         "Jean-Baptiste/roberta-large-ner-english",
     ]
 
-    def __init__(self, model_names: Optional[List[str]] = None) -> None:
+    def __init__(self, model_names: list[str] | None = None) -> None:
         if model_names is None:
             model_names = self.DEFAULT_MODELS
         super().__init__(model_names)
@@ -172,16 +175,16 @@ class NERPipeline(ClinicalNERService):
 class NERAnalyzer:
     """High-level analyzer that wraps NER pipelines with helper utilities."""
 
-    def __init__(self, model_names: Optional[List[str]] = None) -> None:
+    def __init__(self, model_names: list[str] | None = None) -> None:
         self.ner_pipeline = NERPipeline(model_names)
         self.presidio_wrapper = get_presidio_wrapper()
-        self.clinical_patterns: Dict[str, str] = {
+        self.clinical_patterns: dict[str, str] = {
             "titles": r"(?:Dr\.|DPT|PT|OT|MD|PA|NP|RN|DO|PTA|OTA)",
             "signature_keywords": r"(?:signed|signature|therapist|provider|attending)",
             "name_pattern": r"(?P<name>[A-Z][a-z]+\s+[A-Z][a-z]+)",
         }
 
-    def extract_entities(self, text: Optional[str]) -> List[Dict[str, Any]]:
+    def extract_entities(self, text: str | None) -> list[dict[str, Any]]:
         if not isinstance(text, str) or not text.strip():
             return []
         try:
@@ -191,7 +194,7 @@ class NERAnalyzer:
             return []
         return self._deduplicate_entities(entities)
 
-    def extract_clinician_name(self, text: Optional[str]) -> List[str]:
+    def extract_clinician_name(self, text: str | None) -> list[str]:
         if not isinstance(text, str) or not text.strip():
             return []
         titles_regex = re.compile(self.clinical_patterns["titles"], re.IGNORECASE)
@@ -206,8 +209,8 @@ class NERAnalyzer:
                 matches.append(match.group("name").strip())
         return matches
 
-    def extract_medical_entities(self, text: Optional[str]) -> Dict[str, List[str]]:
-        categories: Dict[str, List[str]] = {
+    def extract_medical_entities(self, text: str | None) -> dict[str, list[str]]:
+        categories: dict[str, list[str]] = {
             "conditions": [],
             "medications": [],
             "procedures": [],
@@ -237,9 +240,9 @@ class NERAnalyzer:
                 categories["other"].append(word)
         return categories
 
-    def _deduplicate_entities(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _deduplicate_entities(self, entities: list[dict[str, Any]]) -> list[dict[str, Any]]:
         seen = set()
-        deduped: List[Dict[str, Any]] = []
+        deduped: list[dict[str, Any]] = []
         for entity in entities:
             key = (
                 entity.get("start"),

@@ -1,20 +1,21 @@
 """Dependency injection and singleton service management for FastAPI application."""
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import Depends, HTTPException, status
 
+from src.auth import get_current_active_user
 from src.core.hybrid_retriever import HybridRetriever
 from src.database import models
-from src.auth import get_current_active_user
+
 from ..core.analysis_service import AnalysisService
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
 # This dictionary will hold our singleton instances
-app_state: Dict[str, Any] = {}
+app_state: dict[str, Any] = {}
 
 
 def require_admin(current_user: models.User = Depends(get_current_active_user)):
@@ -49,7 +50,7 @@ async def get_retriever() -> Any:
 async def startup_event():
     """Application startup event handler. Initializes singleton services."""
     logger.info("Application starting up...")
-    
+
     # Force the use of the real AnalysisService for production readiness.
     logger.info("Initializing real AnalysisService.")
 

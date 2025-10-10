@@ -2,33 +2,34 @@
 
 import json
 import logging
+import sqlite3
+from collections.abc import Generator
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional
-import sqlite3
-from contextlib import contextmanager
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class CalibrationTrainer:
     """Manages collection and storage of training data for confidence calibration."""
-    
+
     def __init__(self, db_path: str = "data/calibration_training.db"):
         """Initialize the calibration trainer.
-        
+
         Args:
             db_path: Path to SQLite database for storing training data
         """
         self.db_path = db_path
-        self._shared_conn: Optional[sqlite3.Connection] = None  # For in-memory databases
-        
+        self._shared_conn: sqlite3.Connection | None = None  # For in-memory databases
+
         if db_path != ":memory:":
             db_path_obj = Path(db_path)
             db_path_obj.parent.mkdir(parents=True, exist_ok=True)
-        
+
         self._init_database()
-    
+
     def _init_database(self) -> None:
         """Initialize the training data database."""
         if self.db_path == ":memory:":
@@ -40,7 +41,7 @@ class CalibrationTrainer:
             assert conn is not None
         else:
             conn = sqlite3.connect(self.db_path)
-        
+
         try:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS training_data (
@@ -59,17 +60,17 @@ class CalibrationTrainer:
                     notes TEXT
                 )
             """)
-            
+
             conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_training_data_confidence 
+                CREATE INDEX IF NOT EXISTS idx_training_data_confidence
                 ON training_data(original_confidence)
             """)
-            
+
             conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_training_data_feedback 
+                CREATE INDEX IF NOT EXISTS idx_training_data_feedback
                 ON training_data(user_feedback)
             """)
-            
+
             if self.db_path != ":memory:":
                 conn.commit()
                 conn.close()
@@ -77,7 +78,7 @@ class CalibrationTrainer:
             if self.db_path != ":memory:":
                 conn.close()
             raise
-    
+
     @contextmanager
     def _get_db_connection(self) -> Generator[sqlite3.Connection, None, None]:
         """Get database connection with proper cleanup."""
@@ -98,14 +99,14 @@ class CalibrationTrainer:
                 raise
             finally:
                 conn.close()
-    
-    def record_feedback(self, 
-                       finding: Dict[str, Any], 
+
+    def record_feedback(self,
+                       finding: dict[str, Any],
                        user_feedback: str,
-                       user_id: Optional[str] = None,
-                       notes: Optional[str] = None) -> None:
+                       user_id: str | None = None,
+                       notes: str | None = None) -> None:
         """Record user feedback on a compliance finding.
-        
+
         Args:
             finding: The compliance finding dictionary
             user_feedback: User feedback ('correct', 'incorrect', 'uncertain')
@@ -114,18 +115,18 @@ class CalibrationTrainer:
         """
         if user_feedback not in ['correct', 'incorrect', 'uncertain']:
             raise ValueError("user_feedback must be 'correct', 'incorrect', or 'uncertain'")
-        
+
         # Skip uncertain feedback for training (ambiguous cases)
         if user_feedback == 'uncertain':
             logger.info("Skipping uncertain feedback for training data")
             return
-        
+
         is_correct = 1 if user_feedback == 'correct' else 0
         original_confidence = finding.get('original_confidence', finding.get('confidence', 0.5))
-        
+
         # Ensure database is initialized (important for in-memory databases)
         self._init_database()
-        
+
         with self._get_db_connection() as conn:
             conn.execute("""
                 INSERT INTO training_data (
@@ -146,42 +147,42 @@ class CalibrationTrainer:
                 user_id,
                 notes
             ))
-        
+
         logger.info(f"Recorded feedback: {user_feedback} for finding with confidence {original_confidence:.3f}")
-    
-    def get_training_data(self, 
+
+    def get_training_data(self,
                          min_samples: int = 10,
-                         confidence_range: Optional[tuple] = None,
-                         discipline: Optional[str] = None) -> List[Dict[str, Any]]:
+                         confidence_range: tuple | None = None,
+                         discipline: str | None = None) -> list[dict[str, Any]]:
         """Get training data for calibrator training.
-        
+
         Args:
             min_samples: Minimum number of samples required
             confidence_range: Optional tuple (min_conf, max_conf) to filter by
             discipline: Optional discipline filter
-            
+
         Returns:
             List of training samples with confidence and is_correct fields
         """
         # Ensure database is initialized
         self._init_database()
-        
+
         query = "SELECT * FROM training_data WHERE user_feedback != 'uncertain'"
-        params: List[Any] = []
-        
+        params: list[Any] = []
+
         if confidence_range:
             query += " AND original_confidence BETWEEN ? AND ?"
             params.extend(confidence_range)
-        
+
         if discipline:
             query += " AND discipline = ?"
             params.append(discipline)
-        
+
         query += " ORDER BY created_at DESC"
-        
+
         with self._get_db_connection() as conn:
             rows = conn.execute(query, params).fetchall()
-        
+
         training_data = []
         for row in rows:
             training_data.append({
@@ -194,49 +195,49 @@ class CalibrationTrainer:
                 'severity': row['severity'],
                 'created_at': row['created_at']
             })
-        
+
         if len(training_data) < min_samples:
             logger.warning(f"Insufficient training data: {len(training_data)} samples (need {min_samples})")
-        
+
         return training_data
-    
-    def get_feedback_statistics(self) -> Dict[str, Any]:
+
+    def get_feedback_statistics(self) -> dict[str, Any]:
         """Get statistics about collected feedback."""
         # Ensure database is initialized
         self._init_database()
-        
+
         with self._get_db_connection() as conn:
             # Overall statistics
             total_feedback = conn.execute("SELECT COUNT(*) as count FROM training_data").fetchone()['count']
-            
+
             # Feedback distribution
             feedback_dist = conn.execute("""
-                SELECT user_feedback, COUNT(*) as count 
-                FROM training_data 
+                SELECT user_feedback, COUNT(*) as count
+                FROM training_data
                 GROUP BY user_feedback
             """).fetchall()
-            
+
             # Confidence distribution for correct vs incorrect
             confidence_stats = conn.execute("""
-                SELECT 
+                SELECT
                     is_correct,
                     AVG(original_confidence) as avg_confidence,
                     MIN(original_confidence) as min_confidence,
                     MAX(original_confidence) as max_confidence,
                     COUNT(*) as count
-                FROM training_data 
+                FROM training_data
                 WHERE user_feedback != 'uncertain'
                 GROUP BY is_correct
             """).fetchall()
-            
+
             # Discipline distribution
             discipline_dist = conn.execute("""
-                SELECT discipline, COUNT(*) as count 
-                FROM training_data 
+                SELECT discipline, COUNT(*) as count
+                FROM training_data
                 WHERE discipline IS NOT NULL
                 GROUP BY discipline
             """).fetchall()
-        
+
         return {
             'total_feedback': total_feedback,
             'feedback_distribution': {row['user_feedback']: row['count'] for row in feedback_dist},
@@ -250,19 +251,19 @@ class CalibrationTrainer:
             },
             'discipline_distribution': {row['discipline']: row['count'] for row in discipline_dist}
         }
-    
+
     def export_training_data(self, output_path: str, format: str = 'json') -> None:
         """Export training data to file.
-        
+
         Args:
             output_path: Path to output file
             format: Export format ('json' or 'csv')
         """
         training_data = self.get_training_data(min_samples=1)  # Get all data
-        
+
         output_path_obj = Path(output_path)
         output_path_obj.parent.mkdir(parents=True, exist_ok=True)
-        
+
         if format.lower() == 'json':
             with open(output_path_obj, 'w') as f:
                 json.dump(training_data, f, indent=2, default=str)
@@ -275,37 +276,37 @@ class CalibrationTrainer:
                     writer.writerows(training_data)
         else:
             raise ValueError("Format must be 'json' or 'csv'")
-        
+
         logger.info(f"Exported {len(training_data)} training samples to {output_path_obj}")
-    
+
     def clear_training_data(self, confirm: bool = False) -> None:
         """Clear all training data (use with caution).
-        
+
         Args:
             confirm: Must be True to actually clear data
         """
         if not confirm:
             raise ValueError("Must set confirm=True to clear training data")
-        
+
         with self._get_db_connection() as conn:
             conn.execute("DELETE FROM training_data")
-        
+
         logger.warning("All training data has been cleared")
 
 
 class FeedbackCollector:
     """Helper class for collecting user feedback in the GUI."""
-    
+
     def __init__(self, trainer: CalibrationTrainer):
         """Initialize with a calibration trainer instance."""
         self.trainer = trainer
-    
-    def create_feedback_widget(self, finding: Dict[str, Any]) -> Dict[str, Any]:
+
+    def create_feedback_widget(self, finding: dict[str, Any]) -> dict[str, Any]:
         """Create feedback widget data for a finding.
-        
+
         Args:
             finding: The compliance finding
-            
+
         Returns:
             Dictionary with widget configuration
         """
@@ -321,14 +322,14 @@ class FeedbackCollector:
                 {'label': '? Uncertain', 'value': 'uncertain', 'style': 'warning'}
             ]
         }
-    
-    def process_feedback(self, 
-                        finding: Dict[str, Any], 
+
+    def process_feedback(self,
+                        finding: dict[str, Any],
                         feedback_value: str,
-                        user_id: Optional[str] = None,
-                        notes: Optional[str] = None) -> None:
+                        user_id: str | None = None,
+                        notes: str | None = None) -> None:
         """Process user feedback and store it for training.
-        
+
         Args:
             finding: The compliance finding
             feedback_value: The feedback value ('correct', 'incorrect', 'uncertain')

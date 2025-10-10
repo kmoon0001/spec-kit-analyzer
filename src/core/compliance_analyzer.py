@@ -18,21 +18,22 @@ The analyzer supports multiple clinical disciplines (PT, OT, SLP) and document t
 (Progress Notes, Evaluations, Treatment Plans) with discipline-specific compliance rules.
 """
 
+import asyncio
 import json
 import logging
-import asyncio
-import numpy as np
-from typing import Any, Dict, List, Optional
 from pathlib import Path
+from typing import Any
 
-from src.core.llm_service import LLMService
-from src.core.nlg_service import NLGService
-from src.core.ner import ClinicalNERService
+import numpy as np
+
+from src.core.confidence_calibrator import ConfidenceCalibrator
 from src.core.explanation import ExplanationEngine
-from src.utils.prompt_manager import PromptManager
 from src.core.fact_checker_service import FactCheckerService
 from src.core.hybrid_retriever import HybridRetriever
-from src.core.confidence_calibrator import ConfidenceCalibrator
+from src.core.llm_service import LLMService
+from src.core.ner import ClinicalNERService
+from src.core.nlg_service import NLGService
+from src.utils.prompt_manager import PromptManager
 
 logger = logging.getLogger(__name__)
 CONFIDENCE_THRESHOLD = 0.7
@@ -44,15 +45,15 @@ class ComplianceAnalyzer:
     def __init__(
         self,
         retriever: HybridRetriever,
-        ner_service: Optional[ClinicalNERService] = None,
-        llm_service: Optional[LLMService] = None,
-        explanation_engine: Optional[ExplanationEngine] = None,
-        prompt_manager: Optional[PromptManager] = None,
-        fact_checker_service: Optional[FactCheckerService] = None,
-        nlg_service: Optional[NLGService] = None,
-        deterministic_focus: Optional[str] = None,
-        ner_analyzer: Optional[ClinicalNERService] = None,
-        confidence_calibrator: Optional[ConfidenceCalibrator] = None,
+        ner_service: ClinicalNERService | None = None,
+        llm_service: LLMService | None = None,
+        explanation_engine: ExplanationEngine | None = None,
+        prompt_manager: PromptManager | None = None,
+        fact_checker_service: FactCheckerService | None = None,
+        nlg_service: NLGService | None = None,
+        deterministic_focus: str | None = None,
+        ner_analyzer: ClinicalNERService | None = None,
+        confidence_calibrator: ConfidenceCalibrator | None = None,
     ) -> None:
         """Initializes the ComplianceAnalyzer.
 
@@ -86,18 +87,18 @@ class ComplianceAnalyzer:
             ]
         )
         self.deterministic_focus = deterministic_focus or default_focus
-        
+
         # Initialize confidence calibrator if not provided
         if self.confidence_calibrator is None:
             self.confidence_calibrator = ConfidenceCalibrator(method='auto')
             self._load_or_create_calibrator()
-        
+
         logger.info("ComplianceAnalyzer initialized with all services.")
 
     def _load_or_create_calibrator(self) -> None:
         """Load existing calibrator or prepare for training with new data."""
         calibrator_path = Path("models/confidence_calibrator.pkl")
-        
+
         if calibrator_path.exists() and self.confidence_calibrator:
             try:
                 self.confidence_calibrator.load(calibrator_path)
@@ -108,58 +109,58 @@ class ComplianceAnalyzer:
         else:
             logger.info("No existing calibrator found. Will train on first batch of data.")
 
-    def _calibrate_confidence_scores(self, findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _calibrate_confidence_scores(self, findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Apply confidence calibration to findings if calibrator is fitted."""
         if not self.confidence_calibrator or not self.confidence_calibrator.is_fitted:
             logger.debug("Confidence calibrator not fitted yet. Using raw scores.")
             return findings
-        
+
         try:
             # Extract confidence scores
             raw_confidences = []
             for finding in findings:
                 confidence = finding.get("confidence", 0.5)
-                if isinstance(confidence, (int, float)):
+                if isinstance(confidence, int | float):
                     raw_confidences.append(float(confidence))
                 else:
                     raw_confidences.append(0.5)  # Default for non-numeric confidence
-            
+
             if not raw_confidences:
                 return findings
-            
+
             # Calibrate confidence scores
             raw_confidences_array = np.array(raw_confidences)
             if self.confidence_calibrator:
                 calibrated_confidences = self.confidence_calibrator.calibrate(raw_confidences_array)
             else:
                 calibrated_confidences = raw_confidences_array
-            
+
             # Update findings with calibrated scores
             for i, finding in enumerate(findings):
                 if i < len(calibrated_confidences):
                     original_confidence = finding.get("confidence", 0.5)
                     calibrated_confidence = float(calibrated_confidences[i])
-                    
+
                     finding["confidence"] = calibrated_confidence
                     finding["original_confidence"] = original_confidence
                     finding["confidence_calibrated"] = True
-                    
+
                     # Update confidence-based flags with calibrated scores
                     if calibrated_confidence < CONFIDENCE_THRESHOLD:
                         finding["is_low_confidence"] = True
                     else:
                         finding.pop("is_low_confidence", None)
-            
+
             logger.debug(f"Calibrated confidence scores for {len(findings)} findings")
-            
+
         except Exception as e:
             logger.warning(f"Failed to calibrate confidence scores: {e}. Using raw scores.")
-        
+
         return findings
 
-    def train_confidence_calibrator(self, training_data: List[Dict[str, Any]]) -> None:
+    def train_confidence_calibrator(self, training_data: list[dict[str, Any]]) -> None:
         """Train the confidence calibrator with labeled data.
-        
+
         Args:
             training_data: List of dictionaries containing:
                 - 'confidence': Original confidence score from LLM
@@ -168,48 +169,48 @@ class ComplianceAnalyzer:
         if not training_data:
             logger.warning("No training data provided for confidence calibrator")
             return
-        
+
         try:
             # Extract confidence scores and labels
             confidences = []
             labels = []
-            
+
             for item in training_data:
                 if 'confidence' in item and 'is_correct' in item:
                     confidences.append(float(item['confidence']))
                     labels.append(1 if item['is_correct'] else 0)
-            
+
             if len(confidences) < 10:
                 logger.warning(f"Insufficient training data ({len(confidences)} samples). Need at least 10.")
                 return
-            
+
             # Train the calibrator
             confidences_array = np.array(confidences)
             labels_array = np.array(labels)
-            
+
             if self.confidence_calibrator:
                 self.confidence_calibrator.fit(confidences_array, labels_array)
-                
+
                 # Save the trained calibrator
                 calibrator_path = Path("models")
                 calibrator_path.mkdir(exist_ok=True)
                 self.confidence_calibrator.save(calibrator_path / "confidence_calibrator.pkl")
-                
+
                 # Log calibration metrics
                 metrics = self.confidence_calibrator.get_calibration_metrics()
             else:
                 metrics = {}
             logger.info(f"Confidence calibrator trained with {len(confidences)} samples")
             logger.info(f"Calibration metrics: {metrics}")
-            
+
         except Exception as e:
             logger.error(f"Failed to train confidence calibrator: {e}")
 
-    def get_calibration_metrics(self) -> Dict[str, Any]:
+    def get_calibration_metrics(self) -> dict[str, Any]:
         """Get calibration quality metrics."""
         if not self.confidence_calibrator or not self.confidence_calibrator.is_fitted:
             return {"status": "not_fitted", "message": "Calibrator has not been trained yet"}
-        
+
         metrics = self.confidence_calibrator.get_calibration_metrics()
         return {
             "status": "fitted",
@@ -219,7 +220,7 @@ class ComplianceAnalyzer:
 
     async def analyze_document(
         self, document_text: str, discipline: str, doc_type: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Analyzes a given document for compliance based on discipline and document type.
 
         This method orchestrates the compliance analysis process:
@@ -249,7 +250,7 @@ class ComplianceAnalyzer:
                 )
             else:
                 entities = []
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("NER extraction timed out after 30 seconds")
             entities = []
         except Exception as e:
@@ -268,7 +269,7 @@ class ComplianceAnalyzer:
             # Add timeout to retrieval to prevent hanging
             retrieved_rules = await asyncio.wait_for(
                 self.retriever.retrieve(
-                    search_query, 
+                    search_query,
                     category_filter=discipline,
                     discipline=discipline,
                     document_type=doc_type,
@@ -277,7 +278,7 @@ class ComplianceAnalyzer:
                 timeout=60.0  # 1 minute timeout for rule retrieval
             )
             logger.info("Retrieved %d rules for analysis.", len(retrieved_rules))
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("Rule retrieval timed out after 1 minute")
             retrieved_rules = []
         except Exception as e:
@@ -301,14 +302,14 @@ class ComplianceAnalyzer:
             # Use shorter prompt for faster processing
             if len(prompt) > 4000:  # Truncate very long prompts
                 prompt = prompt[:3500] + "\n\n[Document truncated for faster analysis]"
-            
+
             try:
                 # Add timeout to prevent hanging - use a much shorter timeout for testing
                 raw_analysis_result = await asyncio.wait_for(
                     asyncio.to_thread(self.llm_service.generate, prompt),
                     timeout=30.0  # Reduced to 30 seconds for faster debugging
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.error("LLM generation timed out after 30 seconds - using fallback analysis")
                 # Provide a basic fallback analysis when LLM times out
                 raw_analysis_result = '''{
@@ -396,8 +397,8 @@ class ComplianceAnalyzer:
         return final_analysis
 
     async def _post_process_findings(
-        self, explained_analysis: Dict[str, Any], retrieved_rules: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, explained_analysis: dict[str, Any], retrieved_rules: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Post-processes the LLM-generated findings.
 
         This includes:
@@ -430,7 +431,7 @@ class ComplianceAnalyzer:
             # Confidence threshold check (may have been updated by calibration)
             confidence = finding.get("confidence", 1.0)
             if (
-                isinstance(confidence, (float, int))
+                isinstance(confidence, float | int)
                 and confidence < CONFIDENCE_THRESHOLD
                 and not finding.get("confidence_calibrated", False)  # Skip if already calibrated
             ):
@@ -450,7 +451,7 @@ class ComplianceAnalyzer:
         return explained_analysis
 
     @staticmethod
-    def _format_rules_for_prompt(rules: List[Dict[str, Any]]) -> str:
+    def _format_rules_for_prompt(rules: list[dict[str, Any]]) -> str:
         """Formats a list of compliance rules into a string suitable for an LLM prompt.
 
         Args:

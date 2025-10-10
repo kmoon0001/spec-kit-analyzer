@@ -6,7 +6,6 @@ Tests all major components to verify they're properly integrated and working.
 """
 
 import sys
-import traceback
 from pathlib import Path
 
 # Add project root to path
@@ -15,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 def test_component(name, import_func):
     """Test a component and report results."""
     try:
-        result = import_func()
+        import_func()
         print(f"✅ {name}: OK")
         return True
     except Exception as e:
@@ -34,7 +33,7 @@ def main():
     tests_total += 1
     try:
         # Test PDF export with fallback handling
-        module = __import__('src.core.pdf_export_service', fromlist=['PDFExportService'])
+        __import__('src.core.pdf_export_service', fromlist=['PDFExportService'])
         print("✅ PDF Export Service: OK (with fallback)")
         tests_passed += 1
     except Exception as e:

@@ -5,13 +5,13 @@ Coordinates multiple AI agents to work together on complex compliance analysis t
 maximizing context sharing and prompt engineering effectiveness across the entire workflow.
 """
 
-import logging
 import asyncio
-from datetime import datetime
-from typing import Dict, List, Any
-from dataclasses import dataclass, field
-from enum import Enum
+import logging
 import uuid
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -32,13 +32,13 @@ class WorkflowContext:
     workflow_id: str
     document_content: str
     document_type: str
-    user_preferences: Dict[str, Any]
-    rubric_data: Dict[str, Any]
-    analysis_history: List[Dict[str, Any]] = field(default_factory=list)
-    agent_insights: Dict[str, Any] = field(default_factory=dict)
-    confidence_scores: Dict[str, float] = field(default_factory=dict)
-    cross_references: Dict[str, List[str]] = field(default_factory=dict)
-    quality_metrics: Dict[str, float] = field(default_factory=dict)
+    user_preferences: dict[str, Any]
+    rubric_data: dict[str, Any]
+    analysis_history: list[dict[str, Any]] = field(default_factory=list)
+    agent_insights: dict[str, Any] = field(default_factory=dict)
+    confidence_scores: dict[str, float] = field(default_factory=dict)
+    cross_references: dict[str, list[str]] = field(default_factory=dict)
+    quality_metrics: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -46,23 +46,23 @@ class AgentResult:
     """Result from an individual agent."""
     agent_role: AgentRole
     success: bool
-    data: Dict[str, Any]
+    data: dict[str, Any]
     confidence: float
     processing_time_ms: float
-    context_updates: Dict[str, Any] = field(default_factory=dict)
-    next_agents: List[AgentRole] = field(default_factory=list)
+    context_updates: dict[str, Any] = field(default_factory=dict)
+    next_agents: list[AgentRole] = field(default_factory=list)
 
 
 class MultiAgentOrchestrator:
     """
     Orchestrates multiple AI agents to work collaboratively on compliance analysis.
-    
+
     This orchestrator maximizes the benefits of multi-agent workflows by:
     - Sharing rich context between agents
     - Optimizing prompt engineering across the workflow
     - Coordinating agent interactions for maximum effectiveness
     - Implementing quality assurance through agent cross-validation
-    
+
     Agent Workflow:
     1. Context Manager: Prepares and maintains shared context
     2. Document Analyzer: Extracts key information and structure
@@ -70,48 +70,48 @@ class MultiAgentOrchestrator:
     4. Risk Assessor: Evaluates risk levels and impact
     5. Recommendation Generator: Creates actionable recommendations
     6. Quality Reviewer: Validates and refines all outputs
-    
+
     Example:
         >>> orchestrator = MultiAgentOrchestrator()
         >>> result = await orchestrator.execute_workflow(document, rubric, user_prefs)
         >>> print(f"Analysis confidence: {result.overall_confidence}")
     """
-    
+
     def __init__(self):
         """Initialize the multi-agent orchestrator."""
         self.agents = {}
         self.workflow_templates = {}
         self.active_workflows = {}
-        
+
         # Initialize agent handlers
         self._initialize_agents()
         self._initialize_workflow_templates()
-        
+
         logger.info("Multi-agent orchestrator initialized with enhanced context sharing")
-    
+
     async def execute_workflow(self,
                              document_content: str,
-                             rubric_data: Dict[str, Any],
-                             user_preferences: Dict[str, Any],
-                             workflow_type: str = "comprehensive_analysis") -> Dict[str, Any]:
+                             rubric_data: dict[str, Any],
+                             user_preferences: dict[str, Any],
+                             workflow_type: str = "comprehensive_analysis") -> dict[str, Any]:
         """
         Execute a multi-agent workflow for compliance analysis.
-        
+
         Args:
             document_content: The document text to analyze
             rubric_data: Compliance rubric and rules
             user_preferences: User settings and preferences
             workflow_type: Type of workflow to execute
-            
+
         Returns:
             Dict containing comprehensive analysis results from all agents
         """
         workflow_id = str(uuid.uuid4())
         start_time = datetime.now()
-        
+
         try:
             logger.info(f"Starting multi-agent workflow {workflow_id} ({workflow_type})")
-            
+
             # Initialize shared context
             context = WorkflowContext(
                 workflow_id=workflow_id,
@@ -120,21 +120,21 @@ class MultiAgentOrchestrator:
                 user_preferences=user_preferences,
                 rubric_data=rubric_data
             )
-            
+
             # Store active workflow
             self.active_workflows[workflow_id] = context
-            
+
             # Execute workflow based on template
             if workflow_type not in self.workflow_templates:
                 raise ValueError(f"Unknown workflow type: {workflow_type}")
-            
+
             workflow_template = self.workflow_templates[workflow_type]
             results = await self._execute_workflow_template(context, workflow_template)
-            
+
             # Calculate overall metrics
             overall_confidence = self._calculate_overall_confidence(results)
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
-            
+
             # Compile final results
             final_result = {
                 "workflow_id": workflow_id,
@@ -147,10 +147,10 @@ class MultiAgentOrchestrator:
                 "cross_references": context.cross_references,
                 "success": all(result.success for result in results)
             }
-            
+
             logger.info(f"Multi-agent workflow {workflow_id} completed in {processing_time:.1f}ms")
             return final_result
-            
+
         except Exception as e:
             logger.error(f"Multi-agent workflow {workflow_id} failed: {e}")
             return {
@@ -163,57 +163,57 @@ class MultiAgentOrchestrator:
             # Cleanup
             if workflow_id in self.active_workflows:
                 del self.active_workflows[workflow_id]
-    
+
     async def _execute_workflow_template(self,
                                        context: WorkflowContext,
-                                       template: List[Dict[str, Any]]) -> List[AgentResult]:
+                                       template: list[dict[str, Any]]) -> list[AgentResult]:
         """Execute a workflow template with proper agent coordination."""
         results = []
-        
+
         for step in template:
             agent_role = AgentRole(step["agent"])
             parallel_agents = step.get("parallel", [])
-            
+
             if parallel_agents:
                 # Execute multiple agents in parallel
                 tasks = []
                 for parallel_agent in parallel_agents:
                     parallel_role = AgentRole(parallel_agent)
                     tasks.append(self._execute_agent(parallel_role, context))
-                
+
                 parallel_results = await asyncio.gather(*tasks)
                 results.extend(parallel_results)
             else:
                 # Execute single agent
                 result = await self._execute_agent(agent_role, context)
                 results.append(result)
-                
+
                 # Update context with agent results
                 if result.success and result.context_updates:
                     context.agent_insights.update(result.context_updates)
                     context.confidence_scores[agent_role.value] = result.confidence
-        
+
         return results
-    
+
     async def _execute_agent(self, agent_role: AgentRole, context: WorkflowContext) -> AgentResult:
         """Execute a specific agent with enhanced context and prompt engineering."""
         start_time = datetime.now()
-        
+
         try:
             # Get agent handler
             if agent_role not in self.agents:
                 raise ValueError(f"Unknown agent role: {agent_role}")
-            
+
             agent_handler = self.agents[agent_role]
-            
+
             # Prepare enhanced context for this agent
             agent_context = self._prepare_agent_context(agent_role, context)
-            
+
             # Execute agent with optimized prompts
             result_data = await agent_handler(agent_context)
-            
+
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
-            
+
             return AgentResult(
                 agent_role=agent_role,
                 success=True,
@@ -223,11 +223,11 @@ class MultiAgentOrchestrator:
                 context_updates=result_data.get("context_updates", {}),
                 next_agents=result_data.get("next_agents", [])
             )
-            
+
         except Exception as e:
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
             logger.error(f"Agent {agent_role.value} failed: {e}")
-            
+
             return AgentResult(
                 agent_role=agent_role,
                 success=False,
@@ -235,8 +235,8 @@ class MultiAgentOrchestrator:
                 confidence=0.0,
                 processing_time_ms=processing_time
             )
-    
-    def _prepare_agent_context(self, agent_role: AgentRole, context: WorkflowContext) -> Dict[str, Any]:
+
+    def _prepare_agent_context(self, agent_role: AgentRole, context: WorkflowContext) -> dict[str, Any]:
         """Prepare optimized context for a specific agent with enhanced prompt engineering."""
         base_context = {
             "workflow_id": context.workflow_id,
@@ -247,7 +247,7 @@ class MultiAgentOrchestrator:
             "previous_insights": context.agent_insights,
             "confidence_scores": context.confidence_scores
         }
-        
+
         # Add role-specific context enhancements
         if agent_role == AgentRole.DOCUMENT_ANALYZER:
             base_context.update({
@@ -255,7 +255,7 @@ class MultiAgentOrchestrator:
                 "output_requirements": ["clinical_concepts", "document_structure", "key_phrases", "medical_terminology"],
                 "prompt_optimization": "Focus on medical terminology and clinical context extraction"
             })
-        
+
         elif agent_role == AgentRole.COMPLIANCE_CHECKER:
             base_context.update({
                 "focus": "Identify specific compliance issues using the provided rubric and regulatory guidelines",
@@ -263,7 +263,7 @@ class MultiAgentOrchestrator:
                 "output_requirements": ["compliance_issues", "rule_violations", "evidence_citations", "severity_levels"],
                 "prompt_optimization": "Use previous document analysis to focus compliance checking on relevant areas"
             })
-        
+
         elif agent_role == AgentRole.RISK_ASSESSOR:
             base_context.update({
                 "focus": "Assess financial and regulatory risks associated with identified compliance issues",
@@ -271,7 +271,7 @@ class MultiAgentOrchestrator:
                 "output_requirements": ["risk_levels", "financial_impact", "regulatory_consequences", "priority_rankings"],
                 "prompt_optimization": "Consider cumulative risk and interaction between multiple compliance issues"
             })
-        
+
         elif agent_role == AgentRole.RECOMMENDATION_GENERATOR:
             base_context.update({
                 "focus": "Generate specific, actionable recommendations based on all previous analysis",
@@ -279,7 +279,7 @@ class MultiAgentOrchestrator:
                 "output_requirements": ["specific_actions", "implementation_steps", "timelines", "success_metrics"],
                 "prompt_optimization": "Synthesize insights from all previous agents to create comprehensive recommendations"
             })
-        
+
         elif agent_role == AgentRole.QUALITY_REVIEWER:
             base_context.update({
                 "focus": "Review and validate all analysis results for accuracy and completeness",
@@ -287,9 +287,9 @@ class MultiAgentOrchestrator:
                 "output_requirements": ["quality_score", "validation_results", "improvement_suggestions", "confidence_adjustments"],
                 "prompt_optimization": "Cross-validate findings between agents and identify potential inconsistencies"
             })
-        
+
         return base_context
-    
+
     def _initialize_agents(self):
         """Initialize all agent handlers with optimized prompt engineering."""
         self.agents = {
@@ -299,7 +299,7 @@ class MultiAgentOrchestrator:
             AgentRole.RECOMMENDATION_GENERATOR: self._recommendation_generator_agent,
             AgentRole.QUALITY_REVIEWER: self._quality_reviewer_agent
         }
-    
+
     def _initialize_workflow_templates(self):
         """Initialize workflow templates for different analysis types."""
         self.workflow_templates = {
@@ -322,12 +322,12 @@ class MultiAgentOrchestrator:
                 {"agent": "quality_reviewer"}
             ]
         }
-    
-    async def _document_analyzer_agent(self, context: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def _document_analyzer_agent(self, context: dict[str, Any]) -> dict[str, Any]:
         """Document analysis agent with enhanced context extraction."""
         # Simulate advanced document analysis with context optimization
         await asyncio.sleep(0.5)  # Simulate processing time
-        
+
         return {
             "clinical_concepts": ["patient_progress", "functional_status", "treatment_response"],
             "document_structure": {"sections": ["subjective", "objective", "assessment", "plan"]},
@@ -340,11 +340,11 @@ class MultiAgentOrchestrator:
                 "completeness_score": 0.85
             }
         }
-    
-    async def _compliance_checker_agent(self, context: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def _compliance_checker_agent(self, context: dict[str, Any]) -> dict[str, Any]:
         """Compliance checking agent with rule-based analysis."""
         await asyncio.sleep(0.8)  # Simulate processing time
-        
+
         return {
             "compliance_issues": [
                 {
@@ -363,11 +363,11 @@ class MultiAgentOrchestrator:
                 "critical_areas": ["medical_necessity", "functional_outcomes"]
             }
         }
-    
-    async def _risk_assessor_agent(self, context: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def _risk_assessor_agent(self, context: dict[str, Any]) -> dict[str, Any]:
         """Risk assessment agent with financial and regulatory impact analysis."""
         await asyncio.sleep(0.6)  # Simulate processing time
-        
+
         return {
             "risk_levels": {"financial": "medium", "regulatory": "high", "operational": "low"},
             "financial_impact": {"potential_denial": 0.3, "estimated_loss": 250.00},
@@ -379,11 +379,11 @@ class MultiAgentOrchestrator:
                 "immediate_action_required": True
             }
         }
-    
-    async def _recommendation_generator_agent(self, context: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def _recommendation_generator_agent(self, context: dict[str, Any]) -> dict[str, Any]:
         """Recommendation generation agent with actionable guidance."""
         await asyncio.sleep(0.7)  # Simulate processing time
-        
+
         return {
             "specific_actions": [
                 "Add specific functional outcome measurements to treatment goals",
@@ -403,11 +403,11 @@ class MultiAgentOrchestrator:
                 "implementation_complexity": "low"
             }
         }
-    
-    async def _quality_reviewer_agent(self, context: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def _quality_reviewer_agent(self, context: dict[str, Any]) -> dict[str, Any]:
         """Quality review agent with cross-validation and accuracy checking."""
         await asyncio.sleep(0.4)  # Simulate processing time
-        
+
         return {
             "quality_score": 0.87,
             "validation_results": {
@@ -426,7 +426,7 @@ class MultiAgentOrchestrator:
             },
             "confidence": 0.89
         }
-    
+
     def _detect_document_type(self, content: str) -> str:
         """Detect document type for context optimization."""
         content_lower = content.lower()
@@ -438,12 +438,12 @@ class MultiAgentOrchestrator:
             return "treatment_plan"
         else:
             return "clinical_document"
-    
-    def _calculate_overall_confidence(self, results: List[AgentResult]) -> float:
+
+    def _calculate_overall_confidence(self, results: list[AgentResult]) -> float:
         """Calculate overall confidence score from all agent results."""
         if not results:
             return 0.0
-        
+
         # Weight confidence scores by agent importance and success
         weights = {
             AgentRole.DOCUMENT_ANALYZER: 0.15,
@@ -452,16 +452,16 @@ class MultiAgentOrchestrator:
             AgentRole.RECOMMENDATION_GENERATOR: 0.20,
             AgentRole.QUALITY_REVIEWER: 0.10
         }
-        
+
         weighted_confidence = 0.0
         total_weight = 0.0
-        
+
         for result in results:
             if result.success:
                 weight = weights.get(result.agent_role, 0.1)
                 weighted_confidence += result.confidence * weight
                 total_weight += weight
-        
+
         return round(weighted_confidence / total_weight if total_weight > 0 else 0.0, 3)
 
 

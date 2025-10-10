@@ -7,20 +7,20 @@ Includes executive summary, detailed findings, AI transparency, and regulatory c
 """
 
 import base64
-import logging
-import os
-import mimetypes
-import urllib.parse
 import hashlib
-from datetime import UTC, datetime
+import logging
+import mimetypes
+import os
+import urllib.parse
 from collections import Counter
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import markdown
 
+from ..config import get_settings
 from .enhanced_habit_mapper import SevenHabitsFramework
 from .text_utils import sanitize_human_text
-from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class ReportGenerator:
     @staticmethod
     def _load_template(template_path: str) -> str:
         try:
-            with open(template_path, "r", encoding="utf-8") as handle:
+            with open(template_path, encoding="utf-8") as handle:
                 return handle.read()
         except FileNotFoundError:
             return "<h1>Report</h1><p>Template not found.</p><div>{findings}</div>"
@@ -60,7 +60,7 @@ class ReportGenerator:
     @staticmethod
     def _load_and_convert_markdown(file_path: str) -> str:
         try:
-            with open(file_path, "r", encoding="utf-8") as handle:
+            with open(file_path, encoding="utf-8") as handle:
                 md_text = handle.read()
             return markdown.markdown(md_text, extensions=["tables"])
         except (ImportError, FileNotFoundError):
@@ -81,11 +81,11 @@ class ReportGenerator:
 
     def generate_report(
         self,
-        analysis_result: Dict[str, Any],
+        analysis_result: dict[str, Any],
         *,
         document_name: str | None = None,
         analysis_mode: str = "rubric",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         doc_name = document_name or analysis_result.get("document_name", "Document")
         report_html = self.generate_html_report(
             analysis_result=analysis_result,
@@ -137,14 +137,14 @@ class ReportGenerator:
         report_html = report_html.replace("<!-- Placeholder for document type -->", doc_type)
         report_html = report_html.replace("<!-- Placeholder for discipline -->", discipline)
         overall_confidence = analysis_result.get("overall_confidence")
-        if isinstance(overall_confidence, (int, float)):
+        if isinstance(overall_confidence, int | float):
             confidence_text = f"{overall_confidence:.0%}"
         else:
             confidence_text = "Not reported"
         report_html = report_html.replace("<!-- Placeholder for overall confidence -->", confidence_text)
         return report_html
 
-    def _generate_findings_table(self, findings: list, analysis_result: Optional[dict] = None) -> str:
+    def _generate_findings_table(self, findings: list, analysis_result: dict | None = None) -> str:
         if not findings:
             return '<tr><td colspan="6">No compliance findings identified.</td></tr>'
         findings_rows_html = ""
@@ -166,7 +166,7 @@ class ReportGenerator:
             return 'class="disputed"'
 
         confidence = finding.get("confidence", 0)
-        if isinstance(confidence, (int, float)):
+        if isinstance(confidence, int | float):
             if confidence >= 0.8:
                 return 'class="high-confidence"'
             if confidence >= 0.6:
@@ -194,7 +194,7 @@ class ReportGenerator:
         encoded_payload = urllib.parse.quote(combined_payload)
         return f'<a href="highlight://{encoded_payload}" class="highlight-link">{problematic_text}</a>'
 
-    def _generate_issue_cell(self, finding: dict, analysis_result: Optional[dict] = None) -> str:
+    def _generate_issue_cell(self, finding: dict, analysis_result: dict | None = None) -> str:
         issue_title = sanitize_human_text(finding.get("issue_title", "Compliance Issue"))
         regulation = sanitize_human_text(finding.get("regulation", ""))
         issue_html = f"<strong>{issue_title}</strong>"
@@ -211,7 +211,7 @@ class ReportGenerator:
                 issue_html += habit_html
         return issue_html
 
-    def _get_habit_info_for_finding(self, finding: dict, analysis_result: Optional[dict] = None) -> Optional[Dict[str, Any]]:
+    def _get_habit_info_for_finding(self, finding: dict, analysis_result: dict | None = None) -> dict[str, Any] | None:
         if self.habits_framework:
             context = {"document_type": analysis_result.get("document_type", "Unknown") if analysis_result else "Unknown", "discipline": analysis_result.get("discipline", "Unknown") if analysis_result else "Unknown", "risk_level": finding.get("risk", "Unknown"), "issue_category": finding.get("issue_category", "General")}
             return self.habits_framework.map_finding_to_habit(finding, context)
@@ -224,7 +224,7 @@ class ReportGenerator:
                 logger.warning("Legacy habit mapper not available")
                 return None
 
-    def _generate_habit_tag_html(self, habit_info: Dict[str, Any]) -> str:
+    def _generate_habit_tag_html(self, habit_info: dict[str, Any]) -> str:
         habit_number = habit_info.get("habit_number", 1)
         habit_name = sanitize_human_text(habit_info.get("name", "Unknown Habit"))
         explanation = sanitize_human_text(habit_info.get("explanation", ""))
@@ -265,7 +265,7 @@ class ReportGenerator:
             )
         return recommendation
 
-    def _generate_prevention_cell(self, finding: dict, analysis_result: Optional[dict] = None) -> str:
+    def _generate_prevention_cell(self, finding: dict, analysis_result: dict | None = None) -> str:
         if not self.habits_enabled:
             return '<div class="habit-explanation">Review documentation practices regularly</div>'
 
@@ -293,7 +293,7 @@ class ReportGenerator:
 
     def _generate_confidence_cell(self, finding: dict) -> str:
         confidence = finding.get("confidence", 0)
-        if isinstance(confidence, (int, float)):
+        if isinstance(confidence, int | float):
             confidence_html = f'<div class="confidence-indicator">{confidence:.0%} confidence</div>'
         else:
             confidence_html = '<div class="confidence-indicator">Confidence: Unknown</div>'
@@ -322,7 +322,7 @@ class ReportGenerator:
 
         return f"{confidence_html}<br>{chat_link}<br>{feedback_links}"
 
-    def _inject_summary_sections(self, report_html: str, analysis_result: Dict[str, Any]) -> str:
+    def _inject_summary_sections(self, report_html: str, analysis_result: dict[str, Any]) -> str:
         narrative = sanitize_human_text(analysis_result.get("narrative_summary", ""))
         if not narrative:
             narrative = "No narrative summary generated."
@@ -336,7 +336,7 @@ class ReportGenerator:
         report_html = report_html.replace("<!-- Placeholder for bullet highlights -->", bullets_html)
         return report_html
 
-    def _inject_checklist(self, report_html: str, checklist: List[Dict[str, Any]]) -> str:
+    def _inject_checklist(self, report_html: str, checklist: list[dict[str, Any]]) -> str:
         if not checklist:
             rows_html = '<tr><td colspan="4">Checklist data was not captured for this analysis.</td></tr>'
         else:
@@ -354,7 +354,7 @@ class ReportGenerator:
             rows_html = "".join(rows)
         return report_html.replace("<!-- Placeholder for checklist rows -->", rows_html)
 
-    def _build_pattern_analysis(self, analysis_result: Dict[str, Any]) -> str:
+    def _build_pattern_analysis(self, analysis_result: dict[str, Any]) -> str:
         findings = analysis_result.get("findings") or []
         if not findings:
             return "<p>No recurring compliance patterns were detected in this document.</p>"
@@ -369,6 +369,6 @@ class ReportGenerator:
         )
         return f"<ul>{list_items}</ul>"
 
-    def _generate_personal_development_section(self, findings: List[Dict[str, Any]], analysis_result: Dict[str, Any]) -> str:
+    def _generate_personal_development_section(self, findings: list[dict[str, Any]], analysis_result: dict[str, Any]) -> str:
         # ... (rest of the method remains the same)
         return ""

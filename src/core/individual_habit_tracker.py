@@ -9,7 +9,7 @@ This is separate from organizational analytics and maintains user privacy.
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any
 
 from ..database import crud
 from .enhanced_habit_mapper import SevenHabitsFramework
@@ -42,7 +42,7 @@ class IndividualHabitTracker:
 
     async def get_personal_habit_profile(
         self, db_session, days_back: int = 90
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get comprehensive personal habit profile for the user.
 
@@ -128,7 +128,7 @@ class IndividualHabitTracker:
 
     async def get_habit_timeline(
         self, db_session, habit_id: str, days_back: int = 30
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get detailed timeline for a specific habit.
 
@@ -212,7 +212,7 @@ class IndividualHabitTracker:
         goal_type: str,
         target_value: float,
         target_date: datetime,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Set a personal habit improvement goal.
 
@@ -245,7 +245,7 @@ class IndividualHabitTracker:
             "goal_details": goal_data,
         }
 
-    def _empty_profile(self) -> Dict[str, Any]:
+    def _empty_profile(self) -> dict[str, Any]:
         """Return empty profile for users with no data."""
         return {
             "user_id": self.user_id,
@@ -271,8 +271,8 @@ class IndividualHabitTracker:
         }
 
     async def _calculate_personal_insights(
-        self, db_session, findings: List[Dict], reports: List[Any]
-    ) -> Dict[str, Any]:
+        self, db_session, findings: list[dict], reports: list[Any]
+    ) -> dict[str, Any]:
         """Calculate personalized insights from user's data."""
         if not findings:
             return {
@@ -346,8 +346,8 @@ class IndividualHabitTracker:
         }
 
     async def _calculate_achievements(
-        self, db_session, findings: List[Dict]
-    ) -> Dict[str, Any]:
+        self, db_session, findings: list[dict]
+    ) -> dict[str, Any]:
         """Calculate user achievements and badges."""
         badges = []
         milestones = []
@@ -400,7 +400,7 @@ class IndividualHabitTracker:
 
         return {"badges": badges, "milestones": milestones, "total_points": points}
 
-    def _calculate_streaks(self, reports: List[Any]) -> Dict[str, Any]:
+    def _calculate_streaks(self, reports: list[Any]) -> dict[str, Any]:
         """Calculate improvement streaks."""
         if not reports:
             return {"current_streak": 0, "longest_streak": 0, "streak_type": "No data"}
@@ -433,8 +433,8 @@ class IndividualHabitTracker:
         }
 
     def _generate_personal_recommendations(
-        self, progression_metrics: Dict, insights: Dict
-    ) -> List[Dict[str, Any]]:
+        self, progression_metrics: dict, insights: dict
+    ) -> list[dict[str, Any]]:
         """Generate personalized improvement recommendations."""
         recommendations = []
 

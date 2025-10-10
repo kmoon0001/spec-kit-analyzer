@@ -1,21 +1,20 @@
 import json
 import os
-from typing import Any, Dict, List
+from typing import Any
 
 from jinja2 import Template
 from PySide6.QtWidgets import QFileDialog
 from xhtml2pdf import pisa  # type: ignore[import-untyped]
 
-
 DEFAULT_LIMITATIONS_TEXT = "This AI-generated report should be reviewed by a clinical compliance expert before use."
 
 
 def _load_template(template_path: str) -> Template:
-    with open(template_path, "r", encoding="utf-8") as handle:
+    with open(template_path, encoding="utf-8") as handle:
         return Template(handle.read())
 
 
-def _normalize_finding(raw_finding: Dict[str, Any]) -> Dict[str, Any]:
+def _normalize_finding(raw_finding: dict[str, Any]) -> dict[str, Any]:
     habit = raw_finding.get("habit") or {}
     return {
         "risk_level": raw_finding.get("risk")
@@ -41,7 +40,7 @@ def _normalize_finding(raw_finding: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _build_analysis_context(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _build_analysis_context(payload: dict[str, Any]) -> dict[str, Any]:
     if "analysis" in payload and isinstance(payload["analysis"], dict):
         analysis_ctx = dict(payload["analysis"])
     else:
@@ -61,7 +60,7 @@ def _build_analysis_context(payload: Dict[str, Any]) -> Dict[str, Any]:
             ),
         }
 
-    findings: List[Dict[str, Any]] = []
+    findings: list[dict[str, Any]] = []
     for finding in analysis_ctx.get("findings", []):
         if isinstance(finding, dict):
             findings.append(_normalize_finding(finding))

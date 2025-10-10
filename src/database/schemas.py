@@ -1,14 +1,15 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, List, Dict, Any, Tuple
 import datetime
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict
 
 # --- Schemas for Human-in-the-Loop Feedback ---
 
 class FeedbackAnnotationBase(BaseModel):
     finding_id: str  # Changed from int to str to match hash
     is_correct: bool
-    user_comment: Optional[str] = None
-    correction: Optional[str] = None
+    user_comment: str | None = None
+    correction: str | None = None
     feedback_type: str = "finding_accuracy"
 
 class FeedbackAnnotationCreate(FeedbackAnnotationBase):
@@ -44,8 +45,8 @@ class ReportBase(BaseModel):
     document_name: str
     compliance_score: float
     analysis_result: dict
-    document_embedding: Optional[bytes] = None
-    document_type: Optional[str] = None
+    document_embedding: bytes | None = None
+    document_type: str | None = None
 
 class ReportCreate(ReportBase):
     pass
@@ -53,7 +54,7 @@ class ReportCreate(ReportBase):
 class Report(ReportBase):
     id: int
     analysis_date: datetime.datetime
-    findings: List[Finding] = []
+    findings: list[Finding] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -87,7 +88,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
     is_admin: bool = False
-    license_key: Optional[str] = None
+    license_key: str | None = None
 
 class User(UserBase):
     id: int
@@ -105,7 +106,7 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    username: Optional[str] = None
+    username: str | None = None
 
 # --- Schemas for Analysis Tasks ---
 
@@ -125,7 +126,7 @@ class ChatMessage(BaseModel):
     content: str
 
 class ChatRequest(BaseModel):
-    history: List[ChatMessage]
+    history: list[ChatMessage]
 
 class ChatResponse(BaseModel):
     response: str
@@ -143,14 +144,14 @@ class ClinicianHabitBreakdown(BaseModel):
 
 class DirectorDashboardData(BaseModel):
     total_findings: int
-    team_habit_summary: List[HabitSummary]
-    clinician_habit_breakdown: List[ClinicianHabitBreakdown]
+    team_habit_summary: list[HabitSummary]
+    clinician_habit_breakdown: list[ClinicianHabitBreakdown]
 
 class CoachingFocus(BaseModel):
     focus_title: str
     summary: str
     root_cause: str
-    action_steps: List[str]
+    action_steps: list[str]
 
 class HabitTrendPoint(BaseModel):
     date: datetime.date
@@ -162,10 +163,10 @@ class HabitGoalBase(BaseModel):
     """Base schema for habit goals."""
 
     title: str
-    description: Optional[str] = None
-    habit_number: Optional[int] = None
-    target_value: Optional[float] = None
-    target_date: Optional[datetime.datetime] = None
+    description: str | None = None
+    habit_number: int | None = None
+    target_value: float | None = None
+    target_date: datetime.datetime | None = None
 
 class HabitGoalCreate(HabitGoalBase):
     """Schema for creating habit goals."""
@@ -175,23 +176,23 @@ class HabitGoalCreate(HabitGoalBase):
 class HabitGoalUpdate(BaseModel):
     """Schema for updating habit goals."""
 
-    title: Optional[str] = None
-    description: Optional[str] = None
-    progress: Optional[int] = None
-    status: Optional[str] = None
-    current_value: Optional[float] = None
+    title: str | None = None
+    description: str | None = None
+    progress: int | None = None
+    status: str | None = None
+    current_value: float | None = None
 
 class HabitGoal(HabitGoalBase):
     """Schema for habit goal responses."""
 
     id: int
     user_id: int
-    current_value: Optional[float] = None
+    current_value: float | None = None
     progress: int
     status: str
     created_at: datetime.datetime
     updated_at: datetime.datetime
-    completed_at: Optional[datetime.datetime] = None
+    completed_at: datetime.datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -223,17 +224,17 @@ class HabitProgressData(BaseModel):
 
     total_findings: int
     analysis_period_days: int
-    habit_breakdown: Dict[str, Any]
-    focus_areas: List[Tuple[str, Dict[str, Any]]]
-    mastered_habits: List[Tuple[str, Dict[str, Any]]]
-    weekly_trends: List[Dict[str, Any]]
+    habit_breakdown: dict[str, Any]
+    focus_areas: list[tuple[str, dict[str, Any]]]
+    mastered_habits: list[tuple[str, dict[str, Any]]]
+    weekly_trends: list[dict[str, Any]]
     improvement_rate: float
     current_streak: int
     consistency_score: float
-    overall_progress: Dict[str, Any]
-    achievements: List[Dict[str, Any]]
-    current_goals: List[Dict[str, Any]]
-    recommendations: List[Dict[str, Any]]
+    overall_progress: dict[str, Any]
+    achievements: list[dict[str, Any]]
+    current_goals: list[dict[str, Any]]
+    recommendations: list[dict[str, Any]]
 
 class WeeklyHabitTrend(BaseModel):
     """Schema for weekly habit trend data."""
@@ -241,7 +242,7 @@ class WeeklyHabitTrend(BaseModel):
     week_start: str
     week_end: str
     total_findings: int
-    habit_breakdown: Dict[str, int]
+    habit_breakdown: dict[str, int]
     avg_confidence: float
 
 class HabitRecommendation(BaseModel):
@@ -251,8 +252,8 @@ class HabitRecommendation(BaseModel):
     priority: str  # high, medium, low
     title: str
     description: str
-    action_items: List[str]
-    habit_number: Optional[int] = None
+    action_items: list[str]
+    habit_number: int | None = None
 
 class UserProgressSummary(BaseModel):
     """Schema for user progress summary."""
@@ -264,5 +265,5 @@ class UserProgressSummary(BaseModel):
     total_analyses: int
     mastered_habits_count: int
     active_goals_count: int
-    recent_achievements: List[HabitAchievement]
-    next_milestone: Optional[str] = None
+    recent_achievements: list[HabitAchievement]
+    next_milestone: str | None = None

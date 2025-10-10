@@ -4,27 +4,27 @@ import hashlib
 import logging
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import psutil  # type: ignore[import-untyped]
 
 from src.config import get_settings as _get_settings
 from src.core.cache_service import cache_service
+from src.core.checklist_service import DeterministicChecklistService as ChecklistService
 from src.core.compliance_analyzer import ComplianceAnalyzer
 from src.core.document_classifier import DocumentClassifier
+from src.core.explanation import ExplanationEngine
+from src.core.fact_checker_service import FactCheckerService
 from src.core.hybrid_retriever import HybridRetriever
 from src.core.llm_service import LLMService
-from src.core.report_generator import ReportGenerator
+from src.core.ner import ClinicalNERService
+from src.core.nlg_service import NLGService
 from src.core.parsing import parse_document_content
 from src.core.phi_scrubber import PhiScrubberService
 from src.core.preprocessing_service import PreprocessingService
+from src.core.report_generator import ReportGenerator
 from src.core.text_utils import sanitize_bullets, sanitize_human_text
-from src.core.ner import ClinicalNERService
 from src.utils.prompt_manager import PromptManager
-from src.core.explanation import ExplanationEngine
-from src.core.fact_checker_service import FactCheckerService
-from src.core.nlg_service import NLGService
-from src.core.checklist_service import DeterministicChecklistService as ChecklistService
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ class AnalysisService:
         self.report_generator = kwargs.get('report_generator') or ReportGenerator()
         self.checklist_service = kwargs.get('checklist_service') or ChecklistService()
 
-    def _get_analysis_cache_key(self, content_hash: str, discipline: str, analysis_mode: Optional[str]) -> str:
+    def _get_analysis_cache_key(self, content_hash: str, discipline: str, analysis_mode: str | None) -> str:
         hasher = hashlib.sha256()
         hasher.update(content_hash.encode())
         hasher.update(discipline.encode())
@@ -85,12 +85,12 @@ class AnalysisService:
         self,
         discipline: str = "pt",
         analysis_mode: str | None = None,
-        document_text: Optional[str] = None,
-        file_content: Optional[bytes] = None,
-        original_filename: Optional[str] = None,
+        document_text: str | None = None,
+        file_content: bytes | None = None,
+        original_filename: str | None = None,
     ) -> Any:
         """Analyzes document content for compliance, using a content-aware cache."""
-        temp_file_path: Optional[Path] = None
+        temp_file_path: Path | None = None
         try:
             if file_content:
                 content_hash = hashlib.sha256(file_content).hexdigest()
@@ -132,7 +132,7 @@ class AnalysisService:
 
             # Stage 2: Clinical Analysis on Anonymized Text (optimized)
             discipline_clean = sanitize_human_text(discipline or "Unknown")
-            
+
             # Fast-track for shorter documents (skip heavy classification)
             if len(scrubbed_text) < 2000:
                 doc_type_clean = "Progress Note"  # Default for fast processing
@@ -150,7 +150,7 @@ class AnalysisService:
                     ),
                     timeout=600.0  # 10 minute timeout for entire analysis
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.error("Compliance analysis timed out after 10 minutes")
                 analysis_result = {
                     "findings": [],
@@ -182,7 +182,7 @@ class AnalysisService:
                     timeout=60.0  # 1 minute timeout for report generation
                 )
                 final_report = {"analysis": enriched_result, **(report if isinstance(report, dict) else {})}
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.error("Report generation timed out after 1 minute")
                 final_report = {
                     "analysis": enriched_result,
@@ -213,7 +213,7 @@ class AnalysisService:
     def _trim_document_text(document_text: str, *, max_chars: int = 12000) -> str:
         return document_text[:max_chars] + "..." if len(document_text) > max_chars else document_text
 
-    def _enrich_analysis_result(self, analysis_result: Dict, *, document_text: str, discipline: str, doc_type: str) -> Dict:
+    def _enrich_analysis_result(self, analysis_result: dict, *, document_text: str, discipline: str, doc_type: str) -> dict:
         result = dict(analysis_result)
         result.setdefault("discipline", discipline)
         result.setdefault("document_type", doc_type)
@@ -227,7 +227,7 @@ class AnalysisService:
         return result
 
     @staticmethod
-    def _build_summary_fallback(analysis_result: Dict, checklist: List) -> str:
+    def _build_summary_fallback(analysis_result: dict, checklist: list) -> str:
         findings = analysis_result.get("findings") or []
         highlights = ", ".join(sanitize_human_text(f.get("issue_title", "finding")) for f in findings[:3])
         base = f"Reviewed documentation uncovered {len(findings)} findings: {highlights}." if findings else "Reviewed documentation shows no LLM-generated compliance findings."
@@ -237,7 +237,7 @@ class AnalysisService:
             base += f" Deterministic checks flagged: {titles}."
         return base
 
-    def _build_narrative_summary(self, base_summary: str, checklist: List) -> str:
+    def _build_narrative_summary(self, base_summary: str, checklist: list) -> str:
         flagged = [item for item in checklist if item.get("status") != "pass"]
         if not flagged:
             return sanitize_human_text(base_summary + " Core documentation elements were present.")
@@ -245,7 +245,7 @@ class AnalysisService:
         return sanitize_human_text(f"{base_summary} Immediate follow-up recommended for: {focus}.")
 
     @staticmethod
-    def _build_bullet_highlights(analysis_result: Dict, checklist: List, summary: str) -> List[str]:
+    def _build_bullet_highlights(analysis_result: dict, checklist: list, summary: str) -> list[str]:
         bullets = [
             f"{item.get('title')}: {item.get('recommendation')}"
             for item in checklist
@@ -262,7 +262,7 @@ class AnalysisService:
 
         summary_lower = summary.lower()
         seen: set[str] = set()
-        sanitized: List[str] = []
+        sanitized: list[str] = []
         for bullet in sanitize_bullets(bullets):
             lowered = bullet.lower()
             if lowered in seen or lowered in summary_lower:
@@ -273,14 +273,14 @@ class AnalysisService:
 
 
     @staticmethod
-    def _calculate_overall_confidence(analysis_result: Dict, checklist: List) -> float:
+    def _calculate_overall_confidence(analysis_result: dict, checklist: list) -> float:
         findings = analysis_result.get("findings") or []
-        conf_values = [float(f.get("confidence")) for f in findings if isinstance(f.get("confidence"), (int, float))]
+        conf_values = [float(f.get("confidence")) for f in findings if isinstance(f.get("confidence"), int | float)]
         base_conf = sum(conf_values) / len(conf_values) if conf_values else 0.85
         penalty = 0.05 * sum(1 for item in checklist if item.get("status") != "pass")
         return max(0.0, min(1.0, base_conf - penalty))
 
-    def _select_generator_profile(self, models_cfg: Dict) -> tuple[str, str, Optional[str]]:
+    def _select_generator_profile(self, models_cfg: dict) -> tuple[str, str, str | None]:
         profiles = models_cfg.get("generator_profiles") or {}
         if isinstance(profiles, dict) and profiles:
             mem_gb = self._system_memory_gb()
@@ -290,7 +290,7 @@ class AnalysisService:
                 return profile.get("repo", ""), profile.get("filename", ""), profile.get("revision")
         return models_cfg.get("generator", ""), models_cfg.get("generator_filename", ""), models_cfg.get("generator_revision")
 
-    def _find_best_profile(self, profiles: Dict, mem_gb: float) -> Optional[tuple[str, Dict]]:
+    def _find_best_profile(self, profiles: dict, mem_gb: float) -> tuple[str, dict] | None:
         best_fit = None
         for name, profile in profiles.items():
             if not (profile.get("repo") and profile.get("filename")):
@@ -302,7 +302,7 @@ class AnalysisService:
                 best_fit = (name, profile)
         return best_fit
 
-    def _resolve_local_model_path(self, settings) -> Optional[str]:
+    def _resolve_local_model_path(self, settings) -> str | None:
         path_str = getattr(settings.models, "generator_local_path", None)
         if not path_str:
             return None

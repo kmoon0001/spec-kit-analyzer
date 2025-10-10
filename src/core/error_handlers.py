@@ -6,11 +6,13 @@ across different service layers.
 """
 
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 from sqlalchemy.exc import SQLAlchemyError
-from .exceptions import DatabaseError, AIModelError, SecurityError
+
+from .exceptions import AIModelError, DatabaseError, SecurityError
 
 logger = logging.getLogger(__name__)
 
