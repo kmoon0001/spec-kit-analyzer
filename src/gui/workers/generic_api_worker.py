@@ -149,8 +149,9 @@ class LogStreamWorker(QThread):
     log_received = Signal(str)
     error = Signal(str)
     
-    def __init__(self, parent=None):
+    def __init__(self, token: str = None, parent=None):
         super().__init__(parent)
+        self.token = token
         self.running = False
     
     def run(self):
@@ -159,7 +160,11 @@ class LogStreamWorker(QThread):
             # Simple log streaming implementation
             while self.running:
                 try:
-                    response = requests.get(f"{API_URL}/logs/stream", timeout=1)
+                    headers = {}
+                    if self.token:
+                        headers["Authorization"] = f"Bearer {self.token}"
+                    
+                    response = requests.get(f"{API_URL}/logs/stream", headers=headers, timeout=1)
                     if response.status_code == 200:
                         self.log_received.emit(response.text)
                 except requests.exceptions.Timeout:

@@ -46,7 +46,7 @@ def add_user(cursor, username, password):
 
     """
     # Check if user already exists
-    cursor.execute("SELECT * FROM users WHERE username = ?", (username))
+    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
     if cursor.fetchone():
         logging.info("User '%s' already exists.", username)
         return

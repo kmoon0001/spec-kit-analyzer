@@ -206,7 +206,8 @@ class MainViewModel(QObject):
             on_success=self.log_message_received.emit,
             on_error=lambda msg: self.status_message_changed.emit(f"Log Stream: {msg}"),
             success_signal="log_received",
-            auto_stop=False)
+            auto_stop=False,
+            token=self.auth_token)
 
     def load_rubrics(self) -> None:
         self._run_worker(
@@ -264,7 +265,8 @@ class MainViewModel(QObject):
             SingleAnalysisPollingWorker,
             on_success=self._on_analysis_polling_success,
             on_error=self._handle_analysis_error_with_logging,
-            task_id=task_id)
+            task_id=task_id,
+            token=self.auth_token)
 
     def _on_analysis_polling_success(self, result: dict) -> None:
         """Handle successful analysis with comprehensive logging."""

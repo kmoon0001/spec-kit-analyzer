@@ -17,9 +17,10 @@ class FolderAnalysisWorker(QObject):
     success = Signal(object)  # type: ignore[attr-defined]
     progress = Signal(int)  # type: ignore[attr-defined]
 
-    def __init__(self, task_id: str):
+    def __init__(self, task_id: str, token: str = None):
         super().__init__()
         self.task_id = task_id
+        self.token = token
         self.is_running = True
 
     def stop(self) -> None:
@@ -33,8 +34,13 @@ class FolderAnalysisWorker(QObject):
 
         while self.is_running and attempts < max_attempts:
             try:
+                headers = {}
+                if self.token:
+                    headers["Authorization"] = f"Bearer {self.token}"
+                
                 response = requests.get(
                     f"{API_URL}/tasks/{self.task_id}",
+                    headers=headers,
                     timeout=15)
                 response.raise_for_status()
 
