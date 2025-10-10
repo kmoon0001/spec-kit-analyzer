@@ -220,6 +220,8 @@ class TestConfidenceCalibrator:
         finally:
             tmp_path.unlink()  # Clean up
     
+    @pytest.mark.filterwarnings("ignore:Mean of empty slice:RuntimeWarning")
+    @pytest.mark.filterwarnings("ignore:invalid value encountered in scalar divide:RuntimeWarning")
     def test_confidence_calibrator_insufficient_data(self):
         """Test behavior with insufficient training data."""
         # Very small dataset

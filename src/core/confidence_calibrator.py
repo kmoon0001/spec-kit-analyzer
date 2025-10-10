@@ -79,11 +79,15 @@ class TemperatureScaling:
     @staticmethod
     def _sigmoid(x: np.ndarray) -> np.ndarray:
         """Numerically stable sigmoid function."""
-        return np.where(
-            x >= 0,
-            1 / (1 + np.exp(-x)),
-            np.exp(x) / (1 + np.exp(x))
-        )
+        result = np.empty_like(x, dtype=float)
+
+        positive_indices = x >= 0
+        result[positive_indices] = 1.0 / (1.0 + np.exp(-x[positive_indices]))
+
+        negative_indices = x < 0
+        result[negative_indices] = np.exp(x[negative_indices]) / (1.0 + np.exp(x[negative_indices]))
+
+        return result
 
 
 class PlattScaling:
@@ -315,14 +319,14 @@ class ConfidenceCalibrator:
         
         ece = 0
         for bin_lower, bin_upper in zip(bin_lowers, bin_uppers):
-            in_bin = (probabilities > bin_lower) & (probabilities <= bin_upper)
-            prop_in_bin = in_bin.mean()
-            
-            if prop_in_bin > 0:
-                accuracy_in_bin = true_labels[in_bin].mean()
-                avg_confidence_in_bin = probabilities[in_bin].mean()
-                ece += np.abs(avg_confidence_in_bin - accuracy_in_bin) * prop_in_bin
-        
+                        in_bin = (probabilities > bin_lower) & (probabilities <= bin_upper)
+                        
+                        # Check if there are any elements in the bin before calculating mean
+                        if np.any(in_bin): # Only calculate mean if there are elements in the bin
+                            prop_in_bin = in_bin.mean()
+                            accuracy_in_bin = true_labels[in_bin].mean()
+                            avg_confidence_in_bin = probabilities[in_bin].mean()
+                            ece += np.abs(avg_confidence_in_bin - accuracy_in_bin) * prop_in_bin        
         return ece
     
     @staticmethod

@@ -18,14 +18,15 @@ def start_api_server():
     print("🚀 Starting FastAPI backend server...")
     try:
         # Use subprocess to start the API server
+        api_script_path = Path(__file__).parent / "run_api.py"
         process = subprocess.Popen([
-            sys.executable, "run_api.py"
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            sys.executable, str(api_script_path)
+        ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, universal_newlines=True)
         
-        # Monitor the process output
+        # Monitor the process output for Uvicorn's startup message
         for line in iter(process.stdout.readline, ''):
             print(f"[API] {line.strip()}")
-            if "Application startup complete" in line:
+            if "Uvicorn running on http://127.0.0.1:8001" in line:
                 print("✅ API server is ready!")
                 break
         

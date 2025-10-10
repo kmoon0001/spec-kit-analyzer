@@ -190,7 +190,6 @@ class CachePerformanceMonitor:
     
     def _calculate_efficiency_score(self, overall_stats: Dict[str, Any]) -> float:
         """Calculate overall cache efficiency score (0-100)."""
-        overall_stats = self._calculate_overall_stats()
         
         if 'no_data' in overall_stats:
             return 0.0

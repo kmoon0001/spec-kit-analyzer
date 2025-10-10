@@ -24,8 +24,8 @@ from PySide6.QtWidgets import (
     QScrollArea,
 )
 
-class AdvancedAdminWidget(QWidget):
-    """Advanced administration settings widget."""
+class SettingsEditorWidget(QWidget):
+    """A widget to dynamically edit application settings."""
 
     save_requested = Signal(dict)
 
@@ -39,7 +39,7 @@ class AdvancedAdminWidget(QWidget):
         layout.setSpacing(20)
 
         # Header
-        header = QLabel("🔧 Advanced Administration Settings")
+        header = QLabel("🔧 Settings Editor")
         header.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         header.setStyleSheet("color: #1d4ed8; margin-bottom: 15px;")
         layout.addWidget(header)
@@ -50,7 +50,7 @@ class AdvancedAdminWidget(QWidget):
         scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
 
         form_container = QWidget()
-        self.form_layout = QFormLayout(form_container)  # Initialize form_layout here
+        self.form_layout = QFormLayout(form_container) # Initialize form_layout here
         self.form_layout.setContentsMargins(0, 0, 0, 0)
         self.form_layout.setSpacing(10)
 
@@ -127,7 +127,7 @@ class AdvancedAdminWidget(QWidget):
         layout.setSpacing(15)
 
         # System info display
-        self.info_browser = QTextBrowser()  # Make it an instance variable
+        self.info_browser = QTextBrowser() # Make it an instance variable
         self.info_browser.setStyleSheet("""
             QTextBrowser {
                 background: #f8fafc;
@@ -141,14 +141,12 @@ class AdvancedAdminWidget(QWidget):
         # Generate realtime system info
         system_info = self._generate_realtime_system_info()
         self.info_browser.setHtml(system_info)
-
         # Set up timer for realtime updates
         from PySide6.QtCore import QTimer
         self.system_timer = QTimer(self)  # Make timer a child of the widget
-        self.system_timer.timeout.connect(lambda: self.info_browser.setHtml(self._generate_realtime_system_info()))  # Use instance variable
+        self.system_timer.timeout.connect(lambda: self.info_browser.setHtml(self._generate_realtime_system_info())) # Use instance variable
         self.system_timer.start(5000)  # Update every 5 seconds
-        layout.addWidget(self.info_browser)  # Use instance variable
-
+        layout.addWidget(self.info_browser) # Use instance variable
         return tab
 
     def _generate_realtime_system_info(self) -> str:

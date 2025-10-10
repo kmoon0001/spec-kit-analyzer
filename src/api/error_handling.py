@@ -1,22 +1,11 @@
-import structlog
-from fastapi import Request
-from fastapi.responses import JSONResponse
-from starlette.exceptions import HTTPException as StarletteHTTPException
+"""
+This module is intentionally left blank.
 
-logger = structlog.get_logger(__name__)
+The global exception handler has been consolidated into the
+`src/api/global_exception_handler.py` module to avoid redundancy.
+All exception handling logic, including for HTTP exceptions,
+is now managed centrally in that file.
+"""
 
-
-async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    """
-    Global handler for HTTP exceptions to ensure consistent JSON error responses.
-    """
-    logger.error(
-        "HTTP Exception occurred",
-        status_code=exc.status_code,
-        detail=exc.detail,
-        path=request.url.path,
-    )
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail},
-    )
+# This file is kept for architectural consistency but contains no active code.
+pass

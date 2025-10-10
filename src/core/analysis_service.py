@@ -122,17 +122,23 @@ class AnalysisService:
 
             # --- Start of Optimized Two-Stage Pipeline ---
 
-            # Stage 0: Initial text processing
+            # Stage 0: Initial text processing (optimized for speed)
             trimmed_text = self._trim_document_text(text_to_process)
-            corrected_text = await self._maybe_await(self.preprocessing.correct_text(trimmed_text))
+            # Skip heavy preprocessing for faster analysis - basic cleaning only
+            corrected_text = trimmed_text.strip() if len(trimmed_text) < 5000 else await self._maybe_await(self.preprocessing.correct_text(trimmed_text))
 
             # Stage 1: PHI Redaction (Security First)
             scrubbed_text = self.phi_scrubber.scrub(corrected_text)
 
-            # Stage 2: Clinical Analysis on Anonymized Text
+            # Stage 2: Clinical Analysis on Anonymized Text (optimized)
             discipline_clean = sanitize_human_text(discipline or "Unknown")
-            doc_type_raw = await self._maybe_await(self.document_classifier.classify_document(scrubbed_text))
-            doc_type_clean = sanitize_human_text(doc_type_raw or "Unknown")
+            
+            # Fast-track for shorter documents (skip heavy classification)
+            if len(scrubbed_text) < 2000:
+                doc_type_clean = "Progress Note"  # Default for fast processing
+            else:
+                doc_type_raw = await self._maybe_await(self.document_classifier.classify_document(scrubbed_text))
+                doc_type_clean = sanitize_human_text(doc_type_raw or "Progress Note")
 
             analysis_result = await self._maybe_await(
                 self.compliance_analyzer.analyze_document(

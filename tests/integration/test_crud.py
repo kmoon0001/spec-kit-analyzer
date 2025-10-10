@@ -39,12 +39,30 @@ TestingSessionLocal = sessionmaker(
 @pytest_asyncio.fixture(scope="module", autouse=True)
 async def setup_database():
     """Creates the test database and tables for the test session."""
+    # Ensure the database file is removed before starting
+    if os.path.exists("test_crud.db"):
+        try:
+            os.remove("test_crud.db")
+        except PermissionError:
+            # This can happen on Windows if the file is still locked
+            # We'll try to dispose the engine and try again
+            await engine.dispose()
+            try:
+                os.remove("test_crud.db")
+            except PermissionError as e:
+                pytest.fail(f"Could not remove test_crud.db, it is locked: {e}")
+
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
     await engine.dispose()
+    # Final cleanup
     if os.path.exists("test_crud.db"):
-        os.remove("test_crud.db")
+        try:
+            os.remove("test_crud.db")
+        except PermissionError:
+            pass # Ignore errors on teardown, the setup will handle it
 
 @pytest_asyncio.fixture
 async def db_session() -> AsyncSession:
