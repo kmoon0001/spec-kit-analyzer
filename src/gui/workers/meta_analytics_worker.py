@@ -1,15 +1,15 @@
 """Meta Analytics Worker for background data loading.
-import json
-from requests.exceptions import HTTPError
 
 Handles API calls to fetch organizational analytics data without blocking the UI.
 Follows the established worker patterns for consistency with other GUI workers.
 """
 
+import json
 import logging
 from typing import Any
 
 import requests
+from requests.exceptions import HTTPError
 from PySide6.QtCore import QObject, Signal
 
 from src.config import get_settings
@@ -88,6 +88,9 @@ class MetaAnalyticsWorker(QObject):
             logger.exception("Failed to load meta analytics data")
             self.error.emit(f"Failed to load analytics: {error_detail}")
         except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+            logger.exception("Unexpected error loading meta analytics data")
+            self.error.emit(f"An unexpected error occurred: {e!s}")
+        except Exception as e:
             logger.exception("Unexpected error loading meta analytics data")
             self.error.emit(f"An unexpected error occurred: {e!s}")
         finally:

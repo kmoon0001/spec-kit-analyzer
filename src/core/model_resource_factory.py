@@ -146,8 +146,13 @@ class EmbeddingModelResourceFactory(ResourceFactory[SentenceTransformer]):
 
 # Global model resource manager instance
 # Global model resource manager instance
-# Global model resource manager instance
-# model_resource_manager = ModelResourceManager()  # Commented out to avoid undefined name error
+class ModelResourceManager:
+    """Manager for model resources."""
+    def __init__(self):
+        self._resources = {}
+
+    def get_resource(self, name: str):
+        return self._resources.get(name)
 
 
 class TokenizerResourceFactory:
@@ -158,10 +163,16 @@ class TokenizerResourceFactory:
     def create_resource(self):
         return None
 
-class ModelResourceManager:
-    """Manager for model resources."""
-    def __init__(self):
-        self._resources = {}
 
-    def get_resource(self, name: str):
-        return self._resources.get(name)
+# Global model resource manager instance
+model_resource_manager = None
+
+def get_model_resource_manager():
+    """Get or create the global model resource manager"""
+    global model_resource_manager
+    if model_resource_manager is None:
+        model_resource_manager = ModelResourceManager()
+    return model_resource_manager
+
+# Initialize the global instance
+model_resource_manager = ModelResourceManager()

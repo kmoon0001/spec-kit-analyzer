@@ -38,6 +38,22 @@ class ConfidenceCalibrator:
             return scores
         return self.calibrator.predict_proba(scores.reshape(-1, 1))[:, 1]
     
+    def calibrate(self, scores):
+        """Calibrate confidence scores."""
+        if not self.is_fitted:
+            return scores
+        if isinstance(scores, (list, tuple)):
+            scores = np.array(scores)
+        return self.predict_proba(scores)
+    
+    def get_calibration_metrics(self):
+        """Get calibration performance metrics."""
+        return {
+            'method': self.method,
+            'is_fitted': self.is_fitted,
+            'calibrator_type': type(self.calibrator).__name__ if self.calibrator else None
+        }
+    
     def save(self, filepath):
         """Save calibrator to disk."""
         with open(filepath, 'wb') as f:

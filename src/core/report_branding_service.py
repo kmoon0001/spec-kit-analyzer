@@ -222,6 +222,52 @@ class BrandingConfiguration:
         }
 
 
+class LogoProcessor:
+    """Handles logo processing and optimization"""
+    
+    def process_logo(self, logo_path: str, config: LogoConfiguration) -> dict[str, Any]:
+        """Process logo according to configuration
+        
+        Args:
+            logo_path: Path to logo file
+            config: Logo configuration
+            
+        Returns:
+            Processed logo data
+        """
+        try:
+            with Image.open(logo_path) as img:
+                # Process based on size configuration
+                if config.size == LogoSize.CUSTOM and config.custom_width:
+                    width = config.custom_width
+                    height = int(img.height * (width / img.width))
+                else:
+                    size_map = {
+                        LogoSize.SMALL: 100,
+                        LogoSize.MEDIUM: 200,
+                        LogoSize.LARGE: 300
+                    }
+                    max_size = size_map.get(config.size, 200)
+                    img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+                    width, height = img.size
+                
+                # Convert to base64
+                import io
+                buffer = io.BytesIO()
+                img.save(buffer, format='PNG')
+                img_data = base64.b64encode(buffer.getvalue()).decode()
+                
+                return {
+                    'data': img_data,
+                    'width': width,
+                    'height': height,
+                    'format': 'PNG'
+                }
+        except Exception as e:
+            logger.error(f"Error processing logo: {e}")
+            return {}
+
+
 class ReportBrandingService:
     """Main service for managing report branding"""
 

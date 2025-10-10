@@ -1,6 +1,4 @@
 """Data Integration Service - Comprehensive data provider system
-from typing import Any, Dict, List, Optional
-from abc import ABC, abstractmethod
 
 This module provides the data integration layer that connects the reporting system
 to all existing performance and compliance systems using clean interfaces and
@@ -10,7 +8,7 @@ dependency injection patterns.
 import asyncio
 import logging
 import sqlite3
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -74,14 +72,12 @@ class DataSourceMetadata:
 
 
 @dataclass
-@dataclass
-@dataclass
 class DataQuery:
     """Query specification for data retrieval"""
 
     source_types: list[DataSourceType]
-    time_range: TimeRange | None = None
     filters: dict[str, Any] = field(default_factory=dict)
+    time_range: TimeRange | None = None
     aggregation_level: str = "raw"  # raw, hourly, daily, weekly
     include_metadata: bool = True
     max_records: int | None = None
@@ -98,6 +94,10 @@ class DataResult(Generic[T]):
     record_count: int = 0
     has_more: bool = False
     next_cursor: str | None = None
+
+
+class BaseDataProvider(ABC):
+    """Abstract base class for data providers"""
 
     def __init__(self, provider_id: str, description: str):
         self.provider_id = provider_id
@@ -117,7 +117,7 @@ class DataResult(Generic[T]):
         """Check if this provider supports the given report type"""
 
     @abstractmethod
-    async def query_data(self, query: DataQuery) -> DataResult[dict[str, Any]]:
+    async def query_data(self, query: DataQuery) -> "DataResult[dict[str, Any]]":
         """Execute a data query and return results"""
 
     @abstractmethod

@@ -487,6 +487,12 @@ class PerformanceMonitor:
 
 class OperationTracker:
     """Context manager for tracking individual operations."""
+    
+    def __init__(self, monitor, component: str, operation: str, metadata: dict):
+        self.monitor = monitor
+        self.component = component
+        self.operation = operation
+        self.metadata = metadata
 
     def __enter__(self):
         self.start_time = time.time()

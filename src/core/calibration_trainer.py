@@ -307,6 +307,10 @@ class CalibrationTrainer:
 
 class FeedbackCollector:
     """Helper class for collecting user feedback in the GUI."""
+    
+    def __init__(self, trainer: CalibrationTrainer):
+        """Initialize feedback collector with trainer."""
+        self.trainer = trainer
 
     def create_feedback_widget(self, finding: dict[str, Any]) -> dict[str, Any]:
         """Create feedback widget data for a finding.

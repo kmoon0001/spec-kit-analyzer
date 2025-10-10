@@ -296,7 +296,7 @@ class SystemMetricsSource(MetricSource):
                 return source
             return None
 
-    def create_custom_source(self, name: str) -> CustomMetricsSource:
+    def create_custom_source(self, name: str) -> "CustomMetricsSource":
         """Create and register a custom metrics source.
 
         Args:
@@ -334,3 +334,42 @@ class ApplicationMetricsSource:
 
 class CustomMetricsSource:
     """Custom metrics source."""
+    
+    def __init__(self, name: str):
+        self.name = name
+        self.metrics = {}
+    
+    def record_metric(self, name: str, value: float):
+        """Record a custom metric"""
+        self.metrics[name] = value
+    
+    def get_metrics(self) -> dict:
+        """Get all recorded metrics"""
+        return self.metrics.copy()
+
+
+class MetricsCollector:
+    """Main metrics collection service"""
+    
+    def __init__(self):
+        self.sources = []
+        self.metrics_history = []
+    
+    def add_source(self, source: MetricSource):
+        """Add a metrics source"""
+        self.sources.append(source)
+    
+    def collect_metrics(self) -> dict:
+        """Collect metrics from all sources"""
+        all_metrics = {}
+        for source in self.sources:
+            try:
+                metrics = source.get_metrics()
+                all_metrics.update(metrics)
+            except Exception as e:
+                logger.error(f"Error collecting metrics from {source}: {e}")
+        return all_metrics
+    
+    def get_metrics_history(self) -> list:
+        """Get historical metrics"""
+        return self.metrics_history.copy()

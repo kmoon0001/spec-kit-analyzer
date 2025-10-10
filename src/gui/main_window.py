@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
     QDockWidget,
+    QFileDialog,
     QMainWindow,
     QMessageBox,
     QProgressBar,
@@ -24,6 +25,9 @@ from PySide6.QtWidgets import (
 )
 
 from src.config import get_settings
+from src.core import analysis_diagnostics as diagnostics
+from src.core import analysis_status_tracker as status_tracker
+from src.core import analysis_workflow_logger as workflow_logger
 from src.core.report_generator import ReportGenerator
 from src.database import models
 

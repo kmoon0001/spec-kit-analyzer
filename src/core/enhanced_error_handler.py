@@ -127,6 +127,11 @@ class ErrorHandler:
         ...     return handled_error.to_dict()
 
     """
+    
+    def __init__(self):
+        """Initialize the error handler."""
+        self.error_history = []
+        self.max_history_size = 1000
 
     def handle_error(
         self,
@@ -311,6 +316,11 @@ class ErrorHandler:
                 "Contact your system administrator",
                 "Check the application configuration",
                 "Restart the application if possible",
+            ],
+            ErrorCategory.SYSTEM: [
+                "Try the operation again",
+                "Restart the application if the problem persists",
+                "Contact technical support if the issue continues",
             ],
         }
 

@@ -48,7 +48,7 @@ def test_main_window_initialization(app):
 
     assert app is not None
 
-    assert app.windowTitle() == "THERAPY DOCUMENTATION COMPLIANCE ANALYSIS"
+    assert app.windowTitle() == "Therapy Compliance Analyzer"
 
     
 
@@ -108,7 +108,7 @@ def test_run_analysis_click(app, qtbot, monkeypatch):
 
     mock_diagnostics.validate_file_format.return_value = MagicMock(status=MagicMock(value="success"))
 
-    monkeypatch.setattr("src.gui.main_window.diagnostics", mock_diagnostics)
+    monkeypatch.setattr("src.gui.handlers.analysis_handlers.diagnostics", mock_diagnostics)
 
 
 
@@ -116,7 +116,7 @@ def test_run_analysis_click(app, qtbot, monkeypatch):
 
     mock_workflow_logger = MagicMock()
 
-    monkeypatch.setattr("src.gui.main_window.workflow_logger", mock_workflow_logger)
+    monkeypatch.setattr("src.gui.handlers.analysis_handlers.workflow_logger", mock_workflow_logger)
 
 
 
@@ -124,7 +124,7 @@ def test_run_analysis_click(app, qtbot, monkeypatch):
 
     mock_status_tracker = MagicMock()
 
-    monkeypatch.setattr("src.gui.main_window.status_tracker", mock_status_tracker)
+    monkeypatch.setattr("src.gui.handlers.analysis_handlers.status_tracker", mock_status_tracker)
 
 
 
@@ -160,7 +160,7 @@ def test_open_file_click(app, qtbot, monkeypatch):
 
     mock_file_dialog.getOpenFileName.return_value = ("C:/fake/path/to/document.txt", "All Files (*)")
 
-    monkeypatch.setattr("src.gui.main_window.QFileDialog", mock_file_dialog)
+    monkeypatch.setattr("src.gui.handlers.file_handlers.QFileDialog", mock_file_dialog)
 
 
 
