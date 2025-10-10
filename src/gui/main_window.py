@@ -460,11 +460,12 @@ class MainApplicationWindow(QMainWindow):
         
         # Update header theme
         is_dark = medical_theme.current_theme == "dark"
-        self.header.update_theme_button(is_dark)
-        if is_dark:
-            self.header.setStyleSheet(self.header.get_dark_theme_stylesheet())
-        else:
-            self.header.setStyleSheet(self.header.get_default_stylesheet())
+        if self.header:
+            self.header.update_theme_button(is_dark)
+            if is_dark:
+                self.header.setStyleSheet(self.header.get_dark_theme_stylesheet())
+            else:
+                self.header.setStyleSheet(self.header.get_default_stylesheet())
 
     def _toggle_theme(self) -> None:
         """Toggle between light and dark theme."""
@@ -486,7 +487,7 @@ class MainApplicationWindow(QMainWindow):
 
     def _on_logo_clicked(self) -> None:
         """Handle logo clicks for easter eggs (7 clicks triggers special message)."""
-        if self.header.click_count == 7:
+        if self.header and self.header.click_count == 7:
             QMessageBox.information(
                 self,
                 "🎉 Easter Egg Found!",
@@ -498,7 +499,7 @@ class MainApplicationWindow(QMainWindow):
 
     def _on_model_status_clicked(self, model_name: str) -> None:
         """Handle clicks on AI model status indicators with detailed descriptions."""
-        status = self.status_component.models.get(model_name, False)
+        status = self.status_component.models.get(model_name, False) if self.status_component else False
         status_text = "✅ Ready" if status else "❌ Not Ready"
         
         # Detailed model descriptions with complete transparency - Updated with real models
