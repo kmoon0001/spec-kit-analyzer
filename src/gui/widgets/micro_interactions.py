@@ -239,6 +239,13 @@ class PulseAnimation(QWidget):
 class LoadingSpinner(QLabel):
     """Animated loading spinner."""
 
+    def __init__(self, size=20, parent=None):
+        """Initialize the loading spinner."""
+        super().__init__(parent)
+        self.size = size
+        self.angle = 0
+        self.setup_spinner()
+
     def setup_spinner(self):
         """Setup spinner animation."""
         self.setFixedSize(self.size, self.size)

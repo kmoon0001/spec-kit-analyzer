@@ -181,7 +181,7 @@ class MainViewModel(QObject):
         self._run_worker(
             HealthCheckWorker,
             on_success=self.api_status_changed.emit,
-            success_signal="status_update",
+            success_signal="success",
             error_signal=None,
             auto_stop=False)
 
