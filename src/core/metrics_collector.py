@@ -283,7 +283,7 @@ class SystemMetricsSource(MetricSource):
 
         return status
 
-    def get_application_source(self) -> ApplicationMetricsSource | None:
+    def get_application_source(self) -> "ApplicationMetricsSource | None":
         """Get the application metrics source for recording metrics.
 
         Returns:

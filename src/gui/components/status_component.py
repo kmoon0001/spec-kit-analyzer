@@ -18,13 +18,12 @@ class StatusComponent(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.models = {
-            "Phi-2 LLM": False,  # Microsoft Phi-2 2.7B parameter model
+            "OpenMed NER": False,  # OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M
+            "S-PubMedBert": False,  # pritamdeka/S-PubMedBert-MS-MARCO retrieval
             "FAISS+BM25": False,  # Hybrid retrieval system
             "Fact Checker": False,  # Secondary verification model
-            "BioBERT": False,  # Biomedical BERT for medical NER
-            "ClinicalBERT": False,  # Clinical notes specialized BERT
+            "Compliance LLM": False,  # Local compliance analysis model
             "Chat Assistant": False,  # Local conversational AI
-            "MiniLM-L6": False,  # sentence-transformers embedding model
         }
         self.status_labels = {}
         self.init_ui()

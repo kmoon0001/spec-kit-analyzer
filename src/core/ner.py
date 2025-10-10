@@ -157,13 +157,20 @@ class ClinicalNERService:
 class NERPipeline(ClinicalNERService):
     """Convenience wrapper around ClinicalNERService with sensible defaults."""
 
-    DEFAULT_MODELS = [
-        "dslim/bert-base-NER",
-        "Jean-Baptiste/roberta-large-ner-english"]
 
-    def extract_clinician_name(self, text: str | None) -> list[str]:
-        if not isinstance(text, str) or not text.strip():
-            return []
+# Alias for backward compatibility
+NERAnalyzer = ClinicalNERService
+
+
+DEFAULT_MODELS = [
+    "dslim/bert-base-NER",
+    "Jean-Baptiste/roberta-large-ner-english"]
+
+
+def extract_clinician_name(text: str | None) -> list[str]:
+    """Extract clinician names from text."""
+    if not isinstance(text, str) or not text.strip():
+        return []
         titles_regex = re.compile(self.clinical_patterns["titles"], re.IGNORECASE)
         signature_regex = re.compile(self.clinical_patterns["signature_keywords"], re.IGNORECASE)
         name_regex = re.compile(self.clinical_patterns["name_pattern"])

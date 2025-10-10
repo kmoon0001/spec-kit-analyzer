@@ -5,46 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clinical Compliance Report</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f8f9fa; line-height: 1.6; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f8f9fa; line-height: 1.6; color: #212529; }
         .container { max-width: 1200px; margin: auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .header { text-align: center; padding: 20px 0; border-bottom: 2px solid #007bff; margin-bottom: 30px; }
         .header h1 { color: #007bff; margin: 0; font-size: 2.2em; }
-        .header .subtitle { color: #6c757d; font-size: 1.1em; margin-top: 5px; }
+        .header .subtitle { color: #495057; font-size: 1.1em; margin-top: 5px; font-weight: 500; }
         .logo-container { text-align: center; margin-bottom: 20px; }
         .logo { max-height: 80px; }
         .executive-summary { background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; padding: 25px; border-radius: 8px; margin-bottom: 30px; }
         .executive-summary h2 { margin-top: 0; color: white; }
+        .executive-summary h3 { color: white; margin-top: 20px; }
+        .executive-summary p { color: white; }
         .score-dashboard { display: flex; justify-content: space-around; margin: 20px 0; }
         .score-item { text-align: center; }
-        .score-value { font-size: 2.5em; font-weight: bold; display: block; }
-        .score-label { font-size: 0.9em; opacity: 0.9; }
+        .score-value { font-size: 2.5em; font-weight: bold; display: block; color: white; }
+        .score-label { font-size: 0.9em; opacity: 0.9; color: white; }
         .findings-section { margin-bottom: 30px; }
         .findings table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .findings th, .findings td { border: 1px solid #dee2e6; padding: 12px; text-align: left; vertical-align: top; }
-        .findings th { background-color: #f8f9fa; font-weight: 600; color: #495057; }
-        .high-confidence { background-color: #d4edda; border-left: 4px solid #28a745; }
-        .medium-confidence { background-color: #fff3cd; border-left: 4px solid #ffc107; }
-        .low-confidence { background-color: #f8d7da; border-left: 4px solid #dc3545; }
-        .disputed { background-color: #f5c6cb; border-left: 4px solid #dc3545; text-decoration: line-through; }
-        .risk-high { color: #dc3545; font-weight: bold; }
-        .risk-medium { color: #fd7e14; font-weight: 600; }
-        .risk-low { color: #28a745; font-weight: 500; }
-        .confidence-indicator { font-size: 0.85em; color: #6c757d; }
+        .findings th, .findings td { border: 1px solid #dee2e6; padding: 12px; text-align: left; vertical-align: top; color: #212529; }
+        .findings th { background-color: #f8f9fa; font-weight: 600; color: #212529; }
+        .high-confidence { background-color: #d4edda; border-left: 4px solid #28a745; color: #155724; }
+        .medium-confidence { background-color: #fff3cd; border-left: 4px solid #ffc107; color: #856404; }
+        .low-confidence { background-color: #f8d7da; border-left: 4px solid #dc3545; color: #721c24; }
+        .disputed { background-color: #f5c6cb; border-left: 4px solid #dc3545; text-decoration: line-through; color: #721c24; }
+        .risk-high { color: #dc3545; font-weight: bold; background-color: #f8d7da; padding: 4px 8px; border-radius: 4px; }
+        .risk-medium { color: #fd7e14; font-weight: 600; background-color: #fff3cd; padding: 4px 8px; border-radius: 4px; }
+        .risk-low { color: #28a745; font-weight: 500; background-color: #d4edda; padding: 4px 8px; border-radius: 4px; }
+        .confidence-indicator { font-size: 0.85em; color: #495057; font-weight: 500; }
         .bullet-highlights { margin-top: 12px; padding-left: 20px; }
-        .bullet-highlights li { margin-bottom: 6px; }
+        .bullet-highlights li { margin-bottom: 6px; color: white; }
         .checklist-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .checklist-table th, .checklist-table td { border: 1px solid #dee2e6; padding: 10px; text-align: left; }
-        .checklist-status-pass { color: #28a745; font-weight: 600; }
-        .checklist-status-review { color: #dc3545; font-weight: 600; }
-        .ai-transparency { background-color: #e9ecef; padding: 20px; border-radius: 8px; margin: 30px 0; }
-        .regulatory-citations { background-color: #f8f9fa; padding: 20px; border-left: 4px solid #28a745; margin: 20px 0; }
-        .action-planning { background-color: #fff; border: 2px solid #007bff; padding: 20px; border-radius: 8px; margin: 20px 0; }
-        .footer { text-align: center; padding: 20px 0; border-top: 1px solid #dee2e6; color: #6c757d; font-size: 0.9em; margin-top: 40px; }
-        h2 { color: #495057; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
+        .checklist-table th, .checklist-table td { border: 1px solid #dee2e6; padding: 10px; text-align: left; color: #212529; }
+        .checklist-table th { background-color: #f8f9fa; font-weight: 600; }
+        .checklist-status-pass { color: #28a745; font-weight: 600; background-color: #d4edda; padding: 2px 6px; border-radius: 3px; }
+        .checklist-status-review { color: #dc3545; font-weight: 600; background-color: #f8d7da; padding: 2px 6px; border-radius: 3px; }
+        .ai-transparency { background-color: #e9ecef; padding: 20px; border-radius: 8px; margin: 30px 0; color: #212529; }
+        .regulatory-citations { background-color: #f8f9fa; padding: 20px; border-left: 4px solid #28a745; margin: 20px 0; color: #212529; }
+        .action-planning { background-color: #fff; border: 2px solid #007bff; padding: 20px; border-radius: 8px; margin: 20px 0; color: #212529; }
+        .footer { text-align: center; padding: 20px 0; border-top: 1px solid #dee2e6; color: #495057; font-size: 0.9em; margin-top: 40px; }
+        h2 { color: #212529; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
+        h3 { color: #212529; }
         .habit-name { font-weight: 600; color: #007bff; }
-        .habit-explanation { font-size: 0.9em; color: #6c757d; margin-top: 5px; }
+        .habit-explanation { font-size: 0.9em; color: #495057; margin-top: 5px; }
         .chat-link, .highlight-link { color: #007bff; text-decoration: none; font-weight: 500; }
-        .chat-link:hover, .highlight-link:hover { text-decoration: underline; }
+        .chat-link:hover, .highlight-link:hover { text-decoration: underline; color: #0056b3; }
+        .feedback-link { color: #007bff; text-decoration: none; margin: 0 4px; }
+        .feedback-link:hover { color: #0056b3; }
+        .clinical-context { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; color: #212529; }
+        .deterministic-checklist { margin-bottom: 30px; }
         
         /* Habit Tag Styles */
         .habit-tag { 
@@ -57,17 +65,20 @@
             display: inline-block;
             font-size: 16px;
             cursor: help;
-            opacity: 0.7;
+            color: #007bff;
             margin-left: 8px;
+            background-color: #e3f2fd;
+            padding: 4px 6px;
+            border-radius: 4px;
         }
         .habit-tag.subtle:hover {
-            opacity: 1;
+            background-color: #bbdefb;
             transform: scale(1.1);
         }
         
         /* Moderate: Visible tag with name */
         .habit-tag.moderate { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
             color: white;
             padding: 6px 12px;
             border-radius: 16px;
@@ -75,35 +86,40 @@
             font-weight: 600;
             display: inline-block;
             cursor: help;
+            border: 1px solid #0056b3;
         }
         .habit-tag.moderate:hover {
             transform: translateY(-1px);
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
         }
         
         /* Prominent: Large detailed badge */
         .habit-tag.prominent {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
             color: white;
             padding: 12px 16px;
             border-radius: 8px;
             margin-top: 12px;
-            border-left: 4px solid #5a67d8;
+            border-left: 4px solid #004085;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid #0056b3;
         }
         .habit-tag.prominent .habit-badge {
             font-size: 14px;
             font-weight: bold;
             margin-bottom: 6px;
+            color: white;
         }
         .habit-tag.prominent .habit-quick-tip {
             font-size: 12px;
-            opacity: 0.9;
+            color: rgba(255,255,255,0.95);
             line-height: 1.4;
         }
         .habit-tag.prominent:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
         }
         
         /* Confidence indicators */
@@ -129,6 +145,23 @@
             background: #28a745;
             border-radius: 1px;
             width: calc(var(--confidence) * 100%);
+        }
+        
+        /* Additional contrast improvements */
+        .habit-strategies { 
+            margin-top: 8px; 
+            color: #495057; 
+        }
+        .habit-strategies strong { 
+            color: #212529; 
+        }
+        .habit-strategies ul { 
+            margin: 4px 0; 
+            padding-left: 16px; 
+        }
+        .habit-strategies li { 
+            color: #495057; 
+            margin-bottom: 2px; 
         }
         
         @media print { body { background: white; } .container { box-shadow: none; } }

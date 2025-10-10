@@ -89,13 +89,11 @@ class LogoConfiguration:
 
 
 @dataclass
-@dataclass
-@dataclass
 class BrandingConfiguration:
     """Complete branding configuration"""
 
-    organization_name: str | None = None
     logo: LogoConfiguration = field(default_factory=LogoConfiguration)
+    organization_name: str | None = None
     primary_color: str = "#2c5aa0"
     secondary_color: str = "#6c757d"
     accent_color: str = "#28a745"

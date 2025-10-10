@@ -69,8 +69,6 @@ class TimeRange:
 
 
 @dataclass
-@dataclass
-@dataclass
 class ReportConfig:
     """Configuration for report generation"""
 

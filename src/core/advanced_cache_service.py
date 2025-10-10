@@ -242,13 +242,19 @@ class CachePerformanceMonitor:
 class BatchCacheOperations:
     """Provides batch operations for improved cache performance."""
 
+    @staticmethod
     def get_single_embedding(text: str) -> tuple[str, list[float] | None]:
         return text, EmbeddingCache.get_embedding(text)
 
+    async def batch_get_embeddings(self, texts: list[str]) -> dict[str, list[float] | None]:
+        """Batch retrieve embeddings for multiple texts."""
+        import time
+        start_time = time.time()
+        
         # Execute batch operations in parallel
         loop = asyncio.get_event_loop()
         tasks = [
-            loop.run_in_executor(self.executor, get_single_embedding, text)
+            loop.run_in_executor(self.executor, self.get_single_embedding, text)
             for text in texts
         ]
 
@@ -256,7 +262,7 @@ class BatchCacheOperations:
         result_dict = dict(results)
 
         # Record performance metrics
-        if self.performance_monitor:
+        if hasattr(self, 'performance_monitor') and self.performance_monitor:
             duration_ms = (time.time() - start_time) * 1000
             hits = sum(1 for embedding in result_dict.values() if embedding is not None)
             hit_rate = hits / len(texts) if texts else 0
@@ -264,8 +270,8 @@ class BatchCacheOperations:
             self.performance_monitor.record_operation(
                 "embedding_batch", "batch_get", duration_ms, hit_rate > 0.5)
 
-        logger.debug("Batch embedding retrieval: %s texts, ", len(texts),
-                    f"{sum(1 for e in result_dict.values() if e is not None)} hits")
+        logger.debug("Batch embedding retrieval: %s texts, %s hits", 
+                    len(texts), sum(1 for e in result_dict.values() if e is not None))
 
         return result_dict
 

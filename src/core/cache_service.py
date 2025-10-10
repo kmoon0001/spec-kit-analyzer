@@ -3,7 +3,7 @@ import hashlib
 import json
 import pickle
 import shutil
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache, wraps
 from pathlib import Path
 from typing import Any
@@ -116,7 +116,8 @@ class MemoryAwareLRUCache:
     """An in-memory cache that tracks TTL and system memory pressure."""
     
     def __init__(self, max_memory_mb: int = 512):
-        self.cache = {}
+        from collections import OrderedDict
+        self.cache = OrderedDict()
         self.current_size_bytes = 0
         self.max_memory_mb = max_memory_mb
         self.memory_pressure_threshold = 85
@@ -147,6 +148,43 @@ class MemoryAwareLRUCache:
 
     def _current_memory_mb(self) -> float:
         return self.current_size_bytes / (1024**2)
+    
+    def get(self, key: str, default=None):
+        """Get a value from the cache."""
+        entry = self.cache.get(key)
+        if entry is None:
+            return default
+        
+        # Check if expired
+        if entry["expires_at"] and entry["expires_at"] < datetime.now(UTC):
+            self._delete_entry(key)
+            return default
+        
+        return entry["value"]
+    
+    def set(self, key: str, value: Any, ttl_seconds: int = None, ttl_hours: float = None):
+        """Set a value in the cache with optional TTL."""
+        # Remove existing entry if it exists
+        if key in self.cache:
+            self._delete_entry(key)
+        
+        # Calculate size and expiration
+        size = self._estimate_size(value)
+        
+        # Handle both ttl_seconds and ttl_hours
+        if ttl_hours is not None:
+            ttl_seconds = int(ttl_hours * 3600)
+        
+        expires_at = datetime.now(UTC) + timedelta(seconds=ttl_seconds) if ttl_seconds else None
+        
+        # Store the entry
+        self.cache[key] = {
+            "value": value,
+            "size": size,
+            "expires_at": expires_at,
+            "created_at": datetime.now(UTC)
+        }
+        self.current_size_bytes += size
 
     def _cleanup_if_needed(self) -> None:
         self.clear_expired()
