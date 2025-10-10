@@ -145,7 +145,7 @@ class MLScheduler:
     
     async def _check_system_health(self) -> Dict[str, Any]:
         """Check the health of the ML system."""
-        health_status = {
+        health_status: Dict[str, Any] = {
             'overall_status': 'healthy',
             'warnings': [],
             'errors': [],

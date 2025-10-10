@@ -309,7 +309,7 @@ class MLTrainingPipeline:
 
 
 # Backward compatibility function
-async def fine_tune_model_with_feedback(db: AsyncSession = None) -> Dict[str, Any]:
+async def fine_tune_model_with_feedback(db: Optional[AsyncSession] = None) -> Dict[str, Any]:
     """
     Legacy function for backward compatibility.
     

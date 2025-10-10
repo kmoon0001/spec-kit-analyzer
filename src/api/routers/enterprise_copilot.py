@@ -67,7 +67,7 @@ async def ask_copilot(
             query=query.query,
             context=query.context or {},
             user_context={
-                "user_id": current_user.id,
+                "user_id": str(current_user.id),
                 "username": current_user.username,
                 "is_admin": current_user.is_admin,
                 "department": query.department
@@ -174,7 +174,7 @@ async def generate_compliance_insights(
             analysis_period_days=request.analysis_period_days,
             departments=request.departments,
             insight_types=request.insight_types,
-            user_id=current_user.id
+            user_id=str(current_user.id)
         )
         
         logger.info(f"Started compliance insights generation: {insight_task_id}")
@@ -281,7 +281,7 @@ async def list_workflow_automations(
     """List all workflow automations."""
     try:
         automations = await workflow_automation.list_automations(
-            user_id=current_user.id if not current_user.is_admin else None
+            user_id=str(current_user.id) if not current_user.is_admin else None
         )
         
         return {
@@ -380,7 +380,7 @@ async def get_personalized_recommendations(
     """
     try:
         recommendations = await enterprise_copilot_service.generate_personalized_recommendations(
-            user_id=current_user.id,
+            user_id=str(current_user.id),
             context=context
         )
         
@@ -411,7 +411,7 @@ async def get_performance_analytics(
     """Get comprehensive performance analytics."""
     try:
         analytics = await enterprise_copilot_service.get_performance_analytics(
-            user_id=current_user.id if not current_user.is_admin else None,
+            user_id=str(current_user.id) if not current_user.is_admin else None,
             period_days=period_days,
             department=department
         )
@@ -443,7 +443,7 @@ async def submit_copilot_feedback(
     try:
         feedback_result = await enterprise_copilot_service.submit_feedback(
             query_id=query_id,
-            user_id=current_user.id,
+            user_id=str(current_user.id),
             rating=rating,
             feedback=feedback
         )

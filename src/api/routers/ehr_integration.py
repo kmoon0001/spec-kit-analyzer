@@ -162,7 +162,7 @@ async def sync_ehr_data(
             date_range_end=sync_request.date_range_end,
             document_types=sync_request.document_types,
             auto_analyze=sync_request.auto_analyze,
-            user_id=current_user.id
+            user_id=str(current_user.id)
         )
         
         logger.info(f"Started EHR sync task: {sync_task_id}")
@@ -264,7 +264,7 @@ async def analyze_ehr_document(
             compliance_sync_service.analyze_ehr_document,
             document_id=document_id,
             analysis_task_id=analysis_task_id,
-            user_id=current_user.id
+            user_id=str(current_user.id)
         )
         
         logger.info(f"Started EHR document analysis: {analysis_task_id}")
