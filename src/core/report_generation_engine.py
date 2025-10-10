@@ -8,7 +8,6 @@ All functionality is preserved while improving maintainability.
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Any
-import uuid
 
 from .report_models import Report, ReportConfig, ReportFormat, ReportStatus, ReportSection, ReportExporter
 from .report_data_service import DataAggregationService

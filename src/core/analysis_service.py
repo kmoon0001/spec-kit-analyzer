@@ -25,9 +25,6 @@ from src.core.explanation import ExplanationEngine
 from src.core.fact_checker_service import FactCheckerService
 from src.core.nlg_service import NLGService
 from src.core.checklist_service import DeterministicChecklistService as ChecklistService
-from src.core.enhanced_error_handler import enhanced_error_handler
-from src.core.performance_monitor import performance_monitor
-from src.core.multi_agent_orchestrator import multi_agent_orchestrator
 
 logger = logging.getLogger(__name__)
 

@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from src.auth import get_current_user
 from src.database.models import User
-from src.core.plugin_system import plugin_manager, PluginConfig, PluginMetadata
+from src.core.plugin_system import plugin_manager, PluginConfig
 
 logger = logging.getLogger(__name__)
 

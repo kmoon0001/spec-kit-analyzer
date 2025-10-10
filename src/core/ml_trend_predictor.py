@@ -8,10 +8,9 @@ to predict future compliance risks and opportunities.
 
 import logging
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Any, Optional
 import uuid
-import numpy as np
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)

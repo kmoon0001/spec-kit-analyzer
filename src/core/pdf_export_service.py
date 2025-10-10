@@ -9,14 +9,16 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List
-from io import BytesIO
-import base64
 
-# Check WeasyPrint availability without importing
+from src.core.report_models import ReportFormat
+from src.core.report_template_engine import TemplateEngine
+
+# Check WeasyPrint availability without importing at module level
 WEASYPRINT_AVAILABLE = False
 try:
-    import weasyprint
-    WEASYPRINT_AVAILABLE = True
+    import importlib.util
+    if importlib.util.find_spec("weasyprint") is not None:
+        WEASYPRINT_AVAILABLE = True
 except ImportError:
     WEASYPRINT_AVAILABLE = False
     logging.warning("WeasyPrint not available. Using ReportLab fallback for PDF export.")
@@ -24,19 +26,16 @@ except Exception as e:
     WEASYPRINT_AVAILABLE = False
     logging.warning(f"WeasyPrint not available due to system dependencies: {e}. Using ReportLab fallback.")
 
-# Import fallback service
+# Check fallback availability
+FALLBACK_AVAILABLE = False
 if not WEASYPRINT_AVAILABLE:
     try:
-        from .pdf_export_service_fallback_clean import PDFExportServiceFallback
-        FALLBACK_AVAILABLE = True
+        import importlib.util
+        if importlib.util.find_spec("reportlab") is not None:
+            FALLBACK_AVAILABLE = True
     except ImportError:
         FALLBACK_AVAILABLE = False
         logging.error("Neither WeasyPrint nor ReportLab available for PDF export.")
-else:
-    FALLBACK_AVAILABLE = False
-
-from src.core.report_models import Report, ReportFormat
-from src.core.report_template_engine import TemplateEngine
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +66,13 @@ class PDFExportService:
     def __init__(self):
         """Initialize the PDF export service with professional settings."""
         self.template_engine = TemplateEngine()
-        self.font_config = FontConfiguration() if WEASYPRINT_AVAILABLE else None
+        self.font_config = None
+        if WEASYPRINT_AVAILABLE:
+            try:
+                from weasyprint.text.fonts import FontConfiguration
+                self.font_config = FontConfiguration()
+            except ImportError:
+                self.font_config = None
         
         # Initialize fallback service if needed (lazy initialization)
         self.fallback_service = None
@@ -157,6 +162,7 @@ class PDFExportService:
             pdf_css = self._get_pdf_css_styles()
             
             # Generate PDF using WeasyPrint
+            from weasyprint import HTML, CSS
             html_doc = HTML(string=html_content, base_url=str(Path.cwd()))
             css_doc = CSS(string=pdf_css, font_config=self.font_config)
             

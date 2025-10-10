@@ -40,8 +40,7 @@ from src.api.routers import (
 
 # Import new enterprise features
 try:
-    from src.api.routers import ehr_integration
-    from src.api.routers import enterprise_copilot_clean as enterprise_copilot
+    from src.api.routers import ehr_integration, enterprise_copilot
     EHR_AVAILABLE = True
     COPILOT_AVAILABLE = True
 except ImportError:

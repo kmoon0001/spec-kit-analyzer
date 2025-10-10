@@ -6,7 +6,6 @@ Provides real-time insights into system health, performance bottlenecks, and opt
 """
 
 import logging
-import asyncio
 import time
 import psutil
 from datetime import datetime, timedelta
@@ -140,7 +139,7 @@ class PerformanceMonitor:
             success = True
             return result
             
-        except Exception as e:
+        except Exception:
             success = False
             raise
             

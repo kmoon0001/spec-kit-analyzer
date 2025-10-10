@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QCheckBox, QLabel, QScrollArea, QTabWidget, QVBoxLayout, QWidget
+    QCheckBox, QHBoxLayout, QLabel, QScrollArea, QTabWidget, QVBoxLayout, QWidget
 )
 
 from src.gui.widgets.medical_theme import medical_theme

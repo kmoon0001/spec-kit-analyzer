@@ -7,15 +7,11 @@ best practices for plugin systems in healthcare applications.
 """
 
 import logging
-import importlib
-import inspect
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Type, Callable, Union
+from typing import Dict, List, Any, Optional, Callable, Union
 from dataclasses import dataclass, field
 from datetime import datetime
-import json
-import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -479,7 +475,7 @@ class PluginManager:
         """Extract metadata from a plugin file."""
         try:
             # Read the plugin file to look for metadata
-            content = plugin_file.read_text(encoding='utf-8')
+            _ = plugin_file.read_text(encoding='utf-8')  # Reserved for future metadata parsing
             
             # Look for metadata in docstring or special variables
             # This is a simplified implementation - in production, you might use

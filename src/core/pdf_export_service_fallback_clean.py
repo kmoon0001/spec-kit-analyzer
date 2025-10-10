@@ -5,24 +5,22 @@ Clean, working fallback PDF generation service using ReportLab.
 """
 
 import logging
-import asyncio
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 from dataclasses import dataclass
 from enum import Enum
 import tempfile
-import base64
 import html
 
 # Use ReportLab for Windows compatibility
 try:
-    from reportlab.lib.pagesizes import letter, A4
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import inch
     from reportlab.lib import colors
-    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT, TA_JUSTIFY
+    from reportlab.lib.enums import TA_CENTER
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False

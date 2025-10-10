@@ -7,7 +7,6 @@ while maintaining data privacy and security.
 """
 
 import logging
-import asyncio
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 import uuid
@@ -456,7 +455,7 @@ class EnterpriseCopilotService:
                     relevant_rules.append(rule)
         
         if relevant_rules:
-            answer = f"Based on current compliance requirements:\n\n" + "\n".join(f"• {rule}" for rule in relevant_rules[:3])
+            answer = "Based on current compliance requirements:\n\n" + "\n".join(f"• {rule}" for rule in relevant_rules[:3])
             confidence = 0.8
         else:
             answer = "I found some general compliance guidance that may help. For specific requirements, please consult your compliance team or the latest Medicare guidelines."

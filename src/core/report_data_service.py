@@ -7,7 +7,7 @@ Separated from the main engine for better maintainability and testing.
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, Any
 
 from .report_models import DataProvider, ReportType
 
@@ -83,7 +83,7 @@ class DataAggregationService:
         for name, provider in self.data_providers.items():
             try:
                 # Test if provider is responsive
-                test_data = provider.get_data(ReportType.PERFORMANCE_ANALYSIS, {})
+                _ = provider.get_data(ReportType.PERFORMANCE_ANALYSIS, {})  # Test call
                 status[name] = {
                     "status": "healthy",
                     "supports_types": [rt.value for rt in ReportType if provider.supports_report_type(rt)],
