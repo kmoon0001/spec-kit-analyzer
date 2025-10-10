@@ -48,6 +48,15 @@ rdflib==7.2.1
 # ===== CONFIGURATION & UTILITIES =====
 python-dotenv==1.1.1
 python-multipart==0.0.20
+
+# ===== PDF EXPORT =====
+weasyprint==63.1
+
+# ===== SCHEDULING & AUTOMATION =====
+APScheduler==3.10.4
+
+# ===== SYSTEM MONITORING =====
+psutil==6.1.0
 pydantic-settings==2.11.0
 structlog==25.4.0
 apscheduler==3.11.0

@@ -1,367 +1,346 @@
 """
 Workflow Automation Service
-Provides automated workflow capabilities for enterprise operations.
+
+Provides automated workflow capabilities for repetitive healthcare compliance tasks.
+This service enables users to create, schedule, and manage automated workflows
+while maintaining security and audit compliance.
 """
 
 import logging
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
 import asyncio
-
+from datetime import datetime, timedelta
+from typing import Dict, List, Any, Optional
+import uuid
+import json
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
 
+@dataclass
 class WorkflowAutomation:
+    """Represents an automated workflow configuration."""
+    automation_id: str
+    workflow_type: str
+    parameters: Dict[str, Any]
+    schedule: Optional[str] = None
+    enabled: bool = True
+    user_id: int = 0
+    created_at: datetime = field(default_factory=datetime.now)
+    last_executed: Optional[datetime] = None
+    next_execution: Optional[datetime] = None
+    execution_count: int = 0
+    success_count: int = 0
+    error_count: int = 0
+
+
+class WorkflowAutomationService:
     """
-    Workflow automation service for enterprise operations.
+    Service for managing and executing automated workflows.
     
-    Supports automated workflows for:
-    - Compliance monitoring
-    - Report generation
-    - Data synchronization
-    - Alert management
-    - Quality assurance
+    This service provides comprehensive workflow automation capabilities
+    including scheduling, execution monitoring, and error handling.
+    All workflows are executed locally to maintain data security.
+    
+    Supported Workflow Types:
+    - compliance_checking: Automated compliance analysis
+    - report_generation: Scheduled report creation
+    - data_synchronization: EHR data sync workflows
+    - reminder_notifications: Automated reminders and alerts
+    
+    Example:
+        >>> automation_service = WorkflowAutomationService()
+        >>> result = await automation_service.create_automation(
+        ...     workflow_type="compliance_checking",
+        ...     parameters={"document_types": ["progress_notes"]},
+        ...     schedule="0 9 * * 1"  # Every Monday at 9 AM
+        ... )
     """
     
     def __init__(self):
-        self.automations = {}
-        self.automation_counter = 0
+        """Initialize the workflow automation service."""
+        self.automations: Dict[str, WorkflowAutomation] = {}
+        self.supported_workflows = {
+            "compliance_checking": self._execute_compliance_checking,
+            "report_generation": self._execute_report_generation,
+            "data_synchronization": self._execute_data_synchronization,
+            "reminder_notifications": self._execute_reminder_notifications
+        }
         
+        logger.info("Workflow automation service initialized")
+    
     async def create_automation(self,
                               workflow_type: str,
                               parameters: Dict[str, Any],
                               schedule: Optional[str] = None,
                               enabled: bool = True,
-                              created_by: Optional[str] = None) -> Dict[str, Any]:
+                              user_id: int = 0) -> Dict[str, Any]:
         """
         Create a new workflow automation.
         
         Args:
             workflow_type: Type of workflow to automate
             parameters: Workflow-specific parameters
-            schedule: Cron schedule for recurring workflows
+            schedule: Cron-style schedule string (optional)
             enabled: Whether the workflow is enabled
-            created_by: User ID who created the automation
+            user_id: ID of the user creating the automation
             
         Returns:
-            Automation creation result
+            Dict containing automation creation results
         """
         try:
-            self.automation_counter += 1
-            automation_id = f"automation_{self.automation_counter:04d}_{workflow_type}"
-            
             # Validate workflow type
-            supported_types = [
-                "compliance_monitoring",
-                "report_generation", 
-                "data_sync",
-                "alert_management",
-                "quality_assurance"
-            ]
+            if workflow_type not in self.supported_workflows:
+                return {
+                    "success": False,
+                    "error": f"Unsupported workflow type: {workflow_type}"
+                }
             
-            if workflow_type not in supported_types:
-                raise ValueError(f"Unsupported workflow type: {workflow_type}")
+            # Generate automation ID
+            automation_id = str(uuid.uuid4())
             
-            # Calculate next run time
-            next_run = self._calculate_next_run(schedule) if schedule else None
+            # Calculate next execution time if scheduled
+            next_execution = None
+            if schedule and enabled:
+                next_execution = self._calculate_next_execution(schedule)
             
-            automation = {
-                "automation_id": automation_id,
-                "workflow_type": workflow_type,
-                "parameters": parameters,
-                "schedule": schedule,
-                "enabled": enabled,
-                "created_by": created_by,
-                "created_at": datetime.now().isoformat(),
-                "last_run": None,
-                "next_run": next_run.isoformat() if next_run else None,
-                "run_count": 0,
-                "success_count": 0,
-                "error_count": 0,
-                "last_error": None
-            }
+            # Create automation object
+            automation = WorkflowAutomation(
+                automation_id=automation_id,
+                workflow_type=workflow_type,
+                parameters=parameters,
+                schedule=schedule,
+                enabled=enabled,
+                user_id=user_id,
+                next_execution=next_execution
+            )
             
+            # Store automation
             self.automations[automation_id] = automation
             
-            logger.info(f"Created workflow automation: {automation_id}")
+            logger.info(f"Created workflow automation: {automation_id} ({workflow_type})")
             
             return {
+                "success": True,
                 "automation_id": automation_id,
-                "next_run": next_run.isoformat() if next_run else None,
-                "message": f"Workflow automation '{workflow_type}' created successfully"
+                "workflow_type": workflow_type,
+                "enabled": enabled,
+                "next_execution": next_execution.isoformat() if next_execution else None
             }
             
         except Exception as e:
             logger.error(f"Failed to create workflow automation: {e}")
-            raise
+            return {
+                "success": False,
+                "error": str(e)
+            }
     
-    async def list_automations(self, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        """List all workflow automations, optionally filtered by user."""
+    async def execute_workflow(self, automation_id: str) -> Dict[str, Any]:
+        """
+        Execute a specific workflow automation.
+        
+        Args:
+            automation_id: ID of the automation to execute
+            
+        Returns:
+            Dict containing execution results
+        """
+        if automation_id not in self.automations:
+            return {
+                "success": False,
+                "error": f"Automation {automation_id} not found"
+            }
+        
+        automation = self.automations[automation_id]
+        
+        if not automation.enabled:
+            return {
+                "success": False,
+                "error": f"Automation {automation_id} is disabled"
+            }
+        
         try:
-            automations = list(self.automations.values())
-            
-            if user_id:
-                automations = [a for a in automations if a.get("created_by") == user_id]
-            
-            return automations
-            
-        except Exception as e:
-            logger.error(f"Failed to list workflow automations: {e}")
-            return []
-    
-    async def execute_automation(self, automation_id: str) -> Dict[str, Any]:
-        """Execute a specific workflow automation."""
-        try:
-            automation = self.automations.get(automation_id)
-            if not automation:
-                raise ValueError(f"Automation {automation_id} not found")
-            
-            if not automation["enabled"]:
-                return {
-                    "success": False,
-                    "message": "Automation is disabled"
-                }
-            
             logger.info(f"Executing workflow automation: {automation_id}")
             
-            # Update run statistics
-            automation["run_count"] += 1
-            automation["last_run"] = datetime.now().isoformat()
+            # Get the workflow executor
+            executor = self.supported_workflows[automation.workflow_type]
             
-            # Execute workflow based on type
-            result = await self._execute_workflow(
-                automation["workflow_type"],
-                automation["parameters"]
-            )
+            # Execute the workflow
+            start_time = datetime.now()
+            result = await executor(automation.parameters, automation.user_id)
+            execution_time = (datetime.now() - start_time).total_seconds()
+            
+            # Update automation statistics
+            automation.last_executed = start_time
+            automation.execution_count += 1
             
             if result.get("success", False):
-                automation["success_count"] += 1
-                automation["last_error"] = None
+                automation.success_count += 1
             else:
-                automation["error_count"] += 1
-                automation["last_error"] = result.get("error", "Unknown error")
+                automation.error_count += 1
             
-            # Calculate next run time
-            if automation["schedule"]:
-                automation["next_run"] = self._calculate_next_run(automation["schedule"]).isoformat()
+            # Calculate next execution if scheduled
+            if automation.schedule:
+                automation.next_execution = self._calculate_next_execution(automation.schedule)
             
-            logger.info(f"Workflow automation executed: {automation_id}")
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"Failed to execute workflow automation {automation_id}: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
-    
-    async def _execute_workflow(self, workflow_type: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a specific workflow type."""
-        try:
-            if workflow_type == "compliance_monitoring":
-                return await self._execute_compliance_monitoring(parameters)
-            elif workflow_type == "report_generation":
-                return await self._execute_report_generation(parameters)
-            elif workflow_type == "data_sync":
-                return await self._execute_data_sync(parameters)
-            elif workflow_type == "alert_management":
-                return await self._execute_alert_management(parameters)
-            elif workflow_type == "quality_assurance":
-                return await self._execute_quality_assurance(parameters)
-            else:
-                raise ValueError(f"Unknown workflow type: {workflow_type}")
-                
-        except Exception as e:
-            logger.error(f"Workflow execution failed: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
-    
-    async def _execute_compliance_monitoring(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute compliance monitoring workflow."""
-        try:
-            # Simulate compliance monitoring
-            await asyncio.sleep(2)  # Simulate processing time
-            
-            monitoring_results = {
-                "documents_checked": parameters.get("document_count", 50),
-                "compliance_issues_found": 3,
-                "average_compliance_score": 0.87,
-                "alerts_generated": 1,
-                "recommendations": [
-                    "Review documentation for Patient ID 12345",
-                    "Update goal documentation templates",
-                    "Schedule compliance training for staff"
-                ]
-            }
+            logger.info(f"Workflow automation {automation_id} completed in {execution_time:.2f}s")
             
             return {
                 "success": True,
-                "workflow_type": "compliance_monitoring",
-                "results": monitoring_results,
-                "execution_time_seconds": 2,
-                "message": "Compliance monitoring completed successfully"
+                "automation_id": automation_id,
+                "execution_time_seconds": execution_time,
+                "result": result,
+                "next_execution": automation.next_execution.isoformat() if automation.next_execution else None
             }
             
         except Exception as e:
-            logger.error(f"Compliance monitoring workflow failed: {e}")
+            logger.error(f"Workflow automation {automation_id} failed: {e}")
+            automation.error_count += 1
+            
+            return {
+                "success": False,
+                "automation_id": automation_id,
+                "error": str(e)
+            }
+    
+    async def list_user_automations(self, user_id: int) -> List[Dict[str, Any]]:
+        """
+        List all automations for a specific user.
+        
+        Args:
+            user_id: ID of the user
+            
+        Returns:
+            List of automation information
+        """
+        user_automations = []
+        
+        for automation in self.automations.values():
+            if automation.user_id == user_id:
+                user_automations.append({
+                    "automation_id": automation.automation_id,
+                    "workflow_type": automation.workflow_type,
+                    "enabled": automation.enabled,
+                    "schedule": automation.schedule,
+                    "created_at": automation.created_at.isoformat(),
+                    "last_executed": automation.last_executed.isoformat() if automation.last_executed else None,
+                    "next_execution": automation.next_execution.isoformat() if automation.next_execution else None,
+                    "execution_count": automation.execution_count,
+                    "success_count": automation.success_count,
+                    "error_count": automation.error_count,
+                    "success_rate": (automation.success_count / automation.execution_count * 100) if automation.execution_count > 0 else 0
+                })
+        
+        return user_automations
+    
+    async def _execute_compliance_checking(self, parameters: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+        """Execute compliance checking workflow."""
+        try:
+            # Simulate compliance checking workflow
+            document_types = parameters.get("document_types", ["all"])
+            check_count = len(document_types) * 10  # Simulate checking multiple documents
+            
+            # Simulate processing time
+            await asyncio.sleep(2)
+            
+            return {
+                "success": True,
+                "workflow_type": "compliance_checking",
+                "documents_checked": check_count,
+                "issues_found": check_count // 4,  # 25% have issues
+                "summary": f"Checked {check_count} documents, found {check_count // 4} compliance issues"
+            }
+            
+        except Exception as e:
             return {
                 "success": False,
                 "error": str(e)
             }
     
-    async def _execute_report_generation(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_report_generation(self, parameters: Dict[str, Any], user_id: int) -> Dict[str, Any]:
         """Execute report generation workflow."""
         try:
-            # Simulate report generation
-            await asyncio.sleep(3)  # Simulate processing time
+            report_type = parameters.get("report_type", "compliance_summary")
+            time_period = parameters.get("time_period", "last_week")
             
-            report_results = {
-                "report_type": parameters.get("report_type", "compliance_summary"),
-                "period": parameters.get("period", "monthly"),
-                "reports_generated": 1,
-                "output_format": parameters.get("format", "PDF"),
-                "file_path": f"/reports/automated_report_{datetime.now().strftime('%Y%m%d')}.pdf"
-            }
+            # Simulate report generation
+            await asyncio.sleep(3)
             
             return {
                 "success": True,
                 "workflow_type": "report_generation",
-                "results": report_results,
-                "execution_time_seconds": 3,
-                "message": "Report generation completed successfully"
+                "report_type": report_type,
+                "time_period": time_period,
+                "report_id": str(uuid.uuid4()),
+                "summary": f"Generated {report_type} report for {time_period}"
             }
             
         except Exception as e:
-            logger.error(f"Report generation workflow failed: {e}")
             return {
                 "success": False,
                 "error": str(e)
             }
     
-    async def _execute_data_sync(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_data_synchronization(self, parameters: Dict[str, Any], user_id: int) -> Dict[str, Any]:
         """Execute data synchronization workflow."""
         try:
-            # Simulate data sync
-            await asyncio.sleep(1.5)  # Simulate processing time
+            source_system = parameters.get("source_system", "ehr")
+            sync_type = parameters.get("sync_type", "incremental")
             
-            sync_results = {
-                "source_system": parameters.get("source", "EHR"),
-                "records_synced": parameters.get("batch_size", 100),
-                "sync_duration_seconds": 1.5,
-                "errors": 0,
-                "last_sync_timestamp": datetime.now().isoformat()
-            }
+            # Simulate data synchronization
+            await asyncio.sleep(5)
+            
+            records_synced = 150  # Simulate synced records
             
             return {
                 "success": True,
-                "workflow_type": "data_sync",
-                "results": sync_results,
-                "execution_time_seconds": 1.5,
-                "message": "Data synchronization completed successfully"
+                "workflow_type": "data_synchronization",
+                "source_system": source_system,
+                "sync_type": sync_type,
+                "records_synced": records_synced,
+                "summary": f"Synchronized {records_synced} records from {source_system}"
             }
             
         except Exception as e:
-            logger.error(f"Data sync workflow failed: {e}")
             return {
                 "success": False,
                 "error": str(e)
             }
     
-    async def _execute_alert_management(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute alert management workflow."""
+    async def _execute_reminder_notifications(self, parameters: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+        """Execute reminder notifications workflow."""
         try:
-            # Simulate alert processing
-            await asyncio.sleep(1)  # Simulate processing time
+            reminder_type = parameters.get("reminder_type", "compliance_review")
+            recipients = parameters.get("recipients", [])
             
-            alert_results = {
-                "alerts_processed": parameters.get("alert_count", 10),
-                "high_priority_alerts": 2,
-                "alerts_resolved": 8,
-                "escalations_created": 1,
-                "notifications_sent": 3
-            }
+            # Simulate sending reminders
+            await asyncio.sleep(1)
             
             return {
                 "success": True,
-                "workflow_type": "alert_management",
-                "results": alert_results,
-                "execution_time_seconds": 1,
-                "message": "Alert management completed successfully"
+                "workflow_type": "reminder_notifications",
+                "reminder_type": reminder_type,
+                "recipients_count": len(recipients),
+                "summary": f"Sent {reminder_type} reminders to {len(recipients)} recipients"
             }
             
         except Exception as e:
-            logger.error(f"Alert management workflow failed: {e}")
             return {
                 "success": False,
                 "error": str(e)
             }
     
-    async def _execute_quality_assurance(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute quality assurance workflow."""
-        try:
-            # Simulate QA process
-            await asyncio.sleep(2.5)  # Simulate processing time
-            
-            qa_results = {
-                "documents_reviewed": parameters.get("review_count", 25),
-                "quality_score": 0.91,
-                "issues_identified": 2,
-                "recommendations": [
-                    "Standardize assessment documentation",
-                    "Improve goal measurement specificity"
-                ],
-                "training_recommendations": [
-                    "Documentation best practices refresher"
-                ]
-            }
-            
-            return {
-                "success": True,
-                "workflow_type": "quality_assurance",
-                "results": qa_results,
-                "execution_time_seconds": 2.5,
-                "message": "Quality assurance completed successfully"
-            }
-            
-        except Exception as e:
-            logger.error(f"Quality assurance workflow failed: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
-    
-    def _calculate_next_run(self, schedule: str) -> datetime:
-        """Calculate the next run time based on cron schedule."""
-        # Simplified schedule parsing - in production, use a proper cron library
-        now = datetime.now()
+    def _calculate_next_execution(self, schedule: str) -> datetime:
+        """
+        Calculate next execution time from cron schedule.
         
-        if schedule == "daily":
-            return now + timedelta(days=1)
-        elif schedule == "weekly":
-            return now + timedelta(weeks=1)
-        elif schedule == "monthly":
-            return now + timedelta(days=30)
-        elif schedule.startswith("every"):
-            # Parse "every X hours/minutes"
-            parts = schedule.split()
-            if len(parts) >= 3:
-                interval = int(parts[1])
-                unit = parts[2].lower()
-                
-                if unit.startswith("hour"):
-                    return now + timedelta(hours=interval)
-                elif unit.startswith("minute"):
-                    return now + timedelta(minutes=interval)
-                elif unit.startswith("day"):
-                    return now + timedelta(days=interval)
-        
-        # Default to 1 hour if schedule is not recognized
-        return now + timedelta(hours=1)
+        This is a simplified implementation. In production, you would use
+        a proper cron parsing library like croniter.
+        """
+        # For now, just add 1 hour as a placeholder
+        # In production, parse the cron expression properly
+        return datetime.now() + timedelta(hours=1)
 
 
-# Global workflow automation instance
-workflow_automation = WorkflowAutomation()
+# Global workflow automation service instance
+workflow_automation = WorkflowAutomationService()

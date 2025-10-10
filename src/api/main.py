@@ -228,6 +228,14 @@ if COPILOT_AVAILABLE:
     app.include_router(enterprise_copilot.router, tags=["Enterprise Copilot"])
     logging.info("Enterprise Copilot API enabled")
 
+# Include plugin management
+try:
+    from src.api.routers import plugins
+    app.include_router(plugins.router, tags=["Plugin Management"])
+    logging.info("Plugin Management API enabled")
+except ImportError:
+    logging.warning("Plugin Management API not available")
+
 
 # --- WebSocket Endpoint --- #
 

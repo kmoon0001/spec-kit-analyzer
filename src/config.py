@@ -165,6 +165,47 @@ class ReportingSettings(BaseModel):
     logo_path: Optional[str] = None
 
 
+class PDFExportSettings(BaseModel):
+    """PDF export configuration settings."""
+    enabled: bool = True
+    page_size: str = "A4"
+    margin_top: str = "1in"
+    margin_bottom: str = "1in"
+    margin_left: str = "0.75in"
+    margin_right: str = "0.75in"
+    include_charts: bool = True
+    watermark: Optional[str] = None
+    pdf_version: str = "1.7"
+
+
+class PluginSettings(BaseModel):
+    """Plugin system configuration settings."""
+    enabled: bool = True
+    plugin_directories: List[str] = ["plugins", "src/plugins"]
+    security_enabled: bool = True
+    auto_load_plugins: bool = False
+    max_plugins: int = 50
+
+
+class EnterpriseCopilotSettings(BaseModel):
+    """Enterprise Copilot configuration settings."""
+    enabled: bool = True
+    max_query_length: int = 1000
+    response_timeout_seconds: int = 30
+    confidence_threshold: float = 0.7
+    enable_learning: bool = True
+    max_history_entries: int = 1000
+
+
+class EHRIntegrationSettings(BaseModel):
+    """EHR integration configuration settings."""
+    enabled: bool = True
+    connection_timeout_seconds: int = 30
+    max_retry_attempts: int = 3
+    sync_batch_size: int = 100
+    supported_systems: List[str] = ["epic", "cerner", "allscripts", "athenahealth", "nethealth"]
+
+
 class Settings(BaseSettings):
     """Top-level application settings composed from config.yaml and environment."""
 
@@ -186,6 +227,10 @@ class Settings(BaseSettings):
     analysis: AnalysisSettings
     reporting: ReportingSettings = ReportingSettings()
     habits_framework: HabitsFrameworkSettings = HabitsFrameworkSettings()
+    pdf_export: PDFExportSettings = PDFExportSettings()
+    plugins: PluginSettings = PluginSettings()
+    enterprise_copilot: EnterpriseCopilotSettings = EnterpriseCopilotSettings()
+    ehr_integration: EHRIntegrationSettings = EHRIntegrationSettings()
     performance: Dict[str, Any] = {}
     logging: Dict[str, Any] = {}
     security: Dict[str, Any] = {}
