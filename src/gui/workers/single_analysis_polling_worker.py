@@ -29,8 +29,8 @@ class SingleAnalysisPollingWorker(QObject):
 
     def run(self):
         """Poll the API for the result of the single analysis task."""
-        poll_interval = 2  # seconds
-        max_attempts = 150  # 5 minutes
+        poll_interval = 3  # seconds
+        max_attempts = 400  # 20 minutes (3 * 400 = 1200 seconds)
         attempts = 0
         
         logger = logging.getLogger(__name__)
@@ -59,6 +59,7 @@ class SingleAnalysisPollingWorker(QObject):
                     return
 
                 status_data: Dict[str, Any] = response.json()
+                logger.info(f"Polling response: {status_data}")
                 status = status_data.get("status", "unknown")
                 progress = status_data.get("progress", 0)
 

@@ -26,8 +26,12 @@ def signal_handler(signum, frame):
 def check_dependencies():
     """Check if all required dependencies are available."""
     try:
+        print("  - Attempting to import src.api.main...")
         api_main = importlib.import_module("src.api.main")
+        print("  - Successfully imported src.api.main.")
+        print("  - Attempting to import src.config...")
         config_module = importlib.import_module("src.config")
+        print("  - Successfully imported src.config.")
         if not hasattr(api_main, "app"):
             raise AttributeError("src.api.main does not expose an 'app' instance")
         if not hasattr(config_module, "get_settings"):
@@ -43,7 +47,6 @@ def check_dependencies():
         return False
     except Exception as e:
         print(f"Configuration error: {e}")
-        return False
         return False
 
 

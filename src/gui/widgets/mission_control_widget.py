@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from typing import Any, Dict
@@ -22,11 +21,12 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QSpinBox,
     QDoubleSpinBox,
+    QScrollArea,
 )
-
 
 class SettingsEditorWidget(QWidget):
     """A widget to dynamically edit application settings."""
+
     save_requested = Signal(dict)
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -37,13 +37,26 @@ class SettingsEditorWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(20)
-        
+
         # Header
-        header = QLabel("🔧 Advanced Administration Settings")
+        header = QLabel("🔧 Settings Editor")
         header.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         header.setStyleSheet("color: #1d4ed8; margin-bottom: 15px;")
         layout.addWidget(header)
-        
+
+        # Create a scroll area for the form layout
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
+        form_container = QWidget()
+        self.form_layout = QFormLayout(form_container) # Initialize form_layout here
+        self.form_layout.setContentsMargins(0, 0, 0, 0)
+        self.form_layout.setSpacing(10)
+
+        scroll_area.setWidget(form_container)
+        layout.addWidget(scroll_area)
+
         # Create tabbed interface for different admin sections
         from PySide6.QtWidgets import QTabWidget
         admin_tabs = QTabWidget()
@@ -66,25 +79,25 @@ class SettingsEditorWidget(QWidget):
                 border-bottom: 2px solid white;
             }
         """)
-        
+
         # System Configuration Tab
         system_tab = self._create_system_config_tab()
         admin_tabs.addTab(system_tab, "⚙️ System Config")
-        
+
         # AI Model Settings Tab
         ai_tab = self._create_ai_settings_tab()
         admin_tabs.addTab(ai_tab, "🤖 AI Models")
-        
+
         # Security Settings Tab
         security_tab = self._create_security_settings_tab()
         admin_tabs.addTab(security_tab, "🔒 Security")
-        
+
         # Performance Tuning Tab
         performance_tab = self._create_performance_tab()
         admin_tabs.addTab(performance_tab, "⚡ Performance")
-        
+
         layout.addWidget(admin_tabs)
-        
+
         # Save button
         self.save_button = QPushButton("💾 Save All Settings")
         self.save_button.clicked.connect(self._on_save)
@@ -103,19 +116,19 @@ class SettingsEditorWidget(QWidget):
             }
         """)
         layout.addWidget(self.save_button)
-    
+
     def _create_system_config_tab(self) -> QWidget:
         """Create system configuration tab."""
         from PySide6.QtWidgets import QTextBrowser
-        
+
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
-        
+
         # System info display
-        info_browser = QTextBrowser()
-        info_browser.setStyleSheet("""
+        self.info_browser = QTextBrowser() # Make it an instance variable
+        self.info_browser.setStyleSheet("""
             QTextBrowser {
                 background: #f8fafc;
                 border: 2px solid #e2e8f0;
@@ -124,39 +137,37 @@ class SettingsEditorWidget(QWidget):
                 font-size: 13px;
             }
         """)
-        
+
         # Generate realtime system info
         system_info = self._generate_realtime_system_info()
-        info_browser.setHtml(system_info)
-        
+        self.info_browser.setHtml(system_info)
         # Set up timer for realtime updates
         from PySide6.QtCore import QTimer
-        self.system_timer = QTimer()
-        self.system_timer.timeout.connect(lambda: info_browser.setHtml(self._generate_realtime_system_info()))
+        self.system_timer = QTimer(self)  # Make timer a child of the widget
+        self.system_timer.timeout.connect(lambda: self.info_browser.setHtml(self._generate_realtime_system_info())) # Use instance variable
         self.system_timer.start(5000)  # Update every 5 seconds
-        layout.addWidget(info_browser)
-        
+        layout.addWidget(self.info_browser) # Use instance variable
         return tab
-    
+
     def _generate_realtime_system_info(self) -> str:
         """Generate realtime system information HTML."""
         import psutil  # type: ignore[import-untyped]
         import platform
         from datetime import datetime
         import os
-        
+
         try:
             # Get system metrics
             memory = psutil.virtual_memory()
             disk = psutil.disk_usage('/')
             cpu_percent = psutil.cpu_percent(interval=1)
-            
+
             # Get process info
             process = psutil.Process(os.getpid())
             app_memory = process.memory_info().rss / 1024 / 1024  # MB
-            
+
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            
+
             return f"""
             <h3 style='color: #1d4ed8;'>System Configuration - Live Status</h3>
             <div style='background: white; padding: 15px; border-radius: 6px; margin: 10px 0;'>
@@ -168,7 +179,7 @@ class SettingsEditorWidget(QWidget):
                     <li><strong>Last Update:</strong> {current_time}</li>
                 </ul>
             </div>
-            
+
             <div style='background: white; padding: 15px; border-radius: 6px; margin: 10px 0;'>
                 <h4 style='color: #d97706;'>System Resources</h4>
                 <ul>
@@ -178,7 +189,7 @@ class SettingsEditorWidget(QWidget):
                     <li><strong>Disk Usage:</strong> {disk.percent:.1f}% ({disk.used // 1024 // 1024 // 1024:.1f} GB / {disk.total // 1024 // 1024 // 1024:.1f} GB)</li>
                 </ul>
             </div>
-            
+
             <div style='background: white; padding: 15px; border-radius: 6px; margin: 10px 0;'>
                 <h4 style='color: #7c3aed;'>System Information</h4>
                 <ul>
@@ -189,7 +200,7 @@ class SettingsEditorWidget(QWidget):
                 </ul>
             </div>
             """
-            
+
         except Exception as e:
             return f"""
             <h3 style='color: #1d4ed8;'>System Configuration</h3>
@@ -199,16 +210,16 @@ class SettingsEditorWidget(QWidget):
                 <p>Basic functionality remains available.</p>
             </div>
             """
-    
+
     def _create_ai_settings_tab(self) -> QWidget:
         """Create AI model settings tab."""
         from PySide6.QtWidgets import QTextBrowser
-        
+
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
-        
+
         ai_browser = QTextBrowser()
         ai_browser.setStyleSheet("""
             QTextBrowser {
@@ -219,10 +230,10 @@ class SettingsEditorWidget(QWidget):
                 font-size: 13px;
             }
         """)
-        
+
         ai_info = """
         <h3 style='color: #1d4ed8;'>AI Model Configuration</h3>
-        
+
         <div style='background: white; padding: 15px; border-radius: 6px; margin: 10px 0;'>
             <h4 style='color: #7c3aed;'>Local Language Models</h4>
             <ul>
@@ -232,7 +243,7 @@ class SettingsEditorWidget(QWidget):
                 <li><strong>NER Model:</strong> BioBERT for medical entities</li>
             </ul>
         </div>
-        
+
         <div style='background: white; padding: 15px; border-radius: 6px; margin: 10px 0;'>
             <h4 style='color: #059669;'>Processing Settings</h4>
             <ul>
@@ -242,27 +253,27 @@ class SettingsEditorWidget(QWidget):
                 <li><strong>Timeout:</strong> 120 seconds per analysis</li>
             </ul>
         </div>
-        
+
         <div style='background: #fef7ff; padding: 15px; border-radius: 6px; margin: 10px 0; border-left: 4px solid #7c3aed;'>
             <h4 style='color: #7c3aed;'>Privacy Guarantee</h4>
             <p>All AI processing occurs locally. No data is transmitted to external servers.</p>
         </div>
         """
-        
+
         ai_browser.setHtml(ai_info)
         layout.addWidget(ai_browser)
-        
+
         return tab
-    
+
     def _create_security_settings_tab(self) -> QWidget:
         """Create security settings tab."""
         from PySide6.QtWidgets import QTextBrowser
-        
+
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
-        
+
         security_browser = QTextBrowser()
         security_browser.setStyleSheet("""
             QTextBrowser {
@@ -273,10 +284,10 @@ class SettingsEditorWidget(QWidget):
                 font-size: 13px;
             }
         """)
-        
+
         security_info = """
         <h3 style='color: #1d4ed8;'>Security Configuration</h3>
-        
+
         <div style='background: white; padding: 15px; border-radius: 6px; margin: 10px 0;'>
             <h4 style='color: #dc2626;'>Authentication</h4>
             <ul>
@@ -286,7 +297,7 @@ class SettingsEditorWidget(QWidget):
                 <li><strong>Failed Login Limit:</strong> 5 attempts</li>
             </ul>
         </div>
-        
+
         <div style='background: white; padding: 15px; border-radius: 6px; margin: 10px 0;'>
             <h4 style='color: #059669;'>Data Protection</h4>
             <ul>
@@ -296,27 +307,27 @@ class SettingsEditorWidget(QWidget):
                 <li><strong>Temp File Cleanup:</strong> Automatic after 24 hours</li>
             </ul>
         </div>
-        
+
         <div style='background: #f0fdf4; padding: 15px; border-radius: 6px; margin: 10px 0; border-left: 4px solid #059669;'>
             <h4 style='color: #059669;'>HIPAA Compliance</h4>
             <p>System designed for HIPAA compliance with local processing, encryption, and audit trails.</p>
         </div>
         """
-        
+
         security_browser.setHtml(security_info)
         layout.addWidget(security_browser)
-        
+
         return tab
-    
+
     def _create_performance_tab(self) -> QWidget:
         """Create performance tuning tab."""
         from PySide6.QtWidgets import QTextBrowser
-        
+
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
-        
+
         perf_browser = QTextBrowser()
         perf_browser.setStyleSheet("""
             QTextBrowser {
@@ -327,10 +338,10 @@ class SettingsEditorWidget(QWidget):
                 font-size: 13px;
             }
         """)
-        
+
         perf_info = """
         <h3 style='color: #1d4ed8;'>Performance Optimization</h3>
-        
+
         <div style='background: white; padding: 15px; border-radius: 6px; margin: 10px 0;'>
             <h4 style='color: #d97706;'>Cache Management</h4>
             <ul>
@@ -340,7 +351,7 @@ class SettingsEditorWidget(QWidget):
                 <li><strong>LLM Response Cache:</strong> 200 entries max</li>
             </ul>
         </div>
-        
+
         <div style='background: white; padding: 15px; border-radius: 6px; margin: 10px 0;'>
             <h4 style='color: #7c3aed;'>Processing Optimization</h4>
             <ul>
@@ -350,16 +361,16 @@ class SettingsEditorWidget(QWidget):
                 <li><strong>Model Loading:</strong> Lazy loading with caching</li>
             </ul>
         </div>
-        
+
         <div style='background: #fffbeb; padding: 15px; border-radius: 6px; margin: 10px 0; border-left: 4px solid #d97706;'>
             <h4 style='color: #d97706;'>Performance Monitoring</h4>
             <p>Real-time monitoring of memory usage, processing times, and system resources.</p>
         </div>
         """
-        
+
         perf_browser.setHtml(perf_info)
         layout.addWidget(perf_browser)
-        
+
         return tab
 
     def set_settings(self, settings: Dict[str, Any]) -> None:
@@ -398,7 +409,7 @@ class SettingsEditorWidget(QWidget):
             widget.setValue(value)
         else:
             widget = QLineEdit(str(value))
-        
+
         widget.setObjectName(key)
         self.form_layout.addRow(label, widget)
 
@@ -414,14 +425,14 @@ class SettingsEditorWidget(QWidget):
                 if isinstance(widget, QCheckBox):
                     value = widget.isChecked()
                 elif isinstance(widget, QSpinBox):
-                    value = widget.getValue()
+                    value = widget.value()
                 elif isinstance(widget, QDoubleSpinBox):
-                    value = widget.getValue()
+                    value = widget.value()
                 elif isinstance(widget, QLineEdit):
                     value = widget.text()
                 else:
                     continue
-                
+
                 # Reconstruct nested dictionary
                 keys = key.split('.')
                 d = new_settings

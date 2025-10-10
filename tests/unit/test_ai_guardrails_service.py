@@ -6,7 +6,8 @@ ensuring responsible AI controls, bias mitigation, and ethical compliance.
 """
 
 import pytest
-from unittest.mock import Mock
+from datetime import datetime
+from unittest.mock import Mock, patch
 
 from src.core.ai_guardrails_service import (
     AIGuardrailsService,
@@ -15,6 +16,8 @@ from src.core.ai_guardrails_service import (
     AccuracyValidationGuardrail,
     EthicalComplianceGuardrail,
     TransparencyEnforcementGuardrail,
+    GuardrailViolation,
+    GuardrailResult,
     GuardrailType,
     RiskLevel,
     ActionType
@@ -380,12 +383,14 @@ class TestIntegrationScenarios:
         service = AIGuardrailsService()
         
         healthcare_content = """
+        This AI-generated report summarizes a treatment plan.
         Patient presents with chronic pain. Treatment plan includes:
         1. Physical therapy 3x weekly
         2. Pain management consultation
         3. Patient education on self-care techniques
         
         Prognosis is generally positive with patient compliance.
+        The system has a high confidence in this assessment, but it has limitations.
         Professional judgment required for medication adjustments.
         """
         

@@ -59,7 +59,7 @@ class PerformanceOptimizer:
         
         try:
             # Get comprehensive cache statistics
-            cache_stats = self.advanced_cache.get_comprehensive_stats()
+            cache_stats = await self.advanced_cache.get_comprehensive_stats()
             
             # Extract key metrics
             base_stats = cache_stats.get('cache_stats', {})

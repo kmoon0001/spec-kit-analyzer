@@ -3,6 +3,7 @@ Advanced Performance Testing Suite
 Comprehensive performance testing with benchmarking and stress testing.
 """
 
+import pytest
 import asyncio
 import time
 import threading
