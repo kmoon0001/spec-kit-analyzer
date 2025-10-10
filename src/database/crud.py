@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from datetime import timezone, timedelta, date
 from collections import Counter
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -496,7 +496,6 @@ async def get_team_habit_summary(
         average = aggregate[habit_id] / denominator
         summaries.append(
             schemas.HabitSummary(
-                habit_id=habit_id,
                 habit_name=f"Habit {habit_index}",
                 count=int(round(average)),
             )

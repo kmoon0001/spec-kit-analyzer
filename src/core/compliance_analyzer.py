@@ -1,3 +1,23 @@
+"""
+Compliance Analysis Engine for Clinical Documentation.
+
+This module provides the core ComplianceAnalyzer class that orchestrates the analysis
+of clinical documents for regulatory compliance. It integrates multiple AI services
+including NER, LLM generation, rule retrieval, and confidence calibration to provide
+comprehensive compliance analysis with robust error handling and timeout management.
+
+Key Features:
+- Hybrid rule retrieval using semantic and keyword search
+- Local LLM-powered compliance analysis with fallback mechanisms
+- Named Entity Recognition for clinical terminology extraction
+- Confidence calibration for improved prediction reliability
+- Comprehensive timeout handling to prevent system hangs
+- Graceful degradation when AI services are unavailable
+
+The analyzer supports multiple clinical disciplines (PT, OT, SLP) and document types
+(Progress Notes, Evaluations, Treatment Plans) with discipline-specific compliance rules.
+"""
+
 import json
 import logging
 import asyncio

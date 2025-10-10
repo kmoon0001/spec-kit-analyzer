@@ -204,9 +204,9 @@ class ConfidenceCalibrator:
             'platt': PlattScaling(),
             'isotonic': IsotonicCalibration()
         }
-        self.best_calibrator = None
+        self.best_calibrator: Optional[Union[TemperatureScaling, PlattScaling, IsotonicCalibration]] = None
         self.is_fitted = False
-        self.calibration_metrics = {}
+        self.calibration_metrics: Dict[str, Any] = {}
     
     def fit(self, 
             logits_or_scores: np.ndarray, 

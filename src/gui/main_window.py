@@ -202,7 +202,7 @@ class MainViewModel(QObject):
     def load_dashboard_data(self) -> None:
         self._run_worker(GenericApiWorker, on_success=self.dashboard_data_loaded.emit, on_error=lambda msg: self.status_message_changed.emit(f"Could not load dashboard data: {msg}"), endpoint="/dashboard/statistics", token=self.auth_token)
 
-    def load_meta_analytics(self, params: Dict[str, Any] = None) -> None:
+    def load_meta_analytics(self, params: Optional[Dict[str, Any]] = None) -> None:
         endpoint = "/meta-analytics/widget_data"
         if params:
             param_str = f"days_back={params.get('days_back', 90)}&discipline={params.get('discipline', '')}"
@@ -362,7 +362,7 @@ class MainApplicationWindow(QMainWindow):
         self.resource_timer: Optional[Any] = None
         
         # Easter egg attributes
-        self.konami_sequence = []
+        self.konami_sequence: List[Qt.Key] = []
         self.konami_code = [
             Qt.Key.Key_Up, Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Down,
             Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Left, Qt.Key.Key_Right,
@@ -394,7 +394,7 @@ class MainApplicationWindow(QMainWindow):
         if screen:
             screen_size = screen.size()
             screen_width = screen_size.width()
-            screen_height = screen_size.height()
+            screen_size.height()
             
             # Calculate scale factor based on screen size
             base_width = 1920  # Base design width

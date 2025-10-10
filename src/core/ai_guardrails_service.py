@@ -8,12 +8,11 @@ in the reporting system, ensuring safe, ethical, and trustworthy AI outputs.
 
 import logging
 import re
-import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Any, Set, Tuple, Union
+from typing import Dict, List, Optional, Any
 import hashlib
 from collections import defaultdict, Counter
 
@@ -99,7 +98,7 @@ class BaseGuardrail(ABC):
         self.description = description
         self.enabled = enabled
         self.violation_count = 0
-        self.last_triggered = None
+        self.last_triggered: Optional[datetime] = None
     
     @abstractmethod
     def evaluate(self, content: str, context: Dict[str, Any]) -> List[GuardrailViolation]:
@@ -136,7 +135,7 @@ class ContentSafetyGuardrail(BaseGuardrail):
         ]
     
     def evaluate(self, content: str, context: Dict[str, Any]) -> List[GuardrailViolation]:
-        violations = []
+        violations: List[GuardrailViolation] = []
         
         # Check for prohibited patterns
         for pattern in self.prohibited_patterns:
@@ -224,7 +223,7 @@ class BiasDetectionGuardrail(BaseGuardrail):
         }
     
     def evaluate(self, content: str, context: Dict[str, Any]) -> List[GuardrailViolation]:
-        violations = []
+        violations: List[GuardrailViolation] = []
         
         for bias_type, patterns in self.bias_indicators.items():
             for pattern in patterns:
@@ -270,7 +269,7 @@ class AccuracyValidationGuardrail(BaseGuardrail):
         ]
     
     def evaluate(self, content: str, context: Dict[str, Any]) -> List[GuardrailViolation]:
-        violations = []
+        violations: List[GuardrailViolation] = []
         
         # Check for potential hallucinations
         for pattern in self.hallucination_indicators:
@@ -345,7 +344,7 @@ class EthicalComplianceGuardrail(BaseGuardrail):
         ]
     
     def evaluate(self, content: str, context: Dict[str, Any]) -> List[GuardrailViolation]:
-        violations = []
+        violations: List[GuardrailViolation] = []
         
         # Check for ethical violations
         for pattern in self.ethical_violations:
@@ -413,7 +412,7 @@ class TransparencyEnforcementGuardrail(BaseGuardrail):
         }
     
     def evaluate(self, content: str, context: Dict[str, Any]) -> List[GuardrailViolation]:
-        violations = []
+        violations: List[GuardrailViolation] = []
         
         # Only run this guardrail if content is not empty
         if not content.strip():
@@ -487,7 +486,7 @@ class AIGuardrailsService:
     def evaluate_content(self, content: str, context: Dict[str, Any]) -> GuardrailResult:
         """Evaluate content against all applicable guardrails"""
         content_id = self._generate_content_id(content)
-        all_violations = []
+        all_violations: List[GuardrailViolation] = []
         
         # Run all applicable guardrails
         for guardrail in self.guardrails:
@@ -660,7 +659,7 @@ class AIGuardrailsService:
             notes.append(f"AI guardrails detected {len(violations)} potential issues")
             
             # Group violations by type
-            violation_types = Counter(v.guardrail_type for v in violations)
+            violation_types: Counter[GuardrailType] = Counter(v.guardrail_type for v in violations)
             for guardrail_type, count in violation_types.items():
                 notes.append(f"{guardrail_type.value}: {count} issues detected")
         
@@ -695,7 +694,7 @@ class AIGuardrailsService:
         total_violations = sum(len(result.violations) for result in self.violation_history)
         
         # Calculate violation rates by type
-        violation_types = defaultdict(int)
+        violation_types: Dict[str, int] = defaultdict(int)
         for result in self.violation_history:
             for violation in result.violations:
                 violation_types[violation.guardrail_type.value] += 1
