@@ -48,11 +48,11 @@ class MemoryMetrics:
 class ResourceAllocation:
     """Resource allocation configuration."""
 
-    max_cache_memory_mb: int
-    max_model_memory_mb: int
-    max_document_memory_mb: int
-    gc_threshold_mb: int
-    cleanup_threshold_mb: int
+    max_cache_memory_mb: int = 512
+    max_model_memory_mb: int = 1024
+    max_document_memory_mb: int = 256
+    gc_threshold_mb: int = 100
+    cleanup_threshold_mb: int = 200
 
 
 class MemoryMonitor:
@@ -146,6 +146,11 @@ class MemoryMonitor:
 
 class ResourceTracker:
     """Track resource usage by component."""
+    
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._resources = {}
+        self._weak_refs = {}
 
     def register_resource(self, component: str, resource_id: str, resource: Any, size_bytes: int = 0) -> None:
         """Register a resource for tracking."""
@@ -236,6 +241,10 @@ class ResourceTracker:
 
 class MemoryOptimizer:
     """Intelligent memory optimization strategies."""
+    
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._optimization_callbacks = []
 
     def register_optimization_callback(self, callback: Callable[[], int]) -> None:
         """Register a callback that can free memory. Should return bytes freed."""
@@ -371,6 +380,12 @@ class MemoryOptimizer:
 
 class MemoryManager:
     """Main memory management service."""
+    
+    def __init__(self):
+        self.monitor = MemoryMonitor()
+        self.resource_tracker = ResourceTracker()
+        self.optimizer = MemoryOptimizer()
+        self._allocation_config = ResourceAllocation()
 
     def start(self) -> None:
         """Start memory management services."""

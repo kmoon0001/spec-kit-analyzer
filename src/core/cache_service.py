@@ -237,6 +237,10 @@ class EmbeddingCache:
     @classmethod
     def memory_usage_mb(cls) -> float:
         return cls._cache._current_memory_mb()
+    
+    @classmethod
+    def clear(cls) -> None:
+        cls._cache.clear()
 
 class NERCache:
     """Cache for NER results keyed by text and model name."""
@@ -345,6 +349,10 @@ class LLMResponseCache:
     @classmethod
     def get_response(cls, model_name: str, prompt: str) -> str | None:
         return cls._cache.get(f"{model_name}:{prompt}")
+    
+    @classmethod
+    def get_llm_response(cls, model_name: str, prompt: str) -> str | None:
+        return cls.get_response(model_name, prompt)
 
     @classmethod
     def set_response(cls, model_name: str, prompt: str, response: str, ttl_hours: int = 24):
@@ -361,3 +369,8 @@ class DocumentCache:
     @classmethod
     def set_document(cls, doc_id: str, document: dict):
         cls._cache[doc_id] = document
+    
+    @classmethod
+    def get_document_classification(cls, doc_id: str) -> str | None:
+        doc = cls._cache.get(doc_id)
+        return doc.get('classification') if doc else None

@@ -256,8 +256,53 @@ async def get_team_performance_trends(db: AsyncSession, days_back: int) -> list[
     return trends
 
 async def get_benchmark_data(db: AsyncSession) -> dict[str, Any]:
-    """Function implementation."""
-    pass
+    """Get benchmark data for compliance score percentiles."""
+    try:
+        # Query all compliance scores from AnalysisReport
+        result = await db.execute(
+            select(models.AnalysisReport.compliance_score)
+            .where(models.AnalysisReport.compliance_score.is_not(None))
+        )
+        scores = [row[0] for row in result.fetchall()]
+        
+        if not scores:
+            # Return default benchmarks if no data
+            return {
+                "compliance_score_percentiles": {
+                    "p25": 70.0,
+                    "p50": 80.0,
+                    "p75": 90.0,
+                    "p90": 95.0
+                },
+                "total_analyses": 0
+            }
+        
+        # Calculate percentiles
+        import numpy as np
+        percentiles = {
+            "p25": float(np.percentile(scores, 25)),
+            "p50": float(np.percentile(scores, 50)),
+            "p75": float(np.percentile(scores, 75)),
+            "p90": float(np.percentile(scores, 90))
+        }
+        
+        return {
+            "compliance_score_percentiles": percentiles,
+            "total_analyses": len(scores)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting benchmark data: {e}")
+        # Return default benchmarks on error
+        return {
+            "compliance_score_percentiles": {
+                "p25": 70.0,
+                "p50": 80.0,
+                "p75": 90.0,
+                "p90": 95.0
+            },
+            "total_analyses": 0
+        }
 async def get_all_reports_with_embeddings(db: AsyncSession) -> list[models.AnalysisReport]:
     """Return all analysis reports that have an embedding stored."""
     query = (

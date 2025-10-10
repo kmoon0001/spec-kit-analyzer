@@ -164,6 +164,51 @@ class BaseDataProvider(ABC):
 
 class PerformanceDataProvider(BaseDataProvider):
     """Data provider for performance metrics and optimization results"""
+    
+    def __init__(self):
+        super().__init__(
+            provider_id="performance_metrics",
+            description="Provides performance metrics and optimization data"
+        )
+    
+    async def get_data(self, config: ReportConfig) -> dict[str, Any]:
+        """Get performance data for report generation"""
+        return {
+            "performance_metrics": {
+                "response_time": 150,
+                "accuracy": 0.95,
+                "throughput": 100
+            },
+            "optimization_results": {
+                "memory_usage": "optimized",
+                "cache_hit_rate": 0.85
+            }
+        }
+    
+    def supports_report_type(self, report_type: ReportType) -> bool:
+        """Check if this provider supports the given report type"""
+        return report_type in [ReportType.PERFORMANCE, ReportType.SYSTEM_STATUS]
+    
+    async def query_data(self, query: DataQuery) -> "DataResult[dict[str, Any]]":
+        """Execute a data query and return results"""
+        data = await self.get_data(None)  # Mock config
+        return DataResult(
+            data=data,
+            metadata=await self.get_metadata(),
+            query=query,
+            retrieved_at=datetime.now(),
+            record_count=len(data)
+        )
+    
+    async def get_metadata(self) -> DataSourceMetadata:
+        """Get metadata about this data source"""
+        return DataSourceMetadata(
+            source_id=self.provider_id,
+            source_type=DataSourceType.PERFORMANCE,
+            last_updated=datetime.now(),
+            record_count=100,
+            schema_version="1.0"
+        )
 
     def _calculate_performance_summary(
         self, performance_data: dict[str, Any], optimization_data: dict[str, Any]

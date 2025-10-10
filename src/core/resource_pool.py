@@ -380,6 +380,10 @@ class ResourcePool(Generic[T]):
 
 class ResourcePoolManager:
     """Manager for multiple resource pools."""
+    
+    def __init__(self):
+        self._pools = {}
+        self._lock = threading.Lock()
 
     def create_pool(self, name: str, factory: ResourceFactory[T], config: PoolConfiguration) -> ResourcePool[T]:
         """Create a new resource pool."""

@@ -65,6 +65,34 @@ class SystemMetricsSource(MetricSource):
         self._last_network_io: Any | None = None
         self._last_disk_io: Any | None = None
         self._collection_time: datetime | None = None
+    
+    def get_source_name(self) -> str:
+        return "system"
+    
+    def is_available(self) -> bool:
+        try:
+            import psutil
+            return True
+        except ImportError:
+            return False
+    
+    def collect_metrics(self) -> dict:
+        """Collect system metrics"""
+        if not self.is_available():
+            return {}
+        
+        try:
+            import psutil
+            return {
+                "cpu_percent": psutil.cpu_percent(),
+                "memory_percent": psutil.virtual_memory().percent,
+                "disk_usage": psutil.disk_usage('/').percent if hasattr(psutil, 'disk_usage') else 0
+            }
+        except Exception:
+            return {}
+    
+    def get_metrics(self) -> dict:
+        return self.collect_metrics()
 
     def record_response_time(self, response_time_ms: float) -> None:
         """Record a response time measurement."""
@@ -324,8 +352,25 @@ class SystemMetricsSource(MetricSource):
 
 class ApplicationMetricsSource:
     """Application metrics source."""
+    
+    def __init__(self):
+        self.metrics = {}
+    
+    def get_source_name(self) -> str:
+        return "application"
+    
     def record_metric(self, name: str, value: float):
         self.metrics[name] = value
+    
+    def record_response_time(self, endpoint: str, time_ms: float):
+        self.metrics[f"response_time_{endpoint}"] = time_ms
+    
+    def record_request(self, endpoint: str):
+        key = f"requests_{endpoint}"
+        self.metrics[key] = self.metrics.get(key, 0) + 1
+    
+    def collect_metrics(self) -> dict:
+        return self.get_metrics()
 
     def get_metrics(self) -> dict:
         return self.metrics.copy()
@@ -339,6 +384,13 @@ class CustomMetricsSource:
         self.name = name
         self.metrics = {}
     
+    def get_source_name(self) -> str:
+        return self.name
+    
+    def add_metric(self, name: str, value: float):
+        """Add a custom metric"""
+        self.metrics[name] = value
+    
     def record_metric(self, name: str, value: float):
         """Record a custom metric"""
         self.metrics[name] = value
@@ -351,13 +403,16 @@ class CustomMetricsSource:
 class MetricsCollector:
     """Main metrics collection service"""
     
-    def __init__(self):
+    def __init__(self, config=None):
+        self.config = config
         self.sources = []
+        self._sources = []
         self.metrics_history = []
     
     def add_source(self, source: MetricSource):
         """Add a metrics source"""
         self.sources.append(source)
+        self._sources.append(source)
     
     def collect_metrics(self) -> dict:
         """Collect metrics from all sources"""

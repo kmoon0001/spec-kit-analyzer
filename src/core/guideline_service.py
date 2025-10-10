@@ -72,6 +72,12 @@ class GuidelineService:
         return self._cache_dir or Path("data")
 
     @cache_dir.setter
+    def cache_dir(self, value: str | Path) -> None:
+        self._cache_dir = Path(value)
+        self._index_path = None  # Reset derived paths
+        self._chunks_path = None
+
+    @property
     def index_path(self) -> Path:
         return self._index_path or self.cache_dir / "guidelines.index"
 

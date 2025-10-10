@@ -34,6 +34,10 @@ def main_app_window(qtbot, qapp, mocker):
 
     window.show()
     qtbot.addWidget(window)
+    
+    yield window
+    
+    # Cleanup
     window.close()
 
 # --- Stability Tests (Lighter Versions) ---

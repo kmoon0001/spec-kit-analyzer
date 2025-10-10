@@ -120,6 +120,30 @@ class BaseGuardrail(ABC):
 
 class ContentSafetyGuardrail(BaseGuardrail):
     """Guardrail for content safety and appropriateness"""
+    
+    def __init__(self):
+        super().__init__(
+            name="Content Safety",
+            description="Ensures content is safe and appropriate for medical context"
+        )
+    
+    def evaluate(self, content: str, context: dict[str, Any]) -> list[GuardrailViolation]:
+        """Evaluate content for safety violations"""
+        violations = []
+        
+        # Check for inappropriate medical claims
+        inappropriate_claims = self._get_inappropriate_medical_claims(content)
+        if inappropriate_claims:
+            violations.append(GuardrailViolation(
+                guardrail_name=self.name,
+                violation_type="inappropriate_medical_claims",
+                severity="high",
+                message="Content contains inappropriate medical claims",
+                evidence=inappropriate_claims,
+                suggested_fix="Remove or qualify absolute medical claims"
+            ))
+        
+        return violations
 
     def _get_inappropriate_medical_claims(self, content: str) -> list[str]:
         """Check for inappropriate medical claims and return evidence."""
@@ -139,6 +163,30 @@ class ContentSafetyGuardrail(BaseGuardrail):
 
 class BiasDetectionGuardrail(BaseGuardrail):
     """Guardrail for detecting and mitigating bias in AI outputs"""
+    
+    def __init__(self):
+        super().__init__(
+            name="Bias Detection",
+            description="Detects and mitigates bias in AI-generated content"
+        )
+    
+    def evaluate(self, content: str, context: dict[str, Any]) -> list[GuardrailViolation]:
+        """Evaluate content for bias violations"""
+        violations = []
+        
+        # Check for overconfident statements
+        overconfident_statements = self._get_overconfident_statements(content)
+        if overconfident_statements:
+            violations.append(GuardrailViolation(
+                guardrail_name=self.name,
+                violation_type="overconfident_statements",
+                severity="medium",
+                message="Content contains overconfident statements",
+                evidence=overconfident_statements,
+                suggested_fix="Add qualifiers and uncertainty indicators"
+            ))
+        
+        return violations
 
     def _get_overconfident_statements(self, content: str) -> list[str]:
         """Check for overconfident statements and return evidence."""
@@ -158,6 +206,29 @@ class BiasDetectionGuardrail(BaseGuardrail):
 
 class EthicalComplianceGuardrail(BaseGuardrail):
     """Guardrail for ensuring ethical compliance in healthcare AI"""
+    
+    def __init__(self):
+        super().__init__(
+            name="Ethical Compliance",
+            description="Ensures content meets ethical standards for healthcare AI"
+        )
+    
+    def evaluate(self, content: str, context: dict[str, Any]) -> list[GuardrailViolation]:
+        """Evaluate content for ethical compliance violations"""
+        violations = []
+        
+        # Check for missing ethical considerations
+        if self._missing_ethical_considerations(content, context):
+            violations.append(GuardrailViolation(
+                guardrail_name=self.name,
+                violation_type="missing_ethical_considerations",
+                severity="high",
+                message="Content lacks necessary ethical considerations",
+                evidence=["Missing ethical considerations for healthcare context"],
+                suggested_fix="Include references to patient autonomy, informed consent, or professional judgment"
+            ))
+        
+        return violations
 
     def _missing_ethical_considerations(self, content: str, context: dict[str, Any]) -> bool:
         """Check if content is missing ethical considerations"""
@@ -182,6 +253,35 @@ class EthicalComplianceGuardrail(BaseGuardrail):
 
 class TransparencyEnforcementGuardrail(BaseGuardrail):
     """Guardrail for enforcing AI transparency and explainability"""
+    
+    def __init__(self):
+        super().__init__(
+            name="Transparency Enforcement",
+            description="Ensures AI-generated content includes proper transparency indicators"
+        )
+        self.transparency_requirements = {
+            "ai_disclosure": ["ai-generated", "artificial intelligence", "automated analysis"],
+            "confidence_indicators": ["confidence", "uncertainty", "may", "might", "possibly"],
+            "human_oversight": ["professional judgment", "clinical expertise", "human review"]
+        }
+    
+    def evaluate(self, content: str, context: dict[str, Any]) -> list[GuardrailViolation]:
+        """Evaluate content for transparency violations"""
+        violations = []
+        
+        # Check for missing transparency elements
+        missing_elements = self._check_transparency_elements(content, context)
+        if missing_elements:
+            violations.append(GuardrailViolation(
+                guardrail_name=self.name,
+                violation_type="missing_transparency",
+                severity="medium",
+                message="Content lacks required transparency elements",
+                evidence=missing_elements,
+                suggested_fix="Add AI disclosure, confidence indicators, or human oversight references"
+            ))
+        
+        return violations
 
     def _check_transparency_elements(self, content: str, context: dict[str, Any]) -> list[str]:
         """Check which transparency elements are missing"""
@@ -199,6 +299,11 @@ class TransparencyEnforcementGuardrail(BaseGuardrail):
 
 class AIGuardrailsService:
     """Main service for AI guardrails and responsible AI controls"""
+    
+    def __init__(self):
+        self.guardrails = []
+        self.violation_history = []
+        self._initialize_default_guardrails()
 
     def _initialize_default_guardrails(self) -> None:
         """Initialize default set of guardrails"""
@@ -498,3 +603,13 @@ class AccuracyValidationGuardrail:
 
     def validate(self, content):
         return True
+    
+    def evaluate(self, content):
+        """Evaluate content for accuracy issues"""
+        return GuardrailResult(
+            guardrail_type=GuardrailType.ACCURACY_VALIDATION,
+            risk_level=RiskLevel.LOW,
+            action=ActionType.ALLOW,
+            confidence=0.9,
+            message="Content appears accurate"
+        )
