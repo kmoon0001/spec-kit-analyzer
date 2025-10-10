@@ -417,7 +417,7 @@ class SettingsEditorWidget(QWidget):
         """Collects data from the form and emits the save_requested signal."""
         new_settings: Dict[str, Any] = {}
         for i in range(self.form_layout.rowCount()):
-            field = self.form_layout.itemAt(i, QFormLayout.FieldRole)
+            field = self.form_layout.itemAt(i, QFormLayout.ItemRole.FieldRole)
             if field and field.widget():
                 widget = field.widget()
                 key = widget.objectName()
@@ -555,7 +555,7 @@ class MissionControlWidget(QWidget):
     def _build_ai_health_frame(self) -> QWidget:
         frame = QFrame(self)
         frame.setObjectName("aiHealthFrame")
-        frame.setFrameShape(QFrame.StyledPanel)
+        frame.setFrameShape(QFrame.Shape.StyledPanel)
         layout = QGridLayout(frame)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setHorizontalSpacing(24)
@@ -590,7 +590,7 @@ class MissionControlWidget(QWidget):
     def _build_system_status_frame(self) -> QWidget:
         frame = QFrame(self)
         frame.setObjectName("systemStatusFrame")
-        frame.setFrameShape(QFrame.StyledPanel)
+        frame.setFrameShape(QFrame.Shape.StyledPanel)
         layout = QVBoxLayout(frame)
         layout.setContentsMargins(16, 16, 16, 16)
 
@@ -610,7 +610,7 @@ class MissionControlWidget(QWidget):
     def _build_task_monitor_frame(self) -> QWidget:
         frame = QFrame(self)
         frame.setObjectName("taskMonitorFrame")
-        frame.setFrameShape(QFrame.StyledPanel)
+        frame.setFrameShape(QFrame.Shape.StyledPanel)
         layout = QVBoxLayout(frame)
         layout.setContentsMargins(16, 16, 16, 16)
 

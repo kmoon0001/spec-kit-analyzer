@@ -27,9 +27,10 @@ class ResponsiveWidget(QWidget):
         self.resize_timer.setSingleShot(True)
         self.resize_timer.timeout.connect(self.handle_responsive_change)
 
-    def resizeEvent(self, event: QResizeEvent | None):
+    def resizeEvent(self, event: QResizeEvent):
         """Handle resize events with debouncing."""
-        super().resizeEvent(event)
+        if event is not None:
+            super().resizeEvent(event)
         self.resize_timer.start(100)  # 100ms debounce
 
     def handle_responsive_change(self):

@@ -139,7 +139,7 @@ class EnterpriseCopilotService:
                 ("Finalizing insights report...", 100)
             ]
             
-            insights = {
+            insights: Dict[str, Any] = {
                 "trends": [],
                 "patterns": [],
                 "recommendations": [],

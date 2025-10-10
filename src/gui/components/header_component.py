@@ -220,7 +220,7 @@ class HeaderComponent(QWidget):
             
     def set_subtitle(self, subtitle: str):
         """Update the subtitle text."""
-        self.subtitle_label.setText(subtitle)
+        self.description_label.setText(subtitle)
         
     def get_default_stylesheet(self):
         """Get the default stylesheet for the header."""

@@ -25,9 +25,9 @@ class ComplianceSyncService:
                                patient_ids: Optional[List[str]] = None,
                                date_range_start: Optional[datetime] = None,
                                date_range_end: Optional[datetime] = None,
-                               document_types: List[str] = None,
+                               document_types: Optional[List[str]] = None,
                                auto_analyze: bool = False,
-                               user_id: str = None) -> None:
+                               user_id: Optional[str] = None) -> None:
         """
         Synchronize documents from EHR system (background task).
         

@@ -251,7 +251,7 @@ class ExecutionEngine:
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
         # Handle any exceptions that occurred
-        test_results = []
+        test_results: List[SingleTestResult] = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 failed_result = SingleTestResult(

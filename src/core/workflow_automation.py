@@ -33,7 +33,7 @@ class WorkflowAutomation:
                               parameters: Dict[str, Any],
                               schedule: Optional[str] = None,
                               enabled: bool = True,
-                              created_by: str = None) -> Dict[str, Any]:
+                              created_by: Optional[str] = None) -> Dict[str, Any]:
         """
         Create a new workflow automation.
         

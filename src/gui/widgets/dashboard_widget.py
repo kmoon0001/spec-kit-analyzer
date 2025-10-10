@@ -90,8 +90,8 @@ class DashboardWidget(QWidget):
     def _create_kpi_box(self, title: str, initial_value: str) -> QWidget:
         """Helper to create a styled box for a key performance indicator."""
         box = QFrame(self)
-        box.setFrameShape(QFrame.StyledPanel)
-        box.setFrameShadow(QFrame.Raised)
+        box.setFrameShape(QFrame.Shape.StyledPanel)
+        box.setFrameShadow(QFrame.Shadow.Raised)
         box.setObjectName("kpiBox")
 
         layout = QVBoxLayout(box)

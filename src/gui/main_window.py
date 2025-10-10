@@ -723,7 +723,8 @@ class MainApplicationWindow(QMainWindow):
             self.view_model.load_settings()
         
         # Simulate AI model loading (set all to loading state initially)
-        self.status_component.set_all_loading()
+        if self.status_component:
+            self.status_component.set_all_loading()
         
         # After a short delay, set all models as ready (in production, this would be based on actual model loading)
         # For now, we'll set them as ready after 2 seconds
@@ -735,8 +736,11 @@ class MainApplicationWindow(QMainWindow):
 
     def _on_ai_models_ready(self) -> None:
         """Called when AI models are loaded and ready."""
-        self.status_component.set_all_ready()
-        status_text = self.status_component.get_status_text()
+        if self.status_component:
+            self.status_component.set_all_ready()
+            status_text = self.status_component.get_status_text()
+        else:
+            status_text = "AI Models Ready"
         self.statusBar().showMessage(f"✅ {status_text}", 5000)
 
     def _start_analysis(self) -> None:
@@ -802,13 +806,18 @@ class MainApplicationWindow(QMainWindow):
         }
         
         # Update UI state
-        self.run_analysis_button.setEnabled(False)
-        self.repeat_analysis_button.setEnabled(False)
-        self.stop_analysis_button.setEnabled(True)  # Enable stop button during analysis
-        self.view_report_button.setEnabled(False)
+        if self.run_analysis_button:
+            self.run_analysis_button.setEnabled(False)
+        if self.repeat_analysis_button:
+            self.repeat_analysis_button.setEnabled(False)
+        if self.stop_analysis_button:
+            self.stop_analysis_button.setEnabled(True)  # Enable stop button during analysis
+        if self.view_report_button:
+            self.view_report_button.setEnabled(False)
         
         # Show loading indicators
-        self.loading_spinner.start_spinning()
+        if self.loading_spinner:
+            self.loading_spinner.start_spinning()
         self.statusBar().showMessage("⏳ Starting analysis... This may take a moment.", 0)
         
         # Update status tracker
