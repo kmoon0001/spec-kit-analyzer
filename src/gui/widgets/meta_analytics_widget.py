@@ -10,6 +10,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QComboBox,
@@ -578,3 +579,11 @@ This data represents anonymous performance distribution across your organization
 
 class MplCanvas(FigureCanvas):
     """A reusable Matplotlib canvas widget for PyQt."""
+    
+    def __init__(self, width=5, height=4, dpi=100, parent=None):
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        super().__init__(self.fig)
+        self.setParent(parent)
+        
+        # Create a single subplot by default
+        self.axes = self.fig.add_subplot(111)
