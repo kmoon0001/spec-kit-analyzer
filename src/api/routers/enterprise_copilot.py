@@ -52,6 +52,42 @@ async def ask_copilot(
     """
     Ask the Enterprise Copilot a question or request assistance.
     
+    The copilot can help with compliance questions, workflow automation,
+    data analysis, and general healthcare documentation guidance.
+    """
+    try:
+        logger.info(f"Copilot query from {current_user.username}: {query.query[:100]}...")
+        
+        # Process the query through the enterprise copilot service
+        response = await enterprise_copilot_service.process_query(
+            query=query.query,
+            context=query.context or {},
+            user_id=current_user.id,
+            department=query.department,
+            priority=query.priority
+        )
+        
+        return {
+            "success": True,
+            "response": response.get("answer", "I'm sorry, I couldn't process that request."),
+            "confidence": response.get("confidence", 0.0),
+            "sources": response.get("sources", []),
+            "suggested_actions": response.get("suggested_actions", []),
+            "follow_up_questions": response.get("follow_up_questions", []),
+            "processing_time_ms": response.get("processing_time_ms", 0),
+            "query_id": response.get("query_id")
+        }
+        
+    except Exception as e:
+        logger.error(f"Copilot query failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Copilot query failed: {str(e)}"
+        )
+) -> Dict[str, Any]:
+    """
+    Ask the Enterprise Copilot a question or request assistance.
+    
     The copilot can help with:
     - Compliance questions and guidance
     - Data analysis and insights
@@ -512,3 +548,262 @@ async def get_help_topics() -> Dict[str, Any]:
             "Use natural language - no special syntax required"
         ]
     }
+
+@router
+.post("/automate-workflow")
+async def create_workflow_automation(
+    request: WorkflowAutomationRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Create or update a workflow automation.
+    
+    Allows users to automate repetitive tasks such as compliance checking,
+    report generation, and data synchronization.
+    """
+    try:
+        logger.info(f"Workflow automation request from {current_user.username}: {request.workflow_type}")
+        
+        # Create the workflow automation
+        automation_result = await workflow_automation.create_automation(
+            workflow_type=request.workflow_type,
+            parameters=request.parameters,
+            schedule=request.schedule,
+            enabled=request.enabled,
+            user_id=current_user.id
+        )
+        
+        if automation_result.get("success"):
+            # Start the workflow if it's enabled and has no schedule (immediate execution)
+            if request.enabled and not request.schedule:
+                background_tasks.add_task(
+                    workflow_automation.execute_workflow,
+                    automation_result["automation_id"]
+                )
+            
+            return {
+                "success": True,
+                "message": "Workflow automation created successfully",
+                "automation_id": automation_result["automation_id"],
+                "workflow_type": request.workflow_type,
+                "enabled": request.enabled,
+                "scheduled": bool(request.schedule),
+                "next_execution": automation_result.get("next_execution")
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to create workflow automation: {automation_result.get('error')}"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Workflow automation creation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Workflow automation failed: {str(e)}"
+        )
+
+
+@router.get("/workflows")
+async def list_workflow_automations(
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    List all workflow automations for the current user.
+    """
+    try:
+        logger.info(f"Listing workflow automations for {current_user.username}")
+        
+        automations = await workflow_automation.list_user_automations(current_user.id)
+        
+        return {
+            "success": True,
+            "total_automations": len(automations),
+            "automations": automations
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to list workflow automations: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list workflow automations: {str(e)}"
+        )
+
+
+@router.post("/insights/compliance")
+async def generate_compliance_insights(
+    request: ComplianceInsightRequest,
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Generate AI-powered compliance insights and recommendations.
+    
+    Analyzes historical compliance data to identify trends, patterns,
+    and opportunities for improvement.
+    """
+    try:
+        logger.info(f"Compliance insights request from {current_user.username}")
+        
+        # Generate insights using ML trend predictor
+        insights = await ml_trend_predictor.generate_compliance_insights(
+            analysis_period_days=request.analysis_period_days,
+            departments=request.departments,
+            insight_types=request.insight_types,
+            user_id=current_user.id
+        )
+        
+        return {
+            "success": True,
+            "insights": insights.get("insights", []),
+            "trends": insights.get("trends", []),
+            "recommendations": insights.get("recommendations", []),
+            "risk_predictions": insights.get("risk_predictions", []),
+            "analysis_period": request.analysis_period_days,
+            "generated_at": datetime.now().isoformat(),
+            "confidence_score": insights.get("confidence_score", 0.0)
+        }
+        
+    except Exception as e:
+        logger.error(f"Compliance insights generation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Compliance insights generation failed: {str(e)}"
+        )
+
+
+@router.get("/suggestions")
+async def get_contextual_suggestions(
+    context: Optional[str] = Query(None, description="Current context or activity"),
+    document_type: Optional[str] = Query(None, description="Type of document being worked on"),
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Get contextual suggestions and tips based on current activity.
+    
+    Provides intelligent suggestions for documentation improvement,
+    compliance best practices, and workflow optimization.
+    """
+    try:
+        logger.info(f"Contextual suggestions request from {current_user.username}")
+        
+        # Generate contextual suggestions
+        suggestions = await enterprise_copilot_service.get_contextual_suggestions(
+            context=context,
+            document_type=document_type,
+            user_id=current_user.id
+        )
+        
+        return {
+            "success": True,
+            "suggestions": suggestions.get("suggestions", []),
+            "tips": suggestions.get("tips", []),
+            "best_practices": suggestions.get("best_practices", []),
+            "quick_actions": suggestions.get("quick_actions", []),
+            "context": context,
+            "document_type": document_type
+        }
+        
+    except Exception as e:
+        logger.error(f"Contextual suggestions failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Contextual suggestions failed: {str(e)}"
+        )
+
+
+@router.post("/feedback")
+async def submit_copilot_feedback(
+    feedback_data: Dict[str, Any],
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Submit feedback about copilot responses to improve future interactions.
+    """
+    try:
+        logger.info(f"Copilot feedback from {current_user.username}")
+        
+        # Process feedback through the enterprise copilot service
+        feedback_result = await enterprise_copilot_service.process_feedback(
+            feedback_data=feedback_data,
+            user_id=current_user.id
+        )
+        
+        return {
+            "success": True,
+            "message": "Feedback submitted successfully",
+            "feedback_id": feedback_result.get("feedback_id"),
+            "thank_you": "Thank you for helping improve the Enterprise Copilot!"
+        }
+        
+    except Exception as e:
+        logger.error(f"Copilot feedback submission failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Feedback submission failed: {str(e)}"
+        )
+
+
+@router.get("/capabilities")
+async def get_copilot_capabilities(
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Get information about Enterprise Copilot capabilities and features.
+    """
+    try:
+        capabilities = {
+            "natural_language_queries": {
+                "description": "Ask questions in natural language about compliance, documentation, and workflows",
+                "examples": [
+                    "How do I document a patient's progress in PT?",
+                    "What are the Medicare requirements for evaluation notes?",
+                    "Show me compliance trends for the last month"
+                ]
+            },
+            "workflow_automation": {
+                "description": "Automate repetitive tasks and create scheduled workflows",
+                "supported_workflows": [
+                    "compliance_checking",
+                    "report_generation", 
+                    "data_synchronization",
+                    "reminder_notifications"
+                ]
+            },
+            "compliance_insights": {
+                "description": "AI-powered analysis of compliance data and trends",
+                "features": [
+                    "Trend identification",
+                    "Risk prediction",
+                    "Performance recommendations",
+                    "Comparative analysis"
+                ]
+            },
+            "contextual_assistance": {
+                "description": "Context-aware suggestions and guidance",
+                "contexts": [
+                    "document_creation",
+                    "compliance_review",
+                    "quality_improvement",
+                    "training_support"
+                ]
+            }
+        }
+        
+        return {
+            "success": True,
+            "capabilities": capabilities,
+            "version": "2.1.0",
+            "last_updated": "2024-01-15",
+            "supported_languages": ["English"],
+            "availability": "24/7"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get copilot capabilities: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get capabilities: {str(e)}"
+        )

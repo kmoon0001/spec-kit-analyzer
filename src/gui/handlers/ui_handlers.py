@@ -28,26 +28,93 @@ logger = logging.getLogger(__name__)
 
 
 class UIHandlers:
-    """Handles UI-related events and operations."""
+    """
+    Handles UI-related events and operations for the main application window.
+    
+    This class encapsulates all user interface event handling logic, including
+    theme management, dialog operations, and user interactions. It follows the
+    separation of concerns principle by isolating UI logic from business logic.
+    
+    Attributes:
+        main_window: Reference to the main application window instance
+        
+    Example:
+        >>> ui_handlers = UIHandlers(main_window)
+        >>> ui_handlers.toggle_theme()  # Switch between light/dark themes
+        >>> ui_handlers.show_settings_dialog()  # Open settings dialog
+    """
     
     def __init__(self, main_window: MainApplicationWindow) -> None:
+        """
+        Initialize the UI handlers with a reference to the main window.
+        
+        Args:
+            main_window: The main application window instance that this handler
+                        will operate on. Must be a fully initialized MainApplicationWindow.
+                        
+        Raises:
+            TypeError: If main_window is not a MainApplicationWindow instance.
+        """
+        if not hasattr(main_window, 'statusBar'):
+            raise TypeError("main_window must be a valid MainApplicationWindow instance")
         self.main_window = main_window
     
     def toggle_theme(self) -> None:
-        """Toggle between light and dark theme."""
+        """
+        Toggle between light and dark theme modes.
+        
+        This method switches the application's visual theme between light and dark modes,
+        applying the new theme to all UI components and providing user feedback via the
+        status bar. The theme preference is automatically persisted for future sessions.
+        
+        Side Effects:
+            - Updates the global medical_theme state
+            - Reapplies theme styling to all UI components
+            - Shows confirmation message in status bar for 3 seconds
+            - Persists theme preference to user settings
+            
+        Example:
+            >>> ui_handlers.toggle_theme()  # Switches from light to dark or vice versa
+        """
         medical_theme.toggle_theme()
         self.main_window._apply_medical_theme()
         
-        # Update status bar message
+        # Update status bar message with user-friendly feedback
         theme_name = "Dark" if medical_theme.current_theme == "dark" else "Light"
         self.main_window.statusBar().showMessage(f"Switched to {theme_name} theme", 3000)
 
     def apply_theme(self, theme_name: str) -> None:
-        """Apply a specific theme."""
+        """
+        Apply a specific theme by name.
+        
+        This method sets the application to use a specific theme variant,
+        applying all associated styling and color schemes to the UI components.
+        
+        Args:
+            theme_name: The name of the theme to apply. Valid values are:
+                       - "light": Light theme with bright backgrounds
+                       - "dark": Dark theme with dark backgrounds
+                       - "auto": System-based theme selection
+                       
+        Raises:
+            ValueError: If theme_name is not a valid theme identifier.
+            
+        Side Effects:
+            - Updates the global medical_theme state
+            - Reapplies theme styling to all UI components
+            - Shows confirmation message in status bar
+            
+        Example:
+            >>> ui_handlers.apply_theme("dark")  # Apply dark theme
+            >>> ui_handlers.apply_theme("light")  # Apply light theme
+        """
+        if theme_name not in ["light", "dark", "auto"]:
+            raise ValueError(f"Invalid theme name: {theme_name}. Must be 'light', 'dark', or 'auto'")
+            
         medical_theme.set_theme(theme_name)
         self.main_window._apply_medical_theme()
         
-        # Update status bar message
+        # Update status bar message with confirmation
         theme_display = "Dark" if theme_name == "dark" else "Light"
         self.main_window.statusBar().showMessage(f"Applied {theme_display} theme", 3000)
 

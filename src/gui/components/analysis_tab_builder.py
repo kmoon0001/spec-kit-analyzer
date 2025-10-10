@@ -17,17 +17,86 @@ if TYPE_CHECKING:
 
 
 class AnalysisTabBuilder:
-    """Builds the Analysis tab and its components."""
+    """
+    Specialized builder for constructing the Analysis tab and its components.
+    
+    This class is responsible for creating the complete Analysis tab interface,
+    including document upload areas, rubric selection, compliance settings,
+    report configuration, and analysis results display. It follows the Builder
+    pattern to separate the complex construction logic from the main window.
+    
+    The Analysis tab consists of three main columns:
+    1. Left Column (25%): Document upload and rubric selection
+    2. Middle Column (30%): Compliance settings and report configuration  
+    3. Right Column (45%): Analysis results and interactive reports
+    
+    Key Features:
+    - Document upload with drag-and-drop support
+    - Rubric selection with detailed descriptions
+    - Compliance strictness configuration
+    - Report section customization
+    - Interactive analysis results display
+    - Real-time progress monitoring
+    
+    Attributes:
+        main_window: Reference to the main application window instance
+        
+    Example:
+        >>> builder = AnalysisTabBuilder(main_window)
+        >>> analysis_tab = builder.create_analysis_tab()
+        >>> tab_widget.addTab(analysis_tab, "Analysis")
+    """
     
     def __init__(self, main_window: MainApplicationWindow) -> None:
+        """
+        Initialize the Analysis tab builder.
+        
+        Args:
+            main_window: The main application window instance that will contain
+                        the analysis tab. Must have all required UI components
+                        and handlers for analysis operations.
+                        
+        Raises:
+            TypeError: If main_window is not a valid MainApplicationWindow instance.
+        """
+        if not hasattr(main_window, 'statusBar'):
+            raise TypeError("main_window must be a valid MainApplicationWindow instance")
         self.main_window = main_window
     
     def create_analysis_tab(self) -> QWidget:
-        """Create the Analysis tab with improved layout and scaling."""
+        """
+        Create the complete Analysis tab with optimized layout and responsive design.
+        
+        This method constructs the main analysis interface using a three-column layout
+        that adapts to different screen sizes while maintaining usability. The layout
+        is designed for efficient clinical workflow with logical grouping of related
+        functions and clear visual hierarchy.
+        
+        Layout Structure:
+        - Left Column (25%): Document management and rubric selection
+        - Middle Column (30%): Analysis configuration and report settings
+        - Right Column (45%): Results display and interactive reports
+        
+        Returns:
+            QWidget: The complete analysis tab widget ready for integration
+                    into the main tab widget. Contains all necessary UI components
+                    with proper event handling and styling applied.
+                    
+        Side Effects:
+            - Creates and configures all child UI components
+            - Establishes signal/slot connections for user interactions
+            - Applies medical theme styling to all components
+            - Sets up responsive layout with appropriate stretch factors
+            
+        Example:
+            >>> builder = AnalysisTabBuilder(main_window)
+            >>> tab = builder.create_analysis_tab()
+            >>> # Tab is ready for use with all functionality enabled
+        """
         tab = QWidget(self.main_window)
         main_layout = QHBoxLayout(tab)
-        main_layout.setContentsMargins(15, 15, 15, 15)
-        main_layout.setSpacing(15)
+        main_layout.setContentsMargins(15, 15, 15, 15)  # Professional spacing
+        main_layout.setSpacing(15)  # Consistent gap between columns
         
         # Left column: Rubric Selection (25%)
         left_column = self._create_rubric_selection_panel()

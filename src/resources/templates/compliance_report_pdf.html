@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - PDF Export</title>
+    <style>
+        /* PDF-specific styles are injected by the PDF service */
+    </style>
+</head>
+<body>
+    {% if watermark %}
+    <div class="watermark">{{ watermark }}</div>
+    {% endif %}
+    
+    <!-- Report Header -->
+    <header class="report-header">
+        <h1>{{ title }}</h1>
+        <div class="report-metadata">
+            <p><strong>Generated:</strong> {{ generated_at | format_datetime }}</p>
+            <p><strong>Document:</strong> {{ document_name }}</p>
+            <p><strong>Analysis Type:</strong> {{ analysis_type | default("Compliance Analysis") }}</p>
+            {% if rubric_name %}
+            <p><strong>Rubric:</strong> {{ rubric_name }}</p>
+            {% endif %}
+        </div>
+    </header>
+    
+    <!-- Executive Summary -->
+    <section class="executive-summary no-break">
+        <h2>📊 Executive Summary</h2>
+        
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-value">{{ compliance_score | default(0) }}%</div>
+                <div class="metric-label">Overall Compliance Score</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ findings | length }}</div>
+                <div class="metric-label">Total Findings</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ findings | selectattr("risk_level", "equalto", "high") | list | length }}</div>
+                <div class="metric-label">High Risk Issues</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ processing_time_ms | default(0) }}ms</div>
+                <div class="metric-label">Analysis Time</div>
+            </div>
+        </div>
+        
+        {% if summary %}
+        <div class="summary-text">
+            <h3>Key Insights</h3>
+            <p>{{ summary }}</p>
+        </div>
+        {% endif %}
+    </section>
+    
+    <!-- Detailed Findings -->
+    {% if grouped_findings %}
+        {% for group in grouped_findings %}
+        <section class="findings-group">
+            <h2>📋 Findings (Group {{ group.group_index }})</h2>
+            
+            {% for finding in group.findings %}
+            <div class="finding {{ finding.risk_level | lower }}-risk">
+                <div class="finding-header">
+                    <h3>{{ finding.rule_id | default("Finding " + loop.index | string) }}</h3>
+                    <span class="risk-badge risk-{{ finding.risk_level | lower }}">
+                        {{ finding.risk_level | upper }} RISK
+                    </span>
+                </div>
+                
+                <div class="finding-content">
+                    <div class="evidence">
+                        <h4>📄 Evidence</h4>
+                        <blockquote>{{ finding.evidence | default("No evidence provided") }}</blockquote>
+                    </div>
+                    
+                    <div class="issue-description">
+                        <h4>⚠️ Compliance Issue</h4>
+                        <p>{{ finding.issue | default("No issue description provided") }}</p>
+                    </div>
+                    
+                    <div class="recommendation">
+                        <h4>💡 Recommendation</h4>
+                        <p>{{ finding.recommendation | default("No recommendation provided") }}</p>
+                    </div>
+                    
+                    {% if finding.confidence_score %}
+                    <div class="confidence">
+                        <h4>🎯 AI Confidence</h4>
+                        <p>{{ (finding.confidence_score * 100) | round(1) }}% confidence in this finding</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            
+            {% if group.page_break_after %}
+            <div class="page-break"></div>
+            {% endif %}
+        </section>
+        {% endfor %}
+    {% else %}
+        <!-- Fallback for ungrouped findings -->
+        <section class="findings-section">
+            <h2>📋 Detailed Findings</h2>
+            
+            {% for finding in findings %}
+            <div class="finding {{ finding.risk_level | lower }}-risk">
+                <div class="finding-header">
+                    <h3>{{ finding.rule_id | default("Finding " + loop.index | string) }}</h3>
+                    <span class="risk-badge risk-{{ finding.risk_level | lower }}">
+                        {{ finding.risk_level | upper }} RISK
+                    </span>
+                </div>
+                
+                <div class="finding-content">
+                    <div class="evidence">
+                        <h4>📄 Evidence</h4>
+                        <blockquote>{{ finding.evidence | default("No evidence provided") }}</blockquote>
+                    </div>
+                    
+                    <div class="issue-description">
+                        <h4>⚠️ Compliance Issue</h4>
+                        <p>{{ finding.issue | default("No issue description provided") }}</p>
+                    </div>
+                    
+                    <div class="recommendation">
+                        <h4>💡 Recommendation</h4>
+                        <p>{{ finding.recommendation | default("No recommendation provided") }}</p>
+                    </div>
+                    
+                    {% if finding.confidence_score %}
+                    <div class="confidence">
+                        <h4>🎯 AI Confidence</h4>
+                        <p>{{ (finding.confidence_score * 100) | round(1) }}% confidence in this finding</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if loop.index % 5 == 0 and not loop.last %}
+            <div class="page-break"></div>
+            {% endif %}
+            {% endfor %}
+        </section>
+    {% endif %}
+    
+    <!-- Charts and Visualizations -->
+    {% if include_charts and charts %}
+    <section class="charts-section page-break">
+        <h2>📈 Analysis Visualizations</h2>
+        
+        {% for chart in charts %}
+        <div class="chart-container no-break">
+            <h3>{{ chart.title | default("Chart " + loop.index | string) }}</h3>
+            {% if chart.image_data %}
+            <img src="{{ chart.image_data }}" alt="{{ chart.title }}" style="max-width: 100%; height: auto;">
+            {% endif %}
+            {% if chart.description %}
+            <p class="chart-description">{{ chart.description }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+    
+    <!-- Regulatory Citations -->
+    {% if regulatory_citations %}
+    <section class="citations-section page-break">
+        <h2>📚 Regulatory Citations</h2>
+        
+        {% for citation in regulatory_citations %}
+        <div class="citation no-break">
+            <h3>{{ citation.title }}</h3>
+            <p><strong>Source:</strong> {{ citation.source }}</p>
+            <p><strong>Section:</strong> {{ citation.section }}</p>
+            <blockquote>{{ citation.text }}</blockquote>
+            {% if citation.url %}
+            <p><strong>Reference:</strong> {{ citation.url }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+    
+    <!-- Action Plan -->
+    {% if action_plan %}
+    <section class="action-plan-section page-break">
+        <h2>🎯 Recommended Action Plan</h2>
+        
+        <div class="action-categories">
+            {% if action_plan.immediate %}
+            <div class="action-category">
+                <h3>🚨 Immediate Actions (0-7 days)</h3>
+                <ul>
+                {% for action in action_plan.immediate %}
+                    <li>{{ action }}</li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            {% if action_plan.short_term %}
+            <div class="action-category">
+                <h3>⏰ Short-term Actions (1-4 weeks)</h3>
+                <ul>
+                {% for action in action_plan.short_term %}
+                    <li>{{ action }}</li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            {% if action_plan.long_term %}
+            <div class="action-category">
+                <h3>📅 Long-term Actions (1-3 months)</h3>
+                <ul>
+                {% for action in action_plan.long_term %}
+                    <li>{{ action }}</li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+    {% endif %}
+    
+    <!-- AI Transparency -->
+    <section class="ai-transparency-section page-break">
+        <h2>🤖 AI Analysis Transparency</h2>
+        
+        <div class="ai-info">
+            <h3>Analysis Method</h3>
+            <p>This report was generated using advanced AI models specifically trained for healthcare compliance analysis. The system combines natural language processing, medical terminology recognition, and regulatory knowledge to identify potential compliance issues.</p>
+            
+            <h3>Model Information</h3>
+            <ul>
+                <li><strong>Analysis Engine:</strong> {{ ai_model_name | default("Healthcare Compliance AI v2.1") }}</li>
+                <li><strong>Processing Date:</strong> {{ generated_at | format_datetime }}</li>
+                <li><strong>Confidence Threshold:</strong> {{ confidence_threshold | default(0.7) * 100 }}%</li>
+                <li><strong>Total Processing Time:</strong> {{ processing_time_ms | default(0) }}ms</li>
+            </ul>
+            
+            <h3>Important Disclaimers</h3>
+            <div class="disclaimers">
+                <p><strong>⚠️ Professional Review Required:</strong> This AI-generated analysis is intended to assist healthcare professionals in identifying potential compliance issues. All findings should be reviewed by qualified clinical and compliance staff before taking action.</p>
+                
+                <p><strong>🔒 Data Privacy:</strong> All analysis was performed locally on your system. No patient data or document content was transmitted to external servers.</p>
+                
+                <p><strong>📋 Regulatory Updates:</strong> Compliance requirements may change. Ensure you are using the most current regulatory guidelines and consult with compliance experts for the latest requirements.</p>
+                
+                <p><strong>🎯 Accuracy Limitations:</strong> While our AI models are highly trained, they may not catch all compliance issues or may occasionally flag items that are actually compliant. Human expertise remains essential for final compliance determinations.</p>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Report Footer -->
+    <footer class="report-footer">
+        <div class="footer-content">
+            <p><strong>Report Generated:</strong> {{ export_timestamp | format_datetime }}</p>
+            <p><strong>Export Format:</strong> PDF</p>
+            <p><strong>System Version:</strong> Therapy Compliance Analyzer v{{ system_version | default("2.1.0") }}</p>
+        </div>
+        
+        <div class="footer-disclaimer">
+            <p><em>This document contains confidential healthcare compliance information. Handle according to your organization's data security policies.</em></p>
+        </div>
+    </footer>
+</body>
+</html>

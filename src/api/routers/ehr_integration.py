@@ -22,7 +22,7 @@ router = APIRouter(prefix="/ehr", tags=["EHR Integration"])
 
 class EHRConnectionConfig(BaseModel):
     """EHR connection configuration."""
-    system_type: str = Field(..., description="EHR system type (epic, cerner, allscripts, etc.)")
+    system_type: str = Field(..., description="EHR system type (epic, cerner, allscripts, athenahealth, nethealth, etc.)")
     endpoint_url: str = Field(..., description="EHR system API endpoint")
     client_id: str = Field(..., description="OAuth client ID")
     client_secret: str = Field(..., description="OAuth client secret")

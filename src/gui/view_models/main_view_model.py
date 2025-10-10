@@ -25,22 +25,81 @@ API_URL = SETTINGS.paths.api_url
 
 
 class MainViewModel(QObject):
-    """ViewModel for the MainApplicationWindow, handling state and business logic."""
-    status_message_changed = Signal(str)
-    api_status_changed = Signal(str, str)
-    task_list_changed = Signal(dict)
-    log_message_received = Signal(str)
-    settings_loaded = Signal(dict)
-    analysis_result_received = Signal(dict)
-    rubrics_loaded = Signal(list)
-    dashboard_data_loaded = Signal(dict)
-    meta_analytics_loaded = Signal(dict)
-    show_message_box_signal = Signal(str, str, str, list, str)
+    """
+    ViewModel for the MainApplicationWindow, managing state and business logic.
+    
+    This class implements the MVVM (Model-View-ViewModel) pattern, serving as the
+    intermediary between the UI (View) and the business logic/data (Model). It
+    handles all state management, API communications, background task coordination,
+    and provides a clean interface for the UI to interact with backend services.
+    
+    Key Responsibilities:
+    - State management for the main application window
+    - API communication with the FastAPI backend
+    - Background task coordination and monitoring
+    - Data loading and caching for UI components
+    - Error handling and user feedback coordination
+    - Thread management for non-blocking operations
+    
+    Signals:
+        status_message_changed: Emitted when status bar message should update
+        api_status_changed: Emitted when API connectivity status changes
+        task_list_changed: Emitted when background task list updates
+        log_message_received: Emitted when new log messages are available
+        settings_loaded: Emitted when application settings are loaded
+        analysis_result_received: Emitted when analysis results are ready
+        rubrics_loaded: Emitted when compliance rubrics are loaded
+        dashboard_data_loaded: Emitted when dashboard data is ready
+        meta_analytics_loaded: Emitted when analytics data is loaded
+        show_message_box_signal: Emitted to request message box display
+        
+    Example:
+        >>> view_model = MainViewModel(auth_token="jwt_token")
+        >>> view_model.start_workers()  # Initialize background services
+        >>> view_model.start_analysis(document_path, rubric_id)  # Begin analysis
+    """
+    # UI State Management Signals
+    status_message_changed = Signal(str)  # Status bar message updates
+    api_status_changed = Signal(str, str)  # API connectivity status (status, message)
+    task_list_changed = Signal(dict)  # Background task list updates
+    log_message_received = Signal(str)  # Application log messages
+    
+    # Data Loading Signals
+    settings_loaded = Signal(dict)  # Application settings loaded
+    analysis_result_received = Signal(dict)  # Analysis results ready
+    rubrics_loaded = Signal(list)  # Compliance rubrics loaded
+    dashboard_data_loaded = Signal(dict)  # Dashboard data ready
+    meta_analytics_loaded = Signal(dict)  # Analytics data loaded
+    
+    # User Interaction Signals
+    show_message_box_signal = Signal(str, str, str, list, str)  # Message box requests
 
     def __init__(self, auth_token: str, parent: QObject | None = None) -> None:
+        """
+        Initialize the MainViewModel with authentication and state management.
+        
+        Args:
+            auth_token: JWT authentication token for API communications.
+                       Must be a valid token obtained from the authentication system.
+            parent: Optional parent QObject for Qt object hierarchy management.
+                   Defaults to None for top-level object.
+                   
+        Raises:
+            ValueError: If auth_token is empty or None.
+            
+        Side Effects:
+            - Initializes the Qt object hierarchy
+            - Sets up authentication for API calls
+            - Initializes empty thread tracking list
+            - Prepares signal/slot connections
+        """
         super().__init__(parent)
+        
+        if not auth_token:
+            raise ValueError("auth_token cannot be empty or None")
+            
         self.auth_token = auth_token
-        self._active_threads: list[QThread] = []
+        self._active_threads: list[QThread] = []  # Track background threads for cleanup
 
     def start_workers(self) -> None:
         self._start_health_check_worker()

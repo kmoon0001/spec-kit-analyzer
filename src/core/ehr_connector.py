@@ -55,7 +55,7 @@ class EHRConnector:
             logger.info(f"Attempting to connect to {system_type} EHR system")
             
             # Validate system type
-            supported_systems = ["epic", "cerner", "allscripts", "athenahealth", "generic_fhir"]
+            supported_systems = ["epic", "cerner", "allscripts", "athenahealth", "nethealth", "generic_fhir"]
             if system_type not in supported_systems:
                 return {
                     "success": False,
@@ -93,7 +93,7 @@ class EHRConnector:
                 "system_info": {
                     "system_type": system_type,
                     "facility_id": facility_id,
-                    "fhir_version": "R4" if system_type in ["epic", "cerner", "generic_fhir"] else "N/A"
+                    "fhir_version": "R4" if system_type in ["epic", "cerner", "generic_fhir"] else "Proprietary" if system_type == "nethealth" else "N/A"
                 }
             }
             
@@ -251,6 +251,7 @@ class EHRConnector:
             "cerner": ["patient_data", "clinical_notes", "medications", "allergies", "vitals"],
             "allscripts": ["patient_data", "clinical_notes", "prescriptions", "appointments"],
             "athenahealth": ["patient_data", "clinical_notes", "appointments", "billing"],
+            "nethealth": ["patient_data", "clinical_notes", "therapy_notes", "assessments", "care_plans", "outcomes", "scheduling"],
             "generic_fhir": ["patient_data", "clinical_notes", "observations", "conditions"]
         }
         

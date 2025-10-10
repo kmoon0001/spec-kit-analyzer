@@ -17,13 +17,75 @@ logger = logging.getLogger(__name__)
 
 
 class FileHandlers:
-    """Handles file operations and document management."""
+    """
+    Handles file operations and document management for the application.
+    
+    This class encapsulates all file-related operations including document selection,
+    file validation, content preview generation, and batch processing workflows.
+    It provides a clean interface between the UI and file system operations while
+    maintaining proper error handling and user feedback.
+    
+    Attributes:
+        main_window: Reference to the main application window instance
+        
+    Supported File Types:
+        - PDF documents (.pdf)
+        - Microsoft Word documents (.docx, .doc)
+        - Plain text files (.txt)
+        - Markdown files (.md)
+        - JSON files (.json)
+        
+    Example:
+        >>> file_handlers = FileHandlers(main_window)
+        >>> file_handlers.prompt_for_document()  # Open file selection dialog
+        >>> file_handlers.prompt_for_folder()    # Open batch processing dialog
+    """
     
     def __init__(self, main_window: MainApplicationWindow) -> None:
+        """
+        Initialize the file handlers with a reference to the main window.
+        
+        Args:
+            main_window: The main application window instance that this handler
+                        will operate on. Must be a fully initialized MainApplicationWindow
+                        with file_display and run_analysis_button attributes.
+                        
+        Raises:
+            TypeError: If main_window is not a valid MainApplicationWindow instance.
+        """
+        if not hasattr(main_window, 'statusBar'):
+            raise TypeError("main_window must be a valid MainApplicationWindow instance")
         self.main_window = main_window
     
     def prompt_for_document(self) -> None:
-        """Open file dialog to select a document."""
+        """
+        Open a file selection dialog for choosing a clinical document.
+        
+        This method presents a native file dialog to the user, allowing them to
+        select a clinical document for compliance analysis. The dialog is pre-configured
+        with appropriate file type filters and starts in the user's home directory.
+        
+        Supported file types are filtered to ensure compatibility with the document
+        processing pipeline. If a file is selected, it automatically triggers the
+        file loading and preview generation process.
+        
+        Side Effects:
+            - Opens a native file selection dialog
+            - If file selected, calls set_selected_file() to load the document
+            - Updates UI state to reflect the selected document
+            - Enables/disables analysis buttons based on file validity
+            
+        File Type Support:
+            - PDF documents: Full text extraction with OCR fallback
+            - Word documents: Native content extraction
+            - Text files: Direct content loading
+            - Markdown files: Plain text processing
+            - JSON files: Structured data parsing
+            
+        Example:
+            >>> file_handlers.prompt_for_document()
+            # Opens file dialog, user selects document, UI updates automatically
+        """
         file_path, _ = QFileDialog.getOpenFileName(
             self.main_window, 
             "Select clinical document", 

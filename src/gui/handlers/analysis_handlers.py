@@ -19,28 +19,96 @@ logger = logging.getLogger(__name__)
 
 
 class AnalysisHandlers:
-    """Handles analysis-related events and operations."""
+    """
+    Handles analysis-related events and operations for compliance checking.
+    
+    This class manages the complete analysis workflow including pre-flight validation,
+    analysis execution, progress monitoring, and result processing. It integrates with
+    the backend analysis services while providing comprehensive error handling and
+    user feedback throughout the process.
+    
+    The analysis workflow includes:
+    1. Pre-flight validation (document, rubric, system health)
+    2. Analysis task initiation and monitoring
+    3. Progress tracking and user feedback
+    4. Result processing and display
+    5. Error handling and recovery
+    
+    Attributes:
+        main_window: Reference to the main application window instance
+        
+    Example:
+        >>> analysis_handlers = AnalysisHandlers(main_window)
+        >>> analysis_handlers.start_analysis()  # Begin compliance analysis
+        >>> analysis_handlers.stop_analysis()   # Cancel running analysis
+    """
     
     def __init__(self, main_window: MainApplicationWindow) -> None:
+        """
+        Initialize the analysis handlers with a reference to the main window.
+        
+        Args:
+            main_window: The main application window instance that this handler
+                        will operate on. Must have analysis-related UI components
+                        including rubric_selector, run_analysis_button, etc.
+                        
+        Raises:
+            TypeError: If main_window is not a valid MainApplicationWindow instance.
+        """
+        if not hasattr(main_window, 'statusBar'):
+            raise TypeError("main_window must be a valid MainApplicationWindow instance")
         self.main_window = main_window
     
     def start_analysis(self) -> None:
-        """Start the analysis process with comprehensive validation."""
-        # Pre-flight checks
+        """
+        Start the compliance analysis process with comprehensive validation.
+        
+        This method orchestrates the complete analysis workflow, beginning with
+        thorough pre-flight validation to ensure all prerequisites are met,
+        followed by system diagnostics, and finally initiating the analysis task.
+        
+        The analysis process includes:
+        1. Document validation (file exists, readable, supported format)
+        2. Rubric validation (compliance guidelines selected)
+        3. System health checks (API connectivity, analysis services)
+        4. Analysis task creation and monitoring setup
+        5. UI state management during processing
+        
+        Pre-flight Validation:
+            - Verifies document is selected and accessible
+            - Confirms compliance rubric is chosen
+            - Runs system diagnostics to check service health
+            - Validates analysis prerequisites are met
+            
+        Side Effects:
+            - Updates UI button states (disables start, enables stop)
+            - Shows progress indicators and status messages
+            - Initiates background analysis task
+            - Sets up progress monitoring and result handling
+            
+        Raises:
+            No exceptions are raised directly, but validation failures are
+            presented to the user via message boxes and status updates.
+            
+        Example:
+            >>> analysis_handlers.start_analysis()
+            # Validates prerequisites, starts analysis, updates UI
+        """
+        # Pre-flight checks - Document validation
         if not self.main_window._selected_file:
             QMessageBox.warning(self.main_window, "No Document", "Please select a document before starting the analysis.")
             return
         
-        # Check if rubric is selected
+        # Pre-flight checks - Rubric validation
         if not self.main_window.rubric_selector or not self.main_window.rubric_selector.currentData():
             QMessageBox.warning(self.main_window, "No Rubric", "Please select a compliance guideline before analysis.")
             return
         
-        # Run diagnostic checks before starting analysis
+        # System health diagnostics
         self.main_window.statusBar().showMessage("🔍 Running pre-analysis diagnostics...", 2000)
         diagnostic_results = diagnostics.run_full_diagnostic()
         
-        # Check for critical issues
+        # Check for critical system issues that would prevent analysis
         critical_issues = [
             result for result in diagnostic_results.values() 
             if result.status.value == "error" and result.component in ["api_connectivity", "analysis_endpoints"]
