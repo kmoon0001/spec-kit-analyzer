@@ -140,11 +140,34 @@ class AnalysisService:
                 doc_type_raw = await self._maybe_await(self.document_classifier.classify_document(scrubbed_text))
                 doc_type_clean = sanitize_human_text(doc_type_raw or "Progress Note")
 
-            analysis_result = await self._maybe_await(
-                self.compliance_analyzer.analyze_document(
-                    document_text=scrubbed_text, discipline=discipline_clean, doc_type=doc_type_clean
+            # Add timeout to the entire compliance analysis
+            try:
+                analysis_result = await asyncio.wait_for(
+                    self._maybe_await(
+                        self.compliance_analyzer.analyze_document(
+                            document_text=scrubbed_text, discipline=discipline_clean, doc_type=doc_type_clean
+                        )
+                    ),
+                    timeout=600.0  # 10 minute timeout for entire analysis
                 )
-            )
+            except asyncio.TimeoutError:
+                logger.error("Compliance analysis timed out after 10 minutes")
+                analysis_result = {
+                    "findings": [],
+                    "summary": "Analysis timed out - please try with a shorter document or contact support",
+                    "error": "Analysis timeout",
+                    "timeout": True,
+                    "compliance_score": 0.0
+                }
+            except Exception as e:
+                logger.error(f"Compliance analysis failed: {e}")
+                analysis_result = {
+                    "findings": [],
+                    "summary": f"Analysis failed due to an error: {str(e)}",
+                    "error": str(e),
+                    "exception": True,
+                    "compliance_score": 0.0
+                }
 
             # --- End of Pipeline ---
 
@@ -152,8 +175,27 @@ class AnalysisService:
                 analysis_result, document_text=scrubbed_text, discipline=discipline_clean, doc_type=doc_type_clean
             )
 
-            report = await self._maybe_await(self.report_generator.generate_report(enriched_result))
-            final_report = {"analysis": enriched_result, **(report if isinstance(report, dict) else {})}
+            # Add timeout to report generation
+            try:
+                report = await asyncio.wait_for(
+                    self._maybe_await(self.report_generator.generate_report(enriched_result)),
+                    timeout=60.0  # 1 minute timeout for report generation
+                )
+                final_report = {"analysis": enriched_result, **(report if isinstance(report, dict) else {})}
+            except asyncio.TimeoutError:
+                logger.error("Report generation timed out after 1 minute")
+                final_report = {
+                    "analysis": enriched_result,
+                    "report_html": "<h1>Report Generation Timeout</h1><p>The analysis completed but report generation timed out. Please try again.</p>",
+                    "error": "Report generation timeout"
+                }
+            except Exception as e:
+                logger.error(f"Report generation failed: {e}")
+                final_report = {
+                    "analysis": enriched_result,
+                    "report_html": f"<h1>Report Generation Error</h1><p>The analysis completed but report generation failed: {str(e)}</p>",
+                    "error": f"Report generation failed: {str(e)}"
+                }
 
             cache_service.set_to_disk(cache_key, final_report)
             return AnalysisOutput(final_report)

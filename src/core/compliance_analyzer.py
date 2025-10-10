@@ -220,7 +220,21 @@ class ComplianceAnalyzer:
         """
         logger.info("Starting compliance analysis for document type: %s", doc_type)
 
-        entities = self.ner_service.extract_entities(document_text) if self.ner_service else []
+        # Extract entities with timeout to prevent hanging
+        try:
+            if self.ner_service:
+                entities = await asyncio.wait_for(
+                    asyncio.to_thread(self.ner_service.extract_entities, document_text),
+                    timeout=30.0  # 30 second timeout for NER
+                )
+            else:
+                entities = []
+        except asyncio.TimeoutError:
+            logger.error("NER extraction timed out after 30 seconds")
+            entities = []
+        except Exception as e:
+            logger.error(f"NER extraction failed: {e}")
+            entities = []
         entity_list_str = (
             ", ".join(
                 f"{entity['entity_group']}: {entity['word']}" for entity in entities
