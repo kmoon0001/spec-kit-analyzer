@@ -178,9 +178,15 @@ class MainViewModel(QObject):
         thread.start()
 
     def _start_health_check_worker(self) -> None:
+        def handle_health_check_success(health_data):
+            # Convert health check response to status and message
+            status = "connected" if health_data.get("status") == "healthy" else "error"
+            message = health_data.get("message", "API is healthy")
+            self.api_status_changed.emit(status, message)
+        
         self._run_worker(
             HealthCheckWorker,
-            on_success=self.api_status_changed.emit,
+            on_success=handle_health_check_success,
             success_signal="success",
             error_signal=None,
             auto_stop=False)
@@ -199,7 +205,7 @@ class MainViewModel(QObject):
             LogStreamWorker,
             on_success=self.log_message_received.emit,
             on_error=lambda msg: self.status_message_changed.emit(f"Log Stream: {msg}"),
-            success_signal="new_log_message",
+            success_signal="log_received",
             auto_stop=False)
 
     def load_rubrics(self) -> None:
@@ -207,6 +213,7 @@ class MainViewModel(QObject):
             GenericApiWorker,
             on_success=self.rubrics_loaded.emit,
             on_error=lambda msg: self.status_message_changed.emit(f"Could not load rubrics: {msg}"),
+            method="GET",
             endpoint="/rubrics",
             token=self.auth_token)
 
@@ -215,6 +222,7 @@ class MainViewModel(QObject):
             GenericApiWorker,
             on_success=self.dashboard_data_loaded.emit,
             on_error=lambda msg: self.status_message_changed.emit(f"Could not load dashboard data: {msg}"),
+            method="GET",
             endpoint="/dashboard/statistics",
             token=self.auth_token)
 
@@ -227,6 +235,7 @@ class MainViewModel(QObject):
             GenericApiWorker,
             on_success=self.meta_analytics_loaded.emit,
             on_error=lambda msg: self.status_message_changed.emit(f"Could not load meta-analytics: {msg}"),
+            method="GET",
             endpoint=endpoint,
             token=self.auth_token)
 
@@ -289,6 +298,7 @@ class MainViewModel(QObject):
             GenericApiWorker,
             on_success=self.settings_loaded.emit,
             on_error=lambda msg: self.status_message_changed.emit(f"Failed to load settings: {msg}"),
+            method="GET",
             endpoint="/admin/settings",
             token=self.auth_token)
 

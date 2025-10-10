@@ -474,6 +474,24 @@ class MissionControlWidget(QWidget):
 
     start_analysis_requested = Signal()
     review_document_requested = Signal(dict)
+    
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._build_ui()
+    
+    def _build_ui(self) -> None:
+        """Build the mission control UI."""
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
+        
+        # Add the system status frame
+        system_status_frame = self._build_system_status_frame()
+        layout.addWidget(system_status_frame)
+        
+        # Add other frames as needed
+        # task_monitor_frame = self._build_task_monitor_frame()
+        # layout.addWidget(task_monitor_frame)
 
     def update_overview(self, data: dict[str, Any]) -> None:
         if "ai_health" in data:

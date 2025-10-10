@@ -104,8 +104,9 @@ class AnalysisWorkflowLogger:
         self.current_session["steps"].append(step)
 
         self.logger.info(
-            "📤 API REQUEST - %s {endpoint} | Payload size: %s chars | ",
+            "📤 API REQUEST - %s %s | Payload size: %s chars | %s",
             method,
+            endpoint,
             step["payload_size"],
             f"Session: {self.current_session['session_id']}")
 

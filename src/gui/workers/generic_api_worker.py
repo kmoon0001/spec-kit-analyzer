@@ -44,6 +44,43 @@ class GenericApiWorker(QThread):
     success = Signal(object)
     error = Signal(str)
 
+    def __init__(self, method: str, endpoint: str, data: dict = None, token: str = None, parent=None):
+        super().__init__(parent)
+        self.method = method.upper()
+        self.endpoint = endpoint
+        self.data = data or {}
+        self.token = token
+        self.is_running = False
+    
+    def run(self):
+        self.is_running = True
+        try:
+            headers = {}
+            if self.token:
+                headers['Authorization'] = f'Bearer {self.token}'
+            
+            url = f"{API_URL}{self.endpoint}"
+            
+            if self.method == 'GET':
+                response = requests.get(url, headers=headers, timeout=30)
+            elif self.method == 'POST':
+                response = requests.post(url, json=self.data, headers=headers, timeout=30)
+            elif self.method == 'PUT':
+                response = requests.put(url, json=self.data, headers=headers, timeout=30)
+            elif self.method == 'DELETE':
+                response = requests.delete(url, headers=headers, timeout=30)
+            else:
+                self.error.emit(f"Unsupported method: {self.method}")
+                return
+            
+            if response.status_code in [200, 201]:
+                self.success.emit(response.json())
+            else:
+                self.error.emit(f"API error: {response.status_code} - {response.text}")
+                
+        except Exception as e:
+            self.error.emit(f"Request failed: {str(e)}")
+
     def stop(self) -> None:
         self.is_running = False
 
@@ -53,6 +90,36 @@ class TaskMonitorWorker(QThread):
 
     tasks_updated = Signal(dict)
     error = Signal(str)
+    
+    def __init__(self, token: str = None, parent=None):
+        super().__init__(parent)
+        self.token = token
+        self.running = False
+    
+    def run(self):
+        self.running = True
+        headers = {}
+        if self.token:
+            headers['Authorization'] = f'Bearer {self.token}'
+        
+        while self.running:
+            try:
+                response = requests.get(f"{API_URL}/tasks", headers=headers, timeout=5)
+                if response.status_code == 200:
+                    tasks_data = response.json()
+                    self.tasks_updated.emit(tasks_data)
+                else:
+                    self.error.emit(f"Task list fetch error: {response.status_code}")
+                    break
+                    
+                self.msleep(5000)  # Wait 5 seconds before next check
+                
+            except Exception as e:
+                self.error.emit(f"Task monitoring failed: {str(e)}")
+                break
+    
+    def stop(self):
+        self.running = False
 
 
 __all__ = ["GenericApiWorker", "TaskMonitorWorker", "FeedbackWorker"]
@@ -106,85 +173,5 @@ class LogStreamWorker(QThread):
     def stop(self):
         self.running = False
 
-class GenericApiWorker(QThread):
-    """Generic worker for API calls."""
-    
-    success = Signal(dict)
-    error = Signal(str)
-    
-    def __init__(self, method: str, endpoint: str, data: dict = None, token: str = None, parent=None):
-        super().__init__(parent)
-        self.method = method.upper()
-        self.endpoint = endpoint
-        self.data = data or {}
-        self.token = token
-    
-    def run(self):
-        try:
-            headers = {}
-            if self.token:
-                headers['Authorization'] = f'Bearer {self.token}'
-            
-            url = f"{API_URL}{self.endpoint}"
-            
-            if self.method == 'GET':
-                response = requests.get(url, headers=headers, timeout=30)
-            elif self.method == 'POST':
-                response = requests.post(url, json=self.data, headers=headers, timeout=30)
-            elif self.method == 'PUT':
-                response = requests.put(url, json=self.data, headers=headers, timeout=30)
-            elif self.method == 'DELETE':
-                response = requests.delete(url, headers=headers, timeout=30)
-            else:
-                self.error.emit(f"Unsupported method: {self.method}")
-                return
-            
-            if response.status_code in [200, 201]:
-                self.success.emit(response.json())
-            else:
-                self.error.emit(f"API error: {response.status_code} - {response.text}")
-                
-        except Exception as e:
-            self.error.emit(f"Request failed: {str(e)}")
 
-class TaskMonitorWorker(QThread):
-    """Worker to monitor task status."""
-    
-    task_updated = Signal(dict)
-    task_completed = Signal(dict)
-    error = Signal(str)
-    
-    def __init__(self, task_id: str, token: str = None, parent=None):
-        super().__init__(parent)
-        self.task_id = task_id
-        self.token = token
-        self.running = False
-    
-    def run(self):
-        self.running = True
-        headers = {}
-        if self.token:
-            headers['Authorization'] = f'Bearer {self.token}'
-        
-        while self.running:
-            try:
-                response = requests.get(f"{API_URL}/tasks/{self.task_id}", headers=headers, timeout=5)
-                if response.status_code == 200:
-                    task_data = response.json()
-                    self.task_updated.emit(task_data)
-                    
-                    if task_data.get('status') in ['completed', 'failed', 'cancelled']:
-                        self.task_completed.emit(task_data)
-                        break
-                else:
-                    self.error.emit(f"Task monitor error: {response.status_code}")
-                    break
-                    
-                self.msleep(1000)  # Wait 1 second before next check
-                
-            except Exception as e:
-                self.error.emit(f"Task monitoring failed: {str(e)}")
-                break
-    
-    def stop(self):
-        self.running = False
+
