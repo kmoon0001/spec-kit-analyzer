@@ -168,6 +168,7 @@ class AnalysisHandlers:
         # Show loading indicators
         if self.main_window.loading_spinner:
             self.main_window.loading_spinner.start_spinning()
+        self.main_window.show_progress(5, "Starting analysis")
         self.main_window.statusBar().showMessage("⏳ Starting analysis... This may take a moment.", 0)
 
         # Update status tracker
@@ -182,6 +183,7 @@ class AnalysisHandlers:
 
             # Update status
             status_tracker.update_status(AnalysisState.UPLOADING, 10, "Document uploaded, processing...")
+            self.main_window.show_progress(15, "Processing document")
 
         except (FileNotFoundError, PermissionError, OSError, IOError) as e:
             # Log the error
@@ -191,6 +193,7 @@ class AnalysisHandlers:
             # Reset UI
             if self.main_window.loading_spinner:
                 self.main_window.loading_spinner.stop_spinning()
+            self.main_window.hide_progress()
             if self.main_window.run_analysis_button:
                 self.main_window.run_analysis_button.setEnabled(True)
             if self.main_window.repeat_analysis_button:
@@ -248,6 +251,7 @@ class AnalysisHandlers:
                 # Reset UI state
                 if self.main_window.loading_spinner:
                     self.main_window.loading_spinner.stop_spinning()
+                self.main_window.hide_progress()
                 if self.main_window.run_analysis_button:
                     self.main_window.run_analysis_button.setEnabled(True)
                 if self.main_window.repeat_analysis_button:
@@ -272,9 +276,13 @@ class AnalysisHandlers:
 
     def handle_analysis_success(self, payload: dict[str, Any]) -> None:
         """Handle successful analysis completion with automatic report display."""
-        # Hide loading spinner
+        # Hide loading spinner and progress bar
         if self.main_window.loading_spinner:
             self.main_window.loading_spinner.stop_spinning()
+        self.main_window.show_progress(100, "Analysis complete")
+        # Hide progress bar after a brief delay to show completion
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(2000, self.main_window.hide_progress)
 
         # Update UI state
         self.main_window.statusBar().showMessage("✅ Analysis Complete - Report displayed automatically", 5000)

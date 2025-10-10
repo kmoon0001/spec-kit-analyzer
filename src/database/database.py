@@ -5,9 +5,12 @@ for database initialization and connection management with performance optimizat
 """
 
 import logging
+import sqlite3
 from collections.abc import AsyncGenerator
 from typing import Any
 
+import sqlalchemy
+import sqlalchemy.exc
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base

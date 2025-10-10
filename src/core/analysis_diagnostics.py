@@ -245,8 +245,8 @@ class AnalysisDiagnostics:
                     test_url = f"{self.api_url}{endpoint.replace('{task_id}', 'test')}"
                     response = requests.get(test_url, timeout=self.timeout)
 
-                    # We expect 404 for non-existent task, which means endpoint exists
-                    if response.status_code in [200, 404]:
+                    # We expect 404 for non-existent task or 401 for auth required, which means endpoint exists
+                    if response.status_code in [200, 401, 404]:
                         endpoint_results[endpoint] = "accessible"
                     else:
                         endpoint_results[endpoint] = f"unexpected_status_{response.status_code}"
@@ -257,8 +257,8 @@ class AnalysisDiagnostics:
                     test_url = f"{self.api_url}{endpoint}"
                     response = requests.post(test_url, json={}, timeout=self.timeout)
 
-                    # We expect 422 (validation error) or 400, not 404 (not found)
-                    if response.status_code in [400, 422]:
+                    # We expect 422 (validation error), 400, or 401 (auth required), not 404 (not found)
+                    if response.status_code in [400, 401, 422]:
                         endpoint_results[endpoint] = "accessible"
                     elif response.status_code == 404:
                         endpoint_results[endpoint] = "not_found"

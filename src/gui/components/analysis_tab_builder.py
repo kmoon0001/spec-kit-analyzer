@@ -528,7 +528,7 @@ class AnalysisTabBuilder:
         self.main_window.file_display.setReadOnly(True)
         self.main_window.file_display.setMinimumHeight(90)
         self.main_window.file_display.setMaximumHeight(110)
-        self.main_window.file_display.setPlaceholderText("📋 DOCUMENT UPLOAD CENTER\n\n📁 This window displays your selected document for compliance analysis\n\n🔹 Click 'Upload Document' to browse and select a file\n🔹 Supported formats: PDF, DOCX, TXT\n🔹 Maximum file size: 50MB\n\n✨ Once uploaded, document details will appear here")
+        self.main_window.file_display.setPlaceholderText("📋 DOCUMENT UPLOAD INSTRUCTIONS\n\n📁 How to Upload Your Report for Analysis:\n\n🔹 Step 1: Click the 'Upload Document' button below\n🔹 Step 2: Browse and select your therapy report file\n🔹 Step 3: Supported formats: PDF, DOCX, TXT (max 50MB)\n🔹 Step 4: Once uploaded, document preview will appear here\n🔹 Step 5: Select a compliance rubric and click 'Run Analysis'\n\n✨ Your uploaded document content will be displayed in this area")
         self.main_window.file_display.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {medical_theme.get_color("bg_primary")};

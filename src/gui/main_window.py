@@ -337,6 +337,10 @@ class MainApplicationWindow(QMainWindow):
         """)
         self.progress_bar.hide()
         status.addPermanentWidget(self.progress_bar)
+        
+        # Connect progress bar to analysis status
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
 
         # Loading spinner
         self.loading_spinner = LoadingSpinner(size=16, parent=self)
@@ -673,20 +677,43 @@ class MainApplicationWindow(QMainWindow):
         doc_name = doc_info.get("title") or doc_info.get("name") or doc_info.get("document_name") or "Document"
         self.statusBar().showMessage(f"Detailed replay for '{doc_name}' will be available in a future update.")
 
+    def show_progress(self, value: int = 0, text: str = "") -> None:
+        """Show and update the progress bar."""
+        if self.progress_bar:
+            self.progress_bar.setValue(value)
+            if text:
+                self.progress_bar.setFormat(f"{text} ({value}%)")
+            else:
+                self.progress_bar.setFormat(f"{value}%")
+            self.progress_bar.show()
+    
+    def hide_progress(self) -> None:
+        """Hide the progress bar."""
+        if self.progress_bar:
+            self.progress_bar.hide()
+            self.progress_bar.setValue(0)
+
     def closeEvent(self, event) -> None:
         """Handle application close - exit quickly."""
+        logger.debug("Application closing - cleaning up resources")
+        
         try:
             self._save_gui_settings()
         except (RuntimeError, AttributeError):
             pass
 
         try:
+            # Stop workers with a timeout to prevent hanging
             self.view_model.stop_all_workers()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Error stopping workers during shutdown: %s", e)
 
-        QApplication.quit()
+        # Accept the close event first, then quit
         event.accept()
+        
+        # Use QTimer to delay quit slightly to allow cleanup
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(100, QApplication.quit)
 
     def keyPressEvent(self, event) -> None:
         """Handle key press events for Konami code and other shortcuts."""

@@ -128,15 +128,20 @@ class FileHandlers:
 
         # Show clear document status instead of confusing description
         file_size_mb = len(content) / (1024 * 1024)
-        file_info = f"""✅ DOCUMENT READY FOR ANALYSIS
+        file_info = f"""✅ DOCUMENT UPLOADED SUCCESSFULLY
 
-📄 {file_path.name}
-📊 Size: {file_size_mb} MB ({len(content):,} characters)
+📄 File: {file_path.name}
+📊 Size: {file_size_mb:.1f} MB ({len(content):,} characters)
 📁 Location: {file_path.parent.name}/
 📅 Modified: {datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')}
 
-✨ Document successfully loaded and ready for compliance analysis!
-Click 'Run Analysis' to begin processing.
+📋 NEXT STEPS TO ANALYZE YOUR REPORT:
+🔹 Step 1: Select a compliance rubric from the dropdown below
+🔹 Step 2: Click the 'Run Compliance Analysis' button
+🔹 Step 3: Wait for AI analysis to complete
+🔹 Step 4: Review results in the Summary and Details tabs
+
+✨ Your document is loaded and ready for compliance analysis!
         """
         if self.main_window.file_display:
             self.main_window.file_display.setPlainText(file_info)
