@@ -304,9 +304,9 @@ class MainApplicationWindow(QMainWindow):
 
     def __init__(self, user: models.User, token: str) -> None:
         super().__init__()
-        self.setWindowTitle("THERAPY DOCUMENTATION COMPLIANCE ANALYSIS")
+        self.setWindowTitle("Therapy Compliance Analyzer")  # Shorter title that fits better
         self.resize(1440, 920)
-        self.setMinimumSize(900, 600)  # Allow smaller scaling
+        self.setMinimumSize(800, 500)  # Allow even smaller scaling for better flexibility
 
         self.current_user = user
         self.settings = QSettings("TherapyCo", "ComplianceAnalyzer")
@@ -377,6 +377,7 @@ class MainApplicationWindow(QMainWindow):
         self._load_gui_settings()
 
     def _build_ui(self) -> None:
+        self._setup_responsive_scaling()  # Add responsive scaling first
         self._build_header()
         self._build_docks()
         self._build_menus()
@@ -386,6 +387,28 @@ class MainApplicationWindow(QMainWindow):
         self._setup_keyboard_shortcuts()
         self._apply_medical_theme()
 
+    def _setup_responsive_scaling(self) -> None:
+        """Setup responsive scaling for better UI adaptation to different screen sizes."""
+        # Get screen size for responsive scaling
+        screen = QApplication.primaryScreen()
+        if screen:
+            screen_size = screen.size()
+            screen_width = screen_size.width()
+            screen_height = screen_size.height()
+            
+            # Calculate scale factor based on screen size
+            base_width = 1920  # Base design width
+            scale_factor = min(1.2, max(0.8, screen_width / base_width))
+            
+            # Apply responsive font scaling
+            app = QApplication.instance()
+            if app:
+                font = app.font()
+                base_font_size = 9
+                scaled_font_size = int(base_font_size * scale_factor)
+                font.setPointSize(scaled_font_size)
+                app.setFont(font)
+    
     def _build_header(self) -> None:
         """Build the professional application header with clean styling."""
         # Create header component
@@ -936,7 +959,11 @@ class MainApplicationWindow(QMainWindow):
         
         dialog = QDialog(self)
         dialog.setWindowTitle("📊 Compliance Analysis Report")
-        dialog.resize(1000, 700)
+        # Make dialog responsive to parent window size
+        parent_size = self.size()
+        dialog_width = min(1000, int(parent_size.width() * 0.8))
+        dialog_height = min(700, int(parent_size.height() * 0.8))
+        dialog.resize(dialog_width, dialog_height)
         
         layout = QVBoxLayout(dialog)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -983,7 +1010,11 @@ class MainApplicationWindow(QMainWindow):
         
         dialog = QDialog(self)
         dialog.setWindowTitle(f"📄 Document Preview - {self._selected_file.name}")
-        dialog.resize(900, 700)
+        # Make dialog responsive to parent window size
+        parent_size = self.size()
+        dialog_width = min(900, int(parent_size.width() * 0.75))
+        dialog_height = min(700, int(parent_size.height() * 0.75))
+        dialog.resize(dialog_width, dialog_height)
         
         layout = QVBoxLayout(dialog)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -3719,9 +3750,16 @@ Memory:
             self.resource_label.setToolTip(f"Error getting resource info: {str(e)}")
 
     def resizeEvent(self, event) -> None:
-        """Handle window resize events."""
+        """Handle window resize events with responsive scaling."""
         super().resizeEvent(event)
-        # No floating elements to reposition
+        
+        # Update responsive scaling based on new window size
+        if hasattr(self, 'tab_widget') and self.tab_widget:
+            # Ensure tab widget adapts to new size
+            self.tab_widget.updateGeometry()
+        
+        # Update any dialogs or popups to be responsive to new size
+        # This helps with better scaling when window is resized
 
 __all__ = ["MainApplicationWindow"]
 

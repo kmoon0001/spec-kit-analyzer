@@ -230,14 +230,25 @@ class ComplianceAnalyzer:
         )
 
         search_query = f"{discipline} {doc_type} {entity_list_str}"
-        retrieved_rules = await self.retriever.retrieve(
-            search_query, 
-            category_filter=discipline,
-            discipline=discipline,
-            document_type=doc_type,
-            context_entities=[entity['word'] for entity in entities] if entities else None
-        )
-        logger.info("Retrieved %d rules for analysis.", len(retrieved_rules))
+        try:
+            # Add timeout to retrieval to prevent hanging
+            retrieved_rules = await asyncio.wait_for(
+                self.retriever.retrieve(
+                    search_query, 
+                    category_filter=discipline,
+                    discipline=discipline,
+                    document_type=doc_type,
+                    context_entities=[entity['word'] for entity in entities] if entities else None
+                ),
+                timeout=60.0  # 1 minute timeout for rule retrieval
+            )
+            logger.info("Retrieved %d rules for analysis.", len(retrieved_rules))
+        except asyncio.TimeoutError:
+            logger.error("Rule retrieval timed out after 1 minute")
+            retrieved_rules = []
+        except Exception as e:
+            logger.error(f"Rule retrieval failed: {e}")
+            retrieved_rules = []
 
         formatted_rules = self._format_rules_for_prompt(retrieved_rules)
         if self.prompt_manager:
@@ -253,7 +264,22 @@ class ComplianceAnalyzer:
             prompt = f"Analyze this document for compliance:\n{document_text}\n\nRules:\n{formatted_rules}"
 
         if self.llm_service:
-            raw_analysis_result = await asyncio.to_thread(self.llm_service.generate, prompt)
+            # Use shorter prompt for faster processing
+            if len(prompt) > 4000:  # Truncate very long prompts
+                prompt = prompt[:3500] + "\n\n[Document truncated for faster analysis]"
+            
+            try:
+                # Add timeout to prevent hanging
+                raw_analysis_result = await asyncio.wait_for(
+                    asyncio.to_thread(self.llm_service.generate, prompt),
+                    timeout=300.0  # 5 minute timeout for LLM generation
+                )
+            except asyncio.TimeoutError:
+                logger.error("LLM generation timed out after 5 minutes")
+                raw_analysis_result = '{"findings": [], "error": "Analysis timed out - LLM took too long to respond", "timeout": true}'
+            except Exception as e:
+                logger.error(f"LLM generation failed: {e}")
+                raw_analysis_result = f'{{"findings": [], "error": "LLM generation failed: {str(e)}", "exception": true}}'
         else:
             raw_analysis_result = '{"findings": [], "error": "No LLM service available"}'
         try:

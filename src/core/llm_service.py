@@ -168,10 +168,10 @@ class LLMService:
         gen_params = dict(self.settings.get("generation_params", {}))
         gen_params.update(kwargs)
 
-        max_new_tokens = int(gen_params.pop("max_new_tokens", 512))
+        max_new_tokens = int(gen_params.pop("max_new_tokens", 256))  # Reduced for faster generation
         temperature = float(gen_params.pop("temperature", 0.1))
-        top_p = float(gen_params.pop("top_p", 0.9))
-        top_k = int(gen_params.pop("top_k", 40))
+        top_p = float(gen_params.pop("top_p", 0.8))  # Slightly more focused
+        top_k = int(gen_params.pop("top_k", 20))  # Reduced for faster sampling
         repetition_penalty = float(gen_params.pop("repeat_penalty", 1.1))
         stop_sequences = gen_params.pop("stop_sequences", None)
 
