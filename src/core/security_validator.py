@@ -1,4 +1,5 @@
 """Security validation utilities for input sanitization and validation.
+import numpy as np
 
 This module provides comprehensive security validation for user inputs,
 file uploads, and API parameters to prevent common security vulnerabilities.

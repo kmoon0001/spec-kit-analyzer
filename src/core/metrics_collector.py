@@ -319,3 +319,18 @@ class SystemMetricsSource(MetricSource):
         """
         self.config = config
         logger.debug("Metrics collector configuration updated")
+
+
+
+class ApplicationMetricsSource:
+    """Application metrics source."""
+    def record_metric(self, name: str, value: float):
+        self.metrics[name] = value
+
+    def get_metrics(self) -> dict:
+        return self.metrics.copy()
+
+
+
+class CustomMetricsSource:
+    """Custom metrics source."""

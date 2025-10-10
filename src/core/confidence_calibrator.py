@@ -1,4 +1,7 @@
 """Confidence Calibration Service for AI Model Outputs.
+from sklearn.isotonic import IsotonicRegression
+from sklearn.linear_model import LogisticRegression
+from sklearn.calibration import CalibratedClassifierCV
 
 This module provides advanced confidence calibration techniques to improve
 the accuracy of confidence scores from AI models, making them more reliable
@@ -189,7 +192,7 @@ class PlattScaling:
 
         logger.info("Calibrator saved to %s", filepath)
 
-    def load(self, filepath: str | Path) -> "ConfidenceCalibrator":
+    def load(self, filepath: str | Path):
         """Load a fitted calibrator from disk."""
         with open(filepath, "rb") as f:
             save_data = pickle.load(f)

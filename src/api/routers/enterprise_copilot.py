@@ -1,8 +1,4 @@
 """Enterprise Copilot API Router - Clean Version
-import requests
-from requests.exceptions import HTTPError
-from PIL import Image
-import PIL
 
 Provides AI-powered enterprise assistance and automation capabilities.
 """
@@ -11,8 +7,11 @@ import logging
 from datetime import datetime
 from typing import Any
 
+import PIL
+import requests
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from requests.exceptions import HTTPError
 
 from src.auth import get_current_user
 from src.core.enterprise_copilot_service import enterprise_copilot_service

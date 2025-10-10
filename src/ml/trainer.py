@@ -310,10 +310,3 @@ class MLTrainingPipeline:
 # Backward compatibility function
 # Backward compatibility function
 # Backward compatibility function
-async def fine_tune_model_with_feedback(db: AsyncSession | None = None) -> dict[str, Any]:
-    """Legacy function for backward compatibility.
-
-    This now uses the new MLTrainingPipeline implementation.
-    """
-    pipeline = MLTrainingPipeline()
-    return await pipeline.fine_tune_model_with_feedback(db)

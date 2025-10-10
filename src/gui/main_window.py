@@ -164,8 +164,7 @@ class MainApplicationWindow(QMainWindow):
             Qt.Key.Key_Left,
             Qt.Key.Key_Right,
             Qt.Key.Key_B,
-            Qt.Key.Key_A,
-        ]
+            Qt.Key.Key_A]
         self.developer_mode = False
         self.is_testing = False
 
@@ -365,8 +364,7 @@ class MainApplicationWindow(QMainWindow):
             ("Ctrl+1", lambda: self.tab_widget.setCurrentIndex(0)),
             ("Ctrl+2", lambda: self.tab_widget.setCurrentIndex(1)),
             ("Ctrl+3", lambda: self.tab_widget.setCurrentIndex(2)),
-            ("Ctrl+4", lambda: self.tab_widget.setCurrentIndex(3)),
-        ]
+            ("Ctrl+4", lambda: self.tab_widget.setCurrentIndex(3))]
 
         for shortcut_key, callback in shortcuts:
             shortcut = QAction(self)
@@ -492,8 +490,7 @@ class MainApplicationWindow(QMainWindow):
                 ("📋 Skilled Therapy Documentation Standards", "skilled_therapy_documentation_standards"),
                 ("🏃 Physical Therapy - APTA Guidelines", "apta_pt_guidelines"),
                 ("🖐️ Occupational Therapy - AOTA Standards", "aota_ot_standards"),
-                ("🗣️ Speech-Language Pathology - ASHA Guidelines", "asha_slp_guidelines"),
-            ]
+                ("🗣️ Speech-Language Pathology - ASHA Guidelines", "asha_slp_guidelines")]
 
             for name, value in default_rubrics:
                 self.rubric_selector.addItem(name, value)

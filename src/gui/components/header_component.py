@@ -1,4 +1,5 @@
 """Header Component - Reusable application header
+import requests
 Built with PySide6 (Official Qt for Python) for professional desktop UI
 Provides consistent branding and controls across the application.
 """

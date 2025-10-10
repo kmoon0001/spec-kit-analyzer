@@ -16,14 +16,12 @@ CUSTOM_RECOGNIZERS = (
         supported_entity="MRN",
         name="medical_record_number_recognizer",
         patterns=[
-            Pattern(name="mrn_alphanumeric", regex=r"\b(?:MRN[:\s-]*)?[A-Z0-9]{6,}\b", score=0.4),
-        ]),
+            Pattern(name="mrn_alphanumeric", regex=r"\b(?:MRN[:\s-]*)?[A-Z0-9]{6,}\b", score=0.4)]),
     PatternRecognizer(
         supported_entity="ACCOUNT_NUMBER",
         name="account_number_recognizer",
         patterns=[
-            Pattern(name="account_digits", regex=r"\b[A-Z]{0,3}\d{6,}\b", score=0.3),
-        ]))
+            Pattern(name="account_digits", regex=r"\b[A-Z]{0,3}\d{6,}\b", score=0.3)]))
 
 
 def build_default_operators(replacement: str) -> dict[str, OperatorConfig]:

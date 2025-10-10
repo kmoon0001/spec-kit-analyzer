@@ -1,4 +1,6 @@
 """Clinical Compliance Analyzer API
+from PIL import Image
+import PIL
 
 FastAPI backend for the Therapy Compliance Analyzer desktop application.
 Provides endpoints for document analysis, user management, and compliance reporting.

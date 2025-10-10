@@ -1,4 +1,5 @@
 """Report Generation Engine - Core reporting system
+import json
 
 This module provides the foundational reporting infrastructure that integrates
 with existing performance and compliance systems without modifying them.
@@ -9,7 +10,6 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from pathlib import Path
 from typing import Any, Protocol
 
 import yaml
@@ -727,34 +727,6 @@ class ReportGenerationEngine:
             margin: 10px 0;
         }
         """
-
-    async def export_report(
-        self, report_id: str, formats: list[ReportFormat], output_dir: Path
-    ) -> dict[ReportFormat, str]:
-        """Export report to specified formats"""
-        if report_id not in self.generated_reports:
-            raise ValueError(f"Report not found: {report_id}")
-
-        report = self.generated_reports[report_id]
-        exported_files = {}
-
-        for format in formats:
-            if format in self.report_exporters:
-                try:
-                    output_path = output_dir / f"{report_id}.{format.value}"
-                    exported_file = await self.report_exporters[format].export_report(
-                        report,
-                        format,
-                        str(output_path))
-                    exported_files[format] = exported_file
-                    report.file_paths[format] = exported_file
-
-                except (FileNotFoundError, PermissionError, OSError):
-                    logger.exception("Error exporting report %s to {format.value}: {e}", report_id)
-            else:
-                logger.warning("No exporter registered for format: %s", format.value)
-
-        return exported_files
 
     def get_report(self, report_id: str) -> Report | None:
         """Get a generated report by ID"""

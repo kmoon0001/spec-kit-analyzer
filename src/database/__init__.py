@@ -9,5 +9,4 @@ __all__ = [
     "engine",
     "get_async_db",
     "init_db",
-    "AsyncSessionLocal",
-]
+    "AsyncSessionLocal"]

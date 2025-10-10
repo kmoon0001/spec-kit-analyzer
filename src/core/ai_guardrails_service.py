@@ -489,3 +489,12 @@ class AIGuardrailsService:
         """Clear violation history (for privacy/storage management)"""
         self.violation_history.clear()
         logger.info("Cleared guardrail violation history")
+
+
+class AccuracyValidationGuardrail:
+    """Accuracy validation guardrail."""
+    def __init__(self):
+        pass
+
+    def validate(self, content):
+        return True

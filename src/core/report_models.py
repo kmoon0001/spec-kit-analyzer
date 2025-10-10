@@ -1,4 +1,5 @@
 """Report Models and Data Structures
+import json
 
 This module contains all the data models, enums, and protocols used by the reporting system.
 Separated from the main engine for better maintainability and testing.

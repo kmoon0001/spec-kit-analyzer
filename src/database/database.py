@@ -1,4 +1,5 @@
 """Database configuration and session management.
+from scipy import stats
 import requests
 from requests.exceptions import HTTPError
 

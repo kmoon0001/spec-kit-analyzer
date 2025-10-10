@@ -1,4 +1,5 @@
 """Enhanced Error Handling System
+import numpy as np
 
 Provides comprehensive error handling, recovery mechanisms, and user-friendly
 error reporting for all system components.

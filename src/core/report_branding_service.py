@@ -1,4 +1,6 @@
 """Report Branding Service - Optional logo and branding management
+from PIL import Image
+import PIL
 
 This module provides optional branding features for reports, including logo management.
 When no logo is configured, reports maintain their professional appearance without

@@ -5,6 +5,7 @@ import os
 import re
 
 import pdfplumber
+import PIL
 import yaml
 from docx import Document
 from PIL import Image

@@ -39,7 +39,7 @@ class PreprocessingService:
             logger.exception(
                 "Medical dictionary not found at path: %s. Spell-checking accuracy will be reduced.",
                 self.settings.paths.medical_dictionary)
-        except (FileNotFoundError, PermissionError, OSError) as e:
+        except (PermissionError, OSError) as e:
             logger.error(
                 "Failed to load custom medical dictionary: %s",
                 e,

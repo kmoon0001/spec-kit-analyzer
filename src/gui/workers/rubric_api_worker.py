@@ -1,3 +1,4 @@
+
 import requests
 from PySide6.QtCore import QObject, Signal, Slot
 from requests.exceptions import HTTPError
@@ -35,7 +36,7 @@ class RubricApiWorker(QObject):
                 except ValueError:
                     pass
             self.error.emit(f"API Error: {error_msg}")
-        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+        except (ConnectionError, TimeoutError, HTTPError) as e:
             self.error.emit(f"An unexpected error occurred: {e}")
 
     @Slot()

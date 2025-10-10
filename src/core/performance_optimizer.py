@@ -538,3 +538,55 @@ class PerformanceOptimizer:
 # Global performance optimizer instance
 # Global performance optimizer instance
 performance_optimizer = PerformanceOptimizer()
+
+
+
+class LLMResponseCache:
+    """LLM response cache implementation."""
+    _cache = {}
+
+    @classmethod
+    def get_response(cls, model_name: str, prompt: str) -> str | None:
+        return cls._cache.get(f"{model_name}:{prompt}")
+
+    @classmethod
+    def set_response(cls, model_name: str, prompt: str, response: str, ttl_hours: int = 24):
+        cls._cache[f"{model_name}:{prompt}"] = response
+
+    @classmethod
+    def memory_usage_mb(cls) -> float:
+        return len(str(cls._cache)) / (1024 * 1024)
+
+    @classmethod
+    def entry_count(cls) -> int:
+        return len(cls._cache)
+
+    @classmethod
+    def clear(cls):
+        cls._cache.clear()
+
+
+
+class DocumentCache:
+    """Document cache implementation."""
+    _cache = {}
+
+    @classmethod
+    def get_document(cls, doc_id: str) -> dict | None:
+        return cls._cache.get(doc_id)
+
+    @classmethod
+    def set_document(cls, doc_id: str, document: dict):
+        cls._cache[doc_id] = document
+
+    @classmethod
+    def memory_usage_mb(cls) -> float:
+        return len(str(cls._cache)) / (1024 * 1024)
+
+    @classmethod
+    def entry_count(cls) -> int:
+        return len(cls._cache)
+
+    @classmethod
+    def clear(cls):
+        cls._cache.clear()

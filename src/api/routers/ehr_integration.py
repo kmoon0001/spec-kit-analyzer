@@ -1,6 +1,5 @@
 """EHR Integration API Router
-import requests
-from requests.exceptions import HTTPError
+
 Provides APIs for integrating with Electronic Health Record systems.
 """
 
@@ -8,8 +7,10 @@ import logging
 from datetime import datetime
 from typing import Any
 
+import requests
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from requests.exceptions import HTTPError
 
 from src.auth import get_current_user
 from src.core.compliance_sync_service import compliance_sync_service

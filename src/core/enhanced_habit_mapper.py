@@ -1,4 +1,5 @@
 """Enhanced 7 Habits Framework for Clinical Compliance.
+import json
 import requests
 from requests.exceptions import HTTPError
 

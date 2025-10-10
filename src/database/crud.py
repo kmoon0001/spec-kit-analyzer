@@ -258,27 +258,6 @@ async def get_team_performance_trends(db: AsyncSession, days_back: int) -> list[
 async def get_benchmark_data(db: AsyncSession) -> dict[str, Any]:
     """Function implementation."""
     pass
-async def get_benchmark_data(db: AsyncSession) -> dict[str, Any]:
-    """Function implementation."""
-    pass
-async def get_benchmark_data(db: AsyncSession) -> dict[str, Any]:
-    """Computes benchmark data across the organization."""
-    query = select(models.AnalysisReport.compliance_score)
-    scores = list((await db.execute(query)).scalars().all())
-
-    if not scores:
-        return {}
-
-    return {
-        "total_users_in_benchmark": (await db.execute(select(func.count(models.User.id)))).scalar_one_or_none() or 0,
-        "compliance_score_percentiles": {
-            "p25": np.percentile(scores, 25),
-            "p50": np.percentile(scores, 50),
-            "p75": np.percentile(scores, 75),
-            "p90": np.percentile(scores, 90),
-        },
-    }
-
 async def get_all_reports_with_embeddings(db: AsyncSession) -> list[models.AnalysisReport]:
     """Return all analysis reports that have an embedding stored."""
     query = (

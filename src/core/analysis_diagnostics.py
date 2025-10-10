@@ -1,4 +1,5 @@
 """Analysis Diagnostics - Health checks and diagnostic utilities for analysis workflow.
+import json
 
 This module provides comprehensive diagnostic capabilities to verify system
 health and identify common issues that prevent analysis from completing.

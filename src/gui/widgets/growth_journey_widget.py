@@ -374,3 +374,9 @@ class AchievementBadge(QWidget):
             goals_layout.addLayout(goal_layout)
 
         self.content_layout.addWidget(goals_frame)
+
+
+class RecommendationCard:
+    """Recommendation card widget."""
+    def __init__(self, recommendation):
+        self.recommendation = recommendation

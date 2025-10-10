@@ -1,4 +1,5 @@
 """Individual Habits API Router.
+from scipy import stats
 
 Provides endpoints for personal habit tracking, growth journey,
 achievements, and individual analytics.

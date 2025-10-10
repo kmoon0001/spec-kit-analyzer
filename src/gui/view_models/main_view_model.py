@@ -310,7 +310,7 @@ class MainViewModel(QObject):
                     self.success.emit(response.json().get("message", "Success!"))
                 except (requests.RequestException, ValueError, KeyError) as e:
                     self.error.emit(str(e))
-                except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+                except (ConnectionError, TimeoutError, HTTPError) as e:
                     self.error.emit(f"Unexpected error: {e!s}")
 
         self._run_worker(

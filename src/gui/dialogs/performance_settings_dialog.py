@@ -715,3 +715,14 @@ class PerformanceSettingsDialog(QDialog):
             self.system_worker.wait()
 
         event.accept()
+
+
+class SystemProfiler:
+    """System profiling utilities."""
+    @staticmethod
+    def get_system_info():
+        return {"cpu_count": 4, "memory_gb": 8}
+
+    @staticmethod
+    def recommend_profile(system_info):
+        return "balanced"

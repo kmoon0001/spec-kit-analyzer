@@ -1,4 +1,5 @@
 """Analysis Workflow Logger - Comprehensive logging for analysis workflow debugging.
+import requests
 
 This module provides detailed logging capabilities to track each step of the
 document analysis process, helping identify where workflows fail or hang.
@@ -70,7 +71,7 @@ class AnalysisWorkflowLogger:
             "🚀 ANALYSIS STARTED - Session: %s | File: %s (%s bytes) | Rubric: %s | User: %s",
             session_id,
             Path(file_path).name,
-            file_size,
+            len(Path(file_path).read_bytes()) if Path(file_path).exists() else 0,
             rubric,
             user_id)
 

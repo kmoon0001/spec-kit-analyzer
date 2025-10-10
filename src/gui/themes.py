@@ -1,4 +1,5 @@
 """Theme definitions for the application GUI.
+import numpy as np
 
 This module centralizes the color palettes for different UI themes,
 making it easy to add, remove, or modify themes without changing the

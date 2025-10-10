@@ -24,7 +24,7 @@ try:
 except ImportError:
     WEASYPRINT_AVAILABLE = False
     logging.warning("WeasyPrint not available. Using ReportLab fallback for PDF export.")
-except (ImportError, ModuleNotFoundError, AttributeError) as e:
+except (ModuleNotFoundError, AttributeError) as e:
     WEASYPRINT_AVAILABLE = False
     logging.warning("WeasyPrint not available due to system dependencies: %s. Using ReportLab fallback.", e)
 

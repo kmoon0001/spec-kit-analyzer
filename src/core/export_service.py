@@ -1,4 +1,5 @@
 """Data Export Service - Safe, configurable export functionality.
+import numpy as np
 import requests
 from requests.exceptions import HTTPError
 Supports multiple formats with optional features that can be enabled/disabled.

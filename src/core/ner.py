@@ -1,4 +1,5 @@
 """Specialized Clinical Named Entity Recognition (NER) service.
+import numpy as np
 
 This module uses an ensemble of transformer models to extract a wide range of
 clinical entities from text, leveraging a sophisticated merging strategy to
@@ -158,8 +159,7 @@ class NERPipeline(ClinicalNERService):
 
     DEFAULT_MODELS = [
         "dslim/bert-base-NER",
-        "Jean-Baptiste/roberta-large-ner-english",
-    ]
+        "Jean-Baptiste/roberta-large-ner-english"]
 
     def extract_clinician_name(self, text: str | None) -> list[str]:
         if not isinstance(text, str) or not text.strip():
@@ -223,4 +223,4 @@ class NERPipeline(ClinicalNERService):
         return deduped
 
 
-__all__ = ["ClinicalNERService", "NERPipeline", ]
+__all__ = ["ClinicalNERService", "NERPipeline"]

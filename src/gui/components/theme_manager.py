@@ -1,4 +1,5 @@
 """Theme Manager - Centralized theme management
+import numpy as np
 Handles application-wide theme switching and styling.
 """
 

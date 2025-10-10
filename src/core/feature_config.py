@@ -1,4 +1,5 @@
 """Feature Configuration Service - Manages optional features and their settings.
+import numpy as np
 Allows safe enabling/disabling of enhanced features without affecting core functionality.
 """
 

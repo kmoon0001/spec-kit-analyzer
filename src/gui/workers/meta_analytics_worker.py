@@ -1,4 +1,5 @@
 """Meta Analytics Worker for background data loading.
+import json
 from requests.exceptions import HTTPError
 
 Handles API calls to fetch organizational analytics data without blocking the UI.

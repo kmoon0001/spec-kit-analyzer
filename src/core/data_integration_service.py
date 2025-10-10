@@ -1,4 +1,6 @@
 """Data Integration Service - Comprehensive data provider system
+from typing import Any, Dict, List, Optional
+from abc import ABC, abstractmethod
 
 This module provides the data integration layer that connects the reporting system
 to all existing performance and compliance systems using clean interfaces and
@@ -175,18 +177,6 @@ class PerformanceDataProvider(BaseDataProvider):
             "critical_issues_count": 0,
         }
 
-    async def get_metadata(self) -> DataSourceMetadata:
-        """Get metadata about performance data source"""
-        return DataSourceMetadata(
-            source_id=self.provider_id,
-            source_type=DataSourceType.PERFORMANCE_METRICS,
-            description=self.description,
-            last_updated=datetime.now(),
-            data_quality=DataQuality.HIGH,
-            availability=self.is_available,
-            tags=["performance", "optimization", "metrics", "monitoring"])
-
-
 class DataIntegrationService:
     """Main service for coordinating data integration across all providers"""
 
@@ -228,50 +218,6 @@ class DataIntegrationService:
             logger.exception("Error registering provider %s: {e}", provider.provider_id)
             # Still add to providers dict even if registry update fails
             logger.info("Registered data provider: %s (registry update failed)", provider.provider_id)
-
-    async def query_data(self, query: DataQuery) -> dict[str, DataResult[dict[str, Any]]]:
-        """Query data from multiple providers based on source types"""
-        results = {}
-
-        # Find providers for requested source types
-        providers_to_query = set()
-        for source_type in query.source_types:
-            if source_type in self.provider_registry:
-                providers_to_query.update(self.provider_registry[source_type])
-
-        # Query providers in parallel
-        tasks = []
-        for provider_id in providers_to_query:
-            if provider_id in self.providers:
-                provider = self.providers[provider_id]
-                if provider.is_available:
-                    task = asyncio.create_task(
-                        self._query_provider_with_error_handling(provider, query))
-                    tasks.append((provider_id, task))
-
-        # Collect results
-        if tasks:
-            for provider_id, task in tasks:
-                try:
-                    result = await task
-                    results[provider_id] = result
-                except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
-                    logger.exception("Error querying provider %s: {e}", provider_id)
-                    # Create error result
-                    error_metadata = DataSourceMetadata(
-                        source_id=provider_id,
-                        source_type=DataSourceType.PERFORMANCE_METRICS,
-                        description=f"Error querying {provider_id}",
-                        last_updated=datetime.now(),
-                        data_quality=DataQuality.LOW,
-                        availability=False)
-                    results[provider_id] = DataResult(
-                        data={"error": str(e)},
-                        metadata=error_metadata,
-                        query=query,
-                        retrieved_at=datetime.now())
-
-        return results
 
     async def get_available_providers(self) -> dict[str, DataSourceMetadata]:
         """Get metadata for all available providers"""

@@ -8,6 +8,8 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
+import torch
+
 from src.core.cache_service import LLMResponseCache
 
 logger = logging.getLogger(__name__)
@@ -262,3 +264,5 @@ class LLMService:
 
     def generate_analysis(self, prompt: str, **kwargs) -> str:
         return self.generate(prompt, **kwargs)
+
+

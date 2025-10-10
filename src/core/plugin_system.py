@@ -1,4 +1,5 @@
 """Plugin System Architecture for Therapy Compliance Analyzer
+import importlib
 
 This module provides a comprehensive plugin architecture that allows for extensible
 functionality while maintaining system security and stability. It follows industry

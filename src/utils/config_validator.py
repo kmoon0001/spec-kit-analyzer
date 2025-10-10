@@ -1,4 +1,5 @@
 """Configuration validation utilities for the Therapy Compliance Analyzer.
+import requests
 
 This module provides validation and health checks for the application configuration.
 """
