@@ -388,7 +388,7 @@ class PerformanceMonitor:
                     logger.warning("High CPU usage: %s%", health.cpu_usage)
 
                 if health.memory_usage > 90:
-                    logger.warning("High memory usage: %s%", health.memory_usage)
+                    logger.warning("High memory usage: %.1f%%", health.memory_usage)
 
                 if health.error_rate > 0.1:
                     logger.warning("High error rate: %s", health.error_rate * 100)
