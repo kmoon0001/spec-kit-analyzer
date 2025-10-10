@@ -93,14 +93,14 @@ class HeaderComponent(QWidget):
             self.icon_label.setToolTip("Congratulations! You found the easter egg!")
             # Emit signal to parent if needed
             from PySide6.QtWidgets import QMessageBox
+
             QMessageBox.information(
                 self,
                 "🎉 Easter Egg Found!",
                 "Congratulations! You discovered the hidden easter egg!\n\n"
                 "🎯 You clicked the document icon 7 times!\n"
                 "🌟 This shows attention to detail - a key skill for compliance!\n\n"
-                "Keep up the great work! 🚀",
-            )
+                "Keep up the great work! 🚀")
             # Reset after showing message
             self.icon_click_count = 0
             self.icon_label.setText("📋")

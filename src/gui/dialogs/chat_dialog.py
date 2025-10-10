@@ -1,16 +1,6 @@
-
 from PySide6.QtCore import Qt, QThread
 from PySide6.QtGui import QKeySequence, QShortcut, QTextCursor
-from PySide6.QtWidgets import (
-    QDialog,
-    QHBoxLayout,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QTextEdit,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QVBoxLayout, QWidget
 
 from src.config import get_settings
 
@@ -28,7 +18,7 @@ class ChatDialog(QDialog):
         self.resize(700, 600)  # Better default size
         self.token = token
         self.history: list[dict[str, str]] = [
-            { # This system prompt is for the local history, the service has its own
+            {  # This system prompt is for the local history, the service has its own
                 "role": "system",
                 "content": "You are a helpful assistant for clinical compliance.",
             },
@@ -218,7 +208,7 @@ class ChatDialog(QDialog):
             </div>
             """
         elif role == "assistant":
-            if text == "● ● ●": # Thinking indicator
+            if text == "● ● ●":  # Thinking indicator
                 html = f"""
                 <div align="left">
                     <div style="background-color:#e2e8f0; color:#475569; {bubble_style} display:inline-block; text-align:left; font-style:italic;">
@@ -234,7 +224,7 @@ class ChatDialog(QDialog):
                     </div>
                 </div>
                 """
-        else: # system or error
+        else:  # system or error
             return
 
         self.chat_display.append(html)

@@ -10,14 +10,11 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QFrame,
     QGridLayout,
-    QHBoxLayout,
-    QHeaderView,
     QLabel,
     QLineEdit,
     QPushButton,
     QScrollArea,
     QSpinBox,
-    QTableWidget,
     QTableWidgetItem,
     QTextBrowser,
     QVBoxLayout,
@@ -51,7 +48,7 @@ class SettingsEditorWidget(QWidget):
         scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
 
         form_container = QWidget()
-        self.form_layout = QFormLayout(form_container) # Initialize form_layout here
+        self.form_layout = QFormLayout(form_container)  # Initialize form_layout here
         self.form_layout.setContentsMargins(0, 0, 0, 0)
         self.form_layout.setSpacing(10)
 
@@ -60,6 +57,7 @@ class SettingsEditorWidget(QWidget):
 
         # Create tabbed interface for different admin sections
         from PySide6.QtWidgets import QTabWidget
+
         admin_tabs = QTabWidget()
         admin_tabs.setStyleSheet("""
             QTabWidget::pane {
@@ -128,7 +126,7 @@ class SettingsEditorWidget(QWidget):
         layout.setSpacing(15)
 
         # System info display
-        self.info_browser = QTextBrowser() # Make it an instance variable
+        self.info_browser = QTextBrowser()  # Make it an instance variable
         self.info_browser.setStyleSheet("""
             QTextBrowser {
                 background: #f8fafc;
@@ -144,10 +142,13 @@ class SettingsEditorWidget(QWidget):
         self.info_browser.setHtml(system_info)
         # Set up timer for realtime updates
         from PySide6.QtCore import QTimer
+
         self.system_timer = QTimer(self)  # Make timer a child of the widget
-        self.system_timer.timeout.connect(lambda: self.info_browser.setHtml(self._generate_realtime_system_info())) # Use instance variable
+        self.system_timer.timeout.connect(
+            lambda: self.info_browser.setHtml(self._generate_realtime_system_info())
+        )  # Use instance variable
         self.system_timer.start(5000)  # Update every 5 seconds
-        layout.addWidget(self.info_browser) # Use instance variable
+        layout.addWidget(self.info_browser)  # Use instance variable
         return tab
 
     def _generate_realtime_system_info(self) -> str:
@@ -215,7 +216,6 @@ class SettingsEditorWidget(QWidget):
 
     def _create_ai_settings_tab(self) -> QWidget:
         """Create AI model settings tab."""
-        from PySide6.QtWidgets import QTextBrowser
 
         tab = QWidget()
         layout = QVBoxLayout(tab)
@@ -269,7 +269,6 @@ class SettingsEditorWidget(QWidget):
 
     def _create_security_settings_tab(self) -> QWidget:
         """Create security settings tab."""
-        from PySide6.QtWidgets import QTextBrowser
 
         tab = QWidget()
         layout = QVBoxLayout(tab)
@@ -323,7 +322,6 @@ class SettingsEditorWidget(QWidget):
 
     def _create_performance_tab(self) -> QWidget:
         """Create performance tuning tab."""
-        from PySide6.QtWidgets import QTextBrowser
 
         tab = QWidget()
         layout = QVBoxLayout(tab)
@@ -448,18 +446,6 @@ class SettingsEditorWidget(QWidget):
 class LogViewerWidget(QWidget):
     """A widget that displays log messages."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self._build_ui()
-
-    def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        self.log_browser = QTextBrowser()
-        self.log_browser.setReadOnly(True)
-        self.log_browser.setFontFamily("monospace")
-        layout.addWidget(self.log_browser)
-
     def add_log_message(self, message: str) -> None:
         """Appends a new log message to the browser."""
         self.log_browser.append(message)
@@ -467,22 +453,6 @@ class LogViewerWidget(QWidget):
 
 class TaskMonitorWidget(QWidget):
     """A widget that displays analysis tasks in a table."""
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self._build_ui()
-
-    def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        self.task_table = QTableWidget()
-        self.task_table.setColumnCount(4)
-        self.task_table.setHorizontalHeaderLabels(["Task ID", "Filename", "Status", "Timestamp"])
-        self.task_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.task_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.task_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        layout.addWidget(self.task_table)
 
     def update_tasks(self, tasks: dict[str, dict[str, Any]]) -> None:
         """Updates the table with the latest task data."""
@@ -505,13 +475,6 @@ class MissionControlWidget(QWidget):
     start_analysis_requested = Signal()
     review_document_requested = Signal(dict)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self._build_ui()
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
     def update_overview(self, data: dict[str, Any]) -> None:
         if "ai_health" in data:
             self._update_ai_health_display(data["ai_health"])
@@ -528,32 +491,6 @@ class MissionControlWidget(QWidget):
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
-    def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(16)
-
-        header_layout = QHBoxLayout()
-        header = QLabel("Mission Control")
-        header.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
-        header_layout.addWidget(header)
-        header_layout.addStretch()
-        layout.addLayout(header_layout)
-
-        status_layout = QHBoxLayout()
-        status_layout.setSpacing(16)
-        ai_health_frame = self._build_ai_health_frame()
-        status_layout.addWidget(ai_health_frame, stretch=3)
-        system_status_frame = self._build_system_status_frame()
-        status_layout.addWidget(system_status_frame, stretch=1)
-        layout.addLayout(status_layout)
-
-        # New Task Monitor Frame
-        task_monitor_frame = self._build_task_monitor_frame()
-        layout.addWidget(task_monitor_frame, stretch=1)
-
-        layout.addStretch(1)
-
     def _build_ai_health_frame(self) -> QWidget:
         frame = QFrame(self)
         frame.setObjectName("aiHealthFrame")
@@ -585,8 +522,7 @@ class MissionControlWidget(QWidget):
             col += 1
 
         frame.setStyleSheet(
-            "#aiHealthFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }",
-        )
+            "#aiHealthFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }")
         return frame
 
     def _build_system_status_frame(self) -> QWidget:
@@ -605,8 +541,7 @@ class MissionControlWidget(QWidget):
         layout.addWidget(self.api_status_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         frame.setStyleSheet(
-            "#systemStatusFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }",
-        )
+            "#systemStatusFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }")
         return frame
 
     def _build_task_monitor_frame(self) -> QWidget:
@@ -624,8 +559,7 @@ class MissionControlWidget(QWidget):
         layout.addWidget(self.task_monitor)
 
         frame.setStyleSheet(
-            "#taskMonitorFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }",
-        )
+            "#taskMonitorFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }")
         return frame
 
     def _update_ai_health_display(self, health_data: dict[str, Any]) -> None:

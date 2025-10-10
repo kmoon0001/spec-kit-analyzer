@@ -18,8 +18,7 @@ class LLMComplianceAnalyzer:
     def analyze_document(self, document_text: str, context: str) -> dict[str, Any]:
         prompt = self.prompt_manager.get_prompt(
             document_text=document_text,
-            context=context,
-        )
+            context=context)
         raw_response = self.llm_service.generate(prompt)
         return self._parse_response(raw_response)
 

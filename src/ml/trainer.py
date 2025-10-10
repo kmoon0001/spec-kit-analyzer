@@ -16,12 +16,11 @@ from src.core.confidence_calibrator import ConfidenceCalibrator
 
 logger = logging.getLogger(__name__)
 
+
 class MLTrainingPipeline:
     """Manages the complete machine learning training pipeline."""
 
-    def __init__(self,
-                 calibration_trainer: CalibrationTrainer | None = None,
-                 models_dir: str = "models"):
+    def __init__(self, calibration_trainer: CalibrationTrainer | None = None, models_dir: str = "models"):
         """Initialize the ML training pipeline.
 
         Args:
@@ -38,9 +37,9 @@ class MLTrainingPipeline:
         self.training_interval_days = 7
         self.performance_threshold = 0.05  # Minimum ECE improvement required
 
-    async def fine_tune_model_with_feedback(self,
-                                          db: AsyncSession | None = None,
-                                          force_retrain: bool = False) -> dict[str, Any]:
+    async def fine_tune_model_with_feedback(
+        self, db: AsyncSession | None = None, force_retrain: bool = False
+    ) -> dict[str, Any]:
         """Orchestrates the model fine-tuning process using user feedback.
 
         This implementation focuses on confidence calibration improvement using
@@ -67,12 +66,13 @@ class MLTrainingPipeline:
 
             # Step 2: Fetch and prepare training data
             training_data = self.calibration_trainer.get_training_data(
-                min_samples=self.min_samples_for_training,
-            )
+                min_samples=self.min_samples_for_training)
 
             if len(training_data) < self.min_samples_for_training:
-                logger.warning("Insufficient training data: %s samples ", len(training_data), 
-                             f"(need {self.min_samples_for_training})")
+                logger.warning(
+                    "Insufficient training data: %s samples ",
+                    len(training_data),
+                    f"(need {self.min_samples_for_training})")
                 return {
                     "status": "insufficient_data",
                     "message": f"Need {self.min_samples_for_training} samples, have {len(training_data)}",
@@ -90,8 +90,7 @@ class MLTrainingPipeline:
             # Step 5: Deploy if performance is acceptable
             deployment_results = await self._deploy_if_improved(
                 results["calibrator"],
-                evaluation_results,
-            )
+                evaluation_results)
 
             # Step 6: Update training metadata
             self._update_training_metadata(evaluation_results)
@@ -105,7 +104,7 @@ class MLTrainingPipeline:
                 "timestamp": datetime.now().isoformat(),
             }
 
-            logger.info("ML training pipeline completed successfully: %s", final_results['status'])
+            logger.info("ML training pipeline completed successfully: %s", final_results["status"])
             return final_results
 
         except Exception as e:
@@ -125,6 +124,7 @@ class MLTrainingPipeline:
 
         # Prepare training arrays
         import numpy as np
+
         confidences = np.array([item["confidence"] for item in training_data])
         labels = np.array([item["is_correct"] for item in training_data])
 
@@ -144,13 +144,11 @@ class MLTrainingPipeline:
             "samples_used": len(training_data),
         }
 
-    async def _evaluate_calibrator(self,
-                                 calibrator: ConfidenceCalibrator,
-                                 training_data: list[dict[str, Any]]) -> dict[str, Any]:
+    async def _evaluate_calibrator(
+        self, calibrator: ConfidenceCalibrator, training_data: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Evaluate the newly trained calibrator."""
         logger.info("Evaluating new confidence calibrator...")
-
-        import numpy as np
 
         # Use a portion of data for evaluation (simple train/test split)
         split_idx = int(len(training_data) * 0.8)
@@ -168,7 +166,6 @@ class MLTrainingPipeline:
         calibrated_confidences = calibrator.calibrate(eval_confidences)
 
         # Calculate evaluation metrics
-        from src.core.confidence_calibrator import ConfidenceCalibrator
 
         raw_ece = ConfidenceCalibrator._calculate_ece(eval_confidences, eval_labels)
         calibrated_ece = ConfidenceCalibrator._calculate_ece(calibrated_confidences, eval_labels)
@@ -190,14 +187,16 @@ class MLTrainingPipeline:
             "method_used": calibrator.method,
         }
 
-        logger.info("Evaluation results: ECE improvement %.1%%, Brier improvement %.1%%", 
-                   improvement_ece * 100, improvement_brier * 100)
+        logger.info(
+            "Evaluation results: ECE improvement %.1%%, Brier improvement %.1%%",
+            improvement_ece * 100,
+            improvement_brier * 100)
 
         return evaluation_results
 
-    async def _deploy_if_improved(self,
-                                calibrator: ConfidenceCalibrator,
-                                evaluation_results: dict[str, Any]) -> dict[str, Any]:
+    async def _deploy_if_improved(
+        self, calibrator: ConfidenceCalibrator, evaluation_results: dict[str, Any]
+    ) -> dict[str, Any]:
         """Deploy the new calibrator if it shows sufficient improvement."""
 
         ece_improvement = evaluation_results.get("ece_improvement", 0)
@@ -220,8 +219,10 @@ class MLTrainingPipeline:
                 "improvement": ece_improvement,
                 "reason": f"ECE improvement {ece_improvement * 100} exceeds threshold {self.performance_threshold * 100}",
             }
-        logger.info("New calibrator not deployed - improvement %.1%% below threshold %.1%%", 
-                   ece_improvement * 100, self.performance_threshold * 100)
+        logger.info(
+            "New calibrator not deployed - improvement %.1%% below threshold %.1%%",
+            ece_improvement * 100,
+            self.performance_threshold * 100)
 
         return {
             "deployed": False,
@@ -237,6 +238,7 @@ class MLTrainingPipeline:
 
         if metadata_path.exists():
             import json
+
             try:
                 with open(metadata_path) as f:
                     metadata = json.load(f)
@@ -248,7 +250,7 @@ class MLTrainingPipeline:
                     logger.info("Training not due for %s days", self.training_interval_days - time_since_training.days)
                     return False
 
-            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+            except (FileNotFoundError, PermissionError, OSError) as e:
                 logger.warning("Could not read training metadata: %s", e)
 
         # Check if we have enough new data
@@ -265,7 +267,6 @@ class MLTrainingPipeline:
         metadata_path = self.models_dir / "training_metadata.json"
 
         if metadata_path.exists():
-            import json
             try:
                 with open(metadata_path) as f:
                     metadata = json.load(f)
@@ -292,7 +293,6 @@ class MLTrainingPipeline:
 
         # Load existing metadata if available
         if metadata_path.exists():
-            import json
             try:
                 with open(metadata_path) as f:
                     existing_metadata = json.load(f)
@@ -301,13 +301,14 @@ class MLTrainingPipeline:
                 pass
 
         # Save updated metadata
-        import json
         with open(metadata_path, "w") as f:
             json.dump(metadata, f, indent=2)
 
-        logger.info("Updated training metadata (training #%s)", metadata['training_count'])
+        logger.info("Updated training metadata (training #%s)", metadata["training_count"])
 
 
+# Backward compatibility function
+# Backward compatibility function
 # Backward compatibility function
 async def fine_tune_model_with_feedback(db: AsyncSession | None = None) -> dict[str, Any]:
     """Legacy function for backward compatibility.

@@ -1,4 +1,3 @@
-
 import logging
 import os
 from functools import lru_cache
@@ -216,8 +215,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="allow",
-    )
+        extra="allow")
 
     use_ai_mocks: bool = False
     enable_director_dashboard: bool = True
@@ -245,9 +243,10 @@ class Settings(BaseSettings):
 
 
 @lru_cache
+@lru_cache
+@lru_cache
 def get_settings() -> Settings:
-    """Initializes and returns the application settings, ensuring security best practices.
-    """
+    """Initializes and returns the application settings, ensuring security best practices."""
     load_dotenv()
     config_path = Path(__file__).parent.parent / "config.yaml"
     with open(config_path, encoding="utf-8") as f:
@@ -262,12 +261,16 @@ def get_settings() -> Settings:
     secret_key_value = os.environ.get("SECRET_KEY")
     if not secret_key_value:
         # Fallback for local/testing environments where SECRET_KEY is not provided
-        secret_key_value = settings.auth.secret_key.get_secret_value() if settings.auth.secret_key else "insecure-test-key"
+        secret_key_value = (
+            settings.auth.secret_key.get_secret_value() if settings.auth.secret_key else "insecure-test-key"
+        )
         logger = logging.getLogger(__name__)
         logger.warning("SECRET_KEY not found in environment; using fallback value for non-production use.")
 
     if secret_key_value == "your-super-secret-jwt-key-change-this-in-production":
-        raise ValueError("CRITICAL: Insecure default SECRET_KEY detected. Please generate a new, strong key. Application will not start.")
+        raise ValueError(
+            "CRITICAL: Insecure default SECRET_KEY detected. Please generate a new, strong key. Application will not start."
+        )
 
     # Manually inject the environment variable into the settings model
     settings.auth.secret_key = SecretStr(secret_key_value)
@@ -275,5 +278,7 @@ def get_settings() -> Settings:
     return settings
 
 
+# Create the single settings instance used across the app
+# Create the single settings instance used across the app
 # Create the single settings instance used across the app
 settings = get_settings()

@@ -1,5 +1,3 @@
-
-
 def chunk_text(text: str, max_chars: int = 4000) -> list[str]:
     chunks = []
     start_index = 0

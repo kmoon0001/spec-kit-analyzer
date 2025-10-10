@@ -6,8 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 class PromptManager:
-    """Manages loading and formatting of prompt templates from the resources directory.
-    """
+    """Manages loading and formatting of prompt templates from the resources directory."""
 
     def __init__(self, template_name: str):
         """Initializes the PromptManager by loading a specific prompt template.
@@ -17,8 +16,10 @@ class PromptManager:
 
         """
         prompts_dir = os.path.join(
-            os.path.dirname(__file__), "..", "resources", "prompts",
-        )
+            os.path.dirname(__file__),
+            "..",
+            "resources",
+            "prompts")
         self.template_path = os.path.join(prompts_dir, template_name)
         self.template_string = self._load_template()
 
@@ -47,8 +48,7 @@ class PromptManager:
             logger.exception(
                 "Missing variable in prompt template %s: %s",
                 self.template_path,
-                e,
-            )
+                e)
             raise
 
     def build_prompt(self, **kwargs: Any) -> str:

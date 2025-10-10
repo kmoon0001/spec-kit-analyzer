@@ -1,4 +1,5 @@
 """Analysis tab builder - extracted from tab_builder for better maintainability."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -174,15 +175,15 @@ class AnalysisTabBuilder:
         self.main_window.rubric_selector.setStyleSheet(f"""
             QComboBox {{
                 padding: 10px 12px;
-                border: 2px solid {medical_theme.get_color('border_medium')};
+                border: 2px solid {medical_theme.get_color("border_medium")};
                 border-radius: 8px;
                 background: white;
                 font-size: 11px;
                 font-weight: 500;
-                color: {medical_theme.get_color('text_primary')};
+                color: {medical_theme.get_color("text_primary")};
             }}
             QComboBox:hover {{
-                border-color: {medical_theme.get_color('primary_blue')};
+                border-color: {medical_theme.get_color("primary_blue")};
             }}
             QComboBox::drop-down {{
                 border: none;
@@ -241,21 +242,30 @@ class AnalysisTabBuilder:
 
         # Strictness definitions
         self.main_window.strictness_levels = [
-            ("Lenient", "😊", {
-                "description": "Lenient analysis focusing on major compliance issues only",
-                "details": "• Identifies critical Medicare violations\n• Overlooks minor documentation gaps\n• Faster processing time\n• Suitable for initial reviews",
-                "use_case": "Best for: Quick assessments, high-volume processing",
-            }),
-            ("Standard", "📋", {
-                "description": "Balanced analysis covering most compliance requirements",
-                "details": "• Comprehensive Medicare compliance checking\n• Identifies moderate to severe issues\n• Standard processing time\n• Recommended for most users",
-                "use_case": "Best for: Regular compliance reviews, quality assurance",
-            }),
-            ("Strict", "🔍", {
-                "description": "Thorough analysis with detailed scrutiny of all elements",
-                "details": "• Exhaustive compliance verification\n• Identifies all potential issues\n• Longer processing time\n• Maximum regulatory protection",
-                "use_case": "Best for: Audit preparation, high-risk documentation",
-            }),
+            (
+                "Lenient",
+                "😊",
+                {
+                    "description": "Lenient analysis focusing on major compliance issues only",
+                    "details": "• Identifies critical Medicare violations\n• Overlooks minor documentation gaps\n• Faster processing time\n• Suitable for initial reviews",
+                    "use_case": "Best for: Quick assessments, high-volume processing",
+                }),
+            (
+                "Standard",
+                "📋",
+                {
+                    "description": "Balanced analysis covering most compliance requirements",
+                    "details": "• Comprehensive Medicare compliance checking\n• Identifies moderate to severe issues\n• Standard processing time\n• Recommended for most users",
+                    "use_case": "Best for: Regular compliance reviews, quality assurance",
+                }),
+            (
+                "Strict",
+                "🔍",
+                {
+                    "description": "Thorough analysis with detailed scrutiny of all elements",
+                    "details": "• Exhaustive compliance verification\n• Identifies all potential issues\n• Longer processing time\n• Maximum regulatory protection",
+                    "use_case": "Best for: Audit preparation, high-risk documentation",
+                }),
         ]
 
         for i, (level, emoji, _info) in enumerate(self.main_window.strictness_levels):
@@ -266,21 +276,21 @@ class AnalysisTabBuilder:
             btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: white;
-                    border: 2px solid {medical_theme.get_color('border_medium')};
+                    border: 2px solid {medical_theme.get_color("border_medium")};
                     border-radius: 8px;
-                    color: {medical_theme.get_color('text_primary')};
+                    color: {medical_theme.get_color("text_primary")};
                     font-size: 10px;
                     font-weight: 600;
                     padding: 4px;
                 }}
                 QPushButton:hover {{
-                    background-color: {medical_theme.get_color('hover_bg')};
-                    border-color: {medical_theme.get_color('primary_blue')};
+                    background-color: {medical_theme.get_color("hover_bg")};
+                    border-color: {medical_theme.get_color("primary_blue")};
                 }}
                 QPushButton:checked {{
-                    background-color: {medical_theme.get_color('primary_blue')};
+                    background-color: {medical_theme.get_color("primary_blue")};
                     color: white;
-                    border-color: {medical_theme.get_color('primary_blue')};
+                    border-color: {medical_theme.get_color("primary_blue")};
                 }}
             """)
             btn.clicked.connect(lambda checked, idx=i: self.main_window._on_strictness_selected_with_description(idx))
@@ -340,10 +350,14 @@ class AnalysisTabBuilder:
         grid.setSpacing(8)
 
         sections = [
-            "Executive Summary", "Detailed Findings",
-            "Risk Assessment", "Recommendations",
-            "Regulatory Citations", "Action Plan",
-            "AI Transparency", "Improvement Strategies",
+            "Executive Summary",
+            "Detailed Findings",
+            "Risk Assessment",
+            "Recommendations",
+            "Regulatory Citations",
+            "Action Plan",
+            "AI Transparency",
+            "Improvement Strategies",
         ]
 
         self.main_window.section_checkboxes = {}
@@ -352,7 +366,7 @@ class AnalysisTabBuilder:
             checkbox.setChecked(True)
             checkbox.setStyleSheet(f"""
                 QCheckBox {{
-                    color: {medical_theme.get_color('text_primary')};
+                    color: {medical_theme.get_color("text_primary")};
                     font-size: 10px;
                     spacing: 6px;
                     background: transparent;
@@ -361,13 +375,13 @@ class AnalysisTabBuilder:
                 QCheckBox::indicator {{
                     width: 16px;
                     height: 16px;
-                    border: 2px solid {medical_theme.get_color('border_medium')};
+                    border: 2px solid {medical_theme.get_color("border_medium")};
                     border-radius: 4px;
                     background: white;
                 }}
                 QCheckBox::indicator:checked {{
-                    background: {medical_theme.get_color('primary_blue')};
-                    border-color: {medical_theme.get_color('primary_blue')};
+                    background: {medical_theme.get_color("primary_blue")};
+                    border-color: {medical_theme.get_color("primary_blue")};
                 }}
             """)
             self.main_window.section_checkboxes[section_name] = checkbox
@@ -419,30 +433,30 @@ class AnalysisTabBuilder:
         results_tabs = QTabWidget(panel)
         results_tabs.setStyleSheet(f"""
             QTabWidget::pane {{
-                border: 2px solid {medical_theme.get_color('border_light')};
+                border: 2px solid {medical_theme.get_color("border_light")};
                 border-radius: 8px;
                 background: white;
                 top: -1px;
             }}
             QTabBar::tab {{
-                background: {medical_theme.get_color('bg_secondary')};
-                border: 2px solid {medical_theme.get_color('border_light')};
+                background: {medical_theme.get_color("bg_secondary")};
+                border: 2px solid {medical_theme.get_color("border_light")};
                 border-bottom: none;
                 border-top-left-radius: 8px;
                 border-top-right-radius: 8px;
                 padding: 10px 20px;
                 margin-right: 4px;
-                color: {medical_theme.get_color('text_secondary')};
+                color: {medical_theme.get_color("text_secondary")};
                 font-weight: 600;
                 font-size: 11px;
             }}
             QTabBar::tab:selected {{
                 background: white;
-                color: {medical_theme.get_color('primary_blue')};
+                color: {medical_theme.get_color("primary_blue")};
                 border-bottom: 2px solid white;
             }}
             QTabBar::tab:hover {{
-                background: {medical_theme.get_color('hover_bg')};
+                background: {medical_theme.get_color("hover_bg")};
             }}
         """)
 
@@ -457,17 +471,16 @@ class AnalysisTabBuilder:
             "• Key findings and recommendations\n"
             "• Medicare guideline compliance status\n"
             "• Actionable improvement suggestions\n\n"
-            "Select a rubric and click 'Run Analysis' to begin.",
-        )
+            "Select a rubric and click 'Run Analysis' to begin.")
         self.main_window.analysis_summary_browser.setStyleSheet(f"""
             QTextBrowser {{
-                border: 2px solid {medical_theme.get_color('border_light')};
-                background: {medical_theme.get_color('bg_primary')};
+                border: 2px solid {medical_theme.get_color("border_light")};
+                background: {medical_theme.get_color("bg_primary")};
                 padding: 20px;
                 font-size: 13px;
                 line-height: 1.6;
                 border-radius: 8px;
-                color: {medical_theme.get_color('text_primary')};
+                color: {medical_theme.get_color("text_primary")};
             }}
         """)
         results_tabs.addTab(self.main_window.analysis_summary_browser, "📊 Summary")
@@ -484,17 +497,16 @@ class AnalysisTabBuilder:
             "• Raw AI model outputs\n"
             "• Processing timestamps and metadata\n"
             "• Full compliance rule matching results\n\n"
-            "Run an analysis to populate this section with detailed technical information.",
-        )
+            "Run an analysis to populate this section with detailed technical information.")
         self.main_window.detailed_results_browser.setStyleSheet(f"""
             QTextBrowser {{
-                border: 2px solid {medical_theme.get_color('border_light')};
-                background: {medical_theme.get_color('bg_primary')};
+                border: 2px solid {medical_theme.get_color("border_light")};
+                background: {medical_theme.get_color("bg_primary")};
                 padding: 20px;
                 font-size: 12px;
                 font-family: 'Consolas', 'Monaco', monospace;
                 border-radius: 8px;
-                color: {medical_theme.get_color('text_primary')};
+                color: {medical_theme.get_color("text_primary")};
             }}
         """)
         results_tabs.addTab(self.main_window.detailed_results_browser, "📋 Details")
@@ -528,7 +540,9 @@ class AnalysisTabBuilder:
         self.main_window.file_display.setReadOnly(True)
         self.main_window.file_display.setMinimumHeight(90)
         self.main_window.file_display.setMaximumHeight(110)
-        self.main_window.file_display.setPlaceholderText("📋 DOCUMENT UPLOAD INSTRUCTIONS\n\n📁 How to Upload Your Report for Analysis:\n\n🔹 Step 1: Click the 'Upload Document' button below\n🔹 Step 2: Browse and select your therapy report file\n🔹 Step 3: Supported formats: PDF, DOCX, TXT (max 50MB)\n🔹 Step 4: Once uploaded, document preview will appear here\n🔹 Step 5: Select a compliance rubric and click 'Run Analysis'\n\n✨ Your uploaded document content will be displayed in this area")
+        self.main_window.file_display.setPlaceholderText(
+            "📋 DOCUMENT UPLOAD INSTRUCTIONS\n\n📁 How to Upload Your Report for Analysis:\n\n🔹 Step 1: Click the 'Upload Document' button below\n🔹 Step 2: Browse and select your therapy report file\n🔹 Step 3: Supported formats: PDF, DOCX, TXT (max 50MB)\n🔹 Step 4: Once uploaded, document preview will appear here\n🔹 Step 5: Select a compliance rubric and click 'Run Analysis'\n\n✨ Your uploaded document content will be displayed in this area"
+        )
         self.main_window.file_display.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {medical_theme.get_color("bg_primary")};

@@ -27,5 +27,5 @@ class ApiAnalysisWorker(QObject):
 
         except requests.exceptions.RequestException as e:
             self.error.emit(f"API request failed: {e}")
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             self.error.emit(f"An unexpected error occurred: {e}")

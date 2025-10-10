@@ -46,8 +46,7 @@ class SingleAnalysisPollingWorker(QObject):
 
                 response = requests.get(
                     f"{API_URL}/analysis/status/{self.task_id}",
-                    timeout=15,
-                )
+                    timeout=15)
                 response.raise_for_status()
 
                 # Log API response
@@ -74,8 +73,7 @@ class SingleAnalysisPollingWorker(QObject):
                     status_tracker.update_status(
                         AnalysisState.PROCESSING,
                         reported_progress,
-                        f"Processing... ({reported_progress}%)",
-                    )
+                        f"Processing... ({reported_progress}%)")
 
                     self.progress.emit(max(0, min(100, reported_progress)))
                     logger.debug("Task %s processing: {reported_progress}%", self.task_id)
@@ -107,15 +105,13 @@ class SingleAnalysisPollingWorker(QObject):
                     status_tracker.update_status(
                         AnalysisState.POLLING,
                         5,
-                        "Analysis queued, waiting to start...",
-                    )
+                        "Analysis queued, waiting to start...")
                 else:
                     logger.warning("Unknown status '%s' for task {self.task_id}", status)
                     status_tracker.update_status(
                         AnalysisState.POLLING,
                         attempts * 100 // max_attempts,
-                        f"Unknown status: {status}",
-                    )
+                        f"Unknown status: {status}")
 
             except requests.RequestException as exc:
                 logger.exception("Network error polling task %s: {exc}", self.task_id)

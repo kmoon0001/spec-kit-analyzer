@@ -1,4 +1,5 @@
 """Meta Analytics Worker for background data loading.
+from requests.exceptions import HTTPError
 
 Handles API calls to fetch organizational analytics data without blocking the UI.
 Follows the established worker patterns for consistency with other GUI workers.
@@ -36,8 +37,7 @@ class MetaAnalyticsWorker(QObject):
         self,
         days_back: int = 90,
         discipline: str | None = None,
-        load_type: str = "overview",
-    ):
+        load_type: str = "overview"):
         """Set parameters for the data loading."""
         self.days_back = days_back
         self.discipline = discipline
@@ -104,8 +104,7 @@ class MetaAnalyticsWorker(QObject):
             f"{self.base_url}/meta-analytics/organizational-overview",
             headers=headers,
             params=params,
-            timeout=30,
-        )
+            timeout=30)
         response.raise_for_status()
 
         return response.json()
@@ -122,8 +121,7 @@ class MetaAnalyticsWorker(QObject):
             f"{self.base_url}/meta-analytics/training-needs",
             headers=headers,
             params=params,
-            timeout=30,
-        )
+            timeout=30)
         response.raise_for_status()
 
         return response.json()
@@ -141,8 +139,7 @@ class MetaAnalyticsWorker(QObject):
             f"{self.base_url}/meta-analytics/team-trends",
             headers=headers,
             params=params,
-            timeout=30,
-        )
+            timeout=30)
         response.raise_for_status()
 
         return response.json()
@@ -157,8 +154,7 @@ class MetaAnalyticsWorker(QObject):
             f"{self.base_url}/meta-analytics/benchmarks",
             headers=headers,
             params=params,
-            timeout=30,
-        )
+            timeout=30)
         response.raise_for_status()
 
         return response.json()
@@ -170,8 +166,7 @@ class MetaAnalyticsWorker(QObject):
         response = requests.get(
             f"{self.base_url}/meta-analytics/performance-alerts",
             headers=headers,
-            timeout=30,
-        )
+            timeout=30)
         response.raise_for_status()
 
         return response.json()
@@ -186,15 +181,15 @@ class MetaAnalyticsWorker(QObject):
             f"{self.base_url}/meta-analytics/discipline-comparison",
             headers=headers,
             params=params,
-            timeout=30,
-        )
+            timeout=30)
         response.raise_for_status()
 
         return response.json()
 
     def load_peer_comparison(
-        self, headers: dict[str, str], user_id: int,
-    ) -> dict[str, Any]:
+        self,
+        headers: dict[str, str],
+        user_id: int) -> dict[str, Any]:
         """Load peer comparison data for a specific user."""
         self.progress_updated.emit("Loading peer comparison...")
 
@@ -204,8 +199,7 @@ class MetaAnalyticsWorker(QObject):
             f"{self.base_url}/meta-analytics/peer-comparison/{user_id}",
             headers=headers,
             params=params,
-            timeout=30,
-        )
+            timeout=30)
         response.raise_for_status()
 
         return response.json()

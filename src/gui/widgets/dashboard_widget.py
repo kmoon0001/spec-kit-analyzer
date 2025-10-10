@@ -1,20 +1,11 @@
-"""Dashboard widget for displaying compliance analytics and overview metrics.
-"""
+"""Dashboard widget for displaying compliance analytics and overview metrics."""
+
 from __future__ import annotations
 
 from typing import Any
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (
-    QFrame,
-    QGridLayout,
-    QHBoxLayout,
-    QLabel,
-    QProgressBar,
-    QPushButton,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 
 class DashboardWidget(QWidget):
@@ -112,8 +103,7 @@ class DashboardWidget(QWidget):
         return box
 
     def load_data(self, data: dict[str, Any]) -> None:
-        """Populates the dashboard with data from the API.
-        """
+        """Populates the dashboard with data from the API."""
         total_docs = data.get("total_documents_analyzed", 0)
         avg_score = data.get("overall_compliance_score", 0.0)
 

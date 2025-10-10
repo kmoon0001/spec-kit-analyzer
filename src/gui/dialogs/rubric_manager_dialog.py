@@ -1,4 +1,3 @@
-
 from collections.abc import Callable
 from typing import Any
 
@@ -7,13 +6,10 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
-    QLabel,
     QLineEdit,
-    QListWidget,
     QListWidgetItem,
     QMessageBox,
     QTextEdit,
-    QVBoxLayout,
 )
 
 from src.config import get_settings
@@ -47,8 +43,7 @@ class RubricEditorDialog(QDialog):
         self.layout.addRow("Best Practice:", self.best_practice_editor)
 
         self.button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
-        )
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
         self.layout.addWidget(self.button_box)
@@ -66,49 +61,6 @@ class RubricEditorDialog(QDialog):
 
 class RubricManagerDialog(QDialog):
     """Asynchronous dialog for managing compliance rubrics."""
-
-    def __init__(self, token: str, parent=None):
-        super().__init__(parent)
-        self.token = token
-        self.worker_thread: QThread | None = None
-        self.worker: RubricApiWorker | None = None
-
-        self.setWindowTitle("Rubric Manager")
-        self.setMinimumSize(500, 400)
-        self.resize(600, 450)
-
-        # --- UI Setup ---
-        layout = QVBoxLayout(self)
-        self.status_label = QLabel("Loading rubrics...")
-        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.status_label)
-
-        self.rubric_list = QListWidget()
-        self.rubric_list.itemDoubleClicked.connect(self.edit_rubric)
-        layout.addWidget(self.rubric_list)
-
-        self.button_box = QDialogButtonBox()
-        self.add_button = self.button_box.addButton(
-            "Add Rubric...", QDialogButtonBox.ButtonRole.ActionRole,
-        )
-        self.edit_button = self.button_box.addButton(
-            "Edit Selected", QDialogButtonBox.ButtonRole.ActionRole,
-        )
-        self.remove_button = self.button_box.addButton(
-            "Remove Selected", QDialogButtonBox.ButtonRole.ActionRole,
-        )
-        self.close_button = self.button_box.addButton(QDialogButtonBox.StandardButton.Close)
-
-        layout.addWidget(self.button_box)
-
-        # --- Connections ---
-        self.close_button.clicked.connect(self.accept)
-        self.add_button.clicked.connect(self.add_rubric)
-        self.edit_button.clicked.connect(self.edit_rubric)
-        self.remove_button.clicked.connect(self.remove_rubric)
-
-        # --- Initial Load ---
-        self.load_rubrics()
 
     def _run_api_call(self, method: Callable, *args, on_success: Callable):
         """Generic method to run an API call in a background thread."""
@@ -175,8 +127,7 @@ class RubricManagerDialog(QDialog):
         self._run_api_call(
             RubricApiWorker.create,
             new_data,
-            on_success=lambda _: self.load_rubrics(),
-        )
+            on_success=lambda _: self.load_rubrics())
 
     def edit_rubric(self):
         """Opens the editor to modify the selected rubric."""
@@ -200,8 +151,7 @@ class RubricManagerDialog(QDialog):
             RubricApiWorker.update,
             rubric_id,
             updated_data,
-            on_success=lambda _: self.load_rubrics(),
-        )
+            on_success=lambda _: self.load_rubrics())
 
     def remove_rubric(self):
         """Removes the selected rubric after confirmation."""
@@ -222,20 +172,18 @@ class RubricManagerDialog(QDialog):
             self,
             "Confirm Deletion",
             f"Are you sure you want to delete '{rubric_name}'?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply != QMessageBox.StandardButton.Yes:
             return
 
         self._run_api_call(
             RubricApiWorker.delete,
             rubric_id,
-            on_success=lambda _: self.load_rubrics(),
-        )
+            on_success=lambda _: self.load_rubrics())
 
     def closeEvent(self, event):
         """Ensure worker thread is stopped on close."""
         if self.worker_thread and self.worker_thread.isRunning():
             self.worker_thread.quit()
-            self.worker_thread.wait(1000) # Wait up to 1s
+            self.worker_thread.wait(1000)  # Wait up to 1s
         super().closeEvent(event)

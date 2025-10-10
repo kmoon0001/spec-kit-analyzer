@@ -1,6 +1,7 @@
 import requests
 from PySide6.QtCore import QObject
 from PySide6.QtCore import Signal as Signal
+from requests.exceptions import HTTPError
 
 from src.config import get_settings
 
@@ -30,15 +31,15 @@ class DashboardWorker(QObject):
 
             # 1. Fetch historical reports
             reports_response = requests.get(
-                f"{API_URL}/dashboard/reports", headers=headers,
-            )
+                f"{API_URL}/dashboard/reports",
+                headers=headers)
             reports_response.raise_for_status()
             reports_data = reports_response.json()
 
             # 2. Fetch findings summary
             summary_response = requests.get(
-                f"{API_URL}/dashboard/findings-summary", headers=headers,
-            )
+                f"{API_URL}/dashboard/findings-summary",
+                headers=headers)
             summary_response.raise_for_status()
             summary_data = summary_response.json()
 

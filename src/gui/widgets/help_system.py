@@ -5,24 +5,13 @@ Safe, optional feature that enhances user experience without affecting core func
 import logging
 
 from PySide6.QtCore import QPoint, Qt, QTimer, Signal
-from PySide6.QtGui import QFont
-from PySide6.QtWidgets import (
-    QDialog,
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QTextEdit,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import QDialog, QFrame, QLabel, QWidget
 
 logger = logging.getLogger(__name__)
 
 
 class HelpTooltip(QLabel):
-    """Enhanced tooltip widget with rich text support and auto-positioning.
-    """
+    """Enhanced tooltip widget with rich text support and auto-positioning."""
 
     def __init__(self, text: str, parent: QWidget | None = None):
         super().__init__(parent)
@@ -46,8 +35,7 @@ class HelpTooltip(QLabel):
                 color: #333333;
                 max-width: 300px;
             }
-        """,
-        )
+        """)
 
         self.setText(self.help_text)
         self.setWordWrap(True)
@@ -63,76 +51,9 @@ class HelpTooltip(QLabel):
 
 
 class HelpBubble(QFrame):
-    """Help bubble widget that can be embedded in the UI.
-    """
+    """Help bubble widget that can be embedded in the UI."""
 
     closed = Signal()
-
-    def __init__(self, title: str, content: str, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.title = title
-        self.content = content
-        self.setup_ui()
-
-    def setup_ui(self):
-        """Setup the help bubble UI."""
-        self.setFrameStyle(QFrame.Shape.Box)
-        self.setStyleSheet(
-            """
-            QFrame {
-                background-color: #e8f4fd;
-                border: 1px solid #bee5eb;
-                border-radius: 6px;
-                margin: 4px;
-            }
-            QLabel {
-                background: transparent;
-                border: none;
-            }
-        """,
-        )
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 8, 12, 8)
-
-        # Header with title and close button
-        header_layout = QHBoxLayout()
-
-        title_label = QLabel(self.title)
-        title_font = QFont()
-        title_font.setBold(True)
-        title_label.setFont(title_font)
-
-        close_button = QPushButton("×")
-        close_button.setFixedSize(20, 20)
-        close_button.setStyleSheet(
-            """
-            QPushButton {
-                background: transparent;
-                border: none;
-                font-size: 16px;
-                font-weight: bold;
-                color: #666;
-            }
-            QPushButton:hover {
-                background-color: #d4edda;
-                border-radius: 10px;
-            }
-        """,
-        )
-        close_button.clicked.connect(self.close_bubble)
-
-        header_layout.addWidget(title_label)
-        header_layout.addStretch()
-        header_layout.addWidget(close_button)
-
-        # Content
-        content_label = QLabel(self.content)
-        content_label.setWordWrap(True)
-        content_label.setStyleSheet("font-size: 11px; color: #495057;")
-
-        layout.addLayout(header_layout)
-        layout.addWidget(content_label)
 
     def close_bubble(self):
         """Close the help bubble."""
@@ -141,40 +62,7 @@ class HelpBubble(QFrame):
 
 
 class ComplianceGuideDialog(QDialog):
-    """Dialog showing embedded compliance guide and Medicare/CMS requirements.
-    """
-
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setWindowTitle("Compliance Guide")
-        self.setModal(False)
-        self.resize(700, 500)
-        self.setup_ui()
-        self.load_compliance_content()
-
-    def setup_ui(self):
-        """Setup the compliance guide UI."""
-        layout = QVBoxLayout(self)
-
-        # Header
-        header_label = QLabel("Medicare/CMS Compliance Reference")
-        header_font = QFont()
-        header_font.setPointSize(14)
-        header_font.setBold(True)
-        header_label.setFont(header_font)
-        header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        # Content area
-        self.content_area = QTextEdit()
-        self.content_area.setReadOnly(True)
-
-        # Close button
-        close_button = QPushButton("Close")
-        close_button.clicked.connect(self.accept)
-
-        layout.addWidget(header_label)
-        layout.addWidget(self.content_area)
-        layout.addWidget(close_button)
+    """Dialog showing embedded compliance guide and Medicare/CMS requirements."""
 
     def load_compliance_content(self):
         """Load compliance guide content."""
@@ -234,20 +122,7 @@ class ComplianceGuideDialog(QDialog):
 
 
 class HelpSystem:
-    """Main help system coordinator that manages contextual help throughout the application.
-    """
-
-    def __init__(self, enabled: bool = True):
-        self.enabled = enabled
-        self.help_content = self._load_help_content()
-        self.active_tooltips: list = []
-        self.active_bubbles: list = []
-
-        if not enabled:
-            logger.info("Help system disabled")
-            return
-
-        logger.info("Help system initialized")
+    """Main help system coordinator that manages contextual help throughout the application."""
 
     def _load_help_content(self) -> dict[str, dict[str, str]]:
         """Load help content for different UI elements."""
@@ -307,8 +182,7 @@ class HelpSystem:
             parent_widget = widget.parent()
             tooltip = HelpTooltip(
                 tooltip_text,
-                parent_widget if isinstance(parent_widget, QWidget) else None,
-            )
+                parent_widget if isinstance(parent_widget, QWidget) else None)
 
             # Position tooltip near widget
             widget_pos = widget.mapToGlobal(QPoint(0, widget.height() + 5))
@@ -390,6 +264,8 @@ class HelpSystem:
 
 
 # Global help system instance
+# Global help system instance
+# Global help system instance
 help_system = HelpSystem()
 
 
@@ -398,6 +274,8 @@ def get_help_system(enabled: bool = True) -> HelpSystem:
     return HelpSystem(enabled=enabled)
 
 
+# Configuration
+# Configuration
 # Configuration
 HELP_SYSTEM_CONFIG = {
     "enabled": True,

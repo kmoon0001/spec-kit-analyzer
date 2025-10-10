@@ -5,7 +5,6 @@ Provides endpoints for document analysis, user management, and compliance report
 """
 
 import asyncio
-import datetime
 import logging
 import sys
 from collections.abc import Coroutine
@@ -21,24 +20,9 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from src.api.dependencies import (
-    shutdown_event as api_shutdown,
-)
-from src.api.dependencies import (
-    startup_event as api_startup,
-)
-from src.api.routers import (
-    admin,
-    analysis,
-    auth,
-    chat,
-    compliance,
-    dashboard,
-    feedback,
-    habits,
-    health,
-    meta_analytics,
-)
+from src.api.dependencies import shutdown_event as api_shutdown
+from src.api.dependencies import startup_event as api_startup
+from src.api.routers import admin, analysis, auth, chat, compliance, dashboard, feedback, habits, health, meta_analytics
 
 # Import new enterprise features
 try:
@@ -48,10 +32,7 @@ try:
 except ImportError:
     EHR_AVAILABLE = False
     COPILOT_AVAILABLE = False
-from src.api.global_exception_handler import (
-    global_exception_handler,
-    http_exception_handler,
-)
+from src.api.global_exception_handler import global_exception_handler, http_exception_handler
 from src.config import get_settings
 from src.core.vector_store import get_vector_store
 from src.database import crud, get_async_db
@@ -82,34 +63,22 @@ class WebSocketManager:
             await connection.send_text(message)
 
 log_manager = WebSocketManager()
+log_manager = WebSocketManager()
+log_manager = WebSocketManager()
 
 class WebSocketLogHandler(logging.Handler):
     """A logging handler that broadcasts log records to WebSockets."""
-
-    def __init__(self):
-        super().__init__()
-        self.loop = asyncio.get_event_loop()
 
     def emit(self, record):
         log_entry = self.format(record)
         asyncio.run_coroutine_threadsafe(log_manager.broadcast(log_entry), self.loop)
 
-
+# --- In-Memory Task Purging --- #
+# --- In-Memory Task Purging --- #
 # --- In-Memory Task Purging --- #
 
 class InMemoryTaskPurgeService:
     """A service to purge expired tasks from the in-memory task dictionary."""
-
-    def __init__(self, tasks: dict[str, Any], retention_period_minutes: int, purge_interval_seconds: int):
-        self.tasks = tasks
-        self.retention_period = datetime.timedelta(minutes=retention_period_minutes)
-        self.purge_interval = purge_interval_seconds
-        self._stop_event = asyncio.Event()
-
-    async def purge_expired_tasks(self) -> None:
-        while not self._stop_event.is_set():
-            # ... (rest of the purge logic)
-            await asyncio.sleep(self.purge_interval)
 
     def start(self) -> Coroutine[Any, Any, None]:
         logger.info("Starting in-memory task purge service.")
@@ -119,7 +88,8 @@ class InMemoryTaskPurgeService:
         logger.info("Stopping in-memory task purge service.")
         self._stop_event.set()
 
-
+# --- Maintenance Jobs --- #
+# --- Maintenance Jobs --- #
 # --- Maintenance Jobs --- #
 
 def run_maintenance_jobs():
@@ -127,11 +97,12 @@ def run_maintenance_jobs():
     # ... (maintenance logic)
 
 scheduler = BackgroundScheduler(daemon=True)
+scheduler = BackgroundScheduler(daemon=True)
+scheduler = BackgroundScheduler(daemon=True)
 in_memory_task_purge_service = InMemoryTaskPurgeService(
     tasks=analysis.tasks,
     retention_period_minutes=settings.maintenance.in_memory_retention_minutes,
-    purge_interval_seconds=settings.maintenance.in_memory_purge_interval_seconds,
-)
+    purge_interval_seconds=settings.maintenance.in_memory_purge_interval_seconds)
 
 # --- Vector Store Initialization ---
 
@@ -194,7 +165,6 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
     in_memory_task_purge_service.stop()
 
-
 # --- FastAPI App Initialization --- #
 
 app = FastAPI(
@@ -241,7 +211,6 @@ try:
 except ImportError:
     logging.warning("Plugin Management API not available")
 
-
 # --- WebSocket Endpoint --- #
 
 @app.websocket("/ws/logs")
@@ -253,7 +222,6 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         log_manager.disconnect(websocket)
 
-
 # --- Root Endpoint --- #
 
 @app.get("/")
@@ -261,7 +229,8 @@ def read_root():
     """Root endpoint providing API welcome message."""
     return {"message": "Welcome to the Clinical Compliance Analyzer API"}
 
-
+@app.get("/rubrics")
+@app.get("/rubrics")
 @app.get("/rubrics")
 async def get_rubrics():
     """Get available compliance rubrics (root level endpoint for GUI compatibility)"""
@@ -287,7 +256,6 @@ async def get_rubrics():
             },
         ],
     }
-
 
 @app.get("/ai/status")
 async def get_ai_status():

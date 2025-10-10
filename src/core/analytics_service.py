@@ -42,13 +42,12 @@ class AnalyticsService:
     def __init__(self, enable_advanced_features: bool = True):
         self.enable_advanced_features = enable_advanced_features
         self.cache: dict[str, Any] = {}  # Simple caching for expensive calculations
-        logger.info(
-            "Analytics service initialized (advanced features: %s)", enable_advanced_features
-        )
+        logger.info("Analytics service initialized (advanced features: %s)", enable_advanced_features)
 
     def calculate_compliance_trends(
-        self, reports_data: list[dict[str, Any]], days: int = 30,
-    ) -> list[ComplianceTrend]:
+        self,
+        reports_data: list[dict[str, Any]],
+        days: int = 30) -> list[ComplianceTrend]:
         """Calculate compliance trends over time.
 
         Args:
@@ -73,8 +72,7 @@ class AnalyticsService:
                 if isinstance(report_date, str):
                     try:
                         report_date = datetime.fromisoformat(
-                            report_date.replace("Z", "+00:00"),
-                        )
+                            report_date.replace("Z", "+00:00"))
                     except ValueError:
                         continue
 
@@ -89,11 +87,7 @@ class AnalyticsService:
                     continue
 
                 # Calculate average compliance score
-                scores = [
-                    r.get("compliance_score", 0)
-                    for r in day_reports
-                    if r.get("compliance_score") is not None
-                ]
+                scores = [r.get("compliance_score", 0) for r in day_reports if r.get("compliance_score") is not None]
                 avg_score = statistics.mean(scores) if scores else 0
 
                 # Calculate risk distribution
@@ -108,8 +102,7 @@ class AnalyticsService:
                     date=date_str,
                     avg_score=avg_score,
                     document_count=len(day_reports),
-                    risk_distribution=dict(risk_dist),
-                )
+                    risk_distribution=dict(risk_dist))
                 trends.append(trend)
 
             logger.info("Calculated trends for %s days", len(trends))
@@ -120,8 +113,9 @@ class AnalyticsService:
             return []
 
     def identify_common_issues(
-        self, reports_data: list[dict[str, Any]], min_frequency: int = 3,
-    ) -> list[dict[str, Any]]:
+        self,
+        reports_data: list[dict[str, Any]],
+        min_frequency: int = 3) -> list[dict[str, Any]]:
         """Identify commonly occurring compliance issues.
 
         Args:
@@ -148,8 +142,7 @@ class AnalyticsService:
                             "risk": risk,
                             "document": report.get("document_name", "Unknown"),
                             "date": report.get("analysis_date", "Unknown"),
-                        },
-                    )
+                        })
 
             # Filter and format common issues
             common_issues = []
@@ -164,10 +157,7 @@ class AnalyticsService:
                     high_risk_count = risk_counts.get("High", 0)
                     if high_risk_count > frequency * 0.5:
                         impact = "High"
-                    elif (
-                        high_risk_count > 0
-                        or risk_counts.get("Medium", 0) > frequency * 0.3
-                    ):
+                    elif high_risk_count > 0 or risk_counts.get("Medium", 0) > frequency * 0.3:
                         impact = "Medium"
                     else:
                         impact = "Low"
@@ -179,15 +169,13 @@ class AnalyticsService:
                             "impact": impact,
                             "risk_distribution": dict(risk_counts),
                             "affected_documents": len(
-                                set(d["document"] for d in details),
-                            ),
-                        },
-                    )
+                                set(d["document"] for d in details)),
+                        })
 
             # Sort by frequency and impact
             common_issues.sort(
-                key=lambda x: (x["frequency"], x["impact"] == "High"), reverse=True,
-            )
+                key=lambda x: (x["frequency"], x["impact"] == "High"),
+                reverse=True)
 
             logger.info("Identified %s common compliance issues", len(common_issues))
             return common_issues
@@ -197,8 +185,8 @@ class AnalyticsService:
             return []
 
     def calculate_performance_metrics(
-        self, reports_data: list[dict[str, Any]],
-    ) -> dict[str, Any]:
+        self,
+        reports_data: list[dict[str, Any]]) -> dict[str, Any]:
         """Calculate key performance metrics for compliance analysis.
 
         Args:
@@ -214,11 +202,7 @@ class AnalyticsService:
 
             # Basic metrics
             total_reports = len(reports_data)
-            scores = [
-                r.get("compliance_score", 0)
-                for r in reports_data
-                if r.get("compliance_score") is not None
-            ]
+            scores = [r.get("compliance_score", 0) for r in reports_data if r.get("compliance_score") is not None]
 
             if not scores:
                 return {
@@ -268,9 +252,7 @@ class AnalyticsService:
                 "risk_distribution": dict(risk_counts),
                 "document_type_distribution": dict(doc_type_counts),
                 "document_type_averages": doc_type_averages,
-                "findings_per_report": (
-                    round(total_findings / total_reports, 2) if total_reports > 0 else 0
-                ),
+                "findings_per_report": (round(total_findings / total_reports, 2) if total_reports > 0 else 0),
             }
 
             logger.info("Performance metrics calculated successfully")
@@ -281,8 +263,9 @@ class AnalyticsService:
             return {"error": str(e)}
 
     def generate_insights(
-        self, reports_data: list[dict[str, Any]], trends: list[ComplianceTrend],
-    ) -> list[AnalyticsInsight]:
+        self,
+        reports_data: list[dict[str, Any]],
+        trends: list[ComplianceTrend]) -> list[AnalyticsInsight]:
         """Generate actionable insights from compliance data.
 
         Args:
@@ -299,9 +282,7 @@ class AnalyticsService:
             # Trend analysis insights
             if len(trends) >= 7:  # Need at least a week of data
                 recent_scores = [t.avg_score for t in trends[-7:]]
-                older_scores = (
-                    [t.avg_score for t in trends[-14:-7]] if len(trends) >= 14 else []
-                )
+                older_scores = [t.avg_score for t in trends[-14:-7]] if len(trends) >= 14 else []
 
                 if older_scores and recent_scores:
                     recent_avg = statistics.mean(recent_scores)
@@ -318,9 +299,7 @@ class AnalyticsService:
                                 data_points={
                                     "recent_avg": recent_avg,
                                     "older_avg": older_avg,
-                                },
-                            ),
-                        )
+                                }))
                     elif recent_avg > older_avg + 5:  # Significant improvement
                         insights.append(
                             AnalyticsInsight(
@@ -332,9 +311,7 @@ class AnalyticsService:
                                 data_points={
                                     "recent_avg": recent_avg,
                                     "older_avg": older_avg,
-                                },
-                            ),
-                        )
+                                }))
 
             # Common issues insights
             common_issues = self.identify_common_issues(reports_data, min_frequency=2)
@@ -347,9 +324,7 @@ class AnalyticsService:
                         description=f"Rule {top_issue['rule_id']} appears in {top_issue['frequency']} reports.",
                         impact_level=top_issue["impact"],
                         recommendation="Focus training and quality improvement efforts on this specific compliance area.",
-                        data_points=top_issue,
-                    ),
-                )
+                        data_points=top_issue))
 
             # Performance insights
             metrics = self.calculate_performance_metrics(reports_data)
@@ -363,9 +338,7 @@ class AnalyticsService:
                         description=f"Average compliance score of {avg_score}% is below the recommended 70% threshold.",
                         impact_level="High",
                         recommendation="Implement comprehensive compliance training and review documentation standards.",
-                        data_points={"current_score": avg_score, "target_score": 70},
-                    ),
-                )
+                        data_points={"current_score": avg_score, "target_score": 70}))
             elif avg_score > 90:
                 insights.append(
                     AnalyticsInsight(
@@ -374,9 +347,7 @@ class AnalyticsService:
                         description=f"Average compliance score of {avg_score}% exceeds excellence threshold.",
                         impact_level="Low",
                         recommendation="Maintain current practices and consider mentoring other teams.",
-                        data_points={"current_score": avg_score},
-                    ),
-                )
+                        data_points={"current_score": avg_score}))
 
             logger.info("Generated %s analytics insights", len(insights))
             return insights
@@ -386,8 +357,9 @@ class AnalyticsService:
             return []
 
     def export_analytics_data(
-        self, reports_data: list[dict[str, Any]], format_type: str = "summary",
-    ) -> dict[str, Any]:
+        self,
+        reports_data: list[dict[str, Any]],
+        format_type: str = "summary") -> dict[str, Any]:
         """Export analytics data in various formats for external analysis.
 
         Args:
@@ -455,6 +427,8 @@ class AnalyticsService:
             return {"error": str(e)}
 
 
+# Global analytics service instance
+# Global analytics service instance
 # Global analytics service instance
 analytics_service = AnalyticsService()
 

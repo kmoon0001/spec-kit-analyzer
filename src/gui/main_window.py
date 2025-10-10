@@ -1,4 +1,5 @@
 """Primary GUI window for the Therapy Compliance Analyzer - Refactored Version."""
+
 from __future__ import annotations
 
 import logging
@@ -154,9 +155,16 @@ class MainApplicationWindow(QMainWindow):
         # Easter egg attributes
         self.konami_sequence: list[Qt.Key] = []
         self.konami_code = [
-            Qt.Key.Key_Up, Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Down,
-            Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Left, Qt.Key.Key_Right,
-            Qt.Key.Key_B, Qt.Key.Key_A,
+            Qt.Key.Key_Up,
+            Qt.Key.Key_Up,
+            Qt.Key.Key_Down,
+            Qt.Key.Key_Down,
+            Qt.Key.Key_Left,
+            Qt.Key.Key_Right,
+            Qt.Key.Key_Left,
+            Qt.Key.Key_Right,
+            Qt.Key.Key_B,
+            Qt.Key.Key_A,
         ]
         self.developer_mode = False
         self.is_testing = False
@@ -241,33 +249,33 @@ class MainApplicationWindow(QMainWindow):
         """Get the stylesheet for the tab widget."""
         return f"""
             QTabWidget::pane {{
-                border: 2px solid {medical_theme.get_color('border_light')};
+                border: 2px solid {medical_theme.get_color("border_light")};
                 border-radius: 10px;
-                background: {medical_theme.get_color('bg_primary')};
+                background: {medical_theme.get_color("bg_primary")};
                 top: -2px;
             }}
             QTabBar::tab {{
-                background: {medical_theme.get_color('bg_secondary')};
-                border: 2px solid {medical_theme.get_color('border_light')};
+                background: {medical_theme.get_color("bg_secondary")};
+                border: 2px solid {medical_theme.get_color("border_light")};
                 border-bottom: none;
                 border-top-left-radius: 10px;
                 border-top-right-radius: 10px;
                 padding: 12px 24px;
                 margin-right: 6px;
-                color: {medical_theme.get_color('text_secondary')};
+                color: {medical_theme.get_color("text_secondary")};
                 font-weight: 700;
                 font-size: 12px;
                 min-width: 120px;
             }}
             QTabBar::tab:selected {{
                 background: white;
-                color: {medical_theme.get_color('primary_blue')};
+                color: {medical_theme.get_color("primary_blue")};
                 border-bottom: 2px solid white;
                 margin-bottom: -2px;
             }}
             QTabBar::tab:hover:!selected {{
-                background: {medical_theme.get_color('hover_bg')};
-                color: {medical_theme.get_color('primary_blue')};
+                background: {medical_theme.get_color("hover_bg")};
+                color: {medical_theme.get_color("primary_blue")};
             }}
         """
 
@@ -277,7 +285,9 @@ class MainApplicationWindow(QMainWindow):
         if MetaAnalyticsWidget:
             self.meta_analytics_dock = QDockWidget("Meta Analytics", self)
             self.meta_analytics_dock.setObjectName("MetaAnalyticsDock")
-            self.meta_analytics_dock.setAllowedAreas(Qt.DockWidgetArea.BottomDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
+            self.meta_analytics_dock.setAllowedAreas(
+                Qt.DockWidgetArea.BottomDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+            )
             self.meta_widget = MetaAnalyticsWidget()
             self.meta_widget.refresh_requested.connect(self.view_model.load_meta_analytics)
             self.meta_analytics_dock.setWidget(self.meta_widget)
@@ -288,7 +298,9 @@ class MainApplicationWindow(QMainWindow):
         if PerformanceStatusWidget:
             self.performance_dock = QDockWidget("Performance Status", self)
             self.performance_dock.setObjectName("PerformanceStatusDock")
-            self.performance_dock.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea | Qt.DockWidgetArea.BottomDockWidgetArea)
+            self.performance_dock.setAllowedAreas(
+                Qt.DockWidgetArea.RightDockWidgetArea | Qt.DockWidgetArea.BottomDockWidgetArea
+            )
             self.performance_widget = PerformanceStatusWidget()
             self.performance_dock.setWidget(self.performance_widget)
             self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.performance_dock)
@@ -337,7 +349,7 @@ class MainApplicationWindow(QMainWindow):
         """)
         self.progress_bar.hide()
         status.addPermanentWidget(self.progress_bar)
-        
+
         # Connect progress bar to analysis status
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
@@ -366,27 +378,29 @@ class MainApplicationWindow(QMainWindow):
         """Apply the comprehensive medical theme styling."""
         main_style = f"""
             QMainWindow {{
-                background-color: {medical_theme.get_color('bg_primary')};
-                color: {medical_theme.get_color('text_primary')};
+                background-color: {medical_theme.get_color("bg_primary")};
+                color: {medical_theme.get_color("text_primary")};
             }}
             QWidget {{
                 font-family: "Segoe UI", "Inter", Arial, sans-serif;
-                color: {medical_theme.get_color('text_primary')};
+                color: {medical_theme.get_color("text_primary")};
             }}
             QLabel {{
-                color: {medical_theme.get_color('text_primary')};
+                color: {medical_theme.get_color("text_primary")};
             }}
             QTextBrowser, QTextEdit {{
-                background-color: {medical_theme.get_color('bg_primary')};
-                color: {medical_theme.get_color('text_primary')};
-                border: 1px solid {medical_theme.get_color('border_light')};
+                background-color: {medical_theme.get_color("bg_primary")};
+                color: {medical_theme.get_color("text_primary")};
+                border: 1px solid {medical_theme.get_color("border_light")};
             }}
         """
 
-        combined_style = (main_style +
-                         medical_theme.get_main_window_stylesheet() +
-                         medical_theme.get_form_stylesheet() +
-                         medical_theme.get_card_stylesheet())
+        combined_style = (
+            main_style
+            + medical_theme.get_main_window_stylesheet()
+            + medical_theme.get_form_stylesheet()
+            + medical_theme.get_card_stylesheet()
+        )
 
         self.setStyleSheet(combined_style)
 
@@ -416,7 +430,9 @@ class MainApplicationWindow(QMainWindow):
             self.view_model.meta_analytics_loaded.connect(self.meta_widget.update_data)
         self.view_model.show_message_box_signal.connect(self._show_message_box)
 
-    def _show_message_box(self, title: str, text: str, icon_str: str, buttons: list[str], technical_details: str = "") -> None:
+    def _show_message_box(
+        self, title: str, text: str, icon_str: str, buttons: list[str], technical_details: str = ""
+    ) -> None:
         """Show a message box with the given parameters."""
         msg = QMessageBox(self)
         msg.setWindowTitle(title)
@@ -467,7 +483,9 @@ class MainApplicationWindow(QMainWindow):
 
             # Add comprehensive default Medicare rubrics
             default_rubrics = [
-                ("📋 Medicare Benefits Policy Manual - Chapter 15 (Covered Medical Services)", "medicare_benefits_policy_manual_ch15"),
+                (
+                    "📋 Medicare Benefits Policy Manual - Chapter 15 (Covered Medical Services)",
+                    "medicare_benefits_policy_manual_ch15"),
                 ("📋 Medicare Part B Outpatient Therapy Guidelines", "medicare_part_b_therapy_guidelines"),
                 ("📋 CMS-1500 Documentation Requirements", "cms_1500_documentation_requirements"),
                 ("📋 Medicare Therapy Cap & Exception Guidelines", "medicare_therapy_cap_guidelines"),
@@ -506,6 +524,7 @@ class MainApplicationWindow(QMainWindow):
         """Start system resource monitoring timer."""
         try:
             import importlib.util
+
             if importlib.util.find_spec("psutil") is not None:
                 self.has_psutil = True
                 self.resource_timer = QTimer()
@@ -686,7 +705,7 @@ class MainApplicationWindow(QMainWindow):
             else:
                 self.progress_bar.setFormat(f"{value}%")
             self.progress_bar.show()
-    
+
     def hide_progress(self) -> None:
         """Hide the progress bar."""
         if self.progress_bar:
@@ -696,7 +715,7 @@ class MainApplicationWindow(QMainWindow):
     def closeEvent(self, event) -> None:
         """Handle application close - exit quickly."""
         logger.debug("Application closing - cleaning up resources")
-        
+
         try:
             self._save_gui_settings()
         except (RuntimeError, AttributeError):
@@ -710,9 +729,10 @@ class MainApplicationWindow(QMainWindow):
 
         # Accept the close event first, then quit
         event.accept()
-        
+
         # Use QTimer to delay quit slightly to allow cleanup
         from PySide6.QtCore import QTimer
+
         QTimer.singleShot(100, QApplication.quit)
 
     def keyPressEvent(self, event) -> None:
@@ -752,8 +772,7 @@ class MainApplicationWindow(QMainWindow):
             "• Secret keyboard shortcuts active\n\n"
             "Welcome to the inner circle! 🕵️‍♂️\n\n"
             "Created with ❤️ by Kevin Moon\n"
-            "For all the amazing therapists out there!",
-        )
+            "For all the amazing therapists out there!")
 
         self.developer_mode = True
         self.statusBar().showMessage("🎮 Developer Mode Activated! Press Ctrl+Shift+D for console", 10000)
@@ -770,8 +789,7 @@ class MainApplicationWindow(QMainWindow):
             "while staying compliant with all those tricky regulations.\n\n"
             "Remember: You're making a real difference in people's lives! 💪\n\n"
             "Keep being awesome! 🌟\n\n"
-            "- Kevin 🫶",
-        )
+            "- Kevin 🫶")
 
     def _show_developer_console(self) -> None:
         """Show developer console dialog."""
@@ -781,16 +799,18 @@ class MainApplicationWindow(QMainWindow):
 
         console_text = f"""
 🔧 DEVELOPER CONSOLE 🔧
+🔧 DEVELOPER CONSOLE 🔧
+🔧 DEVELOPER CONSOLE 🔧
 
 System Information:
 - User: {self.current_user.username}
 - Theme: {medical_theme.current_theme}
 - Active Threads: {len(self.view_model._active_threads)}
-- Selected File: {self._selected_file.name if self._selected_file else 'None'}
-- Current Payload: {'Available' if self._current_payload else 'None'}
+- Selected File: {self._selected_file.name if self._selected_file else "None"}
+- Current Payload: {"Available" if self._current_payload else "None"}
 
 Memory Usage:
-- Python Objects: {len(__import__('gc').get_objects())} objects
+- Python Objects: {len(__import__("gc").get_objects())} objects
 - Cache Status: Active
 
 Debug Commands Available:

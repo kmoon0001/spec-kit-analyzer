@@ -1,5 +1,4 @@
-"""Micro-interactions and Animations - Smooth transitions and visual feedback.
-"""
+"""Micro-interactions and Animations - Smooth transitions and visual feedback."""
 
 from PySide6.QtCore import (
     QEasingCurve,
@@ -52,8 +51,7 @@ class AnimatedButton(QPushButton):
             current_rect.x() - 2,
             current_rect.y() - 1,
             current_rect.width() + 4,
-            current_rect.height() + 2,
-        )
+            current_rect.height() + 2)
 
         self.hover_animation.setStartValue(current_rect)
         self.hover_animation.setEndValue(hover_rect)
@@ -74,8 +72,7 @@ class AnimatedButton(QPushButton):
             current_rect.x() + 2,
             current_rect.y() + 1,
             current_rect.width() - 4,
-            current_rect.height() - 2,
-        )
+            current_rect.height() - 2)
 
         self.hover_animation.setStartValue(current_rect)
         self.hover_animation.setEndValue(original_rect)
@@ -96,8 +93,7 @@ class AnimatedButton(QPushButton):
             current_rect.x() + 1,
             current_rect.y() + 1,
             current_rect.width() - 2,
-            current_rect.height() - 2,
-        )
+            current_rect.height() - 2)
 
         self.click_animation.setStartValue(current_rect)
         self.click_animation.setEndValue(click_rect)
@@ -108,10 +104,6 @@ class FadeInWidget(QWidget):
     """Widget that fades in when shown."""
 
     fade_completed = Signal()
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setup_fade_animation()
 
     def setup_fade_animation(self):
         """Setup fade in animation."""
@@ -148,11 +140,6 @@ class SlideInWidget(QWidget):
 
     slide_completed = Signal()
 
-    def __init__(self, direction: str = "left", parent=None):
-        super().__init__(parent)
-        self.direction = direction
-        self.setup_slide_animation()
-
     def setup_slide_animation(self):
         """Setup slide animation."""
         self.slide_animation = QPropertyAnimation(self, b"geometry")
@@ -174,29 +161,25 @@ class SlideInWidget(QWidget):
                 -final_rect.width(),
                 final_rect.y(),
                 final_rect.width(),
-                final_rect.height(),
-            )
+                final_rect.height())
         elif self.direction == "right":
             start_rect = QRect(
                 parent_rect.width(),
                 final_rect.y(),
                 final_rect.width(),
-                final_rect.height(),
-            )
+                final_rect.height())
         elif self.direction == "top":
             start_rect = QRect(
                 final_rect.x(),
                 -final_rect.height(),
                 final_rect.width(),
-                final_rect.height(),
-            )
+                final_rect.height())
         else:  # bottom
             start_rect = QRect(
                 final_rect.x(),
                 parent_rect.height(),
                 final_rect.width(),
-                final_rect.height(),
-            )
+                final_rect.height())
 
         self.setGeometry(start_rect)
         self.slide_animation.setStartValue(start_rect)
@@ -206,11 +189,6 @@ class SlideInWidget(QWidget):
 
 class PulseAnimation(QWidget):
     """Widget with pulsing animation for notifications."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setup_pulse_animation()
-        self.is_pulsing = False
 
     def setup_pulse_animation(self):
         """Setup pulse animation."""
@@ -261,12 +239,6 @@ class PulseAnimation(QWidget):
 class LoadingSpinner(QLabel):
     """Animated loading spinner."""
 
-    def __init__(self, size: int = 32, parent=None):
-        super().__init__(parent)
-        self.size = size
-        self.angle = 0
-        self.setup_spinner()
-
     def setup_spinner(self):
         """Setup spinner animation."""
         self.setFixedSize(self.size, self.size)
@@ -316,11 +288,6 @@ class LoadingSpinner(QLabel):
 class ProgressRipple(QWidget):
     """Ripple effect for progress indication."""
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.ripples = []
-        self.setup_ripple_timer()
-
     def setup_ripple_timer(self):
         """Setup ripple animation timer."""
         self.ripple_timer = QTimer()
@@ -344,32 +311,6 @@ class ProgressRipple(QWidget):
         if self.ripples:
             self.update()
 
-    def paintEvent(self, event):
-        """Paint ripples."""
-        from PySide6.QtGui import QBrush, QPainter
-
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        for ripple in self.ripples:
-            color = QColor(59, 130, 246, int(ripple["opacity"] * 100))
-            brush = QBrush(color)
-            painter.setBrush(brush)
-            painter.setPen(Qt.PenStyle.NoPen)
-
-            center = ripple["center"]
-            radius = ripple["radius"]
-            painter.drawEllipse(center, radius, radius)
-
-
-class SmartTooltip(QLabel):
-    """Enhanced tooltip with rich content and animations."""
-
-    def __init__(self, content: str, parent=None):
-        super().__init__(parent)
-        self.content = content
-        self.setup_tooltip()
-
     def setup_tooltip(self):
         """Setup enhanced tooltip."""
         self.setWindowFlags(Qt.WindowType.ToolTip)
@@ -387,8 +328,7 @@ class SmartTooltip(QLabel):
                 font-size: 11px;
                 max-width: 250px;
             }
-        """,
-        )
+        """)
 
         self.setText(self.content)
         self.setWordWrap(True)

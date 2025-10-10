@@ -1,4 +1,6 @@
 """System Validator - Clean Version
+import requests
+from requests.exceptions import HTTPError
 
 Comprehensive system validation to ensure all components are properly integrated.
 """
@@ -61,15 +63,16 @@ class SystemValidator:
         all_results = []
         for result in results:
             if isinstance(result, Exception):
-                all_results.append(ValidationResult(
-                    component="system_validator",
-                    test_name="validation_execution",
-                    status=ValidationStatus.FAIL,
-                    message=f"Validation failed: {result!s}",
-                    details={"exception": str(result)},
-                    duration_ms=0,
-                    timestamp=datetime.now(),
-                ))
+                all_results.append(
+                    ValidationResult(
+                        component="system_validator",
+                        test_name="validation_execution",
+                        status=ValidationStatus.FAIL,
+                        message=f"Validation failed: {result!s}",
+                        details={"exception": str(result)},
+                        duration_ms=0,
+                        timestamp=datetime.now())
+                )
             elif isinstance(result, list):
                 all_results.extend(result)
             else:
@@ -98,31 +101,34 @@ class SystemValidator:
             start_time = datetime.now()
             try:
                 import importlib
+
                 module = importlib.import_module(module_path)
                 assert module is not None
 
                 duration = (datetime.now() - start_time).total_seconds() * 1000
-                results.append(ValidationResult(
-                    component="core_services",
-                    test_name=f"import_{service_name}",
-                    status=ValidationStatus.PASS,
-                    message=f"{service_name} imported successfully",
-                    details={"module": module_path},
-                    duration_ms=duration,
-                    timestamp=datetime.now(),
-                ))
+                results.append(
+                    ValidationResult(
+                        component="core_services",
+                        test_name=f"import_{service_name}",
+                        status=ValidationStatus.PASS,
+                        message=f"{service_name} imported successfully",
+                        details={"module": module_path},
+                        duration_ms=duration,
+                        timestamp=datetime.now())
+                )
 
-            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+            except (FileNotFoundError, PermissionError, OSError) as e:
                 duration = (datetime.now() - start_time).total_seconds() * 1000
-                results.append(ValidationResult(
-                    component="core_services",
-                    test_name=f"import_{service_name}",
-                    status=ValidationStatus.FAIL,
-                    message=f"Failed to import {service_name}: {e!s}",
-                    details={"error": str(e), "module": module_path},
-                    duration_ms=duration,
-                    timestamp=datetime.now(),
-                ))
+                results.append(
+                    ValidationResult(
+                        component="core_services",
+                        test_name=f"import_{service_name}",
+                        status=ValidationStatus.FAIL,
+                        message=f"Failed to import {service_name}: {e!s}",
+                        details={"error": str(e), "module": module_path},
+                        duration_ms=duration,
+                        timestamp=datetime.now())
+                )
 
         return results
 
@@ -134,30 +140,33 @@ class SystemValidator:
         start_time = datetime.now()
         try:
             from src.api.main import app
+
             assert app is not None
 
             duration = (datetime.now() - start_time).total_seconds() * 1000
-            results.append(ValidationResult(
-                component="api_endpoints",
-                test_name="main_app_import",
-                status=ValidationStatus.PASS,
-                message="FastAPI application imported successfully",
-                details={},
-                duration_ms=duration,
-                timestamp=datetime.now(),
-            ))
+            results.append(
+                ValidationResult(
+                    component="api_endpoints",
+                    test_name="main_app_import",
+                    status=ValidationStatus.PASS,
+                    message="FastAPI application imported successfully",
+                    details={},
+                    duration_ms=duration,
+                    timestamp=datetime.now())
+            )
 
         except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             duration = (datetime.now() - start_time).total_seconds() * 1000
-            results.append(ValidationResult(
-                component="api_endpoints",
-                test_name="main_app_import",
-                status=ValidationStatus.FAIL,
-                message=f"Failed to import FastAPI app: {e!s}",
-                details={"error": str(e)},
-                duration_ms=duration,
-                timestamp=datetime.now(),
-            ))
+            results.append(
+                ValidationResult(
+                    component="api_endpoints",
+                    test_name="main_app_import",
+                    status=ValidationStatus.FAIL,
+                    message=f"Failed to import FastAPI app: {e!s}",
+                    details={"error": str(e)},
+                    duration_ms=duration,
+                    timestamp=datetime.now())
+            )
 
         return results
 
@@ -175,32 +184,33 @@ class SystemValidator:
         for feature_name, module_path in features_to_test:
             start_time = datetime.now()
             try:
-                import importlib
                 module = importlib.import_module(module_path)
                 assert module is not None
 
                 duration = (datetime.now() - start_time).total_seconds() * 1000
-                results.append(ValidationResult(
-                    component="new_features",
-                    test_name=f"import_{feature_name}",
-                    status=ValidationStatus.PASS,
-                    message=f"{feature_name} imported successfully",
-                    details={"module": module_path},
-                    duration_ms=duration,
-                    timestamp=datetime.now(),
-                ))
+                results.append(
+                    ValidationResult(
+                        component="new_features",
+                        test_name=f"import_{feature_name}",
+                        status=ValidationStatus.PASS,
+                        message=f"{feature_name} imported successfully",
+                        details={"module": module_path},
+                        duration_ms=duration,
+                        timestamp=datetime.now())
+                )
 
-            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+            except (FileNotFoundError, PermissionError, OSError) as e:
                 duration = (datetime.now() - start_time).total_seconds() * 1000
-                results.append(ValidationResult(
-                    component="new_features",
-                    test_name=f"import_{feature_name}",
-                    status=ValidationStatus.FAIL,
-                    message=f"Failed to import {feature_name}: {e!s}",
-                    details={"error": str(e), "module": module_path},
-                    duration_ms=duration,
-                    timestamp=datetime.now(),
-                ))
+                results.append(
+                    ValidationResult(
+                        component="new_features",
+                        test_name=f"import_{feature_name}",
+                        status=ValidationStatus.FAIL,
+                        message=f"Failed to import {feature_name}: {e!s}",
+                        details={"error": str(e), "module": module_path},
+                        duration_ms=duration,
+                        timestamp=datetime.now())
+                )
 
         return results
 
@@ -230,5 +240,7 @@ class SystemValidator:
         return ValidationStatus.SKIP
 
 
+# Global system validator instance
+# Global system validator instance
 # Global system validator instance
 system_validator = SystemValidator()

@@ -8,9 +8,13 @@ with related medical terms, synonyms, and contextual information.
 import json
 import logging
 import re
+import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+import sqlalchemy
+import sqlalchemy.exc
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +38,8 @@ class ExpansionResult:
             sorted_expanded = sorted(
                 self.expanded_terms,
                 key=lambda t: self.confidence_scores.get(t, 0.0),
-                reverse=True,
-            )
-            all_terms = [self.original_query] + sorted_expanded[:max_terms-1]
+                reverse=True)
+            all_terms = [self.original_query] + sorted_expanded[: max_terms - 1]
 
         return " ".join(all_terms)
 
@@ -74,7 +77,7 @@ class MedicalVocabulary:
 
             logger.info("Loaded medical vocabulary from %s", vocab_file)
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError):
             logger.warning("Failed to load vocabulary file %s: {e}", vocab_file)
             self._initialize_default_vocabulary()
 
@@ -136,36 +139,68 @@ class MedicalVocabulary:
         # Specialty-specific terms
         self.specialties = {
             "physical_therapy": [
-                "gait training", "therapeutic exercise", "manual therapy",
-                "modalities", "strengthening", "stretching", "endurance",
-                "balance training", "transfer training", "mobility training",
+                "gait training",
+                "therapeutic exercise",
+                "manual therapy",
+                "modalities",
+                "strengthening",
+                "stretching",
+                "endurance",
+                "balance training",
+                "transfer training",
+                "mobility training",
             ],
             "occupational_therapy": [
-                "activities of daily living", "instrumental activities",
-                "cognitive rehabilitation", "adaptive equipment",
-                "work hardening", "sensory integration", "fine motor skills",
-                "visual perceptual skills", "home safety", "driving assessment",
+                "activities of daily living",
+                "instrumental activities",
+                "cognitive rehabilitation",
+                "adaptive equipment",
+                "work hardening",
+                "sensory integration",
+                "fine motor skills",
+                "visual perceptual skills",
+                "home safety",
+                "driving assessment",
             ],
             "speech_therapy": [
-                "articulation", "phonology", "fluency", "voice therapy",
-                "language therapy", "swallowing therapy", "dysphagia",
-                "aphasia", "dysarthria", "apraxia", "cognitive communication",
+                "articulation",
+                "phonology",
+                "fluency",
+                "voice therapy",
+                "language therapy",
+                "swallowing therapy",
+                "dysphagia",
+                "aphasia",
+                "dysarthria",
+                "apraxia",
+                "cognitive communication",
             ],
         }
 
         # Treatment-related terms
         self.treatments = {
             "therapeutic_exercise": [
-                "strengthening exercises", "range of motion exercises",
-                "flexibility training", "endurance training", "conditioning",
+                "strengthening exercises",
+                "range of motion exercises",
+                "flexibility training",
+                "endurance training",
+                "conditioning",
             ],
             "manual_therapy": [
-                "joint mobilization", "soft tissue mobilization",
-                "massage", "myofascial release", "trigger point therapy",
+                "joint mobilization",
+                "soft tissue mobilization",
+                "massage",
+                "myofascial release",
+                "trigger point therapy",
             ],
             "modalities": [
-                "heat therapy", "cold therapy", "electrical stimulation",
-                "ultrasound", "laser therapy", "TENS", "biofeedback",
+                "heat therapy",
+                "cold therapy",
+                "electrical stimulation",
+                "ultrasound",
+                "laser therapy",
+                "TENS",
+                "biofeedback",
             ],
         }
 
@@ -224,28 +259,16 @@ class MedicalVocabulary:
             with open(vocab_file, "w", encoding="utf-8") as f:
                 json.dump(vocab_data, f, indent=2, ensure_ascii=False)
             logger.info("Saved medical vocabulary to %s", vocab_file)
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError):
             logger.exception("Failed to save vocabulary to %s: {e}", vocab_file)
 
 
 class SemanticExpander:
     """Semantic query expansion using embeddings and similarity."""
 
-    def __init__(self, embedding_model=None):
-        """Initialize semantic expander.
-
-        Args:
-            embedding_model: Pre-trained embedding model (optional)
-
-        """
-        self.embedding_model = embedding_model
-        self.medical_terms_cache: dict[str, list[tuple[str, float]]] = {}
-
-    def expand_semantically(self,
-                          query: str,
-                          context_terms: list[str],
-                          max_expansions: int = 5,
-                          similarity_threshold: float = 0.7) -> list[tuple[str, float]]:
+    def expand_semantically(
+        self, query: str, context_terms: list[str], max_expansions: int = 5, similarity_threshold: float = 0.7
+    ) -> list[tuple[str, float]]:
         """Expand query using semantic similarity.
 
         Args:
@@ -295,43 +318,19 @@ class SemanticExpander:
     def _cosine_similarity(self, vec1, vec2) -> float:
         """Calculate cosine similarity between two vectors."""
         import numpy as np
+
         return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
 
 
 class QueryExpander:
     """Main query expansion service combining multiple expansion strategies."""
 
-    def __init__(self,
-                 medical_vocab: MedicalVocabulary | None = None,
-                 semantic_expander: SemanticExpander | None = None):
-        """Initialize query expander.
-
-        Args:
-            medical_vocab: Medical vocabulary for synonym expansion
-            semantic_expander: Semantic expander for similarity-based expansion
-
-        """
-        self.medical_vocab = medical_vocab or MedicalVocabulary()
-        self.semantic_expander = semantic_expander or SemanticExpander()
-
-        # Expansion configuration
-        self.max_total_expansions = 10
-        self.synonym_weight = 0.9
-        self.abbreviation_weight = 0.8
-        self.specialty_weight = 0.7
-        self.semantic_weight = 0.6
-
-        # Term extraction patterns
-        self.medical_term_pattern = re.compile(
-            r"\b(?:PT|OT|SLP|ROM|ADL|IADL|therapy|treatment|assessment|goals?|progress|function|mobility|strength|pain|discharge)\b",
-            re.IGNORECASE,
-        )
-
-    def expand_query(self,
-                    query: str,
-                    discipline: str | None = None,
-                    document_type: str | None = None,
-                    context_entities: list[str] | None = None) -> ExpansionResult:
+    def expand_query(
+        self,
+        query: str,
+        discipline: str | None = None,
+        document_type: str | None = None,
+        context_entities: list[str] | None = None) -> ExpansionResult:
         """Expand a query using multiple expansion strategies.
 
         Args:
@@ -409,7 +408,7 @@ class QueryExpander:
         if len(unique_terms) > self.max_total_expansions:
             # Sort by confidence and keep top terms
             unique_terms.sort(key=lambda t: confidence_scores.get(t, 0.0), reverse=True)
-            unique_terms = unique_terms[:self.max_total_expansions]
+            unique_terms = unique_terms[: self.max_total_expansions]
 
         result = ExpansionResult(
             original_query=query,
@@ -430,17 +429,27 @@ class QueryExpander:
         # Filter for medical terms and important words
         key_terms = []
         for word in words:
-            if (len(word) > 2 and  # Skip very short words
-                (self.medical_term_pattern.search(word) or
-                 word in self.medical_vocab.synonyms or
-                 word.upper() in self.medical_vocab.abbreviations)):
+            if (
+                len(word) > 2  # Skip very short words
+                and (
+                    self.medical_term_pattern.search(word)
+                    or word in self.medical_vocab.synonyms
+                    or word.upper() in self.medical_vocab.abbreviations
+                )
+            ):
                 key_terms.append(word)
 
         # Also include multi-word medical phrases
         medical_phrases = [
-            "physical therapy", "occupational therapy", "speech therapy",
-            "range of motion", "activities of daily living", "manual muscle testing",
-            "plan of care", "medical necessity", "treatment frequency",
+            "physical therapy",
+            "occupational therapy",
+            "speech therapy",
+            "range of motion",
+            "activities of daily living",
+            "manual muscle testing",
+            "plan of care",
+            "medical necessity",
+            "treatment frequency",
         ]
 
         query_lower = query.lower()
@@ -477,8 +486,9 @@ class QueryExpander:
         for term in specialty_terms:
             term_words = set(term.lower().split())
             # Include if there's word overlap or if it's a common term for the discipline
-            if (term_words & query_words or
-                any(word in query.lower() for word in ["assessment", "treatment", "therapy", "goals", "progress"])):
+            if term_words & query_words or any(
+                word in query.lower() for word in ["assessment", "treatment", "therapy", "goals", "progress"]
+            ):
                 relevant_terms.append(term)
 
         return relevant_terms[:3]  # Limit to top 3 specialty terms
@@ -492,9 +502,13 @@ class QueryExpander:
         for entity in context_entities:
             entity_lower = entity.lower()
             # Include medical terms, treatments, and assessments
-            if (any(keyword in entity_lower for keyword in
-                   ["therapy", "treatment", "assessment", "exercise", "training", "intervention"]) or
-                len(entity) > 3):  # Include longer entities
+            if (
+                any(
+                    keyword in entity_lower
+                    for keyword in ["therapy", "treatment", "assessment", "exercise", "training", "intervention"]
+                )
+                or len(entity) > 3
+            ):  # Include longer entities
                 relevant_entities.append(entity)
 
         # Get synonyms for relevant entities

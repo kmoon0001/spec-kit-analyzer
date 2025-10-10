@@ -56,15 +56,16 @@ class ErrorContext:
 class EnhancedError(Exception):
     """Enhanced exception class with rich context and recovery suggestions."""
 
-    def __init__(self,
-                 message: str,
-                 severity: ErrorSeverity = ErrorSeverity.MEDIUM,
-                 category: ErrorCategory = ErrorCategory.SYSTEM,
-                 component: str = "unknown",
-                 user_message: str | None = None,
-                 recovery_suggestions: list[str] | None = None,
-                 technical_details: dict[str, Any] | None = None,
-                 original_exception: Exception | None = None):
+    def __init__(
+        self,
+        message: str,
+        severity: ErrorSeverity = ErrorSeverity.MEDIUM,
+        category: ErrorCategory = ErrorCategory.SYSTEM,
+        component: str = "unknown",
+        user_message: str | None = None,
+        recovery_suggestions: list[str] | None = None,
+        technical_details: dict[str, Any] | None = None,
+        original_exception: Exception | None = None):
         super().__init__(message)
 
         self.error_id = str(uuid.uuid4())
@@ -126,22 +127,13 @@ class ErrorHandler:
 
     """
 
-    def __init__(self):
-        """Initialize the enhanced error handler."""
-        self.error_patterns = {}
-        self.recovery_strategies = {}
-        self.error_history = []
-        self.max_history_size = 1000
-
-        self._initialize_recovery_strategies()
-        logger.info("Enhanced error handler initialized")
-
-    def handle_error(self,
-                    exception: Exception,
-                    component: str,
-                    operation: str | None = None,
-                    user_id: int | None = None,
-                    context: dict[str, Any] | None = None) -> EnhancedError:
+    def handle_error(
+        self,
+        exception: Exception,
+        component: str,
+        operation: str | None = None,
+        user_id: int | None = None,
+        context: dict[str, Any] | None = None) -> EnhancedError:
         """Handle an exception with enhanced error processing.
 
         Args:
@@ -175,8 +167,7 @@ class ErrorHandler:
                     "context": context or {},
                     "operation": operation,
                 },
-                original_exception=exception,
-            )
+                original_exception=exception)
 
             # Log the error
             self._log_error(enhanced_error, user_id)
@@ -196,14 +187,11 @@ class ErrorHandler:
                 message="Critical system error occurred",
                 severity=ErrorSeverity.CRITICAL,
                 category=ErrorCategory.SYSTEM,
-                component="error_handler",
-            )
+                component="error_handler")
 
-    async def handle_with_retry(self,
-                              operation: Callable,
-                              max_retries: int = 3,
-                              component: str = "unknown",
-                              backoff_factor: float = 1.0) -> Any:
+    async def handle_with_retry(
+        self, operation: Callable, max_retries: int = 3, component: str = "unknown", backoff_factor: float = 1.0
+    ) -> Any:
         """Execute an operation with automatic retry on transient errors.
 
         Args:
@@ -226,6 +214,7 @@ class ErrorHandler:
                 if attempt > 0:
                     # Exponential backoff
                     import asyncio
+
                     await asyncio.sleep(backoff_factor * (2 ** (attempt - 1)))
 
                 return await operation() if asyncio.iscoroutinefunction(operation) else operation()
@@ -281,10 +270,7 @@ class ErrorHandler:
 
         return severity, category
 
-    def _get_recovery_suggestions(self,
-                                exception: Exception,
-                                category: ErrorCategory,
-                                component: str) -> list[str]:
+    def _get_recovery_suggestions(self, exception: Exception, category: ErrorCategory, component: str) -> list[str]:
         """Generate recovery suggestions based on error type."""
         suggestions = []
 
@@ -331,23 +317,29 @@ class ErrorHandler:
 
         # Component-specific suggestions
         if component == "pdf_export":
-            suggestions.extend([
-                "Ensure the PDF export service is properly configured",
-                "Try exporting a smaller report",
-                "Check available disk space",
-            ])
+            suggestions.extend(
+                [
+                    "Ensure the PDF export service is properly configured",
+                    "Try exporting a smaller report",
+                    "Check available disk space",
+                ]
+            )
         elif component == "plugin_system":
-            suggestions.extend([
-                "Verify the plugin is compatible with this version",
-                "Check plugin dependencies",
-                "Try disabling and re-enabling the plugin",
-            ])
+            suggestions.extend(
+                [
+                    "Verify the plugin is compatible with this version",
+                    "Check plugin dependencies",
+                    "Try disabling and re-enabling the plugin",
+                ]
+            )
         elif component == "ehr_integration":
-            suggestions.extend([
-                "Verify EHR system credentials and connection settings",
-                "Check if the EHR system is accessible",
-                "Contact your EHR administrator",
-            ])
+            suggestions.extend(
+                [
+                    "Verify EHR system credentials and connection settings",
+                    "Check if the EHR system is accessible",
+                    "Contact your EHR administrator",
+                ]
+            )
 
         return suggestions[:5]  # Limit to top 5 suggestions
 
@@ -370,8 +362,7 @@ class ErrorHandler:
         exception_type = type(exception).__name__
         exception_message = str(exception).lower()
 
-        return (exception_type in retryable_types or
-                any(msg in exception_message for msg in retryable_messages))
+        return exception_type in retryable_types or any(msg in exception_message for msg in retryable_messages)
 
     def _log_error(self, error: EnhancedError, user_id: int | None):
         """Log error with appropriate level and context."""
@@ -393,17 +384,19 @@ class ErrorHandler:
 
     def _store_error_history(self, error: EnhancedError):
         """Store error in history for pattern analysis."""
-        self.error_history.append({
-            "timestamp": error.timestamp,
-            "component": error.component,
-            "category": error.category.value,
-            "severity": error.severity.value,
-            "error_type": type(error.original_exception).__name__ if error.original_exception else "Unknown",
-        })
+        self.error_history.append(
+            {
+                "timestamp": error.timestamp,
+                "component": error.component,
+                "category": error.category.value,
+                "severity": error.severity.value,
+                "error_type": type(error.original_exception).__name__ if error.original_exception else "Unknown",
+            }
+        )
 
         # Maintain history size limit
         if len(self.error_history) > self.max_history_size:
-            self.error_history = self.error_history[-self.max_history_size:]
+            self.error_history = self.error_history[-self.max_history_size :]
 
     def _analyze_error_patterns(self, error: EnhancedError):
         """Analyze error patterns for proactive prevention."""
@@ -457,5 +450,7 @@ class ErrorHandler:
         }
 
 
+# Global enhanced error handler instance
+# Global enhanced error handler instance
 # Global enhanced error handler instance
 enhanced_error_handler = ErrorHandler()

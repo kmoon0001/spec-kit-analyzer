@@ -1,7 +1,9 @@
 """UI-related event handlers for the main window."""
+
 from __future__ import annotations
 
 import logging
+import sqlite3
 import subprocess
 import sys
 import webbrowser
@@ -9,6 +11,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
 
+import sqlalchemy
+import sqlalchemy.exc
 from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import QDialog, QInputDialog, QLineEdit, QMessageBox, QTextBrowser, QVBoxLayout
 
@@ -126,13 +130,16 @@ class UIHandlers:
                 "🎉 Easter Egg Found!",
                 "You found the secret! 🌴\n\n"
                 "Pacific Coast Therapy - Where compliance meets excellence!\n\n"
-                "Keep up the great documentation work! 💪",
-            )
+                "Keep up the great documentation work! 💪")
             self.main_window.statusBar().showMessage("🎉 Easter egg activated!", 5000)
 
     def on_model_status_clicked(self, model_name: str) -> None:
         """Handle clicks on AI model status indicators with detailed descriptions."""
-        status = self.main_window.status_component.models.get(model_name, False) if self.main_window.status_component else False
+        status = (
+            self.main_window.status_component.models.get(model_name, False)
+            if self.main_window.status_component
+            else False
+        )
         status_text = "✅ Ready" if status else "❌ Not Ready"
 
         # Detailed model descriptions with complete transparency - Updated with real models
@@ -143,7 +150,12 @@ class UIHandlers:
                 "function": "Creates human-readable explanations of compliance issues and actionable advice",
                 "technology": "Microsoft Phi-2 (2.7B parameters) or Mistral-7B (quantized) - chosen for medical accuracy and local processing capability",
                 "why_chosen": "Selected for excellent reasoning capabilities, medical knowledge, and ability to run locally for privacy",
-                "use_cases": ["Compliance recommendations", "Report generation", "Improvement suggestions", "Personalized feedback"],
+                "use_cases": [
+                    "Compliance recommendations",
+                    "Report generation",
+                    "Improvement suggestions",
+                    "Personalized feedback",
+                ],
             },
             "FAISS+BM25": {
                 "full_name": "Hybrid Retrieval-Augmented Generation (RAG) System",
@@ -151,7 +163,12 @@ class UIHandlers:
                 "function": "Combines semantic search (FAISS) with keyword matching (BM25) for precise rule retrieval",
                 "technology": "FAISS vector database + BM25 ranking algorithm with hybrid scoring",
                 "why_chosen": "Hybrid approach ensures both semantic understanding and exact keyword matching for comprehensive rule coverage",
-                "use_cases": ["Rule matching", "Guideline retrieval", "Context-aware search", "Compliance verification"],
+                "use_cases": [
+                    "Rule matching",
+                    "Guideline retrieval",
+                    "Context-aware search",
+                    "Compliance verification",
+                ],
             },
             "Fact Checker": {
                 "full_name": "AI Fact Verification & Confidence Scoring System",
@@ -159,7 +176,12 @@ class UIHandlers:
                 "function": "Cross-references findings against multiple sources and applies confidence scoring to ensure accuracy",
                 "technology": "Secondary transformer model with specialized verification algorithms and uncertainty quantification",
                 "why_chosen": "Critical for medical compliance - reduces false positives and provides confidence metrics for clinical decision-making",
-                "use_cases": ["Finding verification", "Accuracy validation", "Confidence scoring", "False positive reduction"],
+                "use_cases": [
+                    "Finding verification",
+                    "Accuracy validation",
+                    "Confidence scoring",
+                    "False positive reduction",
+                ],
             },
             "BioBERT": {
                 "full_name": "Biomedical Named Entity Recognition (BioBERT)",
@@ -167,7 +189,12 @@ class UIHandlers:
                 "function": "Identifies biomedical entities, drug names, diseases, and general medical terminology",
                 "technology": "BioBERT - BERT pre-trained on biomedical literature (PubMed abstracts and PMC full-text articles)",
                 "why_chosen": "Specifically trained on biomedical texts, excels at general medical terminology and research-based language",
-                "use_cases": ["Biomedical term extraction", "Drug and disease identification", "Research terminology", "General medical concepts"],
+                "use_cases": [
+                    "Biomedical term extraction",
+                    "Drug and disease identification",
+                    "Research terminology",
+                    "General medical concepts",
+                ],
             },
             "ClinicalBERT": {
                 "full_name": "Clinical Named Entity Recognition (ClinicalBERT)",
@@ -175,7 +202,12 @@ class UIHandlers:
                 "function": "Identifies medical entities, conditions, treatments, and clinical terminology with high precision",
                 "technology": "BioBERT (biomedical BERT) + ClinicalBERT - dual model approach for comprehensive medical entity extraction",
                 "why_chosen": "BioBERT excels at general biomedical terms, ClinicalBERT specializes in clinical notes - together they provide comprehensive coverage",
-                "use_cases": ["Medical term extraction", "Clinical concept identification", "Entity linking", "Medical terminology validation"],
+                "use_cases": [
+                    "Medical term extraction",
+                    "Clinical concept identification",
+                    "Entity linking",
+                    "Medical terminology validation",
+                ],
             },
             "Chat Assistant": {
                 "full_name": "Conversational AI Assistant (Local LLM)",
@@ -195,13 +227,15 @@ class UIHandlers:
             },
         }
 
-        model_info = model_descriptions.get(model_name, {
-            "full_name": model_name,
-            "description": "AI model for compliance analysis",
-            "function": "Supports document analysis and compliance checking",
-            "technology": "Local AI processing",
-            "use_cases": ["Compliance analysis"],
-        })
+        model_info = model_descriptions.get(
+            model_name,
+            {
+                "full_name": model_name,
+                "description": "AI model for compliance analysis",
+                "function": "Supports document analysis and compliance checking",
+                "technology": "Local AI processing",
+                "use_cases": ["Compliance analysis"],
+            })
 
         # Create detailed popup
         dialog = QDialog(self.main_window)
@@ -236,7 +270,7 @@ class UIHandlers:
         # Generate detailed HTML content
         html_content = f"""
         <div style='font-family: Segoe UI; line-height: 1.6;'>
-            <h2 style='color: #1d4ed8; margin-top: 0;'>🤖 {model_info['full_name']}</h2>
+            <h2 style='color: #1d4ed8; margin-top: 0;'>🤖 {model_info["full_name"]}</h2>
 
             <div style='background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #0ea5e9;'>
                 <h3 style='color: #0ea5e9; margin-top: 0;'>Current Status</h3>
@@ -245,28 +279,28 @@ class UIHandlers:
 
             <div style='background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;'>
                 <h3 style='color: #334155; margin-top: 0;'>Description</h3>
-                <p style='color: #475569;'>{model_info['description']}</p>
+                <p style='color: #475569;'>{model_info["description"]}</p>
             </div>
 
             <div style='background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 15px 0;'>
                 <h3 style='color: #059669; margin-top: 0;'>Function in System</h3>
-                <p style='color: #475569;'>{model_info['function']}</p>
+                <p style='color: #475569;'>{model_info["function"]}</p>
             </div>
 
             <div style='background: #fef7ff; padding: 15px; border-radius: 8px; margin: 15px 0;'>
                 <h3 style='color: #7c3aed; margin-top: 0;'>Technology</h3>
-                <p style='color: #475569;'>{model_info['technology']}</p>
+                <p style='color: #475569;'>{model_info["technology"]}</p>
             </div>
 
             <div style='background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 15px 0;'>
                 <h3 style='color: #0ea5e9; margin-top: 0;'>Why This Model Was Chosen</h3>
-                <p style='color: #475569;'>{model_info.get('why_chosen', 'Selected for optimal performance in medical compliance analysis.')}</p>
+                <p style='color: #475569;'>{model_info.get("why_chosen", "Selected for optimal performance in medical compliance analysis.")}</p>
             </div>
 
             <div style='background: #fffbeb; padding: 15px; border-radius: 8px; margin: 15px 0;'>
                 <h3 style='color: #d97706; margin-top: 0;'>Use Cases</h3>
                 <ul style='color: #475569; margin: 0; padding-left: 20px;'>
-                    {"".join([f"<li>{use_case}</li>" for use_case in model_info['use_cases']])}
+                    {"".join([f"<li>{use_case}</li>" for use_case in model_info["use_cases"]])}
                 </ul>
             </div>
 
@@ -313,19 +347,29 @@ class UIHandlers:
 
             if action == "correct":
                 self.main_window.view_model.submit_feedback({"finding_id": finding_id, "is_correct": True})
-                self.main_window.statusBar().showMessage(f"Feedback for finding {finding_id[:8]}... marked as correct.", 3000)
+                self.main_window.statusBar().showMessage(
+                    f"Feedback for finding {finding_id[:8]}... marked as correct.", 3000
+                )
             elif action == "incorrect":
-                correction, ok = QInputDialog.getText(self.main_window, "Submit Correction", "Please provide a brief correction:")
+                correction, ok = QInputDialog.getText(
+                    self.main_window, "Submit Correction", "Please provide a brief correction:"
+                )
                 if ok and correction:
-                    self.main_window.view_model.submit_feedback({"finding_id": finding_id, "is_correct": False, "correction": correction})
-                    self.main_window.statusBar().showMessage(f"Correction for finding {finding_id[:8]}... submitted.", 3000)
+                    self.main_window.view_model.submit_feedback(
+                        {"finding_id": finding_id, "is_correct": False, "correction": correction}
+                    )
+                    self.main_window.statusBar().showMessage(
+                        f"Correction for finding {finding_id[:8]}... submitted.", 3000
+                    )
         else:
             webbrowser.open(url.toString())
 
     def open_report_popup(self) -> None:
         """Open the full report in a popup window."""
         if not self.main_window._current_payload:
-            QMessageBox.information(self.main_window, "No Report", "No analysis report available yet. Please run an analysis first.")
+            QMessageBox.information(
+                self.main_window, "No Report", "No analysis report available yet. Please run an analysis first."
+            )
             return
 
         # Create popup dialog
@@ -348,9 +392,11 @@ class UIHandlers:
         # Load report
         analysis = self.main_window._current_payload.get("analysis", {})
         doc_name = self.main_window._selected_file.name if self.main_window._selected_file else "Document"
-        report_html = self.main_window._current_payload.get("report_html") or self.main_window.report_generator.generate_html_report(
-            analysis_result=analysis, doc_name=doc_name,
-        )
+        report_html = self.main_window._current_payload.get(
+            "report_html"
+        ) or self.main_window.report_generator.generate_html_report(
+            analysis_result=analysis,
+            doc_name=doc_name)
         report_browser.setHtml(report_html)
 
         layout.addWidget(report_browser)
@@ -426,8 +472,7 @@ class UIHandlers:
             "• Reset temporary files\n\n"
             "This action cannot be undone.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
+            QMessageBox.StandardButton.No)
 
         if reply == QMessageBox.StandardButton.Yes:
             try:
@@ -439,10 +484,13 @@ class UIHandlers:
 
                 # Force garbage collection
                 import gc
+
                 gc.collect()
 
                 self.main_window.statusBar().showMessage("✅ All caches cleared successfully", 5000)
-                QMessageBox.information(self.main_window, "Cache Cleared", "All application caches have been cleared successfully!")
+                QMessageBox.information(
+                    self.main_window, "Cache Cleared", "All application caches have been cleared successfully!"
+                )
             except (ImportError, ModuleNotFoundError, AttributeError) as e:
                 QMessageBox.warning(self.main_window, "Error", f"Failed to clear caches: {e!s}")
 
@@ -513,8 +561,7 @@ class UIHandlers:
             "The server is required for document analysis to work.\n\n"
             "Do you want to start the API server now?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.Yes,
-        )
+            QMessageBox.StandardButton.Yes)
 
         if reply == QMessageBox.StandardButton.Yes:
             try:
@@ -524,17 +571,19 @@ class UIHandlers:
                     self.main_window.statusBar().showMessage("🚀 Starting API server...", 0)
 
                     # Start in a separate process
-                    subprocess.Popen([
-                        sys.executable, str(api_script),
-                    ], creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0)
+                    subprocess.Popen(
+                        [
+                            sys.executable,
+                            str(api_script),
+                        ],
+                        creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0)
 
                     QMessageBox.information(
                         self.main_window,
                         "🚀 API Server Starting",
                         "The API server is starting in a separate window.\n\n"
                         "Please wait a moment for it to initialize, then try your analysis again.\n\n"
-                        "You can also run diagnostics (Tools → Run Diagnostics) to check the status.",
-                    )
+                        "You can also run diagnostics (Tools → Run Diagnostics) to check the status.")
 
                     self.main_window.statusBar().showMessage("✅ API server started", 5000)
                 else:
@@ -543,21 +592,19 @@ class UIHandlers:
                         "Script Not Found",
                         f"Could not find API server script at: {api_script}\n\n"
                         "Please start the API server manually:\n"
-                        "python scripts/run_api.py",
-                    )
+                        "python scripts/run_api.py")
 
             except Exception as e:
                 QMessageBox.critical(
                     self.main_window,
                     "Failed to Start API Server",
-                    f"Could not start the API server:\n\n{e!s}\n\n"
-                    "Please start it manually:\n"
-                    "python scripts/run_api.py",
-                )
+                    f"Could not start the API server:\n\n{e!s}\n\nPlease start it manually:\npython scripts/run_api.py")
 
     def show_about_dialog(self) -> None:
         """Show about dialog with easter eggs."""
         about_text = f"""
+Therapy Compliance Analyzer
+Therapy Compliance Analyzer
 Therapy Compliance Analyzer
 Version 2.0.0
 
@@ -599,6 +646,8 @@ healthcare better every day! 💪
         """Show hidden easter eggs dialog."""
         easter_text = """
 🥚 HIDDEN EASTER EGGS DISCOVERED! 🥚
+🥚 HIDDEN EASTER EGGS DISCOVERED! 🥚
+🥚 HIDDEN EASTER EGGS DISCOVERED! 🥚
 
 🎮 Konami Code: ↑↑↓↓←→←→BA
    - Unlocks special developer mode features
@@ -635,11 +684,12 @@ Keep exploring! There are more secrets hidden throughout the app! 🕵️‍♂�
     def show_system_info(self) -> None:
         """Show system information dialog."""
         import platform
-        import sys
 
         from PySide6 import __version__ as pyside_version
 
         system_info = f"""
+🖥️ SYSTEM INFORMATION
+🖥️ SYSTEM INFORMATION
 🖥️ SYSTEM INFORMATION
 
 Operating System:
@@ -651,17 +701,17 @@ Python Environment:
 • Python Version: {sys.version.split()[0]}
 • PySide6 Version: {pyside_version}
 • Current User: {self.main_window.current_user.username}
-• User Role: {'Administrator' if self.main_window.current_user.is_admin else 'Standard User'}
+• User Role: {"Administrator" if self.main_window.current_user.is_admin else "Standard User"}
 
 Application:
 • Theme: {medical_theme.current_theme.title()}
 • Active Threads: {len(self.main_window.view_model._active_threads)}
-• Developer Mode: {'Enabled' if hasattr(self.main_window, 'developer_mode') and self.main_window.developer_mode else 'Disabled'}
+• Developer Mode: {"Enabled" if hasattr(self.main_window, "developer_mode") and self.main_window.developer_mode else "Disabled"}
 
 Memory:
-• Python Objects: {len(__import__('gc').get_objects())}
-• Selected File: {self.main_window._selected_file.name if self.main_window._selected_file else 'None'}
-• Analysis Data: {'Available' if self.main_window._current_payload else 'None'}
+• Python Objects: {len(__import__("gc").get_objects())}
+• Selected File: {self.main_window._selected_file.name if self.main_window._selected_file else "None"}
+• Analysis Data: {"Available" if self.main_window._current_payload else "None"}
         """
 
         QMessageBox.information(self.main_window, "ℹ️ System Information", system_info)
@@ -676,8 +726,7 @@ Memory:
             "• Manage user permissions\n"
             "• Reset user passwords\n"
             "• View user activity logs\n\n"
-            "This feature will be available in a future update!",
-        )
+            "This feature will be available in a future update!")
 
     def check_license_status(self) -> None:
         """Check license status and show trial information if needed."""
@@ -706,8 +755,7 @@ Memory:
                     self.main_window,
                     "🔔 Trial Period Notice",
                     f"Trial period: {days_remaining} days remaining\n\n"
-                    f"Contact your administrator to activate the full license.",
-                )
+                    f"Contact your administrator to activate the full license.")
 
         except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("License check failed: %s", e)
@@ -718,30 +766,23 @@ Memory:
             QMessageBox.information(
                 self.main_window,
                 "🔐 License Activation",
-                "Only administrators can activate licenses.\n\n"
-                "Please contact your system administrator.",
-            )
+                "Only administrators can activate licenses.\n\nPlease contact your system administrator.")
             return
 
         activation_code, ok = QInputDialog.getText(
             self.main_window,
             "🔑 License Activation",
             "Enter activation code:",
-            echo=QLineEdit.EchoMode.Password,
-        )
+            echo=QLineEdit.EchoMode.Password)
 
         if ok and activation_code:
             if license_manager.activate_full_license(activation_code):
                 QMessageBox.information(
                     self.main_window,
                     "✅ License Activated",
-                    "Full license activated successfully!\n\n"
-                    "All features are now available.",
-                )
+                    "Full license activated successfully!\n\nAll features are now available.")
             else:
                 QMessageBox.warning(
                     self.main_window,
                     "❌ Activation Failed",
-                    "Invalid activation code.\n\n"
-                    "Please check the code and try again.",
-                )
+                    "Invalid activation code.\n\nPlease check the code and try again.")

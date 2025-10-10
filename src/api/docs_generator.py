@@ -1,5 +1,4 @@
-"""API Documentation generator - Safe and stable implementation.
-"""
+"""API Documentation generator - Safe and stable implementation."""
 
 import logging
 from typing import Any
@@ -19,8 +18,7 @@ def create_enhanced_openapi(app: FastAPI) -> dict[str, Any]:
         title="Therapy Compliance Analyzer API",
         version="1.0.0",
         description="API for clinical documentation compliance analysis",
-        routes=app.routes,
-    )
+        routes=app.routes)
 
     # Add security schemes
     if "components" not in openapi_schema:

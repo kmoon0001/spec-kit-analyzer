@@ -1,4 +1,5 @@
 """Tab builder for the main application window - Refactored for maintainability."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -54,7 +55,11 @@ class TabBuilder:
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         self.main_window.mission_control_widget = MissionControlWidget(tab)
-        self.main_window.mission_control_widget.start_analysis_requested.connect(self.main_window._handle_mission_control_start)
-        self.main_window.mission_control_widget.review_document_requested.connect(self.main_window._handle_mission_control_review)
+        self.main_window.mission_control_widget.start_analysis_requested.connect(
+            self.main_window._handle_mission_control_start
+        )
+        self.main_window.mission_control_widget.review_document_requested.connect(
+            self.main_window._handle_mission_control_review
+        )
         layout.addWidget(self.main_window.mission_control_widget)
         return tab

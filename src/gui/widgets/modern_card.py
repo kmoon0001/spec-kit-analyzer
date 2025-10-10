@@ -1,5 +1,4 @@
-"""Modern Card Widget - Clean cards with shadows and medical styling.
-"""
+"""Modern Card Widget - Clean cards with shadows and medical styling."""
 
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QFont
@@ -63,8 +62,7 @@ class ModernCard(QFrame):
                 border-color: #cbd5e0;
                 background-color: #f8fafc;
             }
-        """,
-        )
+        """)
 
         # Add shadow effect
         from PySide6.QtGui import QColor
@@ -99,17 +97,11 @@ class ModernCard(QFrame):
                 border-radius: 8px;
                 margin: 4px;
             }}
-        """,
-        )
+        """)
 
 
 class ComplianceCard(ModernCard):
     """Specialized card for compliance results with color coding."""
-
-    def __init__(self, title: str = "", confidence: float = 0.0, parent=None):
-        super().__init__(title, parent)
-        self.confidence = confidence
-        self.setup_compliance_ui()
 
     def setup_compliance_ui(self):
         """Setup compliance-specific UI elements."""
@@ -125,18 +117,15 @@ class ComplianceCard(ModernCard):
         # Color code based on confidence
         if self.confidence >= 0.8:
             self.confidence_value.setStyleSheet(
-                "font-size: 10px; font-weight: bold; color: #10b981;",
-            )
+                "font-size: 10px; font-weight: bold; color: #10b981;")
             self.set_status_color("success")
         elif self.confidence >= 0.6:
             self.confidence_value.setStyleSheet(
-                "font-size: 10px; font-weight: bold; color: #f59e0b;",
-            )
+                "font-size: 10px; font-weight: bold; color: #f59e0b;")
             self.set_status_color("warning")
         else:
             self.confidence_value.setStyleSheet(
-                "font-size: 10px; font-weight: bold; color: #ef4444;",
-            )
+                "font-size: 10px; font-weight: bold; color: #ef4444;")
             self.set_status_color("error")
 
         confidence_layout.addWidget(confidence_label)
@@ -154,16 +143,13 @@ class ComplianceCard(ModernCard):
         # Update color coding
         if confidence >= 0.8:
             self.confidence_value.setStyleSheet(
-                "font-size: 10px; font-weight: bold; color: #10b981;",
-            )
+                "font-size: 10px; font-weight: bold; color: #10b981;")
             self.set_status_color("success")
         elif confidence >= 0.6:
             self.confidence_value.setStyleSheet(
-                "font-size: 10px; font-weight: bold; color: #f59e0b;",
-            )
+                "font-size: 10px; font-weight: bold; color: #f59e0b;")
             self.set_status_color("warning")
         else:
             self.confidence_value.setStyleSheet(
-                "font-size: 10px; font-weight: bold; color: #ef4444;",
-            )
+                "font-size: 10px; font-weight: bold; color: #ef4444;")
             self.set_status_color("error")

@@ -1,4 +1,3 @@
-
 import shutil
 import time
 from pathlib import Path
@@ -8,6 +7,7 @@ import structlog
 from src.config import get_settings
 
 logger = structlog.get_logger(__name__)
+
 
 class DataPurgingService:
     """A service for purging old and temporary data to conserve disk space and enhance security."""
@@ -41,7 +41,7 @@ class DataPurgingService:
                         file_path.unlink()
                         purged_count += 1
                         logger.debug("Purged cached file: %s", file_path.name)
-                except (OSError, FileNotFoundError) as e:
+                except (OSError, FileNotFoundError):
                     logger.warning("Could not purge cache file %s: {e}", file_path)
 
         logger.info("Purged %s expired files from the disk cache.", purged_count)
@@ -61,7 +61,7 @@ class DataPurgingService:
                 elif item.is_dir():
                     shutil.rmtree(item)
                     purged_count += 1
-            except (OSError, FileNotFoundError) as e:
+            except (OSError, FileNotFoundError):
                 logger.warning("Could not remove temporary item %s: {e}", item)
 
         logger.info("Removed %s items from the temporary upload directory.", purged_count)

@@ -1,5 +1,4 @@
 """Training data collection and management for confidence calibration."""
-
 import json
 import logging
 import sqlite3
@@ -8,6 +7,11 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+import requests
+import sqlalchemy
+import sqlalchemy.exc
+from requests.exceptions import HTTPError
 
 logger = logging.getLogger(__name__)
 
@@ -101,11 +105,9 @@ class CalibrationTrainer:
             finally:
                 conn.close()
 
-    def record_feedback(self,
-                       finding: dict[str, Any],
-                       user_feedback: str,
-                       user_id: str | None = None,
-                       notes: str | None = None) -> None:
+    def record_feedback(
+        self, finding: dict[str, Any], user_feedback: str, user_id: str | None = None, notes: str | None = None
+    ) -> None:
         """Record user feedback on a compliance finding.
 
         Args:
@@ -130,32 +132,32 @@ class CalibrationTrainer:
         self._init_database()
 
         with self._get_db_connection() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO training_data (
                     finding_id, original_confidence, user_feedback, is_correct,
                     document_type, discipline, rule_id, issue_title, severity,
                     user_id, notes
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                finding.get("id", f"finding_{datetime.now().isoformat()}"),
-                float(original_confidence),
-                user_feedback,
-                is_correct,
-                finding.get("document_type"),
-                finding.get("discipline"),
-                finding.get("rule_id"),
-                finding.get("issue_title"),
-                finding.get("priority", finding.get("severity")),
-                user_id,
-                notes,
-            ))
+            """,
+                (
+                    finding.get("id", f"finding_{datetime.now().isoformat()}"),
+                    float(original_confidence),
+                    user_feedback,
+                    is_correct,
+                    finding.get("document_type"),
+                    finding.get("discipline"),
+                    finding.get("rule_id"),
+                    finding.get("issue_title"),
+                    finding.get("priority", finding.get("severity")),
+                    user_id,
+                    notes))
 
         logger.info("Recorded feedback: %s for finding with confidence {original_confidence:.3f}", user_feedback)
 
-    def get_training_data(self,
-                         min_samples: int = 10,
-                         confidence_range: tuple | None = None,
-                         discipline: str | None = None) -> list[dict[str, Any]]:
+    def get_training_data(
+        self, min_samples: int = 10, confidence_range: tuple | None = None, discipline: str | None = None
+    ) -> list[dict[str, Any]]:
         """Get training data for calibrator training.
 
         Args:
@@ -188,16 +190,18 @@ class CalibrationTrainer:
 
         training_data = []
         for row in rows:
-            training_data.append({
-                "confidence": row["original_confidence"],
-                "is_correct": bool(row["is_correct"]),
-                "document_type": row["document_type"],
-                "discipline": row["discipline"],
-                "rule_id": row["rule_id"],
-                "issue_title": row["issue_title"],
-                "severity": row["severity"],
-                "created_at": row["created_at"],
-            })
+            training_data.append(
+                {
+                    "confidence": row["original_confidence"],
+                    "is_correct": bool(row["is_correct"]),
+                    "document_type": row["document_type"],
+                    "discipline": row["discipline"],
+                    "rule_id": row["rule_id"],
+                    "issue_title": row["issue_title"],
+                    "severity": row["severity"],
+                    "created_at": row["created_at"],
+                }
+            )
 
         if len(training_data) < min_samples:
             logger.warning("Insufficient training data: %s samples (need {min_samples})", len(training_data))
@@ -250,7 +254,8 @@ class CalibrationTrainer:
                     "avg_confidence": row["avg_confidence"],
                     "min_confidence": row["min_confidence"],
                     "max_confidence": row["max_confidence"],
-                } for row in confidence_stats
+                }
+                for row in confidence_stats
             },
             "discipline_distribution": {row["discipline"]: row["count"] for row in discipline_dist},
         }
@@ -273,6 +278,7 @@ class CalibrationTrainer:
                 json.dump(training_data, f, indent=2, default=str)
         elif format.lower() == "csv":
             import csv
+
             if training_data:
                 with open(output_path_obj, "w", newline="") as f:
                     writer = csv.DictWriter(f, fieldnames=training_data[0].keys())
@@ -302,10 +308,6 @@ class CalibrationTrainer:
 class FeedbackCollector:
     """Helper class for collecting user feedback in the GUI."""
 
-    def __init__(self, trainer: CalibrationTrainer):
-        """Initialize with a calibration trainer instance."""
-        self.trainer = trainer
-
     def create_feedback_widget(self, finding: dict[str, Any]) -> dict[str, Any]:
         """Create feedback widget data for a finding.
 
@@ -329,11 +331,9 @@ class FeedbackCollector:
             ],
         }
 
-    def process_feedback(self,
-                        finding: dict[str, Any],
-                        feedback_value: str,
-                        user_id: str | None = None,
-                        notes: str | None = None) -> None:
+    def process_feedback(
+        self, finding: dict[str, Any], feedback_value: str, user_id: str | None = None, notes: str | None = None
+    ) -> None:
         """Process user feedback and store it for training.
 
         Args:
@@ -345,6 +345,6 @@ class FeedbackCollector:
         """
         try:
             self.trainer.record_feedback(finding, feedback_value, user_id, notes)
-            logger.info("Processed feedback: %s for finding %s", feedback_value, finding.get('id', 'unknown'))
+            logger.info("Processed feedback: %s for finding %s", feedback_value, finding.get("id", "unknown"))
         except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("Failed to process feedback: %s", e)

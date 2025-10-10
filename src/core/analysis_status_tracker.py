@@ -95,8 +95,7 @@ class AnalysisStatusTracker:
         state: AnalysisState,
         progress: int | None = None,
         message: str | None = None,
-        task_id: str | None = None,
-    ) -> None:
+        task_id: str | None = None) -> None:
         """Update analysis status.
 
         Args:
@@ -126,8 +125,13 @@ class AnalysisStatusTracker:
         # Log significant state changes
         if old_state != state:
             elapsed = self.get_elapsed_time()
-            logger.info("Analysis state changed: %s → %s | Progress: %s%% | Elapsed: %ss | Analysis: %s", 
-                       old_state.value, state.value, self.progress, elapsed, self.current_analysis)
+            logger.info(
+                "Analysis state changed: %s → %s | Progress: %s%% | Elapsed: %ss | Analysis: %s",
+                old_state.value,
+                state.value,
+                self.progress,
+                elapsed,
+                self.current_analysis)
             self._trigger_status_callback(state)
 
         # Check for timeout
@@ -151,8 +155,10 @@ class AnalysisStatusTracker:
         self.last_update = time.time()
 
         elapsed = self.get_elapsed_time()
-        logger.error("Analysis failed: %s | Elapsed: %ss | Analysis: {self.current_analysis}", error_message, elapsed,
-        )
+        logger.error(
+            "Analysis failed: %s | Elapsed: %ss | Analysis: {self.current_analysis}",
+            error_message,
+            elapsed)
 
         self._trigger_status_callback(AnalysisState.FAILED)
 
@@ -176,10 +182,7 @@ class AnalysisStatusTracker:
             self.metadata["result"] = result_data
 
         elapsed = self.get_elapsed_time()
-        logger.info(
-            "Analysis completed successfully | Duration: %ss | Analysis: %s",
-            elapsed, self.current_analysis
-        )
+        logger.info("Analysis completed successfully | Duration: %ss | Analysis: %s", elapsed, self.current_analysis)
 
         self._trigger_status_callback(AnalysisState.COMPLETED)
 
@@ -194,10 +197,7 @@ class AnalysisStatusTracker:
         self.last_update = time.time()
 
         elapsed = self.get_elapsed_time()
-        logger.info(
-            "Analysis cancelled by user | Elapsed: %ss | Analysis: %s",
-            elapsed, self.current_analysis
-        )
+        logger.info("Analysis cancelled by user | Elapsed: %ss | Analysis: %s", elapsed, self.current_analysis)
 
         self._trigger_status_callback(AnalysisState.CANCELLED)
 
@@ -211,8 +211,12 @@ class AnalysisStatusTracker:
         if not self.current_analysis or not self.last_update:
             return False
 
-        if self.state in [AnalysisState.COMPLETED, AnalysisState.FAILED,
-                         AnalysisState.CANCELLED, AnalysisState.TIMEOUT]:
+        if self.state in [
+            AnalysisState.COMPLETED,
+            AnalysisState.FAILED,
+            AnalysisState.CANCELLED,
+            AnalysisState.TIMEOUT,
+        ]:
             return False
 
         elapsed_since_update = time.time() - self.last_update
@@ -233,8 +237,11 @@ class AnalysisStatusTracker:
     def is_active(self) -> bool:
         """Check if analysis is currently active."""
         return self.state not in [
-            AnalysisState.IDLE, AnalysisState.COMPLETED,
-            AnalysisState.FAILED, AnalysisState.CANCELLED, AnalysisState.TIMEOUT,
+            AnalysisState.IDLE,
+            AnalysisState.COMPLETED,
+            AnalysisState.FAILED,
+            AnalysisState.CANCELLED,
+            AnalysisState.TIMEOUT,
         ]
 
     def is_stuck(self) -> bool:
@@ -315,8 +322,9 @@ class AnalysisStatusTracker:
         elapsed = self.get_elapsed_time()
         logger.error(
             "Analysis timed out | Elapsed: %ss | Threshold: %ss | Analysis: %s",
-            elapsed, self.timeout_threshold, self.current_analysis
-        )
+            elapsed,
+            self.timeout_threshold,
+            self.current_analysis)
 
         # Trigger timeout callbacks
         for callback in self._timeout_callbacks:
@@ -328,5 +336,7 @@ class AnalysisStatusTracker:
         self._trigger_status_callback(AnalysisState.TIMEOUT)
 
 
+# Global status tracker instance
+# Global status tracker instance
 # Global status tracker instance
 status_tracker = AnalysisStatusTracker()

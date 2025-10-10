@@ -1,5 +1,4 @@
-"""Advanced Analytics Widget with Predictive Insights and Data Visualization
-"""
+"""Advanced Analytics Widget with Predictive Insights and Data Visualization"""
 
 import random
 from datetime import datetime, timedelta
@@ -37,10 +36,7 @@ class AnalyticsDataGenerator:
     @staticmethod
     def generate_compliance_trends(days: int = 30) -> dict[str, list]:
         """Generate compliance trend data"""
-        dates = [
-            (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
-            for i in range(days, 0, -1)
-        ]
+        dates = [(datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days, 0, -1)]
 
         # Generate realistic compliance scores with trend
         base_score = 75
@@ -174,8 +170,7 @@ class ComplianceChart(QWidget):
                             points[i][0],
                             points[i][1],
                             points[i + 1][0],
-                            points[i + 1][1],
-                        )
+                            points[i + 1][1])
 
             painter.end()
 
@@ -184,13 +179,6 @@ class AdvancedAnalyticsWidget(QWidget):
     """Advanced Analytics Widget with comprehensive insights"""
 
     data_updated = Signal(dict)
-
-    def __init__(self):
-        super().__init__()
-        self.analytics_data = {}
-        self.init_ui()
-        self.setup_data_refresh()
-        self.load_analytics_data()
 
     def init_ui(self):
         """Initialize the advanced analytics UI"""
@@ -231,8 +219,7 @@ class AdvancedAnalyticsWidget(QWidget):
 
         self.time_range = QComboBox()
         self.time_range.addItems(
-            ["Last 7 Days", "Last 30 Days", "Last 90 Days", "Last Year"],
-        )
+            ["Last 7 Days", "Last 30 Days", "Last 90 Days", "Last Year"])
         self.time_range.setCurrentText("Last 30 Days")
         self.time_range.currentTextChanged.connect(self.refresh_analytics)
         self.time_range.setStyleSheet("""
@@ -313,8 +300,7 @@ class AdvancedAnalyticsWidget(QWidget):
         # Compliance trend chart
         if MATPLOTLIB_AVAILABLE:
             self.trend_chart = self.create_matplotlib_chart(
-                "Compliance Trends Over Time",
-            )
+                "Compliance Trends Over Time")
             charts_layout.addWidget(self.trend_chart)
         else:
             # Fallback chart
@@ -398,12 +384,10 @@ class AdvancedAnalyticsWidget(QWidget):
 
         # Overall ranking
         ranking_label = QLabel(
-            f"🏆 Your Performance Ranking: {benchmark_data['percentile_ranking']}th Percentile",
-        )
+            f"🏆 Your Performance Ranking: {benchmark_data['percentile_ranking']}th Percentile")
         ranking_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         ranking_label.setStyleSheet(
-            "color: #007acc; padding: 10px; background: #f0f8ff; border-radius: 5px;",
-        )
+            "color: #007acc; padding: 10px; background: #f0f8ff; border-radius: 5px;")
         comparison_layout.addWidget(ranking_label)
 
         # Detailed comparison
@@ -426,8 +410,10 @@ class AdvancedAnalyticsWidget(QWidget):
             top_performer = benchmark_data["top_performers"][metric]
 
             metric_widget = self.create_benchmark_comparison(
-                name, your_score, industry_avg, top_performer,
-            )
+                name,
+                your_score,
+                industry_avg,
+                top_performer)
             comparison_layout.addWidget(metric_widget)
 
         layout.addWidget(comparison_frame)
@@ -515,8 +501,7 @@ class AdvancedAnalyticsWidget(QWidget):
         change_label = QLabel(change)
         change_label.setFont(QFont("Arial", 10))
         change_label.setStyleSheet(
-            "color: #28a745;" if "↑" in change else "color: #dc3545;",
-        )
+            "color: #28a745;" if "↑" in change else "color: #dc3545;")
 
         layout.addWidget(title_label)
         layout.addWidget(value_label)
@@ -540,20 +525,17 @@ class AdvancedAnalyticsWidget(QWidget):
             trend_data["overall_scores"],
             label="Overall Compliance",
             linewidth=2,
-            color="#007acc",
-        )
+            color="#007acc")
         ax.plot(
             trend_data["frequency_scores"],
             label="Frequency Documentation",
             linewidth=2,
-            color="#28a745",
-        )
+            color="#28a745")
         ax.plot(
             trend_data["goal_scores"],
             label="Goal Specificity",
             linewidth=2,
-            color="#ffc107",
-        )
+            color="#ffc107")
 
         ax.set_title(title, fontsize=14, fontweight="bold")
         ax.set_ylabel("Compliance Score (%)")
@@ -682,8 +664,11 @@ class AdvancedAnalyticsWidget(QWidget):
         return widget
 
     def create_benchmark_comparison(
-        self, name: str, your_score: float, industry_avg: float, top_performer: float,
-    ):
+        self,
+        name: str,
+        your_score: float,
+        industry_avg: float,
+        top_performer: float):
         """Create benchmark comparison widget"""
         widget = QFrame()
         widget.setStyleSheet("""
@@ -803,8 +788,7 @@ class AdvancedAnalyticsWidget(QWidget):
 
             checkbox = QCheckBox()
             checkbox.setStyleSheet(
-                "QCheckBox::indicator { width: 15px; height: 15px; }",
-            )
+                "QCheckBox::indicator { width: 15px; height: 15px; }")
 
             item_label = QLabel(item)
             item_label.setWordWrap(True)

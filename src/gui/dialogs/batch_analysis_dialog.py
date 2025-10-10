@@ -1,4 +1,3 @@
-
 from typing import Any
 
 from PySide6.QtCore import QThread
@@ -113,7 +112,7 @@ class BatchAnalysisDialog(QDialog):
         self.processor_worker.progress.connect(self.update_progress)
         self.processor_worker.file_completed.connect(self.update_file_status)
         self.processor_worker.finished.connect(self.on_batch_finished)
-        self.processor_worker.error.connect(self.on_scan_error) # Can reuse scan error handler
+        self.processor_worker.error.connect(self.on_scan_error)  # Can reuse scan error handler
 
         self.worker_thread.started.connect(self.processor_worker.run)
         self.worker_thread.start()

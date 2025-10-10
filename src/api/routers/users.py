@@ -19,17 +19,15 @@ async def update_current_user_password(
     password_data: PasswordUpdate,
     db: AsyncSession = Depends(get_async_db),
     current_user: models.User = Depends(get_current_active_user),
-    auth_service: AuthService = Depends(get_auth_service),
-):
-    """Allows the currently logged-in user to change their password.
-    """
+    auth_service: AuthService = Depends(get_auth_service)):
+    """Allows the currently logged-in user to change their password."""
     # 1. Verify the old password is correct
     if not auth_service.verify_password(
-        password_data.old_password, current_user.hashed_password,
-    ):
+        password_data.old_password,
+        current_user.hashed_password):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect old password.",
-        )
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect old password.")
 
     # 2. Hash the new password
     new_hashed_password = auth_service.get_password_hash(password_data.new_password)

@@ -38,7 +38,7 @@ class ReportConfigurationManager:
                     config_data = yaml.safe_load(f)
                     self.configurations[config_id] = self._dict_to_config(config_data)
                 logger.debug("Loaded configuration: %s", config_id)
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Error loading configurations: %s", e)
             self._create_default_configurations()
 
@@ -50,21 +50,18 @@ class ReportConfigurationManager:
                 title="Performance Analysis Report",
                 description="Comprehensive analysis of system performance metrics",
                 time_range=TimeRange.last_days(7),
-                export_formats=[ReportFormat.HTML, ReportFormat.PDF],
-            ),
+                export_formats=[ReportFormat.HTML, ReportFormat.PDF]),
             ReportType.COMPLIANCE_ANALYSIS: ReportConfig(
                 report_type=ReportType.COMPLIANCE_ANALYSIS,
                 title="Compliance Analysis Report",
                 description="Analysis of compliance with regulatory requirements",
                 time_range=TimeRange.last_days(30),
-                export_formats=[ReportFormat.HTML, ReportFormat.PDF],
-            ),
+                export_formats=[ReportFormat.HTML, ReportFormat.PDF]),
             ReportType.DASHBOARD: ReportConfig(
                 report_type=ReportType.DASHBOARD,
                 title="Dashboard Report",
                 description="Executive dashboard with key metrics",
-                export_formats=[ReportFormat.HTML],
-            ),
+                export_formats=[ReportFormat.HTML]),
         }
 
         self.default_configs = default_configs
@@ -99,8 +96,7 @@ class ReportConfigurationManager:
             template_id=config_data.get("template_id"),
             export_formats=export_formats,
             filters=config_data.get("filters", {}),
-            metadata=config_data.get("metadata", {}),
-        )
+            metadata=config_data.get("metadata", {}))
 
     def _config_to_dict(self, config: ReportConfig) -> dict[str, any]:
         """Convert ReportConfig to dictionary"""
@@ -144,7 +140,7 @@ class ReportConfigurationManager:
             with open(config_file, "w", encoding="utf-8") as f:
                 yaml.dump(config_dict, f, default_flow_style=False)
             logger.info("Saved configuration: %s", config_id)
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError):
             logger.exception("Error saving configuration %s: {e}", config_id)
 
     def delete_configuration(self, config_id: str) -> bool:
@@ -159,7 +155,7 @@ class ReportConfigurationManager:
                     config_file.unlink()
                 logger.info("Deleted configuration: %s", config_id)
                 return True
-            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+            except (FileNotFoundError, PermissionError, OSError):
                 logger.exception("Error deleting configuration file %s: {e}", config_id)
         return False
 

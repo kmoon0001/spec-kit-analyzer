@@ -1,4 +1,6 @@
 """Advanced Caching Service with Performance Optimizations.
+import requests
+from requests.exceptions import HTTPError
 
 This module extends the existing cache service with advanced features like
 batch operations, cache warming, intelligent prefetching, and performance
@@ -11,7 +13,6 @@ import threading
 import time
 from collections import defaultdict, deque
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -19,7 +20,6 @@ from typing import Any
 from src.core.cache_service import DocumentCache, EmbeddingCache, LLMResponseCache, NERCache, get_cache_stats
 
 logger = logging.getLogger(__name__)
-
 
 @dataclass
 class CacheMetrics:
@@ -33,7 +33,6 @@ class CacheMetrics:
     cache_size_mb: float = 0.0
     last_updated: datetime = None
 
-
 @dataclass
 class PrefetchRequest:
     """Request for cache prefetching."""
@@ -43,7 +42,6 @@ class PrefetchRequest:
     estimated_computation_time: float  # seconds
     dependencies: list[str]  # other cache keys this depends on
     created_at: datetime
-
 
 class CachePerformanceMonitor:
     """Monitors cache performance and provides optimization insights."""
@@ -240,34 +238,11 @@ class CachePerformanceMonitor:
 
         return recommendations
 
-
 class BatchCacheOperations:
     """Provides batch operations for improved cache performance."""
 
-    def __init__(self, performance_monitor: CachePerformanceMonitor | None = None):
-        """Initialize batch cache operations.
-
-        Args:
-            performance_monitor: Optional performance monitor for tracking
-
-        """
-        self.performance_monitor = performance_monitor
-        self.executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="cache_batch")
-
-    async def batch_get_embeddings(self, texts: list[str]) -> dict[str, list[float] | None]:
-        """Batch retrieve embeddings for multiple texts.
-
-        Args:
-            texts: List of texts to get embeddings for
-
-        Returns:
-            Dictionary mapping text to embedding (or None if not cached)
-
-        """
-        start_time = time.time()
-
-        def get_single_embedding(text: str) -> tuple[str, list[float] | None]:
-            return text, EmbeddingCache.get_embedding(text)
+    def get_single_embedding(text: str) -> tuple[str, list[float] | None]:
+        return text, EmbeddingCache.get_embedding(text)
 
         # Execute batch operations in parallel
         loop = asyncio.get_event_loop()
@@ -286,10 +261,9 @@ class BatchCacheOperations:
             hit_rate = hits / len(texts) if texts else 0
 
             self.performance_monitor.record_operation(
-                "embedding_batch", "batch_get", duration_ms, hit_rate > 0.5,
-            )
+                "embedding_batch", "batch_get", duration_ms, hit_rate > 0.5)
 
-        logger.debug("Batch embedding retrieval: %s texts, ", len(texts), 
+        logger.debug("Batch embedding retrieval: %s texts, ", len(texts),
                     f"{sum(1 for e in result_dict.values() if e is not None)} hits")
 
         return result_dict
@@ -323,8 +297,7 @@ class BatchCacheOperations:
         if self.performance_monitor:
             duration_ms = (time.time() - start_time) * 1000
             self.performance_monitor.record_operation(
-                "embedding_batch", "batch_set", duration_ms, True,
-            )
+                "embedding_batch", "batch_set", duration_ms, True)
 
         logger.debug("Batch embedding storage: %s embeddings stored", len(embeddings))
 
@@ -363,10 +336,9 @@ class BatchCacheOperations:
             hit_rate = hits / len(texts) if texts else 0
 
             self.performance_monitor.record_operation(
-                "ner_batch", "batch_get", duration_ms, hit_rate > 0.5,
-            )
+                "ner_batch", "batch_get", duration_ms, hit_rate > 0.5)
 
-        logger.debug("Batch NER retrieval: %s texts, ", len(texts), 
+        logger.debug("Batch NER retrieval: %s texts, ", len(texts),
                     f"{sum(1 for r in result_dict.values() if r is not None)} hits")
 
         return result_dict
@@ -375,25 +347,8 @@ class BatchCacheOperations:
         """Cleanup batch operations resources."""
         self.executor.shutdown(wait=True)
 
-
 class CacheWarmingService:
     """Service for proactive cache warming to improve performance."""
-
-    def __init__(self,
-                 performance_monitor: CachePerformanceMonitor | None = None,
-                 batch_operations: BatchCacheOperations | None = None):
-        """Initialize cache warming service.
-
-        Args:
-            performance_monitor: Optional performance monitor
-            batch_operations: Optional batch operations service
-
-        """
-        self.performance_monitor = performance_monitor
-        self.batch_operations = batch_operations or BatchCacheOperations(performance_monitor)
-        self.warming_queue = deque()
-        self.warming_in_progress = False
-        self._lock = threading.Lock()
 
     def schedule_warming(self,
                         cache_type: str,
@@ -492,8 +447,7 @@ class CacheWarmingService:
             # Record performance metrics
             if self.performance_monitor:
                 self.performance_monitor.record_operation(
-                    "cache_warming", "execute", duration_ms, warmed_items > 0,
-                )
+                    "cache_warming", "execute", duration_ms, warmed_items > 0)
 
             warming_results.update({
                 "status": "completed",
@@ -535,7 +489,7 @@ class CacheWarmingService:
                 await self.batch_operations.batch_set_embeddings(new_embeddings)
                 logger.debug("Warmed %s embeddings", len(new_embeddings))
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Error computing embeddings for warming: %s", e)
 
     async def _warm_ner_results(self, items: list[dict[str, str]], compute_func: Callable | None) -> None:
@@ -562,7 +516,7 @@ class CacheWarmingService:
 
                     logger.debug("Warmed %s NER results for model {model_name}", len(missing_texts))
 
-                except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+                except (FileNotFoundError, PermissionError, OSError) as e:
                     logger.exception("Error computing NER results for warming: %s", e)
 
     async def _warm_llm_responses(self, items: list[dict[str, str]], compute_func: Callable | None) -> None:
@@ -582,7 +536,7 @@ class CacheWarmingService:
                     if response is not None:
                         LLMResponseCache.set_llm_response(prompt, model_name, response)
 
-                except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+                except (FileNotFoundError, PermissionError, OSError) as e:
                     logger.exception("Error computing LLM response for warming: %s", e)
 
         logger.debug("Warmed %s LLM responses", len(items))
@@ -607,7 +561,7 @@ class CacheWarmingService:
 
                 logger.debug("Warmed %s document classifications", len(missing_hashes))
 
-            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+            except (FileNotFoundError, PermissionError, OSError) as e:
                 logger.exception("Error computing document classifications for warming: %s", e)
 
     def get_warming_status(self) -> dict[str, Any]:
@@ -629,17 +583,8 @@ class CacheWarmingService:
 
         return dict(type_counts)
 
-
 class AdvancedCacheService:
     """Advanced cache service with performance optimizations."""
-
-    def __init__(self):
-        """Initialize advanced cache service."""
-        self.performance_monitor = CachePerformanceMonitor()
-        self.batch_operations = BatchCacheOperations(self.performance_monitor)
-        self.cache_warming = CacheWarmingService(self.performance_monitor, self.batch_operations)
-
-        logger.info("Advanced cache service initialized with performance monitoring")
 
     def get_comprehensive_stats(self) -> dict[str, Any]:
         """Get comprehensive cache statistics and performance metrics."""
@@ -685,11 +630,6 @@ class AdvancedCacheService:
 
         return optimization_results
 
-    def cleanup(self) -> None:
-        """Cleanup advanced cache service resources."""
-        self.batch_operations.cleanup()
-        logger.info("Advanced cache service cleaned up")
-
-
+# Global instance for application-wide use
 # Global instance for application-wide use
 advanced_cache_service = AdvancedCacheService()

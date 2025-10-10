@@ -51,8 +51,7 @@ class GuidelineService:
         self,
         sources: Sequence[str],
         cache_dir: str | Path = "data",
-        model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
-    ) -> None:
+        model_name: str = "sentence-transformers/all-MiniLM-L6-v2") -> None:
         settings = get_settings()
         self.sources = list(sources)
         self.model_name = model_name or settings.models.retriever
@@ -73,15 +72,6 @@ class GuidelineService:
         return self._cache_dir or Path("data")
 
     @cache_dir.setter
-    def cache_dir(self, value: str | Path) -> None:
-        self._cache_dir = Path(value)
-        if not self._cache_dir.exists():
-            self._cache_dir.mkdir(parents=True, exist_ok=True)
-        self._index_path = self._cache_dir / "guidelines.index"
-        self._chunks_path = self._cache_dir / "guidelines.joblib"
-        self._persist_cache_if_ready()
-
-    @property
     def index_path(self) -> Path:
         return self._index_path or self.cache_dir / "guidelines.index"
 
@@ -110,10 +100,10 @@ class GuidelineService:
             self.guideline_chunks = joblib.load(self.chunks_path)
             self.is_index_ready = True
             logger.info(
-                "Loaded %d guideline chunks from cache", len(self.guideline_chunks),
-            )
+                "Loaded %d guideline chunks from cache",
+                len(self.guideline_chunks))
             return True
-        except (FileNotFoundError, PermissionError, OSError, IOError) as exc:
+        except (FileNotFoundError, PermissionError, OSError) as exc:
             logger.warning("Failed to load guideline cache: %s", exc)
             self.faiss_index = None
             self.guideline_chunks = []
@@ -144,11 +134,7 @@ class GuidelineService:
             logger.warning("Guideline source %s does not exist", path)
             return []
         if path.suffix.lower() == ".txt":
-            return [
-                (line.strip(), path.name)
-                for line in path.read_text(encoding="utf-8").splitlines()
-                if line.strip()
-            ]
+            return [(line.strip(), path.name) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
         logger.warning("Unsupported guideline format for %s", path)
         return []
 
@@ -159,8 +145,6 @@ class GuidelineService:
         return embeddings.astype(np.float32)
 
     def search(self, query: str, top_k: int = 5) -> list[dict]:
-        import numpy as np
-
         if not self.is_index_ready or self.faiss_index is None:
             return []
 

@@ -1,4 +1,5 @@
 """LLM Service for managing local language models."""
+
 from __future__ import annotations
 
 import logging
@@ -24,8 +25,7 @@ class LLMService:
         model_filename: str,
         llm_settings: dict[str, Any] | None = None,
         revision: str | None = None,
-        local_model_path: str | None = None,
-    ) -> None:
+        local_model_path: str | None = None) -> None:
         self.model_repo_id = model_repo_id
         self.model_filename = model_filename
         self.settings = llm_settings or {}
@@ -63,14 +63,12 @@ class LLMService:
                 self._load_transformers_model()
             logger.info(
                 "LLM loaded successfully",
-                extra={"backend": self.backend, "model": self.model_repo_id},
-            )
+                extra={"backend": self.backend, "model": self.model_repo_id})
         except Exception as exc:
             logger.critical(
                 "Fatal error: Failed to load LLM",
                 exc_info=True,
-                extra={"error": str(exc)},
-            )
+                extra={"error": str(exc)})
             self.llm = None
             self.tokenizer = None
         finally:
@@ -99,8 +97,7 @@ class LLMService:
 
         self.llm = AutoModelForCausalLM.from_pretrained(
             source,
-            **model_kwargs,
-        )
+            **model_kwargs)
         self.tokenizer = None
         self.seq2seq = False
 
@@ -110,11 +107,7 @@ class LLMService:
             model_id = "google/flan-t5-small"
 
         import torch
-        from transformers import (
-            AutoModelForCausalLM,
-            AutoModelForSeq2SeqLM,
-            AutoTokenizer,
-        )
+        from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoTokenizer
 
         tokenizer_kwargs: dict[str, Any] = {}
         if self.revision:
@@ -124,9 +117,7 @@ class LLMService:
         model_kwargs: dict[str, Any] = {"low_cpu_mem_usage": True}
         if self.revision:
             model_kwargs["revision"] = self.revision
-        model_kwargs["torch_dtype"] = (
-            torch.float16 if torch.cuda.is_available() else torch.float32
-        )
+        model_kwargs["torch_dtype"] = torch.float16 if torch.cuda.is_available() else torch.float32
 
         try:
             self.llm = AutoModelForCausalLM.from_pretrained(model_id, **model_kwargs)
@@ -184,8 +175,7 @@ class LLMService:
                     top_k=top_k,
                     repetition_penalty=repetition_penalty,
                     stop=stop_sequences,
-                    **gen_params,
-                )
+                    **gen_params)
                 result = output.strip() if isinstance(output, str) else str(output)
 
                 # Cache the result for future use
@@ -200,14 +190,11 @@ class LLMService:
                 logger.error("Tokenizer not initialised for transformers backend")
                 return "Error: tokenizer unavailable."
 
-            import torch
-
             inputs = self.tokenizer(
                 prompt,
                 return_tensors="pt",
                 truncation=True,
-                max_length=int(self.settings.get("context_length", 512)),
-            )
+                max_length=int(self.settings.get("context_length", 512)))
             device = next(self.llm.parameters()).device  # type: ignore[attr-defined]
             inputs = {key: value.to(device) for key, value in inputs.items()}
 
@@ -224,14 +211,10 @@ class LLMService:
                 from transformers import StoppingCriteria, StoppingCriteriaList  # type: ignore
 
                 class _StopOnSequences(StoppingCriteria):
-                    def __init__(self, sequence_token_ids):
-                        super().__init__()
-                        self.sequence_token_ids = sequence_token_ids
-
                     def __call__(self, input_ids, scores, **kwargs):  # type: ignore[override]
                         tokens = input_ids[0].tolist()
                         for sequence in self.sequence_token_ids:
-                            if len(tokens) >= len(sequence) and tokens[-len(sequence):] == sequence:
+                            if len(tokens) >= len(sequence) and tokens[-len(sequence) :] == sequence:
                                 return True
                         return False
 
@@ -243,8 +226,7 @@ class LLMService:
                         sequence,
                         add_special_tokens=False,
                         return_attention_mask=False,
-                        return_token_type_ids=False,
-                    )
+                        return_token_type_ids=False)
                     ids = encoded.get("input_ids")
                     if not ids:
                         continue

@@ -1,4 +1,6 @@
 """Report Generation Engine - Refactored Main Engine
+import requests
+from requests.exceptions import HTTPError
 
 This is the simplified main engine that coordinates the separated components.
 All functionality is preserved while improving maintainability.
@@ -38,6 +40,7 @@ class ReportGenerationEngine:
         # Initialize branding service for optional logo support
         try:
             from .report_branding_service import ReportBrandingService
+
             self.branding_service = ReportBrandingService()
             logger.info("Branding service initialized")
         except ImportError:
@@ -47,6 +50,7 @@ class ReportGenerationEngine:
         # Initialize AI guardrails service for responsible AI
         try:
             from .ai_guardrails_service import AIGuardrailsService
+
             self.guardrails_service = AIGuardrailsService()
             logger.info("AI guardrails service initialized")
         except ImportError:
@@ -56,6 +60,7 @@ class ReportGenerationEngine:
         # Initialize 7 Habits framework integration
         try:
             from .enhanced_habit_mapper import SevenHabitsFramework
+
             self.habits_framework = SevenHabitsFramework()
             logger.info("7 Habits framework integration initialized")
         except ImportError:
@@ -65,6 +70,7 @@ class ReportGenerationEngine:
         # Initialize data integration service
         try:
             from .data_integration_service import DataIntegrationService
+
             self.data_integration_service = DataIntegrationService()
             logger.info("Data integration service initialized")
         except ImportError:
@@ -99,16 +105,15 @@ class ReportGenerationEngine:
             config=config,
             status=ReportStatus.GENERATING,
             created_at=datetime.now(),
-            updated_at=datetime.now(),
-        )
+            updated_at=datetime.now())
 
         self.generated_reports[report_id] = report
 
         try:
             # Get data from providers
             aggregated_data = self.data_aggregation_service.get_aggregated_data(
-                config.report_type, config.filters,
-            )
+                config.report_type,
+                config.filters)
 
             # Generate report sections
             sections = await self._generate_report_sections(config, aggregated_data)
@@ -149,8 +154,7 @@ class ReportGenerationEngine:
         summary_section = ReportSection(
             id="executive_summary",
             title="Executive Summary",
-            content=self._generate_executive_summary(config, data),
-        )
+            content=self._generate_executive_summary(config, data))
         sections.append(summary_section)
 
         # Data analysis sections
@@ -160,8 +164,7 @@ class ReportGenerationEngine:
                     id=f"analysis_{provider_name}",
                     title=f"{provider_name.replace('_', ' ').title()} Analysis",
                     content=self._format_provider_data(provider_data),
-                    data=provider_data,
-                )
+                    data=provider_data)
                 sections.append(section)
 
         return sections
@@ -170,8 +173,8 @@ class ReportGenerationEngine:
         """Generate executive summary content"""
         summary = f"""
         <h3>Report Overview</h3>
-        <p><strong>Report Type:</strong> {config.report_type.value.replace('_', ' ').title()}</p>
-        <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        <p><strong>Report Type:</strong> {config.report_type.value.replace("_", " ").title()}</p>
+        <p><strong>Generated:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
         <p><strong>Data Sources:</strong> {len(data)} providers</p>
 
         <h3>Key Findings</h3>
@@ -225,7 +228,7 @@ class ReportGenerationEngine:
                     section.content = safe_content
                     filtered_sections.append(section)
 
-            except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
+            except (requests.RequestException, ConnectionError, TimeoutError, HTTPError):
                 logger.warning("Error applying guardrails to section %s: {e}", section.id)
                 filtered_sections.append(section)  # Include original on error
 
@@ -245,8 +248,7 @@ class ReportGenerationEngine:
                     id="seven_habits_insights",
                     title="7 Habits Framework Insights",
                     content=content,
-                    data={"habits_insights": habits_insights},
-                )
+                    data={"habits_insights": habits_insights})
         except Exception as e:
             logger.warning("Error generating 7 Habits insights: %s", e)
 
@@ -281,7 +283,7 @@ class ReportGenerationEngine:
             <h4>Content Review Notice</h4>
             <p>The original content for this section has been reviewed and replaced with this summary for compliance reasons.</p>
             <p><strong>Section:</strong> {section.title}</p>
-            <p><strong>Reason:</strong> {guardrail_result.get('reason', 'Content policy compliance')}</p>
+            <p><strong>Reason:</strong> {guardrail_result.get("reason", "Content policy compliance")}</p>
         </div>
         """
 
@@ -324,7 +326,7 @@ class ReportGenerationEngine:
                     if success:
                         exported_files[format] = output_path
                         report.file_paths[format] = output_path
-                except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+                except (FileNotFoundError, PermissionError, OSError):
                     logger.exception("Error exporting report %s to {format.value}: {e}", report_id)
             else:
                 logger.warning("No exporter registered for format: %s", format.value)
@@ -345,11 +347,13 @@ class ReportGenerationEngine:
         return report.status if report else None
 
     # Preserve all existing branding methods
-    def configure_branding(self, organization_name: str | None = None,
-                          logo_path: str | None = None,
-                          logo_position: str | None = None,
-                          primary_color: str | None = None,
-                          secondary_color: str | None = None) -> bool:
+    def configure_branding(
+        self,
+        organization_name: str | None = None,
+        logo_path: str | None = None,
+        logo_position: str | None = None,
+        primary_color: str | None = None,
+        secondary_color: str | None = None) -> bool:
         """Configure branding for reports (preserves existing functionality)"""
         if not self.branding_service:
             logger.warning("Branding service not available")
@@ -361,9 +365,8 @@ class ReportGenerationEngine:
                 logo_path=logo_path,
                 logo_position=logo_position,
                 primary_color=primary_color,
-                secondary_color=secondary_color,
-            )
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+                secondary_color=secondary_color)
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Error configuring branding: %s", e)
             return False
 

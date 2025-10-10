@@ -7,11 +7,14 @@ Provides async database operations for users, rubrics, reports, and findings.
 import datetime
 import logging
 import math
+import sqlite3
 from collections import Counter
 from datetime import date, timedelta
 from typing import Any
 
 import numpy as np
+import sqlalchemy
+import sqlalchemy.exc
 from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,45 +27,36 @@ logger = logging.getLogger(__name__)
 
 async def get_user(db: AsyncSession, user_id: int) -> models.User | None:
     result = await db.execute(
-        select(models.User).where(models.User.id == user_id),
-    )
+        select(models.User).where(models.User.id == user_id))
     return result.scalars().first()
-
 
 default_admin_flag = False
 
-
 async def get_user_by_username(db: AsyncSession, username: str) -> models.User | None:
     result = await db.execute(
-        select(models.User).where(models.User.username == username),
-    )
+        select(models.User).where(models.User.username == username))
     return result.scalars().first()
-
 
 async def create_user(
     db: AsyncSession,
     user: schemas.UserCreate,
     hashed_password: str,
     *,
-    is_admin: bool | None = None,
-) -> models.User:
+    is_admin: bool | None = None) -> models.User:
     db_user = models.User(
         username=user.username,
         hashed_password=hashed_password,
         is_active=True,
-        is_admin=is_admin if is_admin is not None else getattr(user, "is_admin", False),
-    )
+        is_admin=is_admin if is_admin is not None else getattr(user, "is_admin", False))
     db.add(db_user)
     await db.commit()
     await db.refresh(db_user)
     return db_user
 
-
 async def change_user_password(
     db: AsyncSession,
     user: models.User,
-    new_hashed_password: str,
-) -> models.User:
+    new_hashed_password: str) -> models.User:
     user.hashed_password = new_hashed_password  # type: ignore[attr-defined]
     db.add(user)
     await db.commit()
@@ -73,10 +67,8 @@ async def change_user_password(
 # Rubric management
 # ---------------------------------------------------------------------------
 
-
 async def create_rubric(
-    db: AsyncSession, rubric: schemas.RubricCreate,
-) -> models.ComplianceRubric:
+    db: AsyncSession, rubric: schemas.RubricCreate) -> models.ComplianceRubric:
     """Create a new compliance rubric."""
     db_rubric = models.ComplianceRubric(**rubric.model_dump())
     db.add(db_rubric)
@@ -88,10 +80,8 @@ async def create_rubric(
     await db.refresh(db_rubric)
     return db_rubric
 
-
 async def get_rubrics(
-    db: AsyncSession, skip: int = 0, limit: int = 100,
-) -> list[models.ComplianceRubric]:
+    db: AsyncSession, skip: int = 0, limit: int = 100) -> list[models.ComplianceRubric]:
     """Return a page of rubrics."""
     query = (
         select(models.ComplianceRubric)
@@ -102,21 +92,16 @@ async def get_rubrics(
     result = await db.execute(query)
     return list(result.scalars().all())
 
-
 async def get_rubric(
-    db: AsyncSession, rubric_id: int,
-) -> models.ComplianceRubric | None:
+    db: AsyncSession, rubric_id: int) -> models.ComplianceRubric | None:
     """Return a single rubric by identifier."""
     query = select(models.ComplianceRubric).where(
-        models.ComplianceRubric.id == rubric_id,
-    )
+        models.ComplianceRubric.id == rubric_id)
     result = await db.execute(query)
     return result.scalars().first()
 
-
 async def update_rubric(
-    db: AsyncSession, rubric_id: int, rubric: schemas.RubricCreate,
-) -> models.ComplianceRubric | None:
+    db: AsyncSession, rubric_id: int, rubric: schemas.RubricCreate) -> models.ComplianceRubric | None:
     """Update an existing rubric."""
     db_rubric = await get_rubric(db, rubric_id)
     if db_rubric is None:
@@ -133,7 +118,6 @@ async def update_rubric(
         raise
     await db.refresh(db_rubric)
     return db_rubric
-
 
 async def delete_rubric(db: AsyncSession, rubric_id: int) -> None:
     """Delete a rubric if it exists."""
@@ -156,8 +140,7 @@ async def get_dashboard_statistics(db: AsyncSession) -> dict[str, Any]:
     category_query = (
         select(
             models.AnalysisReport.document_type,
-            func.avg(models.AnalysisReport.compliance_score).label("average_score"),
-        )
+            func.avg(models.AnalysisReport.compliance_score).label("average_score"))
         .group_by(models.AnalysisReport.document_type)
         .order_by(models.AnalysisReport.document_type)
     )
@@ -199,8 +182,7 @@ async def get_discipline_breakdown(db: AsyncSession, days_back: int) -> dict[str
         select(
             models.AnalysisReport.analysis_result["discipline"].as_string().label("discipline"),
             func.avg(models.AnalysisReport.compliance_score).label("avg_score"),
-            func.count(models.AnalysisReport.id).label("user_count"),
-        )
+            func.count(models.AnalysisReport.id).label("user_count"))
         .filter(models.AnalysisReport.analysis_date >= cutoff_date)
         .group_by(models.AnalysisReport.analysis_result["discipline"].as_string())
     )
@@ -269,11 +251,16 @@ async def get_team_performance_trends(db: AsyncSession, days_back: int) -> list[
                 "week": index + 1,
                 "avg_compliance_score": avg_score,
                 "total_findings": total_findings,
-            },
-        )
+            })
 
     return trends
 
+async def get_benchmark_data(db: AsyncSession) -> dict[str, Any]:
+    """Function implementation."""
+    pass
+async def get_benchmark_data(db: AsyncSession) -> dict[str, Any]:
+    """Function implementation."""
+    pass
 async def get_benchmark_data(db: AsyncSession) -> dict[str, Any]:
     """Computes benchmark data across the organization."""
     query = select(models.AnalysisReport.compliance_score)
@@ -292,7 +279,6 @@ async def get_benchmark_data(db: AsyncSession) -> dict[str, Any]:
         },
     }
 
-
 async def get_all_reports_with_embeddings(db: AsyncSession) -> list[models.AnalysisReport]:
     """Return all analysis reports that have an embedding stored."""
     query = (
@@ -307,7 +293,6 @@ async def get_all_reports_with_embeddings(db: AsyncSession) -> list[models.Analy
         return []
     return list(result.scalars().unique().all())
 
-
 async def get_report(db: AsyncSession, report_id: int) -> models.AnalysisReport | None:
     """Fetches a single analysis report with its findings eagerly loaded."""
     query = (
@@ -318,14 +303,12 @@ async def get_report(db: AsyncSession, report_id: int) -> models.AnalysisReport 
     result = await db.execute(query)
     return result.scalars().first()
 
-
 async def find_similar_report(
     db: AsyncSession,
     document_type: str | None,
     exclude_report_id: int | None = None,
     embedding: bytes | None = None,
-    threshold: float = 0.85,
-) -> models.AnalysisReport | None:
+    threshold: float = 0.85) -> models.AnalysisReport | None:
     """Finds a similar report using the vector store, with a fallback to recency."""
     candidate_ids: list[int] = []
     vector_store = get_vector_store()
@@ -369,18 +352,14 @@ async def find_similar_report(
     result = await db.execute(query)
     return result.scalars().first()
 
-
 # ... (rest of the file remains the same) ...
-
 
 # ---------------------------------------------------------------------------
 # Dashboard helpers
 # ---------------------------------------------------------------------------
 
-
 async def get_reports(
-    db: AsyncSession, skip: int = 0, limit: int = 100,
-) -> list[models.AnalysisReport]:
+    db: AsyncSession, skip: int = 0, limit: int = 100) -> list[models.AnalysisReport]:
     """Return analysis reports with their findings eagerly loaded."""
     query = (
         select(models.AnalysisReport)
@@ -392,15 +371,13 @@ async def get_reports(
     result = await db.execute(query)
     return list(result.scalars().unique().all())
 
-
 async def get_findings_summary(db: AsyncSession) -> list[dict[str, Any]]:
     """Aggregate findings by rule identifier for high level dashboards."""
     query = (
         select(
             models.Finding.rule_id,
             func.count(models.Finding.id).label("count"),
-            func.max(models.Finding.confidence_score).label("max_confidence"),
-        )
+            func.max(models.Finding.confidence_score).label("max_confidence"))
         .group_by(models.Finding.rule_id)
         .order_by(func.count(models.Finding.id).desc())
         .limit(50)
@@ -416,27 +393,22 @@ async def get_findings_summary(db: AsyncSession) -> list[dict[str, Any]]:
         if row.rule_id
     ]
 
-
 def _as_datetime(
-    value: date | None, *, end: bool = False,
-) -> datetime.datetime | None:
+    value: date | None, *, end: bool = False) -> datetime.datetime | None:
     """Convert a date into a naive UTC datetime for filtering."""
     if value is None:
         return None
     if end:
         return datetime.datetime.combine(
-            value, datetime.time.max,
-        ).replace(microsecond=0)
+            value, datetime.time.max).replace(microsecond=0)
     return datetime.datetime.combine(value, datetime.time.min)
-
 
 async def get_total_findings_count(
     db: AsyncSession,
     *,
     start_date: date | None = None,
     end_date: date | None = None,
-    discipline: str | None = None,
-) -> int:
+    discipline: str | None = None) -> int:
     """Return the total number of findings in the specified window."""
     query = (
         select(func.count(models.Finding.id))
@@ -457,14 +429,12 @@ async def get_total_findings_count(
     result = await db.execute(query)
     return int(result.scalar_one_or_none() or 0)
 
-
 async def get_team_habit_summary(
     db: AsyncSession,
     *,
     start_date: date | None = None,
     end_date: date | None = None,
-    discipline: str | None = None,
-) -> list[schemas.HabitSummary]:
+    discipline: str | None = None) -> list[schemas.HabitSummary]:
     """Return an aggregate view of team habits based on progress snapshots."""
     # Discipline filtering is not currently tracked for snapshots; placeholder.
     query = select(models.HabitProgressSnapshot)
@@ -496,27 +466,22 @@ async def get_team_habit_summary(
         summaries.append(
             schemas.HabitSummary(
                 habit_name=f"Habit {habit_index}",
-                count=int(round(average)),
-            ),
-        )
+                count=int(round(average))))
     return summaries
-
 
 async def get_clinician_habit_breakdown(
     db: AsyncSession,
     *,
     start_date: date | None = None,
     end_date: date | None = None,
-    discipline: str | None = None,
-) -> list[schemas.ClinicianHabitBreakdown]:
+    discipline: str | None = None) -> list[schemas.ClinicianHabitBreakdown]:
     """Return per-clinician habit focus based on their latest snapshots."""
     query = (
         select(models.HabitProgressSnapshot, models.User)
         .join(models.User, models.HabitProgressSnapshot.user_id == models.User.id)
         .order_by(
             models.HabitProgressSnapshot.user_id,
-            models.HabitProgressSnapshot.snapshot_date.desc(),
-        )
+            models.HabitProgressSnapshot.snapshot_date.desc())
     )
 
     if start_date is not None:
@@ -550,24 +515,19 @@ async def get_clinician_habit_breakdown(
                 schemas.ClinicianHabitBreakdown(
                     clinician_name=user.username,
                     habit_name=f"Habit {habit_id.split('_')[-1]}",
-                    count=int(round(percentage)),
-                ),
-            )
+                    count=int(round(percentage))))
 
     return breakdown
-
 
 async def get_habit_trend_data(
     db: AsyncSession,
     *,
     start_date: date | None = None,
-    end_date: date | None = None,
-) -> list[schemas.HabitTrendPoint]:
+    end_date: date | None = None) -> list[schemas.HabitTrendPoint]:
     """Return total findings trend over time using habit snapshots."""
     query = select(
         models.HabitProgressSnapshot.snapshot_date,
-        func.sum(models.HabitProgressSnapshot.total_findings).label("total_findings"),
-    ).group_by(models.HabitProgressSnapshot.snapshot_date)
+        func.sum(models.HabitProgressSnapshot.total_findings).label("total_findings")).group_by(models.HabitProgressSnapshot.snapshot_date)
 
     if start_date is not None:
         query = query.where(models.HabitProgressSnapshot.snapshot_date >= start_date)
@@ -581,15 +541,12 @@ async def get_habit_trend_data(
         for row in result.all()
     ]
 
-
 # ---------------------------------------------------------------------------
 # Habit utilities for individual tracking
 # ---------------------------------------------------------------------------
 
-
 async def get_user_habit_goals(
-    db: AsyncSession, user_id: int, active_only: bool = True,
-) -> list[models.HabitGoal]:
+    db: AsyncSession, user_id: int, active_only: bool = True) -> list[models.HabitGoal]:
     """Return goals for the given user."""
     query = select(models.HabitGoal).where(models.HabitGoal.user_id == user_id)
     if active_only:
@@ -598,10 +555,8 @@ async def get_user_habit_goals(
     result = await db.execute(query)
     return list(result.scalars().all())
 
-
 async def create_personal_habit_goal(
-    db: AsyncSession, user_id: int, goal_data: dict[str, Any],
-) -> models.HabitGoal:
+    db: AsyncSession, user_id: int, goal_data: dict[str, Any]) -> models.HabitGoal:
     """Create a personal habit goal for a user."""
     habit_identifier = goal_data.get("habit_id")
     habit_number: int | None = None
@@ -620,8 +575,7 @@ async def create_personal_habit_goal(
         if goal_data.get("target_value") is not None
         else None,
         target_date=goal_data.get("target_date"),
-        status=goal_data.get("status", "active"),
-    )
+        status=goal_data.get("status", "active"))
     db.add(db_goal)
     try:
         await db.commit()
@@ -636,21 +590,16 @@ async def create_personal_habit_goal(
     db_goal.target_date = db_goal.target_date
     return db_goal
 
-
 async def create_habit_goal(
-    db: AsyncSession, user_id: int, goal_data: dict[str, Any],
-) -> models.HabitGoal:
+    db: AsyncSession, user_id: int, goal_data: dict[str, Any]) -> models.HabitGoal:
     """Compatibility wrapper for legacy API."""
     return await create_personal_habit_goal(db, user_id, goal_data)
 
-
 async def update_habit_goal_progress(
-    db: AsyncSession, goal_id: int, progress: int, user_id: int,
-) -> models.HabitGoal | None:
+    db: AsyncSession, goal_id: int, progress: int, user_id: int) -> models.HabitGoal | None:
     """Update the progress percentage for a user's goal."""
     query = select(models.HabitGoal).where(
-        models.HabitGoal.id == goal_id, models.HabitGoal.user_id == user_id,
-    )
+        models.HabitGoal.id == goal_id, models.HabitGoal.user_id == user_id)
     result = await db.execute(query)
     goal = result.scalars().first()
     if goal is None:
@@ -663,10 +612,8 @@ async def update_habit_goal_progress(
     await db.refresh(goal)
     return goal
 
-
 async def get_user_achievements(
-    db: AsyncSession, user_id: int, category: str | None = None,
-) -> list[dict[str, Any]]:
+    db: AsyncSession, user_id: int, category: str | None = None) -> list[dict[str, Any]]:
     """Return achievements for a user grouped by category."""
     query = select(models.HabitAchievement).where(models.HabitAchievement.user_id == user_id)
     if category:
@@ -692,14 +639,11 @@ async def get_user_achievements(
                 "earned_date": row.earned_at,
                 "points_earned": 10,
                 "metadata": {},
-            },
-        )
+            })
     return achievements
 
-
 async def get_user_habit_statistics(
-    db: AsyncSession, user_id: int, days_back: int,
-) -> dict[str, Any]:
+    db: AsyncSession, user_id: int, days_back: int) -> dict[str, Any]:
     """Return high level habit statistics for a user."""
     cutoff = datetime.datetime.utcnow() - timedelta(days=days_back)
 
@@ -746,10 +690,8 @@ async def get_user_habit_statistics(
         ),
     }
 
-
 async def create_habit_progress_snapshot(
-    db: AsyncSession, user_id: int, snapshot_data: dict[str, Any],
-) -> models.HabitProgressSnapshot:
+    db: AsyncSession, user_id: int, snapshot_data: dict[str, Any]) -> models.HabitProgressSnapshot:
     """Persist a habit progress snapshot for a user."""
     habit_breakdown = snapshot_data.get("habit_breakdown", {})
     snapshot = models.HabitProgressSnapshot(
@@ -767,10 +709,8 @@ async def create_habit_progress_snapshot(
         improvement_rate=float(
             snapshot_data.get("improvement_trend", {}).get("rate", 0.0)
             if isinstance(snapshot_data.get("improvement_trend"), dict)
-            else 0.0,
-        ),
-        consistency_score=float(snapshot_data.get("consistency_score", 0.0)),
-    )
+            else 0.0),
+        consistency_score=float(snapshot_data.get("consistency_score", 0.0)))
     db.add(snapshot)
     try:
         await db.commit()
@@ -785,17 +725,14 @@ async def create_habit_progress_snapshot(
 
     return snapshot
 
-
 # ---------------------------------------------------------------------------
 # Feedback annotations
 # ---------------------------------------------------------------------------
 
-
 async def create_feedback_annotation(
     db: AsyncSession,
     feedback: schemas.FeedbackAnnotationCreate,
-    user_id: int,
-) -> models.FeedbackAnnotation:
+    user_id: int) -> models.FeedbackAnnotation:
     """Persist a feedback annotation for a finding."""
     db_feedback = models.FeedbackAnnotation(
         finding_id=int(feedback.finding_id),
@@ -803,8 +740,7 @@ async def create_feedback_annotation(
         is_correct=feedback.is_correct,
         user_comment=feedback.user_comment,
         correction=feedback.correction,
-        feedback_type=feedback.feedback_type,
-    )
+        feedback_type=feedback.feedback_type)
     db.add(db_feedback)
     try:
         await db.commit()
@@ -814,25 +750,21 @@ async def create_feedback_annotation(
     await db.refresh(db_feedback)
     return db_feedback
 
-
 # ---------------------------------------------------------------------------
 # Individual tracker helpers (placeholder implementations)
 # ---------------------------------------------------------------------------
 
-
 async def get_user_reports_with_findings(
     db: AsyncSession,
     user_id: int,
-    start_date: datetime.datetime | None = None,
-) -> list[models.AnalysisReport]:
+    start_date: datetime.datetime | None = None) -> list[models.AnalysisReport]:
     """Fetch analysis reports associated with a user.
 
     Current datasets do not persist a user relationship on reports, so this
     returns all recent reports as a best-effort placeholder for the tracker.
     """
     query = select(models.AnalysisReport).options(
-        selectinload(models.AnalysisReport.findings),
-    )
+        selectinload(models.AnalysisReport.findings))
     if start_date is not None:
         query = query.where(models.AnalysisReport.analysis_date >= start_date)
 

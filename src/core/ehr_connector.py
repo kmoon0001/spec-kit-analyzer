@@ -28,13 +28,9 @@ class EHRConnector:
         self.last_sync = None
         self.error_count = 0
 
-    async def connect(self,
-                     system_type: str,
-                     endpoint_url: str,
-                     client_id: str,
-                     client_secret: str,
-                     scope: str,
-                     facility_id: str) -> dict[str, Any]:
+    async def connect(
+        self, system_type: str, endpoint_url: str, client_id: str, client_secret: str, scope: str, facility_id: str
+    ) -> dict[str, Any]:
         """Connect to an EHR system.
 
         Args:
@@ -91,7 +87,11 @@ class EHRConnector:
                 "system_info": {
                     "system_type": system_type,
                     "facility_id": facility_id,
-                    "fhir_version": "R4" if system_type in ["epic", "cerner", "generic_fhir"] else "Proprietary" if system_type == "nethealth" else "N/A",
+                    "fhir_version": "R4"
+                    if system_type in ["epic", "cerner", "generic_fhir"]
+                    else "Proprietary"
+                    if system_type == "nethealth"
+                    else "N/A",
                 },
             }
 
@@ -138,11 +138,9 @@ class EHRConnector:
             "connection_id": self.connection_id,
         }
 
-    async def list_synced_documents(self,
-                                  limit: int = 50,
-                                  offset: int = 0,
-                                  document_type: str | None = None,
-                                  analyzed_only: bool = False) -> dict[str, Any]:
+    async def list_synced_documents(
+        self, limit: int = 50, offset: int = 0, document_type: str | None = None, analyzed_only: bool = False
+    ) -> dict[str, Any]:
         """List documents synchronized from the EHR system."""
         if not self.is_connected:
             return {
@@ -158,7 +156,11 @@ class EHRConnector:
                 {
                     "document_id": f"doc_{i:03d}",
                     "patient_id": f"patient_{i % 10:03d}",
-                    "document_type": "progress_note" if i % 3 == 0 else "evaluation" if i % 3 == 1 else "treatment_plan",
+                    "document_type": "progress_note"
+                    if i % 3 == 0
+                    else "evaluation"
+                    if i % 3 == 1
+                    else "treatment_plan",
                     "created_date": datetime.now().isoformat(),
                     "author": f"Dr. Smith {i % 5}",
                     "department": "Physical Therapy" if i % 2 == 0 else "Occupational Therapy",
@@ -177,7 +179,7 @@ class EHRConnector:
 
             # Apply pagination
             total_count = len(filtered_docs)
-            paginated_docs = filtered_docs[offset:offset + limit]
+            paginated_docs = filtered_docs[offset : offset + limit]
             has_more = offset + limit < total_count
 
             return {
@@ -214,7 +216,7 @@ class EHRConnector:
                 "status": "final",
             }
 
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to get EHR document %s: {e}", document_id)
             self.error_count += 1
             return None
@@ -249,12 +251,22 @@ class EHRConnector:
             "cerner": ["patient_data", "clinical_notes", "medications", "allergies", "vitals"],
             "allscripts": ["patient_data", "clinical_notes", "prescriptions", "appointments"],
             "athenahealth": ["patient_data", "clinical_notes", "appointments", "billing"],
-            "nethealth": ["patient_data", "clinical_notes", "therapy_notes", "assessments", "care_plans", "outcomes", "scheduling"],
+            "nethealth": [
+                "patient_data",
+                "clinical_notes",
+                "therapy_notes",
+                "assessments",
+                "care_plans",
+                "outcomes",
+                "scheduling",
+            ],
             "generic_fhir": ["patient_data", "clinical_notes", "observations", "conditions"],
         }
 
         return capabilities_map.get(system_type, ["patient_data", "clinical_notes"])
 
 
+# Global EHR connector instance
+# Global EHR connector instance
 # Global EHR connector instance
 ehr_connector = EHRConnector()

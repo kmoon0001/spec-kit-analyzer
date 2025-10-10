@@ -77,8 +77,10 @@ class CacheIntegrationService:
         return ner_results
 
     def get_or_compute_llm_response(
-        self, prompt: str, model_name: str, llm_func,
-    ) -> str:
+        self,
+        prompt: str,
+        model_name: str,
+        llm_func) -> str:
         """Get LLM response from cache or compute and cache it.
 
         Args:
@@ -105,8 +107,10 @@ class CacheIntegrationService:
         return response
 
     def get_or_compute_document_classification(
-        self, doc_hash: str, text: str, classify_func,
-    ) -> dict:
+        self,
+        doc_hash: str,
+        text: str,
+        classify_func) -> dict:
         """Get document classification from cache or compute and cache it.
 
         Args:
@@ -155,11 +159,16 @@ class CacheIntegrationService:
     def cleanup_and_report(self):
         """Cleanup caches and log performance report."""
         stats = self.get_cache_performance_stats()
-        logger.info("Cache performance - Hit rate: %s%%, Memory usage: %.1fMB, Total entries: %s", 
-                   stats['hit_rate_percent'], stats['memory_usage_mb'], stats['total_entries'])
+        logger.info(
+            "Cache performance - Hit rate: %s%%, Memory usage: %.1fMB, Total entries: %s",
+            stats["hit_rate_percent"],
+            stats["memory_usage_mb"],
+            stats["total_entries"])
 
         cleanup_all_caches()
 
 
+# Global cache integration service instance
+# Global cache integration service instance
 # Global cache integration service instance
 cache_integration = CacheIntegrationService()

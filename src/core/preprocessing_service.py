@@ -17,8 +17,7 @@ class PreprocessingService:
     """
 
     def __init__(self):
-        """Initializes the service, loads the medical spell-checker, and sets up the cache.
-        """
+        """Initializes the service, loads the medical spell-checker, and sets up the cache."""
         self.settings = get_settings()
         self.spell = SpellChecker()
         # A simple in-memory cache to store corrections for common misspellings.
@@ -28,25 +27,23 @@ class PreprocessingService:
         self._load_medical_dictionary()
 
     def _load_medical_dictionary(self):
-        """Loads a custom medical dictionary from the path specified in the config.
-        """
+        """Loads a custom medical dictionary from the path specified in the config."""
         try:
             # Get dictionary path from the centralized configuration.
             dict_path = self.settings.paths.medical_dictionary
             self.spell.word_frequency.load_text_file(dict_path)
             logger.info(
-                "Successfully loaded custom medical dictionary from: %s", dict_path,
-            )
+                "Successfully loaded custom medical dictionary from: %s",
+                dict_path)
         except FileNotFoundError:
             logger.exception(
-                "Medical dictionary not found at path: %s. "
-                "Spell-checking accuracy will be reduced.",
-                self.settings.paths.medical_dictionary,
-            )
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+                "Medical dictionary not found at path: %s. Spell-checking accuracy will be reduced.",
+                self.settings.paths.medical_dictionary)
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.error(
-                "Failed to load custom medical dictionary: %s", e, exc_info=True,
-            )
+                "Failed to load custom medical dictionary: %s",
+                e,
+                exc_info=True)
 
     def correct_text(self, text: str) -> str:
         """Corrects spelling errors in the text using a cached, dictionary-aware approach.
@@ -97,8 +94,4 @@ class PreprocessingService:
 
         # Rejoin the tokens into a single string.
         return "".join(
-            (
-                " " + token if i > 0 and token.isalpha() else token
-                for i, token in enumerate(corrected_tokens)
-            ),
-        ).lstrip()
+            (" " + token if i > 0 and token.isalpha() else token for i, token in enumerate(corrected_tokens))).lstrip()

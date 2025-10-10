@@ -146,6 +146,7 @@ class AsyncFileHandler:
             elif config_path.suffix.lower() in [".yaml", ".yml"]:
                 try:
                     import yaml
+
                     config = yaml.safe_load(content)
                 except ImportError:
                     logger.warning("YAML support not available, skipping %s", config_path)
@@ -171,7 +172,6 @@ class AsyncFileHandler:
                 config = json.loads(content)
             elif config_path.suffix.lower() in [".yaml", ".yml"]:
                 try:
-                    import yaml
                     config = yaml.safe_load(content)
                 except ImportError:
                     logger.warning("YAML support not available, skipping %s", config_path)
@@ -187,8 +187,7 @@ class AsyncFileHandler:
             logger.exception("Failed to read config %s: %s", config_path, e)
             return None
 
-    async def batch_read_documents(self, file_paths: list[Path],
-                                 progress_callback=None) -> dict[Path, str | None]:
+    async def batch_read_documents(self, file_paths: list[Path], progress_callback=None) -> dict[Path, str | None]:
         """Asynchronously read multiple documents with progress reporting.
 
         Args:
@@ -220,10 +219,7 @@ class AsyncFileHandler:
                         await asyncio.to_thread(progress_callback, progress, f"Read {file_path.name}")
 
             # Create tasks for all files
-            tasks = [
-                read_with_semaphore(file_path, i)
-                for i, file_path in enumerate(file_paths)
-            ]
+            tasks = [read_with_semaphore(file_path, i) for i, file_path in enumerate(file_paths)]
 
             # Execute all tasks concurrently
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -231,7 +227,7 @@ class AsyncFileHandler:
             logger.info("Successfully processed %d documents", len(results))
             return results
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Batch document reading failed: %s", e)
             return results
 
@@ -251,6 +247,7 @@ class AsyncFileHandler:
                 return 0
 
             import time
+
             current_time = time.time()
             max_age_seconds = max_age_hours * 3600
             cleaned_count = 0
@@ -270,10 +267,12 @@ class AsyncFileHandler:
             logger.info("Cleaned up %d temporary files", cleaned_count)
             return cleaned_count
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Temp file cleanup failed: %s", e)
             return 0
 
 
+# Global async file handler instance
+# Global async file handler instance
 # Global async file handler instance
 async_file_handler = AsyncFileHandler()

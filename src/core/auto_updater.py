@@ -56,8 +56,7 @@ class AutoUpdater:
             response = requests.get(
                 f"{self.update_server}/api/version-check",
                 params={"current_version": self.current_version},
-                timeout=10,
-            )
+                timeout=10)
 
             if response.status_code != 200:
                 logger.warning("Update check failed: HTTP %s", response.status_code)
@@ -116,7 +115,7 @@ class AutoUpdater:
             self._rollback_update()
             return False
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Update installation failed: %s", e)
             self._rollback_update()
             return False
@@ -142,7 +141,7 @@ class AutoUpdater:
             data = {"last_check": datetime.now().isoformat()}
             with open(self.last_check_file, "w") as f:
                 json.dump(data, f)
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.warning("Failed to record update check: %s", e)
 
     def _create_backup(self) -> bool:
@@ -171,7 +170,7 @@ class AutoUpdater:
             logger.info("Backup created successfully")
             return True
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Backup creation failed: %s", e)
             return False
 
@@ -208,7 +207,7 @@ class AutoUpdater:
             logger.info("Update downloaded successfully")
             return temp_file
 
-        except (OSError, IOError, FileNotFoundError) as e:
+        except (OSError, FileNotFoundError) as e:
             logger.exception("Update download failed: %s", e)
             return None
 
@@ -234,7 +233,7 @@ class AutoUpdater:
             logger.error("Update integrity check failed")
             return False
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Update verification failed: %s", e)
             return False
 
@@ -254,14 +253,14 @@ class AutoUpdater:
             # 4. Restart application if needed
 
             # For now, just log the action
-            logger.info("Update to version %s installed", update_info.get('latest_version'))
+            logger.info("Update to version %s installed", update_info.get("latest_version"))
 
             # Clean up
             update_file.unlink()
 
             return True
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Update installation failed: %s", e)
             return False
 
@@ -291,7 +290,7 @@ class AutoUpdater:
             logger.info("Rollback completed successfully")
             return True
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Rollback failed: %s", e)
             return False
 
@@ -316,5 +315,7 @@ class AutoUpdater:
         return None
 
 
+# Global auto-updater instance
+# Global auto-updater instance
 # Global auto-updater instance
 auto_updater = AutoUpdater()

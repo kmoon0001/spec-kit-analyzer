@@ -1,4 +1,5 @@
 """Settings tab builder - extracted from tab_builder for better maintainability."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -37,20 +38,20 @@ class SettingsTabBuilder:
         settings_tabs = QTabWidget(tab)
         settings_tabs.setStyleSheet(f"""
             QTabWidget::pane {{
-                border: 2px solid {medical_theme.get_color('border_light')};
+                border: 2px solid {medical_theme.get_color("border_light")};
                 border-radius: 8px;
-                background: {medical_theme.get_color('bg_secondary')};
+                background: {medical_theme.get_color("bg_secondary")};
             }}
             QTabBar::tab {{
                 padding: 10px 20px;
                 margin-right: 4px;
                 border-top-left-radius: 6px;
                 border-top-right-radius: 6px;
-                background: {medical_theme.get_color('bg_tertiary')};
-                color: {medical_theme.get_color('text_secondary')};
+                background: {medical_theme.get_color("bg_tertiary")};
+                color: {medical_theme.get_color("text_secondary")};
             }}
             QTabBar::tab:selected {{
-                background: {medical_theme.get_color('primary_blue')};
+                background: {medical_theme.get_color("primary_blue")};
                 color: white;
             }}
         """)
@@ -118,8 +119,8 @@ class SettingsTabBuilder:
         theme_section = QWidget()
         theme_section.setStyleSheet(f"""
             QWidget {{
-                background: {medical_theme.get_color('bg_primary')};
-                border: 2px solid {medical_theme.get_color('border_light')};
+                background: {medical_theme.get_color("bg_primary")};
+                border: 2px solid {medical_theme.get_color("border_light")};
                 border-radius: 10px;
                 padding: 15px;
             }}
@@ -154,8 +155,8 @@ class SettingsTabBuilder:
         account_section = QWidget()
         account_section.setStyleSheet(f"""
             QWidget {{
-                background: {medical_theme.get_color('bg_primary')};
-                border: 2px solid {medical_theme.get_color('border_light')};
+                background: {medical_theme.get_color("bg_primary")};
+                border: 2px solid {medical_theme.get_color("border_light")};
                 border-radius: 10px;
                 padding: 15px;
             }}
@@ -186,8 +187,8 @@ class SettingsTabBuilder:
         ui_section = QWidget()
         ui_section.setStyleSheet(f"""
             QWidget {{
-                background: {medical_theme.get_color('bg_primary')};
-                border: 2px solid {medical_theme.get_color('border_light')};
+                background: {medical_theme.get_color("bg_primary")};
+                border: 2px solid {medical_theme.get_color("border_light")};
                 border-radius: 10px;
                 padding: 15px;
             }}
@@ -222,8 +223,8 @@ class SettingsTabBuilder:
         section = QWidget()
         section.setStyleSheet(f"""
             QWidget {{
-                background: {medical_theme.get_color('bg_primary')};
-                border: 2px solid {medical_theme.get_color('border_light')};
+                background: {medical_theme.get_color("bg_primary")};
+                border: 2px solid {medical_theme.get_color("border_light")};
                 border-radius: 10px;
                 padding: 15px;
             }}
@@ -263,8 +264,8 @@ class SettingsTabBuilder:
         section = QWidget()
         section.setStyleSheet(f"""
             QWidget {{
-                background: {medical_theme.get_color('bg_primary')};
-                border: 2px solid {medical_theme.get_color('border_light')};
+                background: {medical_theme.get_color("bg_primary")};
+                border: 2px solid {medical_theme.get_color("border_light")};
                 border-radius: 10px;
                 padding: 15px;
             }}
@@ -277,9 +278,15 @@ class SettingsTabBuilder:
 
         # Add checkboxes with descriptions
         checkboxes_with_descriptions = [
-            ("✅ Medicare Guidelines Compliance", "Includes CMS compliance requirements and Medicare documentation standards", True),
+            (
+                "✅ Medicare Guidelines Compliance",
+                "Includes CMS compliance requirements and Medicare documentation standards",
+                True),
             ("💪 Strengths & Best Practices", "Highlights well-documented areas and exemplary practices", True),
-            ("⚠️ Weaknesses & Areas for Improvement", "Identifies documentation gaps and areas that need attention", True),
+            (
+                "⚠️ Weaknesses & Areas for Improvement",
+                "Identifies documentation gaps and areas that need attention",
+                True),
             ("💡 Actionable Suggestions", "Provides specific, implementable recommendations", True),
             ("📚 Educational Resources", "Includes links to relevant guidelines and training materials", True),
             ("🎯 7 Habits Framework Integration", "Incorporates professional development strategies", True),
@@ -318,8 +325,8 @@ class SettingsTabBuilder:
         section = QWidget()
         section.setStyleSheet(f"""
             QWidget {{
-                background: {medical_theme.get_color('bg_primary')};
-                border: 2px solid {medical_theme.get_color('border_light')};
+                background: {medical_theme.get_color("bg_primary")};
+                border: 2px solid {medical_theme.get_color("border_light")};
                 border-radius: 10px;
                 padding: 15px;
             }}

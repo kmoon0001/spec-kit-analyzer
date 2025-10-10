@@ -1,4 +1,3 @@
-
 """Clinical Compliance Report Generator
 
 Generates comprehensive HTML reports following the structure defined in REPORT_ELEMENTS.md.
@@ -27,23 +26,20 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 class ReportGenerator:
-    """Generates comprehensive clinical compliance reports following REPORT_ELEMENTS.md structure.
-    """
+    """Generates comprehensive clinical compliance reports following REPORT_ELEMENTS.md structure."""
 
     def __init__(self, llm_service=None):
         self.rubric_template_str = self._load_template(
-            os.path.join(ROOT_DIR, "src", "resources", "report_template.html"),
-        )
+            os.path.join(ROOT_DIR, "src", "resources", "report_template.html"))
         self.model_limitations_html = self._load_and_convert_markdown(
-            os.path.join(ROOT_DIR, "src", "resources", "model_limitations.md"),
-        )
+            os.path.join(ROOT_DIR, "src", "resources", "model_limitations.md"))
         self.settings = get_settings()
         self.habits_enabled = self.settings.habits_framework.enabled
         if self.habits_enabled:
             use_ai = self.settings.habits_framework.ai_features.use_ai_mapping
             self.habits_framework = SevenHabitsFramework(
-                use_ai_mapping=use_ai, llm_service=llm_service,
-            )
+                use_ai_mapping=use_ai,
+                llm_service=llm_service)
         else:
             self.habits_framework = None
 
@@ -73,7 +69,7 @@ class ReportGenerator:
                 mime_type, _ = mimetypes.guess_type(logo_path)
                 if mime_type:
                     return f'<div class="logo-container"><img src="data:{mime_type};base64,{encoded_string}" alt="Logo" class="logo"></div>'
-            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+            except (FileNotFoundError, PermissionError, OSError) as e:
                 logger.exception("Could not embed logo: %s", e)
         return ""
 
@@ -82,14 +78,12 @@ class ReportGenerator:
         analysis_result: dict[str, Any],
         *,
         document_name: str | None = None,
-        analysis_mode: str = "rubric",
-    ) -> dict[str, Any]:
+        analysis_mode: str = "rubric") -> dict[str, Any]:
         doc_name = document_name or analysis_result.get("document_name", "Document")
         report_html = self.generate_html_report(
             analysis_result=analysis_result,
             doc_name=doc_name,
-            analysis_mode=analysis_mode,
-        )
+            analysis_mode=analysis_mode)
         findings = analysis_result.get("findings", [])
         return {
             "analysis": analysis_result,
@@ -100,8 +94,10 @@ class ReportGenerator:
         }
 
     def generate_html_report(
-        self, analysis_result: dict, doc_name: str, analysis_mode: str = "rubric",
-    ) -> str:
+        self,
+        analysis_result: dict,
+        doc_name: str,
+        analysis_mode: str = "rubric") -> str:
         return self._generate_rubric_report(analysis_result, doc_name)
 
     def _generate_rubric_report(self, analysis_result: dict, doc_name: str) -> str:
@@ -113,7 +109,9 @@ class ReportGenerator:
         report_html = report_html.replace("<!-- Placeholder for findings rows -->", findings_rows_html)
         report_html = self._inject_summary_sections(report_html, analysis_result)
         report_html = self._inject_checklist(report_html, analysis_result.get("deterministic_checks", []))
-        report_html = report_html.replace("<!-- Placeholder for pattern analysis -->", self._build_pattern_analysis(analysis_result))
+        report_html = report_html.replace(
+            "<!-- Placeholder for pattern analysis -->", self._build_pattern_analysis(analysis_result)
+        )
         report_html = report_html.replace("<!-- Placeholder for model limitations -->", self.model_limitations_html)
         if self.habits_enabled and self.settings.habits_framework.report_integration.show_personal_development_section:
             personal_dev_html = self._generate_personal_development_section(findings, analysis_result)
@@ -147,7 +145,9 @@ class ReportGenerator:
             return '<tr><td colspan="6">No compliance findings identified.</td></tr>'
         findings_rows_html = ""
         for finding in findings:
-            finding_id = hashlib.sha1(f"{finding.get('text', '')}{finding.get('issue_title', '')}".encode()).hexdigest()[:10]
+            finding_id = hashlib.sha1(
+                f"{finding.get('text', '')}{finding.get('issue_title', '')}".encode()
+            ).hexdigest()[:10]
             finding["finding_id"] = finding_id
             row_class = self._get_finding_row_class(finding)
             risk_cell = self._generate_risk_cell(finding)
@@ -211,12 +211,23 @@ class ReportGenerator:
 
     def _get_habit_info_for_finding(self, finding: dict, analysis_result: dict | None = None) -> dict[str, Any] | None:
         if self.habits_framework:
-            context = {"document_type": analysis_result.get("document_type", "Unknown") if analysis_result else "Unknown", "discipline": analysis_result.get("discipline", "Unknown") if analysis_result else "Unknown", "risk_level": finding.get("risk", "Unknown"), "issue_category": finding.get("issue_category", "General")}
+            context = {
+                "document_type": analysis_result.get("document_type", "Unknown") if analysis_result else "Unknown",
+                "discipline": analysis_result.get("discipline", "Unknown") if analysis_result else "Unknown",
+                "risk_level": finding.get("risk", "Unknown"),
+                "issue_category": finding.get("issue_category", "General"),
+            }
             return self.habits_framework.map_finding_to_habit(finding, context)
         try:
             from .habit_mapper import get_habit_for_finding
+
             legacy_habit = get_habit_for_finding(finding)
-            return {"habit_number": 1, "name": legacy_habit["name"], "explanation": legacy_habit["explanation"], "confidence": 0.5}
+            return {
+                "habit_number": 1,
+                "name": legacy_habit["name"],
+                "explanation": legacy_habit["explanation"],
+                "confidence": 0.5,
+            }
         except ImportError:
             logger.warning("Legacy habit mapper not available")
             return None
@@ -253,13 +264,10 @@ class ReportGenerator:
 
     def _generate_recommendation_cell(self, finding: dict) -> str:
         recommendation = sanitize_human_text(
-            finding.get("personalized_tip") or finding.get("suggestion", "Review and update documentation"),
-        )
+            finding.get("personalized_tip") or finding.get("suggestion", "Review and update documentation"))
         priority = finding.get("priority")
         if priority:
-            recommendation = (
-                f"<strong>Priority {sanitize_human_text(str(priority))}:</strong> {recommendation}"
-            )
+            recommendation = f"<strong>Priority {sanitize_human_text(str(priority))}:</strong> {recommendation}"
         return recommendation
 
     def _generate_prevention_cell(self, finding: dict, analysis_result: dict | None = None) -> str:
@@ -272,10 +280,7 @@ class ReportGenerator:
 
         habit_name = sanitize_human_text(habit_info["name"])
         habit_explanation = sanitize_human_text(habit_info["explanation"])
-        html = (
-            f'<div class="habit-name">{habit_name}</div>'
-            f'<div class="habit-explanation">{habit_explanation}</div>'
-        )
+        html = f'<div class="habit-name">{habit_name}</div><div class="habit-explanation">{habit_explanation}</div>'
 
         framework = self.settings.habits_framework
         if framework.is_moderate() or framework.is_prominent():
@@ -306,16 +311,12 @@ class ReportGenerator:
 
         finding_id = finding.get("finding_id", "")
         feedback_correct_link = (
-            f'<a href="feedback://correct?finding_id={finding_id}" '
-            'class="feedback-link correct">??</a>'
+            f'<a href="feedback://correct?finding_id={finding_id}" class="feedback-link correct">??</a>'
         )
         feedback_incorrect_link = (
-            f'<a href="feedback://incorrect?finding_id={finding_id}" '
-            'class="feedback-link incorrect">??</a>'
+            f'<a href="feedback://incorrect?finding_id={finding_id}" class="feedback-link incorrect">??</a>'
         )
-        feedback_links = (
-            f'<div class="feedback-controls">{feedback_correct_link} {feedback_incorrect_link}</div>'
-        )
+        feedback_links = f'<div class="feedback-controls">{feedback_correct_link} {feedback_incorrect_link}</div>'
 
         return f"{confidence_html}<br>{chat_link}<br>{feedback_links}"
 
@@ -346,8 +347,7 @@ class ReportGenerator:
                 recommendation = sanitize_human_text(item.get("recommendation", ""))
                 title = sanitize_human_text(item.get("title", item.get("id", "Checklist item")))
                 rows.append(
-                    f"<tr><td>{title}</td><td><span class='{status_class}'>{status_label}</span></td><td>{evidence}</td><td>{recommendation}</td></tr>",
-                )
+                    f"<tr><td>{title}</td><td><span class='{status_class}'>{status_label}</span></td><td>{evidence}</td><td>{recommendation}</td></tr>")
             rows_html = "".join(rows)
         return report_html.replace("<!-- Placeholder for checklist rows -->", rows_html)
 
@@ -357,15 +357,14 @@ class ReportGenerator:
             return "<p>No recurring compliance patterns were detected in this document.</p>"
 
         categories = Counter(
-            sanitize_human_text(finding.get("issue_category", "General")) or "General"
-            for finding in findings
+            sanitize_human_text(finding.get("issue_category", "General")) or "General" for finding in findings
         )
         top_categories = categories.most_common(3)
-        list_items = "".join(
-            f"<li>{category}: {count} finding(s)</li>" for category, count in top_categories
-        )
+        list_items = "".join(f"<li>{category}: {count} finding(s)</li>" for category, count in top_categories)
         return f"<ul>{list_items}</ul>"
 
-    def _generate_personal_development_section(self, findings: list[dict[str, Any]], analysis_result: dict[str, Any]) -> str:
+    def _generate_personal_development_section(
+        self, findings: list[dict[str, Any]], analysis_result: dict[str, Any]
+    ) -> str:
         # ... (rest of the method remains the same)
         return ""

@@ -105,12 +105,7 @@ class PerformanceMonitor:
         """
         return OperationTracker(self, component, operation, metadata or {})
 
-    async def track_async_operation(self,
-                                  component: str,
-                                  operation: str,
-                                  func: Callable,
-                                  *args,
-                                  **kwargs) -> Any:
+    async def track_async_operation(self, component: str, operation: str, func: Callable, *args, **kwargs) -> Any:
         """Track an async operation and return its result.
 
         Args:
@@ -162,8 +157,7 @@ class PerformanceMonitor:
                 memory_usage_mb=end_memory - start_memory,
                 cpu_usage_percent=(end_cpu + start_cpu) / 2,
                 success=success,
-                metadata=kwargs.get("metadata", {}),
-            )
+                metadata=kwargs.get("metadata", {}))
 
             # Store metric
             self._store_metric(metric)
@@ -172,12 +166,13 @@ class PerformanceMonitor:
             if operation_id in self.active_operations:
                 del self.active_operations[operation_id]
 
-    def record_metric(self,
-                     component: str,
-                     operation: str,
-                     duration_ms: float,
-                     success: bool = True,
-                     metadata: dict[str, Any] | None = None):
+    def record_metric(
+        self,
+        component: str,
+        operation: str,
+        duration_ms: float,
+        success: bool = True,
+        metadata: dict[str, Any] | None = None):
         """Manually record a performance metric.
 
         Args:
@@ -196,8 +191,7 @@ class PerformanceMonitor:
             memory_usage_mb=self._get_memory_usage(),
             cpu_usage_percent=self._get_cpu_usage(),
             success=success,
-            metadata=metadata or {},
-        )
+            metadata=metadata or {})
 
         self._store_metric(metric)
 
@@ -223,8 +217,7 @@ class PerformanceMonitor:
             active_threads=threading.active_count(),
             response_time_avg=avg_response_time,
             error_rate=error_rate,
-            throughput=throughput,
-        )
+            throughput=throughput)
 
     def get_component_performance(self, component: str, hours: int = 24) -> dict[str, Any]:
         """Get performance statistics for a specific component.
@@ -238,10 +231,7 @@ class PerformanceMonitor:
 
         """
         cutoff_time = datetime.now() - timedelta(hours=hours)
-        component_metrics = [
-            m for m in self.metrics_history
-            if m.component == component and m.timestamp > cutoff_time
-        ]
+        component_metrics = [m for m in self.metrics_history if m.component == component and m.timestamp > cutoff_time]
 
         if not component_metrics:
             return {
@@ -300,13 +290,15 @@ class PerformanceMonitor:
             avg_duration = sum(m.duration_ms for m in metrics) / len(metrics)
             success_rate = sum(1 for m in metrics if m.success) / len(metrics)
 
-            trends.append({
-                "hour": hour.isoformat(),
-                "operation_count": len(metrics),
-                "avg_duration_ms": avg_duration,
-                "success_rate": success_rate,
-                "throughput": len(metrics),
-            })
+            trends.append(
+                {
+                    "hour": hour.isoformat(),
+                    "operation_count": len(metrics),
+                    "avg_duration_ms": avg_duration,
+                    "success_rate": success_rate,
+                    "throughput": len(metrics),
+                }
+            )
 
         return {
             "trends": trends,
@@ -335,14 +327,16 @@ class PerformanceMonitor:
         result = []
         for operation, metrics in bottlenecks.items():
             avg_duration = sum(m.duration_ms for m in metrics) / len(metrics)
-            result.append({
-                "operation": operation,
-                "occurrence_count": len(metrics),
-                "avg_duration_ms": avg_duration,
-                "max_duration_ms": max(m.duration_ms for m in metrics),
-                "impact_score": len(metrics) * avg_duration,  # Simple impact calculation
-                "recommendations": self._get_optimization_recommendations(operation, avg_duration),
-            })
+            result.append(
+                {
+                    "operation": operation,
+                    "occurrence_count": len(metrics),
+                    "avg_duration_ms": avg_duration,
+                    "max_duration_ms": max(m.duration_ms for m in metrics),
+                    "impact_score": len(metrics) * avg_duration,  # Simple impact calculation
+                    "recommendations": self._get_optimization_recommendations(operation, avg_duration),
+                }
+            )
 
         # Sort by impact score
         result.sort(key=lambda x: x["impact_score"], reverse=True)
@@ -431,29 +425,37 @@ class PerformanceMonitor:
         recommendations = []
 
         if "pdf_export" in operation:
-            recommendations.extend([
-                "Consider reducing PDF complexity or size",
-                "Implement PDF generation caching",
-                "Use background processing for large reports",
-            ])
+            recommendations.extend(
+                [
+                    "Consider reducing PDF complexity or size",
+                    "Implement PDF generation caching",
+                    "Use background processing for large reports",
+                ]
+            )
         elif "ai_analysis" in operation:
-            recommendations.extend([
-                "Optimize document chunking strategy",
-                "Implement result caching for similar documents",
-                "Consider using smaller AI models for faster processing",
-            ])
+            recommendations.extend(
+                [
+                    "Optimize document chunking strategy",
+                    "Implement result caching for similar documents",
+                    "Consider using smaller AI models for faster processing",
+                ]
+            )
         elif "database" in operation:
-            recommendations.extend([
-                "Add database indexes for frequently queried fields",
-                "Implement query result caching",
-                "Consider database connection pooling",
-            ])
+            recommendations.extend(
+                [
+                    "Add database indexes for frequently queried fields",
+                    "Implement query result caching",
+                    "Consider database connection pooling",
+                ]
+            )
         else:
-            recommendations.extend([
-                "Profile the operation to identify bottlenecks",
-                "Consider implementing caching",
-                "Optimize algorithm complexity",
-            ])
+            recommendations.extend(
+                [
+                    "Profile the operation to identify bottlenecks",
+                    "Consider implementing caching",
+                    "Optimize algorithm complexity",
+                ]
+            )
 
         return recommendations
 
@@ -471,7 +473,7 @@ class PerformanceMonitor:
                 "max_error_rate": 0.1,
             },
             "database": {
-                "max_duration_ms": 1000,   # 1 second
+                "max_duration_ms": 1000,  # 1 second
                 "max_memory_mb": 50,
                 "max_error_rate": 0.01,
             },
@@ -485,15 +487,6 @@ class PerformanceMonitor:
 
 class OperationTracker:
     """Context manager for tracking individual operations."""
-
-    def __init__(self, monitor: PerformanceMonitor, component: str, operation: str, metadata: dict[str, Any]):
-        self.monitor = monitor
-        self.component = component
-        self.operation = operation
-        self.metadata = metadata
-        self.start_time = None
-        self.start_memory = None
-        self.start_cpu = None
 
     def __enter__(self):
         self.start_time = time.time()
@@ -517,11 +510,12 @@ class OperationTracker:
             memory_usage_mb=end_memory - self.start_memory,
             cpu_usage_percent=(end_cpu + self.start_cpu) / 2,
             success=success,
-            metadata=self.metadata,
-        )
+            metadata=self.metadata)
 
         self.monitor._store_metric(metric)
 
 
+# Global performance monitor instance
+# Global performance monitor instance
 # Global performance monitor instance
 performance_monitor = PerformanceMonitor()

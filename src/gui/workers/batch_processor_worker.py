@@ -1,4 +1,3 @@
-
 import os
 import time
 
@@ -9,6 +8,7 @@ from src.config import get_settings
 
 settings = get_settings()
 API_URL = settings.paths.api_url
+
 
 class BatchProcessorWorker(QObject):
     """Processes a list of files by sending them for analysis one by one."""
@@ -47,8 +47,7 @@ class BatchProcessorWorker(QObject):
                         files=files,
                         data=self.analysis_data,
                         headers=headers,
-                        timeout=30,
-                    )
+                        timeout=30)
                     response.raise_for_status()
                     task_id = response.json()["task_id"]
 
@@ -67,7 +66,7 @@ class BatchProcessorWorker(QObject):
                         self.file_completed.emit(filename, f"Failed: {error_msg}")
                         break
 
-                    time.sleep(2) # Wait before polling again
+                    time.sleep(2)  # Wait before polling again
 
             except requests.RequestException as e:
                 error_detail = str(e)
@@ -77,7 +76,7 @@ class BatchProcessorWorker(QObject):
                     except ValueError:
                         pass
                 self.file_completed.emit(filename, f"Error: {error_detail}")
-            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+            except (FileNotFoundError, PermissionError, OSError) as e:
                 self.file_completed.emit(filename, f"Error: {e!s}")
 
         self.finished.emit()

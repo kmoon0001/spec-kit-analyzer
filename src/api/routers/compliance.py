@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -75,15 +74,12 @@ async def evaluate_document(payload: TherapyDocumentRequest) -> ComplianceResult
     if not payload.text or not payload.discipline or not payload.document_type:
         raise HTTPException(
             status_code=400,
-            detail="Document text, discipline, and document_type are required.",
-        )
+            detail="Document text, discipline, and document_type are required.")
 
     result = service.evaluate_document(
         TherapyDocument(
             id=payload.id,
             text=payload.text,
             discipline=payload.discipline,
-            document_type=payload.document_type,
-        ),
-    )
+            document_type=payload.document_type))
     return ComplianceResultModel(**ComplianceService.to_dict(result))

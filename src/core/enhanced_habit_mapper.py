@@ -1,4 +1,6 @@
 """Enhanced 7 Habits Framework for Clinical Compliance.
+import requests
+from requests.exceptions import HTTPError
 
 Maps compliance findings to Stephen Covey's 7 Habits of Highly Effective People,
 providing personalized coaching and improvement strategies for clinical documentation.
@@ -346,8 +348,9 @@ class SevenHabitsFramework:
         self.llm_service = llm_service
 
     def map_finding_to_habit(
-        self, finding: dict[str, Any], context: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+        self,
+        finding: dict[str, Any],
+        context: dict[str, Any] | None = None) -> dict[str, Any]:
         """Map a compliance finding to the most appropriate habit.
 
         Args:
@@ -378,11 +381,11 @@ class SevenHabitsFramework:
 
         # Score each habit based on keyword matches (using word boundaries)
         import re
+
         habit_scores: dict[str, int] = {}
         for habit_id, habit_info in self.HABITS.items():
             score = sum(
-                1 for keyword in habit_info["keywords"]
-                if re.search(r"\b" + re.escape(keyword) + r"\b", combined_text)
+                1 for keyword in habit_info["keywords"] if re.search(r"\b" + re.escape(keyword) + r"\b", combined_text)
             )
             habit_scores[habit_id] = score
 
@@ -407,8 +410,9 @@ class SevenHabitsFramework:
         }
 
     def _ai_powered_mapping(
-        self, finding: dict[str, Any], context: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+        self,
+        finding: dict[str, Any],
+        context: dict[str, Any] | None = None) -> dict[str, Any]:
         """Use AI to map finding to habit with contextual understanding.
 
         Args:
@@ -445,8 +449,8 @@ class SevenHabitsFramework:
                 "explanation": result.get("explanation", habit["clinical_application"]),
                 "detailed_description": habit["description"].strip(),
                 "improvement_strategies": result.get(
-                    "strategies", habit["improvement_strategies"],
-                ),
+                    "strategies",
+                    habit["improvement_strategies"]),
                 "clinical_examples": habit["clinical_examples"],
                 "common_issues": habit["common_issues"],
                 "confidence": result.get("confidence", 0.8),
@@ -458,21 +462,20 @@ class SevenHabitsFramework:
             return self._rule_based_mapping(finding)
 
     def _build_ai_mapping_prompt(
-        self, finding: dict[str, Any], context: dict[str, Any] | None = None,
-    ) -> str:
+        self,
+        finding: dict[str, Any],
+        context: dict[str, Any] | None = None) -> str:
         """Build prompt for AI-powered habit mapping."""
         habits_summary = "\n".join(
-            [
-                f"- Habit {h['number']}: {h['name']} - {h['clinical_application']}"
-                for h in self.HABITS.values()
-            ],
-        )
+            [f"- Habit {h['number']}: {h['name']} - {h['clinical_application']}" for h in self.HABITS.values()])
 
         context_str = ""
         if context:
             context_str = f"\n**Context:** Document Type: {context.get('document_type', 'Unknown')}, Discipline: {context.get('discipline', 'Unknown')}"
 
         prompt = f"""
+You are an expert in clinical documentation and Stephen Covey's 7 Habits framework.
+You are an expert in clinical documentation and Stephen Covey's 7 Habits framework.
 You are an expert in clinical documentation and Stephen Covey's 7 Habits framework.
 
 **Compliance Finding:**
@@ -516,13 +519,11 @@ Return a JSON object:
             List of all habit dictionaries
 
         """
-        return [
-            {**habit, "habit_id": habit_id} for habit_id, habit in self.HABITS.items()
-        ]
+        return [{**habit, "habit_id": habit_id} for habit_id, habit in self.HABITS.items()]
 
     def get_habit_progression_metrics(
-        self, findings_history: list[dict[str, Any]],
-    ) -> dict[str, Any]:
+        self,
+        findings_history: list[dict[str, Any]]) -> dict[str, Any]:
         """Calculate habit progression metrics from historical findings.
 
         Args:
@@ -556,14 +557,9 @@ Return a JSON object:
             }
 
         top_focus_areas: list[tuple[str, HabitMetrics]] = sorted(
-            [
-                (hid, metrics)
-                for hid, metrics in habit_metrics.items()
-                if metrics["needs_focus"]
-            ],
+            [(hid, metrics) for hid, metrics in habit_metrics.items() if metrics["needs_focus"]],
             key=lambda item: item[1]["percentage"],
-            reverse=True,
-        )[:3]
+            reverse=True)[:3]
 
         return {
             "total_findings": total_findings,
@@ -582,6 +578,8 @@ Return a JSON object:
         return "Needs Focus"
 
 
+# Backward compatibility function
+# Backward compatibility function
 # Backward compatibility function
 def get_habit_for_finding(finding: dict[str, Any]) -> dict[str, Any]:
     """Legacy function for backward compatibility.

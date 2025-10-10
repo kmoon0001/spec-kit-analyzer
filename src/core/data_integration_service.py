@@ -7,11 +7,15 @@ dependency injection patterns.
 
 import asyncio
 import logging
-from abc import ABC, abstractmethod
+import sqlite3
+from abc import abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Generic, TypeVar
+
+import sqlalchemy
+import sqlalchemy.exc
 
 from .report_models import ReportConfig, ReportType, TimeRange
 
@@ -68,6 +72,8 @@ class DataSourceMetadata:
 
 
 @dataclass
+@dataclass
+@dataclass
 class DataQuery:
     """Query specification for data retrieval"""
 
@@ -77,20 +83,6 @@ class DataQuery:
     aggregation_level: str = "raw"  # raw, hourly, daily, weekly
     include_metadata: bool = True
     max_records: int | None = None
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for serialization"""
-        return {
-            "source_types": [st.value for st in self.source_types],
-            "time_range": {
-                "start_time": self.time_range.start_time.isoformat(),
-                "end_time": self.time_range.end_time.isoformat(),
-            } if self.time_range else None,
-            "filters": self.filters,
-            "aggregation_level": self.aggregation_level,
-            "include_metadata": self.include_metadata,
-            "max_records": self.max_records,
-        }
 
 
 @dataclass
@@ -104,22 +96,6 @@ class DataResult(Generic[T]):
     record_count: int = 0
     has_more: bool = False
     next_cursor: str | None = None
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for serialization"""
-        return {
-            "data": self.data,
-            "metadata": self.metadata.to_dict(),
-            "query": self.query.to_dict(),
-            "retrieved_at": self.retrieved_at.isoformat(),
-            "record_count": self.record_count,
-            "has_more": self.has_more,
-            "next_cursor": self.next_cursor,
-        }
-
-
-class BaseDataProvider(ABC):
-    """Abstract base class for all data providers"""
 
     def __init__(self, provider_id: str, description: str):
         self.provider_id = provider_id
@@ -153,7 +129,7 @@ class BaseDataProvider(ABC):
             self.is_available = metadata.availability
             self.last_health_check = datetime.now()
             return self.is_available
-        except (ValueError, TypeError, AttributeError) as e:
+        except (ValueError, TypeError, AttributeError):
             logger.exception("Health check failed for provider %s: {e}", self.provider_id)
             self.is_available = False
             return False
@@ -187,127 +163,9 @@ class BaseDataProvider(ABC):
 class PerformanceDataProvider(BaseDataProvider):
     """Data provider for performance metrics and optimization results"""
 
-    def __init__(self):
-        super().__init__(
-            provider_id="performance_metrics",
-            description="Performance metrics, optimization results, and system performance data",
-        )
-        self.supported_report_types = {
-            ReportType.PERFORMANCE_ANALYSIS,
-            ReportType.DASHBOARD,
-            ReportType.EXECUTIVE_SUMMARY,
-            ReportType.TREND_ANALYSIS,
-        }
-
-    def supports_report_type(self, report_type: ReportType) -> bool:
-        """Check if this provider supports the given report type"""
-        return report_type in self.supported_report_types
-
-    async def get_data(self, config: ReportConfig) -> dict[str, Any]:
-        """Get performance data for report generation"""
-        try:
-            # Create query from report config
-            query = DataQuery(
-                source_types=[DataSourceType.PERFORMANCE_METRICS, DataSourceType.OPTIMIZATION_RESULTS],
-                time_range=config.time_range,
-                filters=config.filters,
-                aggregation_level="hourly" if config.time_range and
-                    (config.time_range.end_time - config.time_range.start_time).days > 7 else "raw",
-            )
-
-            result = await self.query_data(query)
-            return result.data
-
-        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
-            logger.exception("Error getting performance data: %s", e)
-            return {"error": str(e), "provider": self.provider_id}
-
-    async def query_data(self, query: DataQuery) -> DataResult[dict[str, Any]]:
-        """Execute performance data query"""
-        cache_key = self._get_cache_key(query)
-
-        # Check cache first
-        if self._is_cache_valid(cache_key):
-            cached_data = self._cache[cache_key]
-            logger.debug("Using cached performance data for query")
-            return cached_data
-
-        try:
-            # Simulate data retrieval from performance systems
-            performance_data = await self._fetch_performance_metrics(query)
-            optimization_data = await self._fetch_optimization_results(query)
-
-            combined_data = {
-                "performance_metrics": performance_data,
-                "optimization_results": optimization_data,
-                "summary": self._calculate_performance_summary(performance_data, optimization_data),
-            }
-
-            metadata = await self.get_metadata()
-
-            result = DataResult(
-                data=combined_data,
-                metadata=metadata,
-                query=query,
-                retrieved_at=datetime.now(),
-                record_count=len(performance_data.get("metrics", [])),
-                has_more=False,
-            )
-
-            # Cache the result
-            self._cache_data(cache_key, result)
-
-            return result
-
-        except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
-            logger.exception("Error querying performance data: %s", e)
-            raise
-
-    async def _fetch_performance_metrics(self, query: DataQuery) -> dict[str, Any]:
-        """Fetch performance metrics from monitoring systems"""
-        await asyncio.sleep(0.1)  # Simulate async operation
-
-        return {
-            "metrics": [
-                {
-                    "timestamp": datetime.now().isoformat(),
-                    "response_time_ms": 150.0,
-                    "memory_usage_mb": 256.0,
-                    "cpu_usage_percent": 45.0,
-                    "throughput_requests_per_second": 25.0,
-                    "error_rate_percent": 0.5,
-                },
-            ],
-            "aggregation_level": query.aggregation_level,
-            "time_range": {
-                "start_time": query.time_range.start_time.isoformat(),
-                "end_time": query.time_range.end_time.isoformat(),
-            } if query.time_range else None,
-        }
-
-    async def _fetch_optimization_results(self, query: DataQuery) -> dict[str, Any]:
-        """Fetch optimization results from performance optimizer"""
-        await asyncio.sleep(0.1)  # Simulate async operation
-
-        return {
-            "optimizations": [
-                {
-                    "optimization_type": "cache",
-                    "enabled": True,
-                    "improvement_percent": 35.0,
-                    "baseline_response_time_ms": 200.0,
-                    "optimized_response_time_ms": 130.0,
-                },
-            ],
-            "overall_improvement": {
-                "response_time_improvement_percent": 30.0,
-                "memory_improvement_percent": 25.0,
-                "throughput_improvement_percent": 20.0,
-            },
-        }
-
-    def _calculate_performance_summary(self, performance_data: dict[str, Any],
-                                     optimization_data: dict[str, Any]) -> dict[str, Any]:
+    def _calculate_performance_summary(
+        self, performance_data: dict[str, Any], optimization_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Calculate performance summary statistics"""
         return {
             "overall_health_score": 85.0,
@@ -326,21 +184,11 @@ class PerformanceDataProvider(BaseDataProvider):
             last_updated=datetime.now(),
             data_quality=DataQuality.HIGH,
             availability=self.is_available,
-            tags=["performance", "optimization", "metrics", "monitoring"],
-        )
+            tags=["performance", "optimization", "metrics", "monitoring"])
 
 
 class DataIntegrationService:
     """Main service for coordinating data integration across all providers"""
-
-    def __init__(self):
-        self.providers: dict[str, BaseDataProvider] = {}
-        self.provider_registry: dict[DataSourceType, list[str]] = {}
-        self.health_check_interval = timedelta(minutes=5)
-        self.last_health_check = datetime.now()
-
-        # Register default providers
-        self._register_default_providers()
 
     def _register_default_providers(self) -> None:
         """Register default data providers"""
@@ -376,7 +224,7 @@ class DataIntegrationService:
 
             logger.info("Registered data provider: %s", provider.provider_id)
 
-        except Exception as e:
+        except Exception:
             logger.exception("Error registering provider %s: {e}", provider.provider_id)
             # Still add to providers dict even if registry update fails
             logger.info("Registered data provider: %s (registry update failed)", provider.provider_id)
@@ -398,8 +246,7 @@ class DataIntegrationService:
                 provider = self.providers[provider_id]
                 if provider.is_available:
                     task = asyncio.create_task(
-                        self._query_provider_with_error_handling(provider, query),
-                    )
+                        self._query_provider_with_error_handling(provider, query))
                     tasks.append((provider_id, task))
 
         # Collect results
@@ -417,14 +264,12 @@ class DataIntegrationService:
                         description=f"Error querying {provider_id}",
                         last_updated=datetime.now(),
                         data_quality=DataQuality.LOW,
-                        availability=False,
-                    )
+                        availability=False)
                     results[provider_id] = DataResult(
                         data={"error": str(e)},
                         metadata=error_metadata,
                         query=query,
-                        retrieved_at=datetime.now(),
-                    )
+                        retrieved_at=datetime.now())
 
         return results
 
@@ -436,7 +281,7 @@ class DataIntegrationService:
             try:
                 provider_metadata = await provider.get_metadata()
                 metadata[provider_id] = provider_metadata
-            except Exception as e:
+            except Exception:
                 logger.exception("Error getting metadata for provider %s: {e}", provider_id)
 
         return metadata
@@ -465,7 +310,7 @@ class DataIntegrationService:
             try:
                 is_healthy = await task
                 health_status[provider_id] = is_healthy
-            except Exception as e:
+            except Exception:
                 logger.exception("Health check failed for provider %s: {e}", provider_id)
                 health_status[provider_id] = False
 
@@ -482,8 +327,9 @@ class DataIntegrationService:
             provider.clear_cache()
         logger.info("Cleared caches for all data providers")
 
-    async def _query_provider_with_error_handling(self, provider: BaseDataProvider,
-                                                 query: DataQuery) -> DataResult[dict[str, Any]]:
+    async def _query_provider_with_error_handling(
+        self, provider: BaseDataProvider, query: DataQuery
+    ) -> DataResult[dict[str, Any]]:
         """Query a provider with comprehensive error handling"""
         try:
             return await provider.query_data(query)
@@ -496,11 +342,9 @@ class DataIntegrationService:
                 description=f"Error querying {provider.provider_id}",
                 last_updated=datetime.now(),
                 data_quality=DataQuality.LOW,
-                availability=False,
-            )
+                availability=False)
             return DataResult(
                 data={"error": str(e)},
                 metadata=error_metadata,
                 query=query,
-                retrieved_at=datetime.now(),
-            )
+                retrieved_at=datetime.now())

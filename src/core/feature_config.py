@@ -88,13 +88,11 @@ class FeatureConfig:
 
                 # Merge user config with defaults
                 self._merge_config(self.features, user_config)
-                logger.info(
-                    "Loaded user feature configuration from %s", self.config_file
-                )
+                logger.info("Loaded user feature configuration from %s", self.config_file)
             else:
                 logger.info("No user feature configuration found, using defaults")
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.warning("Could not load user config: %s, using defaults", e)
 
     def _merge_config(self, default: dict[str, Any], user: dict[str, Any]):
@@ -112,7 +110,7 @@ class FeatureConfig:
             with open(self.config_file, "w") as f:
                 json.dump(self.features, f, indent=2)
             logger.info("Feature configuration saved to %s", self.config_file)
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Could not save feature configuration: %s", e)
 
     def is_feature_enabled(self, feature_path: str) -> bool:
@@ -138,7 +136,7 @@ class FeatureConfig:
 
             return bool(current)
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError):
             logger.exception("Error checking feature %s: {e}", feature_path)
             return False
 
@@ -176,7 +174,7 @@ class FeatureConfig:
             current[parts[-1]] = enabled
             logger.info("Feature %s set to {enabled}", feature_path)
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError):
             logger.exception("Error setting feature %s: {e}", feature_path)
 
     def get_enabled_features(self) -> list[str]:
@@ -219,12 +217,7 @@ class FeatureConfig:
         # Check Excel export dependencies
         if self.is_feature_enabled("data_export.excel_support"):
             try:
-                import importlib.util
-
-                if (
-                    importlib.util.find_spec("pandas") is None
-                    or importlib.util.find_spec("openpyxl") is None
-                ):
+                if importlib.util.find_spec("pandas") is None or importlib.util.find_spec("openpyxl") is None:
                     raise ImportError("Required libraries not found") from None
             except ImportError:
                 issues["excel_export"] = "Pandas or OpenPyXL library not installed"
@@ -256,17 +249,9 @@ class FeatureConfig:
 
 
 # Global feature configuration instance
+# Global feature configuration instance
+# Global feature configuration instance
 feature_config = FeatureConfig()
-
-
-def is_feature_enabled(feature_path: str) -> bool:
-    """Global function to check if a feature is enabled."""
-    return feature_config.is_feature_enabled(feature_path)
-
-
-def get_feature_config(feature_name: str) -> dict[str, Any]:
-    """Global function to get feature configuration."""
-    return feature_config.get_feature_config(feature_name)
 
 
 # Convenience functions for common feature checks

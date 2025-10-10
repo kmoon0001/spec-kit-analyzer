@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,8 +12,7 @@ router = APIRouter(prefix="/rubrics", tags=["rubrics"])
 async def create_rubric(
     rubric: schemas.RubricCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_admin_user),
-):
+    current_user: schemas.User = Depends(get_current_admin_user)):
     return await crud.create_rubric(db=db, rubric=rubric)
 
 
@@ -23,8 +21,7 @@ async def read_rubrics(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_admin_user),
-):
+    current_user: schemas.User = Depends(get_current_admin_user)):
     return await crud.get_rubrics(db, skip=skip, limit=limit)
 
 
@@ -32,8 +29,7 @@ async def read_rubrics(
 async def read_rubric(
     rubric_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_admin_user),
-):
+    current_user: schemas.User = Depends(get_current_admin_user)):
     db_rubric = await crud.get_rubric(db, rubric_id=rubric_id)
     if db_rubric is None:
         raise HTTPException(status_code=404, detail="Rubric not found")
@@ -45,8 +41,7 @@ async def update_rubric(
     rubric_id: int,
     rubric: schemas.RubricCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_admin_user),
-):
+    current_user: schemas.User = Depends(get_current_admin_user)):
     db_rubric = await crud.update_rubric(db, rubric_id=rubric_id, rubric=rubric)
     if db_rubric is None:
         raise HTTPException(status_code=404, detail="Rubric not found")
@@ -57,8 +52,7 @@ async def update_rubric(
 async def delete_rubric(
     rubric_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_admin_user),
-):
+    current_user: schemas.User = Depends(get_current_admin_user)):
     db_rubric = await crud.get_rubric(db, rubric_id=rubric_id)
     if db_rubric is None:
         raise HTTPException(status_code=404, detail="Rubric not found")

@@ -13,9 +13,9 @@ from ...core.performance_manager import get_performance_manager
 
 logger = logging.getLogger(__name__)
 
+
 class PerformanceStatusWidget(QWidget):
-    """A widget that displays real-time CPU and memory usage.
-    """
+    """A widget that displays real-time CPU and memory usage."""
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -64,10 +64,7 @@ class PerformanceStatusWidget(QWidget):
                 self.memory_label.setText(f"{process_mem_mb} MB")
 
                 # Set tooltip with detailed info
-                tooltip = (
-                    f"System Memory Usage: {mem_percent}%\n"
-                    f"Application Memory: {process_mem_mb} MB"
-                )
+                tooltip = f"System Memory Usage: {mem_percent}%\nApplication Memory: {process_mem_mb} MB"
                 self.setToolTip(tooltip)
 
                 # Update memory bar color based on usage

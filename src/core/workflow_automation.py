@@ -1,4 +1,6 @@
 """Workflow Automation Service
+import requests
+from requests.exceptions import HTTPError
 
 Provides automated workflow capabilities for repetitive healthcare compliance tasks.
 This service enables users to create, schedule, and manage automated workflows
@@ -68,12 +70,13 @@ class WorkflowAutomationService:
 
         logger.info("Workflow automation service initialized")
 
-    async def create_automation(self,
-                              workflow_type: str,
-                              parameters: dict[str, Any],
-                              schedule: str | None = None,
-                              enabled: bool = True,
-                              user_id: int = 0) -> dict[str, Any]:
+    async def create_automation(
+        self,
+        workflow_type: str,
+        parameters: dict[str, Any],
+        schedule: str | None = None,
+        enabled: bool = True,
+        user_id: int = 0) -> dict[str, Any]:
         """Create a new workflow automation.
 
         Args:
@@ -111,8 +114,7 @@ class WorkflowAutomationService:
                 schedule=schedule,
                 enabled=enabled,
                 user_id=user_id,
-                next_execution=next_execution,
-            )
+                next_execution=next_execution)
 
             # Store automation
             self.automations[automation_id] = automation
@@ -216,19 +218,23 @@ class WorkflowAutomationService:
 
         for automation in self.automations.values():
             if automation.user_id == user_id:
-                user_automations.append({
-                    "automation_id": automation.automation_id,
-                    "workflow_type": automation.workflow_type,
-                    "enabled": automation.enabled,
-                    "schedule": automation.schedule,
-                    "created_at": automation.created_at.isoformat(),
-                    "last_executed": automation.last_executed.isoformat() if automation.last_executed else None,
-                    "next_execution": automation.next_execution.isoformat() if automation.next_execution else None,
-                    "execution_count": automation.execution_count,
-                    "success_count": automation.success_count,
-                    "error_count": automation.error_count,
-                    "success_rate": (automation.success_count / automation.execution_count * 100) if automation.execution_count > 0 else 0,
-                })
+                user_automations.append(
+                    {
+                        "automation_id": automation.automation_id,
+                        "workflow_type": automation.workflow_type,
+                        "enabled": automation.enabled,
+                        "schedule": automation.schedule,
+                        "created_at": automation.created_at.isoformat(),
+                        "last_executed": automation.last_executed.isoformat() if automation.last_executed else None,
+                        "next_execution": automation.next_execution.isoformat() if automation.next_execution else None,
+                        "execution_count": automation.execution_count,
+                        "success_count": automation.success_count,
+                        "error_count": automation.error_count,
+                        "success_rate": (automation.success_count / automation.execution_count * 100)
+                        if automation.execution_count > 0
+                        else 0,
+                    }
+                )
 
         return user_automations
 
@@ -340,5 +346,7 @@ class WorkflowAutomationService:
         return datetime.now() + timedelta(hours=1)
 
 
+# Global workflow automation service instance
+# Global workflow automation service instance
 # Global workflow automation service instance
 workflow_automation = WorkflowAutomationService()

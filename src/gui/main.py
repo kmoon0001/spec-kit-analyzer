@@ -53,4 +53,8 @@ def main():
     return 0  # User cancelled login
 
 if __name__ == "__main__":
+    pass
+if __name__ == "__main__":
+    pass
+if __name__ == "__main__":
     sys.exit(main())

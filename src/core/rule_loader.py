@@ -36,15 +36,19 @@ class RuleLoader:
         for subject in graph.subjects(RDF.type, rule_class_uri):
             try:
                 rules.append(self._create_rule_from_graph(graph, subject, default_ns))  # type: ignore[arg-type]
-            except (OSError, IOError, FileNotFoundError) as exc:
+            except (OSError, FileNotFoundError) as exc:
                 logger.exception(
-                    "Failed to parse rule %s in %s: %s", subject, filepath, exc,
-                )
+                    "Failed to parse rule %s in %s: %s",
+                    subject,
+                    filepath,
+                    exc)
         return rules
 
     def _create_rule_from_graph(
-        self, graph: Graph, rule_uri: URIRef, default_ns: str,
-    ) -> ComplianceRule:
+        self,
+        graph: Graph,
+        rule_uri: URIRef,
+        default_ns: str) -> ComplianceRule:
         def literal(predicate: str) -> str | None:
             value = graph.value(rule_uri, URIRef(default_ns + predicate))
             return value.toPython() if value is not None else None  # type: ignore[attr-defined]
@@ -71,5 +75,4 @@ class RuleLoader:
             suggestion=literal("hasSuggestion") or "",
             financial_impact=int(literal("hasFinancialImpact") or 0),
             positive_keywords=keywords("hasPositiveKeywords"),
-            negative_keywords=keywords("hasNegativeKeywords"),
-        )
+            negative_keywords=keywords("hasNegativeKeywords"))

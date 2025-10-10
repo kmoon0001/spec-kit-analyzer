@@ -1,9 +1,12 @@
 """Scheduler for automated ML training and model updates."""
 
 import logging
+import sqlite3
 from datetime import datetime
 from typing import Any
 
+import sqlalchemy
+import sqlalchemy.exc
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
@@ -16,9 +19,7 @@ logger = logging.getLogger(__name__)
 class MLScheduler:
     """Manages scheduled ML training and model updates."""
 
-    def __init__(self,
-                 training_pipeline: MLTrainingPipeline | None = None,
-                 scheduler: AsyncIOScheduler | None = None):
+    def __init__(self, training_pipeline: MLTrainingPipeline | None = None, scheduler: AsyncIOScheduler | None = None):
         """Initialize the ML scheduler.
 
         Args:
@@ -40,9 +41,7 @@ class MLScheduler:
         # Health check: every 6 hours
         self.health_check_schedule = IntervalTrigger(hours=6)
 
-    def start(self,
-              training_schedule: CronTrigger | None = None,
-              enable_health_checks: bool = True) -> None:
+    def start(self, training_schedule: CronTrigger | None = None, enable_health_checks: bool = True) -> None:
         """Start the ML scheduler.
 
         Args:
@@ -74,8 +73,7 @@ class MLScheduler:
                     id=self.health_check_job_id,
                     name="ML System Health Check",
                     replace_existing=True,
-                    max_instances=1,
-                )
+                    max_instances=1)
 
             # Start the scheduler
             self.scheduler.start()
@@ -113,7 +111,7 @@ class MLScheduler:
 
             # Log results
             duration = (datetime.now() - job_start).total_seconds()
-            logger.info("ML training job completed in %ss: %s", duration, result['status'])
+            logger.info("ML training job completed in %ss: %s", duration, result["status"])
 
             # Log detailed results based on status
             if result["status"] == "completed":
@@ -125,7 +123,7 @@ class MLScheduler:
             elif result["status"] == "error":
                 self._log_training_error(result)
 
-        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
             duration = (datetime.now() - job_start).total_seconds()
             logger.error("ML training job failed after %ss: {e}", duration, exc_info=True)
 
@@ -139,9 +137,9 @@ class MLScheduler:
             if health_status["overall_status"] == "healthy":
                 logger.info("ML system health check: All systems healthy")
             elif health_status["overall_status"] == "warning":
-                logger.warning("ML system health check: Warnings detected - %s", health_status['warnings'])
+                logger.warning("ML system health check: Warnings detected - %s", health_status["warnings"])
             else:
-                logger.error("ML system health check: Issues detected - %s", health_status['errors'])
+                logger.error("ML system health check: Issues detected - %s", health_status["errors"])
 
         except (ValueError, TypeError, AttributeError) as e:
             logger.error("ML health check failed: %s", e, exc_info=True)
@@ -185,6 +183,7 @@ class MLScheduler:
             metadata_file = models_dir / "training_metadata.json"
             if metadata_file.exists():
                 import json
+
                 with open(metadata_file) as f:
                     metadata = json.load(f)
 
@@ -214,11 +213,13 @@ class MLScheduler:
         ece_improvement = eval_results.get("ece_improvement", 0)
         deployed = deployment_results.get("deployed", False)
 
-        logger.info("Training successful - ECE improvement: %s, ", ece_improvement * 100, 
-                   f"Deployed: {deployed}, Samples: {result.get('samples_used', 0)}")
+        logger.info(
+            "Training successful - ECE improvement: %s, ",
+            ece_improvement * 100,
+            f"Deployed: {deployed}, Samples: {result.get('samples_used', 0)}")
 
         if deployed:
-            logger.info("New model deployed: %s", deployment_results.get('model_path', 'unknown'))
+            logger.info("New model deployed: %s", deployment_results.get("model_path", "unknown"))
 
     def _log_insufficient_data(self, result: dict[str, Any]) -> None:
         """Log insufficient data results."""
@@ -248,8 +249,7 @@ class MLScheduler:
                 trigger="date",  # Run once immediately
                 id=f"{self.training_job_id}_immediate",
                 name="Immediate ML Training",
-                replace_existing=True,
-            )
+                replace_existing=True)
             logger.info("Immediate training job scheduled")
         except Exception as e:
             logger.exception("Failed to schedule immediate training: %s", e)
@@ -301,6 +301,8 @@ class MLScheduler:
 
 
 # Global scheduler instance for application-wide use
+# Global scheduler instance for application-wide use
+# Global scheduler instance for application-wide use
 _global_scheduler: MLScheduler | None = None
 
 
@@ -312,8 +314,7 @@ def get_ml_scheduler() -> MLScheduler:
     return _global_scheduler
 
 
-def start_ml_scheduler(training_schedule: CronTrigger | None = None,
-                      enable_health_checks: bool = True) -> None:
+def start_ml_scheduler(training_schedule: CronTrigger | None = None, enable_health_checks: bool = True) -> None:
     """Start the global ML scheduler."""
     scheduler = get_ml_scheduler()
     scheduler.start(training_schedule, enable_health_checks)

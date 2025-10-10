@@ -67,7 +67,7 @@ class LicenseManager:
             logger.info("Trial period initialized successfully")
             return True
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Failed to initialize trial: %s", e)
             return False
 
@@ -112,7 +112,7 @@ class LicenseManager:
                 return True, "Trial period active", days_remaining
             return False, "Trial period expired", 0
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("License check failed: %s", e)
             return False, "License verification failed", None
 
@@ -139,12 +139,14 @@ class LicenseManager:
                 license_data = self._decrypt_license_data(encrypted_data)
 
             # Update to full license
-            license_data.update({
-                "status": "full",
-                "activation_date": datetime.now().isoformat(),
-                "activation_code": hashlib.sha256(activation_code.encode()).hexdigest(),
-                "hardware_id": self.get_hardware_fingerprint(),
-            })
+            license_data.update(
+                {
+                    "status": "full",
+                    "activation_date": datetime.now().isoformat(),
+                    "activation_code": hashlib.sha256(activation_code.encode()).hexdigest(),
+                    "hardware_id": self.get_hardware_fingerprint(),
+                }
+            )
 
             # Save updated license
             encrypted_data = self._encrypt_license_data(license_data)
@@ -154,7 +156,7 @@ class LicenseManager:
             logger.info("Full license activated successfully")
             return True
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("License activation failed: %s", e)
             return False
 
@@ -202,5 +204,7 @@ class LicenseManager:
             raise
 
 
+# Global license manager instance
+# Global license manager instance
 # Global license manager instance
 license_manager = LicenseManager()

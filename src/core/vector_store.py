@@ -6,11 +6,15 @@ This is crucial for efficiently finding similar reports based on their embedding
 """
 
 import logging
+import sqlite3
 
 import faiss
 import numpy as np
+import sqlalchemy
+import sqlalchemy.exc
 
 logger = logging.getLogger(__name__)
+
 
 class VectorStore:
     """A singleton class to manage the FAISS index for report embeddings."""
@@ -79,8 +83,12 @@ class VectorStore:
             logger.exception("Failed to search FAISS index: %s", e)
             return []
 
+
+# Global instance of the vector store
+# Global instance of the vector store
 # Global instance of the vector store
 vector_store = VectorStore()
+
 
 def get_vector_store() -> VectorStore:
     """Returns the global instance of the vector store."""

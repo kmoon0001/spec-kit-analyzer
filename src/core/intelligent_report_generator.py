@@ -70,6 +70,8 @@ class Insight:
 
 
 @dataclass
+@dataclass
+@dataclass
 class ReportContent:
     """Structured report content with insights"""
 

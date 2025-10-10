@@ -1,4 +1,3 @@
-
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
@@ -37,10 +36,12 @@ class SettingsDialog(QDialog):
         self.settings = QSettings("TherapyCo", "ComplianceAnalyzer")
 
         # Apply medical theme
-        self.setStyleSheet(medical_theme.get_main_window_stylesheet() +
-                          medical_theme.get_form_stylesheet() +
-                          medical_theme.get_tab_stylesheet() +
-                          medical_theme.get_card_stylesheet())
+        self.setStyleSheet(
+            medical_theme.get_main_window_stylesheet()
+            + medical_theme.get_form_stylesheet()
+            + medical_theme.get_tab_stylesheet()
+            + medical_theme.get_card_stylesheet()
+        )
 
         # --- Main Layout and Tabs ---
         self.main_layout = QVBoxLayout(self)
@@ -78,7 +79,11 @@ class SettingsDialog(QDialog):
         self.tab_widget.addTab(self.interface_tab, "🎨 Interface")
 
         # --- Buttons ---
-        self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Apply)
+        self.button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel
+            | QDialogButtonBox.StandardButton.Apply
+        )
         self.main_layout.addWidget(self.button_box)
 
         # --- Connections ---
@@ -385,31 +390,43 @@ class SettingsDialog(QDialog):
         self.strict_mode_checkbox.setChecked(self.settings.value("analysis/strict_mode", False, type=bool))
         self.sensitivity_slider.setValue(self.settings.value("analysis/sensitivity", 5, type=int))
         self.confidence_threshold_spinbox.setValue(self.settings.value("analysis/confidence_threshold", 75, type=int))
-        self.enable_fact_checking_checkbox.setChecked(self.settings.value("analysis/enable_fact_checking", True, type=bool))
+        self.enable_fact_checking_checkbox.setChecked(
+            self.settings.value("analysis/enable_fact_checking", True, type=bool)
+        )
 
         # Performance
         self.use_gpu_checkbox.setChecked(self.settings.value("performance/use_gpu", False, type=bool))
-        self.model_quantization_checkbox.setChecked(self.settings.value("performance/model_quantization", True, type=bool))
+        self.model_quantization_checkbox.setChecked(
+            self.settings.value("performance/model_quantization", True, type=bool)
+        )
         self.max_workers_spinbox.setValue(self.settings.value("performance/max_workers", 2, type=int))
         self.cache_size_spinbox.setValue(self.settings.value("performance/max_cache_memory_mb", 2048, type=int))
 
         # Automation
-        self.watch_folder_enabled_checkbox.setChecked(self.settings.value("automation/watch_folder_enabled", False, type=bool))
+        self.watch_folder_enabled_checkbox.setChecked(
+            self.settings.value("automation/watch_folder_enabled", False, type=bool)
+        )
         self.watch_folder_path_edit.setText(self.settings.value("automation/watch_folder_path", "", type=str))
         self.scan_interval_spinbox.setValue(self.settings.value("automation/scan_interval", 10, type=int))
         self.auto_export_checkbox.setChecked(self.settings.value("automation/auto_export", False, type=bool))
         self.auto_export_format_combo.setCurrentText(self.settings.value("automation/export_format", "HTML", type=str))
 
         # Privacy & Security
-        self.enable_phi_scrubbing_checkbox.setChecked(self.settings.value("privacy/enable_phi_scrubbing", True, type=bool))
+        self.enable_phi_scrubbing_checkbox.setChecked(
+            self.settings.value("privacy/enable_phi_scrubbing", True, type=bool)
+        )
         self.phi_confidence_spinbox.setValue(self.settings.value("privacy/phi_confidence", 80, type=int))
-        self.auto_delete_reports_checkbox.setChecked(self.settings.value("privacy/auto_delete_reports", False, type=bool))
+        self.auto_delete_reports_checkbox.setChecked(
+            self.settings.value("privacy/auto_delete_reports", False, type=bool)
+        )
         self.retention_days_spinbox.setValue(self.settings.value("privacy/retention_days", 30, type=int))
 
         # Interface
         self.theme_combo.setCurrentText(self.settings.value("interface/theme", "Light", type=str))
         self.font_size_spinbox.setValue(self.settings.value("interface/font_size", 14, type=int))
-        self.show_completion_notifications_checkbox.setChecked(self.settings.value("interface/show_notifications", True, type=bool))
+        self.show_completion_notifications_checkbox.setChecked(
+            self.settings.value("interface/show_notifications", True, type=bool)
+        )
         self.play_sound_checkbox.setChecked(self.settings.value("interface/play_sound", False, type=bool))
 
     def apply_settings(self):
@@ -445,7 +462,10 @@ class SettingsDialog(QDialog):
         self.settings.setValue("interface/show_notifications", self.show_completion_notifications_checkbox.isChecked())
         self.settings.setValue("interface/play_sound", self.play_sound_checkbox.isChecked())
 
-        QMessageBox.information(self, "✅ Settings Applied", "Your settings have been saved successfully!\n\nSome changes may require an application restart to take full effect.")
+        QMessageBox.information(
+            self,
+            "✅ Settings Applied",
+            "Your settings have been saved successfully!\n\nSome changes may require an application restart to take full effect.")
 
     def save_settings(self):
         """Apply settings and close the dialog."""
@@ -454,9 +474,11 @@ class SettingsDialog(QDialog):
 
     def clear_cache(self):
         """Clear the on-disk application cache."""
-        reply = QMessageBox.question(self, "Confirm Cache Deletion",
-                                     "Are you sure you want to delete all cached document and analysis data? This cannot be undone.",
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        reply = QMessageBox.question(
+            self,
+            "Confirm Cache Deletion",
+            "Are you sure you want to delete all cached document and analysis data? This cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 cache_service.clear_disk_cache()

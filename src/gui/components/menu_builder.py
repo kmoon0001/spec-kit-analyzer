@@ -1,4 +1,5 @@
 """Menu builder for the main application window."""
+
 from __future__ import annotations
 
 import webbrowser
@@ -77,6 +78,7 @@ class MenuBuilder:
         # Meta Analytics
         try:
             from src.gui.widgets.meta_analytics_widget import MetaAnalyticsWidget
+
             if MetaAnalyticsWidget:
                 meta_action = QAction("Meta Analytics", self.main_window, checkable=True)
                 meta_action.setShortcut("Ctrl+Shift+A")
@@ -89,6 +91,7 @@ class MenuBuilder:
         # Performance Status
         try:
             from src.gui.widgets.performance_status_widget import PerformanceStatusWidget
+
             if PerformanceStatusWidget:
                 perf_action = QAction("Performance Status", self.main_window, checkable=True)
                 perf_action.setShortcut("Ctrl+Shift+P")

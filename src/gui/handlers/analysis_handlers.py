@@ -5,7 +5,9 @@ import json
 import logging
 from typing import TYPE_CHECKING, Any
 
+import requests
 from PySide6.QtWidgets import QMessageBox
+from requests.exceptions import HTTPError
 
 from src.core.analysis_diagnostics import diagnostics
 from src.core.analysis_error_handler import error_handler
@@ -96,7 +98,9 @@ class AnalysisHandlers:
         """
         # Pre-flight checks - Document validation
         if not self.main_window._selected_file:
-            QMessageBox.warning(self.main_window, "No Document", "Please select a document before starting the analysis.")
+            QMessageBox.warning(
+                self.main_window, "No Document", "Please select a document before starting the analysis."
+            )
             return
 
         # Pre-flight checks - Rubric validation
@@ -110,7 +114,8 @@ class AnalysisHandlers:
 
         # Check for critical system issues that would prevent analysis
         critical_issues = [
-            result for result in diagnostic_results.values()
+            result
+            for result in diagnostic_results.values()
             if result.status.value == "error" and result.component in ["api_connectivity", "analysis_endpoints"]
         ]
 
@@ -119,9 +124,9 @@ class AnalysisHandlers:
             QMessageBox.critical(
                 self.main_window,
                 "🚨 Analysis Prerequisites Failed",
-                "Cannot start analysis due to critical issues:\n\n" + "\n".join(error_messages) +
-                "\n\nPlease resolve these issues and try again.",
-            )
+                "Cannot start analysis due to critical issues:\n\n"
+                + "\n".join(error_messages)
+                + "\n\nPlease resolve these issues and try again.")
             return
 
         # Validate the selected file
@@ -130,8 +135,7 @@ class AnalysisHandlers:
             QMessageBox.warning(
                 self.main_window,
                 "📄 File Validation Failed",
-                f"The selected file cannot be processed:\n\n{file_validation.message}\n\nPlease select a different file.",
-            )
+                f"The selected file cannot be processed:\n\n{file_validation.message}\n\nPlease select a different file.")
             return
 
         # Start workflow logging and tracking
@@ -139,14 +143,12 @@ class AnalysisHandlers:
         session_id = workflow_logger.log_analysis_start(
             str(self.main_window._selected_file),
             rubric_name,
-            self.main_window.current_user.username,
-        )
+            self.main_window.current_user.username)
 
         status_tracker.start_tracking(
             session_id,
             str(self.main_window._selected_file),
-            rubric_name,
-        )
+            rubric_name)
 
         # Prepare analysis options
         options = {
@@ -185,7 +187,7 @@ class AnalysisHandlers:
             status_tracker.update_status(AnalysisState.UPLOADING, 10, "Document uploaded, processing...")
             self.main_window.show_progress(15, "Processing document")
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             # Log the error
             workflow_logger.log_workflow_completion(False, error=str(e))
             status_tracker.set_error(f"Failed to start analysis: {e!s}")
@@ -207,7 +209,9 @@ class AnalysisHandlers:
             msg = QMessageBox(self.main_window)
             msg.setWindowTitle(f"{analysis_error.icon} Analysis Startup Error")
             msg.setText(formatted_message)
-            msg.setIcon(QMessageBox.Icon.Critical if analysis_error.severity == "critical" else QMessageBox.Icon.Warning)
+            msg.setIcon(
+                QMessageBox.Icon.Critical if analysis_error.severity == "critical" else QMessageBox.Icon.Warning
+            )
 
             # Add "Show Technical Details" button
             technical_button = msg.addButton("🔧 Technical Details", QMessageBox.ButtonRole.ActionRole)
@@ -239,13 +243,15 @@ class AnalysisHandlers:
             "Are you sure you want to stop the current analysis?\n\n"
             "This will cancel the analysis in progress and you'll need to restart it.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
+            QMessageBox.StandardButton.No)
 
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 # Stop the analysis worker if it exists
-                if hasattr(self.main_window.view_model, "current_worker") and self.main_window.view_model.current_worker:
+                if (
+                    hasattr(self.main_window.view_model, "current_worker")
+                    and self.main_window.view_model.current_worker
+                ):
                     self.main_window.view_model.current_worker.terminate()
 
                 # Reset UI state
@@ -270,9 +276,7 @@ class AnalysisHandlers:
                 QMessageBox.warning(
                     self.main_window,
                     "Stop Analysis Error",
-                    f"Could not stop analysis cleanly: {e!s}\n\n"
-                    "The analysis may continue in the background.",
-                )
+                    f"Could not stop analysis cleanly: {e!s}\n\nThe analysis may continue in the background.")
 
     def handle_analysis_success(self, payload: dict[str, Any]) -> None:
         """Handle successful analysis completion with automatic report display."""
@@ -282,6 +286,7 @@ class AnalysisHandlers:
         self.main_window.show_progress(100, "Analysis complete")
         # Hide progress bar after a brief delay to show completion
         from PySide6.QtCore import QTimer
+
         QTimer.singleShot(2000, self.main_window.hide_progress)
 
         # Update UI state
@@ -303,17 +308,19 @@ class AnalysisHandlers:
         # Create human-readable summary
         summary_text = f"""
 ANALYSIS COMPLETE
+ANALYSIS COMPLETE
+ANALYSIS COMPLETE
 ================
 
 Document: {doc_name}
 Status: ✅ Analysis Successful
-Timestamp: {payload.get('timestamp', 'N/A')}
+Timestamp: {payload.get("timestamp", "N/A")}
 
 SUMMARY:
 --------
-Total Findings: {len(analysis.get('findings', []))}
-Compliance Score: {analysis.get('compliance_score', 'N/A')}%
-Risk Level: {analysis.get('risk_level', 'N/A')}
+Total Findings: {len(analysis.get("findings", []))}
+Compliance Score: {analysis.get("compliance_score", "N/A")}%
+Risk Level: {analysis.get("risk_level", "N/A")}
 
 The detailed report has been automatically displayed in a popup window.
 
@@ -366,14 +373,14 @@ You can also:
             description_html = f"""
             <div style='font-family: Segoe UI; line-height: 1.5;'>
                 <h3 style='color: #1d4ed8; margin-top: 0; margin-bottom: 10px;'>{emoji} {level} Analysis</h3>
-                <p style='color: #475569; margin-bottom: 15px; font-weight: 500;'>{info['description']}</p>
+                <p style='color: #475569; margin-bottom: 15px; font-weight: 500;'>{info["description"]}</p>
 
                 <div style='background: #f1f5f9; padding: 12px; border-radius: 6px; margin-bottom: 12px;'>
                     <h4 style='color: #334155; margin: 0 0 8px 0; font-size: 13px;'>Analysis Details:</h4>
-                    <div style='color: #64748b; font-size: 12px; white-space: pre-line;'>{info['details']}</div>
+                    <div style='color: #64748b; font-size: 12px; white-space: pre-line;'>{info["details"]}</div>
                 </div>
 
-                <div style='color: #059669; font-weight: 500; font-size: 12px;'>{info['use_case']}</div>
+                <div style='color: #059669; font-weight: 500; font-size: 12px;'>{info["use_case"]}</div>
             </div>
             """
 

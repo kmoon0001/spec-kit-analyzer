@@ -20,6 +20,7 @@ try:
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import inch
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
@@ -54,6 +55,8 @@ class ExportOptions:
 
 
 @dataclass
+@dataclass
+@dataclass
 class ExportResult:
     """Result of PDF export operation."""
 
@@ -86,73 +89,78 @@ class PDFExportServiceFallback:
     def _setup_custom_styles(self):
         """Setup custom paragraph styles for professional formatting."""
         # Title style
-        self.styles.add(ParagraphStyle(
-            name="ReportTitle",
-            parent=self.styles["Heading1"],
-            fontSize=18,
-            spaceAfter=30,
-            alignment=TA_CENTER,
-            textColor=colors.darkblue,
-        ))
+        self.styles.add(
+            ParagraphStyle(
+                name="ReportTitle",
+                parent=self.styles["Heading1"],
+                fontSize=18,
+                spaceAfter=30,
+                alignment=TA_CENTER,
+                textColor=colors.darkblue)
+        )
 
         # Section header style
-        self.styles.add(ParagraphStyle(
-            name="SectionHeader",
-            parent=self.styles["Heading2"],
-            fontSize=14,
-            spaceAfter=12,
-            spaceBefore=20,
-            textColor=colors.darkblue,
-        ))
+        self.styles.add(
+            ParagraphStyle(
+                name="SectionHeader",
+                parent=self.styles["Heading2"],
+                fontSize=14,
+                spaceAfter=12,
+                spaceBefore=20,
+                textColor=colors.darkblue)
+        )
 
         # Subsection header style
-        self.styles.add(ParagraphStyle(
-            name="SubsectionHeader",
-            parent=self.styles["Heading3"],
-            fontSize=12,
-            spaceAfter=8,
-            spaceBefore=12,
-            textColor=colors.darkgreen,
-        ))
+        self.styles.add(
+            ParagraphStyle(
+                name="SubsectionHeader",
+                parent=self.styles["Heading3"],
+                fontSize=12,
+                spaceAfter=8,
+                spaceBefore=12,
+                textColor=colors.darkgreen)
+        )
 
         # Finding style
-        self.styles.add(ParagraphStyle(
-            name="Finding",
-            parent=self.styles["Normal"],
-            fontSize=10,
-            spaceAfter=6,
-            leftIndent=20,
-        ))
+        self.styles.add(
+            ParagraphStyle(
+                name="Finding",
+                parent=self.styles["Normal"],
+                fontSize=10,
+                spaceAfter=6,
+                leftIndent=20)
+        )
 
         # Recommendation style
-        self.styles.add(ParagraphStyle(
-            name="Recommendation",
-            parent=self.styles["Normal"],
-            fontSize=10,
-            spaceAfter=6,
-            leftIndent=20,
-            textColor=colors.darkgreen,
-        ))
+        self.styles.add(
+            ParagraphStyle(
+                name="Recommendation",
+                parent=self.styles["Normal"],
+                fontSize=10,
+                spaceAfter=6,
+                leftIndent=20,
+                textColor=colors.darkgreen)
+        )
 
         # Code style (check if it already exists)
         if "Code" not in self.styles:
-            self.styles.add(ParagraphStyle(
-                name="Code",
-                parent=self.styles["Normal"],
-                fontSize=8,
-                fontName="Courier",
-                leftIndent=20,
-                rightIndent=20,
-                backgroundColor=colors.lightgrey,
-            ))
+            self.styles.add(
+                ParagraphStyle(
+                    name="Code",
+                    parent=self.styles["Normal"],
+                    fontSize=8,
+                    fontName="Courier",
+                    leftIndent=20,
+                    rightIndent=20,
+                    backgroundColor=colors.lightgrey)
+            )
 
     async def export_report_to_pdf(
         self,
         report_data: dict[str, Any],
         template_name: str = "compliance_report_pdf",
         include_charts: bool = True,
-        watermark: str | None = None,
-    ) -> bytes:
+        watermark: str | None = None) -> bytes:
         """Export a compliance report to PDF format."""
         try:
             # Create temporary file
@@ -161,8 +169,7 @@ class PDFExportServiceFallback:
             # Export to file
             options = ExportOptions(
                 include_charts=include_charts,
-                watermark=watermark,
-            )
+                watermark=watermark)
             result = await self.export_to_file(report_data, temp_file, options)
 
             if not result.success:
@@ -177,7 +184,7 @@ class PDFExportServiceFallback:
 
             return pdf_bytes
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("PDF export failed: %s", e)
             raise
 
@@ -185,8 +192,7 @@ class PDFExportServiceFallback:
         self,
         report_data: dict[str, Any],
         output_path: str | Path,
-        options: ExportOptions | None = None,
-    ) -> ExportResult:
+        options: ExportOptions | None = None) -> ExportResult:
         """Export report to PDF file."""
         start_time = datetime.now()
 
@@ -204,8 +210,7 @@ class PDFExportServiceFallback:
                 rightMargin=72,
                 leftMargin=72,
                 topMargin=72,
-                bottomMargin=18,
-            )
+                bottomMargin=18)
 
             # Build document content
             story = []
@@ -244,10 +249,9 @@ class PDFExportServiceFallback:
                 file_path=output_path,
                 file_size=file_size,
                 page_count=None,
-                export_time_ms=export_time,
-            )
+                export_time_ms=export_time)
 
-        except (OSError, IOError, FileNotFoundError) as e:
+        except (OSError, FileNotFoundError) as e:
             export_time = (datetime.now() - start_time).total_seconds() * 1000
             logger.exception("PDF export failed: %s", e)
 
@@ -257,8 +261,7 @@ class PDFExportServiceFallback:
                 file_size=None,
                 page_count=None,
                 export_time_ms=export_time,
-                error_message=str(e),
-            )
+                error_message=str(e))
 
     def _add_metadata_section(self, story: list, report_data: dict[str, Any]):
         """Add metadata section to the PDF."""
@@ -272,17 +275,21 @@ class PDFExportServiceFallback:
             ["Overall Score:", f"{report_data.get('overall_score', 0)}/100"],
         ]
 
-        table = Table(metadata, colWidths=[2*inch, 4*inch])
-        table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (0, -1), colors.lightgrey),
-            ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
-            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-            ("FONTSIZE", (0, 0), (-1, -1), 10),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
-            ("BACKGROUND", (1, 0), (1, -1), colors.beige),
-            ("GRID", (0, 0), (-1, -1), 1, colors.black),
-        ]))
+        table = Table(metadata, colWidths=[2 * inch, 4 * inch])
+        table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (0, -1), colors.lightgrey),
+                    ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
+                    ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 10),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+                    ("BACKGROUND", (1, 0), (1, -1), colors.beige),
+                    ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                ]
+            )
+        )
 
         story.append(table)
         story.append(Spacer(1, 20))
@@ -314,16 +321,20 @@ class PDFExportServiceFallback:
                 ["Low Risk:", str(metrics.get("low_risk", 0))],
             ]
 
-            table = Table(metrics_data, colWidths=[2*inch, 1*inch])
-            table.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (0, -1), colors.lightblue),
-                ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
-                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-                ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-                ("FONTSIZE", (0, 0), (-1, -1), 10),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-                ("GRID", (0, 0), (-1, -1), 1, colors.black),
-            ]))
+            table = Table(metrics_data, colWidths=[2 * inch, 1 * inch])
+            table.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (0, -1), colors.lightblue),
+                        ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
+                        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                        ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                        ("FONTSIZE", (0, 0), (-1, -1), 10),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                        ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                    ]
+                )
+            )
 
             story.append(table)
 
@@ -385,7 +396,10 @@ class PDFExportServiceFallback:
 
 
 # Global service instance (lazy initialization)
+# Global service instance (lazy initialization)
+# Global service instance (lazy initialization)
 pdf_export_service_fallback = None
+
 
 def get_pdf_export_service_fallback():
     """Get the fallback PDF export service instance."""

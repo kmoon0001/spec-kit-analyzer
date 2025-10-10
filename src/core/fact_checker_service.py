@@ -1,5 +1,8 @@
+import json
 import logging
 
+import requests
+from requests.exceptions import HTTPError
 from transformers import pipeline
 
 logger = logging.getLogger(__name__)
@@ -18,8 +21,8 @@ class FactCheckerService:
             try:
                 logger.info("Loading fact-checking model: %s", self.model_name)
                 self.classifier = pipeline(
-                    "text2text-generation", model=self.model_name,
-                )
+                    "text2text-generation",
+                    model=self.model_name)
                 logger.info("Fact-checking model loaded successfully.")
             except (ValueError, TypeError, AttributeError) as e:
                 logger.exception("Failed to load fact-checking model: %s", e)
@@ -39,8 +42,7 @@ class FactCheckerService:
 
         if not self.is_ready():
             logger.warning(
-                "Fact-checker model not available. Skipping consistency check.",
-            )
+                "Fact-checker model not available. Skipping consistency check.")
             return True  # Fail open, assuming consistency
 
         try:

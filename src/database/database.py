@@ -1,4 +1,6 @@
 """Database configuration and session management.
+import requests
+from requests.exceptions import HTTPError
 
 Provides async database engine, session factory, and utility functions
 for database initialization and connection management with performance optimization.
@@ -38,21 +40,17 @@ def _get_performance_config() -> Any | None:
 
 
 # Use performance manager if available, otherwise fall back to config settings
+# Use performance manager if available, otherwise fall back to config settings
+# Use performance manager if available, otherwise fall back to config settings
 perf_config = _get_performance_config()
-POOL_SIZE = (
-    perf_config.connection_pool_size if perf_config else settings.database.pool_size
-)
-MAX_OVERFLOW = (
-    perf_config.connection_pool_size * 2
-    if perf_config
-    else settings.database.max_overflow
-)
+POOL_SIZE = perf_config.connection_pool_size if perf_config else settings.database.pool_size
+MAX_OVERFLOW = perf_config.connection_pool_size * 2 if perf_config else settings.database.max_overflow
 POOL_TIMEOUT = settings.database.pool_timeout
 POOL_RECYCLE = settings.database.pool_recycle
 
 logger.info(
-    "Database URL: %s", DATABASE_URL.split("///")[0] + "///<path>",
-)  # Log without exposing full path
+    "Database URL: %s",
+    DATABASE_URL.split("///")[0] + "///<path>")  # Log without exposing full path
 logger.info("Connection pool size: %s", POOL_SIZE)
 
 # --- Engine Configuration ---
@@ -72,8 +70,7 @@ if "sqlite" not in DATABASE_URL:
             "pool_pre_ping": True,
             "pool_recycle": POOL_RECYCLE,
             "pool_timeout": POOL_TIMEOUT,
-        },
-    )
+        })
 else:
     # SQLite-specific optimizations
     logger.info("Configuring SQLite-specific optimizations")
@@ -86,9 +83,7 @@ else:
             },
             # For SQLite, we use a single connection pool
             "pool_pre_ping": True,
-        },
-    )
-
+        })
 
 # --- Create Engine ---
 engine = create_async_engine(DATABASE_URL, **engine_args)
@@ -124,8 +119,8 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
         except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             # Log the error for debugging (without PHI)
             logger.exception(
-                "Database transaction failed, rolling back: %s", type(e).__name__,
-            )
+                "Database transaction failed, rolling back: %s",
+                type(e).__name__)
             await session.rollback()
             raise
         finally:
@@ -152,23 +147,17 @@ async def init_db() -> None:
             logger.info("Applying SQLite performance optimizations")
 
             await conn.execute(
-                text("PRAGMA journal_mode=WAL"),
-            )  # Write-Ahead Logging for better concurrency
+                text("PRAGMA journal_mode=WAL"))  # Write-Ahead Logging for better concurrency
             await conn.execute(
-                text("PRAGMA synchronous=NORMAL"),
-            )  # Balance between safety and performance
+                text("PRAGMA synchronous=NORMAL"))  # Balance between safety and performance
             await conn.execute(
-                text("PRAGMA cache_size=10000"),
-            )  # Increase cache size (10MB)
+                text("PRAGMA cache_size=10000"))  # Increase cache size (10MB)
             await conn.execute(
-                text("PRAGMA temp_store=MEMORY"),
-            )  # Store temp tables in memory
+                text("PRAGMA temp_store=MEMORY"))  # Store temp tables in memory
             await conn.execute(
-                text("PRAGMA mmap_size=268435456"),
-            )  # Use memory mapping (256MB)
+                text("PRAGMA mmap_size=268435456"))  # Use memory mapping (256MB)
             await conn.execute(
-                text("PRAGMA foreign_keys=ON"),
-            )  # Enable foreign key constraints
+                text("PRAGMA foreign_keys=ON"))  # Enable foreign key constraints
 
     logger.info("Database initialization complete")
 

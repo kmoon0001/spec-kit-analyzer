@@ -18,6 +18,7 @@ import transformers
 
 if "file_utils" not in dir(transformers):
     import transformers.utils
+
     sys.modules["transformers.file_utils"] = transformers.utils
 
 from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
@@ -34,6 +35,7 @@ except ImportError:
     AnalyzerEngine = None  # type: ignore
     PRESIDIO_AVAILABLE = False
 
+
 def get_presidio_wrapper():
     """Return a Presidio AnalyzerEngine if available."""
     if PRESIDIO_AVAILABLE and AnalyzerEngine is not None:
@@ -44,10 +46,8 @@ def get_presidio_wrapper():
     return None
 
 
-
 class ClinicalNERService:
-    """A service for high-accuracy clinical entity recognition using an ensemble of models.
-    """
+    """A service for high-accuracy clinical entity recognition using an ensemble of models."""
 
     def __init__(self, model_names: list[str] | None = None):
         """Initializes the clinical NER ensemble.
@@ -72,11 +72,9 @@ class ClinicalNERService:
                         "ner",
                         model=model,
                         tokenizer=tokenizer,
-                        aggregation_strategy="simple",
-                    ),
-                )
+                        aggregation_strategy="simple"))
                 logger.info("Successfully loaded clinical NER model: %s", model_name)
-            except Exception as e:
+            except Exception:
                 logger.error("Failed to load NER model %s: {e}", model_name, exc_info=True)
         return pipelines
 
@@ -149,11 +147,10 @@ class ClinicalNERService:
                         merged[-1] = entity
                 # Otherwise, if scores are comparable, prefer the longer entity
                 elif (entity["end"] - entity["start"]) > (last_entity["end"] - last_entity["start"]):
-                     if entity["score"] > (last_entity["score"] * 0.8):
+                    if entity["score"] > (last_entity["score"] * 0.8):
                         merged[-1] = entity
 
         return merged
-
 
 
 class NERPipeline(ClinicalNERService):
@@ -163,34 +160,6 @@ class NERPipeline(ClinicalNERService):
         "dslim/bert-base-NER",
         "Jean-Baptiste/roberta-large-ner-english",
     ]
-
-    def __init__(self, model_names: list[str] | None = None) -> None:
-        if model_names is None:
-            model_names = self.DEFAULT_MODELS
-        super().__init__(model_names)
-
-
-class NERAnalyzer:
-    """High-level analyzer that wraps NER pipelines with helper utilities."""
-
-    def __init__(self, model_names: list[str] | None = None) -> None:
-        self.ner_pipeline = NERPipeline(model_names)
-        self.presidio_wrapper = get_presidio_wrapper()
-        self.clinical_patterns: dict[str, str] = {
-            "titles": r"(?:Dr\.|DPT|PT|OT|MD|PA|NP|RN|DO|PTA|OTA)",
-            "signature_keywords": r"(?:signed|signature|therapist|provider|attending)",
-            "name_pattern": r"(?P<name>[A-Z][a-z]+\s+[A-Z][a-z]+)",
-        }
-
-    def extract_entities(self, text: str | None) -> list[dict[str, Any]]:
-        if not isinstance(text, str) or not text.strip():
-            return []
-        try:
-            entities = self.ner_pipeline.extract_entities(text)
-        except Exception as exc:
-            logger.warning("NER extraction failed: %s", exc)
-            return []
-        return self._deduplicate_entities(entities)
 
     def extract_clinician_name(self, text: str | None) -> list[str]:
         if not isinstance(text, str) or not text.strip():
@@ -202,7 +171,7 @@ class NERAnalyzer:
         matches = []
         for match in name_regex.finditer(text):
             window_start = max(0, match.start() - 64)
-            context_window = text[window_start:match.start()]
+            context_window = text[window_start : match.start()]
             if titles_regex.search(context_window) or signature_regex.search(context_window):
                 matches.append(match.group("name").strip())
         return matches
@@ -246,8 +215,7 @@ class NERAnalyzer:
                 entity.get("start"),
                 entity.get("end"),
                 entity.get("word"),
-                entity.get("entity_group"),
-            )
+                entity.get("entity_group"))
             if key in seen:
                 continue
             seen.add(key)
@@ -255,4 +223,4 @@ class NERAnalyzer:
         return deduped
 
 
-__all__ = ["ClinicalNERService", "NERPipeline", "NERAnalyzer"]
+__all__ = ["ClinicalNERService", "NERPipeline", ]

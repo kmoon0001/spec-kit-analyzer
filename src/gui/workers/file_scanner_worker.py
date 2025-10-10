@@ -1,5 +1,4 @@
-"""Worker for scanning directories for files with specific extensions.
-"""
+"""Worker for scanning directories for files with specific extensions."""
 
 from pathlib import Path
 
@@ -10,7 +9,7 @@ class FileScannerWorker(QObject):
     """Scans a directory for files with given extensions."""
 
     file_found = Signal(str)  # Emits the path of each file found
-    finished = Signal(list)    # Emits the list of all file paths when done
+    finished = Signal(list)  # Emits the list of all file paths when done
     error = Signal(str)
 
     def __init__(self, folder_path: str, extensions: list[str]):
@@ -38,7 +37,7 @@ class FileScannerWorker(QObject):
             if self._is_running:
                 self.finished.emit(found_files)
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             self.error.emit(f"An error occurred while scanning the folder: {e}")
 
     def stop(self):

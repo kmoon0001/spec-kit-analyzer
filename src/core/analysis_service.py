@@ -1,4 +1,3 @@
-
 import asyncio
 import hashlib
 import logging
@@ -30,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
+
 class AnalysisOutput(dict):
     """Dictionary wrapper for consistent analysis output."""
 
@@ -37,6 +37,7 @@ class AnalysisOutput(dict):
 def get_settings():
     """Legacy helper retained for tests that patch this symbol."""
     return _get_settings()
+
 
 class AnalysisService:
     """Orchestrates the document analysis process with a best-practices, two-stage pipeline."""
@@ -51,25 +52,37 @@ class AnalysisService:
 
         # Stage 2 Services: Clinical Analysis on Anonymized Text
         self.llm_service = kwargs.get("llm_service") or LLMService(
-            model_repo_id=repo_id, model_filename=filename,
-            llm_settings=settings.llm.model_dump(), revision=revision,
-            local_model_path=local_model_path,
-        )
+            model_repo_id=repo_id,
+            model_filename=filename,
+            llm_settings=settings.llm.model_dump(),
+            revision=revision,
+            local_model_path=local_model_path)
         self.retriever = kwargs.get("retriever") or HybridRetriever()
-        self.clinical_ner_service = kwargs.get("clinical_ner_service") or ClinicalNERService(model_names=settings.models.ner_ensemble)
+        self.clinical_ner_service = kwargs.get("clinical_ner_service") or ClinicalNERService(
+            model_names=settings.models.ner_ensemble
+        )
         template_path = Path(settings.models.analysis_prompt_template)
         self.prompt_manager = kwargs.get("prompt_manager") or PromptManager(template_name=template_path.name)
         self.explanation_engine = kwargs.get("explanation_engine") or ExplanationEngine()
-        self.fact_checker_service = kwargs.get("fact_checker_service") or FactCheckerService(model_name=settings.models.fact_checker)
-        self.nlg_service = kwargs.get("nlg_service") or NLGService(llm_service=self.llm_service, prompt_template_path=settings.models.nlg_prompt_template)
-        self.compliance_analyzer = kwargs.get("compliance_analyzer") or ComplianceAnalyzer(
-            retriever=self.retriever, ner_service=self.clinical_ner_service, llm_service=self.llm_service,
-            explanation_engine=self.explanation_engine, prompt_manager=self.prompt_manager,
-            fact_checker_service=self.fact_checker_service, nlg_service=self.nlg_service,
-            deterministic_focus=settings.analysis.deterministic_focus,
+        self.fact_checker_service = kwargs.get("fact_checker_service") or FactCheckerService(
+            model_name=settings.models.fact_checker
         )
+        self.nlg_service = kwargs.get("nlg_service") or NLGService(
+            llm_service=self.llm_service, prompt_template_path=settings.models.nlg_prompt_template
+        )
+        self.compliance_analyzer = kwargs.get("compliance_analyzer") or ComplianceAnalyzer(
+            retriever=self.retriever,
+            ner_service=self.clinical_ner_service,
+            llm_service=self.llm_service,
+            explanation_engine=self.explanation_engine,
+            prompt_manager=self.prompt_manager,
+            fact_checker_service=self.fact_checker_service,
+            nlg_service=self.nlg_service,
+            deterministic_focus=settings.analysis.deterministic_focus)
         self.preprocessing = kwargs.get("preprocessing") or PreprocessingService()
-        self.document_classifier = kwargs.get("document_classifier") or DocumentClassifier(llm_service=self.llm_service, prompt_template_path=settings.models.doc_classifier_prompt)
+        self.document_classifier = kwargs.get("document_classifier") or DocumentClassifier(
+            llm_service=self.llm_service, prompt_template_path=settings.models.doc_classifier_prompt
+        )
         self.report_generator = kwargs.get("report_generator") or ReportGenerator()
         self.checklist_service = kwargs.get("checklist_service") or ChecklistService()
 
@@ -87,8 +100,7 @@ class AnalysisService:
         analysis_mode: str | None = None,
         document_text: str | None = None,
         file_content: bytes | None = None,
-        original_filename: str | None = None,
-    ) -> Any:
+        original_filename: str | None = None) -> Any:
         """Analyzes document content for compliance, using a content-aware cache."""
         temp_file_path: Path | None = None
         try:
@@ -114,7 +126,7 @@ class AnalysisService:
                 temp_file_path.write_bytes(file_content)
                 chunks = parse_document_content(str(temp_file_path))
                 text_to_process = " ".join(c.get("sentence", "") for c in chunks if isinstance(c, dict)).strip()
-            else: # document_text must exist
+            else:  # document_text must exist
                 text_to_process = document_text or ""
 
             if not text_to_process:
@@ -125,7 +137,11 @@ class AnalysisService:
             # Stage 0: Initial text processing (optimized for speed)
             trimmed_text = self._trim_document_text(text_to_process)
             # Skip heavy preprocessing for faster analysis - basic cleaning only
-            corrected_text = trimmed_text.strip() if len(trimmed_text) < 5000 else await self._maybe_await(self.preprocessing.correct_text(trimmed_text))
+            corrected_text = (
+                trimmed_text.strip()
+                if len(trimmed_text) < 5000
+                else await self._maybe_await(self.preprocessing.correct_text(trimmed_text))
+            )
 
             # Stage 1: PHI Redaction (Security First)
             scrubbed_text = self.phi_scrubber.scrub(corrected_text)
@@ -145,9 +161,9 @@ class AnalysisService:
                 analysis_result = await asyncio.wait_for(
                     self._maybe_await(
                         self.compliance_analyzer.analyze_document(
-                            document_text=scrubbed_text, discipline=discipline_clean, doc_type=doc_type_clean,
-                        ),
-                    ),
+                            document_text=scrubbed_text,
+                            discipline=discipline_clean,
+                            doc_type=doc_type_clean)),
                     timeout=600.0,  # 10 minute timeout for entire analysis
                 )
             except TimeoutError:
@@ -172,8 +188,10 @@ class AnalysisService:
             # --- End of Pipeline ---
 
             enriched_result = self._enrich_analysis_result(
-                analysis_result, document_text=scrubbed_text, discipline=discipline_clean, doc_type=doc_type_clean,
-            )
+                analysis_result,
+                document_text=scrubbed_text,
+                discipline=discipline_clean,
+                doc_type=doc_type_clean)
 
             # Add timeout to report generation
             try:
@@ -213,7 +231,9 @@ class AnalysisService:
     def _trim_document_text(document_text: str, *, max_chars: int = 12000) -> str:
         return document_text[:max_chars] + "..." if len(document_text) > max_chars else document_text
 
-    def _enrich_analysis_result(self, analysis_result: dict, *, document_text: str, discipline: str, doc_type: str) -> dict:
+    def _enrich_analysis_result(
+        self, analysis_result: dict, *, document_text: str, discipline: str, doc_type: str
+    ) -> dict:
         result = dict(analysis_result)
         result.setdefault("discipline", discipline)
         result.setdefault("document_type", doc_type)
@@ -230,7 +250,11 @@ class AnalysisService:
     def _build_summary_fallback(analysis_result: dict, checklist: list) -> str:
         findings = analysis_result.get("findings") or []
         highlights = ", ".join(sanitize_human_text(f.get("issue_title", "finding")) for f in findings[:3])
-        base = f"Reviewed documentation uncovered {len(findings)} findings: {highlights}." if findings else "Reviewed documentation shows no LLM-generated compliance findings."
+        base = (
+            f"Reviewed documentation uncovered {len(findings)} findings: {highlights}."
+            if findings
+            else "Reviewed documentation shows no LLM-generated compliance findings."
+        )
         flagged = [item for item in checklist if item.get("status") != "pass"]
         if flagged:
             titles = ", ".join(sanitize_human_text(item.get("title", "")) for item in flagged[:3])
@@ -247,9 +271,7 @@ class AnalysisService:
     @staticmethod
     def _build_bullet_highlights(analysis_result: dict, checklist: list, summary: str) -> list[str]:
         bullets = [
-            f"{item.get('title')}: {item.get('recommendation')}"
-            for item in checklist
-            if item.get("status") != "pass"
+            f"{item.get('title')}: {item.get('recommendation')}" for item in checklist if item.get("status") != "pass"
         ]
         findings = analysis_result.get("findings") or []
         for finding in findings[:4]:
@@ -271,7 +293,6 @@ class AnalysisService:
             sanitized.append(bullet)
         return sanitized
 
-
     @staticmethod
     def _calculate_overall_confidence(analysis_result: dict, checklist: list) -> float:
         findings = analysis_result.get("findings") or []
@@ -288,7 +309,10 @@ class AnalysisService:
             if profile:
                 logger.info("Selected generator profile %s (system memory {mem_gb} GB)", name)
                 return profile.get("repo", ""), profile.get("filename", ""), profile.get("revision")
-        return models_cfg.get("generator", ""), models_cfg.get("generator_filename", ""), models_cfg.get("generator_revision")
+        return (
+            models_cfg.get("generator", ""),
+            models_cfg.get("generator_filename", ""),
+            models_cfg.get("generator_revision"))
 
     def _find_best_profile(self, profiles: dict, mem_gb: float) -> tuple[str, dict] | None:
         best_fit = None
@@ -315,7 +339,6 @@ class AnalysisService:
         logger.warning("Configured generator_local_path does not exist: %s", path)
         return None
 
-
     @staticmethod
     def _system_memory_gb() -> float:
         try:
@@ -324,5 +347,5 @@ class AnalysisService:
             # Fallback to a conservative default when system inspection fails
             return 16.0
 
-__all__ = ["AnalysisService", "AnalysisOutput", "get_settings"]
 
+__all__ = ["AnalysisService", "AnalysisOutput", "get_settings"]

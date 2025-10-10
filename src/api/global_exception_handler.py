@@ -21,7 +21,6 @@ from src.core.exceptions import (
 
 logger = structlog.get_logger(__name__)
 
-
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Global exception handler for all unhandled exceptions.
 
@@ -41,16 +40,14 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
             message=exc.message,
             details=exc.details,
             path=request.url.path,
-            method=request.method,
-        )
+            method=request.method)
         return JSONResponse(
             status_code=_get_status_code_for_error(exc),
             content={
                 "error": exc.error_code,
                 "message": exc.message,
                 "details": exc.details,
-            },
-        )
+            })
 
     # Handle Starlette HTTP exceptions, which are expected and not server errors
     if isinstance(exc, StarletteHTTPException):
@@ -61,8 +58,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         "Unhandled exception: An unexpected error occurred",
         path=request.url.path,
         method=request.method,
-        error=str(exc),
-    )
+        error=str(exc))
 
     return JSONResponse(
         status_code=500,
@@ -70,9 +66,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
             "error": "INTERNAL_SERVER_ERROR",
             "message": "An unexpected internal server error occurred. Please contact support.",
             "details": {},
-        },
-    )
-
+        })
 
 def _get_status_code_for_error(error: ApplicationError) -> int:
     """Map application errors to appropriate HTTP status codes.
@@ -96,10 +90,8 @@ def _get_status_code_for_error(error: ApplicationError) -> int:
     # Default to 500 for unmapped ApplicationErrors
     return error_status_map.get(type(error), 500)
 
-
 async def http_exception_handler(
-    request: Request, exc: StarletteHTTPException,
-) -> JSONResponse:
+    request: Request, exc: StarletteHTTPException) -> JSONResponse:
     """Handler for HTTP exceptions with consistent formatting.
 
     This handler ensures that all HTTP exceptions, whether raised by FastAPI
@@ -118,13 +110,11 @@ async def http_exception_handler(
         status_code=exc.status_code,
         detail=exc.detail,
         path=request.url.path,
-        method=request.method,
-    )
+        method=request.method)
     return JSONResponse(
         status_code=exc.status_code,
         content={
             "error": f"HTTP_{exc.status_code}",
             "message": exc.detail,
             "details": {"path": request.url.path, "method": request.method},
-        },
-    )
+        })

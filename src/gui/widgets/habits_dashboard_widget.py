@@ -5,25 +5,22 @@ weekly focus, and personalized coaching recommendations.
 """
 
 import logging
+import sqlite3
 
+import sqlalchemy
+import sqlalchemy.exc
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import (
     QFrame,
     QGroupBox,
-    QHBoxLayout,
     QLabel,
     QPushButton,
     QScrollArea,
-    QSplitter,
     QTabWidget,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
-
-from ...config import get_settings
-from ...core.enhanced_habit_mapper import SevenHabitsFramework
 
 logger = logging.getLogger(__name__)
 
@@ -75,42 +72,13 @@ class HabitProgressBar(QWidget):
         font = QFont("Segoe UI", 8)
         painter.setFont(font)
         painter.drawText(
-            self.width() - 120, 15, f"{self.percentage}% - {self.mastery_level}",
-        )
+            self.width() - 120,
+            15,
+            f"{self.percentage}% - {self.mastery_level}")
 
 
 class WeeklyFocusWidget(QFrame):
     """Widget showing this week's habit focus."""
-
-    def __init__(self):
-        super().__init__()
-        self.setFrameStyle(QFrame.Shape.Box)
-        self.setStyleSheet("""
-            QFrame {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #667eea, stop:1 #764ba2);
-                border-radius: 12px;
-                color: white;
-                padding: 15px;
-            }
-            QLabel {
-                color: white;
-                background: transparent;
-            }
-            QPushButton {
-                background: rgba(255, 255, 255, 0.2);
-                border: 1px solid rgba(255, 255, 255, 0.3);
-                border-radius: 6px;
-                color: white;
-                padding: 8px 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background: rgba(255, 255, 255, 0.3);
-            }
-        """)
-
-        self.setup_ui()
 
     def setup_ui(self):
         """Setup the weekly focus widget UI."""
@@ -155,60 +123,6 @@ class WeeklyFocusWidget(QFrame):
 class HabitDetailsWidget(QWidget):
     """Widget showing detailed information about a specific habit."""
 
-    def __init__(self):
-        super().__init__()
-        self.setup_ui()
-
-    def setup_ui(self):
-        """Setup the habit details widget UI."""
-        layout = QVBoxLayout(self)
-
-        # Habit title
-        self.title_label = QLabel()
-        self.title_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        self.title_label.setStyleSheet("color: #2c3e50; margin-bottom: 10px;")
-        layout.addWidget(self.title_label)
-
-        # Principle
-        self.principle_label = QLabel()
-        self.principle_label.setFont(QFont("Segoe UI", 12))
-        self.principle_label.setStyleSheet(
-            "color: #7f8c8d; font-style: italic; margin-bottom: 15px;",
-        )
-        layout.addWidget(self.principle_label)
-
-        # Description
-        self.description_text = QTextEdit()
-        self.description_text.setMaximumHeight(100)
-        self.description_text.setReadOnly(True)
-        self.description_text.setStyleSheet("""
-            QTextEdit {
-                border: 1px solid #bdc3c7;
-                border-radius: 6px;
-                padding: 10px;
-                background: #f8f9fa;
-            }
-        """)
-        layout.addWidget(self.description_text)
-
-        # Clinical examples
-        examples_group = QGroupBox("Clinical Examples")
-        examples_layout = QVBoxLayout(examples_group)
-        self.examples_text = QTextEdit()
-        self.examples_text.setMaximumHeight(80)
-        self.examples_text.setReadOnly(True)
-        examples_layout.addWidget(self.examples_text)
-        layout.addWidget(examples_group)
-
-        # Improvement strategies
-        strategies_group = QGroupBox("Improvement Strategies")
-        strategies_layout = QVBoxLayout(strategies_group)
-        self.strategies_text = QTextEdit()
-        self.strategies_text.setMaximumHeight(80)
-        self.strategies_text.setReadOnly(True)
-        strategies_layout.addWidget(self.strategies_text)
-        layout.addWidget(strategies_group)
-
     def update_habit(self, habit_info: dict):
         """Update the widget with habit information."""
         self.title_label.setText(f"Habit {habit_info['number']}: {habit_info['name']}")
@@ -217,14 +131,12 @@ class HabitDetailsWidget(QWidget):
 
         # Clinical examples
         examples_text = "\n".join(
-            [f"• {example}" for example in habit_info["clinical_examples"]],
-        )
+            [f"• {example}" for example in habit_info["clinical_examples"]])
         self.examples_text.setPlainText(examples_text)
 
         # Improvement strategies
         strategies_text = "\n".join(
-            [f"• {strategy}" for strategy in habit_info["improvement_strategies"]],
-        )
+            [f"• {strategy}" for strategy in habit_info["improvement_strategies"]])
         self.strategies_text.setPlainText(strategies_text)
 
 
@@ -237,20 +149,6 @@ class HabitsDashboardWidget(QWidget):
 
     habit_selected = Signal(str)  # Emitted when a habit is selected
 
-    def __init__(self):
-        super().__init__()
-        self.settings = get_settings()
-        self.habits_framework = SevenHabitsFramework()
-        self.current_metrics = None
-
-        # Check if habits are enabled
-        if not self.settings.habits_framework.enabled:
-            self.setup_disabled_ui()
-            return
-
-        self.setup_ui()
-        self.setup_timer()
-
     def setup_disabled_ui(self):
         """Setup UI when habits framework is disabled."""
         layout = QVBoxLayout(self)
@@ -261,60 +159,10 @@ class HabitsDashboardWidget(QWidget):
         layout.addWidget(message)
 
         enable_info = QLabel(
-            "Enable it in config.yaml: habits_framework.enabled = true",
-        )
+            "Enable it in config.yaml: habits_framework.enabled = true")
         enable_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
         enable_info.setStyleSheet("color: #95a5a6; font-size: 12px;")
         layout.addWidget(enable_info)
-
-    def setup_ui(self):
-        """Setup the main dashboard UI."""
-        layout = QVBoxLayout(self)
-
-        # Header
-        header_layout = QHBoxLayout()
-
-        title = QLabel("📈 Growth Journey - 7 Habits Framework")
-        title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        title.setStyleSheet("color: #2c3e50; margin-bottom: 20px;")
-        header_layout.addWidget(title)
-
-        header_layout.addStretch()
-
-        # Refresh button
-        refresh_btn = QPushButton("🔄 Refresh")
-        refresh_btn.clicked.connect(self.refresh_data)
-        refresh_btn.setStyleSheet("""
-            QPushButton {
-                background: #3498db;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background: #2980b9;
-            }
-        """)
-        header_layout.addWidget(refresh_btn)
-
-        layout.addLayout(header_layout)
-
-        # Main content splitter
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        layout.addWidget(splitter)
-
-        # Left panel - Overview and Progress
-        left_panel = self.create_left_panel()
-        splitter.addWidget(left_panel)
-
-        # Right panel - Habit Details
-        right_panel = self.create_right_panel()
-        splitter.addWidget(right_panel)
-
-        # Set splitter proportions
-        splitter.setSizes([400, 300])
 
     def create_left_panel(self) -> QWidget:
         """Create the left panel with overview and progress."""
@@ -367,8 +215,8 @@ class HabitsDashboardWidget(QWidget):
 
         # Add tab for each habit
         for habit_id in sorted(
-            self.habits_framework.HABITS.keys(), key=lambda x: int(x.split("_")[1]),
-        ):
+            self.habits_framework.HABITS.keys(),
+            key=lambda x: int(x.split("_")[1])):
             habit = self.habits_framework.get_habit_details(habit_id)
 
             details_widget = HabitDetailsWidget()
@@ -401,8 +249,7 @@ class HabitsDashboardWidget(QWidget):
             )
 
             self.current_metrics = self.habits_framework.get_habit_progression_metrics(
-                sample_findings,
-            )
+                sample_findings)
             self.update_progress_display()
             self.update_weekly_focus()
 
@@ -423,15 +270,13 @@ class HabitsDashboardWidget(QWidget):
         # Add progress bars for each habit
         for habit_id in sorted(
             self.current_metrics["habit_breakdown"].keys(),
-            key=lambda x: int(x.split("_")[1]),
-        ):
+            key=lambda x: int(x.split("_")[1])):
             habit_data = self.current_metrics["habit_breakdown"][habit_id]
 
             progress_bar = HabitProgressBar(
                 f"{habit_data['habit_number']}: {habit_data['habit_name']}",
                 habit_data["percentage"],
-                habit_data["mastery_level"],
-            )
+                habit_data["mastery_level"])
 
             self.progress_layout.addWidget(progress_bar)
 
@@ -446,16 +291,13 @@ class HabitsDashboardWidget(QWidget):
             habit_info = self.habits_framework.get_habit_details(habit_id)
 
             habit_name = f"Habit {habit_info['number']}: {habit_info['name']}"
-            description = (
-                f"{metrics['percentage']:.1f}% of your findings relate to this habit"
-            )
+            description = f"{metrics['percentage']:.1f}% of your findings relate to this habit"
 
             self.weekly_focus.update_focus(habit_name, description)
         else:
             self.weekly_focus.update_focus(
                 "Great job! No major focus areas",
-                "Your documentation is well-balanced across all habits",
-            )
+                "Your documentation is well-balanced across all habits")
 
     def get_habit_metrics(self) -> dict | None:
         """Get current habit metrics."""

@@ -51,8 +51,10 @@ class AILoaderWorker(QObject):
             self.status_updated.emit("AI Systems: Online")
             self.progress_updated.emit(100)
             self.finished.emit(
-                self._compliance_service, True, "AI Systems: Online", health_map,
-            )
+                self._compliance_service,
+                True,
+                "AI Systems: Online",
+                health_map)
 
         except (ImportError, AttributeError, RuntimeError) as e:
             logger.error("AI loader worker failed: %s", str(e), exc_info=True)
@@ -66,6 +68,7 @@ class AILoaderWorker(QObject):
 
         logger.info("Starting database maintenance")
         from src.config import get_settings
+
         settings = get_settings()
         maintenance_service = DatabaseMaintenanceService(db_path=settings.database.url)
         maintenance_service.purge_old_reports()
@@ -100,8 +103,7 @@ class AILoaderWorker(QObject):
 
         logger.info("Initializing compliance service")
         self._compliance_service = ComplianceService(
-            analysis_service=self._analysis_service,
-        )
+            analysis_service=self._analysis_service)
 
         self.progress_updated.emit(80)
         logger.info("AI services loaded successfully")
@@ -122,33 +124,26 @@ class AILoaderWorker(QObject):
             # Check LLM service
             llm_service = getattr(self._analysis_service, "llm_service", None)
             health_map["Generator"] = bool(
-                llm_service and getattr(llm_service, "is_ready", lambda: False)(),
-            )
+                llm_service and getattr(llm_service, "is_ready", lambda: False)())
 
             # Check fact checker (it's inside compliance_analyzer)
             compliance_analyzer = getattr(
-                self._analysis_service, "compliance_analyzer", None,
-            )
-            fact_checker = (
-                getattr(compliance_analyzer, "fact_checker_service", None)
-                if compliance_analyzer
-                else None
-            )
+                self._analysis_service,
+                "compliance_analyzer",
+                None)
+            fact_checker = getattr(compliance_analyzer, "fact_checker_service", None) if compliance_analyzer else None
             health_map["Fact Checker"] = bool(
-                fact_checker and getattr(fact_checker, "pipeline", None),
-            )
+                fact_checker and getattr(fact_checker, "pipeline", None))
 
             # Check NER analyzer
             ner_analyzer = getattr(self._analysis_service, "ner_analyzer", None)
             health_map["NER"] = bool(
-                ner_analyzer and hasattr(ner_analyzer, "ner_pipeline"),
-            )
+                ner_analyzer and hasattr(ner_analyzer, "ner_pipeline"))
 
             # Check chat service
             chat_service = getattr(self._analysis_service, "chat_llm_service", None)
             health_map["Chat"] = bool(
-                chat_service and getattr(chat_service, "is_ready", lambda: False)(),
-            )
+                chat_service and getattr(chat_service, "is_ready", lambda: False)())
         else:
             # Default to False if analysis service not available
             health_map.update(
@@ -157,16 +152,14 @@ class AILoaderWorker(QObject):
                     "Fact Checker": False,
                     "NER": False,
                     "Chat": False,
-                },
-            )
+                })
 
         # These components are always available
         health_map.update(
             {
                 "Retriever": True,
                 "Checklist": True,
-            },
-        )
+            })
 
         logger.info("Health check completed: %s", health_map)
         return health_map

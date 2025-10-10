@@ -9,6 +9,7 @@ from typing import Any
 import requests
 from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtWidgets import QMessageBox
+from requests.exceptions import HTTPError
 
 from src.config import get_settings
 from src.core.analysis_error_handler import error_handler
@@ -117,6 +118,7 @@ class MainViewModel(QObject):
         self.load_dashboard_data()
         try:
             from src.gui.widgets.meta_analytics_widget import MetaAnalyticsWidget
+
             if MetaAnalyticsWidget:
                 self.load_meta_analytics()
         except ImportError:
@@ -132,8 +134,7 @@ class MainViewModel(QObject):
         error_signal: str | None = "error",
         auto_stop: bool = True,
         start_slot: str = "run",
-        **kwargs: Any,
-    ) -> None:
+        **kwargs: Any) -> None:
         thread = QThread()
         worker = worker_class(**kwargs)
         worker.moveToThread(thread)
@@ -182,8 +183,7 @@ class MainViewModel(QObject):
             on_success=self.api_status_changed.emit,
             success_signal="status_update",
             error_signal=None,
-            auto_stop=False,
-        )
+            auto_stop=False)
 
     def _start_task_monitor_worker(self) -> None:
         self._run_worker(
@@ -192,8 +192,7 @@ class MainViewModel(QObject):
             on_error=lambda msg: self.status_message_changed.emit(f"Task Monitor Error: {msg}"),
             success_signal="tasks_updated",
             auto_stop=False,
-            token=self.auth_token,
-        )
+            token=self.auth_token)
 
     def _start_log_stream_worker(self) -> None:
         self._run_worker(
@@ -201,25 +200,45 @@ class MainViewModel(QObject):
             on_success=self.log_message_received.emit,
             on_error=lambda msg: self.status_message_changed.emit(f"Log Stream: {msg}"),
             success_signal="new_log_message",
-            auto_stop=False,
-        )
+            auto_stop=False)
 
     def load_rubrics(self) -> None:
-        self._run_worker(GenericApiWorker, on_success=self.rubrics_loaded.emit, on_error=lambda msg: self.status_message_changed.emit(f"Could not load rubrics: {msg}"), endpoint="/rubrics", token=self.auth_token)
+        self._run_worker(
+            GenericApiWorker,
+            on_success=self.rubrics_loaded.emit,
+            on_error=lambda msg: self.status_message_changed.emit(f"Could not load rubrics: {msg}"),
+            endpoint="/rubrics",
+            token=self.auth_token)
 
     def load_dashboard_data(self) -> None:
-        self._run_worker(GenericApiWorker, on_success=self.dashboard_data_loaded.emit, on_error=lambda msg: self.status_message_changed.emit(f"Could not load dashboard data: {msg}"), endpoint="/dashboard/statistics", token=self.auth_token)
+        self._run_worker(
+            GenericApiWorker,
+            on_success=self.dashboard_data_loaded.emit,
+            on_error=lambda msg: self.status_message_changed.emit(f"Could not load dashboard data: {msg}"),
+            endpoint="/dashboard/statistics",
+            token=self.auth_token)
 
     def load_meta_analytics(self, params: dict[str, Any] | None = None) -> None:
         endpoint = "/meta-analytics/widget_data"
         if params:
             param_str = f"days_back={params.get('days_back', 90)}&discipline={params.get('discipline', '')}"
             endpoint += f"?{param_str}"
-        self._run_worker(GenericApiWorker, on_success=self.meta_analytics_loaded.emit, on_error=lambda msg: self.status_message_changed.emit(f"Could not load meta-analytics: {msg}"), endpoint=endpoint, token=self.auth_token)
+        self._run_worker(
+            GenericApiWorker,
+            on_success=self.meta_analytics_loaded.emit,
+            on_error=lambda msg: self.status_message_changed.emit(f"Could not load meta-analytics: {msg}"),
+            endpoint=endpoint,
+            token=self.auth_token)
 
     def start_analysis(self, file_path: str, options: dict) -> None:
         self.status_message_changed.emit(f"Submitting document for analysis: {Path(file_path).name}")
-        self._run_worker(AnalysisStarterWorker, on_success=self._handle_analysis_task_started, on_error=lambda msg: self.status_message_changed.emit(f"Analysis failed: {msg}"), file_path=file_path, data=options, token=self.auth_token)
+        self._run_worker(
+            AnalysisStarterWorker,
+            on_success=self._handle_analysis_task_started,
+            on_error=lambda msg: self.status_message_changed.emit(f"Analysis failed: {msg}"),
+            file_path=file_path,
+            data=options,
+            token=self.auth_token)
 
     def _handle_analysis_task_started(self, task_id: str) -> None:
         # Log successful task creation
@@ -236,8 +255,7 @@ class MainViewModel(QObject):
             SingleAnalysisPollingWorker,
             on_success=self._on_analysis_polling_success,
             on_error=self._handle_analysis_error_with_logging,
-            task_id=task_id,
-        )
+            task_id=task_id)
 
     def _on_analysis_polling_success(self, result: dict) -> None:
         """Handle successful analysis with comprehensive logging."""
@@ -264,11 +282,15 @@ class MainViewModel(QObject):
             formatted_message,
             str(QMessageBox.Icon.Warning if analysis_error.severity == "warning" else QMessageBox.Icon.Critical),
             ["🔧 Technical Details", "Ok"],
-            error_handler.format_error_message(analysis_error, include_technical=True),
-        )
+            error_handler.format_error_message(analysis_error, include_technical=True))
 
     def load_settings(self) -> None:
-        self._run_worker(GenericApiWorker, on_success=self.settings_loaded.emit, on_error=lambda msg: self.status_message_changed.emit(f"Failed to load settings: {msg}"), endpoint="/admin/settings", token=self.auth_token)
+        self._run_worker(
+            GenericApiWorker,
+            on_success=self.settings_loaded.emit,
+            on_error=lambda msg: self.status_message_changed.emit(f"Failed to load settings: {msg}"),
+            endpoint="/admin/settings",
+            token=self.auth_token)
 
     def save_settings(self, settings: dict) -> None:
         auth_token = self.auth_token  # Capture in local scope
@@ -276,47 +298,61 @@ class MainViewModel(QObject):
         class SettingsSaveWorker(QThread):
             success = Signal(str)
             error = Signal(str)
+
             def run(self) -> None:
                 try:
-                    response = requests.post(f"{API_URL}/admin/settings", headers={"Authorization": f"Bearer {auth_token}"}, json=settings, timeout=10)
+                    response = requests.post(
+                        f"{API_URL}/admin/settings",
+                        headers={"Authorization": f"Bearer {auth_token}"},
+                        json=settings,
+                        timeout=10)
                     response.raise_for_status()
                     self.success.emit(response.json().get("message", "Success!"))
                 except (requests.RequestException, ValueError, KeyError) as e:
                     self.error.emit(str(e))
                 except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
                     self.error.emit(f"Unexpected error: {e!s}")
-        self._run_worker(SettingsSaveWorker, on_success=lambda msg: self.status_message_changed.emit(msg), on_error=lambda msg: self.status_message_changed.emit(f"Failed to save settings: {msg}"))
+
+        self._run_worker(
+            SettingsSaveWorker,
+            on_success=lambda msg: self.status_message_changed.emit(msg),
+            on_error=lambda msg: self.status_message_changed.emit(f"Failed to save settings: {msg}"))
 
     def submit_feedback(self, feedback_data: dict[str, Any]) -> None:
-        self._run_worker(FeedbackWorker, on_success=self.status_message_changed.emit, on_error=lambda msg: self.status_message_changed.emit(f"Feedback Error: {msg}"), token=self.auth_token, feedback_data=feedback_data)
+        self._run_worker(
+            FeedbackWorker,
+            on_success=self.status_message_changed.emit,
+            on_error=lambda msg: self.status_message_changed.emit(f"Feedback Error: {msg}"),
+            token=self.auth_token,
+            feedback_data=feedback_data)
 
     def stop_all_workers(self) -> None:
         """Stop all worker threads quickly - don't wait too long."""
         logger.debug("Stopping %d worker threads", len(self._active_threads))
-        
+
         for thread in list(self._active_threads):
             try:
                 if thread.isRunning():
                     # Try to stop the worker first if it has a stop method
-                    if hasattr(thread, '_worker_ref') and thread._worker_ref:
+                    if hasattr(thread, "_worker_ref") and thread._worker_ref:
                         worker = thread._worker_ref
-                        if hasattr(worker, 'stop'):
+                        if hasattr(worker, "stop"):
                             worker.stop()
-                    
+
                     # Request thread to quit
                     thread.quit()
-                    
+
                     # Wait briefly for graceful shutdown
                     if not thread.wait(50):  # Reduced wait time
                         logger.warning("Thread did not quit gracefully, terminating")
                         thread.terminate()
                         thread.wait(50)  # Brief wait after terminate
-                        
+
             except (RuntimeError, AttributeError):
                 # Thread might already be destroyed
                 pass
             except Exception as e:
                 logger.warning("Error stopping thread: %s", e)
-        
+
         self._active_threads.clear()
         logger.debug("All worker threads stopped")

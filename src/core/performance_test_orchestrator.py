@@ -6,6 +6,7 @@ including test suite management, execution coordination, and result aggregation.
 
 import asyncio
 import logging
+import sqlite3
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -14,6 +15,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+import sqlalchemy
+import sqlalchemy.exc
 import yaml
 
 logger = logging.getLogger(__name__)
@@ -108,8 +111,7 @@ class SuiteManager:
                         retry_count=test_config.get("retry_count", 3),
                         enabled=test_config.get("enabled", True),
                         parameters=test_config.get("parameters", {}),
-                        dependencies=test_config.get("dependencies", []),
-                    )
+                        dependencies=test_config.get("dependencies", []))
                     self.test_configurations[test.name] = test
 
                 # Load test suite definitions
@@ -120,7 +122,7 @@ class SuiteManager:
                 logger.warning("Test configuration file not found: %s", self.config_path)
                 self._create_default_configuration()
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Error loading test configurations: %s", e)
             self._create_default_configuration()
 
@@ -131,26 +133,22 @@ class SuiteManager:
                 name="baseline_response_time",
                 category=PerformanceCategory.BASELINE,
                 description="Measure baseline response times without optimizations",
-                parameters={"document_count": 10, "iterations": 5},
-            ),
+                parameters={"document_count": 10, "iterations": 5}),
             PerformanceTestConfig(
                 name="cache_optimization_test",
                 category=PerformanceCategory.OPTIMIZATION,
                 description="Test cache optimization effectiveness",
-                parameters={"cache_enabled": True, "document_count": 20},
-            ),
+                parameters={"cache_enabled": True, "document_count": 20}),
             PerformanceTestConfig(
                 name="memory_optimization_test",
                 category=PerformanceCategory.OPTIMIZATION,
                 description="Test memory optimization effectiveness",
-                parameters={"memory_optimization": True, "document_count": 15},
-            ),
+                parameters={"memory_optimization": True, "document_count": 15}),
             PerformanceTestConfig(
                 name="load_test_standard",
                 category=PerformanceCategory.LOAD,
                 description="Standard load testing with realistic document volumes",
-                parameters={"documents_per_minute": 30, "duration_minutes": 5},
-            ),
+                parameters={"documents_per_minute": 30, "duration_minutes": 5}),
         ]
 
         for test in default_tests:
@@ -173,8 +171,7 @@ class SuiteManager:
     def get_suite_tests(self, suite_name: str) -> list[PerformanceTestConfig]:
         """Get all test configurations for a test suite"""
         test_names = self.test_suites.get(suite_name, [])
-        return [self.test_configurations[name] for name in test_names
-                if name in self.test_configurations]
+        return [self.test_configurations[name] for name in test_names if name in self.test_configurations]
 
     def get_available_suites(self) -> list[str]:
         """Get list of available test suites"""
@@ -183,10 +180,6 @@ class SuiteManager:
 
 class ExecutionEngine:
     """Executes individual tests and collects results"""
-
-    def __init__(self):
-        self.test_runners: dict[PerformanceCategory, Callable] = {}
-        self.active_tests: dict[str, asyncio.Task] = {}
 
     def register_test_runner(self, category: PerformanceCategory, runner: Callable) -> None:
         """Register a test runner for a specific category"""
@@ -199,8 +192,7 @@ class ExecutionEngine:
             test_name=config.name,
             category=config.category,
             status=ExecutionStatus.RUNNING,
-            start_time=datetime.now(),
-        )
+            start_time=datetime.now())
 
         try:
             logger.info("Starting test: %s", config.name)
@@ -266,8 +258,7 @@ class ExecutionEngine:
                     status=ExecutionStatus.FAILED,
                     start_time=datetime.now(),
                     end_time=datetime.now(),
-                    error_message=str(result),
-                )
+                    error_message=str(result))
                 test_results.append(failed_result)
             else:
                 test_results.append(result)
@@ -277,14 +268,6 @@ class ExecutionEngine:
 
 class PerformanceTestOrchestrator:
     """Main orchestrator for performance testing activities"""
-
-    def __init__(self, config_path: Path | None = None):
-        self.suite_manager = SuiteManager(config_path)
-        self.execution_engine = ExecutionEngine()
-        self.results_history: list[PerformanceTestResults] = []
-
-        # Register default test runners
-        self._register_default_runners()
 
     def _register_default_runners(self) -> None:
         """Register default test runners for each category"""
@@ -331,7 +314,9 @@ class PerformanceTestOrchestrator:
         self.execution_engine.register_test_runner(PerformanceCategory.OPTIMIZATION, optimization_runner)
         self.execution_engine.register_test_runner(PerformanceCategory.LOAD, load_runner)
         self.execution_engine.register_test_runner(PerformanceCategory.STRESS, load_runner)  # Reuse for now
-        self.execution_engine.register_test_runner(PerformanceCategory.INTEGRATION, optimization_runner)  # Reuse for now
+        self.execution_engine.register_test_runner(
+            PerformanceCategory.INTEGRATION, optimization_runner
+        )  # Reuse for now
         self.execution_engine.register_test_runner(PerformanceCategory.BENCHMARK, baseline_runner)  # Reuse for now
 
     async def run_test_suite(self, suite_name: str) -> PerformanceTestResults:
@@ -340,8 +325,7 @@ class PerformanceTestOrchestrator:
 
         suite_result = PerformanceTestResults(
             suite_name=suite_name,
-            start_time=datetime.now(),
-        )
+            start_time=datetime.now())
 
         try:
             # Get test configurations for the suite
@@ -362,16 +346,14 @@ class PerformanceTestOrchestrator:
             suite_result.recommendations = self._generate_recommendations(test_results)
 
             suite_result.end_time = datetime.now()
-            suite_result.total_duration_seconds = (
-                suite_result.end_time - suite_result.start_time
-            ).total_seconds()
+            suite_result.total_duration_seconds = (suite_result.end_time - suite_result.start_time).total_seconds()
 
             # Store results
             self.results_history.append(suite_result)
 
             logger.info("Test suite %s completed in {suite_result.total_duration_seconds} seconds", suite_name)
 
-        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
             logger.exception("Error running test suite %s: {e}", suite_name)
             suite_result.end_time = datetime.now()
 
@@ -384,14 +366,14 @@ class PerformanceTestOrchestrator:
     async def run_baseline_tests(self) -> PerformanceTestResults:
         """Run baseline performance tests"""
         baseline_configs = [
-            config for config in self.suite_manager.test_configurations.values()
+            config
+            for config in self.suite_manager.test_configurations.values()
             if config.category == PerformanceCategory.BASELINE and config.enabled
         ]
 
         suite_result = PerformanceTestResults(
             suite_name="baseline_tests",
-            start_time=datetime.now(),
-        )
+            start_time=datetime.now())
 
         if baseline_configs:
             test_results = await self.execution_engine.execute_tests_parallel(baseline_configs)
@@ -404,14 +386,14 @@ class PerformanceTestOrchestrator:
     async def run_optimization_tests(self) -> PerformanceTestResults:
         """Run optimization performance tests"""
         optimization_configs = [
-            config for config in self.suite_manager.test_configurations.values()
+            config
+            for config in self.suite_manager.test_configurations.values()
             if config.category == PerformanceCategory.OPTIMIZATION and config.enabled
         ]
 
         suite_result = PerformanceTestResults(
             suite_name="optimization_tests",
-            start_time=datetime.now(),
-        )
+            start_time=datetime.now())
 
         if optimization_configs:
             test_results = await self.execution_engine.execute_tests_parallel(optimization_configs)
@@ -472,36 +454,29 @@ class PerformanceTestOrchestrator:
         failed_tests = [r for r in test_results if r.status == ExecutionStatus.FAILED]
         if failed_tests:
             recommendations.append(
-                f"Address {len(failed_tests)} failed tests to improve system reliability",
-            )
+                f"Address {len(failed_tests)} failed tests to improve system reliability")
 
         completed_tests = [r for r in test_results if r.status == ExecutionStatus.COMPLETED]
 
         # Analyze response times
         response_times = [
-            r.metrics.get("response_time_ms", 0) for r in completed_tests
-            if "response_time_ms" in r.metrics
+            r.metrics.get("response_time_ms", 0) for r in completed_tests if "response_time_ms" in r.metrics
         ]
 
         if response_times:
             avg_response_time = sum(response_times) / len(response_times)
             if avg_response_time > 200:
                 recommendations.append(
-                    "Consider enabling additional optimizations to improve response times",
-                )
+                    "Consider enabling additional optimizations to improve response times")
 
         # Analyze memory usage
-        memory_usage = [
-            r.metrics.get("memory_usage_mb", 0) for r in completed_tests
-            if "memory_usage_mb" in r.metrics
-        ]
+        memory_usage = [r.metrics.get("memory_usage_mb", 0) for r in completed_tests if "memory_usage_mb" in r.metrics]
 
         if memory_usage:
             avg_memory = sum(memory_usage) / len(memory_usage)
             if avg_memory > 400:
                 recommendations.append(
-                    "High memory usage detected - consider memory optimization strategies",
-                )
+                    "High memory usage detected - consider memory optimization strategies")
 
         if not recommendations:
             recommendations.append("Performance tests completed successfully - system is performing well")
@@ -511,7 +486,3 @@ class PerformanceTestOrchestrator:
     def get_test_history(self) -> list[PerformanceTestResults]:
         """Get historical test results"""
         return self.results_history.copy()
-
-    def get_available_suites(self) -> list[str]:
-        """Get list of available test suites"""
-        return self.suite_manager.get_available_suites()

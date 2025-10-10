@@ -65,8 +65,12 @@ class QueueManager(QObject):
         """Emits the progress of the batch analysis."""
         self.progress_updated.emit(current, total)
 
+
+# Global instance of the QueueManager
+# Global instance of the QueueManager
 # Global instance of the QueueManager
 queue_manager = QueueManager()
+
 
 def get_queue_manager() -> QueueManager:
     """Returns the global instance of the QueueManager."""

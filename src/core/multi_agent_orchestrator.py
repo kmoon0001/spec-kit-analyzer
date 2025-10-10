@@ -1,4 +1,6 @@
 """Multi-Agent Workflow Orchestrator
+import requests
+from requests.exceptions import HTTPError
 
 Coordinates multiple AI agents to work together on complex compliance analysis tasks,
 maximizing context sharing and prompt engineering effectiveness across the entire workflow.
@@ -91,11 +93,12 @@ class MultiAgentOrchestrator:
 
         logger.info("Multi-agent orchestrator initialized with enhanced context sharing")
 
-    async def execute_workflow(self,
-                             document_content: str,
-                             rubric_data: dict[str, Any],
-                             user_preferences: dict[str, Any],
-                             workflow_type: str = "comprehensive_analysis") -> dict[str, Any]:
+    async def execute_workflow(
+        self,
+        document_content: str,
+        rubric_data: dict[str, Any],
+        user_preferences: dict[str, Any],
+        workflow_type: str = "comprehensive_analysis") -> dict[str, Any]:
         """Execute a multi-agent workflow for compliance analysis.
 
         Args:
@@ -120,8 +123,7 @@ class MultiAgentOrchestrator:
                 document_content=document_content,
                 document_type=self._detect_document_type(document_content),
                 user_preferences=user_preferences,
-                rubric_data=rubric_data,
-            )
+                rubric_data=rubric_data)
 
             # Store active workflow
             self.active_workflows[workflow_id] = context
@@ -166,9 +168,9 @@ class MultiAgentOrchestrator:
             if workflow_id in self.active_workflows:
                 del self.active_workflows[workflow_id]
 
-    async def _execute_workflow_template(self,
-                                       context: WorkflowContext,
-                                       template: list[dict[str, Any]]) -> list[AgentResult]:
+    async def _execute_workflow_template(
+        self, context: WorkflowContext, template: list[dict[str, Any]]
+    ) -> list[AgentResult]:
         """Execute a workflow template with proper agent coordination."""
         results = []
 
@@ -223,8 +225,7 @@ class MultiAgentOrchestrator:
                 confidence=result_data.get("confidence", 0.8),
                 processing_time_ms=processing_time,
                 context_updates=result_data.get("context_updates", {}),
-                next_agents=result_data.get("next_agents", []),
-            )
+                next_agents=result_data.get("next_agents", []))
 
         except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
@@ -235,8 +236,7 @@ class MultiAgentOrchestrator:
                 success=False,
                 data={"error": str(e)},
                 confidence=0.0,
-                processing_time_ms=processing_time,
-            )
+                processing_time_ms=processing_time)
 
     def _prepare_agent_context(self, agent_role: AgentRole, context: WorkflowContext) -> dict[str, Any]:
         """Prepare optimized context for a specific agent with enhanced prompt engineering."""
@@ -252,43 +252,73 @@ class MultiAgentOrchestrator:
 
         # Add role-specific context enhancements
         if agent_role == AgentRole.DOCUMENT_ANALYZER:
-            base_context.update({
-                "focus": "Extract key clinical information, identify document structure, and prepare context for compliance analysis",
-                "output_requirements": ["clinical_concepts", "document_structure", "key_phrases", "medical_terminology"],
-                "prompt_optimization": "Focus on medical terminology and clinical context extraction",
-            })
+            base_context.update(
+                {
+                    "focus": "Extract key clinical information, identify document structure, and prepare context for compliance analysis",
+                    "output_requirements": [
+                        "clinical_concepts",
+                        "document_structure",
+                        "key_phrases",
+                        "medical_terminology",
+                    ],
+                    "prompt_optimization": "Focus on medical terminology and clinical context extraction",
+                }
+            )
 
         elif agent_role == AgentRole.COMPLIANCE_CHECKER:
-            base_context.update({
-                "focus": "Identify specific compliance issues using the provided rubric and regulatory guidelines",
-                "previous_analysis": context.agent_insights.get("document_analyzer", {}),
-                "output_requirements": ["compliance_issues", "rule_violations", "evidence_citations", "severity_levels"],
-                "prompt_optimization": "Use previous document analysis to focus compliance checking on relevant areas",
-            })
+            base_context.update(
+                {
+                    "focus": "Identify specific compliance issues using the provided rubric and regulatory guidelines",
+                    "previous_analysis": context.agent_insights.get("document_analyzer", {}),
+                    "output_requirements": [
+                        "compliance_issues",
+                        "rule_violations",
+                        "evidence_citations",
+                        "severity_levels",
+                    ],
+                    "prompt_optimization": "Use previous document analysis to focus compliance checking on relevant areas",
+                }
+            )
 
         elif agent_role == AgentRole.RISK_ASSESSOR:
-            base_context.update({
-                "focus": "Assess financial and regulatory risks associated with identified compliance issues",
-                "compliance_findings": context.agent_insights.get("compliance_checker", {}),
-                "output_requirements": ["risk_levels", "financial_impact", "regulatory_consequences", "priority_rankings"],
-                "prompt_optimization": "Consider cumulative risk and interaction between multiple compliance issues",
-            })
+            base_context.update(
+                {
+                    "focus": "Assess financial and regulatory risks associated with identified compliance issues",
+                    "compliance_findings": context.agent_insights.get("compliance_checker", {}),
+                    "output_requirements": [
+                        "risk_levels",
+                        "financial_impact",
+                        "regulatory_consequences",
+                        "priority_rankings",
+                    ],
+                    "prompt_optimization": "Consider cumulative risk and interaction between multiple compliance issues",
+                }
+            )
 
         elif agent_role == AgentRole.RECOMMENDATION_GENERATOR:
-            base_context.update({
-                "focus": "Generate specific, actionable recommendations based on all previous analysis",
-                "all_previous_insights": context.agent_insights,
-                "output_requirements": ["specific_actions", "implementation_steps", "timelines", "success_metrics"],
-                "prompt_optimization": "Synthesize insights from all previous agents to create comprehensive recommendations",
-            })
+            base_context.update(
+                {
+                    "focus": "Generate specific, actionable recommendations based on all previous analysis",
+                    "all_previous_insights": context.agent_insights,
+                    "output_requirements": ["specific_actions", "implementation_steps", "timelines", "success_metrics"],
+                    "prompt_optimization": "Synthesize insights from all previous agents to create comprehensive recommendations",
+                }
+            )
 
         elif agent_role == AgentRole.QUALITY_REVIEWER:
-            base_context.update({
-                "focus": "Review and validate all analysis results for accuracy and completeness",
-                "all_agent_results": context.agent_insights,
-                "output_requirements": ["quality_score", "validation_results", "improvement_suggestions", "confidence_adjustments"],
-                "prompt_optimization": "Cross-validate findings between agents and identify potential inconsistencies",
-            })
+            base_context.update(
+                {
+                    "focus": "Review and validate all analysis results for accuracy and completeness",
+                    "all_agent_results": context.agent_insights,
+                    "output_requirements": [
+                        "quality_score",
+                        "validation_results",
+                        "improvement_suggestions",
+                        "confidence_adjustments",
+                    ],
+                    "prompt_optimization": "Cross-validate findings between agents and identify potential inconsistencies",
+                }
+            )
 
         return base_context
 
@@ -466,5 +496,7 @@ class MultiAgentOrchestrator:
         return round(weighted_confidence / total_weight if total_weight > 0 else 0.0, 3)
 
 
+# Global multi-agent orchestrator instance
+# Global multi-agent orchestrator instance
 # Global multi-agent orchestrator instance
 multi_agent_orchestrator = MultiAgentOrchestrator()

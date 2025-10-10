@@ -1,4 +1,5 @@
 import datetime
+import json
 from time import perf_counter
 from typing import Any
 
@@ -21,12 +22,10 @@ logger = structlog.get_logger(__name__)
 router = APIRouter()
 report_generator = ReportGenerator()
 
-
 @router.get("/statistics", response_model=dict[str, Any])
 async def get_dashboard_statistics(
     db: AsyncSession = Depends(get_async_db),
-    current_user: models.User = Depends(get_current_active_user),
-):
+    current_user: models.User = Depends(get_current_active_user)):
     """Provides aggregated data for the main dashboard widget."""
     return await crud.get_dashboard_statistics(db)
 
@@ -64,12 +63,10 @@ class AIHealthService:
         """Placeholder for vector database (FAISS) health check."""
         return {"status": "Healthy", "details": "Index is loaded and searchable."}
 
-
 # --- Helper Functions ---#
 
 def _resolve_generator_model(
-    settings: Settings,
-) -> tuple[str, str, str | None]:
+    settings: Settings) -> tuple[str, str, str | None]:
     """Resolves the generator model from settings, preferring generator_profiles.
     """
     if settings.models.generator_profiles:
@@ -80,22 +77,18 @@ def _resolve_generator_model(
         return (
             settings.models.chat.repo,
             settings.models.chat.filename,
-            settings.models.chat.revision,
-        )
+            settings.models.chat.revision)
 
     raise HTTPException(
         status_code=500,
-        detail="Generator model configuration not found in 'generator_profiles' or 'chat'.",
-    )
-
+        detail="Generator model configuration not found in 'generator_profiles' or 'chat'.")
 
 # --- API Endpoints ---#
 
 @router.get("/overview")
 async def get_dashboard_overview(
     db: AsyncSession = Depends(get_async_db),
-    current_user: models.User = Depends(get_current_active_user),
-):
+    current_user: models.User = Depends(get_current_active_user)):
     """Provides a comprehensive overview for the mission control dashboard."""
     ai_health_service = AIHealthService()
     ai_health = await ai_health_service.get_ai_component_health()
@@ -109,52 +102,42 @@ async def get_dashboard_overview(
 
     return {"ai_health": ai_health, **other_data}
 
-
 @router.get("/reports", response_model=list[schemas.Report])
 async def read_reports(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_async_db),
-    current_user: models.User = Depends(get_current_active_user),
-):
+    current_user: models.User = Depends(get_current_active_user)):
     return await crud.get_reports(db, skip=skip, limit=limit)
-
 
 @router.get("/reports/{report_id}", response_class=HTMLResponse)
 async def read_report(
     report_id: int,
     db: AsyncSession = Depends(get_async_db),
-    current_user: models.User = Depends(get_current_active_user),
-):
+    current_user: models.User = Depends(get_current_active_user)):
     db_report = await crud.get_report(db, report_id=report_id)
     if db_report is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Report not found",
-        )
+            status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
 
     report_html = report_generator.generate_html_report(
         analysis_result=db_report.analysis_result,
         doc_name=db_report.document_name,
-        analysis_mode="rubric",
-    )
+        analysis_mode="rubric")
     return HTMLResponse(content=report_html)
-
 
 @router.get("/findings-summary", response_model=list[schemas.FindingSummary])
 async def read_findings_summary(
     db: AsyncSession = Depends(get_async_db),
-    current_user: models.User = Depends(get_current_active_user),
-):
+    current_user: models.User = Depends(get_current_active_user)):
     if hasattr(crud, "get_findings_summary"):
         return await crud.get_findings_summary(db)
     return []
 
-
 @router.get(
     "/director-dashboard",
     response_model=DirectorDashboardData,
-    dependencies=[Depends(require_admin)],
-)
+    dependencies=[Depends(require_admin)])
 @limiter.limit("30/minute")
 async def get_director_dashboard_data(
     request: Request,
@@ -162,48 +145,38 @@ async def get_director_dashboard_data(
     settings: Settings = Depends(get_settings),
     start_date: datetime.date | None = None,
     end_date: datetime.date | None = None,
-    discipline: str | None = None,
-) -> DirectorDashboardData:
+    discipline: str | None = None) -> DirectorDashboardData:
     """Provides aggregated analytics data for the director's dashboard.
     """
     if not settings.enable_director_dashboard:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Director Dashboard feature is not enabled.",
-        )
+            detail="Director Dashboard feature is not enabled.")
 
     total_findings = await crud.get_total_findings_count(
-        db, start_date=start_date, end_date=end_date, discipline=discipline,
-    )
+        db, start_date=start_date, end_date=end_date, discipline=discipline)
     team_summary = await crud.get_team_habit_summary(
-        db, start_date=start_date, end_date=end_date, discipline=discipline,
-    )
+        db, start_date=start_date, end_date=end_date, discipline=discipline)
     clinician_breakdown = await crud.get_clinician_habit_breakdown(
-        db, start_date=start_date, end_date=end_date, discipline=discipline,
-    )
+        db, start_date=start_date, end_date=end_date, discipline=discipline)
 
     return DirectorDashboardData(
         total_findings=total_findings,
         team_habit_summary=team_summary,
-        clinician_habit_breakdown=clinician_breakdown,
-    )
-
+        clinician_habit_breakdown=clinician_breakdown)
 
 @router.post(
     "/coaching-focus",
     response_model=CoachingFocus,
-    dependencies=[Depends(require_admin)],
-)
+    dependencies=[Depends(require_admin)])
 async def generate_coaching_focus(
-    dashboard_data: DirectorDashboardData, settings: Settings = Depends(get_settings),
-) -> CoachingFocus:
+    dashboard_data: DirectorDashboardData, settings: Settings = Depends(get_settings)) -> CoachingFocus:
     """Generates an AI-powered weekly coaching focus based on team analytics.
     """
     if not settings.enable_director_dashboard:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Director Dashboard feature is not enabled.",
-        )
+            detail="Director Dashboard feature is not enabled.")
 
     repo_id, filename, revision = _resolve_generator_model(settings)
     llm_service = LLMService(
@@ -214,14 +187,12 @@ async def generate_coaching_focus(
             "model_type": settings.llm.model_type,
             "context_length": settings.llm.context_length,
             "generation_params": settings.llm.generation_params,
-        },
-    )
+        })
 
     if not llm_service.is_ready():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="LLM service is not available.",
-        )
+            detail="LLM service is not available.")
 
     prompt = f"""
     You are an expert clinical director AI assistant. Based on the following team performance data, generate a concise and actionable weekly coaching focus. The focus should identify the most critical issue and provide concrete steps for improvement.
@@ -266,27 +237,22 @@ async def generate_coaching_focus(
         logger.exception("Failed to generate coaching focus", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate coaching focus: {e}",
-        ) from e
-
+            detail=f"Failed to generate coaching focus: {e}") from e
 
 @router.get(
     "/habit-trends",
     response_model=list[schemas.HabitTrendPoint],
-    dependencies=[Depends(require_admin)],
-)
+    dependencies=[Depends(require_admin)])
 @limiter.limit("60/minute")
 async def get_habit_trends(
     request: Request,
     db: AsyncSession = Depends(get_async_db),
     settings: Settings = Depends(get_settings),
     start_date: datetime.date | None = None,
-    end_date: datetime.date | None = None,
-) -> list[schemas.HabitTrendPoint]:
+    end_date: datetime.date | None = None) -> list[schemas.HabitTrendPoint]:
     """Provide habit trend analysis data over time."""
     if not settings.enable_director_dashboard:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Director Dashboard feature is not enabled.",
-        )
+            detail="Director Dashboard feature is not enabled.")
     return await crud.get_habit_trend_data(db, start_date=start_date, end_date=end_date)

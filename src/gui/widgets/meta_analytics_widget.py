@@ -10,7 +10,6 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QComboBox,
@@ -230,14 +229,11 @@ class MetaAnalyticsWidget(QWidget):
         # Update metric labels
         self.total_users_label.setText(f"Total Users: {metrics.get('total_users', 0)}")
         self.avg_score_label.setText(
-            f"Avg Compliance: {metrics.get('avg_compliance_score', 0):.1f}%",
-        )
+            f"Avg Compliance: {metrics.get('avg_compliance_score', 0):.1f}%")
         self.total_findings_label.setText(
-            f"Total Findings: {metrics.get('total_findings', 0)}",
-        )
+            f"Total Findings: {metrics.get('total_findings', 0)}")
         self.total_analyses_label.setText(
-            f"Total Analyses: {metrics.get('total_analyses', 0)}",
-        )
+            f"Total Analyses: {metrics.get('total_analyses', 0)}")
 
         # Update discipline breakdown chart
         self.update_discipline_chart(metrics.get("discipline_breakdown", {}))
@@ -260,24 +256,22 @@ class MetaAnalyticsWidget(QWidget):
                 "No discipline data available",
                 ha="center",
                 va="center",
-                transform=ax.transAxes,
-            )
+                transform=ax.transAxes)
         else:
             disciplines = list(discipline_data.keys())
-            scores = [
-                data.get("avg_compliance_score", 0) for data in discipline_data.values()
-            ]
-            user_counts = [
-                data.get("user_count", 0) for data in discipline_data.values()
-            ]
+            scores = [data.get("avg_compliance_score", 0) for data in discipline_data.values()]
+            user_counts = [data.get("user_count", 0) for data in discipline_data.values()]
 
             # Create bar chart
             x = np.arange(len(disciplines))
             width = 0.35
 
             bars1 = ax.bar(
-                x - width / 2, scores, width, label="Avg Compliance Score", alpha=0.8,
-            )
+                x - width / 2,
+                scores,
+                width,
+                label="Avg Compliance Score",
+                alpha=0.8)
             ax2 = ax.twinx()
             bars2 = ax2.bar(
                 x + width / 2,
@@ -285,8 +279,7 @@ class MetaAnalyticsWidget(QWidget):
                 width,
                 label="User Count",
                 alpha=0.8,
-                color="orange",
-            )
+                color="orange")
 
             ax.set_xlabel("Discipline")
             ax.set_ylabel("Compliance Score (%)", color="blue")
@@ -303,8 +296,7 @@ class MetaAnalyticsWidget(QWidget):
                     height + 1,
                     f"{height}%",
                     ha="center",
-                    va="bottom",
-                )
+                    va="bottom")
 
             for bar in bars2:
                 height = bar.get_height()
@@ -313,8 +305,7 @@ class MetaAnalyticsWidget(QWidget):
                     height + 0.1,
                     f"{int(height)}",
                     ha="center",
-                    va="bottom",
-                )
+                    va="bottom")
 
             ax.legend(loc="upper left")
             ax2.legend(loc="upper right")
@@ -333,20 +324,15 @@ class MetaAnalyticsWidget(QWidget):
                 "No habits data available",
                 ha="center",
                 va="center",
-                transform=ax.transAxes,
-            )
+                transform=ax.transAxes)
         else:
             # Get top 5 habits by percentage
             sorted_habits = sorted(
                 habits_data.items(),
                 key=lambda x: x[1].get("percentage", 0),
-                reverse=True,
-            )[:5]
+                reverse=True)[:5]
 
-            labels = [
-                f"Habit {item[1]['habit_number']}: {item[1]['habit_name'][:20]}..."
-                for _, item in sorted_habits
-            ]
+            labels = [f"Habit {item[1]['habit_number']}: {item[1]['habit_name'][:20]}..." for _, item in sorted_habits]
             sizes = [item[1].get("percentage", 0) for _, item in sorted_habits]
 
             if sum(sizes) > 0:
@@ -359,8 +345,7 @@ class MetaAnalyticsWidget(QWidget):
                     "No habit distribution data",
                     ha="center",
                     va="center",
-                    transform=ax.transAxes,
-                )
+                    transform=ax.transAxes)
 
         self.habits_canvas.draw()
 
@@ -379,23 +364,15 @@ class MetaAnalyticsWidget(QWidget):
                 "No training needs identified",
                 ha="center",
                 va="center",
-                transform=ax.transAxes,
-            )
+                transform=ax.transAxes)
         else:
             # Create horizontal bar chart of training needs
             habits = [
-                need["habit_name"][:30] + "..."
-                if len(need["habit_name"]) > 30
-                else need["habit_name"]
+                need["habit_name"][:30] + "..." if len(need["habit_name"]) > 30 else need["habit_name"]
                 for need in training_needs[:10]
             ]
-            percentages = [
-                need["percentage_of_findings"] for need in training_needs[:10]
-            ]
-            colors = [
-                "red" if need["priority"] == "high" else "orange"
-                for need in training_needs[:10]
-            ]
+            percentages = [need["percentage_of_findings"] for need in training_needs[:10]]
+            colors = ["red" if need["priority"] == "high" else "orange" for need in training_needs[:10]]
 
             bars = ax.barh(habits, percentages, color=colors, alpha=0.7)
             ax.set_xlabel("Percentage of Findings")
@@ -409,8 +386,7 @@ class MetaAnalyticsWidget(QWidget):
                     bar.get_y() + bar.get_height() / 2,
                     f"{pct}%",
                     ha="left",
-                    va="center",
-                )
+                    va="center")
 
         self.training_canvas.draw()
 
@@ -422,16 +398,13 @@ class MetaAnalyticsWidget(QWidget):
                     f"• {need['habit_name']} ({need['percentage_of_findings']:.1f}% of findings)\n"
                     f"  Priority: {need['priority'].upper()}\n"
                     f"  Affected users: {need['affected_users']}\n"
-                    f"  Focus: {need['training_focus']}\n",
-                )
+                    f"  Focus: {need['training_focus']}\n")
 
             self.training_recommendations.setText(
-                "Top Training Recommendations:\n\n" + "\n".join(recommendations),
-            )
+                "Top Training Recommendations:\n\n" + "\n".join(recommendations))
         else:
             self.training_recommendations.setText(
-                "No specific training needs identified.",
-            )
+                "No specific training needs identified.")
 
     def update_trends_tab(self, data: dict[str, Any]):
         """Update the performance trends tab."""
@@ -447,8 +420,7 @@ class MetaAnalyticsWidget(QWidget):
                 "No trend data available",
                 ha="center",
                 va="center",
-                transform=ax.transAxes,
-            )
+                transform=ax.transAxes)
         else:
             # Extract data for plotting
             weeks = [f"Week {i + 1}" for i in range(len(trends))]
@@ -459,11 +431,17 @@ class MetaAnalyticsWidget(QWidget):
             ax2 = ax.twinx()
 
             line1 = ax.plot(
-                weeks, scores, "b-o", label="Avg Compliance Score", linewidth=2,
-            )
+                weeks,
+                scores,
+                "b-o",
+                label="Avg Compliance Score",
+                linewidth=2)
             line2 = ax2.plot(
-                weeks, findings, "r-s", label="Total Findings", linewidth=2,
-            )
+                weeks,
+                findings,
+                "r-s",
+                label="Total Findings",
+                linewidth=2)
 
             ax.set_xlabel("Time Period")
             ax.set_ylabel("Compliance Score (%)", color="blue")
@@ -500,8 +478,7 @@ class MetaAnalyticsWidget(QWidget):
                 "No benchmark data available",
                 ha="center",
                 va="center",
-                transform=ax.transAxes,
-            )
+                transform=ax.transAxes)
         else:
             # Create box plot style visualization of percentiles
             compliance_percentiles = benchmarks.get("compliance_score_percentiles", {})
@@ -518,8 +495,7 @@ class MetaAnalyticsWidget(QWidget):
                 bars = ax.bar(
                     percentiles,
                     values,
-                    color=["lightcoral", "lightblue", "lightgreen", "gold"],
-                )
+                    color=["lightcoral", "lightblue", "lightgreen", "gold"])
                 ax.set_ylabel("Compliance Score (%)")
                 ax.set_title("Team Compliance Score Percentiles")
                 ax.set_ylim(0, 100)
@@ -531,8 +507,7 @@ class MetaAnalyticsWidget(QWidget):
                         bar.get_height() + 1,
                         f"{value}%",
                         ha="center",
-                        va="bottom",
-                    )
+                        va="bottom")
 
         self.benchmarks_canvas.draw()
 
@@ -540,10 +515,12 @@ class MetaAnalyticsWidget(QWidget):
         if benchmarks:
             total_users = benchmarks.get("total_users_in_benchmark", 0)
             compliance_p50 = benchmarks.get("compliance_score_percentiles", {}).get(
-                "p50", 0,
-            )
+                "p50",
+                0)
 
             summary_text = f"""
+Benchmark Summary (based on {total_users} users):
+Benchmark Summary (based on {total_users} users):
 Benchmark Summary (based on {total_users} users):
 
 • Median compliance score: {compliance_p50}%
@@ -601,9 +578,3 @@ This data represents anonymous performance distribution across your organization
 
 class MplCanvas(FigureCanvas):
     """A reusable Matplotlib canvas widget for PyQt."""
-
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
-        self.figure = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = self.figure.add_subplot(111)
-        super().__init__(self.figure)
-        self.figure.tight_layout()

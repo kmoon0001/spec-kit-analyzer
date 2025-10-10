@@ -1,7 +1,9 @@
-
 import logging
+import sqlite3
 
 import numpy as np
+import sqlalchemy
+import sqlalchemy.exc
 from rank_bm25 import BM25Okapi
 from sentence_transformers import CrossEncoder, SentenceTransformer
 from sentence_transformers.util import cos_sim
@@ -16,17 +18,17 @@ try:  # pragma: no cover - optional dependency during tests
 except (sqlalchemy.exc.SQLAlchemyError, ModuleNotFoundError, ImportError, sqlite3.Error):
     crud = None  # type: ignore[assignment]
 
-
 logger = logging.getLogger(__name__)
 
 
 class HybridRetriever:
     """Combine keyword, dense retrieval, and reranking with cached embeddings and query expansion."""
 
-    def __init__(self,
-                 rules: list[dict[str, str]] | None = None,
-                 model_name: str | None = None,
-                 query_expander: QueryExpander | None = None) -> None:
+    def __init__(
+        self,
+        rules: list[dict[str, str]] | None = None,
+        model_name: str | None = None,
+        query_expander: QueryExpander | None = None) -> None:
         settings = get_settings()
         self.rules = rules or self._load_rules_from_db()
 
@@ -60,9 +62,7 @@ class HybridRetriever:
         tokenized_corpus = [document.lower().split() for document in self.corpus]
         self.bm25 = BM25Okapi(tokenized_corpus) if tokenized_corpus else None
         self.corpus_embeddings = (
-            self.dense_retriever.encode(self.corpus, convert_to_tensor=True)
-            if self.corpus
-            else None
+            self.dense_retriever.encode(self.corpus, convert_to_tensor=True) if self.corpus else None
         )
 
     @cache_service.disk_cache
@@ -84,7 +84,12 @@ class HybridRetriever:
         except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
             return []
         return [
-            {"id": r.id, "name": getattr(r, "name", ""), "content": getattr(r, "content", ""), "category": getattr(r, "category", "")}
+            {
+                "id": r.id,
+                "name": getattr(r, "name", ""),
+                "content": getattr(r, "content", ""),
+                "category": getattr(r, "category", ""),
+            }
             for r in rubric_models
         ]
 
@@ -96,8 +101,7 @@ class HybridRetriever:
         category_filter: str | None = None,
         discipline: str | None = None,
         document_type: str | None = None,
-        context_entities: list[str] | None = None,
-    ) -> list[dict[str, str]]:
+        context_entities: list[str] | None = None) -> list[dict[str, str]]:
         if not self.rules or not self.corpus:
             return []
 
@@ -111,11 +115,13 @@ class HybridRetriever:
                     query=query,
                     discipline=discipline,
                     document_type=document_type,
-                    context_entities=context_entities,
-                )
+                    context_entities=context_entities)
                 expanded_query = expansion_result.get_expanded_query(max_terms=8)
-                logger.debug("Query expanded from '%s' to '%s' (%s total terms)", 
-                           query, expanded_query, expansion_result.total_terms)
+                logger.debug(
+                    "Query expanded from '%s' to '%s' (%s total terms)",
+                    query,
+                    expanded_query,
+                    expansion_result.total_terms)
             except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
                 logger.warning("Query expansion failed, using original query: %s", e)
                 expanded_query = query
@@ -175,7 +181,9 @@ class HybridRetriever:
             final_rules.append(rule)
 
         if category_filter:
-            filtered_rules = [rule for rule in final_rules if rule.get("category", "").lower() == category_filter.lower()]
+            filtered_rules = [
+                rule for rule in final_rules if rule.get("category", "").lower() == category_filter.lower()
+            ]
             return filtered_rules[:top_k]
 
         return final_rules[:top_k]

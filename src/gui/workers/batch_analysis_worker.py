@@ -1,4 +1,3 @@
-
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal, Slot
@@ -8,7 +7,7 @@ class BatchAnalysisWorker(QObject):
     """Scans a directory for supported files and prepares them for batch analysis."""
 
     file_found = Signal(str)  # Emits the path of each file found
-    finished = Signal(list)    # Emits the list of all file paths when done
+    finished = Signal(list)  # Emits the list of all file paths when done
     error = Signal(str)
 
     SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".json"]
@@ -37,7 +36,7 @@ class BatchAnalysisWorker(QObject):
             if self._is_running:
                 self.finished.emit(found_files)
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             self.error.emit(f"An error occurred while scanning the folder: {e}")
 
     def stop(self):

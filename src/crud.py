@@ -1,6 +1,9 @@
 import datetime
 import logging
+import sqlite3
 
+import sqlalchemy
+import sqlalchemy.exc
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -17,14 +20,14 @@ async def get_user(db: AsyncSession, user_id: int):
 
 async def get_user_by_username(db: AsyncSession, username: str):
     result = await db.execute(
-        select(models.User).filter(models.User.username == username),
-    )
+        select(models.User).filter(models.User.username == username))
     return result.scalars().first()
 
 
 async def change_user_password(
-    db: AsyncSession, user: models.User, new_hashed_password: str,
-):
+    db: AsyncSession,
+    user: models.User,
+    new_hashed_password: str):
     user.hashed_password = new_hashed_password  # type: ignore
     db.add(user)
     await db.commit()
@@ -37,8 +40,7 @@ async def create_user(db: AsyncSession, user: schemas.UserCreate, hashed_passwor
         username=user.username,
         hashed_password=hashed_password,
         is_active=True,
-        is_admin=False,
-    )
+        is_admin=False)
     db.add(db_user)
     await db.commit()
     await db.refresh(db_user)
@@ -49,8 +51,7 @@ async def get_total_findings_count(
     db: AsyncSession,
     start_date: datetime.date | None = None,
     end_date: datetime.date | None = None,
-    discipline: str | None = None,
-) -> int:
+    discipline: str | None = None) -> int:
     """Retrieve the total count of findings, optionally filtered by date and discipline."""
     # Implement actual database query for findings count
     try:
@@ -77,14 +78,12 @@ async def get_reports(db: AsyncSession, skip: int = 0, limit: int = 100):
 
 async def get_report(db: AsyncSession, report_id: int):
     result = await db.execute(
-        select(models.AnalysisReport).filter(models.AnalysisReport.id == report_id),
-    )
+        select(models.AnalysisReport).filter(models.AnalysisReport.id == report_id))
     return result.scalars().first()
 
 
 async def get_findings_summary(db: AsyncSession):
-    """Get a summary of findings by grouping them by rule_id and counting them.
-    """
+    """Get a summary of findings by grouping them by rule_id and counting them."""
     try:
         query = (
             select(models.Finding.rule_id, func.count(models.Finding.id).label("count"))
@@ -105,4 +104,3 @@ async def get_all_rubrics(db: AsyncSession):
     """Retrieve all compliance rubrics from the database."""
     result = await db.execute(select(models.ComplianceRubric))
     return list(result.scalars().all())
-

@@ -68,6 +68,8 @@ class TimeRange:
 
 
 @dataclass
+@dataclass
+@dataclass
 class ReportConfig:
     """Configuration for report generation"""
 
@@ -79,10 +81,6 @@ class ReportConfig:
     export_formats: list[ReportFormat] = field(default_factory=lambda: [ReportFormat.HTML])
     filters: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
-
-    def __post_init__(self):
-        if not self.title.strip():
-            raise ValueError("Report title cannot be empty")
 
 
 @dataclass

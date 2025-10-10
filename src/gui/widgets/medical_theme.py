@@ -1,5 +1,4 @@
-"""Medical Theme System - Professional medical UI styling with light/dark themes.
-"""
+"""Medical Theme System - Professional medical UI styling with light/dark themes."""
 
 from PySide6.QtCore import QObject, Signal
 
@@ -435,5 +434,7 @@ class MedicalTheme(QObject):
         """
 
 
+# Global theme instance
+# Global theme instance
 # Global theme instance
 medical_theme = MedicalTheme()

@@ -1,12 +1,12 @@
-
-
 import requests
 from PySide6.QtCore import QObject, Signal, Slot
+from requests.exceptions import HTTPError
 
 from src.config import get_settings
 
 settings = get_settings()
 API_URL = settings.paths.api_url
+
 
 class RubricApiWorker(QObject):
     """Handles CRUD operations for rubrics asynchronously."""

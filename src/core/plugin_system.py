@@ -154,8 +154,7 @@ class ComplianceAnalysisPlugin(PluginInterface):
 
 
 class ReportingPlugin(PluginInterface):
-    """Specialized plugin interface for custom reporting functionality.
-    """
+    """Specialized plugin interface for custom reporting functionality."""
 
     @abstractmethod
     def generate_report(self, data: dict[str, Any], format_type: str) -> str | bytes:
@@ -250,7 +249,7 @@ class PluginManager:
                         self.plugin_metadata[metadata.name] = metadata
                         logger.info("Discovered plugin: %s v{metadata.version}", metadata.name)
 
-                except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+                except (FileNotFoundError, PermissionError, OSError):
                     logger.warning("Failed to discover plugin %s: {e}", plugin_file)
 
             # Look for plugin packages
@@ -265,7 +264,7 @@ class PluginManager:
                                 self.plugin_metadata[metadata.name] = metadata
                                 logger.info("Discovered plugin package: %s v{metadata.version}", metadata.name)
 
-                        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+                        except (FileNotFoundError, PermissionError, OSError):
                             logger.warning("Failed to discover plugin package %s: {e}", plugin_package)
 
         logger.info("Plugin discovery complete. Found %s plugins.", len(discovered_plugins))
@@ -325,7 +324,7 @@ class PluginManager:
             logger.info("Successfully loaded plugin: %s", plugin_name)
             return True
 
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to load plugin %s: {e}", plugin_name)
             return False
 
@@ -369,7 +368,7 @@ class PluginManager:
             logger.info("Successfully unloaded plugin: %s", plugin_name)
             return True
 
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to unload plugin %s: {e}", plugin_name)
             return False
 
@@ -426,11 +425,7 @@ class PluginManager:
             Dict mapping plugin names to their metadata
 
         """
-        return {
-            name: self.plugin_metadata[name]
-            for name in self.loaded_plugins.keys()
-            if name in self.plugin_metadata
-        }
+        return {name: self.plugin_metadata[name] for name in self.loaded_plugins.keys() if name in self.plugin_metadata}
 
     def get_plugin_status(self, plugin_name: str) -> dict[str, Any]:
         """Get detailed status information for a plugin.
@@ -485,10 +480,9 @@ class PluginManager:
                 author_email="unknown@example.com",
                 license="MIT",
                 min_system_version="2.0.0",
-                created_at=datetime.now(),
-            )
+                created_at=datetime.now())
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError):
             logger.exception("Failed to extract metadata from %s: {e}", plugin_file)
             return None
 
@@ -521,10 +515,12 @@ class PluginManager:
             logger.warning("Plugin loading not fully implemented for %s", metadata.name)
             return None
 
-        except (ImportError, ModuleNotFoundError, AttributeError) as e:
+        except (ImportError, ModuleNotFoundError, AttributeError):
             logger.exception("Failed to load plugin instance for %s: {e}", metadata.name)
             return None
 
 
+# Global plugin manager instance
+# Global plugin manager instance
 # Global plugin manager instance
 plugin_manager = PluginManager()

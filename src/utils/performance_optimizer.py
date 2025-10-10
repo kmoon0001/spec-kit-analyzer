@@ -14,7 +14,6 @@ import psutil  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
-
 class PerformanceOptimizer:
     """Automatically optimize configuration based on system capabilities."""
 
@@ -158,7 +157,7 @@ class PerformanceOptimizer:
                 json.dump(config, f, indent=2)
             logger.info("Performance configuration saved to %s", filepath)
             return filepath
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Failed to save performance config: %s", e)
             raise
 
@@ -176,7 +175,7 @@ class PerformanceOptimizer:
                 config = json.load(f)
             logger.info("Performance configuration loaded from %s", filepath)
             return config
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.warning("Failed to load performance config: %s, using defaults", e)
             return self.get_optimized_config()
 
@@ -247,7 +246,6 @@ class PerformanceOptimizer:
             "recommendation": "Lightweight models with aggressive quantization",
         }
 
-
 def optimize_system_performance() -> dict[str, Any]:
     """Main function to optimize system performance configuration."""
     optimizer = PerformanceOptimizer()
@@ -262,12 +260,14 @@ def optimize_system_performance() -> dict[str, Any]:
 
     # Log optimization results
     logger.info("System optimized for %s performance profile", config['profile'])
-    logger.info("System specs: %sGB RAM, %s CPUs", config['system_info']['total_memory_gb'], config['system_info']['cpu_count'],
-    )
+    logger.info("System specs: %sGB RAM, %s CPUs", config['system_info']['total_memory_gb'], config['system_info']['cpu_count'])
 
     return config
 
-
+if __name__ == "__main__":
+    pass
+if __name__ == "__main__":
+    pass
 if __name__ == "__main__":
     # Run optimization when script is executed directly
     logging.basicConfig(level=logging.INFO)

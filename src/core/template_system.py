@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 from jinja2.exceptions import TemplateError
 
 logger = logging.getLogger(__name__)
@@ -124,8 +123,7 @@ class TemplateMetadata:
             required_data_fields=data.get("required_data_fields", []),
             optional_data_fields=data.get("optional_data_fields", []),
             tags=data.get("tags", []),
-            compatibility_version=data.get("compatibility_version", "1.0"),
-        )
+            compatibility_version=data.get("compatibility_version", "1.0"))
 
 
 class ComponentLibrary:
@@ -162,7 +160,7 @@ class ComponentLibrary:
 
             logger.info("Loaded %s report components", len(self.components))
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Error loading components: %s", e)
             self._create_default_components()
 
@@ -194,9 +192,7 @@ class ComponentLibrary:
                 """.strip(),
                 required_props=["title", "value"],
                 default_props={"unit": "", "css_class": ""},
-                css_classes=["metric-card", "card"],
-            ),
-
+                css_classes=["metric-card", "card"]),
             "progress_bar": ComponentDefinition(
                 id="progress_bar",
                 name="Progress Bar",
@@ -220,8 +216,7 @@ class ComponentLibrary:
                 """.strip(),
                 required_props=["percentage"],
                 default_props={"show_percentage": True},
-                css_classes=["progress-container"],
-            ),
+                css_classes=["progress-container"]),
         }
 
         # Save default components
@@ -242,8 +237,7 @@ class ComponentLibrary:
             default_props=data.get("default_props", {}),
             css_classes=data.get("css_classes", []),
             javascript_code=data.get("javascript_code"),
-            metadata=data.get("metadata", {}),
-        )
+            metadata=data.get("metadata", {}))
 
     def _save_component(self, comp_id: str, component: ComponentDefinition) -> None:
         """Save component to file"""
@@ -269,10 +263,7 @@ class ComponentLibrary:
     def list_components(self, component_type: ComponentType | None = None) -> list[str]:
         """List available components, optionally filtered by type"""
         if component_type:
-            return [
-                comp_id for comp_id, comp in self.components.items()
-                if comp.component_type == component_type
-            ]
+            return [comp_id for comp_id, comp in self.components.items() if comp.component_type == component_type]
         return list(self.components.keys())
 
     def register_component(self, component: ComponentDefinition) -> None:
@@ -308,20 +299,13 @@ class ComponentLibrary:
                 rendered = rendered.replace(placeholder, str(value))
 
             return rendered
-        except Exception as e:
+        except Exception:
             logger.exception("Error rendering component %s: {e}", component_id)
             return f"<div class='component-error'>Error rendering component: {component_id}</div>"
 
+
 class TemplateValidator:
     """Validates template content and structure"""
-
-    def __init__(self):
-        self.validation_rules = {
-            "max_template_size": 1024 * 1024,  # 1MB
-            "forbidden_tags": ["script", "iframe", "object", "embed"],
-            "required_sections": ["title", "content"],
-            "allowed_file_extensions": [".html", ".jinja2", ".j2"],
-        }
 
     def validate_template(self, template_content: str, metadata: TemplateMetadata) -> list[str]:
         """Validate template content and return list of issues"""
@@ -365,8 +349,7 @@ class TemplateValidator:
             author="system",
             created_at=datetime.now(),
             updated_at=datetime.now(),
-            required_data_fields=component.required_props,
-        )
+            required_data_fields=component.required_props)
 
         template_issues = self.validate_template(component.template_content, template_metadata)
         issues.extend(template_issues)
@@ -380,23 +363,6 @@ class TemplateValidator:
 
 class AdvancedTemplateRenderer:
     """Advanced template renderer with Jinja2 support"""
-
-    def __init__(self, templates_dir: Path | None = None):
-        self.templates_dir = templates_dir or Path("src/resources/report_templates")
-        self.component_library = ComponentLibrary()
-        self.validator = TemplateValidator()
-
-        # Initialize Jinja2 environment
-        self.jinja_env = Environment(
-            loader=FileSystemLoader(str(self.templates_dir)),
-            autoescape=select_autoescape(["html", "xml"]),
-            trim_blocks=True,
-            lstrip_blocks=True,
-        )
-
-        # Register custom filters and functions
-        self._register_custom_filters()
-        self._register_custom_functions()
 
     def _register_custom_filters(self) -> None:
         """Register custom Jinja2 filters"""
@@ -434,14 +400,6 @@ class AdvancedTemplateRenderer:
     def _register_custom_functions(self) -> None:
         """Register custom Jinja2 global functions"""
 
-        def render_component(component_id: str, **props) -> str:
-            """Render a component within a template"""
-            try:
-                return self.component_library.render_component(component_id, props)
-            except Exception as e:
-                logger.exception("Error rendering component %s: {e}", component_id)
-                return f"<div class='component-error'>Error: {component_id}</div>"
-
         def get_chart_config(chart_type: str, data: dict[str, Any]) -> str:
             """Generate chart configuration JSON"""
             # Basic chart configuration generator
@@ -459,8 +417,9 @@ class AdvancedTemplateRenderer:
         self.jinja_env.globals["render_component"] = render_component
         self.jinja_env.globals["get_chart_config"] = get_chart_config
 
-    def render_template(self, template_id: str, context: dict[str, Any],
-                       format: RenderFormat = RenderFormat.HTML) -> str:
+    def render_template(
+        self, template_id: str, context: dict[str, Any], format: RenderFormat = RenderFormat.HTML
+    ) -> str:
         """Render template with advanced features"""
         try:
             # Load template
@@ -495,7 +454,6 @@ class AdvancedTemplateRenderer:
     def _html_to_text(self, html_content: str) -> str:
         """Convert HTML to plain text"""
         # Simple HTML to text conversion
-        import re
         text = re.sub(r"<[^>]+>", "", html_content)
         text = re.sub(r"\s+", " ", text)
         return text.strip()
@@ -503,7 +461,6 @@ class AdvancedTemplateRenderer:
     def _html_to_markdown(self, html_content: str) -> str:
         """Convert HTML to Markdown"""
         # Basic HTML to Markdown conversion
-        import re
 
         # Convert headers
         html_content = re.sub(r"<h1[^>]*>(.*?)</h1>", r"# \1\n", html_content)
@@ -547,29 +504,16 @@ class AdvancedTemplateRenderer:
                 version="1.0",
                 author="system",
                 created_at=datetime.now(),
-                updated_at=datetime.now(),
-            )
+                updated_at=datetime.now())
 
             return self.validator.validate_template(content, metadata)
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             return [f"Error reading template file: {e}"]
 
 
 class TemplateLibrary:
     """Library for managing and versioning report templates"""
-
-    def __init__(self, templates_dir: Path | None = None):
-        self.templates_dir = templates_dir or Path("src/resources/report_templates")
-        self.metadata_dir = self.templates_dir / "metadata"
-        self.templates: dict[str, TemplateMetadata] = {}
-        self.renderer = AdvancedTemplateRenderer(self.templates_dir)
-
-        # Ensure directories exist
-        self.templates_dir.mkdir(parents=True, exist_ok=True)
-        self.metadata_dir.mkdir(parents=True, exist_ok=True)
-
-        self._load_templates()
 
     def _load_templates(self) -> None:
         """Load templates and their metadata"""
@@ -598,8 +542,7 @@ class TemplateLibrary:
                         author="system",
                         created_at=datetime.now(),
                         updated_at=datetime.now(),
-                        supported_formats=[RenderFormat.HTML],
-                    )
+                        supported_formats=[RenderFormat.HTML])
                     self.templates[template_id] = metadata
                     self._save_metadata(template_id, metadata)
 
@@ -625,9 +568,10 @@ class TemplateLibrary:
                     updated_at=datetime.now(),
                     supported_formats=[RenderFormat.HTML, RenderFormat.PDF],
                     required_data_fields=["performance_metrics", "optimization_results"],
-                    tags=["performance", "analysis", "metrics"],
-                ),
+                    tags=["performance", "analysis", "metrics"]),
                 """
+<!DOCTYPE html>
+<!DOCTYPE html>
 <!DOCTYPE html>
 <html>
 <head>
@@ -682,8 +626,7 @@ class TemplateLibrary:
     {% endif %}
 </body>
 </html>
-                """.strip(),
-            ),
+                """.strip()),
         ]
 
         # Create default templates
@@ -713,30 +656,8 @@ class TemplateLibrary:
     def list_templates(self, template_type: TemplateType | None = None) -> list[str]:
         """List available templates, optionally filtered by type"""
         if template_type:
-            return [
-                tid for tid, tmpl in self.templates.items()
-                if tmpl.template_type == template_type
-            ]
+            return [tid for tid, tmpl in self.templates.items() if tmpl.template_type == template_type]
         return list(self.templates.keys())
-
-    def render_template(self, template_id: str, context: dict[str, Any],
-                       format: RenderFormat = RenderFormat.HTML) -> str:
-        """Render template using the advanced renderer"""
-        if template_id not in self.templates:
-            raise ValueError(f"Template not found: {template_id}")
-
-        return self.renderer.render_template(template_id, context, format)
-
-    def validate_template(self, template_id: str) -> list[str]:
-        """Validate a template"""
-        if template_id not in self.templates:
-            return [f"Template not found: {template_id}"]
-
-        template_file = self.templates_dir / f"{template_id}.html"
-        if not template_file.exists():
-            return [f"Template file not found: {template_file}"]
-
-        return self.renderer.validate_template_file(template_file)
 
     def register_template(self, metadata: TemplateMetadata, content: str) -> None:
         """Register a new template"""

@@ -1,4 +1,3 @@
-
 """Manages and monitors application performance metrics.
 
 This module provides a centralized service for tracking system and process
@@ -53,7 +52,7 @@ class PerformanceManager:
         info: dict[str, Any] = {
             "cpu_count": psutil.cpu_count(logical=True) or 0,
             "platform": platform.platform(),
-            "total_memory_gb": psutil.virtual_memory().total / (1024 ** 3),
+            "total_memory_gb": psutil.virtual_memory().total / (1024**3),
         }
         try:
             import torch  # type: ignore
@@ -71,8 +70,7 @@ class PerformanceManager:
                 logger.warning(
                     "Unknown performance profile '%s', keeping %s",
                     profile,
-                    self.current_profile.value,
-                )
+                    self.current_profile.value)
                 return
         self.current_profile = profile
         logger.info("Performance profile set to %s", profile.value)
@@ -107,17 +105,19 @@ class PerformanceManager:
             vmem = psutil.virtual_memory()
             process_mem_info = self.process.memory_info()
             return {
-                "system_total_gb": vmem.total / (1024 ** 3),
-                "system_available_gb": vmem.available / (1024 ** 3),
+                "system_total_gb": vmem.total / (1024**3),
+                "system_available_gb": vmem.available / (1024**3),
                 "system_used_percent": vmem.percent,
-                "process_rss_mb": process_mem_info.rss / (1024 ** 2),
-                "process_memory_mb": process_mem_info.rss / (1024 ** 2),
+                "process_rss_mb": process_mem_info.rss / (1024**2),
+                "process_memory_mb": process_mem_info.rss / (1024**2),
             }
         except Exception as exc:
             logger.exception("Could not retrieve memory usage: %s", exc)
             return {}
 
 
+# Global instance of the PerformanceManager
+# Global instance of the PerformanceManager
 # Global instance of the PerformanceManager
 performance_manager = PerformanceManager()
 

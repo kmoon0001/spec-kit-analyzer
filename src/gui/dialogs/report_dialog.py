@@ -20,8 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class ReportDialog(QDialog):
-    """A dialog to display an HTML report, handle chat links, and provide a print option.
-    """
+    """A dialog to display an HTML report, handle chat links, and provide a print option."""
 
     def __init__(self, report_html: str, token: str, parent=None):
         super().__init__(parent)
@@ -42,8 +41,8 @@ class ReportDialog(QDialog):
         self.button_box = QDialogButtonBox()
         self.print_button = QPushButton("Print to PDF")
         self.button_box.addButton(
-            self.print_button, QDialogButtonBox.ButtonRole.ActionRole,
-        )
+            self.print_button,
+            QDialogButtonBox.ButtonRole.ActionRole)
         self.button_box.addButton(QDialogButtonBox.StandardButton.Close)
         self.main_layout.addWidget(self.button_box)
 
@@ -57,16 +56,16 @@ class ReportDialog(QDialog):
         if url.scheme() == "chat":
             if not self.token:
                 QMessageBox.critical(
-                    self, "Error", "Authentication token is not available.",
-                )
+                    self,
+                    "Error",
+                    "Authentication token is not available.")
                 return
 
             initial_context = urllib.parse.unquote(url.path())
             chat_dialog = ChatDialog(
                 initial_context=initial_context,
                 token=self.token,
-                parent=self,
-            )
+                parent=self)
             chat_dialog.exec()
         else:
             logger.warning("Clicked on an unhandled link scheme: %s", url.scheme())
@@ -74,8 +73,10 @@ class ReportDialog(QDialog):
     def print_to_pdf(self):
         """Opens a file dialog to save the report content as a PDF."""
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Save Report as PDF", "", "PDF Files (*.pdf)",
-        )
+            self,
+            "Save Report as PDF",
+            "",
+            "PDF Files (*.pdf)")
         if file_path:
             try:
                 printer = QPrinter(QPrinter.PrinterMode.HighResolution)
@@ -84,6 +85,6 @@ class ReportDialog(QDialog):
 
                 self.report_display.document().print(printer)
                 logger.info("Report successfully saved to %s", file_path)
-            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+            except (FileNotFoundError, PermissionError, OSError) as e:
                 logger.error("Failed to print report to PDF: %s", e, exc_info=True)
                 QMessageBox.critical(self, "Error", f"Could not save PDF: {e}")

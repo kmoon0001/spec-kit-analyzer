@@ -19,8 +19,10 @@ class AnalysisWorker(QObject):
     finished = Signal()  # Add this line
 
     def __init__(
-        self, file_path: str, discipline: str, analysis_service: AnalysisService,
-    ):
+        self,
+        file_path: str,
+        discipline: str,
+        analysis_service: AnalysisService):
         super().__init__()
         self.file_path = file_path
         self.discipline = discipline
@@ -37,8 +39,8 @@ class AnalysisWorker(QObject):
 
             # Run the actual analysis
             result = self.analysis_service.analyze_document(
-                file_path=self.file_path, discipline=self.discipline,
-            )
+                file_path=self.file_path,
+                discipline=self.discipline)
 
             self.progress_updated.emit(80)
             self.status_updated.emit("📊 Generating report...")

@@ -15,8 +15,6 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QProgressBar,
-    QPushButton,
-    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -101,191 +99,6 @@ class HabitProgressBar(QWidget):
 class AchievementBadge(QWidget):
     """Widget for displaying achievement badges."""
 
-    def __init__(self, achievement: dict[str, Any]):
-        super().__init__()
-        self.achievement = achievement
-        self.setup_ui()
-
-    def setup_ui(self):
-        """Setup the achievement badge UI."""
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-
-        # Icon
-        icon_label = QLabel(self.achievement.get("icon", "🏆"))
-        icon_label.setFont(QFont("Segoe UI", 16))
-        layout.addWidget(icon_label)
-
-        # Text
-        text_layout = QVBoxLayout()
-
-        title_label = QLabel(self.achievement["title"])
-        title_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        text_layout.addWidget(title_label)
-
-        desc_label = QLabel(self.achievement["description"])
-        desc_label.setFont(QFont("Segoe UI", 8))
-        desc_label.setStyleSheet("color: #666;")
-        desc_label.setWordWrap(True)
-        text_layout.addWidget(desc_label)
-
-        layout.addLayout(text_layout)
-
-        # Style the badge
-        self.setStyleSheet("""
-            AchievementBadge {
-                background-color: #f8f9fa;
-                border: 1px solid #dee2e6;
-                border-radius: 8px;
-                margin: 2px;
-            }
-            AchievementBadge:hover {
-                background-color: #e9ecef;
-            }
-        """)
-
-
-class RecommendationCard(QWidget):
-    """Widget for displaying habit recommendations."""
-
-    def __init__(self, recommendation: dict[str, Any]):
-        super().__init__()
-        self.recommendation = recommendation
-        self.setup_ui()
-
-    def setup_ui(self):
-        """Setup the recommendation card UI."""
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
-
-        # Priority indicator and title
-        header_layout = QHBoxLayout()
-
-        priority = self.recommendation.get("priority", "medium")
-        priority_label = QLabel(priority.upper())
-        priority_label.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-
-        if priority == "high":
-            priority_label.setStyleSheet(
-                "color: #e74c3c; background: #ffebee; padding: 2px 6px; border-radius: 3px;",
-            )
-        elif priority == "medium":
-            priority_label.setStyleSheet(
-                "color: #f39c12; background: #fff3cd; padding: 2px 6px; border-radius: 3px;",
-            )
-        else:
-            priority_label.setStyleSheet(
-                "color: #2980b9; background: #e3f2fd; padding: 2px 6px; border-radius: 3px;",
-            )
-
-        header_layout.addWidget(priority_label)
-        header_layout.addStretch()
-        layout.addLayout(header_layout)
-
-        # Title
-        title_label = QLabel(self.recommendation["title"])
-        title_label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        layout.addWidget(title_label)
-
-        # Description
-        desc_label = QLabel(self.recommendation["description"])
-        desc_label.setFont(QFont("Segoe UI", 9))
-        desc_label.setWordWrap(True)
-        desc_label.setStyleSheet("color: #555; margin: 4px 0;")
-        layout.addWidget(desc_label)
-
-        # Action items
-        action_items = self.recommendation.get("action_items", [])
-        if action_items:
-            actions_label = QLabel("Action Items:")
-            actions_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-            layout.addWidget(actions_label)
-
-            for item in action_items[:3]:  # Show max 3 items
-                item_label = QLabel(f"• {item}")
-                item_label.setFont(QFont("Segoe UI", 8))
-                item_label.setStyleSheet("color: #666; margin-left: 10px;")
-                item_label.setWordWrap(True)
-                layout.addWidget(item_label)
-
-        # Style the card
-        self.setStyleSheet("""
-            RecommendationCard {
-                background-color: white;
-                border: 1px solid #dee2e6;
-                border-radius: 8px;
-                margin: 4px;
-            }
-            RecommendationCard:hover {
-                border-color: #3498db;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }
-        """)
-
-
-class GrowthJourneyWidget(QWidget):
-    """Main widget for displaying individual habit progression and growth journey.
-
-    Features:
-    - Habit mastery progress bars
-    - Achievement badges
-    - Personalized recommendations
-    - Progress summary metrics
-    - Weekly trends visualization
-    """
-
-    def __init__(self, api_base_url: str, auth_token: str):
-        super().__init__()
-        self.api_base_url = api_base_url
-        self.auth_token = auth_token
-        self.progression_data: dict[str, Any] | None = None
-        self.setup_ui()
-        self.setup_refresh_timer()
-        self.load_progression_data()
-
-    def setup_ui(self):
-        """Setup the main UI layout."""
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(16, 16, 16, 16)
-        main_layout.setSpacing(16)
-
-        # Header
-        header_layout = QHBoxLayout()
-
-        title_label = QLabel("🌟 Your Growth Journey")
-        title_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        title_label.setStyleSheet("color: #2c3e50;")
-        header_layout.addWidget(title_label)
-
-        header_layout.addStretch()
-
-        # Refresh button
-        self.refresh_button = QPushButton("🔄 Refresh")
-        self.refresh_button.clicked.connect(self.load_progression_data)
-        header_layout.addWidget(self.refresh_button)
-
-        main_layout.addLayout(header_layout)
-
-        # Scroll area for content
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("QScrollArea { border: none; }")
-
-        self.content_widget = QWidget()
-        self.content_layout = QVBoxLayout(self.content_widget)
-        self.content_layout.setSpacing(20)
-
-        scroll_area.setWidget(self.content_widget)
-        main_layout.addWidget(scroll_area)
-
-        # Loading indicator
-        self.loading_label = QLabel("Loading your growth journey...")
-        self.loading_label.setFont(QFont("Segoe UI", 12))
-        self.loading_label.setStyleSheet(
-            "color: #666; text-align: center; padding: 40px;",
-        )
-        self.content_layout.addWidget(self.loading_label)
-
     def setup_refresh_timer(self):
         """Setup automatic refresh timer."""
         self.refresh_timer = QTimer()
@@ -300,8 +113,7 @@ class GrowthJourneyWidget(QWidget):
         # Create API worker
         self.api_worker = GenericApiWorker(
             endpoint="/habits/progression",
-            token=self.auth_token,
-        )
+            token=self.auth_token)
 
         self.api_worker.success.connect(self.on_data_loaded)
         self.api_worker.error.connect(self.on_data_error)
@@ -434,15 +246,14 @@ class GrowthJourneyWidget(QWidget):
         habit_breakdown = self.progression_data.get("habit_breakdown", {})
 
         for habit_id in sorted(
-            habit_breakdown.keys(), key=lambda x: int(x.split("_")[1]),
-        ):
+            habit_breakdown.keys(),
+            key=lambda x: int(x.split("_")[1])):
             habit_data = habit_breakdown[habit_id]
 
             progress_bar = HabitProgressBar(
                 habit_name=f"Habit {habit_data['habit_number']}: {habit_data['habit_name']}",
                 percentage=habit_data["percentage"],
-                mastery_level=habit_data["mastery_level"],
-            )
+                mastery_level=habit_data["mastery_level"])
 
             mastery_layout.addWidget(progress_bar)
 

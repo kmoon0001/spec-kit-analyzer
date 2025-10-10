@@ -19,18 +19,21 @@ _memory_manager: Optional["MemoryManager"] = None
 
 try:
     from src.core.performance_optimizer import PerformanceOptimizer
+
     _performance_optimizer = PerformanceOptimizer()
 except ImportError:
     pass
 
 try:
     from src.core.advanced_cache_service import AdvancedCacheService
+
     _advanced_cache_service = AdvancedCacheService()
 except ImportError:
     pass
 
 try:
     from src.core.memory_manager import MemoryManager
+
     _memory_manager = MemoryManager()
 except ImportError:
     pass
@@ -98,8 +101,7 @@ class AdvancedPerformanceOptimizer:
         logger.info("Advanced performance optimizer initialized")
 
     async def analyze_system_performance(self) -> dict[str, Any]:
-        """Comprehensive system performance analysis with AI insights.
-        """
+        """Comprehensive system performance analysis with AI insights."""
         logger.info("Starting advanced system performance analysis")
 
         try:
@@ -113,18 +115,16 @@ class AdvancedPerformanceOptimizer:
 
             # AI-powered performance analysis
             ai_insights = await self.ai_optimizer.analyze_performance_patterns(
-                self.performance_history,
-            )
+                self.performance_history)
 
             # Generate optimization recommendations
             optimization_plan = await self.ai_optimizer.generate_optimization_plan(
-                current_metrics, ai_insights,
-            )
+                current_metrics,
+                ai_insights)
 
             # Predict future performance issues
             predictions = await self.ai_optimizer.predict_performance_issues(
-                self.performance_history,
-            )
+                self.performance_history)
 
             analysis_result = {
                 "current_metrics": current_metrics,
@@ -137,18 +137,17 @@ class AdvancedPerformanceOptimizer:
                 "timestamp": datetime.now().isoformat(),
             }
 
-            logger.info("Advanced analysis complete - Health Score: %.1f/100", analysis_result['system_health_score'])
+            logger.info("Advanced analysis complete - Health Score: %.1f/100", analysis_result["system_health_score"])
             return analysis_result
 
         except Exception as e:
             logger.exception("Advanced performance analysis failed: %s", e)
             return {"error": str(e), "timestamp": datetime.now().isoformat()}
 
-    async def execute_intelligent_optimization(self,
-                                             aggressive: bool = False,
-                                             target_improvement: float = 30.0) -> dict[str, Any]:
-        """Execute AI-driven intelligent optimization with advanced techniques.
-        """
+    async def execute_intelligent_optimization(
+        self, aggressive: bool = False, target_improvement: float = 30.0
+    ) -> dict[str, Any]:
+        """Execute AI-driven intelligent optimization with advanced techniques."""
         logger.info("Starting intelligent optimization (target: %.1f%%)", target_improvement)
 
         start_time = time.time()
@@ -239,22 +238,26 @@ class AdvancedPerformanceOptimizer:
             if len(self.optimization_history) > 50:
                 self.optimization_history = self.optimization_history[-50:]
 
-            optimization_results.update({
-                "status": "completed",
-                "duration_seconds": time.time() - start_time,
-                "timestamp": datetime.now().isoformat(),
-            })
+            optimization_results.update(
+                {
+                    "status": "completed",
+                    "duration_seconds": time.time() - start_time,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
             logger.info("Intelligent optimization completed in %ss", time.time() - start_time)
             return optimization_results
 
         except Exception as e:
             logger.exception("Intelligent optimization failed: %s", e)
-            optimization_results.update({
-                "status": "failed",
-                "error": str(e),
-                "duration_seconds": time.time() - start_time,
-            })
+            optimization_results.update(
+                {
+                    "status": "failed",
+                    "error": str(e),
+                    "duration_seconds": time.time() - start_time,
+                }
+            )
             return optimization_results
 
     async def _optimize_ai_models(self, aggressive: bool = False) -> dict[str, Any]:
@@ -285,7 +288,9 @@ class AdvancedPerformanceOptimizer:
             results["optimizations_applied"].append("attention_optimization")
             results["inference_speed_improvement"] += 8.0
 
-            logger.info("AI model optimization completed - %s optimizations applied", len(results['optimizations_applied']))
+            logger.info(
+                "AI model optimization completed - %s optimizations applied", len(results["optimizations_applied"])
+            )
 
         except Exception as e:
             logger.exception("AI model optimization error: %s", e)
@@ -304,6 +309,7 @@ class AdvancedPerformanceOptimizer:
             # CPU affinity optimization
             try:
                 import os
+
                 if hasattr(os, "sched_setaffinity"):
                     # Set CPU affinity for better performance
                     available_cpus = list(range(psutil.cpu_count()))
@@ -318,7 +324,7 @@ class AdvancedPerformanceOptimizer:
                 if current_process.nice() > -5:  # Only if not already high priority
                     current_process.nice(-1)  # Increase priority slightly
                     results["optimizations_applied"].append("process_priority")
-            except (OSError, IOError, FileNotFoundError) as e:
+            except (OSError, FileNotFoundError) as e:
                 results["warnings"].append(f"Process priority optimization failed: {e}")
 
             # Memory management optimization
@@ -328,7 +334,9 @@ class AdvancedPerformanceOptimizer:
             except Exception as e:
                 results["warnings"].append(f"Memory management optimization failed: {e}")
 
-            logger.info("System-level optimization completed - %s optimizations applied", len(results['optimizations_applied']))
+            logger.info(
+                "System-level optimization completed - %s optimizations applied", len(results["optimizations_applied"])
+            )
 
         except Exception as e:
             logger.exception("System-level optimization error: %s", e)
@@ -368,11 +376,11 @@ class AdvancedPerformanceOptimizer:
 
             # Calculate weighted average
             health_score = (
-                cpu_score * weights["cpu"] +
-                memory_score * weights["memory"] +
-                disk_score * weights["disk_io"] +
-                temp_score * weights["temperature"] +
-                gpu_score * weights["gpu"]
+                cpu_score * weights["cpu"]
+                + memory_score * weights["memory"]
+                + disk_score * weights["disk_io"]
+                + temp_score * weights["temperature"]
+                + gpu_score * weights["gpu"]
             )
 
             return round(health_score, 1)
@@ -388,65 +396,75 @@ class AdvancedPerformanceOptimizer:
         try:
             # CPU bottleneck analysis
             if metrics.cpu_usage_percent > self.thresholds["cpu_critical"]:
-                bottlenecks.append({
-                    "type": "cpu",
-                    "severity": "critical",
-                    "description": f'CPU usage at {metrics.cpu_usage_percent}% (critical threshold: {self.thresholds["cpu_critical"]}%)',
-                    "recommendations": [
-                        "Enable parallel processing for AI operations",
-                        "Implement CPU-intensive task scheduling",
-                        "Consider upgrading CPU or adding cores",
-                    ],
-                })
+                bottlenecks.append(
+                    {
+                        "type": "cpu",
+                        "severity": "critical",
+                        "description": f"CPU usage at {metrics.cpu_usage_percent}% (critical threshold: {self.thresholds['cpu_critical']}%)",
+                        "recommendations": [
+                            "Enable parallel processing for AI operations",
+                            "Implement CPU-intensive task scheduling",
+                            "Consider upgrading CPU or adding cores",
+                        ],
+                    }
+                )
 
             # Memory bottleneck analysis
             if metrics.memory_usage_percent > self.thresholds["memory_critical"]:
-                bottlenecks.append({
-                    "type": "memory",
-                    "severity": "critical",
-                    "description": f'Memory usage at {metrics.memory_usage_percent}% (critical threshold: {self.thresholds["memory_critical"]}%)',
-                    "recommendations": [
-                        "Implement aggressive cache cleanup",
-                        "Enable memory compression",
-                        "Consider adding more RAM",
-                    ],
-                })
+                bottlenecks.append(
+                    {
+                        "type": "memory",
+                        "severity": "critical",
+                        "description": f"Memory usage at {metrics.memory_usage_percent}% (critical threshold: {self.thresholds['memory_critical']}%)",
+                        "recommendations": [
+                            "Implement aggressive cache cleanup",
+                            "Enable memory compression",
+                            "Consider adding more RAM",
+                        ],
+                    }
+                )
 
             # Disk I/O bottleneck analysis
             total_disk_io = metrics.disk_io_read_mb_s + metrics.disk_io_write_mb_s
             if total_disk_io > self.thresholds["disk_io_critical"]:
-                bottlenecks.append({
-                    "type": "disk_io",
-                    "severity": "high",
-                    "description": f'Disk I/O at {total_disk_io} MB/s (critical threshold: {self.thresholds["disk_io_critical"]} MB/s)',
-                    "recommendations": [
-                        "Use SSD storage for better performance",
-                        "Implement memory-mapped files",
-                        "Enable file system caching",
-                    ],
-                })
+                bottlenecks.append(
+                    {
+                        "type": "disk_io",
+                        "severity": "high",
+                        "description": f"Disk I/O at {total_disk_io} MB/s (critical threshold: {self.thresholds['disk_io_critical']} MB/s)",
+                        "recommendations": [
+                            "Use SSD storage for better performance",
+                            "Implement memory-mapped files",
+                            "Enable file system caching",
+                        ],
+                    }
+                )
 
             # Temperature bottleneck analysis
             if metrics.temperature_celsius and metrics.temperature_celsius > self.thresholds["temperature_critical"]:
-                bottlenecks.append({
-                    "type": "temperature",
-                    "severity": "critical",
-                    "description": f'System temperature at {metrics.temperature_celsius}°C (critical threshold: {self.thresholds["temperature_critical"]}°C)',
-                    "recommendations": [
-                        "Improve system cooling",
-                        "Reduce CPU-intensive operations",
-                        "Check for dust buildup in cooling systems",
-                    ],
-                })
+                bottlenecks.append(
+                    {
+                        "type": "temperature",
+                        "severity": "critical",
+                        "description": f"System temperature at {metrics.temperature_celsius}°C (critical threshold: {self.thresholds['temperature_critical']}°C)",
+                        "recommendations": [
+                            "Improve system cooling",
+                            "Reduce CPU-intensive operations",
+                            "Check for dust buildup in cooling systems",
+                        ],
+                    }
+                )
 
         except Exception as e:
             logger.exception("Error analyzing bottlenecks: %s", e)
-            bottlenecks.append({
-                "type": "analysis_error",
-                "severity": "low",
-                "description": f"Error during bottleneck analysis: {e!s}",
-                "recommendations": ["Check system monitoring capabilities"],
-            })
+            bottlenecks.append(
+                {
+                    "type": "analysis_error",
+                    "severity": "low",
+                    "description": f"Error during bottleneck analysis: {e!s}",
+                    "recommendations": ["Check system monitoring capabilities"],
+                }
+            )
 
         return bottlenecks
 
@@ -465,64 +483,76 @@ class AdvancedPerformanceOptimizer:
                 cpu_variance = np.var(cpu_values)
 
                 if avg_cpu < 30 and cpu_variance < 100:
-                    opportunities.append({
-                        "type": "cpu_underutilization",
-                        "priority": "medium",
-                        "description": f"CPU underutilized (avg: {avg_cpu}%, low variance)",
-                        "recommendation": "Enable more parallel processing to utilize available CPU cores",
-                        "expected_improvement": "15-25%",
-                    })
+                    opportunities.append(
+                        {
+                            "type": "cpu_underutilization",
+                            "priority": "medium",
+                            "description": f"CPU underutilized (avg: {avg_cpu}%, low variance)",
+                            "recommendation": "Enable more parallel processing to utilize available CPU cores",
+                            "expected_improvement": "15-25%",
+                        }
+                    )
 
                 # Memory usage patterns
                 memory_values = [m.memory_usage_percent for m in recent_metrics]
                 avg_memory = np.mean(memory_values)
 
                 if avg_memory > 70:
-                    opportunities.append({
-                        "type": "memory_optimization",
-                        "priority": "high",
-                        "description": f"High memory usage (avg: {avg_memory}%)",
-                        "recommendation": "Implement advanced caching strategies and memory cleanup",
-                        "expected_improvement": "20-30%",
-                    })
+                    opportunities.append(
+                        {
+                            "type": "memory_optimization",
+                            "priority": "high",
+                            "description": f"High memory usage (avg: {avg_memory}%)",
+                            "recommendation": "Implement advanced caching strategies and memory cleanup",
+                            "expected_improvement": "20-30%",
+                        }
+                    )
 
                 # Performance trend analysis
                 if len(self.optimization_history) >= 3:
                     recent_optimizations = self.optimization_history[-3:]
-                    avg_improvement = np.mean([
-                        opt.get("improvements", {}).get("overall_improvement_percent", 0)
-                        for opt in recent_optimizations
-                    ])
+                    avg_improvement = np.mean(
+                        [
+                            opt.get("improvements", {}).get("overall_improvement_percent", 0)
+                            for opt in recent_optimizations
+                        ]
+                    )
 
                     if avg_improvement < 10:
-                        opportunities.append({
-                            "type": "optimization_effectiveness",
-                            "priority": "medium",
-                            "description": f"Recent optimizations showing low impact (avg: {avg_improvement}%)",
-                            "recommendation": "Consider more aggressive optimization strategies",
-                            "expected_improvement": "25-40%",
-                        })
+                        opportunities.append(
+                            {
+                                "type": "optimization_effectiveness",
+                                "priority": "medium",
+                                "description": f"Recent optimizations showing low impact (avg: {avg_improvement}%)",
+                                "recommendation": "Consider more aggressive optimization strategies",
+                                "expected_improvement": "25-40%",
+                            }
+                        )
 
         except Exception as e:
             logger.exception("Error identifying optimization opportunities: %s", e)
 
         return opportunities
 
-    def _calculate_advanced_improvements(self,
-                                       baseline: SystemResourceMetrics,
-                                       final: SystemResourceMetrics) -> dict[str, Any]:
+    def _calculate_advanced_improvements(
+        self, baseline: SystemResourceMetrics, final: SystemResourceMetrics
+    ) -> dict[str, Any]:
         """Calculate advanced performance improvements."""
         improvements = {}
 
         try:
             # CPU improvement (lower is better)
             if baseline.cpu_usage_percent > 0:
-                cpu_improvement = (baseline.cpu_usage_percent - final.cpu_usage_percent) / baseline.cpu_usage_percent * 100
+                cpu_improvement = (
+                    (baseline.cpu_usage_percent - final.cpu_usage_percent) / baseline.cpu_usage_percent * 100
+                )
                 improvements["cpu_improvement_percent"] = cpu_improvement
 
             # Memory improvement (lower is better)
             if baseline.memory_usage_percent > 0:
-                memory_improvement = (baseline.memory_usage_percent - final.memory_usage_percent) / baseline.memory_usage_percent * 100
+                memory_improvement = (
+                    (baseline.memory_usage_percent - final.memory_usage_percent) / baseline.memory_usage_percent * 100
+                )
                 improvements["memory_improvement_percent"] = memory_improvement
 
             # Disk I/O improvement (lower is better)
@@ -534,7 +564,9 @@ class AdvancedPerformanceOptimizer:
 
             # Temperature improvement (lower is better)
             if baseline.temperature_celsius and final.temperature_celsius:
-                temp_improvement = (baseline.temperature_celsius - final.temperature_celsius) / baseline.temperature_celsius * 100
+                temp_improvement = (
+                    (baseline.temperature_celsius - final.temperature_celsius) / baseline.temperature_celsius * 100
+                )
                 improvements["temperature_improvement_percent"] = temp_improvement
 
             # Overall system health improvement
@@ -547,11 +579,11 @@ class AdvancedPerformanceOptimizer:
             # Weighted overall improvement
             weights = {"cpu": 0.3, "memory": 0.3, "disk_io": 0.2, "temperature": 0.1, "health": 0.1}
             overall_improvement = (
-                improvements.get("cpu_improvement_percent", 0) * weights["cpu"] +
-                improvements.get("memory_improvement_percent", 0) * weights["memory"] +
-                improvements.get("disk_io_improvement_percent", 0) * weights["disk_io"] +
-                improvements.get("temperature_improvement_percent", 0) * weights["temperature"] +
-                improvements.get("system_health_improvement_percent", 0) * weights["health"]
+                improvements.get("cpu_improvement_percent", 0) * weights["cpu"]
+                + improvements.get("memory_improvement_percent", 0) * weights["memory"]
+                + improvements.get("disk_io_improvement_percent", 0) * weights["disk_io"]
+                + improvements.get("temperature_improvement_percent", 0) * weights["temperature"]
+                + improvements.get("system_health_improvement_percent", 0) * weights["health"]
             )
             improvements["overall_improvement_percent"] = overall_improvement
 
@@ -594,6 +626,7 @@ class SystemResourceMonitor:
             # Try to get GPU metrics (if available)
             try:
                 import GPUtil
+
                 gpus = GPUtil.getGPUs()
                 if gpus:
                     gpu = gpus[0]
@@ -628,8 +661,7 @@ class SystemResourceMonitor:
                 gpu_memory_usage_percent=gpu_memory,
                 temperature_celsius=temperature,
                 power_consumption_watts=power_consumption,
-                timestamp=datetime.now(),
-            )
+                timestamp=datetime.now())
 
         except (ImportError, ModuleNotFoundError, AttributeError) as e:
             logger.exception("Error collecting system metrics: %s", e)
@@ -645,15 +677,13 @@ class SystemResourceMonitor:
                 gpu_memory_usage_percent=None,
                 temperature_celsius=None,
                 power_consumption_watts=None,
-                timestamp=datetime.now(),
-            )
+                timestamp=datetime.now())
 
 
 class AIPerformanceOptimizer:
     """AI-powered performance optimization and prediction."""
 
-    async def analyze_performance_patterns(self,
-                                         history: list[SystemResourceMetrics]) -> dict[str, Any]:
+    async def analyze_performance_patterns(self, history: list[SystemResourceMetrics]) -> dict[str, Any]:
         """Analyze performance patterns using AI techniques."""
         insights: dict[str, Any] = {
             "patterns_detected": [],
@@ -698,12 +728,14 @@ class AIPerformanceOptimizer:
             cpu_std = np.std(cpu_values)
             for i, value in enumerate(cpu_values[-10:]):  # Check last 10 values
                 if abs(value - cpu_mean) > 2 * cpu_std:
-                    insights["anomalies"].append({
-                        "type": "cpu_spike",
-                        "value": value,
-                        "timestamp": history[-(10-i)].timestamp.isoformat(),
-                        "severity": "high" if value > cpu_mean + 2 * cpu_std else "medium",
-                    })
+                    insights["anomalies"].append(
+                        {
+                            "type": "cpu_spike",
+                            "value": value,
+                            "timestamp": history[-(10 - i)].timestamp.isoformat(),
+                            "severity": "high" if value > cpu_mean + 2 * cpu_std else "medium",
+                        }
+                    )
 
         except Exception as e:
             logger.exception("Error in AI performance analysis: %s", e)
@@ -711,63 +743,65 @@ class AIPerformanceOptimizer:
 
         return insights
 
-    async def generate_optimization_plan(self,
-                                       current_metrics: SystemResourceMetrics,
-                                       ai_insights: dict[str, Any]) -> list[PerformanceOptimizationPlan]:
+    async def generate_optimization_plan(
+        self, current_metrics: SystemResourceMetrics, ai_insights: dict[str, Any]
+    ) -> list[PerformanceOptimizationPlan]:
         """Generate AI-driven optimization plan."""
         plans = []
 
         try:
             # CPU optimization plans
             if current_metrics.cpu_usage_percent > 80:
-                plans.append(PerformanceOptimizationPlan(
-                    priority_level="Critical",
-                    optimization_type="CPU Load Reduction",
-                    description="Implement parallel processing and CPU affinity optimization",
-                    expected_improvement_percent=25.0,
-                    implementation_complexity="Moderate",
-                    estimated_duration_minutes=15,
-                    prerequisites=["System administrator access"],
-                    risks=["Temporary performance impact during optimization"],
-                    success_metrics=["CPU usage reduction > 20%", "Response time improvement"],
-                ))
+                plans.append(
+                    PerformanceOptimizationPlan(
+                        priority_level="Critical",
+                        optimization_type="CPU Load Reduction",
+                        description="Implement parallel processing and CPU affinity optimization",
+                        expected_improvement_percent=25.0,
+                        implementation_complexity="Moderate",
+                        estimated_duration_minutes=15,
+                        prerequisites=["System administrator access"],
+                        risks=["Temporary performance impact during optimization"],
+                        success_metrics=["CPU usage reduction > 20%", "Response time improvement"])
+                )
 
             # Memory optimization plans
             if current_metrics.memory_usage_percent > 75:
-                plans.append(PerformanceOptimizationPlan(
-                    priority_level="High",
-                    optimization_type="Memory Optimization",
-                    description="Advanced cache cleanup and memory compression",
-                    expected_improvement_percent=20.0,
-                    implementation_complexity="Simple",
-                    estimated_duration_minutes=10,
-                    prerequisites=["Memory management permissions"],
-                    risks=["Temporary cache miss increase"],
-                    success_metrics=["Memory usage reduction > 15%", "Cache efficiency improvement"],
-                ))
+                plans.append(
+                    PerformanceOptimizationPlan(
+                        priority_level="High",
+                        optimization_type="Memory Optimization",
+                        description="Advanced cache cleanup and memory compression",
+                        expected_improvement_percent=20.0,
+                        implementation_complexity="Simple",
+                        estimated_duration_minutes=10,
+                        prerequisites=["Memory management permissions"],
+                        risks=["Temporary cache miss increase"],
+                        success_metrics=["Memory usage reduction > 15%", "Cache efficiency improvement"])
+                )
 
             # AI-insight based plans
             trends = ai_insights.get("trends", {})
             if trends.get("cpu_trend_per_hour", 0) > 2:
-                plans.append(PerformanceOptimizationPlan(
-                    priority_level="Medium",
-                    optimization_type="Predictive CPU Management",
-                    description="Implement predictive CPU load management based on detected trends",
-                    expected_improvement_percent=15.0,
-                    implementation_complexity="Complex",
-                    estimated_duration_minutes=30,
-                    prerequisites=["AI model deployment", "Historical data"],
-                    risks=["Prediction accuracy dependency"],
-                    success_metrics=["CPU trend stabilization", "Proactive optimization triggers"],
-                ))
+                plans.append(
+                    PerformanceOptimizationPlan(
+                        priority_level="Medium",
+                        optimization_type="Predictive CPU Management",
+                        description="Implement predictive CPU load management based on detected trends",
+                        expected_improvement_percent=15.0,
+                        implementation_complexity="Complex",
+                        estimated_duration_minutes=30,
+                        prerequisites=["AI model deployment", "Historical data"],
+                        risks=["Prediction accuracy dependency"],
+                        success_metrics=["CPU trend stabilization", "Proactive optimization triggers"])
+                )
 
         except Exception as e:
             logger.exception("Error generating optimization plan: %s", e)
 
         return plans
 
-    async def predict_performance_issues(self,
-                                       history: list[SystemResourceMetrics]) -> dict[str, Any]:
+    async def predict_performance_issues(self, history: list[SystemResourceMetrics]) -> dict[str, Any]:
         """Predict future performance issues using ML techniques."""
         predictions: dict[str, Any] = {
             "cpu_predictions": {},
@@ -827,7 +861,9 @@ class AIPerformanceOptimizer:
             predictions["risk_assessment"] = {
                 "cpu_risk": cpu_risk,
                 "memory_risk": memory_risk,
-                "overall_risk": max(cpu_risk, memory_risk, key=lambda x: ["low", "medium", "high", "critical"].index(x)),
+                "overall_risk": max(
+                    cpu_risk, memory_risk, key=lambda x: ["low", "medium", "high", "critical"].index(x)
+                ),
             }
 
             # Recommended actions
@@ -875,13 +911,16 @@ class ParallelProcessingOptimizer:
             # Enable NUMA optimization if available
             try:
                 import numa
+
                 if numa.available():
                     results["optimizations_applied"].append("numa_optimization")
                     results["performance_improvement_estimate"] += 10.0
             except ImportError:
                 pass  # NUMA not available
 
-            logger.info("Parallel processing optimization completed - %s optimizations", len(results['optimizations_applied']))
+            logger.info(
+                "Parallel processing optimization completed - %s optimizations", len(results["optimizations_applied"])
+            )
 
         except (ImportError, ModuleNotFoundError, AttributeError) as e:
             logger.exception("Parallel processing optimization error: %s", e)
@@ -913,6 +952,7 @@ class AdvancedMemoryOptimizer:
 
             # Garbage collection optimization
             import gc
+
             gc.collect()  # Force garbage collection
             results["optimizations_applied"].append("garbage_collection")
 
@@ -939,5 +979,8 @@ class AdvancedMemoryOptimizer:
 
         return results
 
+
+# Global advanced performance optimizer instance
+# Global advanced performance optimizer instance
 # Global advanced performance optimizer instance
 advanced_performance_optimizer = AdvancedPerformanceOptimizer()

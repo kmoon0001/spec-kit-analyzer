@@ -1,4 +1,7 @@
 """Performance Integration Service - Connects performance management to the main application.
+import requests
+from requests.exceptions import HTTPError
+from scipy import stats
 Provides a unified interface for performance monitoring and optimization.
 """
 
@@ -76,15 +79,14 @@ class PerformanceIntegrationService(QObject):
                     {
                         "current_profile": self.performance_manager.current_profile.value,
                         "system_memory_percent": memory_stats.get(
-                            "system_used_percent", 0,
-                        ),
+                            "system_used_percent",
+                            0),
                         "process_memory_mb": memory_stats.get("process_memory_mb", 0),
                         "gpu_available": self.performance_manager.system_info.get(
-                            "cuda_available", False,
-                        ),
-                    },
-                )
-            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+                            "cuda_available",
+                            False),
+                    })
+            except (FileNotFoundError, PermissionError, OSError) as e:
                 logger.exception("Error getting performance manager status: %s", e)
                 status["performance_error"] = str(e)
 
@@ -98,8 +100,7 @@ class PerformanceIntegrationService(QObject):
                         "cache_memory_mb": cache_stats.get("memory_usage_mb", 0),
                         "cache_entries": cache_stats.get("total_entries", 0),
                         "cache_hit_rate": self._get_cache_hit_rate(),
-                    },
-                )
+                    })
             except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
                 logger.exception("Error getting cache status: %s", e)
                 status["cache_error"] = str(e)
@@ -124,8 +125,7 @@ class PerformanceIntegrationService(QObject):
                 if memory_percent > 80:
                     # High memory usage - recommend conservative settings
                     optimization_results["recommendations"].append(
-                        "High memory usage detected. Consider switching to Conservative profile.",
-                    )
+                        "High memory usage detected. Consider switching to Conservative profile.")
 
                     # Trigger adaptive cleanup
                     self.performance_manager.adaptive_cleanup()
@@ -140,8 +140,8 @@ class PerformanceIntegrationService(QObject):
                 cache_stats_after = get_cache_stats()
 
                 memory_freed = cache_stats_before.get(
-                    "memory_usage_mb", 0,
-                ) - cache_stats_after.get("memory_usage_mb", 0)
+                    "memory_usage_mb",
+                    0) - cache_stats_after.get("memory_usage_mb", 0)
                 if memory_freed > 0:
                     optimization_results["memory_freed_mb"] = memory_freed
                     optimization_results["cache_cleanup"] = True
@@ -176,19 +176,19 @@ class PerformanceIntegrationService(QObject):
             # Check for warning conditions
             if memory_percent > 90:
                 self._emit_warning(
-                    "critical", f"Critical memory usage: {memory_percent}%",
-                )
+                    "critical",
+                    f"Critical memory usage: {memory_percent}%")
             elif memory_percent > 80:
                 self._emit_warning(
-                    "warning", f"High memory usage: {memory_percent}%",
-                )
+                    "warning",
+                    f"High memory usage: {memory_percent}%")
 
             # Check process memory
             process_memory = memory_stats.get("process_memory_mb", 0)
             if process_memory > 2048:  # 2GB
                 self._emit_warning(
-                    "warning", f"High process memory usage: {process_memory} MB",
-                )
+                    "warning",
+                    f"High process memory usage: {process_memory} MB")
 
         except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("Error in performance check: %s", e)
@@ -228,7 +228,7 @@ class PerformanceIntegrationService(QObject):
         else:
             self.monitor_timer.stop()
 
-        logger.info("Performance monitoring %s", 'enabled' if enabled else 'disabled')
+        logger.info("Performance monitoring %s", "enabled" if enabled else "disabled")
 
     def cleanup(self):
         """Clean up resources."""
@@ -240,19 +240,11 @@ class PerformanceIntegrationService(QObject):
 
 
 # Global performance integration service
+# Global performance integration service
+# Global performance integration service
 performance_integration = PerformanceIntegrationService()
 
 
 def get_performance_integration() -> PerformanceIntegrationService:
     """Get the global performance integration service."""
     return performance_integration
-
-
-def optimize_for_analysis() -> dict[str, Any]:
-    """Convenience function to optimize performance before analysis."""
-    return performance_integration.optimize_for_analysis()
-
-
-def get_performance_status() -> dict[str, Any]:
-    """Convenience function to get current performance status."""
-    return performance_integration.get_performance_status()

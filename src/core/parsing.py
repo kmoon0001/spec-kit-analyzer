@@ -38,9 +38,6 @@ def _get_file_hash(file_path: str) -> str:
             hasher.update(chunk)
     return hasher.hexdigest()
 
-
-
-
 def parse_document_content(file_path: str) -> list[dict[str, str]]:
     """Parse supported documents into sentence chunks with OCR support and content-based caching."""
     if not os.path.exists(file_path):
@@ -86,7 +83,7 @@ def parse_document_content(file_path: str) -> list[dict[str, str]]:
         cache_service.set_to_disk(cache_key, result)
         return result
 
-    except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+    except (FileNotFoundError, PermissionError, OSError) as e:
         logger.exception("Error parsing %s: {e}", file_path)
         return [
             {
@@ -137,7 +134,6 @@ def _preprocess_image_for_ocr(image):
         logger.warning("Image preprocessing failed: %s, using original image", e)
         return image
 
-
 def _parse_image_with_ocr(file_path: str) -> list[dict[str, str]]:
     """Parse image files using OCR."""
     if not OCR_AVAILABLE:
@@ -180,7 +176,7 @@ def _parse_image_with_ocr(file_path: str) -> list[dict[str, str]]:
             if sentence.strip()
         ]
 
-    except (OSError, IOError, FileNotFoundError) as e:
+    except (OSError, FileNotFoundError) as e:
         logger.exception("OCR processing failed for %s: {e}", file_path)
         return [
             {
@@ -188,7 +184,6 @@ def _parse_image_with_ocr(file_path: str) -> list[dict[str, str]]:
                 "source": "parser",
             },
         ]
-
 
 def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
     """Parse PDF with OCR fallback for scanned documents."""
@@ -233,7 +228,7 @@ def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
                                         })
                                 ocr_pages.append(page_num + 1)
 
-                        except (PIL.UnidentifiedImageError, OSError, ValueError) as e:
+                        except (PIL.UnidentifiedImageError, OSError, ValueError):
                             logger.warning("OCR failed for page %s: {e}", page_num + 1)
                             text_content.append({
                                 "sentence": f"Warning: Page {page_num + 1} could not be processed (may be scanned image without OCR capability)",
@@ -259,7 +254,7 @@ def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
                 },
             ]
 
-    except (OSError, IOError, FileNotFoundError) as e:
+    except (OSError, FileNotFoundError) as e:
         logger.exception("PDF parsing failed for %s: {e}", file_path)
         return [
             {
@@ -267,7 +262,6 @@ def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
                 "source": "parser",
             },
         ]
-
 
 def _split_into_sentences(text: str) -> list[str]:
     """Split text into sentences with medical document awareness."""
@@ -299,23 +293,19 @@ def _split_into_sentences(text: str) -> list[str]:
 
     return merged_sentences
 
-
 def _parse_pdf(file_path: str) -> list[dict[str, str]]:
     """Legacy PDF parser - redirects to OCR-enabled version."""
     return _parse_pdf_with_ocr(file_path)
-
 
 def _parse_txt(file_path: str) -> list[dict[str, str]]:
     with open(file_path, encoding="utf-8") as handle:
         text = handle.read().strip()
     return [{"sentence": text, "source": os.path.basename(file_path)}] if text else []
 
-
 def _parse_docx(file_path: str) -> list[dict[str, str]]:
     document = Document(file_path)
     text = "\n".join(paragraph.text for paragraph in document.paragraphs).strip()
     return [{"sentence": text, "source": os.path.basename(file_path)}] if text else []
-
 
 DEFAULT_SECTION_HEADERS = [
     "Subjective",
@@ -332,7 +322,6 @@ DEFAULT_SECTION_HEADERS = [
     "Treatment Plan",
 ]
 
-
 def load_section_headers() -> list[str]:
     try:
         with open("config.yaml", encoding="utf-8") as handle:
@@ -342,7 +331,6 @@ def load_section_headers() -> list[str]:
 
     headers = config.get("section_headers") or []
     return headers or DEFAULT_SECTION_HEADERS
-
 
 def parse_document_into_sections(text: str) -> dict[str, str]:
     headers = load_section_headers()
@@ -368,8 +356,7 @@ def parse_document_into_sections(text: str) -> dict[str, str]:
         )
         content = text[match.end() : next_start].strip()
         normalized_header = next(
-            (item for item in headers if item.lower() == header.lower()), header,
-        )
+            (item for item in headers if item.lower() == header.lower()), header)
         sections[normalized_header] = content
 
     return sections

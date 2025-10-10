@@ -1,13 +1,16 @@
-
+import json
 import os
 
 import httpx
+import requests
 from PySide6.QtCore import QObject, Signal
+from requests.exceptions import HTTPError
 
 from src.config import get_settings
 
 settings = get_settings()
 API_URL = settings.paths.api_url
+
 
 class AnalysisStarterWorker(QObject):
     """A one-shot worker to start analysis using the httpx library."""

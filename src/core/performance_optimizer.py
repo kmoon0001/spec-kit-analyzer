@@ -1,4 +1,7 @@
 """Performance Optimization Service.
+import requests
+from requests.exceptions import HTTPError
+from scipy import stats
 
 This module provides comprehensive performance optimization for the Therapy
 Compliance Analyzer, including intelligent caching, batch processing, and
@@ -7,11 +10,15 @@ proactive optimization strategies.
 
 import asyncio
 import logging
+import sqlite3
 import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
+
+import sqlalchemy
+import sqlalchemy.exc
 
 from src.core.advanced_cache_service import advanced_cache_service
 from src.core.cache_service import get_cache_stats
@@ -88,11 +95,12 @@ class PerformanceOptimizer:
                 efficiency_score=efficiency_score,
                 bottlenecks=bottlenecks,
                 recommendations=recommendations,
-                timestamp=datetime.now(),
-            )
+                timestamp=datetime.now())
 
-            logger.info("Performance analysis complete - Efficiency: %s, ", efficiency_score, 
-                       f"Hit Rate: {cache_hit_rate * 100}, Response Time: {avg_response_time}ms")
+            logger.info(
+                "Performance analysis complete - Efficiency: %s, ",
+                efficiency_score,
+                f"Hit Rate: {cache_hit_rate * 100}, Response Time: {avg_response_time}ms")
 
             return metrics
 
@@ -107,12 +115,9 @@ class PerformanceOptimizer:
                 efficiency_score=0.0,
                 bottlenecks=[f"Analysis error: {e!s}"],
                 recommendations=["Fix analysis errors before optimization"],
-                timestamp=datetime.now(),
-            )
+                timestamp=datetime.now())
 
-    async def optimize_performance(self,
-                           aggressive: bool = False,
-                           target_improvement: float = 20.0) -> dict[str, Any]:
+    async def optimize_performance(self, aggressive: bool = False, target_improvement: float = 20.0) -> dict[str, Any]:
         """Execute comprehensive performance optimization.
 
         Args:
@@ -132,8 +137,10 @@ class PerformanceOptimizer:
             self.optimization_in_progress = True
 
         start_time = time.time()
-        logger.info("Starting performance optimization (aggressive: %s, ", aggressive, 
-                   f"target: {target_improvement}% improvement)")
+        logger.info(
+            "Starting performance optimization (aggressive: %s, ",
+            aggressive,
+            f"target: {target_improvement}% improvement)")
 
         try:
             # Get baseline performance metrics
@@ -196,13 +203,15 @@ class PerformanceOptimizer:
             total_improvement = improvements.get("overall_improvement_percent", 0.0)
             success = total_improvement >= target_improvement or len(optimization_results["errors"]) == 0
 
-            optimization_results.update({
-                "status": "completed" if success else "partial_success",
-                "total_improvement_percent": total_improvement,
-                "target_achieved": total_improvement >= target_improvement,
-                "duration_seconds": time.time() - start_time,
-                "timestamp": datetime.now().isoformat(),
-            })
+            optimization_results.update(
+                {
+                    "status": "completed" if success else "partial_success",
+                    "total_improvement_percent": total_improvement,
+                    "target_achieved": total_improvement >= target_improvement,
+                    "duration_seconds": time.time() - start_time,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
             # Store optimization history
             self.optimization_history.append(optimization_results)
@@ -212,8 +221,10 @@ class PerformanceOptimizer:
             if len(self.optimization_history) > 10:
                 self.optimization_history = self.optimization_history[-10:]
 
-            logger.info("Performance optimization completed in %ss - ", time.time() - start_time, 
-                       f"Overall improvement: {total_improvement}%")
+            logger.info(
+                "Performance optimization completed in %ss - ",
+                time.time() - start_time,
+                f"Overall improvement: {total_improvement}%")
 
             return optimization_results
 
@@ -261,7 +272,7 @@ class PerformanceOptimizer:
                     if hasattr(cache_class._cache, "clear_expired"):
                         cache_class._cache.clear_expired()
                         memory_results["caches_cleaned"].append(f"{cache_name}_expired")
-                except (ImportError, ModuleNotFoundError, AttributeError) as e:
+                except (ImportError, ModuleNotFoundError, AttributeError):
                     logger.warning("Error cleaning %s cache: {e}", cache_name)
 
             # Aggressive memory optimization
@@ -282,11 +293,9 @@ class PerformanceOptimizer:
             # Get final memory usage
             final_stats = get_cache_stats()
             memory_results["final_memory_mb"] = final_stats.get("memory_usage_mb", 0.0)
-            memory_results["memory_freed_mb"] = (
-                memory_results["initial_memory_mb"] - memory_results["final_memory_mb"]
-            )
+            memory_results["memory_freed_mb"] = memory_results["initial_memory_mb"] - memory_results["final_memory_mb"]
 
-            logger.debug("Memory optimization completed - Freed %.1fMB", memory_results['memory_freed_mb'])
+            logger.debug("Memory optimization completed - Freed %.1fMB", memory_results["memory_freed_mb"])
 
         except Exception as e:
             logger.exception("Memory optimization error: %s", e)
@@ -321,8 +330,7 @@ class PerformanceOptimizer:
             self.advanced_cache.cache_warming.schedule_warming(
                 cache_type="embedding",
                 items=common_medical_texts,
-                priority=7,
-            )
+                priority=7)
             warming_results["warming_requests_scheduled"] += len(common_medical_texts)
 
             # Schedule NER warming for common compliance phrases
@@ -334,8 +342,7 @@ class PerformanceOptimizer:
             self.advanced_cache.cache_warming.schedule_warming(
                 cache_type="ner",
                 items=ner_items,
-                priority=6,
-            )
+                priority=6)
             warming_results["warming_requests_scheduled"] += len(ner_items)
 
             # Execute warming (limited to avoid performance impact)
@@ -344,7 +351,7 @@ class PerformanceOptimizer:
             warming_results["warming_execution_results"] = warming_execution
             warming_results["items_warmed"] = warming_execution.get("total_items_warmed", 0)
 
-            logger.debug("Proactive warming completed - %s items warmed", warming_results['items_warmed'])
+            logger.debug("Proactive warming completed - %s items warmed", warming_results["items_warmed"])
 
         except Exception as e:
             logger.exception("Proactive warming error: %s", e)
@@ -364,22 +371,30 @@ class PerformanceOptimizer:
             # Check hit rate
             hit_rate = overall_stats.get("overall_hit_rate", 0.0)
             if hit_rate < self.performance_thresholds["min_hit_rate"]:
-                bottlenecks.append(f"Low cache hit rate: {hit_rate * 100} (target: {self.performance_thresholds['min_hit_rate']:.1%})")
+                bottlenecks.append(
+                    f"Low cache hit rate: {hit_rate * 100} (target: {self.performance_thresholds['min_hit_rate']:.1%})"
+                )
 
             # Check response time
             response_time = overall_stats.get("avg_response_time_ms", 0.0)
             if response_time > self.performance_thresholds["max_response_time_ms"]:
-                bottlenecks.append(f"High response time: {response_time}ms (target: <{self.performance_thresholds['max_response_time_ms']}ms)")
+                bottlenecks.append(
+                    f"High response time: {response_time}ms (target: <{self.performance_thresholds['max_response_time_ms']}ms)"
+                )
 
             # Check memory usage
             memory_usage = base_stats.get("memory_usage_mb", 0.0)
             if memory_usage > self.performance_thresholds["max_memory_usage_mb"]:
-                bottlenecks.append(f"High memory usage: {memory_usage}MB (target: <{self.performance_thresholds['max_memory_usage_mb']}MB)")
+                bottlenecks.append(
+                    f"High memory usage: {memory_usage}MB (target: <{self.performance_thresholds['max_memory_usage_mb']}MB)"
+                )
 
             # Check efficiency score
             efficiency = overall_stats.get("cache_efficiency_score", 0.0)
             if efficiency < self.performance_thresholds["min_efficiency_score"]:
-                bottlenecks.append(f"Low efficiency score: {efficiency} (target: >{self.performance_thresholds['min_efficiency_score']})")
+                bottlenecks.append(
+                    f"Low efficiency score: {efficiency} (target: >{self.performance_thresholds['min_efficiency_score']})"
+                )
 
             # Check system memory pressure
             system_memory = base_stats.get("system_memory_percent", 0.0)
@@ -391,9 +406,7 @@ class PerformanceOptimizer:
 
         return bottlenecks
 
-    def _generate_optimization_recommendations(self,
-                                             cache_stats: dict[str, Any],
-                                             bottlenecks: list[str]) -> list[str]:
+    def _generate_optimization_recommendations(self, cache_stats: dict[str, Any], bottlenecks: list[str]) -> list[str]:
         """Generate specific optimization recommendations."""
         recommendations = []
 
@@ -435,9 +448,9 @@ class PerformanceOptimizer:
 
         return recommendations
 
-    def _calculate_performance_improvements(self,
-                                          baseline: PerformanceMetrics,
-                                          final: PerformanceMetrics) -> dict[str, float]:
+    def _calculate_performance_improvements(
+        self, baseline: PerformanceMetrics, final: PerformanceMetrics
+    ) -> dict[str, float]:
         """Calculate performance improvements between baseline and final metrics."""
         improvements = {}
 
@@ -445,8 +458,7 @@ class PerformanceOptimizer:
             # Response time improvement (lower is better)
             if baseline.avg_response_time_ms > 0:
                 response_improvement = (
-                    (baseline.avg_response_time_ms - final.avg_response_time_ms) /
-                    baseline.avg_response_time_ms * 100
+                    (baseline.avg_response_time_ms - final.avg_response_time_ms) / baseline.avg_response_time_ms * 100
                 )
                 improvements["response_time_improvement_percent"] = response_improvement
 
@@ -457,27 +469,23 @@ class PerformanceOptimizer:
 
             # Memory usage improvement (lower is better)
             if baseline.memory_usage_mb > 0:
-                memory_improvement = (
-                    (baseline.memory_usage_mb - final.memory_usage_mb) /
-                    baseline.memory_usage_mb * 100
-                )
+                memory_improvement = (baseline.memory_usage_mb - final.memory_usage_mb) / baseline.memory_usage_mb * 100
                 improvements["memory_usage_improvement_percent"] = memory_improvement
 
             # Efficiency score improvement (higher is better)
             if baseline.efficiency_score > 0:
                 efficiency_improvement = (
-                    (final.efficiency_score - baseline.efficiency_score) /
-                    baseline.efficiency_score * 100
+                    (final.efficiency_score - baseline.efficiency_score) / baseline.efficiency_score * 100
                 )
                 improvements["efficiency_improvement_percent"] = efficiency_improvement
 
             # Overall improvement (weighted average)
             weights = {"response_time": 0.3, "hit_rate": 0.3, "memory": 0.2, "efficiency": 0.2}
             overall_improvement = (
-                improvements.get("response_time_improvement_percent", 0) * weights["response_time"] +
-                improvements.get("hit_rate_improvement_percent", 0) * weights["hit_rate"] +
-                improvements.get("memory_usage_improvement_percent", 0) * weights["memory"] +
-                improvements.get("efficiency_improvement_percent", 0) * weights["efficiency"]
+                improvements.get("response_time_improvement_percent", 0) * weights["response_time"]
+                + improvements.get("hit_rate_improvement_percent", 0) * weights["hit_rate"]
+                + improvements.get("memory_usage_improvement_percent", 0) * weights["memory"]
+                + improvements.get("efficiency_improvement_percent", 0) * weights["efficiency"]
             )
             improvements["overall_improvement_percent"] = overall_improvement
 
@@ -497,9 +505,7 @@ class PerformanceOptimizer:
                 "performance_thresholds": self.performance_thresholds,
             }
 
-    async def schedule_periodic_optimization(self,
-                                           interval_hours: float = 24.0,
-                                           aggressive: bool = False) -> None:
+    async def schedule_periodic_optimization(self, interval_hours: float = 24.0, aggressive: bool = False) -> None:
         """Schedule periodic performance optimization.
 
         Args:
@@ -520,7 +526,7 @@ class PerformanceOptimizer:
                     improvement = result.get("total_improvement_percent", 0)
                     logger.info("Scheduled optimization completed with %.1f%% improvement", improvement)
                 else:
-                    logger.warning("Scheduled optimization had issues: %s", result.get('status'))
+                    logger.warning("Scheduled optimization had issues: %s", result.get("status"))
 
             except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
                 logger.exception("Error in scheduled optimization: %s", e)
@@ -528,5 +534,7 @@ class PerformanceOptimizer:
                 continue
 
 
+# Global performance optimizer instance
+# Global performance optimizer instance
 # Global performance optimizer instance
 performance_optimizer = PerformanceOptimizer()

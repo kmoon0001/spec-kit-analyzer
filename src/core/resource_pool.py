@@ -114,8 +114,7 @@ class PooledResource(Generic[T]):
                 use_count=self.use_count,
                 total_use_time=self.total_use_time,
                 average_use_time=self.average_use_time,
-                state=self.state,
-            )
+                state=self.state)
 
     def __enter__(self) -> T:
         """Context manager entry."""
@@ -147,6 +146,8 @@ class ResourceFactory(ABC, Generic[T]):
 
 
 @dataclass
+@dataclass
+@dataclass
 class PoolConfiguration:
     """Configuration for resource pools."""
 
@@ -161,32 +162,6 @@ class PoolConfiguration:
 
 class ResourcePool(Generic[T]):
     """Generic resource pool with lifecycle management."""
-
-    def __init__(self, name: str, factory: ResourceFactory[T],
-                 config: PoolConfiguration):
-        self.name = name
-        self.factory = factory
-        self.config = config
-
-        self._resources: dict[str, PooledResource[T]] = {}
-        self._available_queue: queue.Queue = queue.Queue()
-        self._lock = threading.RLock()
-        self._next_id = 0
-        self._shutdown = False
-
-        # Start maintenance thread
-        self._maintenance_thread = threading.Thread(
-            target=self._maintenance_loop,
-            daemon=True,
-            name=f"ResourcePool-{name}-Maintenance",
-        )
-        self._maintenance_thread.start()
-
-        # Preload resources if configured
-        if config.preload_resources:
-            self._preload_resources()
-
-        logger.info("Resource pool '%s' initialized with config: {config}", name)
 
     def acquire_resource(self, timeout: float | None = None) -> PooledResource[T] | None:
         """Acquire a resource from the pool."""
@@ -236,12 +211,9 @@ class ResourcePool(Generic[T]):
         """Get current pool status and metrics."""
         with self._lock:
             total_resources = len(self._resources)
-            available_count = sum(1 for r in self._resources.values()
-                                if r.state == ResourceState.AVAILABLE)
-            in_use_count = sum(1 for r in self._resources.values()
-                             if r.state == ResourceState.IN_USE)
-            expired_count = sum(1 for r in self._resources.values()
-                              if r.state == ResourceState.EXPIRED)
+            available_count = sum(1 for r in self._resources.values() if r.state == ResourceState.AVAILABLE)
+            in_use_count = sum(1 for r in self._resources.values() if r.state == ResourceState.IN_USE)
+            expired_count = sum(1 for r in self._resources.values() if r.state == ResourceState.EXPIRED)
 
             # Calculate average metrics
             total_uses = sum(r.use_count for r in self._resources.values())
@@ -298,7 +270,7 @@ class ResourcePool(Generic[T]):
             logger.debug("Created new resource: %s", resource_id)
             return pooled_resource
 
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to create resource %s: {e}", resource_id)
             raise
 
@@ -346,8 +318,7 @@ class ResourcePool(Generic[T]):
                     continue
 
                 # Check if resource has been idle too long
-                if (resource.state == ResourceState.AVAILABLE and
-                    now - resource.last_used > self.config.max_idle_time):
+                if resource.state == ResourceState.AVAILABLE and now - resource.last_used > self.config.max_idle_time:
                     resource.mark_expired()
                     expired_resources.append(resource_id)
 
@@ -360,7 +331,7 @@ class ResourcePool(Generic[T]):
                         resource.dispose()
                         del self._resources[resource_id]
                         logger.debug("Cleaned up expired resource: %s", resource_id)
-                    except Exception as e:
+                    except Exception:
                         logger.exception("Error disposing expired resource %s: {e}", resource_id)
 
     def _validate_resources(self) -> None:
@@ -374,7 +345,7 @@ class ResourcePool(Generic[T]):
                         if not self.factory.validate_resource(resource.resource):
                             resource.mark_expired()
                             invalid_resources.append(resource_id)
-                    except (ValueError, TypeError, AttributeError) as e:
+                    except (ValueError, TypeError, AttributeError):
                         logger.exception("Error validating resource %s: {e}", resource_id)
                         resource.mark_expired()
                         invalid_resources.append(resource_id)
@@ -388,14 +359,13 @@ class ResourcePool(Generic[T]):
                         resource.dispose()
                         del self._resources[resource_id]
                         logger.debug("Removed invalid resource: %s", resource_id)
-                    except Exception as e:
+                    except Exception:
                         logger.exception("Error disposing invalid resource %s: {e}", resource_id)
 
     def _ensure_minimum_resources(self) -> None:
         """Ensure minimum number of resources are available."""
         with self._lock:
-            available_count = sum(1 for r in self._resources.values()
-                                if r.state == ResourceState.AVAILABLE)
+            available_count = sum(1 for r in self._resources.values() if r.state == ResourceState.AVAILABLE)
 
             needed = self.config.min_size - available_count
             for _ in range(needed):
@@ -411,12 +381,7 @@ class ResourcePool(Generic[T]):
 class ResourcePoolManager:
     """Manager for multiple resource pools."""
 
-    def __init__(self):
-        self._pools: dict[str, ResourcePool] = {}
-        self._lock = threading.Lock()
-
-    def create_pool(self, name: str, factory: ResourceFactory[T],
-                   config: PoolConfiguration) -> ResourcePool[T]:
+    def create_pool(self, name: str, factory: ResourceFactory[T], config: PoolConfiguration) -> ResourcePool[T]:
         """Create a new resource pool."""
         with self._lock:
             if name in self._pools:
@@ -449,5 +414,7 @@ class ResourcePoolManager:
             logger.info("All resource pools shut down")
 
 
+# Global resource pool manager instance
+# Global resource pool manager instance
 # Global resource pool manager instance
 resource_pool_manager = ResourcePoolManager()

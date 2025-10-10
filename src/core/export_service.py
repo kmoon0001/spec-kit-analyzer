@@ -1,4 +1,6 @@
 """Data Export Service - Safe, configurable export functionality.
+import requests
+from requests.exceptions import HTTPError
 Supports multiple formats with optional features that can be enabled/disabled.
 """
 
@@ -20,7 +22,6 @@ except ImportError:
     logger.info("Pandas not available - Excel export disabled")
     PANDAS_AVAILABLE = False
 
-
 class ExportService:
     """Configurable data export service supporting multiple formats.
     Features can be enabled/disabled based on requirements and dependencies.
@@ -31,15 +32,13 @@ class ExportService:
         enable_excel: bool = True,
         enable_csv: bool = True,
         enable_json: bool = True,
-        max_file_size_mb: int = 100,
-    ):
+        max_file_size_mb: int = 100):
         self.enable_excel = enable_excel and PANDAS_AVAILABLE
         self.enable_csv = enable_csv
         self.enable_json = enable_json
         self.max_file_size_mb = max_file_size_mb
 
-        logger.info("Export service initialized - Excel: %s, CSV: %s, JSON: {self.enable_json}", self.enable_excel, self.enable_csv,
-        )
+        logger.info("Export service initialized - Excel: %s, CSV: %s, JSON: {self.enable_json}", self.enable_excel, self.enable_csv)
 
     def get_available_formats(self) -> list[str]:
         """Get list of available export formats."""
@@ -57,8 +56,7 @@ class ExportService:
         reports_data: list[dict[str, Any]],
         format_type: str,
         output_path: str,
-        include_findings: bool = True,
-    ) -> bool:
+        include_findings: bool = True) -> bool:
         """Export compliance data in specified format.
 
         Args:
@@ -94,13 +92,12 @@ class ExportService:
             logger.error("Unsupported or disabled export format: %s", format_type)
             return False
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Export failed: %s", e)
             return False
 
     def _prepare_export_data(
-        self, reports_data: list[dict[str, Any]], include_findings: bool,
-    ) -> dict[str, Any]:
+        self, reports_data: list[dict[str, Any]], include_findings: bool) -> dict[str, Any]:
         """Prepare data for export with metadata."""
 
         # Basic report data
@@ -160,7 +157,7 @@ class ExportService:
 
             return True
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Error checking size limit: %s", e)
             return True  # Allow export if size check fails
 
@@ -173,13 +170,12 @@ class ExportService:
             logger.info("JSON export completed: %s", output_path)
             return True
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("JSON export failed: %s", e)
             return False
 
     def _export_csv(
-        self, data: dict[str, Any], output_path: str, include_findings: bool,
-    ) -> bool:
+        self, data: dict[str, Any], output_path: str, include_findings: bool) -> bool:
         """Export data as CSV file(s)."""
         try:
             base_path = Path(output_path)
@@ -205,13 +201,12 @@ class ExportService:
             logger.info("CSV export completed: %s", reports_path)
             return True
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("CSV export failed: %s", e)
             return False
 
     def _export_excel(
-        self, data: dict[str, Any], output_path: str, include_findings: bool,
-    ) -> bool:
+        self, data: dict[str, Any], output_path: str, include_findings: bool) -> bool:
         """Export data as Excel file with multiple sheets."""
         if not self.enable_excel:
             logger.error("Excel export not available")
@@ -236,7 +231,7 @@ class ExportService:
             logger.info("Excel export completed: %s", output_path)
             return True
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Excel export failed: %s", e)
             return False
 
@@ -244,8 +239,7 @@ class ExportService:
         self,
         analytics_data: dict[str, Any],
         output_path: str,
-        format_type: str = "json",
-    ) -> bool:
+        format_type: str = "json") -> bool:
         """Export analytics summary data.
 
         Args:
@@ -277,13 +271,12 @@ class ExportService:
             logger.error("Unsupported format for analytics export: %s", format_type)
             return False
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Analytics export failed: %s", e)
             return False
 
     def create_export_summary(
-        self, reports_data: list[dict[str, Any]],
-    ) -> dict[str, Any]:
+        self, reports_data: list[dict[str, Any]]) -> dict[str, Any]:
         """Create a summary of exportable data for user preview."""
         try:
             total_reports = len(reports_data)
@@ -349,19 +342,16 @@ class ExportService:
             logger.exception("Error estimating export size: %s", e)
             return 0.0
 
-
+# Global export service instance
+# Global export service instance
 # Global export service instance
 export_service = ExportService()
 
-
 def get_export_service(
-    enable_excel: bool = True, enable_csv: bool = True, enable_json: bool = True,
-) -> ExportService:
+    enable_excel: bool = True, enable_csv: bool = True, enable_json: bool = True) -> ExportService:
     """Get export service with specified configuration."""
     return ExportService(
-        enable_excel=enable_excel, enable_csv=enable_csv, enable_json=enable_json,
-    )
-
+        enable_excel=enable_excel, enable_csv=enable_csv, enable_json=enable_json)
 
 # Configuration
 EXPORT_CONFIG: dict[str, Any] = {
@@ -371,7 +361,6 @@ EXPORT_CONFIG: dict[str, Any] = {
     "max_file_size_mb": 100,
     "default_format": "json",
 }
-
 
 def is_export_format_available(format_type: str) -> bool:
     """Check if specific export format is available."""

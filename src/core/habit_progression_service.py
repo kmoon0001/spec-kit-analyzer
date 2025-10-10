@@ -5,9 +5,12 @@ Provides individual analytics, goal setting, and achievement tracking.
 """
 
 import logging
+import sqlite3
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import sqlalchemy
+import sqlalchemy.exc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import crud
@@ -31,8 +34,10 @@ class HabitProgressionService:
         self.habits_framework = SevenHabitsFramework()
 
     async def get_user_habit_progression(
-        self, db: AsyncSession, user_id: int, days_back: int = 90,
-    ) -> dict[str, Any]:
+        self,
+        db: AsyncSession,
+        user_id: int,
+        days_back: int = 90) -> dict[str, Any]:
         """Get comprehensive habit progression data for a user.
 
         Args:
@@ -49,8 +54,9 @@ class HabitProgressionService:
 
         # Get user's reports with findings
         user_reports = await crud.get_user_reports_with_findings(
-            db, user_id=user_id, since_date=cutoff_date,
-        )
+            db,
+            user_id=user_id,
+            since_date=cutoff_date)
 
         if not user_reports:
             return self._empty_progression_data()
@@ -70,8 +76,7 @@ class HabitProgressionService:
                         "issue_title": finding.issue_title or "",
                         "text": finding.problematic_text or "",
                         "risk": finding.risk,
-                    },
-                )
+                    })
 
                 finding_with_habit = {
                     "habit_id": habit_info["habit_id"],
@@ -87,25 +92,28 @@ class HabitProgressionService:
 
         # Calculate progression metrics
         progression_data = self._calculate_progression_metrics(
-            all_findings, findings_by_date, days_back,
-        )
+            all_findings,
+            findings_by_date,
+            days_back)
 
         # Add achievement data
         progression_data["achievements"] = await self._calculate_achievements(
-            db, user_id, all_findings,
-        )
+            db,
+            user_id,
+            all_findings)
 
         # Add goals and recommendations
         progression_data["current_goals"] = await self._get_user_goals(db, user_id)
         progression_data["recommendations"] = self._generate_recommendations(
-            progression_data,
-        )
+            progression_data)
 
         return progression_data
 
     def _calculate_progression_metrics(
-        self, all_findings: list[dict], findings_by_date: dict, days_back: int,
-    ) -> dict[str, Any]:
+        self,
+        all_findings: list[dict],
+        findings_by_date: dict,
+        days_back: int) -> dict[str, Any]:
         """Calculate detailed progression metrics."""
 
         # Overall metrics
@@ -113,8 +121,7 @@ class HabitProgressionService:
 
         # Habit breakdown
         habit_metrics = self.habits_framework.get_habit_progression_metrics(
-            all_findings,
-        )
+            all_findings)
 
         # Time-based analysis
         weekly_trends = self._calculate_weekly_trends(findings_by_date, days_back)
@@ -123,16 +130,14 @@ class HabitProgressionService:
         # Current status
         current_focus_areas = habit_metrics["top_focus_areas"][:2]  # Top 2
         mastery_achievements = [
-            (hid, data)
-            for hid, data in habit_metrics["habit_breakdown"].items()
-            if data["mastery_level"] == "Mastered"
+            (hid, data) for hid, data in habit_metrics["habit_breakdown"].items() if data["mastery_level"] == "Mastered"
         ]
 
         # Streaks and consistency
         current_streak = self._calculate_current_streak(findings_by_date)
         consistency_score = self._calculate_consistency_score(
-            findings_by_date, days_back,
-        )
+            findings_by_date,
+            days_back)
 
         return {
             "total_findings": total_findings,
@@ -148,8 +153,9 @@ class HabitProgressionService:
         }
 
     def _calculate_weekly_trends(
-        self, findings_by_date: dict, days_back: int,
-    ) -> list[dict[str, Any]]:
+        self,
+        findings_by_date: dict,
+        days_back: int) -> list[dict[str, Any]]:
         """Calculate weekly trend data for visualization."""
         weeks = []
         current_date = datetime.now(UTC).date()
@@ -175,12 +181,10 @@ class HabitProgressionService:
                     "week_end": week_end.isoformat(),
                     "total_findings": len(week_findings),
                     "habit_breakdown": week_habit_counts,
-                    "avg_confidence": sum(f["confidence"] for f in week_findings)
-                    / len(week_findings)
+                    "avg_confidence": sum(f["confidence"] for f in week_findings) / len(week_findings)
                     if week_findings
                     else 0,
-                },
-            )
+                })
 
         return list(reversed(weeks))  # Chronological order
 
@@ -191,11 +195,11 @@ class HabitProgressionService:
 
         # Compare recent weeks to earlier weeks
         recent_avg = sum(w["total_findings"] for w in weekly_trends[-4:]) / min(
-            4, len(weekly_trends),
-        )
+            4,
+            len(weekly_trends))
         earlier_avg = sum(w["total_findings"] for w in weekly_trends[:4]) / min(
-            4, len(weekly_trends),
-        )
+            4,
+            len(weekly_trends))
 
         if earlier_avg == 0:
             return 0.0
@@ -220,8 +224,9 @@ class HabitProgressionService:
         return streak
 
     def _calculate_consistency_score(
-        self, findings_by_date: dict, days_back: int,
-    ) -> float:
+        self,
+        findings_by_date: dict,
+        days_back: int) -> float:
         """Calculate consistency score (0-100) based on regular improvement."""
         if days_back < 7:
             return 0.0
@@ -252,9 +257,7 @@ class HabitProgressionService:
             mastery = habit_data["mastery_level"]
             total_score += mastery_weights.get(mastery, 1)
 
-        progress_percentage = (
-            (total_score / max_possible) * 100 if max_possible > 0 else 0
-        )
+        progress_percentage = (total_score / max_possible) * 100 if max_possible > 0 else 0
 
         # Determine status
         if progress_percentage >= 85:
@@ -274,8 +277,10 @@ class HabitProgressionService:
         }
 
     async def _calculate_achievements(
-        self, db: AsyncSession, user_id: int, all_findings: list[dict],
-    ) -> list[dict[str, Any]]:
+        self,
+        db: AsyncSession,
+        user_id: int,
+        all_findings: list[dict]) -> list[dict[str, Any]]:
         """Calculate and award achievements."""
         achievements = []
 
@@ -300,8 +305,7 @@ class HabitProgressionService:
                         "icon": "🏆",
                         "earned_date": datetime.now(UTC).isoformat(),
                         "category": "mastery",
-                    },
-                )
+                    })
 
         # Analysis count achievements
         analysis_count = await self._get_user_analysis_count(db, user_id)
@@ -317,8 +321,7 @@ class HabitProgressionService:
                         "icon": "📊",
                         "earned_date": datetime.now(UTC).isoformat(),
                         "category": "milestone",
-                    },
-                )
+                    })
 
         # Improvement achievements
         # (Could add streak achievements, improvement rate achievements, etc.)
@@ -334,8 +337,9 @@ class HabitProgressionService:
             return 0
 
     async def _get_user_goals(
-        self, db: AsyncSession, user_id: int,
-    ) -> list[dict[str, Any]]:
+        self,
+        db: AsyncSession,
+        user_id: int) -> list[dict[str, Any]]:
         """Get user's current goals from the database."""
         try:
             goals = await crud.get_user_habit_goals(db, user_id=user_id, active_only=True)
@@ -372,8 +376,7 @@ class HabitProgressionService:
                     "description": f"This habit represents {metrics['percentage']}% of your findings",
                     "action_items": habit_info["improvement_strategies"][:3],
                     "habit_number": habit_info["number"],
-                },
-            )
+                })
 
         # Improvement rate recommendations
         if progression_data["improvement_rate"] < 0:
@@ -388,8 +391,7 @@ class HabitProgressionService:
                         "Set new challenge goals",
                         "Share your success strategies with peers",
                     ],
-                },
-            )
+                })
         elif progression_data["improvement_rate"] < 5:
             recommendations.append(
                 {
@@ -402,8 +404,7 @@ class HabitProgressionService:
                         "Try new documentation strategies",
                         "Schedule focused practice sessions",
                     ],
-                },
-            )
+                })
 
         # Consistency recommendations
         if progression_data["consistency_score"] < 50:
@@ -418,8 +419,7 @@ class HabitProgressionService:
                         "Use reminders for documentation review",
                         "Analyze smaller batches more frequently",
                     ],
-                },
-            )
+                })
 
         return recommendations
 
@@ -447,8 +447,10 @@ class HabitProgressionService:
         }
 
     async def set_user_goal(
-        self, db: AsyncSession, user_id: int, goal_data: dict[str, Any],
-    ) -> dict[str, Any]:
+        self,
+        db: AsyncSession,
+        user_id: int,
+        goal_data: dict[str, Any]) -> dict[str, Any]:
         """Set a new goal for the user."""
         # This would create a new goal in the database
         # For now, return the goal data with an ID
@@ -459,15 +461,16 @@ class HabitProgressionService:
             **goal_data,
         }
 
-        logger.info("Created goal for user %s: %s", user_id, goal['title'])
+        logger.info("Created goal for user %s: %s", user_id, goal["title"])
         return goal
 
     async def update_goal_progress(
-        self, db: AsyncSession, user_id: int, goal_id: int, progress: int,
-    ) -> bool:
+        self,
+        db: AsyncSession,
+        user_id: int,
+        goal_id: int,
+        progress: int) -> bool:
         """Update progress on a user's goal."""
         # This would update the goal in the database
-        logger.info(
-            "Updated goal %s progress to %s%% for user %s", goal_id, progress, user_id
-        )
+        logger.info("Updated goal %s progress to %s%% for user %s", goal_id, progress, user_id)
         return True

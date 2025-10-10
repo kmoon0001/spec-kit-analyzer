@@ -35,8 +35,7 @@ class FolderAnalysisWorker(QObject):
             try:
                 response = requests.get(
                     f"{API_URL}/tasks/{self.task_id}",
-                    timeout=15,
-                )
+                    timeout=15)
                 response.raise_for_status()
 
                 if response.headers.get("Content-Type", "").startswith("text/html"):
@@ -49,13 +48,12 @@ class FolderAnalysisWorker(QObject):
 
                 if status == "processing":
                     reported_progress = int(
-                        status_data.get("progress", attempts * 100 // max_attempts),
-                    )
+                        status_data.get("progress", attempts * 100 // max_attempts))
                     self.progress.emit(max(0, min(100, reported_progress)))
                 elif status == "failed":
                     error_msg = status_data.get(
-                        "error", "Unknown error during analysis.",
-                    )
+                        "error",
+                        "Unknown error during analysis.")
                     self.error.emit(error_msg)
                     self.finished.emit()
                     return

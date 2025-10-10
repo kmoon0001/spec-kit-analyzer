@@ -29,6 +29,8 @@ class CorrelationIdMiddleware:
 
 
 # --- Structlog Configuration ---
+# --- Structlog Configuration ---
+# --- Structlog Configuration ---
 
 
 def setup_logging():
@@ -55,8 +57,7 @@ def setup_logging():
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
         wrapper_class=structlog.stdlib.BoundLogger,
-        cache_logger_on_first_use=True,
-    )
+        cache_logger_on_first_use=True)
 
     # Configure the root logger to use structlog
     root_logger = logging.getLogger()
@@ -73,7 +74,6 @@ def setup_logging():
 
     logger = structlog.get_logger("logging_setup")
     logger.info("Structured logging configured successfully.")
-
 
 
 def configure_logging(level: str | int | None = None):

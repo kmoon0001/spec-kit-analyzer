@@ -1,4 +1,6 @@
 """PDF Export Service for Compliance Reports
+from PIL import Image
+import PIL
 
 This service provides comprehensive PDF export functionality for compliance analysis reports,
 maintaining professional formatting and ensuring all critical information is preserved.
@@ -16,6 +18,7 @@ from src.core.report_template_engine import TemplateEngine
 WEASYPRINT_AVAILABLE = False
 try:
     import importlib.util
+
     if importlib.util.find_spec("weasyprint") is not None:
         WEASYPRINT_AVAILABLE = True
 except ImportError:
@@ -29,7 +32,6 @@ except (ImportError, ModuleNotFoundError, AttributeError) as e:
 FALLBACK_AVAILABLE = False
 if not WEASYPRINT_AVAILABLE:
     try:
-        import importlib.util
         if importlib.util.find_spec("reportlab") is not None:
             FALLBACK_AVAILABLE = True
     except ImportError:
@@ -69,6 +71,7 @@ class PDFExportService:
         if WEASYPRINT_AVAILABLE:
             try:
                 from weasyprint.text.fonts import FontConfiguration
+
                 self.font_config = FontConfiguration()
             except (ImportError, OSError) as e:
                 logging.warning("Could not initialize WeasyPrint font configuration: %s", e)
@@ -95,11 +98,12 @@ class PDFExportService:
             "pdf_version": "1.7",  # Widely compatible version
         }
 
-    async def export_report_to_pdf(self,
-                                 report_data: dict[str, Any],
-                                 template_name: str = "compliance_report_pdf",
-                                 include_charts: bool = True,
-                                 watermark: str | None = None) -> bytes:
+    async def export_report_to_pdf(
+        self,
+        report_data: dict[str, Any],
+        template_name: str = "compliance_report_pdf",
+        include_charts: bool = True,
+        watermark: str | None = None) -> bytes:
         """Export a compliance report to PDF format.
 
         This method converts a structured compliance report into a professional
@@ -131,6 +135,7 @@ class PDFExportService:
         if not WEASYPRINT_AVAILABLE:
             if FALLBACK_AVAILABLE:
                 from .pdf_export_service_fallback_clean import get_pdf_export_service_fallback
+
                 fallback_service = get_pdf_export_service_fallback()
                 if fallback_service:
                     logger.info("Using ReportLab fallback for PDF export")
@@ -138,12 +143,13 @@ class PDFExportService:
                         report_data=report_data,
                         template_name=template_name,
                         include_charts=include_charts,
-                        watermark=watermark,
-                    )
-            raise PDFExportError("PDF export requires either WeasyPrint or ReportLab. Please install one of them.") from None
+                        watermark=watermark)
+            raise PDFExportError(
+                "PDF export requires either WeasyPrint or ReportLab. Please install one of them."
+            ) from None
 
         try:
-            logger.info("Starting PDF export for report: %s", report_data.get('title', 'Untitled'))
+            logger.info("Starting PDF export for report: %s", report_data.get("title", "Untitled"))
 
             # Validate report data
             self._validate_report_data(report_data)
@@ -155,14 +161,14 @@ class PDFExportService:
             html_content = await self.template_engine.render_template(
                 template_name=template_name,
                 data=pdf_data,
-                format_type=ReportFormat.PDF,
-            )
+                format_type=ReportFormat.PDF)
 
             # Apply PDF-specific CSS styling
             pdf_css = self._get_pdf_css_styles()
 
             # Generate PDF using WeasyPrint
             from weasyprint import CSS, HTML
+
             html_doc = HTML(string=html_content, base_url=str(Path.cwd()))
             css_doc = CSS(string=pdf_css, font_config=self.font_config)
 
@@ -171,8 +177,7 @@ class PDFExportService:
                 stylesheets=[css_doc],
                 font_config=self.font_config,
                 optimize_images=True,
-                pdf_version=self.pdf_settings["pdf_version"],
-            )
+                pdf_version=self.pdf_settings["pdf_version"])
 
             logger.info("PDF export completed successfully. Size: %s bytes", len(pdf_bytes))
             return pdf_bytes
@@ -181,10 +186,9 @@ class PDFExportService:
             logger.exception("PDF export failed: %s", e)
             raise PDFExportError(f"Failed to generate PDF report: {e!s}") from e
 
-    async def export_batch_reports_to_pdf(self,
-                                        reports: list[dict[str, Any]],
-                                        combined: bool = True,
-                                        output_dir: Path | None = None) -> dict[str, Any]:
+    async def export_batch_reports_to_pdf(
+        self, reports: list[dict[str, Any]], combined: bool = True, output_dir: Path | None = None
+    ) -> dict[str, Any]:
         """Export multiple reports to PDF format.
 
         Args:
@@ -204,8 +208,7 @@ class PDFExportService:
                 combined_data = self._combine_reports_data(reports)
                 pdf_bytes = await self.export_report_to_pdf(
                     combined_data,
-                    template_name="batch_compliance_report_pdf",
-                )
+                    template_name="batch_compliance_report_pdf")
 
                 return {
                     "success": True,
@@ -222,31 +225,37 @@ class PDFExportService:
 
                     # Save to output directory if specified
                     if output_dir:
-                        filename = f"compliance_report_{i+1:03d}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                        filename = f"compliance_report_{i + 1:03d}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
                         file_path = output_dir / filename
                         file_path.write_bytes(pdf_bytes)
 
-                        results.append({
-                            "index": i,
-                            "success": True,
-                            "file_path": str(file_path),
-                            "file_size_bytes": len(pdf_bytes),
-                        })
+                        results.append(
+                            {
+                                "index": i,
+                                "success": True,
+                                "file_path": str(file_path),
+                                "file_size_bytes": len(pdf_bytes),
+                            }
+                        )
                     else:
-                        results.append({
-                            "index": i,
-                            "success": True,
-                            "pdf_data": pdf_bytes,
-                            "file_size_bytes": len(pdf_bytes),
-                        })
+                        results.append(
+                            {
+                                "index": i,
+                                "success": True,
+                                "pdf_data": pdf_bytes,
+                                "file_size_bytes": len(pdf_bytes),
+                            }
+                        )
 
-                except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+                except (FileNotFoundError, PermissionError, OSError) as e:
                     logger.exception("Failed to export report %s: {e}", i)
-                    results.append({
-                        "index": i,
-                        "success": False,
-                        "error": str(e),
-                    })
+                    results.append(
+                        {
+                            "index": i,
+                            "success": False,
+                            "error": str(e),
+                        }
+                    )
 
             return {
                 "success": True,
@@ -271,21 +280,22 @@ class PDFExportService:
         if missing_fields:
             raise ValueError(f"Report data missing required fields: {missing_fields}")
 
-    async def _prepare_pdf_data(self,
-                              report_data: dict[str, Any],
-                              include_charts: bool,
-                              watermark: str | None) -> dict[str, Any]:
+    async def _prepare_pdf_data(
+        self, report_data: dict[str, Any], include_charts: bool, watermark: str | None
+    ) -> dict[str, Any]:
         """Prepare report data specifically for PDF rendering."""
         pdf_data = report_data.copy()
 
         # Add PDF-specific metadata
-        pdf_data.update({
-            "export_timestamp": datetime.now().isoformat(),
-            "export_format": "PDF",
-            "include_charts": include_charts,
-            "watermark": watermark,
-            "page_settings": self.pdf_settings,
-        })
+        pdf_data.update(
+            {
+                "export_timestamp": datetime.now().isoformat(),
+                "export_format": "PDF",
+                "include_charts": include_charts,
+                "watermark": watermark,
+                "page_settings": self.pdf_settings,
+            }
+        )
 
         # Convert charts to static images if included
         if include_charts and "charts" in pdf_data:
@@ -305,7 +315,9 @@ class PDFExportService:
                 # Convert chart data to base64 image (placeholder implementation)
                 # In production, this would use matplotlib, plotly, or similar
                 chart_copy = chart.copy()
-                chart_copy["image_data"] = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+                chart_copy["image_data"] = (
+                    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+                )
                 converted_charts.append(chart_copy)
 
             except (PIL.UnidentifiedImageError, OSError, ValueError) as e:
@@ -324,12 +336,14 @@ class PDFExportService:
             grouped_findings = []
 
             for i in range(0, len(findings), 5):
-                group = findings[i:i+5]
-                grouped_findings.append({
-                    "group_index": i // 5 + 1,
-                    "findings": group,
-                    "page_break_after": i + 5 < len(findings),
-                })
+                group = findings[i : i + 5]
+                grouped_findings.append(
+                    {
+                        "group_index": i // 5 + 1,
+                        "findings": group,
+                        "page_break_after": i + 5 < len(findings),
+                    }
+                )
 
             data["grouped_findings"] = grouped_findings
 
@@ -538,9 +552,11 @@ class PDFExportError(Exception):
     """Exception raised when PDF export fails."""
 
 
-
+# Global PDF export service instance (lazy initialization)
+# Global PDF export service instance (lazy initialization)
 # Global PDF export service instance (lazy initialization)
 pdf_export_service = None
+
 
 def get_pdf_export_service() -> PDFExportService:
     """Get the global PDF export service instance (lazy initialization)."""

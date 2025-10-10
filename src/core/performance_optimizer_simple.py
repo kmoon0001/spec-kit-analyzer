@@ -53,8 +53,7 @@ class PerformanceOptimizer:
                 efficiency_score=0.85,
                 bottlenecks=["memory_usage", "cache_misses"],
                 recommendations=["Increase cache size", "Optimize memory usage"],
-                timestamp=datetime.now(),
-            )
+                timestamp=datetime.now())
 
         except Exception as e:
             logger.exception("Performance analysis failed: %s", e)
@@ -67,12 +66,9 @@ class PerformanceOptimizer:
                 efficiency_score=0.5,
                 bottlenecks=["analysis_error"],
                 recommendations=["Check system health"],
-                timestamp=datetime.now(),
-            )
+                timestamp=datetime.now())
 
-    def optimize_performance(self,
-                           aggressive: bool = False,
-                           target_improvement: float = 20.0) -> dict[str, Any]:
+    def optimize_performance(self, aggressive: bool = False, target_improvement: float = 20.0) -> dict[str, Any]:
         """Execute comprehensive performance optimization.
 
         Args:
@@ -92,8 +88,10 @@ class PerformanceOptimizer:
             self.optimization_in_progress = True
 
         start_time = time.time()
-        logger.info("Starting performance optimization (aggressive: %s, ", aggressive, 
-                   f"target: {target_improvement}% improvement)")
+        logger.info(
+            "Starting performance optimization (aggressive: %s, ",
+            aggressive,
+            f"target: {target_improvement}% improvement)")
 
         try:
             # Get baseline performance metrics
@@ -125,8 +123,11 @@ class PerformanceOptimizer:
             optimization_results["final_metrics"] = final_metrics
 
             # Calculate improvement
-            improvement = ((final_metrics.efficiency_score - baseline_metrics.efficiency_score)
-                          / baseline_metrics.efficiency_score * 100)
+            improvement = (
+                (final_metrics.efficiency_score - baseline_metrics.efficiency_score)
+                / baseline_metrics.efficiency_score
+                * 100
+            )
             optimization_results["actual_improvement"] = improvement
             optimization_results["target_achieved"] = improvement >= target_improvement
 
@@ -138,8 +139,7 @@ class PerformanceOptimizer:
             optimization_results["execution_time_seconds"] = execution_time
             optimization_results["status"] = "completed"
 
-            logger.info("Performance optimization completed in %ss. ", execution_time, 
-                       f"Improvement: {improvement}%")
+            logger.info("Performance optimization completed in %ss. ", execution_time, f"Improvement: {improvement}%")
 
             return optimization_results
 

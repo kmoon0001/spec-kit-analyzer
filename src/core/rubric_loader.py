@@ -13,8 +13,8 @@ from ..database.models import Rubric
 
 # --- Configuration ---
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s",
-)
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 # Define the namespace from the TTL files
 NS = Namespace("http://example.com/speckit/ontology#")
@@ -31,7 +31,7 @@ async def parse_and_load_rubrics(db_session: AsyncSession, rubric_files: list[Pa
         try:
             g.parse(str(file_path), format="turtle")
             logger.info("Successfully parsed %s", file_path.name)
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError):
             logger.error("Failed to parse %s: {e}", file_path.name, exc_info=True)
             continue
 
@@ -68,8 +68,7 @@ async def parse_and_load_rubrics(db_session: AsyncSession, rubric_files: list[Pa
         new_rubric = Rubric(
             name=name,
             content=str(content_node),
-            category=str(category_node) if category_node else None,
-        )
+            category=str(category_node) if category_node else None)
         rules_to_add.append(new_rubric)
         names_to_add.add(name)
         logger.info("Prepared new rubric for addition: '%s'", name)
@@ -77,9 +76,7 @@ async def parse_and_load_rubrics(db_session: AsyncSession, rubric_files: list[Pa
     if rules_to_add:
         db_session.add_all(rules_to_add)
         await db_session.commit()
-        logger.info(
-            "Successfully added %s new rubrics to the database.", len(rules_to_add)
-        )
+        logger.info("Successfully added %s new rubrics to the database.", len(rules_to_add))
     else:
         logger.info("No new rubrics to add. Database is up-to-date.")
 

@@ -1,6 +1,9 @@
 import logging
 from typing import Any
 
+import requests
+from requests.exceptions import HTTPError
+
 from .llm_service import LLMService
 from .prompt_manager import PromptManager
 
@@ -8,8 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class NLGService:
-    """A service for generating Natural Language content, such as personalized tips.
-    """
+    """A service for generating Natural Language content, such as personalized tips."""
 
     def __init__(self, llm_service: LLMService, prompt_template_path: str):
         """Initializes the NLGService.
@@ -22,6 +24,7 @@ class NLGService:
         self.llm_service = llm_service
         # Extract just the filename from the path for PromptManager
         import os
+
         template_name = os.path.basename(prompt_template_path)
         self.prompt_manager = PromptManager(template_name=template_name)
 
@@ -44,8 +47,7 @@ class NLGService:
             prompt = self.prompt_manager.build_prompt(
                 issue_title=finding.get("issue_title", "N/A"),
                 issue_detail=finding.get("issue_detail", "N/A"),
-                text=finding.get("text", "N/A"),
-            )
+                text=finding.get("text", "N/A"))
 
             # Generate the tip using the LLM
             generated_tip = self.llm_service.generate_analysis(prompt)

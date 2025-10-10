@@ -42,13 +42,15 @@ class TemplateEngine:
                         self.template_metadata[template_id] = yaml.safe_load(f)
 
                 logger.debug("Loaded template: %s", template_id)
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Error loading templates: %s", e)
             self._create_default_templates()
 
     def _create_default_templates(self) -> None:
         """Create default templates"""
         default_template = """
+<!DOCTYPE html>
+<!DOCTYPE html>
 <!DOCTYPE html>
 <html>
 <head>

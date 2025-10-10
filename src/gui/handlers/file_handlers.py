@@ -1,4 +1,5 @@
 """File handling operations for the main window."""
+
 from __future__ import annotations
 
 import logging
@@ -90,8 +91,7 @@ class FileHandlers:
             self.main_window,
             "Select clinical document",
             str(Path.home()),
-            "Documents (*.pdf *.docx *.txt *.md *.json)",
-        )
+            "Documents (*.pdf *.docx *.txt *.md *.json)")
         if file_path:
             self.set_selected_file(Path(file_path))
 
@@ -115,7 +115,7 @@ class FileHandlers:
             if self.main_window.run_analysis_button:
                 self.main_window.run_analysis_button.setEnabled(True)
             return
-        except (FileNotFoundError, PermissionError, OSError, IOError) as exc:
+        except (FileNotFoundError, PermissionError, OSError) as exc:
             self.main_window._selected_file = None
             error_message = f"Could not display preview: {exc}"
             if self.main_window.file_display:
@@ -131,9 +131,11 @@ class FileHandlers:
         file_info = f"""✅ DOCUMENT UPLOADED SUCCESSFULLY
 
 📄 File: {file_path.name}
+📄 File: {file_path.name}
+📄 File: {file_path.name}
 📊 Size: {file_size_mb:.1f} MB ({len(content):,} characters)
 📁 Location: {file_path.parent.name}/
-📅 Modified: {datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')}
+📅 Modified: {datetime.fromtimestamp(file_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")}
 
 📋 NEXT STEPS TO ANALYZE YOUR REPORT:
 🔹 Step 1: Select a compliance rubric from the dropdown below
@@ -154,11 +156,12 @@ class FileHandlers:
         folder_path = QFileDialog.getExistingDirectory(
             self.main_window,
             "Select folder for batch analysis",
-            str(Path.home()),
-        )
+            str(Path.home()))
         if folder_path:
             analysis_data = {
-                "discipline": self.main_window.rubric_selector.currentData() or "" if self.main_window.rubric_selector else "",
+                "discipline": self.main_window.rubric_selector.currentData() or ""
+                if self.main_window.rubric_selector
+                else "",
                 "analysis_mode": "rubric",
             }
             dialog = BatchAnalysisDialog(folder_path, self.main_window.auth_token, analysis_data, self.main_window)
@@ -174,8 +177,7 @@ class FileHandlers:
             self.main_window,
             "Save report",
             str(Path.home() / "compliance_report.html"),
-            "HTML Files (*.html)",
-        )
+            "HTML Files (*.html)")
         if not file_path:
             return
 
@@ -185,6 +187,7 @@ class FileHandlers:
             else:
                 # Fallback to generating report HTML
                 from src.core.report_generator import ReportGenerator
+
                 report_generator = ReportGenerator()
                 analysis = self.main_window._current_payload.get("analysis", {})
                 doc_name = self.main_window._selected_file.name if self.main_window._selected_file else "Document"
@@ -192,7 +195,7 @@ class FileHandlers:
                 Path(file_path).write_text(report_html, encoding="utf-8")
 
             self.main_window.statusBar().showMessage(f"Report exported to {file_path}", 5000)
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             QMessageBox.warning(self.main_window, "Export Failed", f"Failed to export report: {e!s}")
 
     def export_report_pdf(self) -> None:
@@ -202,8 +205,10 @@ class FileHandlers:
             return
 
         file_path, _ = QFileDialog.getSaveFileName(
-            self.main_window, "Export Report as PDF", "", "PDF Files (*.pdf)",
-        )
+            self.main_window,
+            "Export Report as PDF",
+            "",
+            "PDF Files (*.pdf)")
 
         if file_path:
             try:
@@ -232,22 +237,29 @@ class FileHandlers:
                         "title": f"Compliance Analysis - {doc_name}",
                         "author": "Therapy Compliance Analyzer",
                         "subject": "Clinical Documentation Compliance Report",
-                    },
-                )
+                    })
 
                 if result["success"]:
                     # Copy the generated PDF to the user's chosen location
                     shutil.copy2(result["pdf_path"], file_path)
 
                     self.main_window.statusBar().showMessage(f"✅ Report exported to: {file_path}", 5000)
-                    QMessageBox.information(self.main_window, "Export Successful", f"Report exported successfully to:\n{file_path}")
+                    QMessageBox.information(
+                        self.main_window, "Export Successful", f"Report exported successfully to:\n{file_path}"
+                    )
                 else:
                     error_msg = result.get("error", "Unknown error occurred")
-                    QMessageBox.warning(self.main_window, "Export Failed", f"PDF export failed:\n{error_msg}\n\nTip: Install weasyprint for better PDF support:\npip install weasyprint")
+                    QMessageBox.warning(
+                        self.main_window,
+                        "Export Failed",
+                        f"PDF export failed:\n{error_msg}\n\nTip: Install weasyprint for better PDF support:\npip install weasyprint")
 
             except Exception as e:
                 logger.exception("PDF export failed: %s", str(e))
-                QMessageBox.warning(self.main_window, "Export Failed", f"Failed to export report: {e!s}\n\nTip: Install weasyprint:\npip install weasyprint")
+                QMessageBox.warning(
+                    self.main_window,
+                    "Export Failed",
+                    f"Failed to export report: {e!s}\n\nTip: Install weasyprint:\npip install weasyprint")
 
     def export_report_html(self) -> None:
         """Export the current report as HTML."""
@@ -256,25 +268,30 @@ class FileHandlers:
             return
 
         file_path, _ = QFileDialog.getSaveFileName(
-            self.main_window, "Export Report as HTML", "", "HTML Files (*.html)",
-        )
+            self.main_window,
+            "Export Report as HTML",
+            "",
+            "HTML Files (*.html)")
 
         if file_path:
             try:
-                from src.core.report_generator import ReportGenerator
                 report_generator = ReportGenerator()
                 analysis = self.main_window._current_payload.get("analysis", {})
                 doc_name = self.main_window._selected_file.name if self.main_window._selected_file else "Document"
-                report_html = self.main_window._current_payload.get("report_html") or report_generator.generate_html_report(
-                    analysis_result=analysis, doc_name=doc_name,
-                )
+                report_html = self.main_window._current_payload.get(
+                    "report_html"
+                ) or report_generator.generate_html_report(
+                    analysis_result=analysis,
+                    doc_name=doc_name)
 
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(report_html)
 
                 self.main_window.statusBar().showMessage(f"✅ Report exported to: {file_path}", 5000)
-                QMessageBox.information(self.main_window, "Export Successful", f"Report exported successfully to:\n{file_path}")
-            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+                QMessageBox.information(
+                    self.main_window, "Export Successful", f"Report exported successfully to:\n{file_path}"
+                )
+            except (FileNotFoundError, PermissionError, OSError) as e:
                 QMessageBox.warning(self.main_window, "Export Failed", f"Failed to export report: {e!s}")
 
     def open_document_preview(self) -> None:

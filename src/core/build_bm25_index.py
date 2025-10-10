@@ -6,7 +6,6 @@ from rank_bm25 import BM25Okapi  # type: ignore
 
 logger = logging.getLogger(__name__)
 
-
 def preprocess_text(text):
     """Simple text preprocessing: lowercase, remove non-alphanumeric characters,
     and split into words.
@@ -14,15 +13,13 @@ def preprocess_text(text):
     text = re.sub(r"[^\w\s]", "", text)  # Remove punctuation
     return text.lower().split()
 
-
 def create_bm25_index():
     """Reads the Medicare Benefit Policy Manual, creates a BM25 index,
     and saves the index and the text corpus to disk.
     """
     logger.info("Reading Medicare guideline text...")
     with open(
-        "medicare_benefit_policy_manual_chapter_8.txt", encoding="utf-8",
-    ) as f:
+        "medicare_benefit_policy_manual_chapter_8.txt", encoding="utf-8") as f:
         text = f.read()
 
     # New regex to split by section headers, not dependent on newlines.
@@ -47,8 +44,7 @@ def create_bm25_index():
 
     if len(corpus) <= 1:
         logger.error(
-            "Error: The document was not split into multiple sections. The index will not be effective.",
-        )
+            "Error: The document was not split into multiple sections. The index will not be effective.")
         return  # Exit if we still can't split the document
 
     # Preprocess and tokenize the corpus
@@ -70,6 +66,9 @@ def create_bm25_index():
     logger.info("BM25 index created and saved successfully to 'bm25_index.pkl'.")
     logger.info("Text corpus saved successfully to 'medicare_guideline_corpus.pkl'.")
 
-
+if __name__ == "__main__":
+    pass
+if __name__ == "__main__":
+    pass
 if __name__ == "__main__":
     create_bm25_index()

@@ -77,11 +77,12 @@ class MLTrendPredictorService:
 
         logger.info("ML trend predictor service initialized")
 
-    async def generate_compliance_insights(self,
-                                         analysis_period_days: int = 30,
-                                         departments: list[str] | None = None,
-                                         insight_types: list[str] = None,
-                                         user_id: int = 0) -> dict[str, Any]:
+    async def generate_compliance_insights(
+        self,
+        analysis_period_days: int = 30,
+        departments: list[str] | None = None,
+        insight_types: list[str] = None,
+        user_id: int = 0) -> dict[str, Any]:
         """Generate AI-powered compliance insights and recommendations.
 
         Args:
@@ -102,23 +103,25 @@ class MLTrendPredictorService:
 
             # Generate insights based on historical data analysis
             insights = await self._analyze_compliance_patterns(
-                analysis_period_days, departments, insight_types,
-            )
+                analysis_period_days,
+                departments,
+                insight_types)
 
             # Generate trend predictions
             trends = await self._predict_compliance_trends(
-                analysis_period_days, departments,
-            )
+                analysis_period_days,
+                departments)
 
             # Generate actionable recommendations
             recommendations = await self._generate_recommendations(
-                insights, trends, departments,
-            )
+                insights,
+                trends,
+                departments)
 
             # Assess risk predictions
             risk_predictions = await self._assess_risk_predictions(
-                trends, analysis_period_days,
-            )
+                trends,
+                analysis_period_days)
 
             # Calculate overall confidence score
             confidence_score = self._calculate_overall_confidence(insights, trends)
@@ -148,10 +151,9 @@ class MLTrendPredictorService:
                 "error": str(e),
             }
 
-    async def _analyze_compliance_patterns(self,
-                                         period_days: int,
-                                         departments: list[str] | None,
-                                         insight_types: list[str] | None) -> list[ComplianceInsight]:
+    async def _analyze_compliance_patterns(
+        self, period_days: int, departments: list[str] | None, insight_types: list[str] | None
+    ) -> list[ComplianceInsight]:
         """Analyze historical compliance data to identify patterns."""
         insights = []
 
@@ -210,15 +212,14 @@ class MLTrendPredictorService:
                         "data_points": 150 + i * 50,
                         "departments": departments or ["All"],
                     },
-                    generated_at=datetime.now(),
-                )
+                    generated_at=datetime.now())
                 insights.append(insight)
 
         return insights
 
-    async def _predict_compliance_trends(self,
-                                       period_days: int,
-                                       departments: list[str] | None) -> list[TrendPrediction]:
+    async def _predict_compliance_trends(
+        self, period_days: int, departments: list[str] | None
+    ) -> list[TrendPrediction]:
         """Predict future compliance trends based on historical data."""
         trends = []
 
@@ -266,70 +267,76 @@ class MLTrendPredictorService:
                 prediction_period=f"Next {period_days} days",
                 confidence=trend_info["confidence"],
                 trend_direction=trend_info["direction"],
-                risk_level=trend_info["risk"],
-            )
+                risk_level=trend_info["risk"])
             trends.append(trend)
 
         return trends
 
-    async def _generate_recommendations(self,
-                                      insights: list[ComplianceInsight],
-                                      trends: list[TrendPrediction],
-                                      departments: list[str] | None) -> list[dict[str, Any]]:
+    async def _generate_recommendations(
+        self, insights: list[ComplianceInsight], trends: list[TrendPrediction], departments: list[str] | None
+    ) -> list[dict[str, Any]]:
         """Generate actionable recommendations based on insights and trends."""
         recommendations = []
 
         # Priority recommendations based on high-impact insights
         high_impact_insights = [i for i in insights if i.impact_level == "high"]
         for insight in high_impact_insights:
-            recommendations.extend([
-                {
-                    "priority": "high",
-                    "category": "immediate_action",
-                    "title": f"Address {insight.title}",
-                    "description": insight.recommended_actions[0] if insight.recommended_actions else "Review and take action",
-                    "estimated_impact": "High compliance improvement",
-                    "timeframe": "1-2 weeks",
-                },
-            ])
+            recommendations.extend(
+                [
+                    {
+                        "priority": "high",
+                        "category": "immediate_action",
+                        "title": f"Address {insight.title}",
+                        "description": insight.recommended_actions[0]
+                        if insight.recommended_actions
+                        else "Review and take action",
+                        "estimated_impact": "High compliance improvement",
+                        "timeframe": "1-2 weeks",
+                    },
+                ]
+            )
 
         # Trend-based recommendations
-        declining_trends = [t for t in trends if t.trend_direction == "decreasing" and t.risk_level in ["medium", "high"]]
+        declining_trends = [
+            t for t in trends if t.trend_direction == "decreasing" and t.risk_level in ["medium", "high"]
+        ]
         for trend in declining_trends:
-            recommendations.append({
-                "priority": "medium",
-                "category": "trend_intervention",
-                "title": f"Improve {trend.metric_name}",
-                "description": f"Current trend shows {trend.metric_name} declining from {trend.current_value} to predicted {trend.predicted_value}",
-                "estimated_impact": "Prevent compliance degradation",
-                "timeframe": "2-4 weeks",
-            })
+            recommendations.append(
+                {
+                    "priority": "medium",
+                    "category": "trend_intervention",
+                    "title": f"Improve {trend.metric_name}",
+                    "description": f"Current trend shows {trend.metric_name} declining from {trend.current_value} to predicted {trend.predicted_value}",
+                    "estimated_impact": "Prevent compliance degradation",
+                    "timeframe": "2-4 weeks",
+                }
+            )
 
         # General improvement recommendations
-        recommendations.extend([
-            {
-                "priority": "low",
-                "category": "continuous_improvement",
-                "title": "Implement Regular Compliance Reviews",
-                "description": "Schedule monthly compliance review meetings to discuss trends and address issues proactively",
-                "estimated_impact": "Long-term compliance stability",
-                "timeframe": "Ongoing",
-            },
-            {
-                "priority": "medium",
-                "category": "training",
-                "title": "Enhanced Staff Training Program",
-                "description": "Develop targeted training modules based on identified compliance gaps",
-                "estimated_impact": "Improved documentation quality",
-                "timeframe": "4-6 weeks",
-            },
-        ])
+        recommendations.extend(
+            [
+                {
+                    "priority": "low",
+                    "category": "continuous_improvement",
+                    "title": "Implement Regular Compliance Reviews",
+                    "description": "Schedule monthly compliance review meetings to discuss trends and address issues proactively",
+                    "estimated_impact": "Long-term compliance stability",
+                    "timeframe": "Ongoing",
+                },
+                {
+                    "priority": "medium",
+                    "category": "training",
+                    "title": "Enhanced Staff Training Program",
+                    "description": "Develop targeted training modules based on identified compliance gaps",
+                    "estimated_impact": "Improved documentation quality",
+                    "timeframe": "4-6 weeks",
+                },
+            ]
+        )
 
         return recommendations[:10]  # Return top 10 recommendations
 
-    async def _assess_risk_predictions(self,
-                                     trends: list[TrendPrediction],
-                                     period_days: int) -> list[dict[str, Any]]:
+    async def _assess_risk_predictions(self, trends: list[TrendPrediction], period_days: int) -> list[dict[str, Any]]:
         """Assess and predict compliance risks."""
         risk_predictions = []
 
@@ -338,54 +345,58 @@ class MLTrendPredictorService:
         medium_risk_trends = [t for t in trends if t.risk_level == "medium"]
 
         if high_risk_trends:
-            risk_predictions.append({
-                "risk_type": "compliance_degradation",
-                "probability": 0.75,
-                "impact": "high",
-                "description": f"{len(high_risk_trends)} metrics showing high-risk declining trends",
-                "mitigation_actions": [
-                    "Immediate intervention required",
-                    "Implement corrective action plan",
-                    "Increase monitoring frequency",
-                ],
-                "timeframe": "Next 2-4 weeks",
-            })
+            risk_predictions.append(
+                {
+                    "risk_type": "compliance_degradation",
+                    "probability": 0.75,
+                    "impact": "high",
+                    "description": f"{len(high_risk_trends)} metrics showing high-risk declining trends",
+                    "mitigation_actions": [
+                        "Immediate intervention required",
+                        "Implement corrective action plan",
+                        "Increase monitoring frequency",
+                    ],
+                    "timeframe": "Next 2-4 weeks",
+                }
+            )
 
         if medium_risk_trends:
-            risk_predictions.append({
-                "risk_type": "performance_decline",
-                "probability": 0.60,
-                "impact": "medium",
-                "description": f"{len(medium_risk_trends)} metrics showing moderate risk",
-                "mitigation_actions": [
-                    "Monitor closely",
-                    "Prepare intervention strategies",
-                    "Review current processes",
-                ],
-                "timeframe": "Next 4-8 weeks",
-            })
+            risk_predictions.append(
+                {
+                    "risk_type": "performance_decline",
+                    "probability": 0.60,
+                    "impact": "medium",
+                    "description": f"{len(medium_risk_trends)} metrics showing moderate risk",
+                    "mitigation_actions": [
+                        "Monitor closely",
+                        "Prepare intervention strategies",
+                        "Review current processes",
+                    ],
+                    "timeframe": "Next 4-8 weeks",
+                }
+            )
 
         # Add opportunity predictions
         improving_trends = [t for t in trends if t.trend_direction == "increasing"]
         if len(improving_trends) > len(trends) * 0.6:  # More than 60% improving
-            risk_predictions.append({
-                "risk_type": "positive_momentum",
-                "probability": 0.85,
-                "impact": "positive",
-                "description": f"{len(improving_trends)} metrics showing positive trends",
-                "mitigation_actions": [
-                    "Maintain current strategies",
-                    "Document successful practices",
-                    "Consider expanding successful approaches",
-                ],
-                "timeframe": "Ongoing",
-            })
+            risk_predictions.append(
+                {
+                    "risk_type": "positive_momentum",
+                    "probability": 0.85,
+                    "impact": "positive",
+                    "description": f"{len(improving_trends)} metrics showing positive trends",
+                    "mitigation_actions": [
+                        "Maintain current strategies",
+                        "Document successful practices",
+                        "Consider expanding successful approaches",
+                    ],
+                    "timeframe": "Ongoing",
+                }
+            )
 
         return risk_predictions
 
-    def _calculate_overall_confidence(self,
-                                    insights: list[ComplianceInsight],
-                                    trends: list[TrendPrediction]) -> float:
+    def _calculate_overall_confidence(self, insights: list[ComplianceInsight], trends: list[TrendPrediction]) -> float:
         """Calculate overall confidence score for the analysis."""
         if not insights and not trends:
             return 0.0
@@ -422,5 +433,7 @@ class MLTrendPredictorService:
         logger.info("Baseline historical data initialized")
 
 
+# Global ML trend predictor service instance
+# Global ML trend predictor service instance
 # Global ML trend predictor service instance
 ml_trend_predictor = MLTrendPredictorService()

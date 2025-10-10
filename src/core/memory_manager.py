@@ -75,8 +75,7 @@ class MemoryMonitor:
         self._monitor_thread = threading.Thread(
             target=self._monitor_loop,
             daemon=True,
-            name="MemoryMonitor",
-        )
+            name="MemoryMonitor")
         self._monitor_thread.start()
         logger.info("Memory monitoring started")
 
@@ -121,8 +120,7 @@ class MemoryMonitor:
             swap_used=swap.used,
             swap_percent=swap.percent,
             timestamp=datetime.now(),
-            pressure_level=pressure,
-        )
+            pressure_level=pressure)
 
     def _monitor_loop(self) -> None:
         """Main monitoring loop."""
@@ -149,13 +147,7 @@ class MemoryMonitor:
 class ResourceTracker:
     """Track resource usage by component."""
 
-    def __init__(self):
-        self._resources: dict[str, dict[str, Any]] = {}
-        self._weak_refs: dict[str, list[weakref.ref]] = {}
-        self._lock = threading.Lock()
-
-    def register_resource(self, component: str, resource_id: str,
-                         resource: Any, size_bytes: int = 0) -> None:
+    def register_resource(self, component: str, resource_id: str, resource: Any, size_bytes: int = 0) -> None:
         """Register a resource for tracking."""
         with self._lock:
             if component not in self._resources:
@@ -178,8 +170,7 @@ class ResourceTracker:
     def update_access_time(self, component: str, resource_id: str) -> None:
         """Update last access time for a resource."""
         with self._lock:
-            if (component in self._resources and
-                resource_id in self._resources[component]):
+            if component in self._resources and resource_id in self._resources[component]:
                 self._resources[component][resource_id]["last_accessed"] = datetime.now()
 
     def get_component_usage(self, component: str) -> dict[str, Any]:
@@ -238,19 +229,13 @@ class ResourceTracker:
     def _cleanup_resource(self, component: str, resource_id: str) -> None:
         """Clean up a resource that was garbage collected."""
         with self._lock:
-            if (component in self._resources and
-                resource_id in self._resources[component]):
+            if component in self._resources and resource_id in self._resources[component]:
                 del self._resources[component][resource_id]
                 logger.debug("Cleaned up garbage collected resource: %s/{resource_id}", component)
 
 
 class MemoryOptimizer:
     """Intelligent memory optimization strategies."""
-
-    def __init__(self, resource_tracker: ResourceTracker):
-        self.resource_tracker = resource_tracker
-        self._optimization_callbacks: list[Callable[[], int]] = []
-        self._lock = threading.Lock()
 
     def register_optimization_callback(self, callback: Callable[[], int]) -> None:
         """Register a callback that can free memory. Should return bytes freed."""
@@ -331,8 +316,7 @@ class MemoryOptimizer:
     def _cleanup_stale_resources(self) -> int:
         """Clean up stale resources."""
         stale_resources = self.resource_tracker.find_stale_resources(
-            timedelta(minutes=30),
-        )
+            timedelta(minutes=30))
 
         total_freed = 0
         for component, resource_id in stale_resources:
@@ -388,17 +372,6 @@ class MemoryOptimizer:
 class MemoryManager:
     """Main memory management service."""
 
-    def __init__(self):
-        self.monitor = MemoryMonitor()
-        self.resource_tracker = ResourceTracker()
-        self.optimizer = MemoryOptimizer(self.resource_tracker)
-        self._allocation_config = self._get_default_allocation()
-        self._auto_optimize = True
-        self._last_optimization = datetime.now()
-
-        # Register for memory pressure callbacks
-        self.monitor.add_callback(self._handle_memory_pressure)
-
     def start(self) -> None:
         """Start memory management services."""
         self.monitor.start_monitoring()
@@ -413,11 +386,6 @@ class MemoryManager:
         """Configure resource allocation limits."""
         self._allocation_config = config
         logger.info("Resource allocation configured: %s", config)
-
-    def register_resource(self, component: str, resource_id: str,
-                         resource: Any, size_bytes: int = 0) -> None:
-        """Register a resource for tracking."""
-        self.resource_tracker.register_resource(component, resource_id, resource, size_bytes)
 
     def get_memory_status(self) -> dict[str, Any]:
         """Get comprehensive memory status."""
@@ -454,9 +422,9 @@ class MemoryManager:
         metrics = self.monitor.get_current_metrics()
 
         should_optimize = (
-            force or
-            metrics.pressure_level in [MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL] or
-            (datetime.now() - self._last_optimization) > timedelta(hours=1)
+            force
+            or metrics.pressure_level in [MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL]
+            or (datetime.now() - self._last_optimization) > timedelta(hours=1)
         )
 
         if should_optimize:
@@ -486,24 +454,21 @@ class MemoryManager:
                 max_model_memory_mb=4096,
                 max_document_memory_mb=1024,
                 gc_threshold_mb=512,
-                cleanup_threshold_mb=1024,
-            )
+                cleanup_threshold_mb=1024)
         if total_memory_mb >= 8192:  # 8GB+
             return ResourceAllocation(
                 max_cache_memory_mb=1024,
                 max_model_memory_mb=2048,
                 max_document_memory_mb=512,
                 gc_threshold_mb=256,
-                cleanup_threshold_mb=512,
-            )
+                cleanup_threshold_mb=512)
         # <8GB
         return ResourceAllocation(
             max_cache_memory_mb=512,
             max_model_memory_mb=1024,
             max_document_memory_mb=256,
             gc_threshold_mb=128,
-            cleanup_threshold_mb=256,
-        )
+            cleanup_threshold_mb=256)
 
     def _handle_memory_pressure(self, metrics: MemoryMetrics) -> None:
         """Handle memory pressure events."""
@@ -517,5 +482,8 @@ class MemoryManager:
             logger.info("High memory pressure detected: %.1f%%", metrics.memory_percent)
             self.optimize_if_needed()
 
+
+# Global memory manager instance
+# Global memory manager instance
 # Global memory manager instance
 memory_manager = MemoryManager()

@@ -1,9 +1,9 @@
 
 import hashlib
+import json
 import pickle
 import shutil
-from collections import OrderedDict
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from functools import lru_cache, wraps
 from pathlib import Path
 from typing import Any
@@ -14,7 +14,6 @@ from src.config import get_settings
 
 settings = get_settings()
 CACHE_DIR = Path(settings.paths.cache_dir)
-
 
 class CacheService:
     """A multi-level caching service for expensive computations."""
@@ -108,28 +107,13 @@ class CacheService:
         """Decorator for in-memory LRU caching."""
         return self.in_memory_cache(func)
 
-
+# Singleton instance to be used across the application
+# Singleton instance to be used across the application
 # Singleton instance to be used across the application
 cache_service = CacheService()
 
-
 class MemoryAwareLRUCache:
     """An in-memory cache that tracks TTL and system memory pressure."""
-
-    def __init__(
-        self,
-        *,
-        max_memory_mb: int = 512,
-        default_ttl_hours: float = 24.0,
-        memory_pressure_threshold: int = 80,
-    ) -> None:
-        self.max_memory_mb = max_memory_mb
-        self.memory_pressure_threshold = memory_pressure_threshold
-        self.default_ttl = (
-            timedelta(hours=default_ttl_hours) if default_ttl_hours > 0 else None
-        )
-        self.cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
-        self.current_size_bytes: int = 0
 
     def _estimate_size(self, value: Any) -> int:
         try:
@@ -141,39 +125,6 @@ class MemoryAwareLRUCache:
         entry = self.cache.pop(key, None)
         if entry:
             self.current_size_bytes = max(self.current_size_bytes - entry["size"], 0)
-
-    def set(self, key: str, value: Any, ttl_hours: float | None = None) -> None:
-        self.clear_expired()
-        ttl = ttl_hours
-        if ttl is None and self.default_ttl is not None:
-            ttl = self.default_ttl.total_seconds() / 3600
-        expires_at: datetime | None
-        if ttl is not None and ttl > 0:
-            expires_at = datetime.now(UTC) + timedelta(hours=ttl)
-        else:
-            expires_at = None
-
-        size = self._estimate_size(value)
-        if key in self.cache:
-            self.current_size_bytes = max(
-                self.current_size_bytes - self.cache[key]["size"], 0,
-            )
-            del self.cache[key]
-
-        self.cache[key] = {"value": value, "expires_at": expires_at, "size": size}
-        self.cache.move_to_end(key)
-        self.current_size_bytes += size
-        self._cleanup_if_needed()
-
-    def get(self, key: str) -> Any | None:
-        entry = self.cache.get(key)
-        if entry is None:
-            return None
-        if entry["expires_at"] and entry["expires_at"] < datetime.now(UTC):
-            self._delete_entry(key)
-            return None
-        self.cache.move_to_end(key)
-        return entry["value"]
 
     def clear_expired(self) -> None:
         expired_keys = [
@@ -214,7 +165,6 @@ class MemoryAwareLRUCache:
     def __len__(self) -> int:  # pragma: no cover - convenience helper
         return len(self.cache)
 
-
 def _hash_key(*parts: str) -> str:
     hasher = hashlib.sha256()
     for part in parts:
@@ -222,7 +172,6 @@ def _hash_key(*parts: str) -> str:
             continue
         hasher.update(part.encode("utf-8"))
     return hasher.hexdigest()
-
 
 class EmbeddingCache:
     """Cache for text embeddings keyed by content hash."""
@@ -238,17 +187,12 @@ class EmbeddingCache:
         cls._cache.set(_hash_key(text), embedding, ttl_hours=ttl_hours)
 
     @classmethod
-    def clear(cls) -> None:
-        cls._cache.clear()
-
-    @classmethod
     def entry_count(cls) -> int:
         return len(cls._cache)
 
     @classmethod
     def memory_usage_mb(cls) -> float:
         return cls._cache._current_memory_mb()
-
 
 class NERCache:
     """Cache for NER results keyed by text and model name."""
@@ -265,27 +209,8 @@ class NERCache:
         text: str,
         model_name: str,
         results: list[dict[str, Any]],
-        ttl_hours: float | None = None,
-    ) -> None:
+        ttl_hours: float | None = None) -> None:
         cls._cache.set(_hash_key(model_name, text), results, ttl_hours=ttl_hours)
-
-    @classmethod
-    def clear(cls) -> None:
-        cls._cache.clear()
-
-    @classmethod
-    def entry_count(cls) -> int:
-        return len(cls._cache)
-
-    @classmethod
-    def memory_usage_mb(cls) -> float:
-        return cls._cache._current_memory_mb()
-
-
-class DocumentCache:
-    """Cache for document classification results keyed by document hash."""
-
-    _cache = MemoryAwareLRUCache(max_memory_mb=128)
 
     @classmethod
     def get_document_classification(cls, doc_hash: str) -> dict[str, Any] | None:
@@ -296,27 +221,8 @@ class DocumentCache:
         cls,
         doc_hash: str,
         classification: dict[str, Any],
-        ttl_hours: float | None = None,
-    ) -> None:
+        ttl_hours: float | None = None) -> None:
         cls._cache.set(doc_hash, classification, ttl_hours=ttl_hours)
-
-    @classmethod
-    def clear(cls) -> None:
-        cls._cache.clear()
-
-    @classmethod
-    def entry_count(cls) -> int:
-        return len(cls._cache)
-
-    @classmethod
-    def memory_usage_mb(cls) -> float:
-        return cls._cache._current_memory_mb()
-
-
-class LLMResponseCache:
-    """Cache for LLM responses keyed by prompt and model name."""
-
-    _cache = MemoryAwareLRUCache(max_memory_mb=256, default_ttl_hours=6)
 
     @classmethod
     def get_llm_response(cls, prompt: str, model_name: str) -> str | None:
@@ -328,23 +234,10 @@ class LLMResponseCache:
         prompt: str,
         model_name: str,
         response: str,
-        ttl_hours: float | None = None,
-    ) -> None:
+        ttl_hours: float | None = None) -> None:
         cls._cache.set(_hash_key(model_name, prompt), response, ttl_hours=ttl_hours)
 
-    @classmethod
-    def clear(cls) -> None:
-        cls._cache.clear()
-
-    @classmethod
-    def entry_count(cls) -> int:
-        return len(cls._cache)
-
-    @classmethod
-    def memory_usage_mb(cls) -> float:
-        return cls._cache._current_memory_mb()
-
-
+@classmethod
 def get_cache_stats() -> dict[str, float]:
     """Return basic statistics about in-memory caches."""
     vm = psutil.virtual_memory()
@@ -371,8 +264,7 @@ def get_cache_stats() -> dict[str, float]:
     return {
         "total_entries": total_entries,
         "memory_usage_mb": round(
-            direct_usage + embedding_usage + ner_usage + llm_usage + doc_usage, 3,
-        ),
+            direct_usage + embedding_usage + ner_usage + llm_usage + doc_usage, 3),
         "system_memory_percent": float(vm.percent),
         "embedding_entries": EmbeddingCache.entry_count(),
         "ner_entries": NERCache.entry_count(),
@@ -381,7 +273,6 @@ def get_cache_stats() -> dict[str, float]:
         "direct_entries": direct_entries,
     }
 
-
 def cleanup_all_caches() -> None:
     """Clear all in-memory and disk-based caches."""
     EmbeddingCache.clear()
@@ -389,7 +280,6 @@ def cleanup_all_caches() -> None:
     DocumentCache.clear()
     LLMResponseCache.clear()
     cache_service.clear_disk_cache()
-
 
 __all__ = [
     "CacheService",

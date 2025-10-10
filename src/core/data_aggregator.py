@@ -1,4 +1,7 @@
 """Data Aggregator for Performance Monitoring
+import requests
+from requests.exceptions import HTTPError
+from scipy import stats
 
 This module provides comprehensive metric processing, aggregation, and storage
 with time-series data management and automatic cleanup.
@@ -15,16 +18,19 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+import sqlalchemy
+import sqlalchemy.exc
+
 logger = logging.getLogger(__name__)
 
 
 class AggregationLevel(Enum):
     """Levels of data aggregation."""
 
-    RAW = "raw"              # 5-second intervals
-    SHORT_TERM = "short"     # 1-minute averages
-    MEDIUM_TERM = "medium"   # 5-minute averages
-    LONG_TERM = "long"       # 1-hour averages
+    RAW = "raw"  # 5-second intervals
+    SHORT_TERM = "short"  # 1-minute averages
+    MEDIUM_TERM = "medium"  # 5-minute averages
+    LONG_TERM = "long"  # 1-hour averages
 
 
 @dataclass
@@ -94,11 +100,6 @@ class MetricBuffer:
 
 class TimeSeriesStorage:
     """SQLite-based time-series storage for metrics."""
-
-    def __init__(self, db_path: str):
-        self.db_path = db_path
-        self._lock = threading.RLock()
-        self._init_database()
 
     def _init_database(self) -> None:
         """Initialize database schema."""
@@ -175,20 +176,21 @@ class TimeSeriesStorage:
                 cursor = conn.cursor()
 
                 for metric in metrics:
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         INSERT INTO raw_metrics
                         (timestamp, name, value, unit, type, source, tags, metadata)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        metric.get("timestamp"),
-                        metric.get("name"),
-                        metric.get("value"),
-                        metric.get("unit"),
-                        metric.get("type"),
-                        metric.get("source"),
-                        json.dumps(metric.get("tags", {})),
-                        json.dumps(metric.get("metadata", {})),
-                    ))
+                    """,
+                        (
+                            metric.get("timestamp"),
+                            metric.get("name"),
+                            metric.get("value"),
+                            metric.get("unit"),
+                            metric.get("type"),
+                            metric.get("source"),
+                            json.dumps(metric.get("tags", {})),
+                            json.dumps(metric.get("metadata", {}))))
 
                 conn.commit()
                 return len(metrics)
@@ -219,25 +221,26 @@ class TimeSeriesStorage:
                 cursor = conn.cursor()
 
                 for metric in metrics:
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         INSERT INTO aggregated_metrics
                         (timestamp, name, source, aggregation_level, count,
                          min_value, max_value, avg_value, sum_value, std_dev, tags, metadata)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        metric.timestamp.isoformat(),
-                        metric.name,
-                        metric.source,
-                        metric.aggregation_level.value,
-                        metric.count,
-                        metric.min_value,
-                        metric.max_value,
-                        metric.avg_value,
-                        metric.sum_value,
-                        metric.std_dev,
-                        json.dumps(metric.tags),
-                        json.dumps(metric.metadata),
-                    ))
+                    """,
+                        (
+                            metric.timestamp.isoformat(),
+                            metric.name,
+                            metric.source,
+                            metric.aggregation_level.value,
+                            metric.count,
+                            metric.min_value,
+                            metric.max_value,
+                            metric.avg_value,
+                            metric.sum_value,
+                            metric.std_dev,
+                            json.dumps(metric.tags),
+                            json.dumps(metric.metadata)))
 
                 conn.commit()
                 return len(metrics)
@@ -249,9 +252,9 @@ class TimeSeriesStorage:
             finally:
                 conn.close()
 
-    def query_raw_metrics(self, start_time: datetime, end_time: datetime,
-                         metric_name: str | None = None,
-                         source: str | None = None) -> list[dict[str, Any]]:
+    def query_raw_metrics(
+        self, start_time: datetime, end_time: datetime, metric_name: str | None = None, source: str | None = None
+    ) -> list[dict[str, Any]]:
         """Query raw metrics from database.
 
         Args:
@@ -291,16 +294,18 @@ class TimeSeriesStorage:
 
                 metrics = []
                 for row in rows:
-                    metrics.append({
-                        "timestamp": row[0],
-                        "name": row[1],
-                        "value": row[2],
-                        "unit": row[3],
-                        "type": row[4],
-                        "source": row[5],
-                        "tags": json.loads(row[6]) if row[6] else {},
-                        "metadata": json.loads(row[7]) if row[7] else {},
-                    })
+                    metrics.append(
+                        {
+                            "timestamp": row[0],
+                            "name": row[1],
+                            "value": row[2],
+                            "unit": row[3],
+                            "type": row[4],
+                            "source": row[5],
+                            "tags": json.loads(row[6]) if row[6] else {},
+                            "metadata": json.loads(row[7]) if row[7] else {},
+                        }
+                    )
 
                 return metrics
 
@@ -310,10 +315,13 @@ class TimeSeriesStorage:
             finally:
                 conn.close()
 
-    def query_aggregated_metrics(self, start_time: datetime, end_time: datetime,
-                               aggregation_level: AggregationLevel,
-                               metric_name: str | None = None,
-                               source: str | None = None) -> list[AggregatedMetric]:
+    def query_aggregated_metrics(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        aggregation_level: AggregationLevel,
+        metric_name: str | None = None,
+        source: str | None = None) -> list[AggregatedMetric]:
         """Query aggregated metrics from database.
 
         Args:
@@ -355,20 +363,21 @@ class TimeSeriesStorage:
 
                 metrics = []
                 for row in rows:
-                    metrics.append(AggregatedMetric(
-                        timestamp=datetime.fromisoformat(row[0]),
-                        name=row[1],
-                        source=row[2],
-                        aggregation_level=AggregationLevel(row[3]),
-                        count=row[4],
-                        min_value=row[5],
-                        max_value=row[6],
-                        avg_value=row[7],
-                        sum_value=row[8],
-                        std_dev=row[9],
-                        tags=json.loads(row[10]) if row[10] else {},
-                        metadata=json.loads(row[11]) if row[11] else {},
-                    ))
+                    metrics.append(
+                        AggregatedMetric(
+                            timestamp=datetime.fromisoformat(row[0]),
+                            name=row[1],
+                            source=row[2],
+                            aggregation_level=AggregationLevel(row[3]),
+                            count=row[4],
+                            min_value=row[5],
+                            max_value=row[6],
+                            avg_value=row[7],
+                            sum_value=row[8],
+                            std_dev=row[9],
+                            tags=json.loads(row[10]) if row[10] else {},
+                            metadata=json.loads(row[11]) if row[11] else {})
+                    )
 
                 return metrics
 
@@ -398,15 +407,13 @@ class TimeSeriesStorage:
                 # Delete old raw metrics
                 cursor.execute(
                     "DELETE FROM raw_metrics WHERE timestamp < ?",
-                    (cutoff_time.isoformat(),),
-                )
+                    (cutoff_time.isoformat()))
                 raw_deleted = cursor.rowcount
 
                 # Delete old aggregated metrics
                 cursor.execute(
                     "DELETE FROM aggregated_metrics WHERE timestamp < ?",
-                    (cutoff_time.isoformat(),),
-                )
+                    (cutoff_time.isoformat()))
                 aggregated_deleted = cursor.rowcount
 
                 conn.commit()
@@ -458,7 +465,7 @@ class TimeSeriesStorage:
                     "newest_metric": raw_range[1] if raw_range[1] else None,
                 }
 
-            except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+            except (FileNotFoundError, PermissionError, OSError) as e:
                 logger.exception("Error getting storage stats: %s", e)
                 return {}
             finally:
@@ -467,47 +474,6 @@ class TimeSeriesStorage:
 
 class DataAggregator:
     """Processes and aggregates performance metrics with time-series storage."""
-
-    def __init__(self, config):
-        """Initialize data aggregator.
-
-        Args:
-            config: Monitoring configuration
-
-        """
-        self.config = config
-
-        # Initialize storage
-        storage_path = Path(config.storage_path)
-        storage_path.mkdir(parents=True, exist_ok=True)
-        db_path = storage_path / "metrics.db"
-        self.storage = TimeSeriesStorage(str(db_path))
-
-        # Initialize metric buffer
-        self.buffer = MetricBuffer(config.max_metrics_per_batch * 2)
-
-        # Aggregation state
-        self._last_aggregation = {
-            AggregationLevel.SHORT_TERM: datetime.now(),
-            AggregationLevel.MEDIUM_TERM: datetime.now(),
-            AggregationLevel.LONG_TERM: datetime.now(),
-        }
-
-        # Threading
-        self._aggregation_thread: threading.Thread | None = None
-        self._cleanup_thread: threading.Thread | None = None
-        self._stop_event = threading.Event()
-        self._lock = threading.RLock()
-
-        # Statistics
-        self._metrics_processed = 0
-        self._metrics_stored = 0
-        self._aggregations_created = 0
-
-        # Start background threads
-        self._start_background_threads()
-
-        logger.info("Data aggregator initialized")
 
     def process_metrics(self, metrics: list[dict[str, Any]]) -> None:
         """Process and store metrics.
@@ -528,7 +494,7 @@ class DataAggregator:
 
             logger.debug("Buffered %s metrics for processing", len(metrics))
 
-        except (OSError, IOError, FileNotFoundError) as e:
+        except (OSError, FileNotFoundError) as e:
             logger.exception("Error processing metrics: %s", e)
 
     def _start_background_threads(self) -> None:
@@ -537,16 +503,14 @@ class DataAggregator:
         self._aggregation_thread = threading.Thread(
             target=self._aggregation_loop,
             name="DataAggregator-Aggregation",
-            daemon=True,
-        )
+            daemon=True)
         self._aggregation_thread.start()
 
         # Cleanup thread
         self._cleanup_thread = threading.Thread(
             target=self._cleanup_loop,
             name="DataAggregator-Cleanup",
-            daemon=True,
-        )
+            daemon=True)
         self._cleanup_thread.start()
 
         logger.debug("Background threads started")
@@ -672,8 +636,7 @@ class DataAggregator:
                     sum_value=sum_value,
                     std_dev=std_dev,
                     tags=all_tags,
-                    metadata=all_metadata,
-                )
+                    metadata=all_metadata)
 
                 aggregated_metrics.append(aggregated_metric)
 
@@ -686,13 +649,16 @@ class DataAggregator:
 
                 logger.debug("Created %s {level.value} aggregations", stored_count)
 
-        except Exception as e:
+        except Exception:
             logger.exception("Error creating %s aggregations: {e}", level.value)
 
-    def get_metrics(self, start_time: datetime, end_time: datetime,
-                   aggregation_level: AggregationLevel = AggregationLevel.RAW,
-                   metric_name: str | None = None,
-                   source: str | None = None) -> list[dict[str, Any]]:
+    def get_metrics(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        aggregation_level: AggregationLevel = AggregationLevel.RAW,
+        metric_name: str | None = None,
+        source: str | None = None) -> list[dict[str, Any]]:
         """Get metrics from storage.
 
         Args:
@@ -710,26 +676,31 @@ class DataAggregator:
             if aggregation_level == AggregationLevel.RAW:
                 return self.storage.query_raw_metrics(start_time, end_time, metric_name, source)
             aggregated = self.storage.query_aggregated_metrics(
-                start_time, end_time, aggregation_level, metric_name, source,
-            )
+                start_time,
+                end_time,
+                aggregation_level,
+                metric_name,
+                source)
 
             # Convert to dictionary format
             result = []
             for metric in aggregated:
-                result.append({
-                    "timestamp": metric.timestamp.isoformat(),
-                    "name": metric.name,
-                    "source": metric.source,
-                    "aggregation_level": metric.aggregation_level.value,
-                    "count": metric.count,
-                    "min_value": metric.min_value,
-                    "max_value": metric.max_value,
-                    "avg_value": metric.avg_value,
-                    "sum_value": metric.sum_value,
-                    "std_dev": metric.std_dev,
-                    "tags": metric.tags,
-                    "metadata": metric.metadata,
-                })
+                result.append(
+                    {
+                        "timestamp": metric.timestamp.isoformat(),
+                        "name": metric.name,
+                        "source": metric.source,
+                        "aggregation_level": metric.aggregation_level.value,
+                        "count": metric.count,
+                        "min_value": metric.min_value,
+                        "max_value": metric.max_value,
+                        "avg_value": metric.avg_value,
+                        "sum_value": metric.sum_value,
+                        "std_dev": metric.std_dev,
+                        "tags": metric.tags,
+                        "metadata": metric.metadata,
+                    }
+                )
 
             return result
 
@@ -751,8 +722,7 @@ class DataAggregator:
                 "aggregations_created": self._aggregations_created,
                 "buffer_size": self.buffer.size(),
                 "last_aggregations": {
-                    level.value: timestamp.isoformat()
-                    for level, timestamp in self._last_aggregation.items()
+                    level.value: timestamp.isoformat() for level, timestamp in self._last_aggregation.items()
                 },
             }
 

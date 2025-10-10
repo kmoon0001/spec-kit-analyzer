@@ -1,7 +1,6 @@
-"""Custom Report Builder Dialog - Advanced Report Customization
-"""
+"""Custom Report Builder Dialog - Advanced Report Customization"""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
@@ -44,102 +43,6 @@ class CustomReportBuilder(QDialog):
 
     report_generated = Signal(dict)
     template_saved = Signal(str)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("📊 Custom Report Builder - Advanced Edition")
-        self.setFixedSize(1000, 700)
-        self.setModal(True)
-
-        # Report configuration
-        self.report_config = {
-            "title": "Custom Compliance Report",
-            "date_range": {"start": datetime.now() - timedelta(days=30), "end": datetime.now()},
-            "sections": [],
-            "filters": {},
-            "formatting": {},
-            "export_format": "html",
-        }
-
-        # Available report sections
-        self.available_sections = {
-            "executive_summary": {
-                "name": "Executive Summary",
-                "description": "High-level compliance overview with key metrics",
-                "icon": "📋",
-                "required_data": ["compliance_scores", "risk_assessment"],
-            },
-            "detailed_findings": {
-                "name": "Detailed Findings",
-                "description": "Comprehensive analysis of compliance issues",
-                "icon": "🔍",
-                "required_data": ["analysis_results", "findings"],
-            },
-            "trend_analysis": {
-                "name": "Trend Analysis",
-                "description": "Historical compliance trends and patterns",
-                "icon": "📈",
-                "required_data": ["historical_data", "trends"],
-            },
-            "risk_assessment": {
-                "name": "Risk Assessment",
-                "description": "Current risk levels and mitigation strategies",
-                "icon": "⚠️",
-                "required_data": ["risk_scores", "audit_risk"],
-            },
-            "benchmarking": {
-                "name": "Industry Benchmarking",
-                "description": "Comparison with industry standards",
-                "icon": "🏆",
-                "required_data": ["benchmark_data", "industry_averages"],
-            },
-            "recommendations": {
-                "name": "AI Recommendations",
-                "description": "Personalized improvement suggestions",
-                "icon": "💡",
-                "required_data": ["ai_recommendations", "action_items"],
-            },
-            "compliance_checklist": {
-                "name": "Compliance Checklist",
-                "description": "Detailed compliance verification checklist",
-                "icon": "✅",
-                "required_data": ["checklist_items", "compliance_status"],
-            },
-            "regulatory_updates": {
-                "name": "Regulatory Updates",
-                "description": "Recent changes in compliance requirements",
-                "icon": "📜",
-                "required_data": ["regulatory_changes", "updates"],
-            },
-        }
-
-        # Predefined templates
-        self.templates = {
-            "comprehensive": ReportTemplate(
-                "Comprehensive Audit Report",
-                "Complete compliance analysis with all sections",
-                ["executive_summary", "detailed_findings", "trend_analysis", "risk_assessment", "recommendations"],
-            ),
-            "executive": ReportTemplate(
-                "Executive Summary Report",
-                "High-level overview for management",
-                ["executive_summary", "risk_assessment", "benchmarking"],
-            ),
-            "clinical": ReportTemplate(
-                "Clinical Focus Report",
-                "Detailed clinical compliance analysis",
-                ["detailed_findings", "compliance_checklist", "recommendations"],
-            ),
-            "trend_focused": ReportTemplate(
-                "Trend Analysis Report",
-                "Historical performance and predictive insights",
-                ["trend_analysis", "benchmarking", "recommendations"],
-            ),
-        }
-
-        self.init_ui()
-        self.setup_connections()
-        self.load_default_template()
 
     def init_ui(self):
         """Initialize the report builder UI"""
@@ -275,8 +178,7 @@ class CustomReportBuilder(QDialog):
         self.min_score_slider.setValue(70)
         self.min_score_label = QLabel("70%")
         self.min_score_slider.valueChanged.connect(
-            lambda v: self.min_score_label.setText(f"{v}%"),
-        )
+            lambda v: self.min_score_label.setText(f"{v}%"))
 
         score_layout = QHBoxLayout()
         score_layout.addWidget(self.min_score_slider)
@@ -413,13 +315,15 @@ class CustomReportBuilder(QDialog):
         # Theme selection
         style_layout.addWidget(QLabel("Report Theme:"), 0, 0)
         self.theme_combo = QComboBox()
-        self.theme_combo.addItems([
-            "Professional Blue",
-            "Medical Green",
-            "Corporate Gray",
-            "Modern Purple",
-            "Classic Black & White",
-        ])
+        self.theme_combo.addItems(
+            [
+                "Professional Blue",
+                "Medical Green",
+                "Corporate Gray",
+                "Modern Purple",
+                "Classic Black & White",
+            ]
+        )
         style_layout.addWidget(self.theme_combo, 0, 1)
 
         # Logo inclusion
@@ -648,8 +552,9 @@ class CustomReportBuilder(QDialog):
             # Check if already added
             for i in range(self.selected_list.count()):
                 if self.selected_list.item(i).data(Qt.ItemDataRole.UserRole) == section_key:
-                    QMessageBox.information(self, "Section Already Added",
-                                          f"The section '{section['name']}' is already in your report.")
+                    QMessageBox.information(
+                        self, "Section Already Added", f"The section '{section['name']}' is already in your report."
+                    )
                     return
 
             # Add to selected list
@@ -681,13 +586,15 @@ class CustomReportBuilder(QDialog):
 
     def update_config(self):
         """Update report configuration"""
-        self.report_config.update({
-            "title": self.title_edit.text(),
-            "date_range": {
-                "start": self.start_date.date().toPython(),
-                "end": self.end_date.date().toPython(),
-            },
-        })
+        self.report_config.update(
+            {
+                "title": self.title_edit.text(),
+                "date_range": {
+                    "start": self.start_date.date().toPython(),
+                    "end": self.end_date.date().toPython(),
+                },
+            }
+        )
 
     def refresh_preview(self):
         """Refresh the report preview"""
@@ -726,10 +633,10 @@ class CustomReportBuilder(QDialog):
                 <p><strong>Department:</strong> {self.department_edit.text()}</p>
             </div>
 
-            {''.join(sections)}
+            {"".join(sections)}
 
             <footer style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px;">
-                <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} by Therapy Compliance Analyzer</p>
+                <p>Generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")} by Therapy Compliance Analyzer</p>
                 <p>Contact: {self.contact_edit.text()}</p>
             </footer>
         </body>
@@ -753,8 +660,7 @@ class CustomReportBuilder(QDialog):
             template = ReportTemplate(
                 template_name,
                 f"Custom template created on {datetime.now().strftime('%Y-%m-%d')}",
-                sections,
-            )
+                sections)
 
             # Add to templates (in a real implementation, this would be saved to file/database)
             template_key = template_name.lower().replace(" ", "_")
@@ -765,8 +671,7 @@ class CustomReportBuilder(QDialog):
 
             self.template_saved.emit(template_name)
 
-            QMessageBox.information(self, "Template Saved",
-                                  f"Template '{template_name}' has been saved successfully!")
+            QMessageBox.information(self, "Template Saved", f"Template '{template_name}' has been saved successfully!")
 
     def get_template_name(self) -> tuple[str, bool]:
         """Get template name from user"""
@@ -776,8 +681,7 @@ class CustomReportBuilder(QDialog):
             self,
             "Save Template",
             "Enter template name:",
-            text=f"Custom Template {len(self.templates) + 1}",
-        )
+            text=f"Custom Template {len(self.templates) + 1}")
 
         return name, ok
 
@@ -830,20 +734,19 @@ class CustomReportBuilder(QDialog):
 
         # Validate configuration
         if not config["sections"]:
-            QMessageBox.warning(self, "No Sections Selected",
-                              "Please select at least one section for your report.")
+            QMessageBox.warning(self, "No Sections Selected", "Please select at least one section for your report.")
             return
 
         if not config["title"].strip():
-            QMessageBox.warning(self, "Missing Title",
-                              "Please enter a title for your report.")
+            QMessageBox.warning(self, "Missing Title", "Please enter a title for your report.")
             return
 
         # Emit signal with configuration
         self.report_generated.emit(config)
 
         # Show success message
-        QMessageBox.information(self, "Report Generated",
-                              f"Custom report '{config['title']}' has been generated successfully!")
+        QMessageBox.information(
+            self, "Report Generated", f"Custom report '{config['title']}' has been generated successfully!"
+        )
 
         self.accept()

@@ -11,21 +11,21 @@ logger = logging.getLogger(__name__)
 
 
 class ComplianceSyncService:
-    """Service for synchronizing and analyzing compliance data from EHR systems.
-    """
+    """Service for synchronizing and analyzing compliance data from EHR systems."""
 
     def __init__(self):
         self.sync_tasks = {}
         self.analysis_tasks = {}
 
-    async def sync_ehr_documents(self,
-                               sync_task_id: str,
-                               patient_ids: list[str] | None = None,
-                               date_range_start: datetime | None = None,
-                               date_range_end: datetime | None = None,
-                               document_types: list[str] | None = None,
-                               auto_analyze: bool = False,
-                               user_id: str | None = None) -> None:
+    async def sync_ehr_documents(
+        self,
+        sync_task_id: str,
+        patient_ids: list[str] | None = None,
+        date_range_start: datetime | None = None,
+        date_range_end: datetime | None = None,
+        document_types: list[str] | None = None,
+        auto_analyze: bool = False,
+        user_id: str | None = None) -> None:
         """Synchronize documents from EHR system (background task).
 
         Args:
@@ -94,23 +94,25 @@ class ComplianceSyncService:
                     self.sync_tasks[sync_task_id]["results"]["documents_analyzed"] = documents_analyzed
 
             # Complete the sync task
-            self.sync_tasks[sync_task_id].update({
-                "status": "completed",
-                "progress": 100,
-                "message": f"EHR sync completed successfully - {documents_synced} documents synced",
-                "completed_at": datetime.now().isoformat(),
-                "results": {
-                    "documents_synced": documents_synced,
-                    "documents_analyzed": documents_analyzed,
-                    "sync_duration_seconds": 10,  # Total simulated time
-                    "errors": [],
-                    "summary": {
-                        "progress_notes": int(documents_synced * 0.6),
-                        "evaluations": int(documents_synced * 0.25),
-                        "treatment_plans": int(documents_synced * 0.15),
+            self.sync_tasks[sync_task_id].update(
+                {
+                    "status": "completed",
+                    "progress": 100,
+                    "message": f"EHR sync completed successfully - {documents_synced} documents synced",
+                    "completed_at": datetime.now().isoformat(),
+                    "results": {
+                        "documents_synced": documents_synced,
+                        "documents_analyzed": documents_analyzed,
+                        "sync_duration_seconds": 10,  # Total simulated time
+                        "errors": [],
+                        "summary": {
+                            "progress_notes": int(documents_synced * 0.6),
+                            "evaluations": int(documents_synced * 0.25),
+                            "treatment_plans": int(documents_synced * 0.15),
+                        },
                     },
-                },
-            })
+                }
+            )
 
             logger.info("EHR document sync completed: %s", sync_task_id)
 
@@ -128,10 +130,7 @@ class ComplianceSyncService:
         """Get the status of an EHR synchronization task."""
         return self.sync_tasks.get(sync_task_id)
 
-    async def analyze_ehr_document(self,
-                                 document_id: str,
-                                 analysis_task_id: str,
-                                 user_id: str) -> None:
+    async def analyze_ehr_document(self, document_id: str, analysis_task_id: str, user_id: str) -> None:
         """Analyze a specific EHR document for compliance (background task).
 
         Args:
@@ -192,13 +191,15 @@ class ComplianceSyncService:
             }
 
             # Complete the analysis task
-            self.analysis_tasks[analysis_task_id].update({
-                "status": "completed",
-                "progress": 100,
-                "message": "Document analysis completed successfully",
-                "completed_at": datetime.now().isoformat(),
-                "results": analysis_results,
-            })
+            self.analysis_tasks[analysis_task_id].update(
+                {
+                    "status": "completed",
+                    "progress": 100,
+                    "message": "Document analysis completed successfully",
+                    "completed_at": datetime.now().isoformat(),
+                    "results": analysis_results,
+                }
+            )
 
             logger.info("EHR document analysis completed: %s", analysis_task_id)
 
@@ -212,9 +213,7 @@ class ComplianceSyncService:
                 "failed_at": datetime.now().isoformat(),
             }
 
-    async def get_compliance_trends(self,
-                                  days: int = 30,
-                                  department: str | None = None) -> dict[str, Any]:
+    async def get_compliance_trends(self, days: int = 30, department: str | None = None) -> dict[str, Any]:
         """Get compliance trends from EHR-synchronized documents.
 
         Args:
@@ -305,5 +304,7 @@ class ComplianceSyncService:
             }
 
 
+# Global compliance sync service instance
+# Global compliance sync service instance
 # Global compliance sync service instance
 compliance_sync_service = ComplianceSyncService()

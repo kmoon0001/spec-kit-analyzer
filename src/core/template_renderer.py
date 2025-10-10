@@ -38,7 +38,7 @@ class TemplateRenderer:
 
             logger.info("Loaded %s report templates", len(self.templates))
 
-        except (FileNotFoundError, PermissionError, OSError, IOError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Error loading templates: %s", e)
             self._create_default_template()
 

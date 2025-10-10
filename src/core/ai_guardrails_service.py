@@ -76,6 +76,8 @@ class GuardrailViolation:
 
 
 @dataclass
+@dataclass
+@dataclass
 class GuardrailResult:
     """Result of guardrail evaluation"""
 
@@ -90,8 +92,11 @@ class GuardrailResult:
 
     def is_safe(self) -> bool:
         """Check if content is safe for use"""
-        return self.overall_risk_level in [RiskLevel.LOW, RiskLevel.MEDIUM] and \
-               self.action_taken in [ActionType.ALLOW, ActionType.MODIFY, ActionType.FLAG]
+        return self.overall_risk_level in [RiskLevel.LOW, RiskLevel.MEDIUM] and self.action_taken in [
+            ActionType.ALLOW,
+            ActionType.MODIFY,
+            ActionType.FLAG,
+        ]
 
 
 class BaseGuardrail(ABC):
@@ -116,61 +121,6 @@ class BaseGuardrail(ABC):
 class ContentSafetyGuardrail(BaseGuardrail):
     """Guardrail for content safety and appropriateness"""
 
-    def __init__(self):
-        super().__init__(
-            "Content Safety",
-            "Ensures AI-generated content is safe and appropriate for healthcare settings",
-        )
-
-        # Define prohibited content patterns
-        self.prohibited_patterns = [
-            r"\b(?:kill|die|death|suicide|harm).*?(?:patient|client|individual)",
-            r"\b(?:illegal|unlawful|criminal).*?(?:activity|action|behavior)",
-            r"\b(?:discriminat|racist|sexist|homophobic)\b",
-            r"\b(?:personal|private|confidential).*?(?:information|data)\b",
-            r"\b(?:guarantee|promise|ensure).*?(?:cure|recovery|outcome)",
-        ]
-
-        # Define sensitive medical terms requiring careful handling
-        self.sensitive_terms = [
-            "diagnosis", "prognosis", "treatment plan", "medication",
-            "surgery", "procedure", "condition", "disorder",
-        ]
-
-    def evaluate(self, content: str, context: dict[str, Any]) -> list[GuardrailViolation]:
-        violations: list[GuardrailViolation] = []
-
-        # Check for prohibited patterns
-        for pattern in self.prohibited_patterns:
-            matches = re.finditer(pattern, content, re.IGNORECASE)
-            for match in matches:
-                violations.append(GuardrailViolation(
-                    guardrail_type=GuardrailType.CONTENT_SAFETY,
-                    violation_type="prohibited_content",
-                    description=f"Content contains potentially harmful language: '{match.group()}'",
-                    risk_level=RiskLevel.HIGH,
-                    confidence=0.9,
-                    evidence=[match.group()],
-                    suggested_action=ActionType.MODIFY,
-                    mitigation_strategy="Replace with professional, neutral language",
-                ))
-
-        # Check for inappropriate medical claims
-        claim_evidence = self._get_inappropriate_medical_claims(content)
-        if claim_evidence:
-            violations.append(GuardrailViolation(
-                guardrail_type=GuardrailType.CONTENT_SAFETY,
-                violation_type="inappropriate_medical_claims",
-                description="Content contains inappropriate medical claims or guarantees",
-                risk_level=RiskLevel.MEDIUM,
-                confidence=0.8,
-                evidence=claim_evidence,
-                suggested_action=ActionType.MODIFY,
-                mitigation_strategy="Add appropriate disclaimers and qualify statements",
-            ))
-
-        return violations
-
     def _get_inappropriate_medical_claims(self, content: str) -> list[str]:
         """Check for inappropriate medical claims and return evidence."""
         claim_patterns = [
@@ -189,121 +139,6 @@ class ContentSafetyGuardrail(BaseGuardrail):
 
 class BiasDetectionGuardrail(BaseGuardrail):
     """Guardrail for detecting and mitigating bias in AI outputs"""
-
-    def __init__(self):
-        super().__init__(
-            "Bias Detection",
-            "Detects and mitigates potential bias in AI-generated content",
-        )
-
-        # Define bias indicators
-        self.bias_indicators = {
-            "demographic": [
-                r"\b(?:typical|normal|standard).*?(?:patient|client|individual)",
-                r"\b(?:all|most|many).*?(?:women|men|elderly|young).*?(?:are|have|do|typically)",
-                r"\b(?:cultural|ethnic|racial).*?(?:factors|issues|problems)",
-                r"\ball\s+elderly\s+patients\s+typically",
-            ],
-            "socioeconomic": [
-                r"\b(?:low-income|poor|wealthy|rich).*?(?:patients|clients)",
-                r"\b(?:education level|social status).*?(?:affects|determines|causes)",
-                r"\b(?:compliance|adherence).*?(?:issues|problems).*?(?:in|among).*?(?:certain|specific).*?(?:groups|populations)",
-            ],
-            "geographic": [
-                r"\b(?:urban|rural|suburban).*?(?:patients|populations).*?(?:typically|usually|often)",
-                r"\b(?:regional|local|area).*?(?:differences|variations).*?(?:in|of).*?(?:care|treatment)",
-            ],
-        }
-
-        # Define inclusive language alternatives
-        self.inclusive_alternatives = {
-            "typical patient": "patients",
-            "normal individual": "individuals",
-            "standard client": "clients",
-            "all women": "some women",
-            "most men": "many men",
-            "elderly patients": "older adult patients",
-        }
-
-    def evaluate(self, content: str, context: dict[str, Any]) -> list[GuardrailViolation]:
-        violations: list[GuardrailViolation] = []
-
-        for bias_type, patterns in self.bias_indicators.items():
-            for pattern in patterns:
-                matches = re.finditer(pattern, content, re.IGNORECASE)
-                for match in matches:
-                    violations.append(GuardrailViolation(
-                        guardrail_type=GuardrailType.BIAS_DETECTION,
-                        violation_type=f"{bias_type}_bias",
-                        description=f"Potential {bias_type} bias detected: '{match.group()}'",
-                        risk_level=RiskLevel.MEDIUM,
-                        confidence=0.7,
-                        evidence=[match.group()],
-                        suggested_action=ActionType.MODIFY,
-                        mitigation_strategy=f"Use more inclusive language that doesn't generalize about {bias_type} groups",
-                    ))
-
-        return violations
-
-
-class AccuracyValidationGuardrail(BaseGuardrail):
-    """Guardrail for validating accuracy and preventing hallucinations"""
-
-    def __init__(self):
-        super().__init__(
-            "Accuracy Validation",
-            "Validates accuracy of AI-generated content and detects potential hallucinations",
-        )
-
-        # Define patterns that indicate potential hallucinations
-        self.hallucination_indicators = [
-            r"\b(?:according to|based on|research shows|studies indicate).*?(?:recent|new|latest).*?(?:research|study|findings)",
-            r"\b(?:FDA|CMS|Medicare).*?(?:recently|just|newly).*?(?:approved|released|published)",
-            r"\b(?:specific|exact|precise).*?(?:percentage|number|statistic).*?(?:of|for|in)",
-            r"\b(?:Dr\.|Professor|Expert)\s+[A-Z][a-z]+.*?(?:states|says|recommends|suggests)",
-            r"\b(?:version|update|revision)\s+\d+\.\d+.*?(?:of|for)",
-        ]
-
-        # Define confidence-reducing patterns
-        self.uncertainty_patterns = [
-            r"\b(?:might|may|could|possibly|potentially|likely)\b",
-            r"\b(?:appears|seems|suggests|indicates)\b",
-            r"\b(?:in some cases|sometimes|occasionally)\b",
-        ]
-
-    def evaluate(self, content: str, context: dict[str, Any]) -> list[GuardrailViolation]:
-        violations: list[GuardrailViolation] = []
-
-        # Check for potential hallucinations
-        for pattern in self.hallucination_indicators:
-            matches = re.finditer(pattern, content, re.IGNORECASE)
-            for match in matches:
-                violations.append(GuardrailViolation(
-                    guardrail_type=GuardrailType.HALLUCINATION_DETECTION,
-                    violation_type="potential_hallucination",
-                    description=f"Potential hallucination detected: '{match.group()}'",
-                    risk_level=RiskLevel.HIGH,
-                    confidence=0.8,
-                    evidence=[match.group()],
-                    suggested_action=ActionType.FLAG,
-                    mitigation_strategy="Verify factual claims against trusted sources and add appropriate disclaimers",
-                ))
-
-        # Check for overconfident statements
-        overconfident_evidence = self._get_overconfident_statements(content)
-        if overconfident_evidence:
-            violations.append(GuardrailViolation(
-                guardrail_type=GuardrailType.ACCURACY_VALIDATION,
-                violation_type="overconfident_statements",
-                description="Content contains overconfident statements without appropriate qualifiers",
-                risk_level=RiskLevel.MEDIUM,
-                confidence=0.7,
-                evidence=overconfident_evidence,
-                suggested_action=ActionType.MODIFY,
-                mitigation_strategy="Add appropriate qualifiers and uncertainty indicators",
-            ))
-
-        return violations
 
     def _get_overconfident_statements(self, content: str) -> list[str]:
         """Check for overconfident statements and return evidence."""
@@ -324,68 +159,16 @@ class AccuracyValidationGuardrail(BaseGuardrail):
 class EthicalComplianceGuardrail(BaseGuardrail):
     """Guardrail for ensuring ethical compliance in healthcare AI"""
 
-    def __init__(self):
-        super().__init__(
-            "Ethical Compliance",
-            "Ensures AI outputs comply with healthcare ethics and professional standards",
-        )
-
-        # Define ethical principles
-        self.ethical_principles = {
-            "autonomy": ["patient choice", "informed consent", "decision-making"],
-            "beneficence": ["patient benefit", "do good", "positive outcome"],
-            "non_maleficence": ["do no harm", "avoid harm", "prevent injury"],
-            "justice": ["fair treatment", "equal access", "equitable care"],
-        }
-
-        # Define ethical violations
-        self.ethical_violations = [
-            r"\b(?:force|coerce|pressure).*?(?:patient|client)",
-            r"\b(?:withhold|deny|refuse).*?(?:information|treatment|care)",
-            r"\b(?:discriminate|exclude|reject).*?(?:based on|due to)",
-            r"\b(?:experimental|unproven|untested).*?(?:without|lacking).*?(?:consent|approval)",
-        ]
-
-    def evaluate(self, content: str, context: dict[str, Any]) -> list[GuardrailViolation]:
-        violations: list[GuardrailViolation] = []
-
-        # Check for ethical violations
-        for pattern in self.ethical_violations:
-            matches = re.finditer(pattern, content, re.IGNORECASE)
-            for match in matches:
-                violations.append(GuardrailViolation(
-                    guardrail_type=GuardrailType.ETHICAL_COMPLIANCE,
-                    violation_type="ethical_violation",
-                    description=f"Potential ethical violation detected: '{match.group()}'",
-                    risk_level=RiskLevel.HIGH,
-                    confidence=0.9,
-                    evidence=[match.group()],
-                    suggested_action=ActionType.BLOCK,
-                    mitigation_strategy="Revise content to align with healthcare ethical principles",
-                ))
-
-        # Check for missing ethical considerations
-        if self._missing_ethical_considerations(content, context):
-            violations.append(GuardrailViolation(
-                guardrail_type=GuardrailType.ETHICAL_COMPLIANCE,
-                violation_type="missing_ethical_considerations",
-                description="Content lacks appropriate ethical considerations for healthcare context",
-                risk_level=RiskLevel.MEDIUM,
-                confidence=0.6,
-                evidence=["Ethical considerations missing"],
-                suggested_action=ActionType.MODIFY,
-                mitigation_strategy="Add appropriate ethical disclaimers and considerations",
-            ))
-
-        return violations
-
     def _missing_ethical_considerations(self, content: str, context: dict[str, Any]) -> bool:
         """Check if content is missing ethical considerations"""
         # For high-stakes content, ensure ethical considerations are present
         if context.get("content_type") in ["recommendation", "treatment_plan", "diagnosis"]:
             ethical_indicators = [
-                "patient autonomy", "informed consent", "professional judgment",
-                "individual circumstances", "clinical expertise",
+                "patient autonomy",
+                "informed consent",
+                "professional judgment",
+                "individual circumstances",
+                "clinical expertise",
             ]
 
             content_lower = content.lower()
@@ -399,44 +182,6 @@ class EthicalComplianceGuardrail(BaseGuardrail):
 
 class TransparencyEnforcementGuardrail(BaseGuardrail):
     """Guardrail for enforcing AI transparency and explainability"""
-
-    def __init__(self):
-        super().__init__(
-            "Transparency Enforcement",
-            "Ensures AI outputs include appropriate transparency and explainability information",
-        )
-
-        # Define required transparency elements (all lowercase for case-insensitive matching)
-        self.transparency_requirements = {
-            "ai_disclosure": ["ai-generated", "artificial intelligence", "automated analysis"],
-            "confidence_indicators": ["confidence", "certainty", "likelihood"],
-            "limitations": ["limitation", "constraint", "boundary"],
-            "human_oversight": ["professional judgment", "clinical expertise", "human review"],
-        }
-
-    def evaluate(self, content: str, context: dict[str, Any]) -> list[GuardrailViolation]:
-        violations: list[GuardrailViolation] = []
-
-        # Only run this guardrail if content is not empty
-        if not content.strip():
-            return violations
-
-        # Check for missing transparency elements
-        missing_elements = self._check_transparency_elements(content, context)
-
-        for element in missing_elements:
-            violations.append(GuardrailViolation(
-                guardrail_type=GuardrailType.TRANSPARENCY_ENFORCEMENT,
-                violation_type=f"missing_{element}",
-                description=f"Content lacks required transparency element: {element}",
-                risk_level=RiskLevel.MEDIUM,
-                confidence=0.8,
-                evidence=[f"Missing {element}"],
-                suggested_action=ActionType.MODIFY,
-                mitigation_strategy=f"Add appropriate {element} information to ensure transparency",
-            ))
-
-        return violations
 
     def _check_transparency_elements(self, content: str, context: dict[str, Any]) -> list[str]:
         """Check which transparency elements are missing"""
@@ -454,14 +199,6 @@ class TransparencyEnforcementGuardrail(BaseGuardrail):
 
 class AIGuardrailsService:
     """Main service for AI guardrails and responsible AI controls"""
-
-    def __init__(self):
-        self.guardrails: list[BaseGuardrail] = []
-        self.violation_history: list[GuardrailResult] = []
-        self.transparency_templates = self._load_transparency_templates()
-
-        # Initialize default guardrails
-        self._initialize_default_guardrails()
 
     def _initialize_default_guardrails(self) -> None:
         """Initialize default set of guardrails"""
@@ -502,7 +239,7 @@ class AIGuardrailsService:
                         guardrail.violation_count += len(violations)
                         guardrail.last_triggered = datetime.now()
 
-                except Exception as e:
+                except Exception:
                     logger.exception("Error in guardrail %s: {e}", guardrail.name)
 
         # Determine overall risk level and action
@@ -526,14 +263,15 @@ class AIGuardrailsService:
             overall_risk_level=overall_risk,
             action_taken=action_taken,
             transparency_notes=transparency_notes,
-            confidence_adjustments=confidence_adjustments,
-        )
+            confidence_adjustments=confidence_adjustments)
 
         # Store result for audit trail
         self.violation_history.append(result)
 
-        logger.info("Guardrail evaluation complete: %s violations, ", len(all_violations), 
-                   f"risk level: {overall_risk.value}, action: {action_taken.value}")
+        logger.info(
+            "Guardrail evaluation complete: %s violations, ",
+            len(all_violations),
+            f"risk level: {overall_risk.value}, action: {action_taken.value}")
 
         return result
 
@@ -572,8 +310,9 @@ class AIGuardrailsService:
             return ActionType.MODIFY
         return ActionType.ALLOW
 
-    def _apply_modifications(self, content: str, violations: list[GuardrailViolation],
-                           context: dict[str, Any]) -> str | None:
+    def _apply_modifications(
+        self, content: str, violations: list[GuardrailViolation], context: dict[str, Any]
+    ) -> str | None:
         """Apply modifications to content based on violations"""
         if not violations:
             return None
@@ -584,16 +323,16 @@ class AIGuardrailsService:
         for violation in violations:
             if violation.suggested_action in [ActionType.MODIFY, ActionType.FLAG]:
                 modified_content = self._apply_specific_modification(
-                    modified_content, violation, context,
-                )
+                    modified_content,
+                    violation,
+                    context)
 
         # Add transparency statements
         modified_content = self._add_transparency_statements(modified_content, violations, context)
 
         return modified_content if modified_content != content else None
 
-    def _apply_specific_modification(self, content: str, violation: GuardrailViolation,
-                                   context: dict[str, Any]) -> str:
+    def _apply_specific_modification(self, content: str, violation: GuardrailViolation, context: dict[str, Any]) -> str:
         """Apply specific modification for a violation"""
         if violation.guardrail_type == GuardrailType.BIAS_DETECTION:
             # Apply inclusive language modifications
@@ -619,8 +358,9 @@ class AIGuardrailsService:
 
         return content
 
-    def _add_transparency_statements(self, content: str, violations: list[GuardrailViolation],
-                                   context: dict[str, Any]) -> str:
+    def _add_transparency_statements(
+        self, content: str, violations: list[GuardrailViolation], context: dict[str, Any]
+    ) -> str:
         """Add transparency statements to content"""
         transparency_additions = []
 
@@ -650,8 +390,7 @@ class AIGuardrailsService:
 
         return content
 
-    def _generate_transparency_notes(self, violations: list[GuardrailViolation],
-                                   context: dict[str, Any]) -> list[str]:
+    def _generate_transparency_notes(self, violations: list[GuardrailViolation], context: dict[str, Any]) -> list[str]:
         """Generate transparency notes for the evaluation"""
         notes = []
 

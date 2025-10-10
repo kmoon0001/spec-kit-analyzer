@@ -1,9 +1,8 @@
-"""Responsive Layout System - Adaptive UI that scales to different screen sizes.
-"""
+"""Responsive Layout System - Adaptive UI that scales to different screen sizes."""
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QFont, QResizeEvent
-from PySide6.QtWidgets import QGridLayout, QScrollArea, QSplitter, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QGridLayout, QScrollArea, QSplitter, QWidget
 
 
 class ResponsiveWidget(QWidget):
@@ -69,28 +68,6 @@ class ResponsiveWidget(QWidget):
 class VirtualScrollArea(QScrollArea):
     """Virtual scrolling for large datasets."""
 
-    def __init__(self, item_height: int = 50, parent=None):
-        super().__init__(parent)
-        self.item_height = item_height
-        self.items: list = []
-        self.visible_items: dict = {}
-        self.buffer_size = 5  # Extra items to render outside viewport
-
-        self.setWidgetResizable(True)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-
-        # Content widget
-        self.content_widget = QWidget()
-        self.content_layout = QVBoxLayout(self.content_widget)
-        self.content_layout.setContentsMargins(0, 0, 0, 0)
-        self.setWidget(self.content_widget)
-
-        # Connect scroll events
-        scrollbar = self.verticalScrollBar()
-        if scrollbar:
-            scrollbar.valueChanged.connect(self.update_visible_items)
-
     def set_items(self, items: list):
         """Set the list of items to display."""
         self.items = items
@@ -115,8 +92,7 @@ class VirtualScrollArea(QScrollArea):
         first_visible = max(0, (viewport_top // self.item_height) - self.buffer_size)
         last_visible = min(
             len(self.items) - 1,
-            (viewport_bottom // self.item_height) + self.buffer_size,
-        )
+            (viewport_bottom // self.item_height) + self.buffer_size)
 
         # Remove items outside visible range
         for index in list(self.visible_items.keys()):
@@ -146,11 +122,6 @@ class VirtualScrollArea(QScrollArea):
 
 class AdaptiveGridLayout(QGridLayout):
     """Grid layout that adapts column count based on available space."""
-
-    def __init__(self, min_item_width: int = 200, parent=None):
-        super().__init__(parent)
-        self.min_item_width = min_item_width
-        self.items: list = []
 
     def add_adaptive_widget(self, widget: QWidget):
         """Add widget that will be positioned adaptively."""
@@ -205,33 +176,6 @@ class ScalableFont:
 
 class ResponsiveSplitter(QSplitter):
     """Splitter that adapts orientation based on screen size."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.mobile_threshold = 768
-        self.setChildrenCollapsible(False)
-
-    def resizeEvent(self, event):
-        """Handle resize to change orientation if needed."""
-        super().resizeEvent(event)
-
-        width = self.width()
-        if width < self.mobile_threshold:
-            # Stack vertically on small screens
-            if self.orientation() != Qt.Orientation.Vertical:
-                self.setOrientation(Qt.Orientation.Vertical)
-        else:
-            # Side by side on larger screens
-            if self.orientation() != Qt.Orientation.Horizontal:
-                self.setOrientation(Qt.Orientation.Horizontal)
-
-
-class AccessibleWidget(QWidget):
-    """Base widget with accessibility features."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setup_accessibility()
 
     def setup_accessibility(self):
         """Setup accessibility features."""

@@ -1,6 +1,5 @@
 import logging
 
-from .llm_service import LLMService
 from .text_utils import sanitize_human_text
 
 logger = logging.getLogger(__name__)
@@ -14,25 +13,26 @@ DEFAULT_EXPERT = (
     " and speech therapy documentation."
 )
 
-MEDICARE_EXPERT = (
-    "You are a Medicare documentation expert. Your role is to provide precise, authoritative guidance on Medicare regulations, including Part A and Part B. Focus on rules for skilled services, maintenance therapy, and proper G-code usage. Cite specific regulations when possible."
-)
+MEDICARE_EXPERT = "You are a Medicare documentation expert. Your role is to provide precise, authoritative guidance on Medicare regulations, including Part A and Part B. Focus on rules for skilled services, maintenance therapy, and proper G-code usage. Cite specific regulations when possible."
 
-BILLING_EXPERT = (
-    "You are a clinical billing and coding expert. You specialize in CPT codes for therapy services. Your answers should be focused on avoiding common billing errors, ensuring documentation supports the codes used, and explaining the appropriate use of timed vs. untimed codes."
-)
+BILLING_EXPERT = "You are a clinical billing and coding expert. You specialize in CPT codes for therapy services. Your answers should be focused on avoiding common billing errors, ensuring documentation supports the codes used, and explaining the appropriate use of timed vs. untimed codes."
 
-SOAP_NOTE_EXPERT = (
-    "You are an expert in structuring clinical notes. You specialize in the SOAP (Subjective, Objective, Assessment, Plan) format. Your guidance should focus on what information belongs in each section and how to write a defensible assessment that justifies the plan of care."
-)
+SOAP_NOTE_EXPERT = "You are an expert in structuring clinical notes. You specialize in the SOAP (Subjective, Objective, Assessment, Plan) format. Your guidance should focus on what information belongs in each section and how to write a defensible assessment that justifies the plan of care."
+
 
 class MixtureOfExpertsRouter:
     """Routes a query to the best expert based on keywords."""
 
     def __init__(self):
         self.experts = {
-            "medicare": {"prompt": MEDICARE_EXPERT, "keywords": ["medicare", "g-code", "part a", "part b", "8-minute rule"]},
-            "billing": {"prompt": BILLING_EXPERT, "keywords": ["cpt", "code", "billing", "charge", "timed", "un-timed"]},
+            "medicare": {
+                "prompt": MEDICARE_EXPERT,
+                "keywords": ["medicare", "g-code", "part a", "part b", "8-minute rule"],
+            },
+            "billing": {
+                "prompt": BILLING_EXPERT,
+                "keywords": ["cpt", "code", "billing", "charge", "timed", "un-timed"],
+            },
             "soap": {"prompt": SOAP_NOTE_EXPERT, "keywords": ["soap", "subjective", "objective", "assessment", "plan"]},
         }
 
@@ -49,13 +49,12 @@ class MixtureOfExpertsRouter:
 
 
 # --- Refactored Chat Service --- #
+# --- Refactored Chat Service --- #
+# --- Refactored Chat Service --- #
+
 
 class ChatService:
     """Conversational service using a Mixture of Experts."""
-
-    def __init__(self, llm_service: LLMService) -> None:
-        self.llm_service = llm_service
-        self.router = MixtureOfExpertsRouter()
 
     def process_message(self, history: list[dict[str, str]]) -> str:
         if not self.llm_service.is_ready():
@@ -81,9 +80,7 @@ class ChatService:
     def _build_prompt(self, history: list[dict[str, str]], system_prompt: str) -> str:
         lines = [system_prompt, "", "Conversation log:"]
         for message in history:
-            role = (
-                sanitize_human_text((message.get("role") or "user").strip()) or "user"
-            )
+            role = sanitize_human_text((message.get("role") or "user").strip()) or "user"
             content = sanitize_human_text((message.get("content") or "").strip())
             if not content:
                 continue

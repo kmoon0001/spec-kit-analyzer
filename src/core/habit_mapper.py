@@ -1,5 +1,3 @@
-
-
 def get_habit_for_finding(finding: dict) -> dict:
     """Maps a compliance finding to one of the 7 Habits and provides an explanation.
 
@@ -18,20 +16,12 @@ def get_habit_for_finding(finding: dict) -> dict:
             "name": "Habit 2: Begin with the End in Mind",
             "explanation": "This finding relates to having a clear vision. Ensure all goals are patient-centered, functional, and clearly defined in the initial plan of care.",
         }
-    if (
-        "skilled" in issue_title
-        or "medical necessity" in issue_title
-        or "justify" in issue_title
-    ):
+    if "skilled" in issue_title or "medical necessity" in issue_title or "justify" in issue_title:
         return {
             "name": "Habit 5: Seek First to Understand, Then to Be Understood",
             "explanation": "This finding relates to clear communication. First, understand the patient's unique needs, then document them in a way that makes the medical necessity of your skilled service clear to an external reviewer.",
         }
-    if (
-        "collaboration" in issue_title
-        or "interdisciplinary" in issue_title
-        or "billing" in issue_title
-    ):
+    if "collaboration" in issue_title or "interdisciplinary" in issue_title or "billing" in issue_title:
         return {
             "name": "Habit 6: Synergize",
             "explanation": "This finding relates to creative cooperation. Ensure that documentation and communication between therapy, nursing, and billing are aligned to prevent errors.",

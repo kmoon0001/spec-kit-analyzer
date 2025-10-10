@@ -1,4 +1,5 @@
 """Enterprise Copilot Service
+import requests
 
 Provides AI-powered assistance for healthcare compliance and documentation tasks.
 This service integrates with local AI models to provide intelligent responses
@@ -6,9 +7,13 @@ while maintaining data privacy and security.
 """
 
 import logging
+import sqlite3
 import uuid
 from datetime import datetime
 from typing import Any
+
+import sqlalchemy
+import sqlalchemy.exc
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +47,9 @@ class EnterpriseCopilotService:
 
         logger.info("Enterprise Copilot service initialized")
 
-    async def process_query(self,
-                          query: str,
-                          context: dict[str, Any],
-                          user_id: int,
-                          department: str | None = None,
-                          priority: str = "normal") -> dict[str, Any]:
+    async def process_query(
+        self, query: str, context: dict[str, Any], user_id: int, department: str | None = None, priority: str = "normal"
+    ) -> dict[str, Any]:
         """Process a natural language query and provide an intelligent response.
 
         Args:
@@ -125,10 +127,9 @@ class EnterpriseCopilotService:
                 "error": str(e),
             }
 
-    async def get_contextual_suggestions(self,
-                                       context: str | None = None,
-                                       document_type: str | None = None,
-                                       user_id: int = None) -> dict[str, Any]:
+    async def get_contextual_suggestions(
+        self, context: str | None = None, document_type: str | None = None, user_id: int = None
+    ) -> dict[str, Any]:
         """Get contextual suggestions based on current user activity.
 
         Args:
@@ -150,52 +151,68 @@ class EnterpriseCopilotService:
 
             # Generate suggestions based on context
             if context == "document_creation":
-                suggestions.extend([
-                    "Use specific, measurable language when describing patient progress",
-                    "Include objective measurements and functional outcomes",
-                    "Reference previous treatment sessions for continuity",
-                ])
-                tips.extend([
-                    "Start with a clear problem statement",
-                    "Use standardized terminology when possible",
-                    "Include patient's response to treatment",
-                ])
-                quick_actions.extend([
-                    {"action": "Insert template", "description": "Add a progress note template"},
-                    {"action": "Check compliance", "description": "Run compliance check on current document"},
-                ])
+                suggestions.extend(
+                    [
+                        "Use specific, measurable language when describing patient progress",
+                        "Include objective measurements and functional outcomes",
+                        "Reference previous treatment sessions for continuity",
+                    ]
+                )
+                tips.extend(
+                    [
+                        "Start with a clear problem statement",
+                        "Use standardized terminology when possible",
+                        "Include patient's response to treatment",
+                    ]
+                )
+                quick_actions.extend(
+                    [
+                        {"action": "Insert template", "description": "Add a progress note template"},
+                        {"action": "Check compliance", "description": "Run compliance check on current document"},
+                    ]
+                )
 
             elif context == "compliance_review":
-                suggestions.extend([
-                    "Review Medicare documentation requirements for this document type",
-                    "Ensure all required elements are present and clearly documented",
-                    "Check for consistency with previous documentation",
-                ])
-                tips.extend([
-                    "Focus on medical necessity justification",
-                    "Verify all dates and signatures are present",
-                    "Confirm treatment goals are specific and measurable",
-                ])
-                quick_actions.extend([
-                    {"action": "Run full analysis", "description": "Perform comprehensive compliance analysis"},
-                    {"action": "Generate report", "description": "Create compliance summary report"},
-                ])
+                suggestions.extend(
+                    [
+                        "Review Medicare documentation requirements for this document type",
+                        "Ensure all required elements are present and clearly documented",
+                        "Check for consistency with previous documentation",
+                    ]
+                )
+                tips.extend(
+                    [
+                        "Focus on medical necessity justification",
+                        "Verify all dates and signatures are present",
+                        "Confirm treatment goals are specific and measurable",
+                    ]
+                )
+                quick_actions.extend(
+                    [
+                        {"action": "Run full analysis", "description": "Perform comprehensive compliance analysis"},
+                        {"action": "Generate report", "description": "Create compliance summary report"},
+                    ]
+                )
 
             # Document type specific suggestions
             if document_type == "progress_note":
-                best_practices.extend([
-                    "Document patient's current functional status",
-                    "Describe specific interventions provided",
-                    "Note patient's response to treatment",
-                    "Update goals based on progress",
-                ])
+                best_practices.extend(
+                    [
+                        "Document patient's current functional status",
+                        "Describe specific interventions provided",
+                        "Note patient's response to treatment",
+                        "Update goals based on progress",
+                    ]
+                )
             elif document_type == "evaluation":
-                best_practices.extend([
-                    "Include comprehensive assessment findings",
-                    "Establish clear, measurable goals",
-                    "Justify medical necessity for treatment",
-                    "Document patient's prior level of function",
-                ])
+                best_practices.extend(
+                    [
+                        "Include comprehensive assessment findings",
+                        "Establish clear, measurable goals",
+                        "Justify medical necessity for treatment",
+                        "Document patient's prior level of function",
+                    ]
+                )
 
             return {
                 "suggestions": suggestions,
@@ -307,7 +324,14 @@ class EnterpriseCopilotService:
             "documentation_templates": {
                 "progress_note": {
                     "sections": ["Subjective", "Objective", "Assessment", "Plan"],
-                    "required_elements": ["Date", "Signature", "Treatment provided", "Patient response", "Functional changes", "Plan modifications"],
+                    "required_elements": [
+                        "Date",
+                        "Signature",
+                        "Treatment provided",
+                        "Patient response",
+                        "Functional changes",
+                        "Plan modifications",
+                    ],
                     "examples": {
                         "subjective": "Patient reports decreased pain from 7/10 to 4/10 since last visit. States improved ability to climb stairs.",
                         "objective": "ROM: Knee flexion 0-110° (improved from 0-95°). Strength: Quad 4/5, Hamstring 4/5. Gait: Independent with straight cane on level surfaces.",
@@ -317,7 +341,13 @@ class EnterpriseCopilotService:
                 },
                 "evaluation": {
                     "sections": ["History", "Assessment", "Goals", "Plan"],
-                    "required_elements": ["Diagnosis", "Functional limitations", "Treatment goals", "Frequency/Duration", "Prognosis"],
+                    "required_elements": [
+                        "Diagnosis",
+                        "Functional limitations",
+                        "Treatment goals",
+                        "Frequency/Duration",
+                        "Prognosis",
+                    ],
                     "examples": {
                         "history": "65-year-old female s/p right total knee replacement 2 weeks ago. Prior level of function: independent in all ADLs and IADLs.",
                         "assessment": "Significant limitations in knee ROM (0-75°), strength (3/5), and functional mobility. Requires assistance for stairs and prolonged walking.",
@@ -327,7 +357,12 @@ class EnterpriseCopilotService:
                 },
                 "discharge_summary": {
                     "sections": ["Initial Status", "Treatment Summary", "Final Status", "Recommendations"],
-                    "required_elements": ["Goals achieved", "Functional improvements", "Home program", "Follow-up recommendations"],
+                    "required_elements": [
+                        "Goals achieved",
+                        "Functional improvements",
+                        "Home program",
+                        "Follow-up recommendations",
+                    ],
                     "examples": {
                         "treatment_summary": "Patient received 18 PT sessions over 6 weeks focusing on knee ROM, strengthening, and functional mobility.",
                         "outcomes": "Achieved 2/3 goals: ROM improved to 0-115°, strength 4+/5. Stair climbing remains modified technique.",
@@ -377,9 +412,24 @@ class EnterpriseCopilotService:
                 },
             },
             "functional_outcome_measures": {
-                "pt_measures": ["Berg Balance Scale", "Timed Up and Go", "6-Minute Walk Test", "Functional Independence Measure (FIM)", "Lower Extremity Functional Scale"],
-                "ot_measures": ["Canadian Occupational Performance Measure (COPM)", "Assessment of Motor and Process Skills (AMPS)", "Kitchen Task Assessment", "Barthel Index"],
-                "slp_measures": ["Functional Independence Measure (FIM)", "American Speech-Language-Hearing Association Functional Assessment of Communication Skills", "Swallowing Quality of Life Scale"],
+                "pt_measures": [
+                    "Berg Balance Scale",
+                    "Timed Up and Go",
+                    "6-Minute Walk Test",
+                    "Functional Independence Measure (FIM)",
+                    "Lower Extremity Functional Scale",
+                ],
+                "ot_measures": [
+                    "Canadian Occupational Performance Measure (COPM)",
+                    "Assessment of Motor and Process Skills (AMPS)",
+                    "Kitchen Task Assessment",
+                    "Barthel Index",
+                ],
+                "slp_measures": [
+                    "Functional Independence Measure (FIM)",
+                    "American Speech-Language-Hearing Association Functional Assessment of Communication Skills",
+                    "Swallowing Quality of Life Scale",
+                ],
             },
             "icd_10_common_codes": {
                 "pt_codes": {
@@ -439,12 +489,45 @@ class EnterpriseCopilotService:
     def _extract_keywords(self, query: str) -> list[str]:
         """Extract key terms from the query."""
         # Simple keyword extraction (in production, this would use NLP)
-        common_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "how", "what", "when", "where", "why", "is", "are", "was", "were", "do", "does", "did", "can", "could", "should", "would"}
+        common_words = {
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "but",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
+            "of",
+            "with",
+            "by",
+            "how",
+            "what",
+            "when",
+            "where",
+            "why",
+            "is",
+            "are",
+            "was",
+            "were",
+            "do",
+            "does",
+            "did",
+            "can",
+            "could",
+            "should",
+            "would",
+        }
         words = query.lower().split()
         keywords = [word for word in words if word not in common_words and len(word) > 2]
         return keywords[:10]  # Return top 10 keywords
 
-    async def _handle_compliance_question(self, query: str, analysis: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    async def _handle_compliance_question(
+        self, query: str, analysis: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Handle compliance-related questions."""
         # Search knowledge base for relevant compliance information
         relevant_rules = []
@@ -454,7 +537,9 @@ class EnterpriseCopilotService:
                     relevant_rules.append(rule)
 
         if relevant_rules:
-            answer = "Based on current compliance requirements:\n\n" + "\n".join(f"• {rule}" for rule in relevant_rules[:3])
+            answer = "Based on current compliance requirements:\n\n" + "\n".join(
+                f"• {rule}" for rule in relevant_rules[:3]
+            )
             confidence = 0.8
         else:
             answer = "I found some general compliance guidance that may help. For specific requirements, please consult your compliance team or the latest Medicare guidelines."
@@ -474,7 +559,9 @@ class EnterpriseCopilotService:
             ],
         }
 
-    async def _handle_documentation_help(self, query: str, analysis: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    async def _handle_documentation_help(
+        self, query: str, analysis: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Handle documentation assistance requests."""
         # Determine document type from keywords
         doc_type = None
@@ -490,7 +577,9 @@ class EnterpriseCopilotService:
             answer += f"Essential elements: {', '.join(template['required_elements'])}"
             confidence = 0.9
         else:
-            answer = "Here are some general documentation best practices:\n\n" + "\n".join(f"• {practice}" for practice in self.knowledge_base["best_practices"][:3])
+            answer = "Here are some general documentation best practices:\n\n" + "\n".join(
+                f"• {practice}" for practice in self.knowledge_base["best_practices"][:3]
+            )
             confidence = 0.7
 
         return {
@@ -507,7 +596,9 @@ class EnterpriseCopilotService:
             ],
         }
 
-    async def _handle_workflow_assistance(self, query: str, analysis: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    async def _handle_workflow_assistance(
+        self, query: str, analysis: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Handle workflow automation requests."""
         answer = "I can help you automate various workflows including:\n\n"
         answer += "• Compliance checking for documents\n"
@@ -530,7 +621,9 @@ class EnterpriseCopilotService:
             ],
         }
 
-    async def _handle_data_analysis(self, query: str, analysis: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    async def _handle_data_analysis(
+        self, query: str, analysis: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Handle data analysis requests."""
         answer = "I can help analyze your compliance data to identify:\n\n"
         answer += "• Compliance trends over time\n"
@@ -553,7 +646,9 @@ class EnterpriseCopilotService:
             ],
         }
 
-    async def _handle_general_query(self, query: str, analysis: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    async def _handle_general_query(
+        self, query: str, analysis: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Handle general queries that don't fit specific categories."""
         answer = "I'm here to help with healthcare compliance and documentation questions. I can assist with:\n\n"
         answer += "• Compliance requirements and guidelines\n"
@@ -578,5 +673,7 @@ class EnterpriseCopilotService:
         }
 
 
+# Global enterprise copilot service instance
+# Global enterprise copilot service instance
 # Global enterprise copilot service instance
 enterprise_copilot_service = EnterpriseCopilotService()
