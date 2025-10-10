@@ -1,7 +1,4 @@
 """Confidence Calibration Service for AI Model Outputs.
-from sklearn.isotonic import IsotonicRegression
-from sklearn.linear_model import LogisticRegression
-from sklearn.calibration import CalibratedClassifierCV
 
 This module provides advanced confidence calibration techniques to improve
 the accuracy of confidence scores from AI models, making them more reliable
@@ -13,8 +10,42 @@ import pickle
 from pathlib import Path
 
 import numpy as np
+from sklearn.isotonic import IsotonicRegression
+from sklearn.linear_model import LogisticRegression
+from sklearn.calibration import CalibratedClassifierCV
 
 logger = logging.getLogger(__name__)
+
+
+class ConfidenceCalibrator:
+    """Main confidence calibrator class."""
+    
+    def __init__(self):
+        self.calibrator = None
+        self.is_fitted = False
+    
+    def fit(self, scores, labels):
+        """Fit the calibrator."""
+        self.calibrator = LogisticRegression()
+        self.calibrator.fit(scores.reshape(-1, 1), labels)
+        self.is_fitted = True
+        return self
+    
+    def predict_proba(self, scores):
+        """Get calibrated probabilities."""
+        if not self.is_fitted:
+            return scores
+        return self.calibrator.predict_proba(scores.reshape(-1, 1))[:, 1]
+    
+    def save(self, filepath):
+        """Save calibrator to disk."""
+        with open(filepath, 'wb') as f:
+            pickle.dump(self, f)
+    
+    def load(self, filepath):
+        """Load calibrator from disk."""
+        with open(filepath, 'rb') as f:
+            return pickle.load(f)
 
 
 class TemperatureScaling:
@@ -99,7 +130,7 @@ class PlattScaling:
 
     def _select_best_method(
         self, logits_or_scores: np.ndarray, true_labels: np.ndarray, validation_split: float
-    ) -> TemperatureScaling | PlattScaling | IsotonicCalibration:
+    ):  # -> TemperatureScaling | PlattScaling | IsotonicCalibration:
         """Select the best calibration method based on validation performance."""
         # Split data for method selection
         n_samples = len(logits_or_scores)
@@ -208,3 +239,29 @@ class PlattScaling:
     def get_calibration_metrics(self) -> dict[str, dict[str, float]]:
         """Get calibration quality metrics for all methods."""
         return self.calibration_metrics.copy()
+
+class PlattScaling:
+    """Platt scaling calibration method."""
+    def __init__(self):
+        from sklearn.linear_model import LogisticRegression
+        self.platt_model = LogisticRegression()
+    
+    def fit(self, scores, labels):
+        self.platt_model.fit(scores.reshape(-1, 1), labels)
+        return self
+    
+    def predict_proba(self, scores):
+        return self.platt_model.predict_proba(scores.reshape(-1, 1))[:, 1]
+
+class IsotonicCalibration:
+    """Isotonic calibration method."""
+    def __init__(self):
+        from sklearn.isotonic import IsotonicRegression
+        self.isotonic_model = IsotonicRegression(out_of_bounds='clip')
+    
+    def fit(self, scores, labels):
+        self.isotonic_model.fit(scores, labels)
+        return self
+    
+    def predict_proba(self, scores):
+        return self.isotonic_model.predict(scores)

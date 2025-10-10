@@ -114,6 +114,12 @@ cache_service = CacheService()
 
 class MemoryAwareLRUCache:
     """An in-memory cache that tracks TTL and system memory pressure."""
+    
+    def __init__(self, max_memory_mb: int = 512):
+        self.cache = {}
+        self.current_size_bytes = 0
+        self.max_memory_mb = max_memory_mb
+        self.memory_pressure_threshold = 85
 
     def _estimate_size(self, value: Any) -> int:
         try:
@@ -176,7 +182,7 @@ def _hash_key(*parts: str) -> str:
 class EmbeddingCache:
     """Cache for text embeddings keyed by content hash."""
 
-    _cache = MemoryAwareLRUCache(max_memory_mb=384)
+    _cache = MemoryAwareLRUCache()
 
     @classmethod
     def get_embedding(cls, text: str) -> list[float] | None:
@@ -197,7 +203,7 @@ class EmbeddingCache:
 class NERCache:
     """Cache for NER results keyed by text and model name."""
 
-    _cache = MemoryAwareLRUCache(max_memory_mb=256)
+    _cache = MemoryAwareLRUCache()
 
     @classmethod
     def get_ner_results(cls, text: str, model_name: str) -> list[dict[str, Any]] | None:

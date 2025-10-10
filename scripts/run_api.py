@@ -64,7 +64,7 @@ if __name__ == "__main__":
     
     # Check dependencies first
     if not check_dependencies():
-        print("✗ Dependency check failed. Please install requirements.")
+        print("X Dependency check failed. Please install requirements.")
         sys.exit(1)
     
     try:

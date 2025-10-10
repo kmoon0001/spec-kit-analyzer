@@ -1,6 +1,4 @@
 """Clinical Compliance Analyzer API
-from PIL import Image
-import PIL
 
 FastAPI backend for the Therapy Compliance Analyzer desktop application.
 Provides endpoints for document analysis, user management, and compliance reporting.
@@ -9,6 +7,9 @@ Provides endpoints for document analysis, user management, and compliance report
 import asyncio
 import logging
 import sys
+import time
+from PIL import Image
+import PIL
 from collections.abc import Coroutine
 from contextlib import asynccontextmanager
 from typing import Any
@@ -81,6 +82,12 @@ class WebSocketLogHandler(logging.Handler):
 
 class InMemoryTaskPurgeService:
     """A service to purge expired tasks from the in-memory task dictionary."""
+    
+    def __init__(self, tasks=None, retention_period_minutes=60, purge_interval_seconds=300):
+        self.tasks = tasks or {}
+        self.retention_period_minutes = retention_period_minutes
+        self.purge_interval_seconds = purge_interval_seconds
+        self._stop_event = asyncio.Event()
 
     def start(self) -> Coroutine[Any, Any, None]:
         logger.info("Starting in-memory task purge service.")
@@ -89,6 +96,24 @@ class InMemoryTaskPurgeService:
     def stop(self) -> None:
         logger.info("Stopping in-memory task purge service.")
         self._stop_event.set()
+    
+    async def purge_expired_tasks(self):
+        """Purge expired tasks from memory."""
+        while not self._stop_event.is_set():
+            try:
+                # Simple purge logic - remove old tasks
+                current_time = time.time()
+                expired_keys = [
+                    key for key, task in self.tasks.items()
+                    if current_time - task.get('created_at', 0) > (self.retention_period_minutes * 60)
+                ]
+                for key in expired_keys:
+                    self.tasks.pop(key, None)
+                
+                await asyncio.sleep(self.purge_interval_seconds)
+            except Exception as e:
+                logger.error(f"Error in task purge: {e}")
+                await asyncio.sleep(60)  # Wait before retrying
 
 # --- Maintenance Jobs --- #
 # --- Maintenance Jobs --- #
