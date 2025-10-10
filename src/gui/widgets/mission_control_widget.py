@@ -161,7 +161,7 @@ class SettingsEditorWidget(QWidget):
         try:
             # Get system metrics
             memory = psutil.virtual_memory()
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
             cpu_percent = psutil.cpu_percent(interval=1)
 
             # Get process info
@@ -185,10 +185,10 @@ class SettingsEditorWidget(QWidget):
             <div style='background: white; padding: 15px; border-radius: 6px; margin: 10px 0;'>
                 <h4 style='color: #d97706;'>System Resources</h4>
                 <ul>
-                    <li><strong>CPU Usage:</strong> {cpu_percent:.1f}%</li>
-                    <li><strong>System Memory:</strong> {memory.percent:.1f}% ({memory.used // 1024 // 1024:,} MB / {memory.total // 1024 // 1024:,} MB)</li>
-                    <li><strong>App Memory:</strong> {app_memory:.1f} MB</li>
-                    <li><strong>Disk Usage:</strong> {disk.percent:.1f}% ({disk.used // 1024 // 1024 // 1024:.1f} GB / {disk.total // 1024 // 1024 // 1024:.1f} GB)</li>
+                    <li><strong>CPU Usage:</strong> {cpu_percent}%</li>
+                    <li><strong>System Memory:</strong> {memory.percent}% ({memory.used // 1024 // 1024:,} MB / {memory.total // 1024 // 1024:,} MB)</li>
+                    <li><strong>App Memory:</strong> {app_memory} MB</li>
+                    <li><strong>Disk Usage:</strong> {disk.percent}% ({disk.used // 1024 // 1024 // 1024} GB / {disk.total // 1024 // 1024 // 1024} GB)</li>
                 </ul>
             </div>
 
@@ -208,7 +208,7 @@ class SettingsEditorWidget(QWidget):
             <h3 style='color: #1d4ed8;'>System Configuration</h3>
             <div style='background: #fee2e2; padding: 15px; border-radius: 6px; margin: 10px 0; border: 1px solid #dc2626;'>
                 <h4 style='color: #dc2626;'>Error Loading System Info</h4>
-                <p>Could not retrieve system metrics: {str(e)}</p>
+                <p>Could not retrieve system metrics: {e!s}</p>
                 <p>Basic functionality remains available.</p>
             </div>
             """
@@ -395,7 +395,7 @@ class SettingsEditorWidget(QWidget):
                 self._add_form_widget(full_key, value)
 
     def _add_form_widget(self, key: str, value: Any) -> None:
-        label = QLabel(key.split('.')[-1].replace('_', ' ').title())
+        label = QLabel(key.split(".")[-1].replace("_", " ").title())
         widget: QWidget
 
         if isinstance(value, bool):
@@ -436,7 +436,7 @@ class SettingsEditorWidget(QWidget):
                     continue
 
                 # Reconstruct nested dictionary
-                keys = key.split('.')
+                keys = key.split(".")
                 d = new_settings
                 for k in keys[:-1]:
                     d = d.setdefault(k, {})
@@ -585,7 +585,7 @@ class MissionControlWidget(QWidget):
             col += 1
 
         frame.setStyleSheet(
-            "#aiHealthFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }"
+            "#aiHealthFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }",
         )
         return frame
 
@@ -605,7 +605,7 @@ class MissionControlWidget(QWidget):
         layout.addWidget(self.api_status_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         frame.setStyleSheet(
-            "#systemStatusFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }"
+            "#systemStatusFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }",
         )
         return frame
 
@@ -624,7 +624,7 @@ class MissionControlWidget(QWidget):
         layout.addWidget(self.task_monitor)
 
         frame.setStyleSheet(
-            "#taskMonitorFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }"
+            "#taskMonitorFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }",
         )
         return frame
 

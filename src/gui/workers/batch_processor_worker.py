@@ -47,7 +47,7 @@ class BatchProcessorWorker(QObject):
                         files=files,
                         data=self.analysis_data,
                         headers=headers,
-                        timeout=30
+                        timeout=30,
                     )
                     response.raise_for_status()
                     task_id = response.json()["task_id"]
@@ -78,7 +78,7 @@ class BatchProcessorWorker(QObject):
                         pass
                 self.file_completed.emit(filename, f"Error: {error_detail}")
             except Exception as e:
-                self.file_completed.emit(filename, f"Error: {str(e)}")
+                self.file_completed.emit(filename, f"Error: {e!s}")
 
         self.finished.emit()
 

@@ -1,5 +1,4 @@
-"""
-PDF Export Service for Compliance Reports
+"""PDF Export Service for Compliance Reports
 
 This service provides comprehensive PDF export functionality for compliance analysis reports,
 maintaining professional formatting and ensuring all critical information is preserved.
@@ -24,7 +23,7 @@ except ImportError:
     logging.warning("WeasyPrint not available. Using ReportLab fallback for PDF export.")
 except Exception as e:
     WEASYPRINT_AVAILABLE = False
-    logging.warning(f"WeasyPrint not available due to system dependencies: {e}. Using ReportLab fallback.")
+    logging.warning("WeasyPrint not available due to system dependencies: %s. Using ReportLab fallback.", e)
 
 # Check fallback availability
 FALLBACK_AVAILABLE = False
@@ -35,14 +34,13 @@ if not WEASYPRINT_AVAILABLE:
             FALLBACK_AVAILABLE = True
     except ImportError:
         FALLBACK_AVAILABLE = False
-        logging.error("Neither WeasyPrint nor ReportLab available for PDF export.")
+        logging.exception("Neither WeasyPrint nor ReportLab available for PDF export.")
 
 logger = logging.getLogger(__name__)
 
 
 class PDFExportService:
-    """
-    Professional PDF export service for compliance reports.
+    """Professional PDF export service for compliance reports.
 
     This service converts HTML compliance reports to high-quality PDF documents
     suitable for printing, archiving, and professional distribution. It maintains
@@ -61,6 +59,7 @@ class PDFExportService:
         >>> pdf_bytes = await pdf_service.export_report_to_pdf(report_data)
         >>> with open("compliance_report.pdf", "wb") as f:
         ...     f.write(pdf_bytes)
+
     """
 
     def __init__(self):
@@ -85,14 +84,14 @@ class PDFExportService:
 
         # PDF generation settings optimized for medical documents
         self.pdf_settings = {
-            'page_size': 'A4',
-            'margin_top': '1in',
-            'margin_bottom': '1in',
-            'margin_left': '0.75in',
-            'margin_right': '0.75in',
-            'print_background': True,
-            'optimize_images': True,
-            'pdf_version': '1.7',  # Widely compatible version
+            "page_size": "A4",
+            "margin_top": "1in",
+            "margin_bottom": "1in",
+            "margin_left": "0.75in",
+            "margin_right": "0.75in",
+            "print_background": True,
+            "optimize_images": True,
+            "pdf_version": "1.7",  # Widely compatible version
         }
 
     async def export_report_to_pdf(self,
@@ -100,8 +99,7 @@ class PDFExportService:
                                  template_name: str = "compliance_report_pdf",
                                  include_charts: bool = True,
                                  watermark: str | None = None) -> bytes:
-        """
-        Export a compliance report to PDF format.
+        """Export a compliance report to PDF format.
 
         This method converts a structured compliance report into a professional
         PDF document suitable for printing, archiving, and distribution.
@@ -126,6 +124,7 @@ class PDFExportService:
             ...     "metrics": {...}
             ... }
             >>> pdf_bytes = await pdf_service.export_report_to_pdf(report_data)
+
         """
         # Use fallback service if WeasyPrint is not available
         if not WEASYPRINT_AVAILABLE:
@@ -138,12 +137,12 @@ class PDFExportService:
                         report_data=report_data,
                         template_name=template_name,
                         include_charts=include_charts,
-                        watermark=watermark
+                        watermark=watermark,
                     )
-            raise PDFExportError("PDF export requires either WeasyPrint or ReportLab. Please install one of them.")
+            raise PDFExportError("PDF export requires either WeasyPrint or ReportLab. Please install one of them.") from None
 
         try:
-            logger.info(f"Starting PDF export for report: {report_data.get('title', 'Untitled')}")
+            logger.info("Starting PDF export for report: %s", report_data.get('title', 'Untitled'))
 
             # Validate report data
             self._validate_report_data(report_data)
@@ -155,7 +154,7 @@ class PDFExportService:
             html_content = await self.template_engine.render_template(
                 template_name=template_name,
                 data=pdf_data,
-                format_type=ReportFormat.PDF
+                format_type=ReportFormat.PDF,
             )
 
             # Apply PDF-specific CSS styling
@@ -171,22 +170,21 @@ class PDFExportService:
                 stylesheets=[css_doc],
                 font_config=self.font_config,
                 optimize_images=True,
-                pdf_version=self.pdf_settings['pdf_version']
+                pdf_version=self.pdf_settings["pdf_version"],
             )
 
-            logger.info(f"PDF export completed successfully. Size: {len(pdf_bytes)} bytes")
+            logger.info("PDF export completed successfully. Size: %s bytes", len(pdf_bytes))
             return pdf_bytes
 
         except Exception as e:
-            logger.error(f"PDF export failed: {e}")
-            raise PDFExportError(f"Failed to generate PDF report: {str(e)}") from e
+            logger.exception("PDF export failed: %s", e)
+            raise PDFExportError(f"Failed to generate PDF report: {e!s}") from e
 
     async def export_batch_reports_to_pdf(self,
                                         reports: list[dict[str, Any]],
                                         combined: bool = True,
                                         output_dir: Path | None = None) -> dict[str, Any]:
-        """
-        Export multiple reports to PDF format.
+        """Export multiple reports to PDF format.
 
         Args:
             reports: List of report data dictionaries
@@ -195,16 +193,17 @@ class PDFExportService:
 
         Returns:
             Dict containing export results and file information
+
         """
         try:
-            logger.info(f"Starting batch PDF export for {len(reports)} reports")
+            logger.info("Starting batch PDF export for %s reports", len(reports))
 
             if combined:
                 # Combine all reports into a single PDF
                 combined_data = self._combine_reports_data(reports)
                 pdf_bytes = await self.export_report_to_pdf(
                     combined_data,
-                    template_name="batch_compliance_report_pdf"
+                    template_name="batch_compliance_report_pdf",
                 )
 
                 return {
@@ -212,56 +211,55 @@ class PDFExportService:
                     "type": "combined",
                     "pdf_data": pdf_bytes,
                     "report_count": len(reports),
-                    "file_size_bytes": len(pdf_bytes)
+                    "file_size_bytes": len(pdf_bytes),
                 }
-            else:
-                # Generate individual PDFs
-                results = []
-                for i, report_data in enumerate(reports):
-                    try:
-                        pdf_bytes = await self.export_report_to_pdf(report_data)
+            # Generate individual PDFs
+            results = []
+            for i, report_data in enumerate(reports):
+                try:
+                    pdf_bytes = await self.export_report_to_pdf(report_data)
 
-                        # Save to output directory if specified
-                        if output_dir:
-                            filename = f"compliance_report_{i+1:03d}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-                            file_path = output_dir / filename
-                            file_path.write_bytes(pdf_bytes)
+                    # Save to output directory if specified
+                    if output_dir:
+                        filename = f"compliance_report_{i+1:03d}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                        file_path = output_dir / filename
+                        file_path.write_bytes(pdf_bytes)
 
-                            results.append({
-                                "index": i,
-                                "success": True,
-                                "file_path": str(file_path),
-                                "file_size_bytes": len(pdf_bytes)
-                            })
-                        else:
-                            results.append({
-                                "index": i,
-                                "success": True,
-                                "pdf_data": pdf_bytes,
-                                "file_size_bytes": len(pdf_bytes)
-                            })
-
-                    except Exception as e:
-                        logger.error(f"Failed to export report {i}: {e}")
                         results.append({
                             "index": i,
-                            "success": False,
-                            "error": str(e)
+                            "success": True,
+                            "file_path": str(file_path),
+                            "file_size_bytes": len(pdf_bytes),
+                        })
+                    else:
+                        results.append({
+                            "index": i,
+                            "success": True,
+                            "pdf_data": pdf_bytes,
+                            "file_size_bytes": len(pdf_bytes),
                         })
 
-                return {
-                    "success": True,
-                    "type": "individual",
-                    "results": results,
-                    "total_reports": len(reports),
-                    "successful_exports": sum(1 for r in results if r["success"])
-                }
+                except Exception as e:
+                    logger.exception("Failed to export report %s: {e}", i)
+                    results.append({
+                        "index": i,
+                        "success": False,
+                        "error": str(e),
+                    })
+
+            return {
+                "success": True,
+                "type": "individual",
+                "results": results,
+                "total_reports": len(reports),
+                "successful_exports": sum(1 for r in results if r["success"]),
+            }
 
         except Exception as e:
-            logger.error(f"Batch PDF export failed: {e}")
+            logger.exception("Batch PDF export failed: %s", e)
             return {
                 "success": False,
-                "error": str(e)
+                "error": str(e),
             }
 
     def _validate_report_data(self, report_data: dict[str, Any]) -> None:
@@ -285,7 +283,7 @@ class PDFExportService:
             "export_format": "PDF",
             "include_charts": include_charts,
             "watermark": watermark,
-            "page_settings": self.pdf_settings
+            "page_settings": self.pdf_settings,
         })
 
         # Convert charts to static images if included
@@ -310,7 +308,7 @@ class PDFExportService:
                 converted_charts.append(chart_copy)
 
             except Exception as e:
-                logger.warning(f"Failed to convert chart for PDF: {e}")
+                logger.warning("Failed to convert chart for PDF: %s", e)
                 # Include chart data without image as fallback
                 converted_charts.append(chart)
 
@@ -329,7 +327,7 @@ class PDFExportService:
                 grouped_findings.append({
                     "group_index": i // 5 + 1,
                     "findings": group,
-                    "page_break_after": i + 5 < len(findings)
+                    "page_break_after": i + 5 < len(findings),
                 })
 
             data["grouped_findings"] = grouped_findings
@@ -484,7 +482,7 @@ class PDFExportService:
             "report_count": len(reports),
             "reports": reports,
             "combined_metrics": self._calculate_combined_metrics(reports),
-            "findings": []
+            "findings": [],
         }
 
         # Combine all findings
@@ -531,13 +529,13 @@ class PDFExportService:
             "medium_risk_findings": total_medium_risk,
             "low_risk_findings": total_low_risk,
             "average_compliance_score": round(avg_compliance_score, 1),
-            "report_count": len(reports)
+            "report_count": len(reports),
         }
 
 
 class PDFExportError(Exception):
     """Exception raised when PDF export fails."""
-    pass
+
 
 
 # Global PDF export service instance

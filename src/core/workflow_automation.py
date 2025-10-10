@@ -1,5 +1,4 @@
-"""
-Workflow Automation Service
+"""Workflow Automation Service
 
 Provides automated workflow capabilities for repetitive healthcare compliance tasks.
 This service enables users to create, schedule, and manage automated workflows
@@ -19,6 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class WorkflowAutomation:
     """Represents an automated workflow configuration."""
+
     automation_id: str
     workflow_type: str
     parameters: dict[str, Any]
@@ -34,8 +34,7 @@ class WorkflowAutomation:
 
 
 class WorkflowAutomationService:
-    """
-    Service for managing and executing automated workflows.
+    """Service for managing and executing automated workflows.
 
     This service provides comprehensive workflow automation capabilities
     including scheduling, execution monitoring, and error handling.
@@ -54,6 +53,7 @@ class WorkflowAutomationService:
         ...     parameters={"document_types": ["progress_notes"]},
         ...     schedule="0 9 * * 1"  # Every Monday at 9 AM
         ... )
+
     """
 
     def __init__(self):
@@ -63,7 +63,7 @@ class WorkflowAutomationService:
             "compliance_checking": self._execute_compliance_checking,
             "report_generation": self._execute_report_generation,
             "data_synchronization": self._execute_data_synchronization,
-            "reminder_notifications": self._execute_reminder_notifications
+            "reminder_notifications": self._execute_reminder_notifications,
         }
 
         logger.info("Workflow automation service initialized")
@@ -74,8 +74,7 @@ class WorkflowAutomationService:
                               schedule: str | None = None,
                               enabled: bool = True,
                               user_id: int = 0) -> dict[str, Any]:
-        """
-        Create a new workflow automation.
+        """Create a new workflow automation.
 
         Args:
             workflow_type: Type of workflow to automate
@@ -86,13 +85,14 @@ class WorkflowAutomationService:
 
         Returns:
             Dict containing automation creation results
+
         """
         try:
             # Validate workflow type
             if workflow_type not in self.supported_workflows:
                 return {
                     "success": False,
-                    "error": f"Unsupported workflow type: {workflow_type}"
+                    "error": f"Unsupported workflow type: {workflow_type}",
                 }
 
             # Generate automation ID
@@ -111,43 +111,43 @@ class WorkflowAutomationService:
                 schedule=schedule,
                 enabled=enabled,
                 user_id=user_id,
-                next_execution=next_execution
+                next_execution=next_execution,
             )
 
             # Store automation
             self.automations[automation_id] = automation
 
-            logger.info(f"Created workflow automation: {automation_id} ({workflow_type})")
+            logger.info("Created workflow automation: %s ({workflow_type})", automation_id)
 
             return {
                 "success": True,
                 "automation_id": automation_id,
                 "workflow_type": workflow_type,
                 "enabled": enabled,
-                "next_execution": next_execution.isoformat() if next_execution else None
+                "next_execution": next_execution.isoformat() if next_execution else None,
             }
 
         except Exception as e:
-            logger.error(f"Failed to create workflow automation: {e}")
+            logger.exception("Failed to create workflow automation: %s", e)
             return {
                 "success": False,
-                "error": str(e)
+                "error": str(e),
             }
 
     async def execute_workflow(self, automation_id: str) -> dict[str, Any]:
-        """
-        Execute a specific workflow automation.
+        """Execute a specific workflow automation.
 
         Args:
             automation_id: ID of the automation to execute
 
         Returns:
             Dict containing execution results
+
         """
         if automation_id not in self.automations:
             return {
                 "success": False,
-                "error": f"Automation {automation_id} not found"
+                "error": f"Automation {automation_id} not found",
             }
 
         automation = self.automations[automation_id]
@@ -155,11 +155,11 @@ class WorkflowAutomationService:
         if not automation.enabled:
             return {
                 "success": False,
-                "error": f"Automation {automation_id} is disabled"
+                "error": f"Automation {automation_id} is disabled",
             }
 
         try:
-            logger.info(f"Executing workflow automation: {automation_id}")
+            logger.info("Executing workflow automation: %s", automation_id)
 
             # Get the workflow executor
             executor = self.supported_workflows[automation.workflow_type]
@@ -182,35 +182,35 @@ class WorkflowAutomationService:
             if automation.schedule:
                 automation.next_execution = self._calculate_next_execution(automation.schedule)
 
-            logger.info(f"Workflow automation {automation_id} completed in {execution_time:.2f}s")
+            logger.info("Workflow automation %s completed in {execution_time}s", automation_id)
 
             return {
                 "success": True,
                 "automation_id": automation_id,
                 "execution_time_seconds": execution_time,
                 "result": result,
-                "next_execution": automation.next_execution.isoformat() if automation.next_execution else None
+                "next_execution": automation.next_execution.isoformat() if automation.next_execution else None,
             }
 
         except Exception as e:
-            logger.error(f"Workflow automation {automation_id} failed: {e}")
+            logger.exception("Workflow automation %s failed: {e}", automation_id)
             automation.error_count += 1
 
             return {
                 "success": False,
                 "automation_id": automation_id,
-                "error": str(e)
+                "error": str(e),
             }
 
     async def list_user_automations(self, user_id: int) -> list[dict[str, Any]]:
-        """
-        List all automations for a specific user.
+        """List all automations for a specific user.
 
         Args:
             user_id: ID of the user
 
         Returns:
             List of automation information
+
         """
         user_automations = []
 
@@ -227,7 +227,7 @@ class WorkflowAutomationService:
                     "execution_count": automation.execution_count,
                     "success_count": automation.success_count,
                     "error_count": automation.error_count,
-                    "success_rate": (automation.success_count / automation.execution_count * 100) if automation.execution_count > 0 else 0
+                    "success_rate": (automation.success_count / automation.execution_count * 100) if automation.execution_count > 0 else 0,
                 })
 
         return user_automations
@@ -247,13 +247,13 @@ class WorkflowAutomationService:
                 "workflow_type": "compliance_checking",
                 "documents_checked": check_count,
                 "issues_found": check_count // 4,  # 25% have issues
-                "summary": f"Checked {check_count} documents, found {check_count // 4} compliance issues"
+                "summary": f"Checked {check_count} documents, found {check_count // 4} compliance issues",
             }
 
         except Exception as e:
             return {
                 "success": False,
-                "error": str(e)
+                "error": str(e),
             }
 
     async def _execute_report_generation(self, parameters: dict[str, Any], user_id: int) -> dict[str, Any]:
@@ -271,13 +271,13 @@ class WorkflowAutomationService:
                 "report_type": report_type,
                 "time_period": time_period,
                 "report_id": str(uuid.uuid4()),
-                "summary": f"Generated {report_type} report for {time_period}"
+                "summary": f"Generated {report_type} report for {time_period}",
             }
 
         except Exception as e:
             return {
                 "success": False,
-                "error": str(e)
+                "error": str(e),
             }
 
     async def _execute_data_synchronization(self, parameters: dict[str, Any], user_id: int) -> dict[str, Any]:
@@ -297,13 +297,13 @@ class WorkflowAutomationService:
                 "source_system": source_system,
                 "sync_type": sync_type,
                 "records_synced": records_synced,
-                "summary": f"Synchronized {records_synced} records from {source_system}"
+                "summary": f"Synchronized {records_synced} records from {source_system}",
             }
 
         except Exception as e:
             return {
                 "success": False,
-                "error": str(e)
+                "error": str(e),
             }
 
     async def _execute_reminder_notifications(self, parameters: dict[str, Any], user_id: int) -> dict[str, Any]:
@@ -320,18 +320,17 @@ class WorkflowAutomationService:
                 "workflow_type": "reminder_notifications",
                 "reminder_type": reminder_type,
                 "recipients_count": len(recipients),
-                "summary": f"Sent {reminder_type} reminders to {len(recipients)} recipients"
+                "summary": f"Sent {reminder_type} reminders to {len(recipients)} recipients",
             }
 
         except Exception as e:
             return {
                 "success": False,
-                "error": str(e)
+                "error": str(e),
             }
 
     def _calculate_next_execution(self, schedule: str) -> datetime:
-        """
-        Calculate next execution time from cron schedule.
+        """Calculate next execution time from cron schedule.
 
         This is a simplified implementation. In production, you would use
         a proper cron parsing library like croniter.

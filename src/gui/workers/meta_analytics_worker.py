@@ -1,5 +1,4 @@
-"""
-Meta Analytics Worker for background data loading.
+"""Meta Analytics Worker for background data loading.
 
 Handles API calls to fetch organizational analytics data without blocking the UI.
 Follows the established worker patterns for consistency with other GUI workers.
@@ -89,7 +88,7 @@ class MetaAnalyticsWorker(QObject):
             self.error.emit(f"Failed to load analytics: {error_detail}")
         except Exception as e:
             logger.exception("Unexpected error loading meta analytics data")
-            self.error.emit(f"An unexpected error occurred: {str(e)}")
+            self.error.emit(f"An unexpected error occurred: {e!s}")
         finally:
             self.finished.emit()
 
@@ -194,7 +193,7 @@ class MetaAnalyticsWorker(QObject):
         return response.json()
 
     def load_peer_comparison(
-        self, headers: dict[str, str], user_id: int
+        self, headers: dict[str, str], user_id: int,
     ) -> dict[str, Any]:
         """Load peer comparison data for a specific user."""
         self.progress_updated.emit("Loading peer comparison...")

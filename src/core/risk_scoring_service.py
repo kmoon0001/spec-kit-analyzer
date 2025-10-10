@@ -3,8 +3,7 @@ class RiskScoringService:
 
     @staticmethod
     def calculate_compliance_score(findings: list) -> int:
-        """
-        Calculates a compliance score from 1 to 100.
+        """Calculates a compliance score from 1 to 100.
         A higher score means better compliance.
         """
         if not findings:

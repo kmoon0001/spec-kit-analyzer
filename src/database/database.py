@@ -1,5 +1,4 @@
-"""
-Database configuration and session management.
+"""Database configuration and session management.
 
 Provides async database engine, session factory, and utility functions
 for database initialization and connection management with performance optimization.
@@ -49,7 +48,7 @@ POOL_TIMEOUT = settings.database.pool_timeout
 POOL_RECYCLE = settings.database.pool_recycle
 
 logger.info(
-    "Database URL: %s", DATABASE_URL.split("///")[0] + "///<path>"
+    "Database URL: %s", DATABASE_URL.split("///")[0] + "///<path>",
 )  # Log without exposing full path
 logger.info("Connection pool size: %s", POOL_SIZE)
 
@@ -70,7 +69,7 @@ if "sqlite" not in DATABASE_URL:
             "pool_pre_ping": True,
             "pool_recycle": POOL_RECYCLE,
             "pool_timeout": POOL_TIMEOUT,
-        }
+        },
     )
 else:
     # SQLite-specific optimizations
@@ -84,7 +83,7 @@ else:
             },
             # For SQLite, we use a single connection pool
             "pool_pre_ping": True,
-        }
+        },
     )
 
 
@@ -107,8 +106,7 @@ Base = declarative_base()
 
 # --- Database Utilities ---
 async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
-    """
-    FastAPI dependency that provides a transactional database session.
+    """FastAPI dependency that provides a transactional database session.
 
     Features:
     - Automatic transaction management with rollback on errors
@@ -122,8 +120,8 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
             await session.commit()
         except Exception as e:
             # Log the error for debugging (without PHI)
-            logger.error(
-                "Database transaction failed, rolling back: %s", type(e).__name__
+            logger.exception(
+                "Database transaction failed, rolling back: %s", type(e).__name__,
             )
             await session.rollback()
             raise
@@ -133,8 +131,7 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    """
-    Initialize the database by creating all tables and applying optimizations.
+    """Initialize the database by creating all tables and applying optimizations.
 
     This function:
     - Creates all tables defined by SQLAlchemy models
@@ -152,30 +149,29 @@ async def init_db() -> None:
             logger.info("Applying SQLite performance optimizations")
 
             await conn.execute(
-                text("PRAGMA journal_mode=WAL")
+                text("PRAGMA journal_mode=WAL"),
             )  # Write-Ahead Logging for better concurrency
             await conn.execute(
-                text("PRAGMA synchronous=NORMAL")
+                text("PRAGMA synchronous=NORMAL"),
             )  # Balance between safety and performance
             await conn.execute(
-                text("PRAGMA cache_size=10000")
+                text("PRAGMA cache_size=10000"),
             )  # Increase cache size (10MB)
             await conn.execute(
-                text("PRAGMA temp_store=MEMORY")
+                text("PRAGMA temp_store=MEMORY"),
             )  # Store temp tables in memory
             await conn.execute(
-                text("PRAGMA mmap_size=268435456")
+                text("PRAGMA mmap_size=268435456"),
             )  # Use memory mapping (256MB)
             await conn.execute(
-                text("PRAGMA foreign_keys=ON")
+                text("PRAGMA foreign_keys=ON"),
             )  # Enable foreign key constraints
 
     logger.info("Database initialization complete")
 
 
 async def close_db_connections() -> None:
-    """
-    Gracefully dispose of database engine and close all connections.
+    """Gracefully dispose of database engine and close all connections.
 
     This function ensures:
     - All active connections are properly closed
@@ -187,16 +183,16 @@ async def close_db_connections() -> None:
         await engine.dispose()
         logger.info("Database connections closed successfully")
     except Exception as e:
-        logger.error("Error during database shutdown: %s", e)
+        logger.exception("Error during database shutdown: %s", e)
         raise
 
 
 async def get_db_health() -> dict[str, Any]:
-    """
-    Check database health and return status information.
+    """Check database health and return status information.
 
     Returns:
         Dict containing database health metrics and status
+
     """
     try:
         async with AsyncSessionLocal() as session:
@@ -218,13 +214,12 @@ async def get_db_health() -> dict[str, Any]:
             return stats
 
     except Exception as e:
-        logger.error("Database health check failed: %s", e)
+        logger.exception("Database health check failed: %s", e)
         return {"status": "unhealthy", "error": str(e)}
 
 
 async def optimize_database() -> None:
-    """
-    Apply runtime database optimizations.
+    """Apply runtime database optimizations.
 
     This function can be called periodically to maintain optimal performance.
     """
@@ -249,19 +244,19 @@ async def optimize_database() -> None:
             await session.commit()
 
     except Exception as e:
-        logger.error("Database optimization failed: %s", e)
+        logger.exception("Database optimization failed: %s", e)
 
 
 # --- Connection Management Utilities ---
 async def test_connection() -> bool:
-    """
-    Test database connectivity.
+    """Test database connectivity.
 
     Returns:
         True if connection successful, False otherwise
+
     """
     try:
         health = await get_db_health()
         return health["status"] == "healthy"
-    except Exception:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         return False

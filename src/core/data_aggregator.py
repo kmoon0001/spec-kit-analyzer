@@ -1,5 +1,4 @@
-"""
-Data Aggregator for Performance Monitoring
+"""Data Aggregator for Performance Monitoring
 
 This module provides comprehensive metric processing, aggregation, and storage
 with time-series data management and automatic cleanup.
@@ -21,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 class AggregationLevel(Enum):
     """Levels of data aggregation."""
+
     RAW = "raw"              # 5-second intervals
     SHORT_TERM = "short"     # 1-minute averages
     MEDIUM_TERM = "medium"   # 5-minute averages
@@ -30,6 +30,7 @@ class AggregationLevel(Enum):
 @dataclass
 class AggregatedMetric:
     """Aggregated metric data."""
+
     timestamp: datetime
     name: str
     source: str
@@ -57,6 +58,7 @@ class MetricBuffer:
 
         Args:
             metrics: List of metric dictionaries
+
         """
         with self._lock:
             self._buffer.extend(metrics)
@@ -65,13 +67,14 @@ class MetricBuffer:
             if len(self._buffer) > self.max_size:
                 overflow = len(self._buffer) - self.max_size
                 self._buffer = self._buffer[overflow:]
-                logger.warning(f"Metric buffer overflow, dropped {overflow} oldest metrics")
+                logger.warning("Metric buffer overflow, dropped %s oldest metrics", overflow)
 
     def get_and_clear(self) -> list[dict[str, Any]]:
         """Get all buffered metrics and clear the buffer.
 
         Returns:
             List of buffered metrics
+
         """
         with self._lock:
             metrics = self._buffer.copy()
@@ -83,6 +86,7 @@ class MetricBuffer:
 
         Returns:
             Number of metrics in buffer
+
         """
         with self._lock:
             return len(self._buffer)
@@ -160,6 +164,7 @@ class TimeSeriesStorage:
 
         Returns:
             Number of metrics stored
+
         """
         if not metrics:
             return 0
@@ -175,21 +180,21 @@ class TimeSeriesStorage:
                         (timestamp, name, value, unit, type, source, tags, metadata)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
-                        metric.get('timestamp'),
-                        metric.get('name'),
-                        metric.get('value'),
-                        metric.get('unit'),
-                        metric.get('type'),
-                        metric.get('source'),
-                        json.dumps(metric.get('tags', {})),
-                        json.dumps(metric.get('metadata', {}))
+                        metric.get("timestamp"),
+                        metric.get("name"),
+                        metric.get("value"),
+                        metric.get("unit"),
+                        metric.get("type"),
+                        metric.get("source"),
+                        json.dumps(metric.get("tags", {})),
+                        json.dumps(metric.get("metadata", {})),
                     ))
 
                 conn.commit()
                 return len(metrics)
 
             except Exception as e:
-                logger.error(f"Error storing raw metrics: {e}")
+                logger.exception("Error storing raw metrics: %s", e)
                 conn.rollback()
                 return 0
             finally:
@@ -203,6 +208,7 @@ class TimeSeriesStorage:
 
         Returns:
             Number of metrics stored
+
         """
         if not metrics:
             return 0
@@ -230,14 +236,14 @@ class TimeSeriesStorage:
                         metric.sum_value,
                         metric.std_dev,
                         json.dumps(metric.tags),
-                        json.dumps(metric.metadata)
+                        json.dumps(metric.metadata),
                     ))
 
                 conn.commit()
                 return len(metrics)
 
             except Exception as e:
-                logger.error(f"Error storing aggregated metrics: {e}")
+                logger.exception("Error storing aggregated metrics: %s", e)
                 conn.rollback()
                 return 0
             finally:
@@ -256,6 +262,7 @@ class TimeSeriesStorage:
 
         Returns:
             List of raw metrics
+
         """
         with self._lock:
             conn = sqlite3.connect(self.db_path)
@@ -285,20 +292,20 @@ class TimeSeriesStorage:
                 metrics = []
                 for row in rows:
                     metrics.append({
-                        'timestamp': row[0],
-                        'name': row[1],
-                        'value': row[2],
-                        'unit': row[3],
-                        'type': row[4],
-                        'source': row[5],
-                        'tags': json.loads(row[6]) if row[6] else {},
-                        'metadata': json.loads(row[7]) if row[7] else {}
+                        "timestamp": row[0],
+                        "name": row[1],
+                        "value": row[2],
+                        "unit": row[3],
+                        "type": row[4],
+                        "source": row[5],
+                        "tags": json.loads(row[6]) if row[6] else {},
+                        "metadata": json.loads(row[7]) if row[7] else {},
                     })
 
                 return metrics
 
             except Exception as e:
-                logger.error(f"Error querying raw metrics: {e}")
+                logger.exception("Error querying raw metrics: %s", e)
                 return []
             finally:
                 conn.close()
@@ -318,6 +325,7 @@ class TimeSeriesStorage:
 
         Returns:
             List of aggregated metrics
+
         """
         with self._lock:
             conn = sqlite3.connect(self.db_path)
@@ -359,13 +367,13 @@ class TimeSeriesStorage:
                         sum_value=row[8],
                         std_dev=row[9],
                         tags=json.loads(row[10]) if row[10] else {},
-                        metadata=json.loads(row[11]) if row[11] else {}
+                        metadata=json.loads(row[11]) if row[11] else {},
                     ))
 
                 return metrics
 
             except Exception as e:
-                logger.error(f"Error querying aggregated metrics: {e}")
+                logger.exception("Error querying aggregated metrics: %s", e)
                 return []
             finally:
                 conn.close()
@@ -378,6 +386,7 @@ class TimeSeriesStorage:
 
         Returns:
             Tuple of (raw_deleted, aggregated_deleted)
+
         """
         cutoff_time = datetime.now() - timedelta(days=retention_days)
 
@@ -389,14 +398,14 @@ class TimeSeriesStorage:
                 # Delete old raw metrics
                 cursor.execute(
                     "DELETE FROM raw_metrics WHERE timestamp < ?",
-                    (cutoff_time.isoformat(),)
+                    (cutoff_time.isoformat(),),
                 )
                 raw_deleted = cursor.rowcount
 
                 # Delete old aggregated metrics
                 cursor.execute(
                     "DELETE FROM aggregated_metrics WHERE timestamp < ?",
-                    (cutoff_time.isoformat(),)
+                    (cutoff_time.isoformat(),),
                 )
                 aggregated_deleted = cursor.rowcount
 
@@ -408,7 +417,7 @@ class TimeSeriesStorage:
                 return raw_deleted, aggregated_deleted
 
             except Exception as e:
-                logger.error(f"Error cleaning up old data: {e}")
+                logger.exception("Error cleaning up old data: %s", e)
                 conn.rollback()
                 return 0, 0
             finally:
@@ -419,6 +428,7 @@ class TimeSeriesStorage:
 
         Returns:
             Dictionary with storage statistics
+
         """
         with self._lock:
             conn = sqlite3.connect(self.db_path)
@@ -441,15 +451,15 @@ class TimeSeriesStorage:
                 raw_range = cursor.fetchone()
 
                 return {
-                    'raw_metrics_count': raw_count,
-                    'aggregated_metrics_count': agg_count,
-                    'database_size_bytes': db_size,
-                    'oldest_metric': raw_range[0] if raw_range[0] else None,
-                    'newest_metric': raw_range[1] if raw_range[1] else None
+                    "raw_metrics_count": raw_count,
+                    "aggregated_metrics_count": agg_count,
+                    "database_size_bytes": db_size,
+                    "oldest_metric": raw_range[0] if raw_range[0] else None,
+                    "newest_metric": raw_range[1] if raw_range[1] else None,
                 }
 
             except Exception as e:
-                logger.error(f"Error getting storage stats: {e}")
+                logger.exception("Error getting storage stats: %s", e)
                 return {}
             finally:
                 conn.close()
@@ -463,6 +473,7 @@ class DataAggregator:
 
         Args:
             config: Monitoring configuration
+
         """
         self.config = config
 
@@ -479,7 +490,7 @@ class DataAggregator:
         self._last_aggregation = {
             AggregationLevel.SHORT_TERM: datetime.now(),
             AggregationLevel.MEDIUM_TERM: datetime.now(),
-            AggregationLevel.LONG_TERM: datetime.now()
+            AggregationLevel.LONG_TERM: datetime.now(),
         }
 
         # Threading
@@ -503,6 +514,7 @@ class DataAggregator:
 
         Args:
             metrics: List of metric dictionaries to process
+
         """
         if not metrics:
             return
@@ -514,10 +526,10 @@ class DataAggregator:
             with self._lock:
                 self._metrics_processed += len(metrics)
 
-            logger.debug(f"Buffered {len(metrics)} metrics for processing")
+            logger.debug("Buffered %s metrics for processing", len(metrics))
 
         except Exception as e:
-            logger.error(f"Error processing metrics: {e}")
+            logger.exception("Error processing metrics: %s", e)
 
     def _start_background_threads(self) -> None:
         """Start background processing threads."""
@@ -525,7 +537,7 @@ class DataAggregator:
         self._aggregation_thread = threading.Thread(
             target=self._aggregation_loop,
             name="DataAggregator-Aggregation",
-            daemon=True
+            daemon=True,
         )
         self._aggregation_thread.start()
 
@@ -533,7 +545,7 @@ class DataAggregator:
         self._cleanup_thread = threading.Thread(
             target=self._cleanup_loop,
             name="DataAggregator-Cleanup",
-            daemon=True
+            daemon=True,
         )
         self._cleanup_thread.start()
 
@@ -551,7 +563,7 @@ class DataAggregator:
                     with self._lock:
                         self._metrics_stored += stored_count
 
-                    logger.debug(f"Stored {stored_count} raw metrics")
+                    logger.debug("Stored %s raw metrics", stored_count)
 
                 # Perform aggregations
                 self._perform_aggregations()
@@ -560,7 +572,7 @@ class DataAggregator:
                 self._stop_event.wait(5.0)  # Process every 5 seconds
 
             except Exception as e:
-                logger.error(f"Error in aggregation loop: {e}")
+                logger.exception("Error in aggregation loop: %s", e)
                 self._stop_event.wait(1.0)
 
     def _cleanup_loop(self) -> None:
@@ -571,13 +583,13 @@ class DataAggregator:
                 raw_deleted, agg_deleted = self.storage.cleanup_old_data(self.config.retention_days)
 
                 if raw_deleted > 0 or agg_deleted > 0:
-                    logger.info(f"Cleaned up {raw_deleted} raw metrics and {agg_deleted} aggregated metrics")
+                    logger.info("Cleaned up %s raw metrics and {agg_deleted} aggregated metrics", raw_deleted)
 
                 # Sleep for an hour before next cleanup
                 self._stop_event.wait(3600.0)
 
             except Exception as e:
-                logger.error(f"Error in cleanup loop: {e}")
+                logger.exception("Error in cleanup loop: %s", e)
                 self._stop_event.wait(300.0)  # Wait 5 minutes on error
 
     def _perform_aggregations(self) -> None:
@@ -605,6 +617,7 @@ class DataAggregator:
         Args:
             level: Aggregation level
             window: Time window for aggregation
+
         """
         try:
             end_time = datetime.now()
@@ -619,7 +632,7 @@ class DataAggregator:
             # Group metrics by name and source
             grouped_metrics: dict[tuple[str, str], list[dict[str, Any]]] = {}
             for metric in raw_metrics:
-                key = (metric['name'], metric['source'])
+                key = (metric["name"], metric["source"])
                 if key not in grouped_metrics:
                     grouped_metrics[key] = []
                 grouped_metrics[key].append(metric)
@@ -630,7 +643,7 @@ class DataAggregator:
                 if not metric_group:
                     continue
 
-                values = [m['value'] for m in metric_group]
+                values = [m["value"] for m in metric_group]
 
                 # Calculate statistics
                 count = len(values)
@@ -644,8 +657,8 @@ class DataAggregator:
                 all_tags = {}
                 all_metadata = {}
                 for metric in metric_group:
-                    all_tags.update(metric.get('tags', {}))
-                    all_metadata.update(metric.get('metadata', {}))
+                    all_tags.update(metric.get("tags", {}))
+                    all_metadata.update(metric.get("metadata", {}))
 
                 aggregated_metric = AggregatedMetric(
                     timestamp=end_time,
@@ -659,7 +672,7 @@ class DataAggregator:
                     sum_value=sum_value,
                     std_dev=std_dev,
                     tags=all_tags,
-                    metadata=all_metadata
+                    metadata=all_metadata,
                 )
 
                 aggregated_metrics.append(aggregated_metric)
@@ -671,10 +684,10 @@ class DataAggregator:
                 with self._lock:
                     self._aggregations_created += stored_count
 
-                logger.debug(f"Created {stored_count} {level.value} aggregations")
+                logger.debug("Created %s {level.value} aggregations", stored_count)
 
         except Exception as e:
-            logger.error(f"Error creating {level.value} aggregations: {e}")
+            logger.exception("Error creating %s aggregations: {e}", level.value)
 
     def get_metrics(self, start_time: datetime, end_time: datetime,
                    aggregation_level: AggregationLevel = AggregationLevel.RAW,
@@ -691,37 +704,37 @@ class DataAggregator:
 
         Returns:
             List of metrics
+
         """
         try:
             if aggregation_level == AggregationLevel.RAW:
                 return self.storage.query_raw_metrics(start_time, end_time, metric_name, source)
-            else:
-                aggregated = self.storage.query_aggregated_metrics(
-                    start_time, end_time, aggregation_level, metric_name, source
-                )
+            aggregated = self.storage.query_aggregated_metrics(
+                start_time, end_time, aggregation_level, metric_name, source,
+            )
 
-                # Convert to dictionary format
-                result = []
-                for metric in aggregated:
-                    result.append({
-                        'timestamp': metric.timestamp.isoformat(),
-                        'name': metric.name,
-                        'source': metric.source,
-                        'aggregation_level': metric.aggregation_level.value,
-                        'count': metric.count,
-                        'min_value': metric.min_value,
-                        'max_value': metric.max_value,
-                        'avg_value': metric.avg_value,
-                        'sum_value': metric.sum_value,
-                        'std_dev': metric.std_dev,
-                        'tags': metric.tags,
-                        'metadata': metric.metadata
-                    })
+            # Convert to dictionary format
+            result = []
+            for metric in aggregated:
+                result.append({
+                    "timestamp": metric.timestamp.isoformat(),
+                    "name": metric.name,
+                    "source": metric.source,
+                    "aggregation_level": metric.aggregation_level.value,
+                    "count": metric.count,
+                    "min_value": metric.min_value,
+                    "max_value": metric.max_value,
+                    "avg_value": metric.avg_value,
+                    "sum_value": metric.sum_value,
+                    "std_dev": metric.std_dev,
+                    "tags": metric.tags,
+                    "metadata": metric.metadata,
+                })
 
-                return result
+            return result
 
         except Exception as e:
-            logger.error(f"Error getting metrics: {e}")
+            logger.exception("Error getting metrics: %s", e)
             return []
 
     def get_aggregator_stats(self) -> dict[str, Any]:
@@ -729,17 +742,18 @@ class DataAggregator:
 
         Returns:
             Dictionary with aggregator statistics
+
         """
         with self._lock:
             stats = {
-                'metrics_processed': self._metrics_processed,
-                'metrics_stored': self._metrics_stored,
-                'aggregations_created': self._aggregations_created,
-                'buffer_size': self.buffer.size(),
-                'last_aggregations': {
+                "metrics_processed": self._metrics_processed,
+                "metrics_stored": self._metrics_stored,
+                "aggregations_created": self._aggregations_created,
+                "buffer_size": self.buffer.size(),
+                "last_aggregations": {
                     level.value: timestamp.isoformat()
                     for level, timestamp in self._last_aggregation.items()
-                }
+                },
             }
 
         # Add storage stats
@@ -753,6 +767,7 @@ class DataAggregator:
 
         Returns:
             Dictionary with aggregation counts
+
         """
         try:
             results = {}
@@ -775,7 +790,7 @@ class DataAggregator:
             return results
 
         except Exception as e:
-            logger.error(f"Error forcing aggregation: {e}")
+            logger.exception("Error forcing aggregation: %s", e)
             return {}
 
     def update_config(self, config) -> None:
@@ -783,6 +798,7 @@ class DataAggregator:
 
         Args:
             config: New monitoring configuration
+
         """
         self.config = config
         logger.debug("Data aggregator configuration updated")
@@ -803,9 +819,9 @@ class DataAggregator:
             buffered_metrics = self.buffer.get_and_clear()
             if buffered_metrics:
                 self.storage.store_raw_metrics(buffered_metrics)
-                logger.debug(f"Stored {len(buffered_metrics)} final metrics during cleanup")
+                logger.debug("Stored %s final metrics during cleanup", len(buffered_metrics))
 
             logger.debug("Data aggregator cleaned up")
 
         except Exception as e:
-            logger.error(f"Error during aggregator cleanup: {e}")
+            logger.exception("Error during aggregator cleanup: %s", e)

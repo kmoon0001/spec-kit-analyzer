@@ -1,5 +1,4 @@
-"""
-Status Component - AI Model Status Indicators
+"""Status Component - AI Model Status Indicators
 Provides visual feedback on AI model loading and availability.
 """
 
@@ -8,8 +7,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QWidget
 
 
 class StatusComponent(QWidget):
-    """
-    Component for displaying AI model status indicators.
+    """Component for displaying AI model status indicators.
 
     Signals:
         status_clicked: Emitted when a status indicator is clicked
@@ -88,8 +86,8 @@ class StatusComponent(QWidget):
             layout.addWidget(name_label, 1)  # Allow label to stretch
 
             self.status_labels[model_name] = {
-                'indicator': indicator,
-                'label': name_label
+                "indicator": indicator,
+                "label": name_label,
             }
 
     def update_model_status(self, model_name: str, status: bool):
@@ -97,8 +95,8 @@ class StatusComponent(QWidget):
         if model_name in self.status_labels:
             self.models[model_name] = status
 
-            indicator = self.status_labels[model_name]['indicator']
-            label = self.status_labels[model_name]['label']
+            indicator = self.status_labels[model_name]["indicator"]
+            label = self.status_labels[model_name]["label"]
 
             if status:
                 indicator.setStyleSheet("""
@@ -162,8 +160,8 @@ class StatusComponent(QWidget):
         """Set all models as loading with improved styling."""
         for model_name in self.models:
             self.models[model_name] = False
-            indicator = self.status_labels[model_name]['indicator']
-            label = self.status_labels[model_name]['label']
+            indicator = self.status_labels[model_name]["indicator"]
+            label = self.status_labels[model_name]["label"]
 
             indicator.setStyleSheet("""
                 QLabel {
@@ -200,10 +198,10 @@ class StatusComponent(QWidget):
         total_count = len(self.models)
 
         return {
-            'ready_count': ready_count,
-            'total_count': total_count,
-            'all_ready': ready_count == total_count,
-            'percentage': (ready_count / total_count) * 100 if total_count > 0 else 0
+            "ready_count": ready_count,
+            "total_count": total_count,
+            "all_ready": ready_count == total_count,
+            "percentage": (ready_count / total_count) * 100 if total_count > 0 else 0,
         }
 
     def on_status_clicked(self, model_name: str):
@@ -214,23 +212,21 @@ class StatusComponent(QWidget):
         """Get human-readable status text."""
         status = self.get_overall_status()
 
-        if status['all_ready']:
+        if status["all_ready"]:
             return "AI Models: Ready"
-        elif status['ready_count'] == 0:
+        if status["ready_count"] == 0:
             return "AI Models: Loading..."
-        else:
-            return f"AI Models: {status['ready_count']}/{status['total_count']}"
+        return f"AI Models: {status['ready_count']}/{status['total_count']}"
 
     def get_status_color(self) -> str:
         """Get appropriate color for current status."""
         status = self.get_overall_status()
 
-        if status['all_ready']:
+        if status["all_ready"]:
             return "green"
-        elif status['ready_count'] == 0:
+        if status["ready_count"] == 0:
             return "red"
-        else:
-            return "orange"
+        return "orange"
 
     def set_error_message(self, message: str) -> None:
         """Set error message with hover tooltip for full visibility."""

@@ -1,5 +1,4 @@
-"""
-Plugin System Architecture for Therapy Compliance Analyzer
+"""Plugin System Architecture for Therapy Compliance Analyzer
 
 This module provides a comprehensive plugin architecture that allows for extensible
 functionality while maintaining system security and stability. It follows industry
@@ -19,12 +18,12 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class PluginMetadata:
-    """
-    Metadata for a plugin including identification, versioning, and capabilities.
+    """Metadata for a plugin including identification, versioning, and capabilities.
 
     This class contains all the information needed to identify, validate, and
     manage a plugin throughout its lifecycle.
     """
+
     name: str
     version: str
     description: str
@@ -45,6 +44,7 @@ class PluginMetadata:
 @dataclass
 class PluginConfig:
     """Configuration for a plugin instance."""
+
     enabled: bool = True
     settings: dict[str, Any] = field(default_factory=dict)
     priority: int = 100  # Lower numbers = higher priority
@@ -53,8 +53,7 @@ class PluginConfig:
 
 
 class PluginInterface(ABC):
-    """
-    Base interface that all plugins must implement.
+    """Base interface that all plugins must implement.
 
     This abstract base class defines the contract that all plugins must follow,
     ensuring consistent behavior and proper integration with the main system.
@@ -67,69 +66,66 @@ class PluginInterface(ABC):
         ...     def initialize(self, config: PluginConfig) -> bool:
         ...         # Plugin initialization logic
         ...         return True
+
     """
 
     @abstractmethod
     def get_metadata(self) -> PluginMetadata:
-        """
-        Return plugin metadata.
+        """Return plugin metadata.
 
         Returns:
             PluginMetadata: Complete metadata describing the plugin
+
         """
-        pass
 
     @abstractmethod
     def initialize(self, config: PluginConfig) -> bool:
-        """
-        Initialize the plugin with the given configuration.
+        """Initialize the plugin with the given configuration.
 
         Args:
             config: Plugin configuration including settings and preferences
 
         Returns:
             bool: True if initialization was successful, False otherwise
+
         """
-        pass
 
     @abstractmethod
     def shutdown(self) -> bool:
-        """
-        Gracefully shutdown the plugin and clean up resources.
+        """Gracefully shutdown the plugin and clean up resources.
 
         Returns:
             bool: True if shutdown was successful, False otherwise
+
         """
-        pass
 
     def get_extension_points(self) -> dict[str, Callable]:
-        """
-        Return extension points provided by this plugin.
+        """Return extension points provided by this plugin.
 
         Extension points are named functions that other parts of the system
         can call to extend functionality.
 
         Returns:
             Dict[str, Callable]: Mapping of extension point names to functions
+
         """
         return {}
 
     def validate_configuration(self, config: dict[str, Any]) -> bool:
-        """
-        Validate plugin configuration.
+        """Validate plugin configuration.
 
         Args:
             config: Configuration dictionary to validate
 
         Returns:
             bool: True if configuration is valid, False otherwise
+
         """
         return True
 
 
 class ComplianceAnalysisPlugin(PluginInterface):
-    """
-    Specialized plugin interface for compliance analysis extensions.
+    """Specialized plugin interface for compliance analysis extensions.
 
     This interface extends the base plugin interface with methods specific
     to compliance analysis functionality.
@@ -137,8 +133,7 @@ class ComplianceAnalysisPlugin(PluginInterface):
 
     @abstractmethod
     def analyze_document(self, document_content: str, context: dict[str, Any]) -> dict[str, Any]:
-        """
-        Analyze a document for compliance issues.
+        """Analyze a document for compliance issues.
 
         Args:
             document_content: The text content of the document to analyze
@@ -146,8 +141,8 @@ class ComplianceAnalysisPlugin(PluginInterface):
 
         Returns:
             Dict containing analysis results, findings, and recommendations
+
         """
-        pass
 
     def get_supported_document_types(self) -> list[str]:
         """Return list of document types this plugin can analyze."""
@@ -159,14 +154,12 @@ class ComplianceAnalysisPlugin(PluginInterface):
 
 
 class ReportingPlugin(PluginInterface):
-    """
-    Specialized plugin interface for custom reporting functionality.
+    """Specialized plugin interface for custom reporting functionality.
     """
 
     @abstractmethod
     def generate_report(self, data: dict[str, Any], format_type: str) -> str | bytes:
-        """
-        Generate a custom report from analysis data.
+        """Generate a custom report from analysis data.
 
         Args:
             data: Analysis data to include in the report
@@ -174,8 +167,8 @@ class ReportingPlugin(PluginInterface):
 
         Returns:
             Report content as string or bytes depending on format
+
         """
-        pass
 
     def get_supported_formats(self) -> list[str]:
         """Return list of output formats this plugin supports."""
@@ -183,8 +176,7 @@ class ReportingPlugin(PluginInterface):
 
 
 class PluginManager:
-    """
-    Central plugin management system.
+    """Central plugin management system.
 
     This class handles plugin discovery, loading, validation, and lifecycle
     management. It ensures plugins are loaded safely and provides a clean
@@ -203,20 +195,21 @@ class PluginManager:
         >>> plugin_manager.discover_plugins()
         >>> plugin_manager.load_all_plugins()
         >>> results = plugin_manager.call_extension_point("analyze_document", content)
+
     """
 
     def __init__(self, plugin_directories: list[Path] | None = None):
-        """
-        Initialize the plugin manager.
+        """Initialize the plugin manager.
 
         Args:
             plugin_directories: List of directories to search for plugins.
                                Defaults to standard plugin directories.
+
         """
         self.plugin_directories = plugin_directories or [
             Path("plugins"),
             Path("src/plugins"),
-            Path.home() / ".therapy_analyzer" / "plugins"
+            Path.home() / ".therapy_analyzer" / "plugins",
         ]
 
         self.loaded_plugins: dict[str, PluginInterface] = {}
@@ -231,11 +224,11 @@ class PluginManager:
         logger.info("Plugin manager initialized")
 
     def discover_plugins(self) -> list[PluginMetadata]:
-        """
-        Discover available plugins in the configured directories.
+        """Discover available plugins in the configured directories.
 
         Returns:
             List of plugin metadata for discovered plugins
+
         """
         discovered_plugins = []
 
@@ -243,7 +236,7 @@ class PluginManager:
             if not plugin_dir.exists():
                 continue
 
-            logger.info(f"Scanning for plugins in: {plugin_dir}")
+            logger.info("Scanning for plugins in: %s", plugin_dir)
 
             # Look for Python plugin files
             for plugin_file in plugin_dir.glob("*.py"):
@@ -255,10 +248,10 @@ class PluginManager:
                     if metadata:
                         discovered_plugins.append(metadata)
                         self.plugin_metadata[metadata.name] = metadata
-                        logger.info(f"Discovered plugin: {metadata.name} v{metadata.version}")
+                        logger.info("Discovered plugin: %s v{metadata.version}", metadata.name)
 
                 except Exception as e:
-                    logger.warning(f"Failed to discover plugin {plugin_file}: {e}")
+                    logger.warning("Failed to discover plugin %s: {e}", plugin_file)
 
             # Look for plugin packages
             for plugin_package in plugin_dir.iterdir():
@@ -270,17 +263,16 @@ class PluginManager:
                             if metadata:
                                 discovered_plugins.append(metadata)
                                 self.plugin_metadata[metadata.name] = metadata
-                                logger.info(f"Discovered plugin package: {metadata.name} v{metadata.version}")
+                                logger.info("Discovered plugin package: %s v{metadata.version}", metadata.name)
 
                         except Exception as e:
-                            logger.warning(f"Failed to discover plugin package {plugin_package}: {e}")
+                            logger.warning("Failed to discover plugin package %s: {e}", plugin_package)
 
-        logger.info(f"Plugin discovery complete. Found {len(discovered_plugins)} plugins.")
+        logger.info("Plugin discovery complete. Found %s plugins.", len(discovered_plugins))
         return discovered_plugins
 
     def load_plugin(self, plugin_name: str, config: PluginConfig | None = None) -> bool:
-        """
-        Load a specific plugin by name.
+        """Load a specific plugin by name.
 
         Args:
             plugin_name: Name of the plugin to load
@@ -288,13 +280,14 @@ class PluginManager:
 
         Returns:
             bool: True if plugin was loaded successfully, False otherwise
+
         """
         if plugin_name in self.loaded_plugins:
-            logger.warning(f"Plugin {plugin_name} is already loaded")
+            logger.warning("Plugin %s is already loaded", plugin_name)
             return True
 
         if plugin_name not in self.plugin_metadata:
-            logger.error(f"Plugin {plugin_name} not found in discovered plugins")
+            logger.error("Plugin %s not found in discovered plugins", plugin_name)
             return False
 
         try:
@@ -302,7 +295,7 @@ class PluginManager:
 
             # Security validation
             if self.security_enabled and not self._validate_plugin_security(metadata):
-                logger.error(f"Plugin {plugin_name} failed security validation")
+                logger.error("Plugin %s failed security validation", plugin_name)
                 return False
 
             # Load the plugin module
@@ -316,7 +309,7 @@ class PluginManager:
 
             # Initialize the plugin
             if not plugin_instance.initialize(plugin_config):
-                logger.error(f"Plugin {plugin_name} initialization failed")
+                logger.error("Plugin %s initialization failed", plugin_name)
                 return False
 
             # Register the plugin
@@ -329,25 +322,25 @@ class PluginManager:
                     self.extension_points[point_name] = []
                 self.extension_points[point_name].append(handler)
 
-            logger.info(f"Successfully loaded plugin: {plugin_name}")
+            logger.info("Successfully loaded plugin: %s", plugin_name)
             return True
 
         except Exception as e:
-            logger.error(f"Failed to load plugin {plugin_name}: {e}")
+            logger.exception("Failed to load plugin %s: {e}", plugin_name)
             return False
 
     def unload_plugin(self, plugin_name: str) -> bool:
-        """
-        Unload a specific plugin.
+        """Unload a specific plugin.
 
         Args:
             plugin_name: Name of the plugin to unload
 
         Returns:
             bool: True if plugin was unloaded successfully, False otherwise
+
         """
         if plugin_name not in self.loaded_plugins:
-            logger.warning(f"Plugin {plugin_name} is not loaded")
+            logger.warning("Plugin %s is not loaded", plugin_name)
             return True
 
         try:
@@ -355,7 +348,7 @@ class PluginManager:
 
             # Shutdown the plugin
             if not plugin_instance.shutdown():
-                logger.warning(f"Plugin {plugin_name} shutdown returned False")
+                logger.warning("Plugin %s shutdown returned False", plugin_name)
 
             # Unregister extension points
             extension_points = plugin_instance.get_extension_points()
@@ -373,19 +366,19 @@ class PluginManager:
             if plugin_name in self.plugin_configs:
                 del self.plugin_configs[plugin_name]
 
-            logger.info(f"Successfully unloaded plugin: {plugin_name}")
+            logger.info("Successfully unloaded plugin: %s", plugin_name)
             return True
 
         except Exception as e:
-            logger.error(f"Failed to unload plugin {plugin_name}: {e}")
+            logger.exception("Failed to unload plugin %s: {e}", plugin_name)
             return False
 
     def load_all_plugins(self) -> dict[str, bool]:
-        """
-        Load all discovered plugins.
+        """Load all discovered plugins.
 
         Returns:
             Dict mapping plugin names to their load success status
+
         """
         results = {}
 
@@ -393,13 +386,12 @@ class PluginManager:
             results[plugin_name] = self.load_plugin(plugin_name)
 
         successful_loads = sum(1 for success in results.values() if success)
-        logger.info(f"Loaded {successful_loads}/{len(results)} plugins successfully")
+        logger.info("Loaded %s/{len(results)} plugins successfully", successful_loads)
 
         return results
 
     def call_extension_point(self, point_name: str, *args, **kwargs) -> list[Any]:
-        """
-        Call all handlers registered for an extension point.
+        """Call all handlers registered for an extension point.
 
         Args:
             point_name: Name of the extension point to call
@@ -408,9 +400,10 @@ class PluginManager:
 
         Returns:
             List of results from all handlers
+
         """
         if point_name not in self.extension_points:
-            logger.debug(f"No handlers registered for extension point: {point_name}")
+            logger.debug("No handlers registered for extension point: %s", point_name)
             return []
 
         results = []
@@ -421,17 +414,17 @@ class PluginManager:
                 result = handler(*args, **kwargs)
                 results.append(result)
             except Exception as e:
-                logger.error(f"Extension point handler failed: {e}")
+                logger.exception("Extension point handler failed: %s", e)
                 results.append(None)
 
         return results
 
     def get_loaded_plugins(self) -> dict[str, PluginMetadata]:
-        """
-        Get metadata for all currently loaded plugins.
+        """Get metadata for all currently loaded plugins.
 
         Returns:
             Dict mapping plugin names to their metadata
+
         """
         return {
             name: self.plugin_metadata[name]
@@ -440,14 +433,14 @@ class PluginManager:
         }
 
     def get_plugin_status(self, plugin_name: str) -> dict[str, Any]:
-        """
-        Get detailed status information for a plugin.
+        """Get detailed status information for a plugin.
 
         Args:
             plugin_name: Name of the plugin
 
         Returns:
             Dict containing plugin status information
+
         """
         status = {
             "name": plugin_name,
@@ -456,7 +449,7 @@ class PluginManager:
             "enabled": False,
             "metadata": None,
             "config": None,
-            "extension_points": []
+            "extension_points": [],
         }
 
         if plugin_name in self.plugin_metadata:
@@ -476,7 +469,7 @@ class PluginManager:
         """Extract metadata from a plugin file."""
         try:
             # Read the plugin file to look for metadata
-            _ = plugin_file.read_text(encoding='utf-8')  # Reserved for future metadata parsing
+            _ = plugin_file.read_text(encoding="utf-8")  # Reserved for future metadata parsing
 
             # Look for metadata in docstring or special variables
             # This is a simplified implementation - in production, you might use
@@ -492,11 +485,11 @@ class PluginManager:
                 author_email="unknown@example.com",
                 license="MIT",
                 min_system_version="2.0.0",
-                created_at=datetime.now()
+                created_at=datetime.now(),
             )
 
         except Exception as e:
-            logger.error(f"Failed to extract metadata from {plugin_file}: {e}")
+            logger.exception("Failed to extract metadata from %s: {e}", plugin_file)
             return None
 
     def _validate_plugin_security(self, metadata: PluginMetadata) -> bool:
@@ -514,7 +507,7 @@ class PluginManager:
             pass
 
         # For now, allow all plugins in development
-        logger.warning(f"Plugin {metadata.name} not in approved list - allowing for development")
+        logger.warning("Plugin %s not in approved list - allowing for development", metadata.name)
         return True
 
     def _load_plugin_instance(self, metadata: PluginMetadata) -> PluginInterface | None:
@@ -525,11 +518,11 @@ class PluginManager:
 
             # For now, return None to indicate the plugin couldn't be loaded
             # Real implementation would use importlib to load the plugin module
-            logger.warning(f"Plugin loading not fully implemented for {metadata.name}")
+            logger.warning("Plugin loading not fully implemented for %s", metadata.name)
             return None
 
         except Exception as e:
-            logger.error(f"Failed to load plugin instance for {metadata.name}: {e}")
+            logger.exception("Failed to load plugin instance for %s: {e}", metadata.name)
             return None
 
 

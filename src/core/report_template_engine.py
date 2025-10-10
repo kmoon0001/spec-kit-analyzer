@@ -1,5 +1,4 @@
-"""
-Report Template Engine
+"""Report Template Engine
 
 This module handles template loading, rendering, and management for reports.
 Separated from the main engine for better maintainability and testing.
@@ -26,7 +25,7 @@ class TemplateEngine:
     def _load_templates(self) -> None:
         """Load templates from the templates directory"""
         if not self.templates_dir.exists():
-            logger.warning(f"Templates directory not found: {self.templates_dir}")
+            logger.warning("Templates directory not found: %s", self.templates_dir)
             self.templates_dir.mkdir(parents=True, exist_ok=True)
             self._create_default_templates()
             return
@@ -34,17 +33,17 @@ class TemplateEngine:
         try:
             for template_file in self.templates_dir.glob("*.html"):
                 template_id = template_file.stem
-                self.templates[template_id] = template_file.read_text(encoding='utf-8')
+                self.templates[template_id] = template_file.read_text(encoding="utf-8")
 
                 # Load metadata if available
-                metadata_file = template_file.with_suffix('.yaml')
+                metadata_file = template_file.with_suffix(".yaml")
                 if metadata_file.exists():
-                    with open(metadata_file, encoding='utf-8') as f:
+                    with open(metadata_file, encoding="utf-8") as f:
                         self.template_metadata[template_id] = yaml.safe_load(f)
 
-                logger.debug(f"Loaded template: {template_id}")
+                logger.debug("Loaded template: %s", template_id)
         except Exception as e:
-            logger.error(f"Error loading templates: {e}")
+            logger.exception("Error loading templates: %s", e)
             self._create_default_templates()
 
     def _create_default_templates(self) -> None:
@@ -82,7 +81,7 @@ class TemplateEngine:
 
         # Save default template
         default_path = self.templates_dir / "default.html"
-        default_path.write_text(default_template.strip(), encoding='utf-8')
+        default_path.write_text(default_template.strip(), encoding="utf-8")
         self.templates["default"] = default_template.strip()
 
         logger.info("Created default report templates")
@@ -90,7 +89,7 @@ class TemplateEngine:
     def render_template(self, template_id: str, context: dict[str, Any]) -> str:
         """Render a template with the given context"""
         if template_id not in self.templates:
-            logger.warning(f"Template not found: {template_id}, using default")
+            logger.warning("Template not found: %s, using default", template_id)
             template_id = "default"
 
         if template_id not in self.templates:
@@ -107,8 +106,8 @@ class TemplateEngine:
 
             return rendered
         except Exception as e:
-            logger.error(f"Error rendering template {template_id}: {e}")
-            return f"<html><body><h1>Error rendering report</h1><p>{str(e)}</p></body></html>"
+            logger.exception("Error rendering template %s: {e}", template_id)
+            return f"<html><body><h1>Error rendering report</h1><p>{e!s}</p></body></html>"
 
     def get_available_templates(self) -> list[str]:
         """Get list of available template IDs"""
@@ -130,7 +129,7 @@ class TemplateEngine:
         self.templates[template_id] = content
         if metadata:
             self.template_metadata[template_id] = metadata
-        logger.info(f"Added template: {template_id}")
+        logger.info("Added template: %s", template_id)
 
     def remove_template(self, template_id: str) -> bool:
         """Remove a template"""
@@ -138,6 +137,6 @@ class TemplateEngine:
             del self.templates[template_id]
             if template_id in self.template_metadata:
                 del self.template_metadata[template_id]
-            logger.info(f"Removed template: {template_id}")
+            logger.info("Removed template: %s", template_id)
             return True
         return False

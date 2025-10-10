@@ -1,5 +1,4 @@
-"""
-Centralized manager for handling the auto-analysis queue.
+"""Centralized manager for handling the auto-analysis queue.
 
 This module provides a singleton QueueManager that maintains the state of the
 batch analysis queue, including the list of files to be processed, their
@@ -14,6 +13,7 @@ from PySide6.QtCore import QObject, Signal
 
 class QueueManager(QObject):
     """A singleton class to manage the auto-analysis queue."""
+
     _instance: ClassVar[Optional["QueueManager"]] = None
 
     queue: list[dict[str, Any]]

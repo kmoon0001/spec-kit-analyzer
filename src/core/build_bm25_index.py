@@ -8,8 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 def preprocess_text(text):
-    """
-    Simple text preprocessing: lowercase, remove non-alphanumeric characters,
+    """Simple text preprocessing: lowercase, remove non-alphanumeric characters,
     and split into words.
     """
     text = re.sub(r"[^\w\s]", "", text)  # Remove punctuation
@@ -17,13 +16,12 @@ def preprocess_text(text):
 
 
 def create_bm25_index():
-    """
-    Reads the Medicare Benefit Policy Manual, creates a BM25 index,
+    """Reads the Medicare Benefit Policy Manual, creates a BM25 index,
     and saves the index and the text corpus to disk.
     """
     logger.info("Reading Medicare guideline text...")
     with open(
-        "medicare_benefit_policy_manual_chapter_8.txt", encoding="utf-8"
+        "medicare_benefit_policy_manual_chapter_8.txt", encoding="utf-8",
     ) as f:
         text = f.read()
 
@@ -45,11 +43,11 @@ def create_bm25_index():
         # Add the rest of the sections
         corpus.extend([s.strip() for s in sections[1:] if s.strip()])
 
-    logger.info(f"Split text into {len(corpus)} documents.")
+    logger.info("Split text into %s documents.", len(corpus))
 
     if len(corpus) <= 1:
         logger.error(
-            "Error: The document was not split into multiple sections. The index will not be effective."
+            "Error: The document was not split into multiple sections. The index will not be effective.",
         )
         return  # Exit if we still can't split the document
 

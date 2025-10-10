@@ -1,10 +1,10 @@
-"""
-Error handling decorators and utilities for service-level error management.
+"""Error handling decorators and utilities for service-level error management.
 
 This module provides decorators and utilities for consistent error handling
 across different service layers.
 """
 
+import asyncio
 import logging
 from collections.abc import Callable
 from functools import wraps
@@ -31,13 +31,13 @@ class ServiceErrorHandler:
             try:
                 return await func(*args, **kwargs)
             except SQLAlchemyError as e:
-                logger.error("Database error in %s: %s", func.__name__, str(e))
+                logger.exception("Database error in %s: %s", func.__name__, str(e))
                 raise DatabaseError(
                     f"Database operation failed in {func.__name__}",
                     details={"original_error": str(e)},
-                )
+                ) from e
             except Exception as e:
-                logger.error("Unexpected error in %s: %s", func.__name__, str(e))
+                logger.exception("Unexpected error in %s: %s", func.__name__, str(e))
                 raise
 
         @wraps(func)
@@ -45,22 +45,19 @@ class ServiceErrorHandler:
             try:
                 return func(*args, **kwargs)
             except SQLAlchemyError as e:
-                logger.error("Database error in %s: %s", func.__name__, str(e))
+                logger.exception("Database error in %s: %s", func.__name__, str(e))
                 raise DatabaseError(
                     f"Database operation failed in {func.__name__}",
                     details={"original_error": str(e)},
-                )
+                ) from e
             except Exception as e:
-                logger.error("Unexpected error in %s: %s", func.__name__, str(e))
+                logger.exception("Unexpected error in %s: %s", func.__name__, str(e))
                 raise
 
         # Return appropriate wrapper based on whether function is async
-        import asyncio
-
         if asyncio.iscoroutinefunction(func):
             return cast(F, async_wrapper)
-        else:
-            return cast(F, sync_wrapper)
+        return cast(F, sync_wrapper)
 
     @staticmethod
     def handle_ai_model_error(func: F) -> F:
@@ -71,30 +68,27 @@ class ServiceErrorHandler:
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
-                logger.error("AI model error in %s: %s", func.__name__, str(e))
+                logger.exception("AI model error in %s: %s", func.__name__, str(e))
                 raise AIModelError(
                     f"AI model operation failed in {func.__name__}",
                     details={"original_error": str(e)},
-                )
+                ) from e
 
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                logger.error("AI model error in %s: %s", func.__name__, str(e))
+                logger.exception("AI model error in %s: %s", func.__name__, str(e))
                 raise AIModelError(
                     f"AI model operation failed in {func.__name__}",
                     details={"original_error": str(e)},
-                )
+                ) from e
 
         # Return appropriate wrapper based on whether function is async
-        import asyncio
-
         if asyncio.iscoroutinefunction(func):
             return cast(F, async_wrapper)
-        else:
-            return cast(F, sync_wrapper)
+        return cast(F, sync_wrapper)
 
     @staticmethod
     def handle_security_error(func: F) -> F:
@@ -105,37 +99,33 @@ class ServiceErrorHandler:
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
-                logger.error("Security error in %s: %s", func.__name__, str(e))
+                logger.exception("Security error in %s: %s", func.__name__, str(e))
                 raise SecurityError(
                     f"Security operation failed in {func.__name__}",
                     details={"original_error": str(e)},
-                )
+                ) from e
 
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                logger.error("Security error in %s: %s", func.__name__, str(e))
+                logger.exception("Security error in %s: %s", func.__name__, str(e))
                 raise SecurityError(
                     f"Security operation failed in {func.__name__}",
                     details={"original_error": str(e)},
-                )
+                ) from e
 
         # Return appropriate wrapper based on whether function is async
-        import asyncio
-
         if asyncio.iscoroutinefunction(func):
             return cast(F, async_wrapper)
-        else:
-            return cast(F, sync_wrapper)
+        return cast(F, sync_wrapper)
 
 
 def log_and_suppress_error(
-    error_message: str, return_value: Any = None, log_level: int = logging.ERROR
+    error_message: str, return_value: Any = None, log_level: int = logging.ERROR,
 ) -> Callable:
-    """
-    Decorator to log errors and return a default value instead of raising.
+    """Decorator to log errors and return a default value instead of raising.
     Useful for non-critical operations where graceful degradation is preferred.
     """
 
@@ -146,7 +136,7 @@ def log_and_suppress_error(
                 return await func(*args, **kwargs)
             except Exception as e:
                 logger.log(
-                    log_level, "%s in %s: %s", error_message, func.__name__, str(e)
+                    log_level, "%s in %s: %s", error_message, func.__name__, str(e),
                 )
                 return return_value
 
@@ -156,16 +146,13 @@ def log_and_suppress_error(
                 return func(*args, **kwargs)
             except Exception as e:
                 logger.log(
-                    log_level, "%s in %s: %s", error_message, func.__name__, str(e)
+                    log_level, "%s in %s: %s", error_message, func.__name__, str(e),
                 )
                 return return_value
 
         # Return appropriate wrapper based on whether function is async
-        import asyncio
-
         if asyncio.iscoroutinefunction(func):
             return cast(F, async_wrapper)
-        else:
-            return cast(F, sync_wrapper)
+        return cast(F, sync_wrapper)
 
     return decorator

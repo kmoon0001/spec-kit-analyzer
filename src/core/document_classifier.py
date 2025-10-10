@@ -29,7 +29,7 @@ class DocumentClassifier:
                     from src.config import get_settings
 
                     template_path = get_settings().models.doc_classifier_prompt
-                except Exception:
+                except (PermissionError, ImportError, FileNotFoundError, ModuleNotFoundError, OSError):
                     template_path = "src/resources/prompts/doc_classifier_prompt.txt"
             template_name = os.path.basename(template_path) or os.path.basename(template_path.rstrip(os.sep)) or template_path
             self.prompt_manager = PromptManager(template_name=template_name)
@@ -41,14 +41,14 @@ class DocumentClassifier:
         ]
 
     def classify_document(self, document_text: str) -> str:
-        """
-        Classifies the document text into one of the possible types.
+        """Classifies the document text into one of the possible types.
 
         Args:
             document_text: The full text of the document to classify.
 
         Returns:
             A string representing the document type.
+
         """
         if not self.llm_service.is_ready():
             logger.warning("LLM not available, returning 'Unknown' document type.")
@@ -68,13 +68,13 @@ class DocumentClassifier:
 
             # Ensure the classification is one of the valid types
             if classification in self.possible_types:
-                logger.info(f"Document classified as: {classification}")
+                logger.info("Document classified as: %s", classification)
                 return classification
             logger.warning(
-                f"LLM returned an unexpected document type: '{classification}'. Defaulting to 'Unknown'."
+                f"LLM returned an unexpected document type: '{classification}'. Defaulting to 'Unknown'.",
             )
             return "Unknown"
 
         except Exception as e:
-            logger.error(f"Error during document classification: {e}")
+            logger.exception("Error during document classification: %s", e)
             return "Unknown"

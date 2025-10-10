@@ -1,5 +1,4 @@
-"""
-Micro-interactions and Animations - Smooth transitions and visual feedback.
+"""Micro-interactions and Animations - Smooth transitions and visual feedback.
 """
 
 from PySide6.QtCore import (
@@ -388,7 +387,7 @@ class SmartTooltip(QLabel):
                 font-size: 11px;
                 max-width: 250px;
             }
-        """
+        """,
         )
 
         self.setText(self.content)

@@ -1,5 +1,4 @@
-"""
-EHR Connector Service
+"""EHR Connector Service
 Handles connections to various Electronic Health Record systems.
 """
 
@@ -12,8 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class EHRConnector:
-    """
-    EHR system connector supporting multiple EHR platforms.
+    """EHR system connector supporting multiple EHR platforms.
 
     Supports:
     - Epic (FHIR R4)
@@ -37,8 +35,7 @@ class EHRConnector:
                      client_secret: str,
                      scope: str,
                      facility_id: str) -> dict[str, Any]:
-        """
-        Connect to an EHR system.
+        """Connect to an EHR system.
 
         Args:
             system_type: Type of EHR system (epic, cerner, etc.)
@@ -50,16 +47,17 @@ class EHRConnector:
 
         Returns:
             Connection result with success status and details
+
         """
         try:
-            logger.info(f"Attempting to connect to {system_type} EHR system")
+            logger.info("Attempting to connect to %s EHR system", system_type)
 
             # Validate system type
             supported_systems = ["epic", "cerner", "allscripts", "athenahealth", "nethealth", "generic_fhir"]
             if system_type not in supported_systems:
                 return {
                     "success": False,
-                    "error": f"Unsupported EHR system type: {system_type}"
+                    "error": f"Unsupported EHR system type: {system_type}",
                 }
 
             # Store connection configuration
@@ -70,7 +68,7 @@ class EHRConnector:
                 "client_secret": client_secret,
                 "scope": scope,
                 "facility_id": facility_id,
-                "connected_at": datetime.now()
+                "connected_at": datetime.now(),
             }
 
             # Simulate connection process (in production, this would do OAuth flow)
@@ -84,7 +82,7 @@ class EHRConnector:
             # Determine capabilities based on system type
             capabilities = self._get_system_capabilities(system_type)
 
-            logger.info(f"Successfully connected to {system_type} EHR system")
+            logger.info("Successfully connected to %s EHR system", system_type)
 
             return {
                 "success": True,
@@ -93,18 +91,18 @@ class EHRConnector:
                 "system_info": {
                     "system_type": system_type,
                     "facility_id": facility_id,
-                    "fhir_version": "R4" if system_type in ["epic", "cerner", "generic_fhir"] else "Proprietary" if system_type == "nethealth" else "N/A"
-                }
+                    "fhir_version": "R4" if system_type in ["epic", "cerner", "generic_fhir"] else "Proprietary" if system_type == "nethealth" else "N/A",
+                },
             }
 
         except Exception as e:
-            logger.error(f"EHR connection failed: {e}")
+            logger.exception("EHR connection failed: %s", e)
             self.is_connected = False
             self.error_count += 1
 
             return {
                 "success": False,
-                "error": str(e)
+                "error": str(e),
             }
 
     async def get_connection_status(self) -> dict[str, Any]:
@@ -117,7 +115,7 @@ class EHRConnector:
                 "last_sync": None,
                 "health": "disconnected",
                 "capabilities": [],
-                "error_count": 0
+                "error_count": 0,
             }
 
         # Determine health status
@@ -137,7 +135,7 @@ class EHRConnector:
             "health": health,
             "capabilities": self._get_system_capabilities(self.connection_config.get("system_type", "")),
             "error_count": self.error_count,
-            "connection_id": self.connection_id
+            "connection_id": self.connection_id,
         }
 
     async def list_synced_documents(self,
@@ -151,7 +149,7 @@ class EHRConnector:
                 "documents": [],
                 "total_count": 0,
                 "has_more": False,
-                "error": "Not connected to EHR system"
+                "error": "Not connected to EHR system",
             }
 
         try:
@@ -165,7 +163,7 @@ class EHRConnector:
                     "author": f"Dr. Smith {i % 5}",
                     "department": "Physical Therapy" if i % 2 == 0 else "Occupational Therapy",
                     "status": "final",
-                    "compliance_analyzed": i % 4 == 0  # 25% analyzed
+                    "compliance_analyzed": i % 4 == 0,  # 25% analyzed
                 }
                 for i in range(1, 21)  # Sample 20 documents
             ]
@@ -185,17 +183,17 @@ class EHRConnector:
             return {
                 "documents": paginated_docs,
                 "total_count": total_count,
-                "has_more": has_more
+                "has_more": has_more,
             }
 
         except Exception as e:
-            logger.error(f"Failed to list EHR documents: {e}")
+            logger.exception("Failed to list EHR documents: %s", e)
             self.error_count += 1
             return {
                 "documents": [],
                 "total_count": 0,
                 "has_more": False,
-                "error": str(e)
+                "error": str(e),
             }
 
     async def get_document(self, document_id: str) -> dict[str, Any] | None:
@@ -213,11 +211,11 @@ class EHRConnector:
                 "created_date": datetime.now().isoformat(),
                 "author": "Dr. Smith",
                 "department": "Physical Therapy",
-                "status": "final"
+                "status": "final",
             }
 
         except Exception as e:
-            logger.error(f"Failed to get EHR document {document_id}: {e}")
+            logger.exception("Failed to get EHR document %s: {e}", document_id)
             self.error_count += 1
             return None
 
@@ -234,14 +232,14 @@ class EHRConnector:
 
             return {
                 "success": True,
-                "message": "Successfully disconnected from EHR system"
+                "message": "Successfully disconnected from EHR system",
             }
 
         except Exception as e:
-            logger.error(f"Failed to disconnect from EHR system: {e}")
+            logger.exception("Failed to disconnect from EHR system: %s", e)
             return {
                 "success": False,
-                "error": str(e)
+                "error": str(e),
             }
 
     def _get_system_capabilities(self, system_type: str) -> list[str]:
@@ -252,7 +250,7 @@ class EHRConnector:
             "allscripts": ["patient_data", "clinical_notes", "prescriptions", "appointments"],
             "athenahealth": ["patient_data", "clinical_notes", "appointments", "billing"],
             "nethealth": ["patient_data", "clinical_notes", "therapy_notes", "assessments", "care_plans", "outcomes", "scheduling"],
-            "generic_fhir": ["patient_data", "clinical_notes", "observations", "conditions"]
+            "generic_fhir": ["patient_data", "clinical_notes", "observations", "conditions"],
         }
 
         return capabilities_map.get(system_type, ["patient_data", "clinical_notes"])

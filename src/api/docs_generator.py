@@ -1,5 +1,4 @@
-"""
-API Documentation generator - Safe and stable implementation.
+"""API Documentation generator - Safe and stable implementation.
 """
 
 import logging
@@ -28,7 +27,7 @@ def create_enhanced_openapi(app: FastAPI) -> dict[str, Any]:
         openapi_schema["components"] = {}
 
     openapi_schema["components"]["securitySchemes"] = {
-        "BearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
+        "BearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"},
     }
 
     app.openapi_schema = openapi_schema

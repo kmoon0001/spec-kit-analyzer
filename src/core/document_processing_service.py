@@ -5,8 +5,7 @@ logger = logging.getLogger(__name__)
 
 
 class DocumentProcessingService:
-    """
-    A service to handle multi-format document ingestion (PDF, DOCX, images)
+    """A service to handle multi-format document ingestion (PDF, DOCX, images)
     with validation and text extraction.
     """
 
@@ -15,8 +14,7 @@ class DocumentProcessingService:
         self._initialize_dependencies()
 
     def _initialize_dependencies(self):
-        """
-        Lazy load dependencies to avoid circular imports and improve startup time.
+        """Lazy load dependencies to avoid circular imports and improve startup time.
         """
         try:
             import fitz  # type: ignore[import-untyped]
@@ -29,40 +27,36 @@ class DocumentProcessingService:
             self.Document = Document
             self.fitz = fitz
         except ImportError as e:
-            logger.error(f"Error importing dependencies: {e}")
+            logger.exception("Error importing dependencies: %s", e)
             raise
 
     def process_document(self, file_path: str, file_type: str) -> str:
+        """Process a document based on its file type and return the extracted text.
         """
-        Process a document based on its file type and return the extracted text.
-        """
-        logger.info(f"Processing document: {file_path} ({file_type})")
+        logger.info("Processing document: %s ({file_type})", file_path)
 
         if file_type == "pdf":
             return self._process_pdf(file_path)
-        elif file_type == "docx":
+        if file_type == "docx":
             return self._process_docx(file_path)
-        elif file_type in ["png", "jpg", "jpeg"]:
+        if file_type in ["png", "jpg", "jpeg"]:
             return self._process_image(file_path)
-        elif file_type == "txt":
+        if file_type == "txt":
             return self._process_txt(file_path)
-        else:
-            raise ValueError(f"Unsupported file type: {file_type}")
+        raise ValueError(f"Unsupported file type: {file_type}")
 
     def _process_txt(self, file_path: str) -> str:
-        """
-        Extract text from a TXT document.
+        """Extract text from a TXT document.
         """
         try:
             with open(file_path, encoding="utf-8") as f:
                 return f.read()
         except Exception as e:
-            logger.error(f"Error processing TXT file: {e}")
+            logger.exception("Error processing TXT file: %s", e)
             raise
 
     def _process_pdf(self, file_path: str) -> str:
-        """
-        Extract text from a PDF document.
+        """Extract text from a PDF document.
         """
         try:
             doc = self.fitz.open(file_path)
@@ -71,23 +65,21 @@ class DocumentProcessingService:
                 text += page.get_text()
             return text
         except Exception as e:
-            logger.error(f"Error processing PDF file: {e}")
+            logger.exception("Error processing PDF file: %s", e)
             raise
 
     def _process_docx(self, file_path: str) -> str:
-        """
-        Extract text from a DOCX document.
+        """Extract text from a DOCX document.
         """
         try:
             doc = self.Document(file_path)
             return "\n".join([para.text for para in doc.paragraphs])
         except Exception as e:
-            logger.error(f"Error processing DOCX file: {e}")
+            logger.exception("Error processing DOCX file: %s", e)
             raise
 
     def _process_image(self, file_path: str) -> str:
-        """
-        Extract text from an image file using OCR.
+        """Extract text from an image file using OCR.
         """
         try:
             images = self.convert_from_path(file_path)
@@ -96,5 +88,5 @@ class DocumentProcessingService:
                 text += self.pytesseract.image_to_string(image)
             return text
         except Exception as e:
-            logger.error(f"Error processing image file: {e}")
+            logger.exception("Error processing image file: %s", e)
             raise

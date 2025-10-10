@@ -24,7 +24,7 @@ class LibrarySelectionDialog(QDialog):
         layout.addWidget(self.library_list)
         self.populate_library_list()
         button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
         )
         button_box.accepted.connect(self.confirm_selection)
         button_box.rejected.connect(self.reject)
@@ -41,7 +41,7 @@ class LibrarySelectionDialog(QDialog):
                 display_name = os.path.splitext(filename)[0].replace("_", " ").title()
                 item = QListWidgetItem(display_name)
                 item.setData(
-                    Qt.ItemDataRole.UserRole, os.path.join(rubrics_dir, filename)
+                    Qt.ItemDataRole.UserRole, os.path.join(rubrics_dir, filename),
                 )
                 self.library_list.addItem(item)
 
@@ -49,7 +49,7 @@ class LibrarySelectionDialog(QDialog):
         selected_items = self.library_list.selectedItems()
         if not selected_items:
             QMessageBox.warning(
-                self, "Selection Required", "Please select a rubric from the list."
+                self, "Selection Required", "Please select a rubric from the list.",
             )
             return
         item = selected_items[0]

@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PerformanceMetrics:
     """Performance metrics for system optimization."""
+
     avg_response_time_ms: float
     cache_hit_rate: float
     memory_usage_mb: float
@@ -52,11 +53,11 @@ class PerformanceOptimizer:
                 efficiency_score=0.85,
                 bottlenecks=["memory_usage", "cache_misses"],
                 recommendations=["Increase cache size", "Optimize memory usage"],
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             )
 
         except Exception as e:
-            logger.error(f"Performance analysis failed: {e}")
+            logger.exception("Performance analysis failed: %s", e)
             # Return default metrics on error
             return PerformanceMetrics(
                 avg_response_time_ms=200.0,
@@ -66,7 +67,7 @@ class PerformanceOptimizer:
                 efficiency_score=0.5,
                 bottlenecks=["analysis_error"],
                 recommendations=["Check system health"],
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             )
 
     def optimize_performance(self,
@@ -80,17 +81,18 @@ class PerformanceOptimizer:
 
         Returns:
             Dictionary with optimization results and metrics
+
         """
         if self.optimization_in_progress:
-            return {'status': 'already_in_progress', 'message': 'Optimization already running'}
+            return {"status": "already_in_progress", "message": "Optimization already running"}
 
         with self._lock:
             if self.optimization_in_progress:
-                return {'status': 'already_in_progress', 'message': 'Optimization already running'}
+                return {"status": "already_in_progress", "message": "Optimization already running"}
             self.optimization_in_progress = True
 
         start_time = time.time()
-        logger.info(f"Starting performance optimization (aggressive: {aggressive}, "
+        logger.info("Starting performance optimization (aggressive: %s, ", aggressive, 
                    f"target: {target_improvement}% improvement)")
 
         try:
@@ -98,55 +100,55 @@ class PerformanceOptimizer:
             baseline_metrics = self.analyze_performance()
 
             optimization_results: dict[str, Any] = {
-                'status': 'completed',
-                'baseline_metrics': baseline_metrics,
-                'optimizations_applied': [],
-                'errors': [],
-                'aggressive_mode': aggressive,
-                'target_improvement': target_improvement,
-                'start_time': datetime.now()
+                "status": "completed",
+                "baseline_metrics": baseline_metrics,
+                "optimizations_applied": [],
+                "errors": [],
+                "aggressive_mode": aggressive,
+                "target_improvement": target_improvement,
+                "start_time": datetime.now(),
             }
 
             # Simplified optimization phases
             logger.info("Executing cache optimization")
-            optimization_results['optimizations_applied'].append('cache_optimization')
+            optimization_results["optimizations_applied"].append("cache_optimization")
 
             logger.info("Executing memory optimization")
-            optimization_results['optimizations_applied'].append('memory_optimization')
+            optimization_results["optimizations_applied"].append("memory_optimization")
 
             if not aggressive:
                 logger.info("Executing proactive warming")
-                optimization_results['optimizations_applied'].append('proactive_warming')
+                optimization_results["optimizations_applied"].append("proactive_warming")
 
             # Get final metrics
             final_metrics = self.analyze_performance()
-            optimization_results['final_metrics'] = final_metrics
+            optimization_results["final_metrics"] = final_metrics
 
             # Calculate improvement
             improvement = ((final_metrics.efficiency_score - baseline_metrics.efficiency_score)
                           / baseline_metrics.efficiency_score * 100)
-            optimization_results['actual_improvement'] = improvement
-            optimization_results['target_achieved'] = improvement >= target_improvement
+            optimization_results["actual_improvement"] = improvement
+            optimization_results["target_achieved"] = improvement >= target_improvement
 
             # Update history
             self.optimization_history.append(optimization_results)
             self.last_optimization = datetime.now()
 
             execution_time = time.time() - start_time
-            optimization_results['execution_time_seconds'] = execution_time
-            optimization_results['status'] = 'completed'
+            optimization_results["execution_time_seconds"] = execution_time
+            optimization_results["status"] = "completed"
 
-            logger.info(f"Performance optimization completed in {execution_time:.2f}s. "
-                       f"Improvement: {improvement:.1f}%")
+            logger.info("Performance optimization completed in %ss. ", execution_time, 
+                       f"Improvement: {improvement}%")
 
             return optimization_results
 
         except Exception as e:
-            logger.error(f"Performance optimization failed: {e}")
+            logger.exception("Performance optimization failed: %s", e)
             return {
-                'status': 'failed',
-                'error': str(e),
-                'execution_time_seconds': time.time() - start_time
+                "status": "failed",
+                "error": str(e),
+                "execution_time_seconds": time.time() - start_time,
             }
         finally:
             with self._lock:

@@ -1,5 +1,4 @@
-"""
-7 Habits Dashboard Widget for Growth Journey tracking.
+"""7 Habits Dashboard Widget for Growth Journey tracking.
 
 Provides visualization and tracking of habit progression, mastery levels,
 weekly focus, and personalized coaching recommendations.
@@ -76,7 +75,7 @@ class HabitProgressBar(QWidget):
         font = QFont("Segoe UI", 8)
         painter.setFont(font)
         painter.drawText(
-            self.width() - 120, 15, f"{self.percentage:.1f}% - {self.mastery_level}"
+            self.width() - 120, 15, f"{self.percentage}% - {self.mastery_level}",
         )
 
 
@@ -174,7 +173,7 @@ class HabitDetailsWidget(QWidget):
         self.principle_label = QLabel()
         self.principle_label.setFont(QFont("Segoe UI", 12))
         self.principle_label.setStyleSheet(
-            "color: #7f8c8d; font-style: italic; margin-bottom: 15px;"
+            "color: #7f8c8d; font-style: italic; margin-bottom: 15px;",
         )
         layout.addWidget(self.principle_label)
 
@@ -218,20 +217,19 @@ class HabitDetailsWidget(QWidget):
 
         # Clinical examples
         examples_text = "\n".join(
-            [f"• {example}" for example in habit_info["clinical_examples"]]
+            [f"• {example}" for example in habit_info["clinical_examples"]],
         )
         self.examples_text.setPlainText(examples_text)
 
         # Improvement strategies
         strategies_text = "\n".join(
-            [f"• {strategy}" for strategy in habit_info["improvement_strategies"]]
+            [f"• {strategy}" for strategy in habit_info["improvement_strategies"]],
         )
         self.strategies_text.setPlainText(strategies_text)
 
 
 class HabitsDashboardWidget(QWidget):
-    """
-    Main dashboard widget for 7 Habits Growth Journey.
+    """Main dashboard widget for 7 Habits Growth Journey.
 
     Provides comprehensive habit tracking, progression visualization,
     and personalized coaching recommendations.
@@ -263,7 +261,7 @@ class HabitsDashboardWidget(QWidget):
         layout.addWidget(message)
 
         enable_info = QLabel(
-            "Enable it in config.yaml: habits_framework.enabled = true"
+            "Enable it in config.yaml: habits_framework.enabled = true",
         )
         enable_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
         enable_info.setStyleSheet("color: #95a5a6; font-size: 12px;")
@@ -369,7 +367,7 @@ class HabitsDashboardWidget(QWidget):
 
         # Add tab for each habit
         for habit_id in sorted(
-            self.habits_framework.HABITS.keys(), key=lambda x: int(x.split("_")[1])
+            self.habits_framework.HABITS.keys(), key=lambda x: int(x.split("_")[1]),
         ):
             habit = self.habits_framework.get_habit_details(habit_id)
 
@@ -403,13 +401,13 @@ class HabitsDashboardWidget(QWidget):
             )
 
             self.current_metrics = self.habits_framework.get_habit_progression_metrics(
-                sample_findings
+                sample_findings,
             )
             self.update_progress_display()
             self.update_weekly_focus()
 
         except Exception as e:
-            logger.exception(f"Failed to refresh habit data: {e}")
+            logger.exception("Failed to refresh habit data: %s", e)
 
     def update_progress_display(self):
         """Update the habit progress bars."""
@@ -469,4 +467,4 @@ class HabitsDashboardWidget(QWidget):
             habit_number = int(habit_id.split("_")[1])
             self.habit_tabs.setCurrentIndex(habit_number - 1)
         except (ValueError, IndexError):
-            logger.warning(f"Invalid habit_id for focus: {habit_id}")
+            logger.warning("Invalid habit_id for focus: %s", habit_id)

@@ -1,5 +1,4 @@
-"""
-Clinical Compliance Analyzer API
+"""Clinical Compliance Analyzer API
 
 FastAPI backend for the Therapy Compliance Analyzer desktop application.
 Provides endpoints for document analysis, user management, and compliance reporting.
@@ -67,6 +66,7 @@ logger = structlog.get_logger(__name__)
 
 class WebSocketManager:
     """Manages active WebSocket connections."""
+
     def __init__(self):
         self.active_connections: list[WebSocket] = []
 
@@ -85,6 +85,7 @@ log_manager = WebSocketManager()
 
 class WebSocketLogHandler(logging.Handler):
     """A logging handler that broadcasts log records to WebSockets."""
+
     def __init__(self):
         super().__init__()
         self.loop = asyncio.get_event_loop()
@@ -98,6 +99,7 @@ class WebSocketLogHandler(logging.Handler):
 
 class InMemoryTaskPurgeService:
     """A service to purge expired tasks from the in-memory task dictionary."""
+
     def __init__(self, tasks: dict[str, Any], retention_period_minutes: int, purge_interval_seconds: int):
         self.tasks = tasks
         self.retention_period = datetime.timedelta(minutes=retention_period_minutes)
@@ -157,7 +159,7 @@ async def initialize_vector_store():
 
             if valid_embeddings:
                 vector_store.add_vectors(np.array(valid_embeddings), valid_ids)
-            logger.info(f"Successfully populated vector store with {len(valid_embeddings)} embeddings.")
+            logger.info("Successfully populated vector store with %s embeddings.", len(valid_embeddings))
         else:
             logger.info("No existing reports with embeddings found to populate vector store.")
     finally:
@@ -172,7 +174,7 @@ async def lifespan(app: FastAPI):
     if "pytest" not in sys.modules:
         ws_handler = WebSocketLogHandler()
         ws_handler.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         ws_handler.setFormatter(formatter)
         logging.getLogger().addHandler(ws_handler)
 
@@ -269,21 +271,21 @@ async def get_rubrics():
                 "id": "pt_compliance",
                 "name": "PT Compliance Rubric",
                 "discipline": "pt",
-                "description": "Physical Therapy compliance guidelines"
+                "description": "Physical Therapy compliance guidelines",
             },
             {
                 "id": "ot_compliance",
                 "name": "OT Compliance Rubric",
                 "discipline": "ot",
-                "description": "Occupational Therapy compliance guidelines"
+                "description": "Occupational Therapy compliance guidelines",
             },
             {
                 "id": "slp_compliance",
                 "name": "SLP Compliance Rubric",
                 "discipline": "slp",
-                "description": "Speech-Language Pathology compliance guidelines"
-            }
-        ]
+                "description": "Speech-Language Pathology compliance guidelines",
+            },
+        ],
     }
 
 
@@ -295,7 +297,7 @@ async def get_ai_status():
         "models": {
             "llm": "loaded",
             "embeddings": "loaded",
-            "ner": "loaded"
+            "ner": "loaded",
         },
-        "last_updated": "2025-10-07T16:28:15Z"
+        "last_updated": "2025-10-07T16:28:15Z",
     }

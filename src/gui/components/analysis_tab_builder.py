@@ -26,8 +26,7 @@ if TYPE_CHECKING:
 
 
 class AnalysisTabBuilder:
-    """
-    Specialized builder for constructing the Analysis tab and its components.
+    """Specialized builder for constructing the Analysis tab and its components.
 
     This class is responsible for creating the complete Analysis tab interface,
     including document upload areas, rubric selection, compliance settings,
@@ -54,11 +53,11 @@ class AnalysisTabBuilder:
         >>> builder = AnalysisTabBuilder(main_window)
         >>> analysis_tab = builder.create_analysis_tab()
         >>> tab_widget.addTab(analysis_tab, "Analysis")
+
     """
 
     def __init__(self, main_window: MainApplicationWindow) -> None:
-        """
-        Initialize the Analysis tab builder.
+        """Initialize the Analysis tab builder.
 
         Args:
             main_window: The main application window instance that will contain
@@ -67,14 +66,14 @@ class AnalysisTabBuilder:
 
         Raises:
             TypeError: If main_window is not a valid MainApplicationWindow instance.
+
         """
-        if not hasattr(main_window, 'statusBar'):
+        if not hasattr(main_window, "statusBar"):
             raise TypeError("main_window must be a valid MainApplicationWindow instance")
         self.main_window = main_window
 
     def create_analysis_tab(self) -> QWidget:
-        """
-        Create the complete Analysis tab with optimized layout and responsive design.
+        """Create the complete Analysis tab with optimized layout and responsive design.
 
         This method constructs the main analysis interface using a three-column layout
         that adapts to different screen sizes while maintaining usability. The layout
@@ -101,6 +100,7 @@ class AnalysisTabBuilder:
             >>> builder = AnalysisTabBuilder(main_window)
             >>> tab = builder.create_analysis_tab()
             >>> # Tab is ready for use with all functionality enabled
+
         """
         tab = QWidget(self.main_window)
         main_layout = QHBoxLayout(tab)
@@ -244,18 +244,18 @@ class AnalysisTabBuilder:
             ("Lenient", "😊", {
                 "description": "Lenient analysis focusing on major compliance issues only",
                 "details": "• Identifies critical Medicare violations\n• Overlooks minor documentation gaps\n• Faster processing time\n• Suitable for initial reviews",
-                "use_case": "Best for: Quick assessments, high-volume processing"
+                "use_case": "Best for: Quick assessments, high-volume processing",
             }),
             ("Standard", "📋", {
                 "description": "Balanced analysis covering most compliance requirements",
                 "details": "• Comprehensive Medicare compliance checking\n• Identifies moderate to severe issues\n• Standard processing time\n• Recommended for most users",
-                "use_case": "Best for: Regular compliance reviews, quality assurance"
+                "use_case": "Best for: Regular compliance reviews, quality assurance",
             }),
             ("Strict", "🔍", {
                 "description": "Thorough analysis with detailed scrutiny of all elements",
                 "details": "• Exhaustive compliance verification\n• Identifies all potential issues\n• Longer processing time\n• Maximum regulatory protection",
-                "use_case": "Best for: Audit preparation, high-risk documentation"
-            })
+                "use_case": "Best for: Audit preparation, high-risk documentation",
+            }),
         ]
 
         for i, (level, emoji, _info) in enumerate(self.main_window.strictness_levels):
@@ -343,7 +343,7 @@ class AnalysisTabBuilder:
             "Executive Summary", "Detailed Findings",
             "Risk Assessment", "Recommendations",
             "Regulatory Citations", "Action Plan",
-            "AI Transparency", "Improvement Strategies"
+            "AI Transparency", "Improvement Strategies",
         ]
 
         self.main_window.section_checkboxes = {}
@@ -457,7 +457,7 @@ class AnalysisTabBuilder:
             "• Key findings and recommendations\n"
             "• Medicare guideline compliance status\n"
             "• Actionable improvement suggestions\n\n"
-            "Select a rubric and click 'Run Analysis' to begin."
+            "Select a rubric and click 'Run Analysis' to begin.",
         )
         self.main_window.analysis_summary_browser.setStyleSheet(f"""
             QTextBrowser {{
@@ -484,7 +484,7 @@ class AnalysisTabBuilder:
             "• Raw AI model outputs\n"
             "• Processing timestamps and metadata\n"
             "• Full compliance rule matching results\n\n"
-            "Run an analysis to populate this section with detailed technical information."
+            "Run an analysis to populate this section with detailed technical information.",
         )
         self.main_window.detailed_results_browser.setStyleSheet(f"""
             QTextBrowser {{

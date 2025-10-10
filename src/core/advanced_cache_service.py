@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CacheMetrics:
     """Cache performance metrics."""
+
     hits: int = 0
     misses: int = 0
     hit_rate: float = 0.0
@@ -36,6 +37,7 @@ class CacheMetrics:
 @dataclass
 class PrefetchRequest:
     """Request for cache prefetching."""
+
     cache_key: str
     priority: int  # 1-10, higher is more important
     estimated_computation_time: float  # seconds
@@ -51,6 +53,7 @@ class CachePerformanceMonitor:
 
         Args:
             window_size: Number of recent operations to track
+
         """
         self.window_size = window_size
         self.operation_times = deque(maxlen=window_size)
@@ -69,18 +72,18 @@ class CachePerformanceMonitor:
 
             # Update operation times
             self.operation_times.append({
-                'cache_name': cache_name,
-                'operation': operation,
-                'duration_ms': duration_ms,
-                'hit': hit,
-                'timestamp': timestamp
+                "cache_name": cache_name,
+                "operation": operation,
+                "duration_ms": duration_ms,
+                "hit": hit,
+                "timestamp": timestamp,
             })
 
             # Update hit/miss history
             self.hit_miss_history.append({
-                'cache_name': cache_name,
-                'hit': hit,
-                'timestamp': timestamp
+                "cache_name": cache_name,
+                "hit": hit,
+                "timestamp": timestamp,
             })
 
             # Update cache metrics
@@ -108,10 +111,10 @@ class CachePerformanceMonitor:
         """Get comprehensive performance summary."""
         with self._lock:
             summary = {
-                'overall_stats': self._calculate_overall_stats(),
-                'cache_specific_stats': dict(self.cache_metrics),
-                'recent_performance': self._analyze_recent_performance(),
-                'optimization_recommendations': self._generate_recommendations()
+                "overall_stats": self._calculate_overall_stats(),
+                "cache_specific_stats": dict(self.cache_metrics),
+                "recent_performance": self._analyze_recent_performance(),
+                "optimization_recommendations": self._generate_recommendations(),
             }
 
             return summary
@@ -119,54 +122,54 @@ class CachePerformanceMonitor:
     def _calculate_overall_stats(self) -> dict[str, Any]:
         """Calculate overall cache performance statistics."""
         if not self.operation_times:
-            return {'no_data': True}
+            return {"no_data": True}
 
         recent_ops = list(self.operation_times)
-        total_hits = sum(1 for op in recent_ops if op['hit'])
+        total_hits = sum(1 for op in recent_ops if op["hit"])
         total_ops = len(recent_ops)
 
-        avg_duration = sum(op['duration_ms'] for op in recent_ops) / total_ops
+        avg_duration = sum(op["duration_ms"] for op in recent_ops) / total_ops
 
         overall_stats_dict = {
-            'total_operations': total_ops,
-            'overall_hit_rate': total_hits / total_ops if total_ops > 0 else 0.0,
-            'avg_response_time_ms': avg_duration,
-            'operations_per_minute': self._calculate_ops_per_minute(),
+            "total_operations": total_ops,
+            "overall_hit_rate": total_hits / total_ops if total_ops > 0 else 0.0,
+            "avg_response_time_ms": avg_duration,
+            "operations_per_minute": self._calculate_ops_per_minute(),
         }
-        overall_stats_dict['cache_efficiency_score'] = self._calculate_efficiency_score(overall_stats_dict)
+        overall_stats_dict["cache_efficiency_score"] = self._calculate_efficiency_score(overall_stats_dict)
         return overall_stats_dict
 
     def _analyze_recent_performance(self) -> dict[str, Any]:
         """Analyze recent performance trends."""
         if len(self.operation_times) < 10:
-            return {'insufficient_data': True}
+            return {"insufficient_data": True}
 
         recent_ops = list(self.operation_times)[-100:]  # Last 100 operations
         older_ops = list(self.operation_times)[-200:-100] if len(self.operation_times) >= 200 else []
 
-        recent_hit_rate = sum(1 for op in recent_ops if op['hit']) / len(recent_ops)
-        recent_avg_time = sum(op['duration_ms'] for op in recent_ops) / len(recent_ops)
+        recent_hit_rate = sum(1 for op in recent_ops if op["hit"]) / len(recent_ops)
+        recent_avg_time = sum(op["duration_ms"] for op in recent_ops) / len(recent_ops)
 
-        trend_analysis = {'improving': True, 'stable': True}
+        trend_analysis = {"improving": True, "stable": True}
 
         if older_ops:
-            older_hit_rate = sum(1 for op in older_ops if op['hit']) / len(older_ops)
-            older_avg_time = sum(op['duration_ms'] for op in older_ops) / len(older_ops)
+            older_hit_rate = sum(1 for op in older_ops if op["hit"]) / len(older_ops)
+            older_avg_time = sum(op["duration_ms"] for op in older_ops) / len(older_ops)
 
             hit_rate_change = recent_hit_rate - older_hit_rate
             time_change = recent_avg_time - older_avg_time
 
             trend_analysis = {
-                'hit_rate_trend': 'improving' if hit_rate_change > 0.05 else 'declining' if hit_rate_change < -0.05 else 'stable',
-                'response_time_trend': 'improving' if time_change < -5 else 'declining' if time_change > 5 else 'stable',
-                'hit_rate_change': hit_rate_change,
-                'response_time_change_ms': time_change
+                "hit_rate_trend": "improving" if hit_rate_change > 0.05 else "declining" if hit_rate_change < -0.05 else "stable",
+                "response_time_trend": "improving" if time_change < -5 else "declining" if time_change > 5 else "stable",
+                "hit_rate_change": hit_rate_change,
+                "response_time_change_ms": time_change,
             }
 
         return {
-            'recent_hit_rate': recent_hit_rate,
-            'recent_avg_response_time_ms': recent_avg_time,
-            'trend_analysis': trend_analysis
+            "recent_hit_rate": recent_hit_rate,
+            "recent_avg_response_time_ms": recent_avg_time,
+            "trend_analysis": trend_analysis,
         }
 
     def _calculate_ops_per_minute(self) -> float:
@@ -175,18 +178,18 @@ class CachePerformanceMonitor:
             return 0.0
 
         five_minutes_ago = datetime.now() - timedelta(minutes=5)
-        recent_ops = [op for op in self.operation_times if op['timestamp'] > five_minutes_ago]
+        recent_ops = [op for op in self.operation_times if op["timestamp"] > five_minutes_ago]
 
         if not recent_ops:
             return 0.0
 
-        time_span_minutes = (datetime.now() - recent_ops[0]['timestamp']).total_seconds() / 60
+        time_span_minutes = (datetime.now() - recent_ops[0]["timestamp"]).total_seconds() / 60
         return len(recent_ops) / max(time_span_minutes, 1.0)
 
     def _calculate_efficiency_score(self, overall_stats: dict[str, Any]) -> float:
         """Calculate overall cache efficiency score (0-100)."""
 
-        if 'no_data' in overall_stats:
+        if "no_data" in overall_stats:
             return 0.0
 
         recent_ops = list(self.operation_times)
@@ -212,11 +215,11 @@ class CachePerformanceMonitor:
         recommendations = []
 
         overall_stats = self._calculate_overall_stats()
-        if 'no_data' in overall_stats:
-            return ['Insufficient data for recommendations']
+        if "no_data" in overall_stats:
+            return ["Insufficient data for recommendations"]
 
-        hit_rate = overall_stats['overall_hit_rate']
-        avg_time = overall_stats['avg_response_time_ms']
+        hit_rate = overall_stats["overall_hit_rate"]
+        avg_time = overall_stats["avg_response_time_ms"]
 
         if hit_rate < 0.6:
             recommendations.append("Low hit rate detected. Consider increasing cache size or TTL values.")
@@ -246,6 +249,7 @@ class BatchCacheOperations:
 
         Args:
             performance_monitor: Optional performance monitor for tracking
+
         """
         self.performance_monitor = performance_monitor
         self.executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="cache_batch")
@@ -258,6 +262,7 @@ class BatchCacheOperations:
 
         Returns:
             Dictionary mapping text to embedding (or None if not cached)
+
         """
         start_time = time.time()
 
@@ -281,10 +286,10 @@ class BatchCacheOperations:
             hit_rate = hits / len(texts) if texts else 0
 
             self.performance_monitor.record_operation(
-                'embedding_batch', 'batch_get', duration_ms, hit_rate > 0.5
+                "embedding_batch", "batch_get", duration_ms, hit_rate > 0.5,
             )
 
-        logger.debug(f"Batch embedding retrieval: {len(texts)} texts, "
+        logger.debug("Batch embedding retrieval: %s texts, ", len(texts), 
                     f"{sum(1 for e in result_dict.values() if e is not None)} hits")
 
         return result_dict
@@ -297,6 +302,7 @@ class BatchCacheOperations:
         Args:
             embeddings: Dictionary mapping text to embedding
             ttl_hours: Optional TTL for cached embeddings
+
         """
         start_time = time.time()
 
@@ -317,10 +323,10 @@ class BatchCacheOperations:
         if self.performance_monitor:
             duration_ms = (time.time() - start_time) * 1000
             self.performance_monitor.record_operation(
-                'embedding_batch', 'batch_set', duration_ms, True
+                "embedding_batch", "batch_set", duration_ms, True,
             )
 
-        logger.debug(f"Batch embedding storage: {len(embeddings)} embeddings stored")
+        logger.debug("Batch embedding storage: %s embeddings stored", len(embeddings))
 
     async def batch_get_ner_results(self,
                                    texts: list[str],
@@ -333,6 +339,7 @@ class BatchCacheOperations:
 
         Returns:
             Dictionary mapping text to NER results (or None if not cached)
+
         """
         start_time = time.time()
 
@@ -356,10 +363,10 @@ class BatchCacheOperations:
             hit_rate = hits / len(texts) if texts else 0
 
             self.performance_monitor.record_operation(
-                'ner_batch', 'batch_get', duration_ms, hit_rate > 0.5
+                "ner_batch", "batch_get", duration_ms, hit_rate > 0.5,
             )
 
-        logger.debug(f"Batch NER retrieval: {len(texts)} texts, "
+        logger.debug("Batch NER retrieval: %s texts, ", len(texts), 
                     f"{sum(1 for r in result_dict.values() if r is not None)} hits")
 
         return result_dict
@@ -380,6 +387,7 @@ class CacheWarmingService:
         Args:
             performance_monitor: Optional performance monitor
             batch_operations: Optional batch operations service
+
         """
         self.performance_monitor = performance_monitor
         self.batch_operations = batch_operations or BatchCacheOperations(performance_monitor)
@@ -399,20 +407,21 @@ class CacheWarmingService:
             items: Items to warm in cache
             priority: Priority level (1-10, higher is more important)
             compute_func: Optional function to compute values if not provided
+
         """
         with self._lock:
             warming_request = {
-                'cache_type': cache_type,
-                'items': items,
-                'priority': priority,
-                'compute_func': compute_func,
-                'created_at': datetime.now()
+                "cache_type": cache_type,
+                "items": items,
+                "priority": priority,
+                "compute_func": compute_func,
+                "created_at": datetime.now(),
             }
 
             # Insert based on priority (higher priority first)
             inserted = False
             for i, existing_request in enumerate(self.warming_queue):
-                if priority > existing_request['priority']:
+                if priority > existing_request["priority"]:
                     self.warming_queue.insert(i, warming_request)
                     inserted = True
                     break
@@ -420,7 +429,7 @@ class CacheWarmingService:
             if not inserted:
                 self.warming_queue.append(warming_request)
 
-        logger.debug(f"Scheduled {len(items)} items for {cache_type} cache warming (priority: {priority})")
+        logger.debug("Scheduled %s items for {cache_type} cache warming (priority: {priority})", len(items))
 
     async def execute_warming(self, max_items: int = 100) -> dict[str, Any]:
         """Execute cache warming for queued items.
@@ -430,9 +439,10 @@ class CacheWarmingService:
 
         Returns:
             Dictionary with warming results and statistics
+
         """
         if self.warming_in_progress:
-            return {'status': 'already_in_progress'}
+            return {"status": "already_in_progress"}
 
         self.warming_in_progress = True
         start_time = time.time()
@@ -440,11 +450,11 @@ class CacheWarmingService:
         try:
             warmed_items = 0
             warming_results = {
-                'embeddings_warmed': 0,
-                'ner_warmed': 0,
-                'llm_warmed': 0,
-                'documents_warmed': 0,
-                'errors': []
+                "embeddings_warmed": 0,
+                "ner_warmed": 0,
+                "llm_warmed": 0,
+                "documents_warmed": 0,
+                "errors": [],
             }
 
             while self.warming_queue and warmed_items < max_items:
@@ -454,27 +464,27 @@ class CacheWarmingService:
                     request = self.warming_queue.popleft()
 
                 try:
-                    cache_type = request['cache_type']
-                    items = request['items'][:max_items - warmed_items]  # Limit items
+                    cache_type = request["cache_type"]
+                    items = request["items"][:max_items - warmed_items]  # Limit items
 
-                    if cache_type == 'embedding':
-                        await self._warm_embeddings(items, request.get('compute_func'))
-                        warming_results['embeddings_warmed'] += len(items)
-                    elif cache_type == 'ner':
-                        await self._warm_ner_results(items, request.get('compute_func'))
-                        warming_results['ner_warmed'] += len(items)
-                    elif cache_type == 'llm':
-                        await self._warm_llm_responses(items, request.get('compute_func'))
-                        warming_results['llm_warmed'] += len(items)
-                    elif cache_type == 'document':
-                        await self._warm_document_classifications(items, request.get('compute_func'))
-                        warming_results['documents_warmed'] += len(items)
+                    if cache_type == "embedding":
+                        await self._warm_embeddings(items, request.get("compute_func"))
+                        warming_results["embeddings_warmed"] += len(items)
+                    elif cache_type == "ner":
+                        await self._warm_ner_results(items, request.get("compute_func"))
+                        warming_results["ner_warmed"] += len(items)
+                    elif cache_type == "llm":
+                        await self._warm_llm_responses(items, request.get("compute_func"))
+                        warming_results["llm_warmed"] += len(items)
+                    elif cache_type == "document":
+                        await self._warm_document_classifications(items, request.get("compute_func"))
+                        warming_results["documents_warmed"] += len(items)
 
                     warmed_items += len(items)
 
                 except Exception as e:
-                    error_msg = f"Error warming {cache_type} cache: {str(e)}"
-                    warming_results['errors'].append(error_msg)
+                    error_msg = f"Error warming {cache_type} cache: {e!s}"
+                    warming_results["errors"].append(error_msg)
                     logger.warning(error_msg)
 
             duration_ms = (time.time() - start_time) * 1000
@@ -482,17 +492,17 @@ class CacheWarmingService:
             # Record performance metrics
             if self.performance_monitor:
                 self.performance_monitor.record_operation(
-                    'cache_warming', 'execute', duration_ms, warmed_items > 0
+                    "cache_warming", "execute", duration_ms, warmed_items > 0,
                 )
 
             warming_results.update({
-                'status': 'completed',
-                'total_items_warmed': warmed_items,
-                'duration_ms': duration_ms,
-                'remaining_queue_size': len(self.warming_queue)
+                "status": "completed",
+                "total_items_warmed": warmed_items,
+                "duration_ms": duration_ms,
+                "remaining_queue_size": len(self.warming_queue),
             })
 
-            logger.info(f"Cache warming completed: {warmed_items} items warmed in {duration_ms:.1f}ms")
+            logger.info("Cache warming completed: %s items warmed in {duration_ms}ms", warmed_items)
             return warming_results
 
         finally:
@@ -523,10 +533,10 @@ class CacheWarmingService:
             # Store new embeddings
             if new_embeddings:
                 await self.batch_operations.batch_set_embeddings(new_embeddings)
-                logger.debug(f"Warmed {len(new_embeddings)} embeddings")
+                logger.debug("Warmed %s embeddings", len(new_embeddings))
 
         except Exception as e:
-            logger.error(f"Error computing embeddings for warming: {e}")
+            logger.exception("Error computing embeddings for warming: %s", e)
 
     async def _warm_ner_results(self, items: list[dict[str, str]], compute_func: Callable | None) -> None:
         """Warm NER cache for given text/model pairs."""
@@ -537,7 +547,7 @@ class CacheWarmingService:
         # Group by model for batch processing
         model_groups = defaultdict(list)
         for item in items:
-            model_groups[item['model_name']].append(item['text'])
+            model_groups[item["model_name"]].append(item["text"])
 
         for model_name, texts in model_groups.items():
             existing_results = await self.batch_operations.batch_get_ner_results(texts, model_name)
@@ -550,10 +560,10 @@ class CacheWarmingService:
                         if result is not None:
                             NERCache.set_ner_results(text, model_name, result)
 
-                    logger.debug(f"Warmed {len(missing_texts)} NER results for model {model_name}")
+                    logger.debug("Warmed %s NER results for model {model_name}", len(missing_texts))
 
                 except Exception as e:
-                    logger.error(f"Error computing NER results for warming: {e}")
+                    logger.exception("Error computing NER results for warming: %s", e)
 
     async def _warm_llm_responses(self, items: list[dict[str, str]], compute_func: Callable | None) -> None:
         """Warm LLM response cache for given prompt/model pairs."""
@@ -562,8 +572,8 @@ class CacheWarmingService:
             return
 
         for item in items:
-            prompt = item['prompt']
-            model_name = item['model_name']
+            prompt = item["prompt"]
+            model_name = item["model_name"]
 
             existing_response = LLMResponseCache.get_llm_response(prompt, model_name)
             if existing_response is None:
@@ -573,9 +583,9 @@ class CacheWarmingService:
                         LLMResponseCache.set_llm_response(prompt, model_name, response)
 
                 except Exception as e:
-                    logger.error(f"Error computing LLM response for warming: {e}")
+                    logger.exception("Error computing LLM response for warming: %s", e)
 
-        logger.debug(f"Warmed {len(items)} LLM responses")
+        logger.debug("Warmed %s LLM responses", len(items))
 
     async def _warm_document_classifications(self, doc_hashes: list[str], compute_func: Callable | None) -> None:
         """Warm document classification cache for given document hashes."""
@@ -595,26 +605,26 @@ class CacheWarmingService:
                     if classification is not None:
                         DocumentCache.set_document_classification(doc_hash, classification)
 
-                logger.debug(f"Warmed {len(missing_hashes)} document classifications")
+                logger.debug("Warmed %s document classifications", len(missing_hashes))
 
             except Exception as e:
-                logger.error(f"Error computing document classifications for warming: {e}")
+                logger.exception("Error computing document classifications for warming: %s", e)
 
     def get_warming_status(self) -> dict[str, Any]:
         """Get current cache warming status."""
         with self._lock:
             return {
-                'warming_in_progress': self.warming_in_progress,
-                'queue_size': len(self.warming_queue),
-                'queued_items_by_type': self._analyze_queue_contents()
+                "warming_in_progress": self.warming_in_progress,
+                "queue_size": len(self.warming_queue),
+                "queued_items_by_type": self._analyze_queue_contents(),
             }
 
     def _analyze_queue_contents(self) -> dict[str, int]:
         """Analyze contents of warming queue by cache type."""
         type_counts = defaultdict(int)
         for request in self.warming_queue:
-            cache_type = request['cache_type']
-            item_count = len(request['items'])
+            cache_type = request["cache_type"]
+            item_count = len(request["items"])
             type_counts[cache_type] += item_count
 
         return dict(type_counts)
@@ -638,10 +648,10 @@ class AdvancedCacheService:
         warming_status = self.cache_warming.get_warming_status()
 
         return {
-            'cache_stats': base_stats,
-            'performance_metrics': performance_summary,
-            'warming_status': warming_status,
-            'timestamp': datetime.now().isoformat()
+            "cache_stats": base_stats,
+            "performance_metrics": performance_summary,
+            "warming_status": warming_status,
+            "timestamp": datetime.now().isoformat(),
         }
 
     async def optimize_cache_performance(self) -> dict[str, Any]:
@@ -649,29 +659,29 @@ class AdvancedCacheService:
         logger.info("Starting cache performance optimization")
 
         optimization_results = {
-            'warming_executed': False,
-            'cleanup_performed': False,
-            'recommendations_generated': False
+            "warming_executed": False,
+            "cleanup_performed": False,
+            "recommendations_generated": False,
         }
 
         try:
             # Execute cache warming if queue has items
             warming_status = self.cache_warming.get_warming_status()
-            if warming_status['queue_size'] > 0:
+            if warming_status["queue_size"] > 0:
                 warming_results = await self.cache_warming.execute_warming(max_items=50)
-                optimization_results['warming_executed'] = True
-                optimization_results['warming_results'] = warming_results
+                optimization_results["warming_executed"] = True
+                optimization_results["warming_results"] = warming_results
 
             # Generate performance recommendations
             performance_summary = self.performance_monitor.get_performance_summary()
-            optimization_results['recommendations'] = performance_summary.get('optimization_recommendations', [])
-            optimization_results['recommendations_generated'] = True
+            optimization_results["recommendations"] = performance_summary.get("optimization_recommendations", [])
+            optimization_results["recommendations_generated"] = True
 
             logger.info("Cache performance optimization completed")
 
         except Exception as e:
-            logger.error(f"Error during cache optimization: {e}")
-            optimization_results['error'] = str(e)
+            logger.exception("Error during cache optimization: %s", e)
+            optimization_results["error"] = str(e)
 
         return optimization_results
 

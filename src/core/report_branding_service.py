@@ -1,5 +1,4 @@
-"""
-Report Branding Service - Optional logo and branding management
+"""Report Branding Service - Optional logo and branding management
 
 This module provides optional branding features for reports, including logo management.
 When no logo is configured, reports maintain their professional appearance without
@@ -21,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 class LogoPosition(Enum):
     """Logo positioning options"""
+
     TOP_LEFT = "top_left"
     TOP_CENTER = "top_center"
     TOP_RIGHT = "top_right"
@@ -30,6 +30,7 @@ class LogoPosition(Enum):
 
 class LogoSize(Enum):
     """Logo size presets"""
+
     SMALL = "small"      # 100px max dimension
     MEDIUM = "medium"    # 200px max dimension
     LARGE = "large"      # 300px max dimension
@@ -39,6 +40,7 @@ class LogoSize(Enum):
 @dataclass
 class LogoConfiguration:
     """Configuration for logo display"""
+
     enabled: bool = False
     file_path: str | None = None
     position: LogoPosition = LogoPosition.TOP_RIGHT
@@ -64,11 +66,11 @@ class LogoConfiguration:
             "margin_top": self.margin_top,
             "margin_right": self.margin_right,
             "margin_bottom": self.margin_bottom,
-            "margin_left": self.margin_left
+            "margin_left": self.margin_left,
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> 'LogoConfiguration':
+    def from_dict(cls, data: dict[str, Any]) -> "LogoConfiguration":
         """Create from dictionary"""
         return cls(
             enabled=data.get("enabled", False),
@@ -81,13 +83,14 @@ class LogoConfiguration:
             margin_top=data.get("margin_top", 10),
             margin_right=data.get("margin_right", 10),
             margin_bottom=data.get("margin_bottom", 10),
-            margin_left=data.get("margin_left", 10)
+            margin_left=data.get("margin_left", 10),
         )
 
 
 @dataclass
 class BrandingConfiguration:
     """Complete branding configuration"""
+
     organization_name: str | None = None
     logo: LogoConfiguration = field(default_factory=LogoConfiguration)
     primary_color: str = "#2c5aa0"
@@ -105,11 +108,11 @@ class BrandingConfiguration:
             "secondary_color": self.secondary_color,
             "accent_color": self.accent_color,
             "font_family": self.font_family,
-            "custom_css": self.custom_css
+            "custom_css": self.custom_css,
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> 'BrandingConfiguration':
+    def from_dict(cls, data: dict[str, Any]) -> "BrandingConfiguration":
         """Create from dictionary"""
         return cls(
             organization_name=data.get("organization_name"),
@@ -118,21 +121,21 @@ class BrandingConfiguration:
             secondary_color=data.get("secondary_color", "#6c757d"),
             accent_color=data.get("accent_color", "#28a745"),
             font_family=data.get("font_family", "Arial, sans-serif"),
-            custom_css=data.get("custom_css")
+            custom_css=data.get("custom_css"),
         )
 
 
 class LogoProcessor:
     """Processes and optimizes logos for report use"""
 
-    SUPPORTED_FORMATS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg'}
+    SUPPORTED_FORMATS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".svg"}
     MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
     def __init__(self):
         self.size_presets = {
             LogoSize.SMALL: (100, 100),
             LogoSize.MEDIUM: (200, 200),
-            LogoSize.LARGE: (300, 300)
+            LogoSize.LARGE: (300, 300),
         }
 
     def validate_logo_file(self, file_path: str) -> tuple[bool, str | None]:
@@ -153,18 +156,18 @@ class LogoProcessor:
                 return False, f"Logo file too large. Maximum size: {self.MAX_FILE_SIZE // (1024*1024)}MB"
 
             # Try to open as image (except SVG)
-            if path.suffix.lower() != '.svg':
+            if path.suffix.lower() != ".svg":
                 try:
                     with Image.open(path) as img:
                         # Basic image validation
                         img.verify()
                 except Exception as e:
-                    return False, f"Invalid image file: {str(e)}"
+                    return False, f"Invalid image file: {e!s}"
 
             return True, None
 
         except Exception as e:
-            return False, f"Error validating logo file: {str(e)}"
+            return False, f"Error validating logo file: {e!s}"
 
     def process_logo(self, config: LogoConfiguration) -> dict[str, Any] | None:
         """Process logo according to configuration"""
@@ -175,27 +178,26 @@ class LogoProcessor:
             # Validate file
             is_valid, error_msg = self.validate_logo_file(config.file_path)
             if not is_valid:
-                logger.error(f"Logo validation failed: {error_msg}")
+                logger.error("Logo validation failed: %s", error_msg)
                 return None
 
             path = Path(config.file_path)
 
             # Handle SVG files differently
-            if path.suffix.lower() == '.svg':
+            if path.suffix.lower() == ".svg":
                 return self._process_svg_logo(path, config)
-            else:
-                return self._process_raster_logo(path, config)
+            return self._process_raster_logo(path, config)
 
         except Exception as e:
-            logger.error(f"Error processing logo: {e}")
+            logger.exception("Error processing logo: %s", e)
             return None
 
     def _process_raster_logo(self, path: Path, config: LogoConfiguration) -> dict[str, Any]:
         """Process raster image logo (PNG, JPG, etc.)"""
         with Image.open(path) as img:
             # Convert to RGBA for transparency support
-            if img.mode != 'RGBA':
-                img = img.convert('RGBA')
+            if img.mode != "RGBA":
+                img = img.convert("RGBA")
 
             # Determine target size
             if config.size == LogoSize.CUSTOM and config.custom_width and config.custom_height:
@@ -216,38 +218,38 @@ class LogoProcessor:
             # Convert to base64 for embedding
             import io
             buffer = io.BytesIO()
-            img.save(buffer, format='PNG', optimize=True)
+            img.save(buffer, format="PNG", optimize=True)
             img_data = base64.b64encode(buffer.getvalue()).decode()
 
             return {
-                'format': 'png',
-                'data': f"data:image/png;base64,{img_data}",
-                'width': img.width,
-                'height': img.height,
-                'original_path': str(path)
+                "format": "png",
+                "data": f"data:image/png;base64,{img_data}",
+                "width": img.width,
+                "height": img.height,
+                "original_path": str(path),
             }
 
     def _process_svg_logo(self, path: Path, config: LogoConfiguration) -> dict[str, Any]:
         """Process SVG logo"""
-        with open(path, encoding='utf-8') as f:
+        with open(path, encoding="utf-8") as f:
             svg_content = f.read()
 
         # Apply opacity to SVG if needed
         if config.opacity < 1.0:
             # Simple opacity application - wrap in group with opacity
             svg_content = svg_content.replace(
-                '<svg',
-                f'<svg style="opacity: {config.opacity}"'
+                "<svg",
+                f'<svg style="opacity: {config.opacity}"',
             )
 
         # Encode SVG for embedding
         svg_data = base64.b64encode(svg_content.encode()).decode()
 
         return {
-            'format': 'svg',
-            'data': f"data:image/svg+xml;base64,{svg_data}",
-            'content': svg_content,
-            'original_path': str(path)
+            "format": "svg",
+            "data": f"data:image/svg+xml;base64,{svg_data}",
+            "content": svg_content,
+            "original_path": str(path),
         }
 
 
@@ -264,7 +266,7 @@ class ReportBrandingService:
         """Load branding configuration from file"""
         try:
             if self.config_path.exists():
-                with open(self.config_path, encoding='utf-8') as f:
+                with open(self.config_path, encoding="utf-8") as f:
                     config_data = yaml.safe_load(f)
 
                 self.branding_config = BrandingConfiguration.from_dict(config_data)
@@ -274,7 +276,7 @@ class ReportBrandingService:
                 self._save_configuration()
 
         except Exception as e:
-            logger.error(f"Error loading branding configuration: {e}")
+            logger.exception("Error loading branding configuration: %s", e)
             self.branding_config = BrandingConfiguration()
 
     def _save_configuration(self) -> None:
@@ -282,13 +284,13 @@ class ReportBrandingService:
         try:
             self.config_path.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(self.config_path, 'w', encoding='utf-8') as f:
+            with open(self.config_path, "w", encoding="utf-8") as f:
                 yaml.dump(self.branding_config.to_dict(), f, default_flow_style=False)
 
             logger.info("Saved branding configuration")
 
         except Exception as e:
-            logger.error(f"Error saving branding configuration: {e}")
+            logger.exception("Error saving branding configuration: %s", e)
 
     def configure_logo(self, file_path: str, position: LogoPosition = LogoPosition.TOP_RIGHT,
                       size: LogoSize = LogoSize.MEDIUM, **kwargs) -> bool:
@@ -297,7 +299,7 @@ class ReportBrandingService:
             # Validate logo file
             is_valid, error_msg = self.logo_processor.validate_logo_file(file_path)
             if not is_valid:
-                logger.error(f"Logo configuration failed: {error_msg}")
+                logger.error("Logo configuration failed: %s", error_msg)
                 return False
 
             # Update logo configuration
@@ -306,21 +308,21 @@ class ReportBrandingService:
                 file_path=file_path,
                 position=position,
                 size=size,
-                custom_width=kwargs.get('custom_width'),
-                custom_height=kwargs.get('custom_height'),
-                opacity=kwargs.get('opacity', 1.0),
-                margin_top=kwargs.get('margin_top', 10),
-                margin_right=kwargs.get('margin_right', 10),
-                margin_bottom=kwargs.get('margin_bottom', 10),
-                margin_left=kwargs.get('margin_left', 10)
+                custom_width=kwargs.get("custom_width"),
+                custom_height=kwargs.get("custom_height"),
+                opacity=kwargs.get("opacity", 1.0),
+                margin_top=kwargs.get("margin_top", 10),
+                margin_right=kwargs.get("margin_right", 10),
+                margin_bottom=kwargs.get("margin_bottom", 10),
+                margin_left=kwargs.get("margin_left", 10),
             )
 
             self._save_configuration()
-            logger.info(f"Logo configured: {file_path}")
+            logger.info("Logo configured: %s", file_path)
             return True
 
         except Exception as e:
-            logger.error(f"Error configuring logo: {e}")
+            logger.exception("Error configuring logo: %s", e)
             return False
 
     def disable_logo(self) -> None:
@@ -483,8 +485,8 @@ class ReportBrandingService:
                 "font_family": self.branding_config.font_family,
                 "has_logo": self.branding_config.logo.enabled,
                 "logo_data": self.get_logo_data() if self.branding_config.logo.enabled else None,
-                "custom_css": self.generate_report_css()
-            }
+                "custom_css": self.generate_report_css(),
+            },
         }
 
         return context

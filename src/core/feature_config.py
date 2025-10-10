@@ -1,5 +1,4 @@
-"""
-Feature Configuration Service - Manages optional features and their settings.
+"""Feature Configuration Service - Manages optional features and their settings.
 Allows safe enabling/disabling of enhanced features without affecting core functionality.
 """
 
@@ -12,8 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class FeatureConfig:
-    """
-    Manages configuration for optional features in the application.
+    """Manages configuration for optional features in the application.
     Provides safe defaults and graceful fallbacks.
     """
 
@@ -91,13 +89,13 @@ class FeatureConfig:
                 # Merge user config with defaults
                 self._merge_config(self.features, user_config)
                 logger.info(
-                    f"Loaded user feature configuration from {self.config_file}"
+                    f"Loaded user feature configuration from {self.config_file}",
                 )
             else:
                 logger.info("No user feature configuration found, using defaults")
 
         except Exception as e:
-            logger.warning(f"Could not load user config: {e}, using defaults")
+            logger.warning("Could not load user config: %s, using defaults", e)
 
     def _merge_config(self, default: dict[str, Any], user: dict[str, Any]):
         """Recursively merge user configuration with defaults."""
@@ -113,19 +111,19 @@ class FeatureConfig:
         try:
             with open(self.config_file, "w") as f:
                 json.dump(self.features, f, indent=2)
-            logger.info(f"Feature configuration saved to {self.config_file}")
+            logger.info("Feature configuration saved to %s", self.config_file)
         except Exception as e:
-            logger.error(f"Could not save feature configuration: {e}")
+            logger.exception("Could not save feature configuration: %s", e)
 
     def is_feature_enabled(self, feature_path: str) -> bool:
-        """
-        Check if a feature is enabled using dot notation.
+        """Check if a feature is enabled using dot notation.
 
         Args:
             feature_path: Feature path like 'pdf_export.enabled' or 'help_system.tooltips'
 
         Returns:
             True if feature is enabled, False otherwise
+
         """
         try:
             parts = feature_path.split(".")
@@ -135,34 +133,34 @@ class FeatureConfig:
                 if isinstance(current, dict) and part in current:
                     current = current[part]
                 else:
-                    logger.warning(f"Feature path not found: {feature_path}")
+                    logger.warning("Feature path not found: %s", feature_path)
                     return False
 
             return bool(current)
 
         except Exception as e:
-            logger.error(f"Error checking feature {feature_path}: {e}")
+            logger.exception("Error checking feature %s: {e}", feature_path)
             return False
 
     def get_feature_config(self, feature_name: str) -> dict[str, Any]:
-        """
-        Get configuration for a specific feature.
+        """Get configuration for a specific feature.
 
         Args:
             feature_name: Name of the feature (e.g., 'pdf_export')
 
         Returns:
             Feature configuration dictionary
+
         """
         return self.features.get(feature_name, {})
 
     def set_feature_enabled(self, feature_path: str, enabled: bool):
-        """
-        Enable or disable a feature.
+        """Enable or disable a feature.
 
         Args:
             feature_path: Feature path like 'pdf_export.enabled'
             enabled: Whether to enable the feature
+
         """
         try:
             parts = feature_path.split(".")
@@ -176,10 +174,10 @@ class FeatureConfig:
 
             # Set the value
             current[parts[-1]] = enabled
-            logger.info(f"Feature {feature_path} set to {enabled}")
+            logger.info("Feature %s set to {enabled}", feature_path)
 
         except Exception as e:
-            logger.error(f"Error setting feature {feature_path}: {e}")
+            logger.exception("Error setting feature %s: {e}", feature_path)
 
     def get_enabled_features(self) -> list[str]:
         """Get list of all enabled features."""
@@ -200,11 +198,11 @@ class FeatureConfig:
         return enabled
 
     def validate_dependencies(self) -> dict[str, str]:
-        """
-        Validate that required dependencies are available for enabled features.
+        """Validate that required dependencies are available for enabled features.
 
         Returns:
             Dictionary of feature -> error message for missing dependencies
+
         """
         issues = {}
 
@@ -227,7 +225,7 @@ class FeatureConfig:
                     importlib.util.find_spec("pandas") is None
                     or importlib.util.find_spec("openpyxl") is None
                 ):
-                    raise ImportError("Required libraries not found")
+                    raise ImportError("Required libraries not found") from None
             except ImportError:
                 issues["excel_export"] = "Pandas or OpenPyXL library not installed"
 

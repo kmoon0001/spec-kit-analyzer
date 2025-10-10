@@ -23,8 +23,7 @@ def authenticate_user() -> tuple[str, str] | None:
                 # Create a mock user for the session
                 access_token = auth_service.create_access_token(data={"sub": username})
                 return username, access_token
-            else:
-                QMessageBox.warning(dialog, "Login Failed", "Please enter both username and password.")
+            QMessageBox.warning(dialog, "Login Failed", "Please enter both username and password.")
         else:
             # User cancelled the login dialog
             return None
@@ -51,8 +50,7 @@ def main():
         main_win = MainApplicationWindow(user=mock_user, token=access_token)
         main_win.show()
         return app.exec()
-    else:
-        return 0  # User cancelled login
+    return 0  # User cancelled login
 
 if __name__ == "__main__":
     sys.exit(main())

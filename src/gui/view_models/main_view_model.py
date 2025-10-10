@@ -32,8 +32,7 @@ API_URL = SETTINGS.paths.api_url
 
 
 class MainViewModel(QObject):
-    """
-    ViewModel for the MainApplicationWindow, managing state and business logic.
+    """ViewModel for the MainApplicationWindow, managing state and business logic.
 
     This class implements the MVVM (Model-View-ViewModel) pattern, serving as the
     intermediary between the UI (View) and the business logic/data (Model). It
@@ -64,7 +63,9 @@ class MainViewModel(QObject):
         >>> view_model = MainViewModel(auth_token="jwt_token")
         >>> view_model.start_workers()  # Initialize background services
         >>> view_model.start_analysis(document_path, rubric_id)  # Begin analysis
+
     """
+
     # UI State Management Signals
     status_message_changed = Signal(str)  # Status bar message updates
     api_status_changed = Signal(str, str)  # API connectivity status (status, message)
@@ -82,8 +83,7 @@ class MainViewModel(QObject):
     show_message_box_signal = Signal(str, str, str, list, str)  # Message box requests
 
     def __init__(self, auth_token: str, parent: QObject | None = None) -> None:
-        """
-        Initialize the MainViewModel with authentication and state management.
+        """Initialize the MainViewModel with authentication and state management.
 
         Args:
             auth_token: JWT authentication token for API communications.
@@ -99,6 +99,7 @@ class MainViewModel(QObject):
             - Sets up authentication for API calls
             - Initializes empty thread tracking list
             - Prepares signal/slot connections
+
         """
         super().__init__(parent)
 
@@ -143,7 +144,7 @@ class MainViewModel(QObject):
                 return
             if not hasattr(worker, signal_name):
                 if callback is not None:
-                    raise AttributeError(f"{worker_class.__name__} does not expose signal '{signal_name}'")
+                    raise AttributeError(f"{worker_class.__name__} does not expose signal '{signal_name}'") from None
                 return
             signal = getattr(worker, signal_name)
             if callback is not None:
@@ -263,7 +264,7 @@ class MainViewModel(QObject):
             formatted_message,
             str(QMessageBox.Icon.Warning if analysis_error.severity == "warning" else QMessageBox.Icon.Critical),
             ["🔧 Technical Details", "Ok"],
-            error_handler.format_error_message(analysis_error, include_technical=True)
+            error_handler.format_error_message(analysis_error, include_technical=True),
         )
 
     def load_settings(self) -> None:
@@ -283,7 +284,7 @@ class MainViewModel(QObject):
                 except (requests.RequestException, ValueError, KeyError) as e:
                     self.error.emit(str(e))
                 except Exception as e:
-                    self.error.emit(f"Unexpected error: {str(e)}")
+                    self.error.emit(f"Unexpected error: {e!s}")
         self._run_worker(SettingsSaveWorker, on_success=lambda msg: self.status_message_changed.emit(msg), on_error=lambda msg: self.status_message_changed.emit(f"Failed to save settings: {msg}"))
 
     def submit_feedback(self, feedback_data: dict[str, Any]) -> None:

@@ -27,5 +27,5 @@ class LLMComplianceAnalyzer:
         try:
             return json.loads(raw_response)
         except json.JSONDecodeError:
-            logger.error("LLM returned non-JSON payload: %s", raw_response)
+            logger.exception("LLM returned non-JSON payload: %s", raw_response)
             return {"raw_output": raw_response}

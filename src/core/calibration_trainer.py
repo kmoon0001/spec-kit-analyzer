@@ -20,6 +20,7 @@ class CalibrationTrainer:
 
         Args:
             db_path: Path to SQLite database for storing training data
+
         """
         self.db_path = db_path
         self._shared_conn: sqlite3.Connection | None = None  # For in-memory databases
@@ -112,17 +113,18 @@ class CalibrationTrainer:
             user_feedback: User feedback ('correct', 'incorrect', 'uncertain')
             user_id: Optional user identifier
             notes: Optional additional notes
+
         """
-        if user_feedback not in ['correct', 'incorrect', 'uncertain']:
-            raise ValueError("user_feedback must be 'correct', 'incorrect', or 'uncertain'")
+        if user_feedback not in ["correct", "incorrect", "uncertain"]:
+            raise ValueError("user_feedback must be 'correct', 'incorrect', or 'uncertain'") from None
 
         # Skip uncertain feedback for training (ambiguous cases)
-        if user_feedback == 'uncertain':
+        if user_feedback == "uncertain":
             logger.info("Skipping uncertain feedback for training data")
             return
 
-        is_correct = 1 if user_feedback == 'correct' else 0
-        original_confidence = finding.get('original_confidence', finding.get('confidence', 0.5))
+        is_correct = 1 if user_feedback == "correct" else 0
+        original_confidence = finding.get("original_confidence", finding.get("confidence", 0.5))
 
         # Ensure database is initialized (important for in-memory databases)
         self._init_database()
@@ -135,20 +137,20 @@ class CalibrationTrainer:
                     user_id, notes
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                finding.get('id', f"finding_{datetime.now().isoformat()}"),
+                finding.get("id", f"finding_{datetime.now().isoformat()}"),
                 float(original_confidence),
                 user_feedback,
                 is_correct,
-                finding.get('document_type'),
-                finding.get('discipline'),
-                finding.get('rule_id'),
-                finding.get('issue_title'),
-                finding.get('priority', finding.get('severity')),
+                finding.get("document_type"),
+                finding.get("discipline"),
+                finding.get("rule_id"),
+                finding.get("issue_title"),
+                finding.get("priority", finding.get("severity")),
                 user_id,
-                notes
+                notes,
             ))
 
-        logger.info(f"Recorded feedback: {user_feedback} for finding with confidence {original_confidence:.3f}")
+        logger.info("Recorded feedback: %s for finding with confidence {original_confidence:.3f}", user_feedback)
 
     def get_training_data(self,
                          min_samples: int = 10,
@@ -163,6 +165,7 @@ class CalibrationTrainer:
 
         Returns:
             List of training samples with confidence and is_correct fields
+
         """
         # Ensure database is initialized
         self._init_database()
@@ -186,18 +189,18 @@ class CalibrationTrainer:
         training_data = []
         for row in rows:
             training_data.append({
-                'confidence': row['original_confidence'],
-                'is_correct': bool(row['is_correct']),
-                'document_type': row['document_type'],
-                'discipline': row['discipline'],
-                'rule_id': row['rule_id'],
-                'issue_title': row['issue_title'],
-                'severity': row['severity'],
-                'created_at': row['created_at']
+                "confidence": row["original_confidence"],
+                "is_correct": bool(row["is_correct"]),
+                "document_type": row["document_type"],
+                "discipline": row["discipline"],
+                "rule_id": row["rule_id"],
+                "issue_title": row["issue_title"],
+                "severity": row["severity"],
+                "created_at": row["created_at"],
             })
 
         if len(training_data) < min_samples:
-            logger.warning(f"Insufficient training data: {len(training_data)} samples (need {min_samples})")
+            logger.warning("Insufficient training data: %s samples (need {min_samples})", len(training_data))
 
         return training_data
 
@@ -208,7 +211,7 @@ class CalibrationTrainer:
 
         with self._get_db_connection() as conn:
             # Overall statistics
-            total_feedback = conn.execute("SELECT COUNT(*) as count FROM training_data").fetchone()['count']
+            total_feedback = conn.execute("SELECT COUNT(*) as count FROM training_data").fetchone()["count"]
 
             # Feedback distribution
             feedback_dist = conn.execute("""
@@ -239,54 +242,56 @@ class CalibrationTrainer:
             """).fetchall()
 
         return {
-            'total_feedback': total_feedback,
-            'feedback_distribution': {row['user_feedback']: row['count'] for row in feedback_dist},
-            'confidence_statistics': {
-                'correct' if row['is_correct'] else 'incorrect': {
-                    'count': row['count'],
-                    'avg_confidence': row['avg_confidence'],
-                    'min_confidence': row['min_confidence'],
-                    'max_confidence': row['max_confidence']
+            "total_feedback": total_feedback,
+            "feedback_distribution": {row["user_feedback"]: row["count"] for row in feedback_dist},
+            "confidence_statistics": {
+                "correct" if row["is_correct"] else "incorrect": {
+                    "count": row["count"],
+                    "avg_confidence": row["avg_confidence"],
+                    "min_confidence": row["min_confidence"],
+                    "max_confidence": row["max_confidence"],
                 } for row in confidence_stats
             },
-            'discipline_distribution': {row['discipline']: row['count'] for row in discipline_dist}
+            "discipline_distribution": {row["discipline"]: row["count"] for row in discipline_dist},
         }
 
-    def export_training_data(self, output_path: str, format: str = 'json') -> None:
+    def export_training_data(self, output_path: str, format: str = "json") -> None:
         """Export training data to file.
 
         Args:
             output_path: Path to output file
             format: Export format ('json' or 'csv')
+
         """
         training_data = self.get_training_data(min_samples=1)  # Get all data
 
         output_path_obj = Path(output_path)
         output_path_obj.parent.mkdir(parents=True, exist_ok=True)
 
-        if format.lower() == 'json':
-            with open(output_path_obj, 'w') as f:
+        if format.lower() == "json":
+            with open(output_path_obj, "w") as f:
                 json.dump(training_data, f, indent=2, default=str)
-        elif format.lower() == 'csv':
+        elif format.lower() == "csv":
             import csv
             if training_data:
-                with open(output_path_obj, 'w', newline='') as f:
+                with open(output_path_obj, "w", newline="") as f:
                     writer = csv.DictWriter(f, fieldnames=training_data[0].keys())
                     writer.writeheader()
                     writer.writerows(training_data)
         else:
-            raise ValueError("Format must be 'json' or 'csv'")
+            raise ValueError("Format must be 'json' or 'csv'") from None
 
-        logger.info(f"Exported {len(training_data)} training samples to {output_path_obj}")
+        logger.info("Exported %s training samples to {output_path_obj}", len(training_data))
 
     def clear_training_data(self, confirm: bool = False) -> None:
         """Clear all training data (use with caution).
 
         Args:
             confirm: Must be True to actually clear data
+
         """
         if not confirm:
-            raise ValueError("Must set confirm=True to clear training data")
+            raise ValueError("Must set confirm=True to clear training data") from None
 
         with self._get_db_connection() as conn:
             conn.execute("DELETE FROM training_data")
@@ -309,18 +314,19 @@ class FeedbackCollector:
 
         Returns:
             Dictionary with widget configuration
+
         """
         return {
-            'finding_id': finding.get('id', 'unknown'),
-            'issue_title': finding.get('issue_title', 'Unknown Issue'),
-            'confidence': finding.get('confidence', 0.5),
-            'original_confidence': finding.get('original_confidence', finding.get('confidence', 0.5)),
-            'calibrated': finding.get('confidence_calibrated', False),
-            'buttons': [
-                {'label': '✓ Correct', 'value': 'correct', 'style': 'success'},
-                {'label': '✗ Incorrect', 'value': 'incorrect', 'style': 'danger'},
-                {'label': '? Uncertain', 'value': 'uncertain', 'style': 'warning'}
-            ]
+            "finding_id": finding.get("id", "unknown"),
+            "issue_title": finding.get("issue_title", "Unknown Issue"),
+            "confidence": finding.get("confidence", 0.5),
+            "original_confidence": finding.get("original_confidence", finding.get("confidence", 0.5)),
+            "calibrated": finding.get("confidence_calibrated", False),
+            "buttons": [
+                {"label": "✓ Correct", "value": "correct", "style": "success"},
+                {"label": "✗ Incorrect", "value": "incorrect", "style": "danger"},
+                {"label": "? Uncertain", "value": "uncertain", "style": "warning"},
+            ],
         }
 
     def process_feedback(self,
@@ -335,9 +341,10 @@ class FeedbackCollector:
             feedback_value: The feedback value ('correct', 'incorrect', 'uncertain')
             user_id: Optional user identifier
             notes: Optional notes from user
+
         """
         try:
             self.trainer.record_feedback(finding, feedback_value, user_id, notes)
-            logger.info(f"Processed feedback: {feedback_value} for finding {finding.get('id', 'unknown')}")
+            logger.info("Processed feedback: %s for finding {finding.get(", feedback_value, id', 'unknown')}")
         except Exception as e:
-            logger.error(f"Failed to process feedback: {e}")
+            logger.exception("Failed to process feedback: %s", e)

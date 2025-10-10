@@ -1,5 +1,4 @@
-"""
-Async File Handler - Phase 1 Hybrid Async Processing
+"""Async File Handler - Phase 1 Hybrid Async Processing
 Low-risk async I/O operations for improved performance
 Professional implementation following best practices
 """
@@ -19,8 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class AsyncFileHandler:
-    """
-    Async file operations for improved I/O performance.
+    """Async file operations for improved I/O performance.
 
     Phase 1 Implementation:
     - Async file reading/writing
@@ -33,14 +31,14 @@ class AsyncFileHandler:
         self.max_file_size = 50 * 1024 * 1024  # 50MB limit
 
     async def read_document_async(self, file_path: Path) -> str | None:
-        """
-        Asynchronously read document content.
+        """Asynchronously read document content.
 
         Args:
             file_path: Path to document file
 
         Returns:
             Document content or None if failed
+
         """
         if not aiofiles:
             # Fallback to sync reading if aiofiles not available
@@ -53,14 +51,14 @@ class AsyncFileHandler:
                 return None
 
             # Read file asynchronously
-            async with aiofiles.open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            async with aiofiles.open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 content = await f.read()
 
             logger.info("Successfully read document: %s", file_path.name)
             return content
 
         except OSError as e:
-            logger.error("Failed to read document %s: %s", file_path, e)
+            logger.exception("Failed to read document %s: %s", file_path, e)
             return None
 
     def _read_document_sync(self, file_path: Path) -> str | None:
@@ -70,19 +68,18 @@ class AsyncFileHandler:
                 logger.warning("File too large: %s", file_path)
                 return None
 
-            with open(file_path, encoding='utf-8', errors='ignore') as f:
+            with open(file_path, encoding="utf-8", errors="ignore") as f:
                 content = f.read()
 
             logger.info("Successfully read document: %s", file_path.name)
             return content
 
         except OSError as e:
-            logger.error("Failed to read document %s: %s", file_path, e)
+            logger.exception("Failed to read document %s: %s", file_path, e)
             return None
 
     async def write_report_async(self, report_path: Path, content: str) -> bool:
-        """
-        Asynchronously write report content.
+        """Asynchronously write report content.
 
         Args:
             report_path: Path to output report
@@ -90,6 +87,7 @@ class AsyncFileHandler:
 
         Returns:
             True if successful
+
         """
         if not aiofiles:
             # Fallback to sync writing if aiofiles not available
@@ -100,14 +98,14 @@ class AsyncFileHandler:
             report_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Write file asynchronously
-            async with aiofiles.open(report_path, 'w', encoding='utf-8') as f:
+            async with aiofiles.open(report_path, "w", encoding="utf-8") as f:
                 await f.write(content)
 
             logger.info("Successfully wrote report: %s", report_path.name)
             return True
 
         except OSError as e:
-            logger.error("Failed to write report %s: %s", report_path, e)
+            logger.exception("Failed to write report %s: %s", report_path, e)
             return False
 
     def _write_report_sync(self, report_path: Path, content: str) -> bool:
@@ -115,37 +113,37 @@ class AsyncFileHandler:
         try:
             report_path.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(report_path, 'w', encoding='utf-8') as f:
+            with open(report_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
             logger.info("Successfully wrote report: %s", report_path.name)
             return True
 
         except OSError as e:
-            logger.error("Failed to write report %s: %s", report_path, e)
+            logger.exception("Failed to write report %s: %s", report_path, e)
             return False
 
     async def read_config_async(self, config_path: Path) -> dict[str, Any] | None:
-        """
-        Asynchronously read configuration file.
+        """Asynchronously read configuration file.
 
         Args:
             config_path: Path to configuration file
 
         Returns:
             Configuration dictionary or None if failed
+
         """
         if not aiofiles:
             return await asyncio.to_thread(self._read_config_sync, config_path)
 
         try:
-            async with aiofiles.open(config_path, 'r', encoding='utf-8') as f:
+            async with aiofiles.open(config_path, "r", encoding="utf-8") as f:
                 content = await f.read()
 
             # Parse JSON/YAML based on extension
-            if config_path.suffix.lower() == '.json':
+            if config_path.suffix.lower() == ".json":
                 config = json.loads(content)
-            elif config_path.suffix.lower() in ['.yaml', '.yml']:
+            elif config_path.suffix.lower() in [".yaml", ".yml"]:
                 try:
                     import yaml
                     config = yaml.safe_load(content)
@@ -160,18 +158,18 @@ class AsyncFileHandler:
             return config
 
         except (OSError, json.JSONDecodeError) as e:
-            logger.error("Failed to read config %s: %s", config_path, e)
+            logger.exception("Failed to read config %s: %s", config_path, e)
             return None
 
     def _read_config_sync(self, config_path: Path) -> dict[str, Any] | None:
         """Synchronous fallback for config reading."""
         try:
-            with open(config_path, encoding='utf-8') as f:
+            with open(config_path, encoding="utf-8") as f:
                 content = f.read()
 
-            if config_path.suffix.lower() == '.json':
+            if config_path.suffix.lower() == ".json":
                 config = json.loads(content)
-            elif config_path.suffix.lower() in ['.yaml', '.yml']:
+            elif config_path.suffix.lower() in [".yaml", ".yml"]:
                 try:
                     import yaml
                     config = yaml.safe_load(content)
@@ -186,13 +184,12 @@ class AsyncFileHandler:
             return config
 
         except (OSError, json.JSONDecodeError) as e:
-            logger.error("Failed to read config %s: %s", config_path, e)
+            logger.exception("Failed to read config %s: %s", config_path, e)
             return None
 
     async def batch_read_documents(self, file_paths: list[Path],
                                  progress_callback=None) -> dict[Path, str | None]:
-        """
-        Asynchronously read multiple documents with progress reporting.
+        """Asynchronously read multiple documents with progress reporting.
 
         Args:
             file_paths: List of document paths to read
@@ -200,6 +197,7 @@ class AsyncFileHandler:
 
         Returns:
             Dictionary mapping file paths to their content
+
         """
         results = {}
         total_files = len(file_paths)
@@ -234,12 +232,11 @@ class AsyncFileHandler:
             return results
 
         except Exception as e:
-            logger.error("Batch document reading failed: %s", e)
+            logger.exception("Batch document reading failed: %s", e)
             return results
 
     async def cleanup_temp_files_async(self, temp_dir: Path, max_age_hours: int = 24) -> int:
-        """
-        Asynchronously clean up old temporary files.
+        """Asynchronously clean up old temporary files.
 
         Args:
             temp_dir: Directory containing temporary files
@@ -247,6 +244,7 @@ class AsyncFileHandler:
 
         Returns:
             Number of files cleaned up
+
         """
         try:
             if not temp_dir.exists():
@@ -258,7 +256,7 @@ class AsyncFileHandler:
             cleaned_count = 0
 
             # Process files asynchronously
-            for file_path in temp_dir.rglob('*'):
+            for file_path in temp_dir.rglob("*"):
                 if file_path.is_file():
                     try:
                         file_age = current_time - file_path.stat().st_mtime
@@ -273,7 +271,7 @@ class AsyncFileHandler:
             return cleaned_count
 
         except Exception as e:
-            logger.error("Temp file cleanup failed: %s", e)
+            logger.exception("Temp file cleanup failed: %s", e)
             return 0
 
 

@@ -1,5 +1,4 @@
-"""
-Template Renderer - Professional report template rendering
+"""Template Renderer - Professional report template rendering
 
 This module provides template rendering capabilities for generating
 professional compliance reports with proper styling and formatting.
@@ -23,24 +22,24 @@ class TemplateRenderer:
     def _load_templates(self) -> None:
         """Load templates from the templates directory"""
         if not self.templates_dir.exists():
-            logger.warning(f"Templates directory not found: {self.templates_dir}")
+            logger.warning("Templates directory not found: %s", self.templates_dir)
             self._create_default_template()
             return
 
         try:
             for template_file in self.templates_dir.glob("*.html"):
                 template_id = template_file.stem
-                with open(template_file, encoding='utf-8') as f:
+                with open(template_file, encoding="utf-8") as f:
                     self.templates[template_id] = f.read()
-                logger.debug(f"Loaded template: {template_id}")
+                logger.debug("Loaded template: %s", template_id)
 
             if not self.templates:
                 self._create_default_template()
 
-            logger.info(f"Loaded {len(self.templates)} report templates")
+            logger.info("Loaded %s report templates", len(self.templates))
 
         except Exception as e:
-            logger.error(f"Error loading templates: {e}")
+            logger.exception("Error loading templates: %s", e)
             self._create_default_template()
 
     def _create_default_template(self) -> None:
@@ -75,7 +74,7 @@ class TemplateRenderer:
     def render_template(self, template_id: str, context: dict[str, Any]) -> str:
         """Render a template with the given context"""
         if template_id not in self.templates:
-            logger.warning(f"Template not found: {template_id}, using default")
+            logger.warning("Template not found: %s, using default", template_id)
             template_id = "default"
 
         template_content = self.templates.get(template_id, self.templates.get("default", ""))
@@ -90,8 +89,8 @@ class TemplateRenderer:
             return rendered
 
         except Exception as e:
-            logger.error(f"Error rendering template {template_id}: {e}")
-            return f"<html><body><h1>Error rendering report</h1><p>{str(e)}</p></body></html>"
+            logger.exception("Error rendering template %s: {e}", template_id)
+            return f"<html><body><h1>Error rendering report</h1><p>{e!s}</p></body></html>"
 
     def get_available_templates(self) -> list[str]:
         """Get list of available template IDs"""

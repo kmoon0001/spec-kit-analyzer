@@ -1,5 +1,4 @@
-"""
-Report Models and Data Structures
+"""Report Models and Data Structures
 
 This module contains all the data models, enums, and protocols used by the reporting system.
 Separated from the main engine for better maintainability and testing.
@@ -13,6 +12,7 @@ from typing import Any, Protocol
 
 class ReportType(Enum):
     """Types of reports that can be generated"""
+
     PERFORMANCE_ANALYSIS = "performance_analysis"
     COMPLIANCE_ANALYSIS = "compliance_analysis"
     DASHBOARD = "dashboard"
@@ -23,6 +23,7 @@ class ReportType(Enum):
 
 class ReportFormat(Enum):
     """Supported report export formats"""
+
     HTML = "html"
     PDF = "pdf"
     EXCEL = "excel"
@@ -32,6 +33,7 @@ class ReportFormat(Enum):
 
 class ReportStatus(Enum):
     """Report generation status"""
+
     PENDING = "pending"
     GENERATING = "generating"
     COMPLETED = "completed"
@@ -42,6 +44,7 @@ class ReportStatus(Enum):
 @dataclass
 class TimeRange:
     """Time range specification for reports"""
+
     start_time: datetime
     end_time: datetime
 
@@ -50,14 +53,14 @@ class TimeRange:
             raise ValueError("Start time must be before end time")
 
     @classmethod
-    def last_hours(cls, hours: int) -> 'TimeRange':
+    def last_hours(cls, hours: int) -> "TimeRange":
         """Create time range for last N hours"""
         end_time = datetime.now()
         start_time = end_time - timedelta(hours=hours)
         return cls(start_time, end_time)
 
     @classmethod
-    def last_days(cls, days: int) -> 'TimeRange':
+    def last_days(cls, days: int) -> "TimeRange":
         """Create time range for last N days"""
         end_time = datetime.now()
         start_time = end_time - timedelta(days=days)
@@ -67,6 +70,7 @@ class TimeRange:
 @dataclass
 class ReportConfig:
     """Configuration for report generation"""
+
     report_type: ReportType
     title: str
     description: str = ""
@@ -84,6 +88,7 @@ class ReportConfig:
 @dataclass
 class ReportSection:
     """Individual section within a report"""
+
     id: str
     title: str
     content: str = ""
@@ -94,6 +99,7 @@ class ReportSection:
 @dataclass
 class Report:
     """Generated report structure"""
+
     id: str
     config: ReportConfig
     status: ReportStatus = ReportStatus.PENDING
@@ -123,7 +129,7 @@ class Report:
                 "template_id": self.config.template_id,
                 "export_formats": [f.value for f in self.config.export_formats],
                 "filters": self.config.filters,
-                "metadata": self.config.metadata
+                "metadata": self.config.metadata,
             },
             "status": self.status.value,
             "created_at": self.created_at.isoformat(),
@@ -134,13 +140,13 @@ class Report:
                     "title": section.title,
                     "content": section.content,
                     "data": section.data,
-                    "template_id": section.template_id
+                    "template_id": section.template_id,
                 }
                 for section in self.sections
             ],
             "metadata": self.metadata,
             "error_message": self.error_message,
-            "file_paths": {fmt.value: path for fmt, path in self.file_paths.items()}
+            "file_paths": {fmt.value: path for fmt, path in self.file_paths.items()},
         }
 
 

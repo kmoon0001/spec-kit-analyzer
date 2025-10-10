@@ -19,8 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class AnalysisHandlers:
-    """
-    Handles analysis-related events and operations for compliance checking.
+    """Handles analysis-related events and operations for compliance checking.
 
     This class manages the complete analysis workflow including pre-flight validation,
     analysis execution, progress monitoring, and result processing. It integrates with
@@ -41,11 +40,11 @@ class AnalysisHandlers:
         >>> analysis_handlers = AnalysisHandlers(main_window)
         >>> analysis_handlers.start_analysis()  # Begin compliance analysis
         >>> analysis_handlers.stop_analysis()   # Cancel running analysis
+
     """
 
     def __init__(self, main_window: MainApplicationWindow) -> None:
-        """
-        Initialize the analysis handlers with a reference to the main window.
+        """Initialize the analysis handlers with a reference to the main window.
 
         Args:
             main_window: The main application window instance that this handler
@@ -54,14 +53,14 @@ class AnalysisHandlers:
 
         Raises:
             TypeError: If main_window is not a valid MainApplicationWindow instance.
+
         """
-        if not hasattr(main_window, 'statusBar'):
+        if not hasattr(main_window, "statusBar"):
             raise TypeError("main_window must be a valid MainApplicationWindow instance")
         self.main_window = main_window
 
     def start_analysis(self) -> None:
-        """
-        Start the compliance analysis process with comprehensive validation.
+        """Start the compliance analysis process with comprehensive validation.
 
         This method orchestrates the complete analysis workflow, beginning with
         thorough pre-flight validation to ensure all prerequisites are met,
@@ -93,6 +92,7 @@ class AnalysisHandlers:
         Example:
             >>> analysis_handlers.start_analysis()
             # Validates prerequisites, starts analysis, updates UI
+
         """
         # Pre-flight checks - Document validation
         if not self.main_window._selected_file:
@@ -120,7 +120,7 @@ class AnalysisHandlers:
                 self.main_window,
                 "🚨 Analysis Prerequisites Failed",
                 "Cannot start analysis due to critical issues:\n\n" + "\n".join(error_messages) +
-                "\n\nPlease resolve these issues and try again."
+                "\n\nPlease resolve these issues and try again.",
             )
             return
 
@@ -130,7 +130,7 @@ class AnalysisHandlers:
             QMessageBox.warning(
                 self.main_window,
                 "📄 File Validation Failed",
-                f"The selected file cannot be processed:\n\n{file_validation.message}\n\nPlease select a different file."
+                f"The selected file cannot be processed:\n\n{file_validation.message}\n\nPlease select a different file.",
             )
             return
 
@@ -139,20 +139,20 @@ class AnalysisHandlers:
         session_id = workflow_logger.log_analysis_start(
             str(self.main_window._selected_file),
             rubric_name,
-            self.main_window.current_user.username
+            self.main_window.current_user.username,
         )
 
         status_tracker.start_tracking(
             session_id,
             str(self.main_window._selected_file),
-            rubric_name
+            rubric_name,
         )
 
         # Prepare analysis options
         options = {
             "discipline": self.main_window.rubric_selector.currentData() if self.main_window.rubric_selector else "",
             "analysis_mode": "rubric",
-            "session_id": session_id
+            "session_id": session_id,
         }
 
         # Update UI state
@@ -186,7 +186,7 @@ class AnalysisHandlers:
         except Exception as e:
             # Log the error
             workflow_logger.log_workflow_completion(False, error=str(e))
-            status_tracker.set_error(f"Failed to start analysis: {str(e)}")
+            status_tracker.set_error(f"Failed to start analysis: {e!s}")
 
             # Reset UI
             if self.main_window.loading_spinner:
@@ -236,13 +236,13 @@ class AnalysisHandlers:
             "Are you sure you want to stop the current analysis?\n\n"
             "This will cancel the analysis in progress and you'll need to restart it.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.No,
         )
 
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 # Stop the analysis worker if it exists
-                if hasattr(self.main_window.view_model, 'current_worker') and self.main_window.view_model.current_worker:
+                if hasattr(self.main_window.view_model, "current_worker") and self.main_window.view_model.current_worker:
                     self.main_window.view_model.current_worker.terminate()
 
                 # Reset UI state
@@ -262,12 +262,12 @@ class AnalysisHandlers:
                 logger.info("Analysis stopped by user request")
 
             except Exception as e:
-                logger.error(f"Error stopping analysis: {e}")
+                logger.exception("Error stopping analysis: %s", e)
                 QMessageBox.warning(
                     self.main_window,
                     "Stop Analysis Error",
-                    f"Could not stop analysis cleanly: {str(e)}\n\n"
-                    "The analysis may continue in the background."
+                    f"Could not stop analysis cleanly: {e!s}\n\n"
+                    "The analysis may continue in the background.",
                 )
 
     def handle_analysis_success(self, payload: dict[str, Any]) -> None:
@@ -327,7 +327,7 @@ You can also:
 
         except Exception as e:
             # Fallback: Log error but don't break the workflow
-            logger.warning(f"Warning: Could not auto-display report popup: {e}")
+            logger.warning("Warning: Could not auto-display report popup: %s", e)
             self.main_window.statusBar().showMessage("✅ Analysis Complete - Click 'View Report' to see results", 5000)
 
         # Refresh dashboard after analysis
@@ -352,7 +352,7 @@ You can also:
 
     def update_strictness_description(self, index: int) -> None:
         """Update the strictness description based on selected level."""
-        if hasattr(self.main_window, 'strictness_description') and hasattr(self.main_window, 'strictness_levels'):
+        if hasattr(self.main_window, "strictness_description") and hasattr(self.main_window, "strictness_levels"):
             level, emoji, info = self.main_window.strictness_levels[index]
 
             description_html = f"""

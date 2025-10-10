@@ -26,6 +26,7 @@ API_URL = settings.paths.api_url
 
 class RubricEditorDialog(QDialog):
     """Dialog for creating and editing a single rubric."""
+
     def __init__(self, rubric_data: dict[str, Any], parent=None):
         super().__init__(parent)
         self.setWindowTitle("Edit Rubric")
@@ -46,7 +47,7 @@ class RubricEditorDialog(QDialog):
         self.layout.addRow("Best Practice:", self.best_practice_editor)
 
         self.button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
         )
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
@@ -65,6 +66,7 @@ class RubricEditorDialog(QDialog):
 
 class RubricManagerDialog(QDialog):
     """Asynchronous dialog for managing compliance rubrics."""
+
     def __init__(self, token: str, parent=None):
         super().__init__(parent)
         self.token = token
@@ -87,13 +89,13 @@ class RubricManagerDialog(QDialog):
 
         self.button_box = QDialogButtonBox()
         self.add_button = self.button_box.addButton(
-            "Add Rubric...", QDialogButtonBox.ButtonRole.ActionRole
+            "Add Rubric...", QDialogButtonBox.ButtonRole.ActionRole,
         )
         self.edit_button = self.button_box.addButton(
-            "Edit Selected", QDialogButtonBox.ButtonRole.ActionRole
+            "Edit Selected", QDialogButtonBox.ButtonRole.ActionRole,
         )
         self.remove_button = self.button_box.addButton(
-            "Remove Selected", QDialogButtonBox.ButtonRole.ActionRole
+            "Remove Selected", QDialogButtonBox.ButtonRole.ActionRole,
         )
         self.close_button = self.button_box.addButton(QDialogButtonBox.StandardButton.Close)
 
@@ -173,7 +175,7 @@ class RubricManagerDialog(QDialog):
         self._run_api_call(
             RubricApiWorker.create,
             new_data,
-            on_success=lambda _: self.load_rubrics()
+            on_success=lambda _: self.load_rubrics(),
         )
 
     def edit_rubric(self):
@@ -198,7 +200,7 @@ class RubricManagerDialog(QDialog):
             RubricApiWorker.update,
             rubric_id,
             updated_data,
-            on_success=lambda _: self.load_rubrics()
+            on_success=lambda _: self.load_rubrics(),
         )
 
     def remove_rubric(self):
@@ -228,7 +230,7 @@ class RubricManagerDialog(QDialog):
         self._run_api_call(
             RubricApiWorker.delete,
             rubric_id,
-            on_success=lambda _: self.load_rubrics()
+            on_success=lambda _: self.load_rubrics(),
         )
 
     def closeEvent(self, event):

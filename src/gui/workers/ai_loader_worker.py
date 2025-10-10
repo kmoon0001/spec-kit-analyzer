@@ -15,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class AILoaderWorker(QObject):
-    """
-    Background worker for initializing AI models and services during application startup.
+    """Background worker for initializing AI models and services during application startup.
 
     Handles database maintenance, AI model loading, and service initialization
     in a separate thread to prevent UI blocking.
@@ -34,8 +33,7 @@ class AILoaderWorker(QObject):
         self._compliance_service: ComplianceService | None = None
 
     def run(self) -> None:
-        """
-        Execute the AI loading workflow.
+        """Execute the AI loading workflow.
 
         Steps:
         1. Database maintenance and cleanup
@@ -53,7 +51,7 @@ class AILoaderWorker(QObject):
             self.status_updated.emit("AI Systems: Online")
             self.progress_updated.emit(100)
             self.finished.emit(
-                self._compliance_service, True, "AI Systems: Online", health_map
+                self._compliance_service, True, "AI Systems: Online", health_map,
             )
 
         except Exception as e:
@@ -102,18 +100,18 @@ class AILoaderWorker(QObject):
 
         logger.info("Initializing compliance service")
         self._compliance_service = ComplianceService(
-            analysis_service=self._analysis_service
+            analysis_service=self._analysis_service,
         )
 
         self.progress_updated.emit(80)
         logger.info("AI services loaded successfully")
 
     def _perform_health_checks(self) -> dict[str, bool]:
-        """
-        Perform health checks on all AI components.
+        """Perform health checks on all AI components.
 
         Returns:
             Dictionary mapping component names to their health status
+
         """
         self.status_updated.emit("⚡ Performing health checks...")
         self.progress_updated.emit(90)
@@ -124,12 +122,12 @@ class AILoaderWorker(QObject):
             # Check LLM service
             llm_service = getattr(self._analysis_service, "llm_service", None)
             health_map["Generator"] = bool(
-                llm_service and getattr(llm_service, "is_ready", lambda: False)()
+                llm_service and getattr(llm_service, "is_ready", lambda: False)(),
             )
 
             # Check fact checker (it's inside compliance_analyzer)
             compliance_analyzer = getattr(
-                self._analysis_service, "compliance_analyzer", None
+                self._analysis_service, "compliance_analyzer", None,
             )
             fact_checker = (
                 getattr(compliance_analyzer, "fact_checker_service", None)
@@ -137,19 +135,19 @@ class AILoaderWorker(QObject):
                 else None
             )
             health_map["Fact Checker"] = bool(
-                fact_checker and getattr(fact_checker, "pipeline", None)
+                fact_checker and getattr(fact_checker, "pipeline", None),
             )
 
             # Check NER analyzer
             ner_analyzer = getattr(self._analysis_service, "ner_analyzer", None)
             health_map["NER"] = bool(
-                ner_analyzer and hasattr(ner_analyzer, "ner_pipeline")
+                ner_analyzer and hasattr(ner_analyzer, "ner_pipeline"),
             )
 
             # Check chat service
             chat_service = getattr(self._analysis_service, "chat_llm_service", None)
             health_map["Chat"] = bool(
-                chat_service and getattr(chat_service, "is_ready", lambda: False)()
+                chat_service and getattr(chat_service, "is_ready", lambda: False)(),
             )
         else:
             # Default to False if analysis service not available
@@ -159,7 +157,7 @@ class AILoaderWorker(QObject):
                     "Fact Checker": False,
                     "NER": False,
                     "Chat": False,
-                }
+                },
             )
 
         # These components are always available
@@ -167,7 +165,7 @@ class AILoaderWorker(QObject):
             {
                 "Retriever": True,
                 "Checklist": True,
-            }
+            },
         )
 
         logger.info("Health check completed: %s", health_map)

@@ -1,5 +1,4 @@
-"""
-Data Integration Service - Comprehensive data provider system
+"""Data Integration Service - Comprehensive data provider system
 
 This module provides the data integration layer that connects the reporting system
 to all existing performance and compliance systems using clean interfaces and
@@ -18,11 +17,12 @@ from .report_models import ReportConfig, ReportType, TimeRange
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class DataSourceType(Enum):
     """Types of data sources available"""
+
     PERFORMANCE_METRICS = "performance_metrics"
     COMPLIANCE_ANALYSIS = "compliance_analysis"
     SYSTEM_MONITORING = "system_monitoring"
@@ -33,6 +33,7 @@ class DataSourceType(Enum):
 
 class DataQuality(Enum):
     """Data quality indicators"""
+
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
@@ -42,6 +43,7 @@ class DataQuality(Enum):
 @dataclass
 class DataSourceMetadata:
     """Metadata about a data source"""
+
     source_id: str
     source_type: DataSourceType
     description: str
@@ -61,13 +63,14 @@ class DataSourceMetadata:
             "data_quality": self.data_quality.value,
             "availability": self.availability,
             "schema_version": self.schema_version,
-            "tags": self.tags
+            "tags": self.tags,
         }
 
 
 @dataclass
 class DataQuery:
     """Query specification for data retrieval"""
+
     source_types: list[DataSourceType]
     time_range: TimeRange | None = None
     filters: dict[str, Any] = field(default_factory=dict)
@@ -81,18 +84,19 @@ class DataQuery:
             "source_types": [st.value for st in self.source_types],
             "time_range": {
                 "start_time": self.time_range.start_time.isoformat(),
-                "end_time": self.time_range.end_time.isoformat()
+                "end_time": self.time_range.end_time.isoformat(),
             } if self.time_range else None,
             "filters": self.filters,
             "aggregation_level": self.aggregation_level,
             "include_metadata": self.include_metadata,
-            "max_records": self.max_records
+            "max_records": self.max_records,
         }
 
 
 @dataclass
 class DataResult(Generic[T]):
     """Result container for data queries"""
+
     data: T
     metadata: DataSourceMetadata
     query: DataQuery
@@ -110,7 +114,7 @@ class DataResult(Generic[T]):
             "retrieved_at": self.retrieved_at.isoformat(),
             "record_count": self.record_count,
             "has_more": self.has_more,
-            "next_cursor": self.next_cursor
+            "next_cursor": self.next_cursor,
         }
 
 
@@ -129,22 +133,18 @@ class BaseDataProvider(ABC):
     @abstractmethod
     async def get_data(self, config: ReportConfig) -> dict[str, Any]:
         """Get data for report generation (required by DataProvider protocol)"""
-        pass
 
     @abstractmethod
     def supports_report_type(self, report_type: ReportType) -> bool:
         """Check if this provider supports the given report type"""
-        pass
 
     @abstractmethod
     async def query_data(self, query: DataQuery) -> DataResult[dict[str, Any]]:
         """Execute a data query and return results"""
-        pass
 
     @abstractmethod
     async def get_metadata(self) -> DataSourceMetadata:
         """Get metadata about this data source"""
-        pass
 
     async def health_check(self) -> bool:
         """Check if the data provider is healthy and available"""
@@ -154,7 +154,7 @@ class BaseDataProvider(ABC):
             self.last_health_check = datetime.now()
             return self.is_available
         except Exception as e:
-            logger.error(f"Health check failed for provider {self.provider_id}: {e}")
+            logger.exception("Health check failed for provider %s: {e}", self.provider_id)
             self.is_available = False
             return False
 
@@ -190,13 +190,13 @@ class PerformanceDataProvider(BaseDataProvider):
     def __init__(self):
         super().__init__(
             provider_id="performance_metrics",
-            description="Performance metrics, optimization results, and system performance data"
+            description="Performance metrics, optimization results, and system performance data",
         )
         self.supported_report_types = {
             ReportType.PERFORMANCE_ANALYSIS,
             ReportType.DASHBOARD,
             ReportType.EXECUTIVE_SUMMARY,
-            ReportType.TREND_ANALYSIS
+            ReportType.TREND_ANALYSIS,
         }
 
     def supports_report_type(self, report_type: ReportType) -> bool:
@@ -212,14 +212,14 @@ class PerformanceDataProvider(BaseDataProvider):
                 time_range=config.time_range,
                 filters=config.filters,
                 aggregation_level="hourly" if config.time_range and
-                    (config.time_range.end_time - config.time_range.start_time).days > 7 else "raw"
+                    (config.time_range.end_time - config.time_range.start_time).days > 7 else "raw",
             )
 
             result = await self.query_data(query)
             return result.data
 
         except Exception as e:
-            logger.error(f"Error getting performance data: {e}")
+            logger.exception("Error getting performance data: %s", e)
             return {"error": str(e), "provider": self.provider_id}
 
     async def query_data(self, query: DataQuery) -> DataResult[dict[str, Any]]:
@@ -240,7 +240,7 @@ class PerformanceDataProvider(BaseDataProvider):
             combined_data = {
                 "performance_metrics": performance_data,
                 "optimization_results": optimization_data,
-                "summary": self._calculate_performance_summary(performance_data, optimization_data)
+                "summary": self._calculate_performance_summary(performance_data, optimization_data),
             }
 
             metadata = await self.get_metadata()
@@ -251,7 +251,7 @@ class PerformanceDataProvider(BaseDataProvider):
                 query=query,
                 retrieved_at=datetime.now(),
                 record_count=len(performance_data.get("metrics", [])),
-                has_more=False
+                has_more=False,
             )
 
             # Cache the result
@@ -260,7 +260,7 @@ class PerformanceDataProvider(BaseDataProvider):
             return result
 
         except Exception as e:
-            logger.error(f"Error querying performance data: {e}")
+            logger.exception("Error querying performance data: %s", e)
             raise
 
     async def _fetch_performance_metrics(self, query: DataQuery) -> dict[str, Any]:
@@ -275,14 +275,14 @@ class PerformanceDataProvider(BaseDataProvider):
                     "memory_usage_mb": 256.0,
                     "cpu_usage_percent": 45.0,
                     "throughput_requests_per_second": 25.0,
-                    "error_rate_percent": 0.5
-                }
+                    "error_rate_percent": 0.5,
+                },
             ],
             "aggregation_level": query.aggregation_level,
             "time_range": {
                 "start_time": query.time_range.start_time.isoformat(),
-                "end_time": query.time_range.end_time.isoformat()
-            } if query.time_range else None
+                "end_time": query.time_range.end_time.isoformat(),
+            } if query.time_range else None,
         }
 
     async def _fetch_optimization_results(self, query: DataQuery) -> dict[str, Any]:
@@ -296,14 +296,14 @@ class PerformanceDataProvider(BaseDataProvider):
                     "enabled": True,
                     "improvement_percent": 35.0,
                     "baseline_response_time_ms": 200.0,
-                    "optimized_response_time_ms": 130.0
-                }
+                    "optimized_response_time_ms": 130.0,
+                },
             ],
             "overall_improvement": {
                 "response_time_improvement_percent": 30.0,
                 "memory_improvement_percent": 25.0,
-                "throughput_improvement_percent": 20.0
-            }
+                "throughput_improvement_percent": 20.0,
+            },
         }
 
     def _calculate_performance_summary(self, performance_data: dict[str, Any],
@@ -314,7 +314,7 @@ class PerformanceDataProvider(BaseDataProvider):
             "performance_trend": "improving",
             "optimization_effectiveness": 78.0,
             "recommendations_count": 3,
-            "critical_issues_count": 0
+            "critical_issues_count": 0,
         }
 
     async def get_metadata(self) -> DataSourceMetadata:
@@ -326,7 +326,7 @@ class PerformanceDataProvider(BaseDataProvider):
             last_updated=datetime.now(),
             data_quality=DataQuality.HIGH,
             availability=self.is_available,
-            tags=["performance", "optimization", "metrics", "monitoring"]
+            tags=["performance", "optimization", "metrics", "monitoring"],
         )
 
 
@@ -355,13 +355,13 @@ class DataIntegrationService:
         try:
             # Create a simple metadata object for registry purposes
             # The actual metadata will be fetched when needed
-            if hasattr(provider, 'supported_report_types'):
+            if hasattr(provider, "supported_report_types"):
                 # Determine source type based on provider type
-                if 'performance' in provider.provider_id:
+                if "performance" in provider.provider_id:
                     source_type = DataSourceType.PERFORMANCE_METRICS
-                elif 'compliance' in provider.provider_id:
+                elif "compliance" in provider.provider_id:
                     source_type = DataSourceType.COMPLIANCE_ANALYSIS
-                elif 'monitoring' in provider.provider_id:
+                elif "monitoring" in provider.provider_id:
                     source_type = DataSourceType.SYSTEM_MONITORING
                 else:
                     source_type = DataSourceType.PERFORMANCE_METRICS  # Default
@@ -374,12 +374,12 @@ class DataIntegrationService:
             if provider.provider_id not in self.provider_registry[source_type]:
                 self.provider_registry[source_type].append(provider.provider_id)
 
-            logger.info(f"Registered data provider: {provider.provider_id}")
+            logger.info("Registered data provider: %s", provider.provider_id)
 
         except Exception as e:
-            logger.error(f"Error registering provider {provider.provider_id}: {e}")
+            logger.exception("Error registering provider %s: {e}", provider.provider_id)
             # Still add to providers dict even if registry update fails
-            logger.info(f"Registered data provider: {provider.provider_id} (registry update failed)")
+            logger.info("Registered data provider: %s (registry update failed)", provider.provider_id)
 
     async def query_data(self, query: DataQuery) -> dict[str, DataResult[dict[str, Any]]]:
         """Query data from multiple providers based on source types"""
@@ -398,7 +398,7 @@ class DataIntegrationService:
                 provider = self.providers[provider_id]
                 if provider.is_available:
                     task = asyncio.create_task(
-                        self._query_provider_with_error_handling(provider, query)
+                        self._query_provider_with_error_handling(provider, query),
                     )
                     tasks.append((provider_id, task))
 
@@ -409,7 +409,7 @@ class DataIntegrationService:
                     result = await task
                     results[provider_id] = result
                 except Exception as e:
-                    logger.error(f"Error querying provider {provider_id}: {e}")
+                    logger.exception("Error querying provider %s: {e}", provider_id)
                     # Create error result
                     error_metadata = DataSourceMetadata(
                         source_id=provider_id,
@@ -417,13 +417,13 @@ class DataIntegrationService:
                         description=f"Error querying {provider_id}",
                         last_updated=datetime.now(),
                         data_quality=DataQuality.LOW,
-                        availability=False
+                        availability=False,
                     )
                     results[provider_id] = DataResult(
                         data={"error": str(e)},
                         metadata=error_metadata,
                         query=query,
-                        retrieved_at=datetime.now()
+                        retrieved_at=datetime.now(),
                     )
 
         return results
@@ -437,7 +437,7 @@ class DataIntegrationService:
                 provider_metadata = await provider.get_metadata()
                 metadata[provider_id] = provider_metadata
             except Exception as e:
-                logger.error(f"Error getting metadata for provider {provider_id}: {e}")
+                logger.exception("Error getting metadata for provider %s: {e}", provider_id)
 
         return metadata
 
@@ -450,7 +450,7 @@ class DataIntegrationService:
                     provider_list.remove(provider_id)
 
             del self.providers[provider_id]
-            logger.info(f"Unregistered data provider: {provider_id}")
+            logger.info("Unregistered data provider: %s", provider_id)
 
     async def health_check_all_providers(self) -> dict[str, bool]:
         """Perform health check on all providers"""
@@ -466,7 +466,7 @@ class DataIntegrationService:
                 is_healthy = await task
                 health_status[provider_id] = is_healthy
             except Exception as e:
-                logger.error(f"Health check failed for provider {provider_id}: {e}")
+                logger.exception("Health check failed for provider %s: {e}", provider_id)
                 health_status[provider_id] = False
 
         self.last_health_check = datetime.now()
@@ -488,7 +488,7 @@ class DataIntegrationService:
         try:
             return await provider.query_data(query)
         except Exception as e:
-            logger.error(f"Provider {provider.provider_id} query failed: {e}")
+            logger.exception("Provider %s query failed: {e}", provider.provider_id)
             # Create error result
             error_metadata = DataSourceMetadata(
                 source_id=provider.provider_id,
@@ -496,11 +496,11 @@ class DataIntegrationService:
                 description=f"Error querying {provider.provider_id}",
                 last_updated=datetime.now(),
                 data_quality=DataQuality.LOW,
-                availability=False
+                availability=False,
             )
             return DataResult(
                 data={"error": str(e)},
                 metadata=error_metadata,
                 query=query,
-                retrieved_at=datetime.now()
+                retrieved_at=datetime.now(),
             )

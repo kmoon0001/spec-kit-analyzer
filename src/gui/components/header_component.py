@@ -1,5 +1,4 @@
-"""
-Header Component - Reusable application header
+"""Header Component - Reusable application header
 Built with PySide6 (Official Qt for Python) for professional desktop UI
 Provides consistent branding and controls across the application.
 """
@@ -10,8 +9,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWi
 
 
 class HeaderComponent(QWidget):
-    """
-    Reusable header component with branding and theme controls.
+    """Reusable header component with branding and theme controls.
 
     Signals:
         theme_toggle_requested: Emitted when user requests theme toggle
@@ -101,7 +99,7 @@ class HeaderComponent(QWidget):
                 "Congratulations! You discovered the hidden easter egg!\n\n"
                 "🎯 You clicked the document icon 7 times!\n"
                 "🌟 This shows attention to detail - a key skill for compliance!\n\n"
-                "Keep up the great work! 🚀"
+                "Keep up the great work! 🚀",
             )
             # Reset after showing message
             self.icon_click_count = 0

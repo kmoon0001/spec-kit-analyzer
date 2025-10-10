@@ -1,5 +1,4 @@
-"""
-Theme Manager - Centralized theme management
+"""Theme Manager - Centralized theme management
 Handles application-wide theme switching and styling.
 """
 
@@ -11,14 +10,14 @@ from PySide6.QtWidgets import QApplication
 
 class ThemeType(Enum):
     """Available theme types."""
+
     LIGHT = "light"
     DARK = "dark"
     AUTO = "auto"
 
 
 class ThemeManager(QObject):
-    """
-    Centralized theme management for the application.
+    """Centralized theme management for the application.
 
     Signals:
         theme_changed: Emitted when theme changes (theme_name: str)

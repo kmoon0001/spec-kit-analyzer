@@ -1,5 +1,4 @@
-"""
-Cache integration service for the Therapy Compliance Analyzer.
+"""Cache integration service for the Therapy Compliance Analyzer.
 Demonstrates how to integrate the cache service with the analysis pipeline.
 """
 
@@ -18,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class CacheIntegrationService:
-    """
-    Service that integrates caching into the document analysis pipeline.
+    """Service that integrates caching into the document analysis pipeline.
     Provides cache-aware methods for common AI operations.
     """
 
@@ -28,8 +26,7 @@ class CacheIntegrationService:
         self.cache_misses = 0
 
     def get_or_compute_embedding(self, text: str, embedding_func) -> list[float]:
-        """
-        Get embedding from cache or compute and cache it.
+        """Get embedding from cache or compute and cache it.
 
         Args:
             text: Text to embed
@@ -37,6 +34,7 @@ class CacheIntegrationService:
 
         Returns:
             List of embedding values
+
         """
         # Try cache first
         cached_embedding = EmbeddingCache.get_embedding(text)
@@ -53,8 +51,7 @@ class CacheIntegrationService:
         return embedding
 
     def get_or_compute_ner(self, text: str, model_name: str, ner_func) -> list[dict]:
-        """
-        Get NER results from cache or compute and cache them.
+        """Get NER results from cache or compute and cache them.
 
         Args:
             text: Text to analyze
@@ -63,6 +60,7 @@ class CacheIntegrationService:
 
         Returns:
             List of NER entities
+
         """
         # Try cache first
         cached_ner = NERCache.get_ner_results(text, model_name)
@@ -79,10 +77,9 @@ class CacheIntegrationService:
         return ner_results
 
     def get_or_compute_llm_response(
-        self, prompt: str, model_name: str, llm_func
+        self, prompt: str, model_name: str, llm_func,
     ) -> str:
-        """
-        Get LLM response from cache or compute and cache it.
+        """Get LLM response from cache or compute and cache it.
 
         Args:
             prompt: Input prompt
@@ -91,26 +88,26 @@ class CacheIntegrationService:
 
         Returns:
             LLM response text
+
         """
         # Try cache first
         cached_response = LLMResponseCache.get_llm_response(prompt, model_name)
         if cached_response is not None:
             self.cache_hits += 1
-            logger.debug(f"Cache hit for LLM response with {model_name}")
+            logger.debug("Cache hit for LLM response with %s", model_name)
             return cached_response
 
         # Compute and cache
         self.cache_misses += 1
-        logger.debug(f"Cache miss for LLM response with {model_name}, computing")
+        logger.debug("Cache miss for LLM response with %s, computing", model_name)
         response = llm_func(prompt)
         LLMResponseCache.set_llm_response(prompt, model_name, response)
         return response
 
     def get_or_compute_document_classification(
-        self, doc_hash: str, text: str, classify_func
+        self, doc_hash: str, text: str, classify_func,
     ) -> dict:
-        """
-        Get document classification from cache or compute and cache it.
+        """Get document classification from cache or compute and cache it.
 
         Args:
             doc_hash: Hash of the document content
@@ -119,6 +116,7 @@ class CacheIntegrationService:
 
         Returns:
             Classification results dictionary
+
         """
         # Try cache first
         cached_classification = DocumentCache.get_document_classification(doc_hash)
@@ -157,10 +155,8 @@ class CacheIntegrationService:
     def cleanup_and_report(self):
         """Cleanup caches and log performance report."""
         stats = self.get_cache_performance_stats()
-        logger.info(
-            f"Cache performance - Hit rate: {stats['hit_rate_percent']}%, "
-            f"Memory usage: {stats['memory_usage_mb']:.1f}MB, "
-            f"Total entries: {stats['total_entries']}"
+        logger.info("Cache performance - Hit rate: %s%, Memory usage: %sMB, ", stats['hit_rate_percent'], stats['memory_usage_mb']:.1f, 
+            f"Total entries: {stats['total_entries']}",
         )
 
         cleanup_all_caches()

@@ -17,13 +17,13 @@ async def get_user(db: AsyncSession, user_id: int):
 
 async def get_user_by_username(db: AsyncSession, username: str):
     result = await db.execute(
-        select(models.User).filter(models.User.username == username)
+        select(models.User).filter(models.User.username == username),
     )
     return result.scalars().first()
 
 
 async def change_user_password(
-    db: AsyncSession, user: models.User, new_hashed_password: str
+    db: AsyncSession, user: models.User, new_hashed_password: str,
 ):
     user.hashed_password = new_hashed_password  # type: ignore
     db.add(user)
@@ -66,7 +66,7 @@ async def get_total_findings_count(
         result = await db.execute(query)
         return result.scalar() or 0
     except Exception as e:
-        logger.error(f"Error getting findings count: {e}")
+        logger.exception("Error getting findings count: %s", e)
         return 0
 
 
@@ -77,14 +77,13 @@ async def get_reports(db: AsyncSession, skip: int = 0, limit: int = 100):
 
 async def get_report(db: AsyncSession, report_id: int):
     result = await db.execute(
-        select(models.AnalysisReport).filter(models.AnalysisReport.id == report_id)
+        select(models.AnalysisReport).filter(models.AnalysisReport.id == report_id),
     )
     return result.scalars().first()
 
 
 async def get_findings_summary(db: AsyncSession):
-    """
-    Get a summary of findings by grouping them by rule_id and counting them.
+    """Get a summary of findings by grouping them by rule_id and counting them.
     """
     try:
         query = (
@@ -98,7 +97,7 @@ async def get_findings_summary(db: AsyncSession):
         summary = [{"issue_title": rule_id, "count": count} for rule_id, count in result]
         return summary
     except Exception as e:
-        logger.error(f"Error getting findings summary: {e}")
+        logger.exception("Error getting findings summary: %s", e)
         return []
 
 

@@ -1,5 +1,4 @@
-"""
-Metrics Collector for Performance Monitoring
+"""Metrics Collector for Performance Monitoring
 
 This module provides comprehensive metric collection from various system
 components including system resources, application metrics, and custom sources.
@@ -20,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class MetricType(Enum):
     """Types of metrics that can be collected."""
+
     COUNTER = "counter"
     GAUGE = "gauge"
     HISTOGRAM = "histogram"
@@ -29,6 +29,7 @@ class MetricType(Enum):
 @dataclass
 class PerformanceMetric:
     """Individual performance metric."""
+
     timestamp: datetime
     name: str
     value: float
@@ -45,22 +46,18 @@ class MetricSource(ABC):
     @abstractmethod
     def get_source_name(self) -> str:
         """Get the name of this metric source."""
-        pass
 
     @abstractmethod
     def collect_metrics(self) -> list[PerformanceMetric]:
         """Collect metrics from this source."""
-        pass
 
     @abstractmethod
     def is_available(self) -> bool:
         """Check if this metric source is available."""
-        pass
 
     @abstractmethod
     def cleanup(self) -> None:
         """Cleanup resources used by this source."""
-        pass
 
 
 class SystemMetricsSource(MetricSource):
@@ -94,7 +91,7 @@ class SystemMetricsSource(MetricSource):
                 metric_type=MetricType.GAUGE,
                 source=self.get_source_name(),
                 tags={"type": "cpu"},
-                metadata={"cpu_count": cpu_count}
+                metadata={"cpu_count": cpu_count},
             ))
 
             if cpu_freq:
@@ -106,7 +103,7 @@ class SystemMetricsSource(MetricSource):
                     metric_type=MetricType.GAUGE,
                     source=self.get_source_name(),
                     tags={"type": "cpu"},
-                    metadata={"max_freq": cpu_freq.max, "min_freq": cpu_freq.min}
+                    metadata={"max_freq": cpu_freq.max, "min_freq": cpu_freq.min},
                 ))
 
             # Memory metrics
@@ -122,7 +119,7 @@ class SystemMetricsSource(MetricSource):
                     metric_type=MetricType.GAUGE,
                     source=self.get_source_name(),
                     tags={"type": "memory"},
-                    metadata={"total_mb": memory.total // (1024 * 1024)}
+                    metadata={"total_mb": memory.total // (1024 * 1024)},
                 ),
                 PerformanceMetric(
                     timestamp=timestamp,
@@ -132,7 +129,7 @@ class SystemMetricsSource(MetricSource):
                     metric_type=MetricType.GAUGE,
                     source=self.get_source_name(),
                     tags={"type": "memory"},
-                    metadata={}
+                    metadata={},
                 ),
                 PerformanceMetric(
                     timestamp=timestamp,
@@ -142,12 +139,12 @@ class SystemMetricsSource(MetricSource):
                     metric_type=MetricType.GAUGE,
                     source=self.get_source_name(),
                     tags={"type": "memory", "subtype": "swap"},
-                    metadata={"total_mb": swap.total // (1024 * 1024)}
-                )
+                    metadata={"total_mb": swap.total // (1024 * 1024)},
+                ),
             ])
 
             # Disk metrics
-            disk_usage = psutil.disk_usage('/')
+            disk_usage = psutil.disk_usage("/")
             disk_io = psutil.disk_io_counters()
 
             metrics.append(PerformanceMetric(
@@ -158,7 +155,7 @@ class SystemMetricsSource(MetricSource):
                 metric_type=MetricType.GAUGE,
                 source=self.get_source_name(),
                 tags={"type": "disk"},
-                metadata={"total_gb": disk_usage.total // (1024 * 1024 * 1024)}
+                metadata={"total_gb": disk_usage.total // (1024 * 1024 * 1024)},
             ))
 
             if disk_io and self._last_disk_io and self._collection_time:
@@ -176,7 +173,7 @@ class SystemMetricsSource(MetricSource):
                             metric_type=MetricType.GAUGE,
                             source=self.get_source_name(),
                             tags={"type": "disk", "operation": "read"},
-                            metadata={}
+                            metadata={},
                         ),
                         PerformanceMetric(
                             timestamp=timestamp,
@@ -186,8 +183,8 @@ class SystemMetricsSource(MetricSource):
                             metric_type=MetricType.GAUGE,
                             source=self.get_source_name(),
                             tags={"type": "disk", "operation": "write"},
-                            metadata={}
-                        )
+                            metadata={},
+                        ),
                     ])
 
             # Network metrics
@@ -208,7 +205,7 @@ class SystemMetricsSource(MetricSource):
                             metric_type=MetricType.GAUGE,
                             source=self.get_source_name(),
                             tags={"type": "network", "direction": "sent"},
-                            metadata={}
+                            metadata={},
                         ),
                         PerformanceMetric(
                             timestamp=timestamp,
@@ -218,8 +215,8 @@ class SystemMetricsSource(MetricSource):
                             metric_type=MetricType.GAUGE,
                             source=self.get_source_name(),
                             tags={"type": "network", "direction": "received"},
-                            metadata={}
-                        )
+                            metadata={},
+                        ),
                     ])
 
             # Update state for next collection
@@ -228,7 +225,7 @@ class SystemMetricsSource(MetricSource):
             self._collection_time = timestamp
 
         except Exception as e:
-            logger.error(f"Error collecting system metrics: {e}")
+            logger.exception("Error collecting system metrics: %s", e)
 
         return metrics
 
@@ -243,7 +240,6 @@ class SystemMetricsSource(MetricSource):
     def cleanup(self) -> None:
         """Cleanup system metrics resources."""
         # No specific cleanup needed for system metrics
-        pass
 
 
 class ApplicationMetricsSource(MetricSource):
@@ -279,7 +275,7 @@ class ApplicationMetricsSource(MetricSource):
                         metric_type=MetricType.GAUGE,
                         source=self.get_source_name(),
                         tags={"type": "performance"},
-                        metadata={"sample_count": len(self._response_times)}
+                        metadata={"sample_count": len(self._response_times)},
                     ),
                     PerformanceMetric(
                         timestamp=timestamp,
@@ -289,7 +285,7 @@ class ApplicationMetricsSource(MetricSource):
                         metric_type=MetricType.GAUGE,
                         source=self.get_source_name(),
                         tags={"type": "performance"},
-                        metadata={}
+                        metadata={},
                     ),
                     PerformanceMetric(
                         timestamp=timestamp,
@@ -299,8 +295,8 @@ class ApplicationMetricsSource(MetricSource):
                         metric_type=MetricType.GAUGE,
                         source=self.get_source_name(),
                         tags={"type": "performance"},
-                        metadata={}
-                    )
+                        metadata={},
+                    ),
                 ])
 
                 # Clear response times after collection
@@ -321,7 +317,7 @@ class ApplicationMetricsSource(MetricSource):
                     metric_type=MetricType.GAUGE,
                     source=self.get_source_name(),
                     tags={"type": "errors"},
-                    metadata={"total_requests": total_requests, "total_errors": total_errors}
+                    metadata={"total_requests": total_requests, "total_errors": total_errors},
                 ))
 
             # Throughput metrics
@@ -333,7 +329,7 @@ class ApplicationMetricsSource(MetricSource):
                 metric_type=MetricType.GAUGE,
                 source=self.get_source_name(),
                 tags={"type": "throughput"},
-                metadata={}
+                metadata={},
             ))
 
             # Clear counters after collection
@@ -411,6 +407,7 @@ class MetricsCollector:
 
         Args:
             config: Monitoring configuration
+
         """
         self.config = config
         self._sources: dict[str, MetricSource] = {}
@@ -419,7 +416,7 @@ class MetricsCollector:
         # Initialize default sources
         self._initialize_default_sources()
 
-        logger.info(f"Metrics collector initialized with {len(self._sources)} sources")
+        logger.info("Metrics collector initialized with %s sources", len(self._sources))
 
     def _initialize_default_sources(self) -> None:
         """Initialize default metric sources."""
@@ -440,6 +437,7 @@ class MetricsCollector:
 
         Returns:
             True if source was registered successfully
+
         """
         try:
             source_name = source.get_source_name()
@@ -455,11 +453,11 @@ class MetricsCollector:
 
                 self._sources[source_name] = source
 
-            logger.info(f"Registered metric source: {source_name}")
+            logger.info("Registered metric source: %s", source_name)
             return True
 
         except Exception as e:
-            logger.error(f"Failed to register metric source: {e}")
+            logger.exception("Failed to register metric source: %s", e)
             return False
 
     def unregister_source(self, source_name: str) -> bool:
@@ -470,6 +468,7 @@ class MetricsCollector:
 
         Returns:
             True if source was unregistered successfully
+
         """
         try:
             with self._lock:
@@ -480,11 +479,11 @@ class MetricsCollector:
                 source = self._sources.pop(source_name)
                 source.cleanup()
 
-            logger.info(f"Unregistered metric source: {source_name}")
+            logger.info("Unregistered metric source: %s", source_name)
             return True
 
         except Exception as e:
-            logger.error(f"Failed to unregister metric source '{source_name}': {e}")
+            logger.exception(f"Failed to unregister metric source '{source_name}': {e}")
             return False
 
     def collect_all_metrics(self) -> list[dict[str, Any]]:
@@ -492,6 +491,7 @@ class MetricsCollector:
 
         Returns:
             List of metric dictionaries
+
         """
         all_metrics = []
 
@@ -506,21 +506,21 @@ class MetricsCollector:
                     # Convert to dictionaries
                     for metric in metrics:
                         metric_dict = {
-                            'timestamp': metric.timestamp.isoformat(),
-                            'name': metric.name,
-                            'value': metric.value,
-                            'unit': metric.unit,
-                            'type': metric.metric_type.value,
-                            'source': metric.source,
-                            'tags': metric.tags,
-                            'metadata': metric.metadata
+                            "timestamp": metric.timestamp.isoformat(),
+                            "name": metric.name,
+                            "value": metric.value,
+                            "unit": metric.unit,
+                            "type": metric.metric_type.value,
+                            "source": metric.source,
+                            "tags": metric.tags,
+                            "metadata": metric.metadata,
                         }
                         all_metrics.append(metric_dict)
 
             except Exception as e:
-                logger.error(f"Error collecting metrics from source '{source_name}': {e}")
+                logger.exception(f"Error collecting metrics from source '{source_name}': {e}")
 
-        logger.debug(f"Collected {len(all_metrics)} metrics from {len(sources_to_collect)} sources")
+        logger.debug("Collected %s metrics from {len(sources_to_collect)} sources", len(all_metrics))
         return all_metrics
 
     def collect_metrics_from_source(self, source_name: str) -> list[dict[str, Any]]:
@@ -531,6 +531,7 @@ class MetricsCollector:
 
         Returns:
             List of metric dictionaries from the specified source
+
         """
         with self._lock:
             if source_name not in self._sources:
@@ -550,21 +551,21 @@ class MetricsCollector:
             metric_dicts = []
             for metric in metrics:
                 metric_dict = {
-                    'timestamp': metric.timestamp.isoformat(),
-                    'name': metric.name,
-                    'value': metric.value,
-                    'unit': metric.unit,
-                    'type': metric.metric_type.value,
-                    'source': metric.source,
-                    'tags': metric.tags,
-                    'metadata': metric.metadata
+                    "timestamp": metric.timestamp.isoformat(),
+                    "name": metric.name,
+                    "value": metric.value,
+                    "unit": metric.unit,
+                    "type": metric.metric_type.value,
+                    "source": metric.source,
+                    "tags": metric.tags,
+                    "metadata": metric.metadata,
                 }
                 metric_dicts.append(metric_dict)
 
             return metric_dicts
 
         except Exception as e:
-            logger.error(f"Error collecting metrics from source '{source_name}': {e}")
+            logger.exception(f"Error collecting metrics from source '{source_name}': {e}")
             return []
 
     def get_active_sources_count(self) -> int:
@@ -572,6 +573,7 @@ class MetricsCollector:
 
         Returns:
             Number of active metric sources
+
         """
         with self._lock:
             active_count = 0
@@ -589,6 +591,7 @@ class MetricsCollector:
 
         Returns:
             List of source names
+
         """
         with self._lock:
             return list(self._sources.keys())
@@ -598,6 +601,7 @@ class MetricsCollector:
 
         Returns:
             Dictionary mapping source names to availability status
+
         """
         status = {}
 
@@ -615,6 +619,7 @@ class MetricsCollector:
 
         Returns:
             Application metrics source if available
+
         """
         with self._lock:
             source = self._sources.get("application")
@@ -630,6 +635,7 @@ class MetricsCollector:
 
         Returns:
             Custom metrics source
+
         """
         custom_source = CustomMetricsSource(name)
         self.register_source(custom_source)
@@ -640,6 +646,7 @@ class MetricsCollector:
 
         Args:
             config: New monitoring configuration
+
         """
         self.config = config
         logger.debug("Metrics collector configuration updated")
@@ -651,7 +658,7 @@ class MetricsCollector:
                 try:
                     source.cleanup()
                 except Exception as e:
-                    logger.error(f"Error cleaning up metric source: {e}")
+                    logger.exception("Error cleaning up metric source: %s", e)
 
             self._sources.clear()
 

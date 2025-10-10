@@ -1,5 +1,4 @@
-"""
-Global exception handler for FastAPI application.
+"""Global exception handler for FastAPI application.
 
 This module provides centralized exception handling for all API endpoints,
 ensuring consistent error responses and proper logging without PHI exposure.
@@ -24,8 +23,7 @@ logger = structlog.get_logger(__name__)
 
 
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """
-    Global exception handler for all unhandled exceptions.
+    """Global exception handler for all unhandled exceptions.
 
     Args:
         request: The FastAPI request object
@@ -33,6 +31,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
     Returns:
         JSONResponse with appropriate error details
+
     """
     # Handle custom application errors
     if isinstance(exc, ApplicationError):
@@ -76,14 +75,14 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 def _get_status_code_for_error(error: ApplicationError) -> int:
-    """
-    Map application errors to appropriate HTTP status codes.
+    """Map application errors to appropriate HTTP status codes.
 
     Args:
         error: The application error
 
     Returns:
         HTTP status code
+
     """
     error_status_map = {
         DatabaseError: 503,  # Service Unavailable
@@ -99,10 +98,9 @@ def _get_status_code_for_error(error: ApplicationError) -> int:
 
 
 async def http_exception_handler(
-    request: Request, exc: StarletteHTTPException
+    request: Request, exc: StarletteHTTPException,
 ) -> JSONResponse:
-    """
-    Handler for HTTP exceptions with consistent formatting.
+    """Handler for HTTP exceptions with consistent formatting.
 
     This handler ensures that all HTTP exceptions, whether raised by FastAPI
     or by custom logic, are logged and formatted consistently.
@@ -113,6 +111,7 @@ async def http_exception_handler(
 
     Returns:
         JSONResponse with formatted error details
+
     """
     logger.info(
         "HTTP exception occurred",

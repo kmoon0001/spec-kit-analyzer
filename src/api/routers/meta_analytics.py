@@ -1,5 +1,4 @@
-"""
-Meta Analytics API router for organizational-level insights.
+"""Meta Analytics API router for organizational-level insights.
 
 Provides endpoints for team performance analytics, training needs identification,
 and anonymous benchmarking data. Admin-only access.
@@ -24,40 +23,38 @@ router = APIRouter(prefix="/meta-analytics", tags=["Meta Analytics"])
 async def get_widget_meta_analytics_data(
     days_back: int = Query(90, ge=7, le=365, description="Days to analyze (7-365)"),
     discipline: str | None = Query(
-        None, description="Filter by discipline (PT, OT, SLP)"
+        None, description="Filter by discipline (PT, OT, SLP)",
     ),
     _admin_user: models.User = Depends(require_admin),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict:
-    """
-    Get comprehensive organizational analytics overview for the MetaAnalyticsWidget.
+    """Get comprehensive organizational analytics overview for the MetaAnalyticsWidget.
 
     **Admin Only**
     """
     try:
         meta_service = MetaAnalyticsService()
         overview_data = await meta_service.get_organizational_overview(
-            db=db, days_back=days_back, discipline_filter=discipline
+            db=db, days_back=days_back, discipline_filter=discipline,
         )
         return overview_data
-    except Exception:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         logger.exception("Failed to get organizational overview for widget")
-        raise HTTPException( from None
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve organizational analytics for widget",
-        )
+        ) from None
 
 @router.get("/organizational-overview")
 async def get_organizational_overview(
     days_back: int = Query(90, ge=7, le=365, description="Days to analyze (7-365)"),
     discipline: str | None = Query(
-        None, description="Filter by discipline (PT, OT, SLP)"
+        None, description="Filter by discipline (PT, OT, SLP)",
     ),
     _admin_user: models.User = Depends(require_admin),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict:
-    """
-    Get comprehensive organizational analytics overview.
+    """Get comprehensive organizational analytics overview.
 
     **Admin Only** - Provides team-wide insights including:
     - Overall team performance metrics
@@ -84,17 +81,17 @@ async def get_organizational_overview(
         meta_service = MetaAnalyticsService()
 
         overview_data = await meta_service.get_organizational_overview(
-            db=db, days_back=days_back, discipline_filter=discipline
+            db=db, days_back=days_back, discipline_filter=discipline,
         )
 
         return overview_data
 
-    except Exception:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         logger.exception("Failed to get organizational overview")
-        raise HTTPException( from None
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve organizational analytics",
-        )
+        ) from None
 
 
 @router.get("/training-needs")
@@ -104,8 +101,7 @@ async def get_training_needs(
     _admin_user: models.User = Depends(require_admin),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict:
-    """
-    Identify organizational training needs based on habit patterns.
+    """Identify organizational training needs based on habit patterns.
 
     **Admin Only** - Analyzes team-wide findings to identify:
     - Habits requiring focused training
@@ -125,7 +121,7 @@ async def get_training_needs(
         meta_service = MetaAnalyticsService()
 
         overview_data = await meta_service.get_organizational_overview(
-            db=db, days_back=days_back, discipline_filter=discipline
+            db=db, days_back=days_back, discipline_filter=discipline,
         )
 
         return {
@@ -139,12 +135,12 @@ async def get_training_needs(
             "discipline_filter": discipline,
         }
 
-    except Exception:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         logger.exception("Failed to get training needs")
-        raise HTTPException( from None
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve training needs",
-        )
+        ) from None
 
 
 @router.get("/team-trends")
@@ -154,8 +150,7 @@ async def get_team_trends(
     _admin_user: models.User = Depends(require_admin),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict:
-    """
-    Get team-wide performance trends over time.
+    """Get team-wide performance trends over time.
 
     **Admin Only** - Provides weekly trend data for:
     - Team compliance scores
@@ -175,7 +170,7 @@ async def get_team_trends(
         meta_service = MetaAnalyticsService()
 
         overview_data = await meta_service.get_organizational_overview(
-            db=db, days_back=weeks_back * 7, discipline_filter=discipline
+            db=db, days_back=weeks_back * 7, discipline_filter=discipline,
         )
 
         return {
@@ -189,12 +184,12 @@ async def get_team_trends(
             "discipline_filter": discipline,
         }
 
-    except Exception:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         logger.exception("Failed to get team trends")
-        raise HTTPException( from None
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve team trends",
-        )
+        ) from None
 
 
 @router.get("/benchmarks")
@@ -203,8 +198,7 @@ async def get_benchmarks(
     _admin_user: models.User = Depends(require_admin),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict:
-    """
-    Get organizational benchmarking data.
+    """Get organizational benchmarking data.
 
     **Admin Only** - Provides percentile data for:
     - Compliance score distribution
@@ -224,7 +218,7 @@ async def get_benchmarks(
         meta_service = MetaAnalyticsService()
 
         overview_data = await meta_service.get_organizational_overview(
-            db=db, days_back=days_back
+            db=db, days_back=days_back,
         )
 
         return {
@@ -233,12 +227,12 @@ async def get_benchmarks(
             "analysis_period": days_back,
         }
 
-    except Exception:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         logger.exception("Failed to get benchmarks")
-        raise HTTPException( from None
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve benchmarks",
-        )
+        ) from None
 
 
 @router.get("/peer-comparison/{user_id}")
@@ -248,8 +242,7 @@ async def get_peer_comparison(
     _admin_user: models.User = Depends(require_admin),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict:
-    """
-    Get anonymous peer comparison data for a specific user.
+    """Get anonymous peer comparison data for a specific user.
 
     **Admin Only** - Provides anonymous comparison including:
     - User's performance vs team averages
@@ -274,17 +267,17 @@ async def get_peer_comparison(
         meta_service = MetaAnalyticsService()
 
         comparison_data = await meta_service.get_peer_comparison_data(
-            db=db, user_id=user_id, days_back=days_back
+            db=db, user_id=user_id, days_back=days_back,
         )
 
         return comparison_data
 
-    except Exception:
-        logger.exception(f"Failed to get peer comparison for user {user_id}")
-        raise HTTPException( from None
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
+        logger.exception("Failed to get peer comparison for user %s", user_id)
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve peer comparison data",
-        )
+        ) from None
 
 
 @router.get("/discipline-comparison")
@@ -293,8 +286,7 @@ async def get_discipline_comparison(
     _admin_user: models.User = Depends(require_admin),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict:
-    """
-    Compare performance across therapy disciplines.
+    """Compare performance across therapy disciplines.
 
     **Admin Only** - Provides discipline comparison including:
     - PT vs OT vs SLP performance metrics
@@ -319,7 +311,7 @@ async def get_discipline_comparison(
 
         for discipline in disciplines:
             overview = await meta_service.get_organizational_overview(
-                db=db, days_back=days_back, discipline_filter=discipline
+                db=db, days_back=days_back, discipline_filter=discipline,
             )
 
             if overview["organizational_metrics"]:
@@ -339,10 +331,10 @@ async def get_discipline_comparison(
 
     except Exception:
         logger.exception("Failed to get discipline comparison")
-        raise HTTPException( from None
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve discipline comparison",
-        )
+        ) from None
 
 
 @router.get("/performance-alerts")
@@ -350,8 +342,7 @@ async def get_performance_alerts(
     _admin_user: models.User = Depends(require_admin),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict:
-    """
-    Get performance alerts and recommendations for immediate action.
+    """Get performance alerts and recommendations for immediate action.
 
     **Admin Only** - Identifies urgent issues requiring attention:
     - Declining performance trends
@@ -372,7 +363,7 @@ async def get_performance_alerts(
 
         # Get recent data for alerts (last 30 days)
         overview_data = await meta_service.get_organizational_overview(
-            db=db, days_back=30
+            db=db, days_back=30,
         )
 
         # Filter for high-priority insights
@@ -398,7 +389,7 @@ async def get_performance_alerts(
 
     except Exception:
         logger.exception("Failed to get performance alerts")
-        raise HTTPException( from None
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve performance alerts",
-        )
+        ) from None

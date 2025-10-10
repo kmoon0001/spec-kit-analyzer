@@ -1,5 +1,4 @@
-"""
-Custom Report Builder Dialog - Advanced Report Customization
+"""Custom Report Builder Dialog - Advanced Report Customization
 """
 
 from datetime import datetime, timedelta
@@ -59,7 +58,7 @@ class CustomReportBuilder(QDialog):
             "sections": [],
             "filters": {},
             "formatting": {},
-            "export_format": "html"
+            "export_format": "html",
         }
 
         # Available report sections
@@ -68,50 +67,50 @@ class CustomReportBuilder(QDialog):
                 "name": "Executive Summary",
                 "description": "High-level compliance overview with key metrics",
                 "icon": "📋",
-                "required_data": ["compliance_scores", "risk_assessment"]
+                "required_data": ["compliance_scores", "risk_assessment"],
             },
             "detailed_findings": {
                 "name": "Detailed Findings",
                 "description": "Comprehensive analysis of compliance issues",
                 "icon": "🔍",
-                "required_data": ["analysis_results", "findings"]
+                "required_data": ["analysis_results", "findings"],
             },
             "trend_analysis": {
                 "name": "Trend Analysis",
                 "description": "Historical compliance trends and patterns",
                 "icon": "📈",
-                "required_data": ["historical_data", "trends"]
+                "required_data": ["historical_data", "trends"],
             },
             "risk_assessment": {
                 "name": "Risk Assessment",
                 "description": "Current risk levels and mitigation strategies",
                 "icon": "⚠️",
-                "required_data": ["risk_scores", "audit_risk"]
+                "required_data": ["risk_scores", "audit_risk"],
             },
             "benchmarking": {
                 "name": "Industry Benchmarking",
                 "description": "Comparison with industry standards",
                 "icon": "🏆",
-                "required_data": ["benchmark_data", "industry_averages"]
+                "required_data": ["benchmark_data", "industry_averages"],
             },
             "recommendations": {
                 "name": "AI Recommendations",
                 "description": "Personalized improvement suggestions",
                 "icon": "💡",
-                "required_data": ["ai_recommendations", "action_items"]
+                "required_data": ["ai_recommendations", "action_items"],
             },
             "compliance_checklist": {
                 "name": "Compliance Checklist",
                 "description": "Detailed compliance verification checklist",
                 "icon": "✅",
-                "required_data": ["checklist_items", "compliance_status"]
+                "required_data": ["checklist_items", "compliance_status"],
             },
             "regulatory_updates": {
                 "name": "Regulatory Updates",
                 "description": "Recent changes in compliance requirements",
                 "icon": "📜",
-                "required_data": ["regulatory_changes", "updates"]
-            }
+                "required_data": ["regulatory_changes", "updates"],
+            },
         }
 
         # Predefined templates
@@ -119,23 +118,23 @@ class CustomReportBuilder(QDialog):
             "comprehensive": ReportTemplate(
                 "Comprehensive Audit Report",
                 "Complete compliance analysis with all sections",
-                ["executive_summary", "detailed_findings", "trend_analysis", "risk_assessment", "recommendations"]
+                ["executive_summary", "detailed_findings", "trend_analysis", "risk_assessment", "recommendations"],
             ),
             "executive": ReportTemplate(
                 "Executive Summary Report",
                 "High-level overview for management",
-                ["executive_summary", "risk_assessment", "benchmarking"]
+                ["executive_summary", "risk_assessment", "benchmarking"],
             ),
             "clinical": ReportTemplate(
                 "Clinical Focus Report",
                 "Detailed clinical compliance analysis",
-                ["detailed_findings", "compliance_checklist", "recommendations"]
+                ["detailed_findings", "compliance_checklist", "recommendations"],
             ),
             "trend_focused": ReportTemplate(
                 "Trend Analysis Report",
                 "Historical performance and predictive insights",
-                ["trend_analysis", "benchmarking", "recommendations"]
-            )
+                ["trend_analysis", "benchmarking", "recommendations"],
+            ),
         }
 
         self.init_ui()
@@ -276,7 +275,7 @@ class CustomReportBuilder(QDialog):
         self.min_score_slider.setValue(70)
         self.min_score_label = QLabel("70%")
         self.min_score_slider.valueChanged.connect(
-            lambda v: self.min_score_label.setText(f"{v}%")
+            lambda v: self.min_score_label.setText(f"{v}%"),
         )
 
         score_layout = QHBoxLayout()
@@ -337,7 +336,7 @@ class CustomReportBuilder(QDialog):
         for key, section in self.available_sections.items():
             item = QListWidgetItem(f"{section['icon']} {section['name']}")
             item.setData(Qt.ItemDataRole.UserRole, key)
-            item.setToolTip(section['description'])
+            item.setToolTip(section["description"])
             self.available_list.addItem(item)
 
         available_layout.addWidget(self.available_list)
@@ -419,7 +418,7 @@ class CustomReportBuilder(QDialog):
             "Medical Green",
             "Corporate Gray",
             "Modern Purple",
-            "Classic Black & White"
+            "Classic Black & White",
         ])
         style_layout.addWidget(self.theme_combo, 0, 1)
 
@@ -686,8 +685,8 @@ class CustomReportBuilder(QDialog):
             "title": self.title_edit.text(),
             "date_range": {
                 "start": self.start_date.date().toPython(),
-                "end": self.end_date.date().toPython()
-            }
+                "end": self.end_date.date().toPython(),
+            },
         })
 
     def refresh_preview(self):
@@ -754,7 +753,7 @@ class CustomReportBuilder(QDialog):
             template = ReportTemplate(
                 template_name,
                 f"Custom template created on {datetime.now().strftime('%Y-%m-%d')}",
-                sections
+                sections,
             )
 
             # Add to templates (in a real implementation, this would be saved to file/database)
@@ -777,7 +776,7 @@ class CustomReportBuilder(QDialog):
             self,
             "Save Template",
             "Enter template name:",
-            text=f"Custom Template {len(self.templates) + 1}"
+            text=f"Custom Template {len(self.templates) + 1}",
         )
 
         return name, ok
@@ -789,7 +788,7 @@ class CustomReportBuilder(QDialog):
             "title": self.title_edit.text(),
             "date_range": {
                 "start": self.start_date.date().toPython(),
-                "end": self.end_date.date().toPython()
+                "end": self.end_date.date().toPython(),
             },
             "sections": [],
             "formatting": {
@@ -800,27 +799,27 @@ class CustomReportBuilder(QDialog):
                 "detail_level": self.detail_combo.currentText(),
                 "include_charts": self.include_charts_cb.isChecked(),
                 "include_recommendations": self.include_recommendations_cb.isChecked(),
-                "include_raw_data": self.include_raw_data_cb.isChecked()
+                "include_raw_data": self.include_raw_data_cb.isChecked(),
             },
             "branding": {
                 "organization": self.org_name_edit.text(),
                 "department": self.department_edit.text(),
-                "contact": self.contact_edit.text()
+                "contact": self.contact_edit.text(),
             },
             "filters": {
                 "min_compliance_score": self.min_score_slider.value(),
                 "risk_levels": {
                     "high": self.high_risk_cb.isChecked(),
                     "medium": self.medium_risk_cb.isChecked(),
-                    "low": self.low_risk_cb.isChecked()
+                    "low": self.low_risk_cb.isChecked(),
                 },
                 "document_types": {
                     "progress_notes": self.progress_notes_cb.isChecked(),
                     "evaluations": self.evaluations_cb.isChecked(),
-                    "treatment_plans": self.treatment_plans_cb.isChecked()
-                }
+                    "treatment_plans": self.treatment_plans_cb.isChecked(),
+                },
             },
-            "export_format": self.format_combo.currentText().lower()
+            "export_format": self.format_combo.currentText().lower(),
         }
 
         # Get selected sections in order

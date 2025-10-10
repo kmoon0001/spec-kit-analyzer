@@ -24,14 +24,14 @@ class AuthService:
         self.access_token_expire_minutes = settings.auth.access_token_expire_minutes
 
     def create_access_token(
-        self, data: dict, expires_delta: timedelta | None = None
+        self, data: dict, expires_delta: timedelta | None = None,
     ):
         to_encode = data.copy()
         if expires_delta:
             expire = datetime.now(UTC) + expires_delta
         else:
             expire = datetime.now(UTC) + timedelta(
-                minutes=self.access_token_expire_minutes
+                minutes=self.access_token_expire_minutes,
             )
         to_encode.update({"exp": expire})
         encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
@@ -72,21 +72,21 @@ async def get_current_user(
     )
     try:
         payload = jwt.decode(
-            token, auth_service.secret_key, algorithms=[auth_service.algorithm]
+            token, auth_service.secret_key, algorithms=[auth_service.algorithm],
         )
         username: str | None = payload.get("sub")
         if username is None:
             raise credentials_exception
         token_data = schemas.TokenData(username=username)
     except JWTError:
-        raise credentials_exception
+        raise credentials_exception from None
 
     if token_data.username is None:
-        raise credentials_exception
+        raise credentials_exception from None
 
     user = await crud.get_user_by_username(db, username=token_data.username)
     if user is None:
-        raise credentials_exception
+        raise credentials_exception from None
     return user
 
 
@@ -95,7 +95,7 @@ async def get_current_active_user(
 ) -> models.User:
     if not current_user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user",
         )
     return current_user
 

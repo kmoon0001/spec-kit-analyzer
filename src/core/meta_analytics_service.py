@@ -1,5 +1,4 @@
-"""
-Service layer for handling complex meta-analytics queries.
+"""Service layer for handling complex meta-analytics queries.
 
 This service aggregates data from various sources to provide high-level
 organizational insights. It acts as an intermediary between the API layer
@@ -20,7 +19,7 @@ class MetaAnalyticsService:
     """Service for providing organizational-level analytics."""
 
     async def get_organizational_overview(
-        self, db: AsyncSession, days_back: int, discipline_filter: str | None = None
+        self, db: AsyncSession, days_back: int, discipline_filter: str | None = None,
     ) -> dict[str, Any]:
         """Gathers a comprehensive overview of organizational analytics."""
 
@@ -45,7 +44,7 @@ class MetaAnalyticsService:
         }
 
     async def get_peer_comparison_data(
-        self, db: AsyncSession, user_id: int, days_back: int
+        self, db: AsyncSession, user_id: int, days_back: int,
     ) -> dict[str, Any]:
         """Gathers data to compare a user's performance against their peers."""
         # This is a placeholder for a more complex implementation that would calculate

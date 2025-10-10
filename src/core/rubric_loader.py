@@ -13,7 +13,7 @@ from ..database.models import Rubric
 
 # --- Configuration ---
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 # Define the namespace from the TTL files
@@ -21,19 +21,18 @@ NS = Namespace("http://example.com/speckit/ontology#")
 
 
 async def parse_and_load_rubrics(db_session: AsyncSession, rubric_files: list[Path]):
-    """
-    Parses TTL files, extracts compliance rules, and loads them into the database.
+    """Parses TTL files, extracts compliance rules, and loads them into the database.
     It checks for existing rules by name to prevent duplicates.
     """
-    logger.info(f"Starting rubric loading from {len(rubric_files)} files...")
+    logger.info("Starting rubric loading from %s files...", len(rubric_files))
 
     g = Graph()
     for file_path in rubric_files:
         try:
             g.parse(str(file_path), format="turtle")
-            logger.info(f"Successfully parsed {file_path.name}")
+            logger.info("Successfully parsed %s", file_path.name)
         except Exception as e:
-            logger.error(f"Failed to parse {file_path.name}: {e}", exc_info=True)
+            logger.error("Failed to parse %s: {e}", file_path.name, exc_info=True)
             continue
 
     # SPARQL query to find all subjects that are of type :ComplianceRule
@@ -49,7 +48,7 @@ async def parse_and_load_rubrics(db_session: AsyncSession, rubric_files: list[Pa
         category_node = g.value(subject=rule_uri, predicate=NS.hasDiscipline)
 
         if not all([name_node, content_node]):
-            logger.warning(f"Skipping rule {rule_uri} due to missing name or content.")
+            logger.warning("Skipping rule %s due to missing name or content.", rule_uri)
             continue
 
         name = str(name_node)
@@ -79,7 +78,7 @@ async def parse_and_load_rubrics(db_session: AsyncSession, rubric_files: list[Pa
         db_session.add_all(rules_to_add)
         await db_session.commit()
         logger.info(
-            f"Successfully added {len(rules_to_add)} new rubrics to the database."
+            f"Successfully added {len(rules_to_add)} new rubrics to the database.",
         )
     else:
         logger.info("No new rubrics to add. Database is up-to-date.")
@@ -100,7 +99,7 @@ async def main():
         logger.warning("No .ttl files found in the 'src' directory. Exiting.")
         return
 
-    logger.info(f"Found {len(ttl_files)} TTL files to process.")
+    logger.info("Found %s TTL files to process.", len(ttl_files))
 
     # Create a new session and run the loader
     async with AsyncSessionLocal() as session:

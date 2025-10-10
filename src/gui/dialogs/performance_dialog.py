@@ -1,5 +1,4 @@
-"""
-Performance Settings Dialog - Simplified version for system configuration.
+"""Performance Settings Dialog - Simplified version for system configuration.
 """
 
 import logging
@@ -42,7 +41,7 @@ class PerformanceDialog(QDialog):
             self.performance_manager = performance_manager
             self.PerformanceProfile = PerformanceProfile
         except ImportError as e:
-            logger.error(f"Could not import performance manager: {e}")
+            logger.exception("Could not import performance manager: %s", e)
             self.performance_manager = None
             return
 
@@ -163,18 +162,18 @@ class PerformanceDialog(QDialog):
             # Color coding
             if percent > 85:
                 self.memory_bar.setStyleSheet(
-                    "QProgressBar::chunk { background-color: red; }"
+                    "QProgressBar::chunk { background-color: red; }",
                 )
             elif percent > 70:
                 self.memory_bar.setStyleSheet(
-                    "QProgressBar::chunk { background-color: orange; }"
+                    "QProgressBar::chunk { background-color: orange; }",
                 )
             else:
                 self.memory_bar.setStyleSheet(
-                    "QProgressBar::chunk { background-color: green; }"
+                    "QProgressBar::chunk { background-color: green; }",
                 )
         except Exception as e:
-            logger.error(f"Error updating memory display: {e}")
+            logger.exception("Error updating memory display: %s", e)
 
     def apply_settings(self):
         """Apply current settings."""
@@ -197,7 +196,7 @@ class PerformanceDialog(QDialog):
             logger.info("Performance settings applied")
 
         except Exception as e:
-            logger.error(f"Error applying settings: {e}")
+            logger.exception("Error applying settings: %s", e)
 
     def auto_detect(self):
         """Auto-detect optimal settings."""
@@ -208,7 +207,7 @@ class PerformanceDialog(QDialog):
             from ...core.performance_manager import SystemProfiler
 
             recommended = SystemProfiler.recommend_profile(
-                self.performance_manager.system_info
+                self.performance_manager.system_info,
             )
 
             index = self.profile_combo.findData(recommended)
@@ -218,7 +217,7 @@ class PerformanceDialog(QDialog):
             self.apply_settings()
 
         except Exception as e:
-            logger.error(f"Error in auto-detect: {e}")
+            logger.exception("Error in auto-detect: %s", e)
 
     def closeEvent(self, event):
         """Handle close event."""

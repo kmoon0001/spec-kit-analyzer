@@ -32,7 +32,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 
 class AnalysisOutput(dict):
     """Dictionary wrapper for consistent analysis output."""
-    pass
+
 
 def get_settings():
     """Legacy helper retained for tests that patch this symbol."""
@@ -47,31 +47,31 @@ class AnalysisService:
         local_model_path = self._resolve_local_model_path(settings)
 
         # Stage 1 Service: Pure PHI Redaction
-        self.phi_scrubber = kwargs.get('phi_scrubber') or PhiScrubberService()
+        self.phi_scrubber = kwargs.get("phi_scrubber") or PhiScrubberService()
 
         # Stage 2 Services: Clinical Analysis on Anonymized Text
-        self.llm_service = kwargs.get('llm_service') or LLMService(
+        self.llm_service = kwargs.get("llm_service") or LLMService(
             model_repo_id=repo_id, model_filename=filename,
             llm_settings=settings.llm.model_dump(), revision=revision,
             local_model_path=local_model_path,
         )
-        self.retriever = kwargs.get('retriever') or HybridRetriever()
-        self.clinical_ner_service = kwargs.get('clinical_ner_service') or ClinicalNERService(model_names=settings.models.ner_ensemble)
+        self.retriever = kwargs.get("retriever") or HybridRetriever()
+        self.clinical_ner_service = kwargs.get("clinical_ner_service") or ClinicalNERService(model_names=settings.models.ner_ensemble)
         template_path = Path(settings.models.analysis_prompt_template)
-        self.prompt_manager = kwargs.get('prompt_manager') or PromptManager(template_name=template_path.name)
-        self.explanation_engine = kwargs.get('explanation_engine') or ExplanationEngine()
-        self.fact_checker_service = kwargs.get('fact_checker_service') or FactCheckerService(model_name=settings.models.fact_checker)
-        self.nlg_service = kwargs.get('nlg_service') or NLGService(llm_service=self.llm_service, prompt_template_path=settings.models.nlg_prompt_template)
-        self.compliance_analyzer = kwargs.get('compliance_analyzer') or ComplianceAnalyzer(
+        self.prompt_manager = kwargs.get("prompt_manager") or PromptManager(template_name=template_path.name)
+        self.explanation_engine = kwargs.get("explanation_engine") or ExplanationEngine()
+        self.fact_checker_service = kwargs.get("fact_checker_service") or FactCheckerService(model_name=settings.models.fact_checker)
+        self.nlg_service = kwargs.get("nlg_service") or NLGService(llm_service=self.llm_service, prompt_template_path=settings.models.nlg_prompt_template)
+        self.compliance_analyzer = kwargs.get("compliance_analyzer") or ComplianceAnalyzer(
             retriever=self.retriever, ner_service=self.clinical_ner_service, llm_service=self.llm_service,
             explanation_engine=self.explanation_engine, prompt_manager=self.prompt_manager,
             fact_checker_service=self.fact_checker_service, nlg_service=self.nlg_service,
             deterministic_focus=settings.analysis.deterministic_focus,
         )
-        self.preprocessing = kwargs.get('preprocessing') or PreprocessingService()
-        self.document_classifier = kwargs.get('document_classifier') or DocumentClassifier(llm_service=self.llm_service, prompt_template_path=settings.models.doc_classifier_prompt)
-        self.report_generator = kwargs.get('report_generator') or ReportGenerator()
-        self.checklist_service = kwargs.get('checklist_service') or ChecklistService()
+        self.preprocessing = kwargs.get("preprocessing") or PreprocessingService()
+        self.document_classifier = kwargs.get("document_classifier") or DocumentClassifier(llm_service=self.llm_service, prompt_template_path=settings.models.doc_classifier_prompt)
+        self.report_generator = kwargs.get("report_generator") or ReportGenerator()
+        self.checklist_service = kwargs.get("checklist_service") or ChecklistService()
 
     def _get_analysis_cache_key(self, content_hash: str, discipline: str, analysis_mode: str | None) -> str:
         hasher = hashlib.sha256()
@@ -102,10 +102,10 @@ class AnalysisService:
             cache_key = self._get_analysis_cache_key(content_hash, discipline, analysis_mode)
             cached_result = cache_service.get_from_disk(cache_key)
             if cached_result is not None:
-                logger.info(f"Full analysis cache hit for key: {cache_key}")
+                logger.info("Full analysis cache hit for key: %s", cache_key)
                 return AnalysisOutput(cached_result)
 
-            logger.info(f"Full analysis cache miss for key: {cache_key}. Running analysis.")
+            logger.info("Full analysis cache miss for key: %s. Running analysis.", cache_key)
 
             if file_content:
                 temp_dir = Path(_get_settings().paths.temp_upload_dir)
@@ -145,56 +145,56 @@ class AnalysisService:
                 analysis_result = await asyncio.wait_for(
                     self._maybe_await(
                         self.compliance_analyzer.analyze_document(
-                            document_text=scrubbed_text, discipline=discipline_clean, doc_type=doc_type_clean
-                        )
+                            document_text=scrubbed_text, discipline=discipline_clean, doc_type=doc_type_clean,
+                        ),
                     ),
-                    timeout=600.0  # 10 minute timeout for entire analysis
+                    timeout=600.0,  # 10 minute timeout for entire analysis
                 )
             except TimeoutError:
-                logger.error("Compliance analysis timed out after 10 minutes")
+                logger.exception("Compliance analysis timed out after 10 minutes")
                 analysis_result = {
                     "findings": [],
                     "summary": "Analysis timed out - please try with a shorter document or contact support",
                     "error": "Analysis timeout",
                     "timeout": True,
-                    "compliance_score": 0.0
+                    "compliance_score": 0.0,
                 }
             except Exception as e:
-                logger.error(f"Compliance analysis failed: {e}")
+                logger.exception("Compliance analysis failed: %s", e)
                 analysis_result = {
                     "findings": [],
-                    "summary": f"Analysis failed due to an error: {str(e)}",
+                    "summary": f"Analysis failed due to an error: {e!s}",
                     "error": str(e),
                     "exception": True,
-                    "compliance_score": 0.0
+                    "compliance_score": 0.0,
                 }
 
             # --- End of Pipeline ---
 
             enriched_result = self._enrich_analysis_result(
-                analysis_result, document_text=scrubbed_text, discipline=discipline_clean, doc_type=doc_type_clean
+                analysis_result, document_text=scrubbed_text, discipline=discipline_clean, doc_type=doc_type_clean,
             )
 
             # Add timeout to report generation
             try:
                 report = await asyncio.wait_for(
                     self._maybe_await(self.report_generator.generate_report(enriched_result)),
-                    timeout=60.0  # 1 minute timeout for report generation
+                    timeout=60.0,  # 1 minute timeout for report generation
                 )
                 final_report = {"analysis": enriched_result, **(report if isinstance(report, dict) else {})}
             except TimeoutError:
-                logger.error("Report generation timed out after 1 minute")
+                logger.exception("Report generation timed out after 1 minute")
                 final_report = {
                     "analysis": enriched_result,
                     "report_html": "<h1>Report Generation Timeout</h1><p>The analysis completed but report generation timed out. Please try again.</p>",
-                    "error": "Report generation timeout"
+                    "error": "Report generation timeout",
                 }
             except Exception as e:
-                logger.error(f"Report generation failed: {e}")
+                logger.exception("Report generation failed: %s", e)
                 final_report = {
                     "analysis": enriched_result,
-                    "report_html": f"<h1>Report Generation Error</h1><p>The analysis completed but report generation failed: {str(e)}</p>",
-                    "error": f"Report generation failed: {str(e)}"
+                    "report_html": f"<h1>Report Generation Error</h1><p>The analysis completed but report generation failed: {e!s}</p>",
+                    "error": f"Report generation failed: {e!s}",
                 }
 
             cache_service.set_to_disk(cache_key, final_report)
@@ -203,7 +203,7 @@ class AnalysisService:
         finally:
             if temp_file_path and temp_file_path.exists():
                 temp_file_path.unlink()
-                logger.info(f"Cleaned up temporary file: {temp_file_path}")
+                logger.info("Cleaned up temporary file: %s", temp_file_path)
 
     @staticmethod
     async def _maybe_await(value: Any) -> Any:
@@ -286,7 +286,7 @@ class AnalysisService:
             mem_gb = self._system_memory_gb()
             name, profile = self._find_best_profile(profiles, mem_gb) or next(iter(profiles.items()), (None, None))
             if profile:
-                logger.info(f"Selected generator profile {name} (system memory {mem_gb:.1f} GB)")
+                logger.info("Selected generator profile %s (system memory {mem_gb} GB)", name)
                 return profile.get("repo", ""), profile.get("filename", ""), profile.get("revision")
         return models_cfg.get("generator", ""), models_cfg.get("generator_filename", ""), models_cfg.get("generator_revision")
 
@@ -312,7 +312,7 @@ class AnalysisService:
         if path.exists():
             return str(path)
 
-        logger.warning(f"Configured generator_local_path does not exist: {path}")
+        logger.warning("Configured generator_local_path does not exist: %s", path)
         return None
 
 

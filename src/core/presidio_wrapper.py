@@ -1,5 +1,4 @@
-"""
-Shared utilities for working with Presidio, including custom patterns.
+"""Shared utilities for working with Presidio, including custom patterns.
 """
 from __future__ import annotations
 
@@ -30,14 +29,14 @@ CUSTOM_RECOGNIZERS = (
 )
 
 def build_default_operators(replacement: str) -> dict[str, OperatorConfig]:
-    """
-    Helper to build a Presidio operator map for a given replacement token.
+    """Helper to build a Presidio operator map for a given replacement token.
 
     Args:
         replacement: The string to use for replacing detected entities.
 
     Returns:
         A dictionary of operators for the Presidio AnonymizerEngine.
+
     """
     return {"DEFAULT": OperatorConfig("replace", {"new_value": replacement})}
 

@@ -131,7 +131,7 @@ class LLMService:
         try:
             self.llm = AutoModelForCausalLM.from_pretrained(model_id, **model_kwargs)
             self.seq2seq = False
-        except Exception:  # noqa: BLE001 - fallback to seq2seq architectures
+        except Exception:
             self.llm = AutoModelForSeq2SeqLM.from_pretrained(model_id, **model_kwargs)
             self.seq2seq = True
 
@@ -160,7 +160,7 @@ class LLMService:
         model_identifier = f"{self.model_repo_id}_{self.backend}"
         cached_response = LLMResponseCache.get_llm_response(prompt, model_identifier)
         if cached_response is not None:
-            logger.debug(f"Cache hit for LLM response (model: {model_identifier})")
+            logger.debug("Cache hit for LLM response (model: %s)", model_identifier)
             return cached_response
 
         start_time = time.time()
@@ -193,7 +193,7 @@ class LLMService:
                 ttl_hours = 6.0 if generation_time > 5.0 else 12.0  # Longer TTL for quick responses
                 LLMResponseCache.set_llm_response(prompt, model_identifier, result, ttl_hours)
 
-                logger.debug(f"LLM generation completed in {generation_time:.2f}s, cached with TTL {ttl_hours}h")
+                logger.debug("LLM generation completed in %ss, cached with TTL {ttl_hours}h", generation_time)
                 return result
 
             if self.tokenizer is None:
@@ -271,7 +271,7 @@ class LLMService:
             ttl_hours = 6.0 if generation_time > 5.0 else 12.0  # Longer TTL for quick responses
             LLMResponseCache.set_llm_response(prompt, model_identifier, result, ttl_hours)
 
-            logger.debug(f"LLM generation completed in {generation_time:.2f}s, cached with TTL {ttl_hours}h")
+            logger.debug("LLM generation completed in %ss, cached with TTL {ttl_hours}h", generation_time)
             return result
 
         except Exception as exc:  # noqa: BLE001 - capture inference issues

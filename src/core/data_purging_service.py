@@ -30,7 +30,7 @@ class DataPurgingService:
         if not self.cache_dir.exists():
             return
 
-        logger.info(f"Purging disk cache with a retention period of {self.retention_days} days.")
+        logger.info("Purging disk cache with a retention period of %s days.", self.retention_days)
         cutoff_time = time.time() - (self.retention_days * 86400)
         purged_count = 0
 
@@ -40,11 +40,11 @@ class DataPurgingService:
                     if file_path.stat().st_mtime < cutoff_time:
                         file_path.unlink()
                         purged_count += 1
-                        logger.debug(f"Purged cached file: {file_path.name}")
+                        logger.debug("Purged cached file: %s", file_path.name)
                 except (OSError, FileNotFoundError) as e:
-                    logger.warning(f"Could not purge cache file {file_path}: {e}")
+                    logger.warning("Could not purge cache file %s: {e}", file_path)
 
-        logger.info(f"Purged {purged_count} expired files from the disk cache.")
+        logger.info("Purged %s expired files from the disk cache.", purged_count)
 
     def purge_temp_uploads(self):
         """Clears all files from the temporary upload directory, regardless of age."""
@@ -62,6 +62,6 @@ class DataPurgingService:
                     shutil.rmtree(item)
                     purged_count += 1
             except (OSError, FileNotFoundError) as e:
-                logger.warning(f"Could not remove temporary item {item}: {e}")
+                logger.warning("Could not remove temporary item %s: {e}", item)
 
-        logger.info(f"Removed {purged_count} items from the temporary upload directory.")
+        logger.info("Removed %s items from the temporary upload directory.", purged_count)

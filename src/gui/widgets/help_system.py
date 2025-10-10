@@ -1,5 +1,4 @@
-"""
-Contextual Help System - Provides tooltips and help bubbles throughout the UI.
+"""Contextual Help System - Provides tooltips and help bubbles throughout the UI.
 Safe, optional feature that enhances user experience without affecting core functionality.
 """
 
@@ -22,8 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class HelpTooltip(QLabel):
-    """
-    Enhanced tooltip widget with rich text support and auto-positioning.
+    """Enhanced tooltip widget with rich text support and auto-positioning.
     """
 
     def __init__(self, text: str, parent: QWidget | None = None):
@@ -48,7 +46,7 @@ class HelpTooltip(QLabel):
                 color: #333333;
                 max-width: 300px;
             }
-        """
+        """,
         )
 
         self.setText(self.help_text)
@@ -65,8 +63,7 @@ class HelpTooltip(QLabel):
 
 
 class HelpBubble(QFrame):
-    """
-    Help bubble widget that can be embedded in the UI.
+    """Help bubble widget that can be embedded in the UI.
     """
 
     closed = Signal()
@@ -92,7 +89,7 @@ class HelpBubble(QFrame):
                 background: transparent;
                 border: none;
             }
-        """
+        """,
         )
 
         layout = QVBoxLayout(self)
@@ -121,7 +118,7 @@ class HelpBubble(QFrame):
                 background-color: #d4edda;
                 border-radius: 10px;
             }
-        """
+        """,
         )
         close_button.clicked.connect(self.close_bubble)
 
@@ -144,8 +141,7 @@ class HelpBubble(QFrame):
 
 
 class ComplianceGuideDialog(QDialog):
-    """
-    Dialog showing embedded compliance guide and Medicare/CMS requirements.
+    """Dialog showing embedded compliance guide and Medicare/CMS requirements.
     """
 
     def __init__(self, parent: QWidget | None = None):
@@ -238,8 +234,7 @@ class ComplianceGuideDialog(QDialog):
 
 
 class HelpSystem:
-    """
-    Main help system coordinator that manages contextual help throughout the application.
+    """Main help system coordinator that manages contextual help throughout the application.
     """
 
     def __init__(self, enabled: bool = True):
@@ -288,8 +283,7 @@ class HelpSystem:
         }
 
     def show_tooltip(self, widget: QWidget, help_key: str) -> bool:
-        """
-        Show contextual tooltip for a widget.
+        """Show contextual tooltip for a widget.
 
         Args:
             widget: Widget to show tooltip for
@@ -297,13 +291,14 @@ class HelpSystem:
 
         Returns:
             True if tooltip was shown, False otherwise
+
         """
         if not self.enabled:
             return False
 
         help_info = self.help_content.get(help_key)
         if not help_info:
-            logger.warning(f"No help content found for key: {help_key}")
+            logger.warning("No help content found for key: %s", help_key)
             return False
 
         try:
@@ -325,12 +320,11 @@ class HelpSystem:
             return True
 
         except Exception as e:
-            logger.error(f"Error showing tooltip: {e}")
+            logger.exception("Error showing tooltip: %s", e)
             return False
 
     def show_help_bubble(self, parent: QWidget, help_key: str) -> HelpBubble | None:
-        """
-        Show help bubble widget that can be embedded in UI.
+        """Show help bubble widget that can be embedded in UI.
 
         Args:
             parent: Parent widget for the bubble
@@ -338,6 +332,7 @@ class HelpSystem:
 
         Returns:
             HelpBubble widget if created, None otherwise
+
         """
         if not self.enabled:
             return None
@@ -354,7 +349,7 @@ class HelpSystem:
             return bubble
 
         except Exception as e:
-            logger.error(f"Error creating help bubble: {e}")
+            logger.exception("Error creating help bubble: %s", e)
             return None
 
     def show_compliance_guide(self, parent: QWidget | None = None) -> None:
@@ -366,7 +361,7 @@ class HelpSystem:
             guide = ComplianceGuideDialog(parent)
             guide.show()
         except Exception as e:
-            logger.error(f"Error showing compliance guide: {e}")
+            logger.exception("Error showing compliance guide: %s", e)
 
     def _remove_bubble(self, bubble: HelpBubble):
         """Remove bubble from active list."""

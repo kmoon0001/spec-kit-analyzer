@@ -284,7 +284,7 @@ class SettingsTabBuilder:
             ("📚 Educational Resources", "Includes links to relevant guidelines and training materials", True),
             ("🎯 7 Habits Framework Integration", "Incorporates professional development strategies", True),
             ("📊 Compliance Score & Risk Level", "Shows overall compliance percentage and risk assessment", True),
-            ("🔍 Detailed Findings Analysis", "Comprehensive breakdown of all compliance issues", True)
+            ("🔍 Detailed Findings Analysis", "Comprehensive breakdown of all compliance issues", True),
         ]
 
         for checkbox_text, description, checked in checkboxes_with_descriptions:

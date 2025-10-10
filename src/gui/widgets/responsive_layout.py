@@ -1,5 +1,4 @@
-"""
-Responsive Layout System - Adaptive UI that scales to different screen sizes.
+"""Responsive Layout System - Adaptive UI that scales to different screen sizes.
 """
 
 from PySide6.QtCore import Qt, QTimer, Signal
@@ -47,16 +46,14 @@ class ResponsiveWidget(QWidget):
         """Determine current breakpoint based on width."""
         if width < self.breakpoints["mobile"]:
             return "mobile"
-        elif width < self.breakpoints["tablet"]:
+        if width < self.breakpoints["tablet"]:
             return "tablet"
-        elif width < self.breakpoints["desktop"]:
+        if width < self.breakpoints["desktop"]:
             return "desktop"
-        else:
-            return "large"
+        return "large"
 
     def adapt_to_breakpoint(self, breakpoint: str):
         """Override in subclasses to handle breakpoint changes."""
-        pass
 
     def get_responsive_font_size(self, base_size: int) -> int:
         """Get font size adjusted for current breakpoint."""
@@ -142,7 +139,7 @@ class VirtualScrollArea(QScrollArea):
         """Override in subclasses to create item widgets."""
         from PySide6.QtWidgets import QLabel
 
-        widget = QLabel(f"Item {index}: {str(item_data)}")
+        widget = QLabel(f"Item {index}: {item_data!s}")
         widget.setFixedHeight(self.item_height)
         return widget
 
@@ -252,7 +249,6 @@ class AccessibleWidget(QWidget):
         """Set accessible role."""
         # Map common roles to Qt accessibility
         # This would be implemented with proper Qt accessibility APIs
-        pass
 
 
 class HighContrastSupport:

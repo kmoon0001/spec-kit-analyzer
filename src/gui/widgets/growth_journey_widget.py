@@ -1,5 +1,4 @@
-"""
-Growth Journey Widget for Individual Habit Progression.
+"""Growth Journey Widget for Individual Habit Progression.
 
 Displays personal habit mastery, progress trends, achievements,
 and personalized recommendations in the dashboard.
@@ -72,7 +71,7 @@ class HabitProgressBar(QWidget):
         progress_bar.setRange(0, 100)
         progress_bar.setValue(int(min(self.percentage, 100)))
         progress_bar.setTextVisible(True)
-        progress_bar.setFormat(f"{self.percentage:.1f}%")
+        progress_bar.setFormat(f"{self.percentage}%")
 
         # Style progress bar based on mastery level
         if self.mastery_level == "Mastered":
@@ -168,15 +167,15 @@ class RecommendationCard(QWidget):
 
         if priority == "high":
             priority_label.setStyleSheet(
-                "color: #e74c3c; background: #ffebee; padding: 2px 6px; border-radius: 3px;"
+                "color: #e74c3c; background: #ffebee; padding: 2px 6px; border-radius: 3px;",
             )
         elif priority == "medium":
             priority_label.setStyleSheet(
-                "color: #f39c12; background: #fff3cd; padding: 2px 6px; border-radius: 3px;"
+                "color: #f39c12; background: #fff3cd; padding: 2px 6px; border-radius: 3px;",
             )
         else:
             priority_label.setStyleSheet(
-                "color: #2980b9; background: #e3f2fd; padding: 2px 6px; border-radius: 3px;"
+                "color: #2980b9; background: #e3f2fd; padding: 2px 6px; border-radius: 3px;",
             )
 
         header_layout.addWidget(priority_label)
@@ -225,8 +224,7 @@ class RecommendationCard(QWidget):
 
 
 class GrowthJourneyWidget(QWidget):
-    """
-    Main widget for displaying individual habit progression and growth journey.
+    """Main widget for displaying individual habit progression and growth journey.
 
     Features:
     - Habit mastery progress bars
@@ -284,7 +282,7 @@ class GrowthJourneyWidget(QWidget):
         self.loading_label = QLabel("Loading your growth journey...")
         self.loading_label.setFont(QFont("Segoe UI", 12))
         self.loading_label.setStyleSheet(
-            "color: #666; text-align: center; padding: 40px;"
+            "color: #666; text-align: center; padding: 40px;",
         )
         self.content_layout.addWidget(self.loading_label)
 
@@ -319,7 +317,7 @@ class GrowthJourneyWidget(QWidget):
 
     def on_data_error(self, error: str):
         """Handle data loading error."""
-        logger.error(f"Failed to load progression data: {error}")
+        logger.error("Failed to load progression data: %s", error)
 
         # Show error message
         self.clear_content()
@@ -396,10 +394,10 @@ class GrowthJourneyWidget(QWidget):
         # Improvement rate
         improvement_rate = self.progression_data.get("improvement_rate", 0)
         if improvement_rate > 0:
-            improvement_text = f"📈 +{improvement_rate:.1f}% improving"
+            improvement_text = f"📈 +{improvement_rate}% improving"
             color = "lightgreen"
         elif improvement_rate < 0:
-            improvement_text = f"📉 {improvement_rate:.1f}% declining"
+            improvement_text = f"📉 {improvement_rate}% declining"
             color = "lightcoral"
         else:
             improvement_text = "📊 Stable performance"
@@ -436,7 +434,7 @@ class GrowthJourneyWidget(QWidget):
         habit_breakdown = self.progression_data.get("habit_breakdown", {})
 
         for habit_id in sorted(
-            habit_breakdown.keys(), key=lambda x: int(x.split("_")[1])
+            habit_breakdown.keys(), key=lambda x: int(x.split("_")[1]),
         ):
             habit_data = habit_breakdown[habit_id]
 

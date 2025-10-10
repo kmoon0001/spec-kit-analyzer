@@ -1,5 +1,4 @@
-"""
-Advanced Analytics Widget with Predictive Insights and Data Visualization
+"""Advanced Analytics Widget with Predictive Insights and Data Visualization
 """
 
 import random
@@ -232,7 +231,7 @@ class AdvancedAnalyticsWidget(QWidget):
 
         self.time_range = QComboBox()
         self.time_range.addItems(
-            ["Last 7 Days", "Last 30 Days", "Last 90 Days", "Last Year"]
+            ["Last 7 Days", "Last 30 Days", "Last 90 Days", "Last Year"],
         )
         self.time_range.setCurrentText("Last 30 Days")
         self.time_range.currentTextChanged.connect(self.refresh_analytics)
@@ -314,7 +313,7 @@ class AdvancedAnalyticsWidget(QWidget):
         # Compliance trend chart
         if MATPLOTLIB_AVAILABLE:
             self.trend_chart = self.create_matplotlib_chart(
-                "Compliance Trends Over Time"
+                "Compliance Trends Over Time",
             )
             charts_layout.addWidget(self.trend_chart)
         else:
@@ -399,11 +398,11 @@ class AdvancedAnalyticsWidget(QWidget):
 
         # Overall ranking
         ranking_label = QLabel(
-            f"🏆 Your Performance Ranking: {benchmark_data['percentile_ranking']}th Percentile"
+            f"🏆 Your Performance Ranking: {benchmark_data['percentile_ranking']}th Percentile",
         )
         ranking_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         ranking_label.setStyleSheet(
-            "color: #007acc; padding: 10px; background: #f0f8ff; border-radius: 5px;"
+            "color: #007acc; padding: 10px; background: #f0f8ff; border-radius: 5px;",
         )
         comparison_layout.addWidget(ranking_label)
 
@@ -427,7 +426,7 @@ class AdvancedAnalyticsWidget(QWidget):
             top_performer = benchmark_data["top_performers"][metric]
 
             metric_widget = self.create_benchmark_comparison(
-                name, your_score, industry_avg, top_performer
+                name, your_score, industry_avg, top_performer,
             )
             comparison_layout.addWidget(metric_widget)
 
@@ -516,7 +515,7 @@ class AdvancedAnalyticsWidget(QWidget):
         change_label = QLabel(change)
         change_label.setFont(QFont("Arial", 10))
         change_label.setStyleSheet(
-            "color: #28a745;" if "↑" in change else "color: #dc3545;"
+            "color: #28a745;" if "↑" in change else "color: #dc3545;",
         )
 
         layout.addWidget(title_label)
@@ -683,7 +682,7 @@ class AdvancedAnalyticsWidget(QWidget):
         return widget
 
     def create_benchmark_comparison(
-        self, name: str, your_score: float, industry_avg: float, top_performer: float
+        self, name: str, your_score: float, industry_avg: float, top_performer: float,
     ):
         """Create benchmark comparison widget"""
         widget = QFrame()
@@ -734,7 +733,7 @@ class AdvancedAnalyticsWidget(QWidget):
                 }}
             """)
 
-            score_label = QLabel(f"{score:.1f}%")
+            score_label = QLabel(f"{score}%")
             score_label.setMinimumWidth(50)
             score_label.setStyleSheet(f"color: {color}; font-weight: bold;")
 
@@ -778,7 +777,7 @@ class AdvancedAnalyticsWidget(QWidget):
         risk_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         risk_title.setFont(QFont("Arial", 12))
 
-        risk_value = QLabel(f"{risk_score:.1f}%")
+        risk_value = QLabel(f"{risk_score}%")
         risk_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
         risk_value.setFont(QFont("Arial", 24, QFont.Weight.Bold))
         risk_value.setStyleSheet(f"color: {risk_color};")
@@ -804,7 +803,7 @@ class AdvancedAnalyticsWidget(QWidget):
 
             checkbox = QCheckBox()
             checkbox.setStyleSheet(
-                "QCheckBox::indicator { width: 15px; height: 15px; }"
+                "QCheckBox::indicator { width: 15px; height: 15px; }",
             )
 
             item_label = QLabel(item)
@@ -845,4 +844,3 @@ class AdvancedAnalyticsWidget(QWidget):
     def export_analytics(self):
         """Export analytics data"""
         # This would be connected to export functionality
-        pass

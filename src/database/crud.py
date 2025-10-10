@@ -1,6 +1,5 @@
 # MODIFIED: Added timezone and timedelta imports.
-"""
-Database CRUD operations for the Therapy Compliance Analyzer.
+"""Database CRUD operations for the Therapy Compliance Analyzer.
 
 Provides async database operations for users, rubrics, reports, and findings.
 """
@@ -25,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 async def get_user(db: AsyncSession, user_id: int) -> models.User | None:
     result = await db.execute(
-        select(models.User).where(models.User.id == user_id)
+        select(models.User).where(models.User.id == user_id),
     )
     return result.scalars().first()
 
@@ -35,7 +34,7 @@ default_admin_flag = False
 
 async def get_user_by_username(db: AsyncSession, username: str) -> models.User | None:
     result = await db.execute(
-        select(models.User).where(models.User.username == username)
+        select(models.User).where(models.User.username == username),
     )
     return result.scalars().first()
 
@@ -51,7 +50,7 @@ async def create_user(
         username=user.username,
         hashed_password=hashed_password,
         is_active=True,
-        is_admin=is_admin if is_admin is not None else getattr(user, 'is_admin', False),
+        is_admin=is_admin if is_admin is not None else getattr(user, "is_admin", False),
     )
     db.add(db_user)
     await db.commit()
@@ -76,14 +75,14 @@ async def change_user_password(
 
 
 async def create_rubric(
-    db: AsyncSession, rubric: schemas.RubricCreate
+    db: AsyncSession, rubric: schemas.RubricCreate,
 ) -> models.ComplianceRubric:
     """Create a new compliance rubric."""
     db_rubric = models.ComplianceRubric(**rubric.model_dump())
     db.add(db_rubric)
     try:
         await db.commit()
-    except Exception:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         await db.rollback()
         raise
     await db.refresh(db_rubric)
@@ -91,7 +90,7 @@ async def create_rubric(
 
 
 async def get_rubrics(
-    db: AsyncSession, skip: int = 0, limit: int = 100
+    db: AsyncSession, skip: int = 0, limit: int = 100,
 ) -> list[models.ComplianceRubric]:
     """Return a page of rubrics."""
     query = (
@@ -105,18 +104,18 @@ async def get_rubrics(
 
 
 async def get_rubric(
-    db: AsyncSession, rubric_id: int
+    db: AsyncSession, rubric_id: int,
 ) -> models.ComplianceRubric | None:
     """Return a single rubric by identifier."""
     query = select(models.ComplianceRubric).where(
-        models.ComplianceRubric.id == rubric_id
+        models.ComplianceRubric.id == rubric_id,
     )
     result = await db.execute(query)
     return result.scalars().first()
 
 
 async def update_rubric(
-    db: AsyncSession, rubric_id: int, rubric: schemas.RubricCreate
+    db: AsyncSession, rubric_id: int, rubric: schemas.RubricCreate,
 ) -> models.ComplianceRubric | None:
     """Update an existing rubric."""
     db_rubric = await get_rubric(db, rubric_id)
@@ -129,7 +128,7 @@ async def update_rubric(
 
     try:
         await db.commit()
-    except Exception:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         await db.rollback()
         raise
     await db.refresh(db_rubric)
@@ -200,7 +199,7 @@ async def get_discipline_breakdown(db: AsyncSession, days_back: int) -> dict[str
         select(
             models.AnalysisReport.analysis_result["discipline"].as_string().label("discipline"),
             func.avg(models.AnalysisReport.compliance_score).label("avg_score"),
-            func.count(models.AnalysisReport.id).label("user_count")
+            func.count(models.AnalysisReport.id).label("user_count"),
         )
         .filter(models.AnalysisReport.analysis_date >= cutoff_date)
         .group_by(models.AnalysisReport.analysis_result["discipline"].as_string())
@@ -270,7 +269,7 @@ async def get_team_performance_trends(db: AsyncSession, days_back: int) -> list[
                 "week": index + 1,
                 "avg_compliance_score": avg_score,
                 "total_findings": total_findings,
-            }
+            },
         )
 
     return trends
@@ -380,7 +379,7 @@ async def find_similar_report(
 
 
 async def get_reports(
-    db: AsyncSession, skip: int = 0, limit: int = 100
+    db: AsyncSession, skip: int = 0, limit: int = 100,
 ) -> list[models.AnalysisReport]:
     """Return analysis reports with their findings eagerly loaded."""
     query = (
@@ -419,14 +418,14 @@ async def get_findings_summary(db: AsyncSession) -> list[dict[str, Any]]:
 
 
 def _as_datetime(
-    value: date | None, *, end: bool = False
+    value: date | None, *, end: bool = False,
 ) -> datetime.datetime | None:
     """Convert a date into a naive UTC datetime for filtering."""
     if value is None:
         return None
     if end:
         return datetime.datetime.combine(
-            value, datetime.time.max
+            value, datetime.time.max,
         ).replace(microsecond=0)
     return datetime.datetime.combine(value, datetime.time.min)
 
@@ -498,7 +497,7 @@ async def get_team_habit_summary(
             schemas.HabitSummary(
                 habit_name=f"Habit {habit_index}",
                 count=int(round(average)),
-            )
+            ),
         )
     return summaries
 
@@ -552,7 +551,7 @@ async def get_clinician_habit_breakdown(
                     clinician_name=user.username,
                     habit_name=f"Habit {habit_id.split('_')[-1]}",
                     count=int(round(percentage)),
-                )
+                ),
             )
 
     return breakdown
@@ -589,7 +588,7 @@ async def get_habit_trend_data(
 
 
 async def get_user_habit_goals(
-    db: AsyncSession, user_id: int, active_only: bool = True
+    db: AsyncSession, user_id: int, active_only: bool = True,
 ) -> list[models.HabitGoal]:
     """Return goals for the given user."""
     query = select(models.HabitGoal).where(models.HabitGoal.user_id == user_id)
@@ -601,7 +600,7 @@ async def get_user_habit_goals(
 
 
 async def create_personal_habit_goal(
-    db: AsyncSession, user_id: int, goal_data: dict[str, Any]
+    db: AsyncSession, user_id: int, goal_data: dict[str, Any],
 ) -> models.HabitGoal:
     """Create a personal habit goal for a user."""
     habit_identifier = goal_data.get("habit_id")
@@ -626,7 +625,7 @@ async def create_personal_habit_goal(
     db.add(db_goal)
     try:
         await db.commit()
-    except Exception:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         await db.rollback()
         raise
     await db.refresh(db_goal)
@@ -639,18 +638,18 @@ async def create_personal_habit_goal(
 
 
 async def create_habit_goal(
-    db: AsyncSession, user_id: int, goal_data: dict[str, Any]
+    db: AsyncSession, user_id: int, goal_data: dict[str, Any],
 ) -> models.HabitGoal:
     """Compatibility wrapper for legacy API."""
     return await create_personal_habit_goal(db, user_id, goal_data)
 
 
 async def update_habit_goal_progress(
-    db: AsyncSession, goal_id: int, progress: int, user_id: int
+    db: AsyncSession, goal_id: int, progress: int, user_id: int,
 ) -> models.HabitGoal | None:
     """Update the progress percentage for a user's goal."""
     query = select(models.HabitGoal).where(
-        models.HabitGoal.id == goal_id, models.HabitGoal.user_id == user_id
+        models.HabitGoal.id == goal_id, models.HabitGoal.user_id == user_id,
     )
     result = await db.execute(query)
     goal = result.scalars().first()
@@ -666,7 +665,7 @@ async def update_habit_goal_progress(
 
 
 async def get_user_achievements(
-    db: AsyncSession, user_id: int, category: str | None = None
+    db: AsyncSession, user_id: int, category: str | None = None,
 ) -> list[dict[str, Any]]:
     """Return achievements for a user grouped by category."""
     query = select(models.HabitAchievement).where(models.HabitAchievement.user_id == user_id)
@@ -693,13 +692,13 @@ async def get_user_achievements(
                 "earned_date": row.earned_at,
                 "points_earned": 10,
                 "metadata": {},
-            }
+            },
         )
     return achievements
 
 
 async def get_user_habit_statistics(
-    db: AsyncSession, user_id: int, days_back: int
+    db: AsyncSession, user_id: int, days_back: int,
 ) -> dict[str, Any]:
     """Return high level habit statistics for a user."""
     cutoff = datetime.datetime.utcnow() - timedelta(days=days_back)
@@ -749,7 +748,7 @@ async def get_user_habit_statistics(
 
 
 async def create_habit_progress_snapshot(
-    db: AsyncSession, user_id: int, snapshot_data: dict[str, Any]
+    db: AsyncSession, user_id: int, snapshot_data: dict[str, Any],
 ) -> models.HabitProgressSnapshot:
     """Persist a habit progress snapshot for a user."""
     habit_breakdown = snapshot_data.get("habit_breakdown", {})
@@ -768,14 +767,14 @@ async def create_habit_progress_snapshot(
         improvement_rate=float(
             snapshot_data.get("improvement_trend", {}).get("rate", 0.0)
             if isinstance(snapshot_data.get("improvement_trend"), dict)
-            else 0.0
+            else 0.0,
         ),
         consistency_score=float(snapshot_data.get("consistency_score", 0.0)),
     )
     db.add(snapshot)
     try:
         await db.commit()
-    except Exception:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         await db.rollback()
         raise
     await db.refresh(snapshot)
@@ -809,7 +808,7 @@ async def create_feedback_annotation(
     db.add(db_feedback)
     try:
         await db.commit()
-    except Exception:
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
         await db.rollback()
         raise
     await db.refresh(db_feedback)
@@ -826,14 +825,13 @@ async def get_user_reports_with_findings(
     user_id: int,
     start_date: datetime.datetime | None = None,
 ) -> list[models.AnalysisReport]:
-    """
-    Fetch analysis reports associated with a user.
+    """Fetch analysis reports associated with a user.
 
     Current datasets do not persist a user relationship on reports, so this
     returns all recent reports as a best-effort placeholder for the tracker.
     """
     query = select(models.AnalysisReport).options(
-        selectinload(models.AnalysisReport.findings)
+        selectinload(models.AnalysisReport.findings),
     )
     if start_date is not None:
         query = query.where(models.AnalysisReport.analysis_date >= start_date)

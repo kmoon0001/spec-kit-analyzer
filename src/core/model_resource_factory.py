@@ -1,5 +1,4 @@
-"""
-AI Model Resource Factory for Therapy Compliance Analyzer
+"""AI Model Resource Factory for Therapy Compliance Analyzer
 
 This module provides resource factories for AI models, enabling efficient
 pooling and lifecycle management of expensive AI resources.
@@ -29,7 +28,7 @@ class LLMResourceFactory(ResourceFactory[LLMService]):
     def create_resource(self, resource_id: str) -> LLMService:
         """Create a new LLM service instance."""
         try:
-            logger.info(f"Creating LLM resource {resource_id} with model {self.model_name}")
+            logger.info("Creating LLM resource %s with model {self.model_name}", resource_id)
 
             # Create LLM service with specified model
             llm_service = LLMService()
@@ -40,11 +39,11 @@ class LLMResourceFactory(ResourceFactory[LLMService]):
             # Estimate model size for resource tracking
             self._model_size_mb = self._estimate_model_size()
 
-            logger.info(f"LLM resource {resource_id} created successfully")
+            logger.info("LLM resource %s created successfully", resource_id)
             return llm_service
 
         except Exception as e:
-            logger.error(f"Failed to create LLM resource {resource_id}: {e}")
+            logger.exception("Failed to create LLM resource %s: {e}", resource_id)
             raise
 
     def validate_resource(self, resource: LLMService) -> bool:
@@ -56,17 +55,17 @@ class LLMResourceFactory(ResourceFactory[LLMService]):
             return response is not None and len(response.strip()) > 0
 
         except Exception as e:
-            logger.warning(f"LLM resource validation failed: {e}")
+            logger.warning("LLM resource validation failed: %s", e)
             return False
 
     def dispose_resource(self, resource: LLMService) -> None:
         """Dispose of an LLM service properly."""
         try:
             # Clear any cached models or data
-            if hasattr(resource, '_model') and resource._model is not None:
+            if hasattr(resource, "_model") and resource._model is not None:
                 del resource._model
 
-            if hasattr(resource, '_tokenizer') and resource._tokenizer is not None:
+            if hasattr(resource, "_tokenizer") and resource._tokenizer is not None:
                 del resource._tokenizer
 
             # Force garbage collection for GPU memory
@@ -76,7 +75,7 @@ class LLMResourceFactory(ResourceFactory[LLMService]):
             logger.debug("LLM resource disposed successfully")
 
         except Exception as e:
-            logger.error(f"Error disposing LLM resource: {e}")
+            logger.exception("Error disposing LLM resource: %s", e)
 
     def get_resource_size(self, resource: LLMService) -> int:
         """Get estimated memory size of LLM resource in bytes."""
@@ -87,10 +86,9 @@ class LLMResourceFactory(ResourceFactory[LLMService]):
         if device == "auto":
             if torch.cuda.is_available():
                 return "cuda"
-            elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
                 return "mps"
-            else:
-                return "cpu"
+            return "cpu"
         return device
 
     def _estimate_model_size(self) -> int:
@@ -121,18 +119,18 @@ class EmbeddingModelResourceFactory(ResourceFactory[SentenceTransformer]):
     def create_resource(self, resource_id: str) -> SentenceTransformer:
         """Create a new sentence transformer model."""
         try:
-            logger.info(f"Creating embedding model resource {resource_id} with model {self.model_name}")
+            logger.info("Creating embedding model resource %s with model {self.model_name}", resource_id)
 
             model = SentenceTransformer(self.model_name, device=self.device)
 
             # Estimate model size
             self._model_size_mb = self._estimate_model_size()
 
-            logger.info(f"Embedding model resource {resource_id} created successfully")
+            logger.info("Embedding model resource %s created successfully", resource_id)
             return model
 
         except Exception as e:
-            logger.error(f"Failed to create embedding model resource {resource_id}: {e}")
+            logger.exception("Failed to create embedding model resource %s: {e}", resource_id)
             raise
 
     def validate_resource(self, resource: SentenceTransformer) -> bool:
@@ -144,14 +142,14 @@ class EmbeddingModelResourceFactory(ResourceFactory[SentenceTransformer]):
             return embedding is not None and len(embedding) > 0
 
         except Exception as e:
-            logger.warning(f"Embedding model resource validation failed: {e}")
+            logger.warning("Embedding model resource validation failed: %s", e)
             return False
 
     def dispose_resource(self, resource: SentenceTransformer) -> None:
         """Dispose of a sentence transformer model properly."""
         try:
             # Clear model from memory
-            if hasattr(resource, '_modules'):
+            if hasattr(resource, "_modules"):
                 resource._modules.clear()
 
             # Force garbage collection for GPU memory
@@ -161,7 +159,7 @@ class EmbeddingModelResourceFactory(ResourceFactory[SentenceTransformer]):
             logger.debug("Embedding model resource disposed successfully")
 
         except Exception as e:
-            logger.error(f"Error disposing embedding model resource: {e}")
+            logger.exception("Error disposing embedding model resource: %s", e)
 
     def get_resource_size(self, resource: SentenceTransformer) -> int:
         """Get estimated memory size of embedding model in bytes."""
@@ -172,10 +170,9 @@ class EmbeddingModelResourceFactory(ResourceFactory[SentenceTransformer]):
         if device == "auto":
             if torch.cuda.is_available():
                 return "cuda"
-            elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
                 return "mps"
-            else:
-                return "cpu"
+            return "cpu"
         return device
 
     def _estimate_model_size(self) -> int:
@@ -201,15 +198,15 @@ class TokenizerResourceFactory(ResourceFactory[AutoTokenizer]):
     def create_resource(self, resource_id: str) -> AutoTokenizer:
         """Create a new tokenizer instance."""
         try:
-            logger.info(f"Creating tokenizer resource {resource_id} for model {self.model_name}")
+            logger.info("Creating tokenizer resource %s for model {self.model_name}", resource_id)
 
             tokenizer = AutoTokenizer.from_pretrained(self.model_name)
 
-            logger.info(f"Tokenizer resource {resource_id} created successfully")
+            logger.info("Tokenizer resource %s created successfully", resource_id)
             return tokenizer
 
         except Exception as e:
-            logger.error(f"Failed to create tokenizer resource {resource_id}: {e}")
+            logger.exception("Failed to create tokenizer resource %s: {e}", resource_id)
             raise
 
     def validate_resource(self, resource: AutoTokenizer) -> bool:
@@ -221,20 +218,20 @@ class TokenizerResourceFactory(ResourceFactory[AutoTokenizer]):
             return tokens is not None and len(tokens) > 0
 
         except Exception as e:
-            logger.warning(f"Tokenizer resource validation failed: {e}")
+            logger.warning("Tokenizer resource validation failed: %s", e)
             return False
 
     def dispose_resource(self, resource: AutoTokenizer) -> None:
         """Dispose of a tokenizer properly."""
         try:
             # Tokenizers are lightweight, just clear any cached data
-            if hasattr(resource, '_tokenizer'):
+            if hasattr(resource, "_tokenizer"):
                 resource._tokenizer = None
 
             logger.debug("Tokenizer resource disposed successfully")
 
         except Exception as e:
-            logger.error(f"Error disposing tokenizer resource: {e}")
+            logger.exception("Error disposing tokenizer resource: %s", e)
 
     def get_resource_size(self, resource: AutoTokenizer) -> int:
         """Get estimated memory size of tokenizer in bytes."""
@@ -255,15 +252,15 @@ class ModelResourceManager:
 
         try:
             # Create factories for common models
-            self._factories['llm'] = LLMResourceFactory()
-            self._factories['embeddings'] = EmbeddingModelResourceFactory()
-            self._factories['tokenizer'] = TokenizerResourceFactory("microsoft/DialoGPT-medium")
+            self._factories["llm"] = LLMResourceFactory()
+            self._factories["embeddings"] = EmbeddingModelResourceFactory()
+            self._factories["tokenizer"] = TokenizerResourceFactory("microsoft/DialoGPT-medium")
 
             self._initialized = True
             logger.info("Model resource manager initialized")
 
         except Exception as e:
-            logger.error(f"Failed to initialize model resource manager: {e}")
+            logger.exception("Failed to initialize model resource manager: %s", e)
             raise
 
     def get_factory(self, model_type: str) -> ResourceFactory | None:
@@ -276,7 +273,7 @@ class ModelResourceManager:
     def register_factory(self, model_type: str, factory: ResourceFactory) -> None:
         """Register a custom resource factory."""
         self._factories[model_type] = factory
-        logger.info(f"Registered custom factory for model type: {model_type}")
+        logger.info("Registered custom factory for model type: %s", model_type)
 
     def get_available_types(self) -> list[str]:
         """Get list of available model types."""

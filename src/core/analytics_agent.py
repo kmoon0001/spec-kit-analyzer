@@ -1,5 +1,4 @@
-"""
-Analytics Agent for Performance Monitoring
+"""Analytics Agent for Performance Monitoring
 
 This module provides historical analysis and pattern recognition.
 """
@@ -17,6 +16,7 @@ class AnalyticsAgent:
 
         Args:
             config: Monitoring configuration
+
         """
         self.config = config
         logger.info("Analytics agent initialized")
@@ -26,6 +26,7 @@ class AnalyticsAgent:
 
         Args:
             config: New monitoring configuration
+
         """
         self.config = config
         logger.debug("Analytics agent configuration updated")

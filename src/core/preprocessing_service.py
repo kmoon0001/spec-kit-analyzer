@@ -9,8 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class PreprocessingService:
-    """
-    A high-performance service for cleaning and preparing text for analysis.
+    """A high-performance service for cleaning and preparing text for analysis.
 
     This service features a robust, regex-based tokenizer, a cache for spelling
     corrections to boost performance, and loads a custom medical dictionary to
@@ -18,8 +17,7 @@ class PreprocessingService:
     """
 
     def __init__(self):
-        """
-        Initializes the service, loads the medical spell-checker, and sets up the cache.
+        """Initializes the service, loads the medical spell-checker, and sets up the cache.
         """
         self.settings = get_settings()
         self.spell = SpellChecker()
@@ -30,36 +28,35 @@ class PreprocessingService:
         self._load_medical_dictionary()
 
     def _load_medical_dictionary(self):
-        """
-        Loads a custom medical dictionary from the path specified in the config.
+        """Loads a custom medical dictionary from the path specified in the config.
         """
         try:
             # Get dictionary path from the centralized configuration.
             dict_path = self.settings.paths.medical_dictionary
             self.spell.word_frequency.load_text_file(dict_path)
             logger.info(
-                "Successfully loaded custom medical dictionary from: %s", dict_path
+                "Successfully loaded custom medical dictionary from: %s", dict_path,
             )
         except FileNotFoundError:
-            logger.error(
+            logger.exception(
                 "Medical dictionary not found at path: %s. "
                 "Spell-checking accuracy will be reduced.",
                 self.settings.paths.medical_dictionary,
             )
         except Exception as e:
             logger.error(
-                "Failed to load custom medical dictionary: %s", e, exc_info=True
+                "Failed to load custom medical dictionary: %s", e, exc_info=True,
             )
 
     def correct_text(self, text: str) -> str:
-        """
-        Corrects spelling errors in the text using a cached, dictionary-aware approach.
+        """Corrects spelling errors in the text using a cached, dictionary-aware approach.
 
         Args:
             text: The input string to be corrected.
 
         Returns:
             The corrected string.
+
         """
         if not isinstance(text, str) or not text.strip():
             return ""
@@ -103,5 +100,5 @@ class PreprocessingService:
             (
                 " " + token if i > 0 and token.isalpha() else token
                 for i, token in enumerate(corrected_tokens)
-            )
+            ),
         ).lstrip()

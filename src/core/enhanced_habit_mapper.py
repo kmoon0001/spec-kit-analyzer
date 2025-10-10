@@ -1,5 +1,4 @@
-"""
-Enhanced 7 Habits Framework for Clinical Compliance.
+"""Enhanced 7 Habits Framework for Clinical Compliance.
 
 Maps compliance findings to Stephen Covey's 7 Habits of Highly Effective People,
 providing personalized coaching and improvement strategies for clinical documentation.
@@ -44,8 +43,7 @@ class HabitMetrics(TypedDict):
 
 
 class SevenHabitsFramework:
-    """
-    Complete implementation of Stephen Covey's 7 Habits framework
+    """Complete implementation of Stephen Covey's 7 Habits framework
     applied to clinical documentation compliance.
     """
 
@@ -337,21 +335,20 @@ class SevenHabitsFramework:
     }
 
     def __init__(self, use_ai_mapping: bool = False, llm_service=None):
-        """
-        Initialize the 7 Habits framework.
+        """Initialize the 7 Habits framework.
 
         Args:
             use_ai_mapping: Whether to use AI for contextual habit mapping
             llm_service: Optional LLM service for AI-powered mapping
+
         """
         self.use_ai_mapping = use_ai_mapping
         self.llm_service = llm_service
 
     def map_finding_to_habit(
-        self, finding: dict[str, Any], context: dict[str, Any] | None = None
+        self, finding: dict[str, Any], context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """
-        Map a compliance finding to the most appropriate habit.
+        """Map a compliance finding to the most appropriate habit.
 
         Args:
             finding: Compliance finding dictionary
@@ -359,21 +356,21 @@ class SevenHabitsFramework:
 
         Returns:
             Dict with habit information and personalized guidance
+
         """
         if self.use_ai_mapping and self.llm_service:
             return self._ai_powered_mapping(finding, context)
-        else:
-            return self._rule_based_mapping(finding)
+        return self._rule_based_mapping(finding)
 
     def _rule_based_mapping(self, finding: dict[str, Any]) -> dict[str, Any]:
-        """
-        Map finding to habit using keyword-based rules.
+        """Map finding to habit using keyword-based rules.
 
         Args:
             finding: Compliance finding dictionary
 
         Returns:
             Dict with habit information
+
         """
         issue_title = (finding.get("issue_title") or "").lower()
         issue_text = (finding.get("text") or "").lower()
@@ -385,7 +382,7 @@ class SevenHabitsFramework:
         for habit_id, habit_info in self.HABITS.items():
             score = sum(
                 1 for keyword in habit_info["keywords"]
-                if re.search(r'\b' + re.escape(keyword) + r'\b', combined_text)
+                if re.search(r"\b" + re.escape(keyword) + r"\b", combined_text)
             )
             habit_scores[habit_id] = score
 
@@ -410,10 +407,9 @@ class SevenHabitsFramework:
         }
 
     def _ai_powered_mapping(
-        self, finding: dict[str, Any], context: dict[str, Any] | None = None
+        self, finding: dict[str, Any], context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """
-        Use AI to map finding to habit with contextual understanding.
+        """Use AI to map finding to habit with contextual understanding.
 
         Args:
             finding: Compliance finding dictionary
@@ -421,6 +417,7 @@ class SevenHabitsFramework:
 
         Returns:
             Dict with habit information and AI-generated insights
+
         """
         if not self.llm_service or not self.llm_service.is_ready():
             logger.warning("AI mapping requested but LLM not available, using rules")
@@ -448,7 +445,7 @@ class SevenHabitsFramework:
                 "explanation": result.get("explanation", habit["clinical_application"]),
                 "detailed_description": habit["description"].strip(),
                 "improvement_strategies": result.get(
-                    "strategies", habit["improvement_strategies"]
+                    "strategies", habit["improvement_strategies"],
                 ),
                 "clinical_examples": habit["clinical_examples"],
                 "common_issues": habit["common_issues"],
@@ -457,18 +454,18 @@ class SevenHabitsFramework:
             }
 
         except Exception as e:
-            logger.exception(f"AI mapping failed: {e}")
+            logger.exception("AI mapping failed: %s", e)
             return self._rule_based_mapping(finding)
 
     def _build_ai_mapping_prompt(
-        self, finding: dict[str, Any], context: dict[str, Any] | None = None
+        self, finding: dict[str, Any], context: dict[str, Any] | None = None,
     ) -> str:
         """Build prompt for AI-powered habit mapping."""
         habits_summary = "\n".join(
             [
                 f"- Habit {h['number']}: {h['name']} - {h['clinical_application']}"
                 for h in self.HABITS.values()
-            ]
+            ],
         )
 
         context_str = ""
@@ -501,39 +498,39 @@ Return a JSON object:
         return prompt
 
     def get_habit_details(self, habit_id: str) -> HabitDefinition:
-        """
-        Get complete details for a specific habit.
+        """Get complete details for a specific habit.
 
         Args:
             habit_id: Habit identifier (e.g., "habit_1")
 
         Returns:
             Complete habit information
+
         """
         return self.HABITS.get(habit_id, self.HABITS["habit_1"])
 
     def get_all_habits(self) -> list[dict[str, Any]]:
-        """
-        Get information for all 7 habits.
+        """Get information for all 7 habits.
 
         Returns:
             List of all habit dictionaries
+
         """
         return [
             {**habit, "habit_id": habit_id} for habit_id, habit in self.HABITS.items()
         ]
 
     def get_habit_progression_metrics(
-        self, findings_history: list[dict[str, Any]]
+        self, findings_history: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        """
-        Calculate habit progression metrics from historical findings.
+        """Calculate habit progression metrics from historical findings.
 
         Args:
             findings_history: List of historical findings with habit mappings
 
         Returns:
             Dict with progression metrics for each habit
+
         """
         habit_counts = {habit_id: 0 for habit_id in self.HABITS.keys()}
         total_findings = len(findings_history)
@@ -578,18 +575,16 @@ Return a JSON object:
         """Calculate mastery level based on finding percentage."""
         if percentage < 5:
             return "Mastered"
-        elif percentage < 15:
+        if percentage < 15:
             return "Proficient"
-        elif percentage < 25:
+        if percentage < 25:
             return "Developing"
-        else:
-            return "Needs Focus"
+        return "Needs Focus"
 
 
 # Backward compatibility function
 def get_habit_for_finding(finding: dict[str, Any]) -> dict[str, Any]:
-    """
-    Legacy function for backward compatibility.
+    """Legacy function for backward compatibility.
 
     Maps a finding to a habit using the enhanced framework.
     """

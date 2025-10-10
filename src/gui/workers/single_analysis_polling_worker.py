@@ -35,7 +35,7 @@ class SingleAnalysisPollingWorker(QObject):
         attempts = 0
 
         logger = logging.getLogger(__name__)
-        logger.info(f"Starting polling for task: {self.task_id}")
+        logger.info("Starting polling for task: %s", self.task_id)
 
         while self.is_running and attempts < max_attempts:
             attempts += 1
@@ -54,13 +54,13 @@ class SingleAnalysisPollingWorker(QObject):
                 workflow_logger.log_api_response(response.status_code, response.json() if response.content else None)
 
                 if response.headers.get("Content-Type", "").startswith("text/html"):
-                    logger.warning(f"Received HTML response instead of JSON for task {self.task_id}")
+                    logger.warning("Received HTML response instead of JSON for task %s", self.task_id)
                     self.success.emit(response.text)
                     self.finished.emit()
                     return
 
                 status_data: dict[str, Any] = response.json()
-                logger.info(f"Polling response: {status_data}")
+                logger.info("Polling response: %s", status_data)
                 status = status_data.get("status", "unknown")
                 progress = status_data.get("progress", 0)
 
@@ -74,15 +74,15 @@ class SingleAnalysisPollingWorker(QObject):
                     status_tracker.update_status(
                         AnalysisState.PROCESSING,
                         reported_progress,
-                        f"Processing... ({reported_progress}%)"
+                        f"Processing... ({reported_progress}%)",
                     )
 
                     self.progress.emit(max(0, min(100, reported_progress)))
-                    logger.debug(f"Task {self.task_id} processing: {reported_progress}%")
+                    logger.debug("Task %s processing: {reported_progress}%", self.task_id)
 
                 elif status == "failed":
                     error_msg = status_data.get("error", "Unknown error during analysis.")
-                    logger.error(f"Task {self.task_id} failed: {error_msg}")
+                    logger.error("Task %s failed: {error_msg}", self.task_id)
 
                     # Update status tracker
                     status_tracker.set_error(error_msg)
@@ -93,7 +93,7 @@ class SingleAnalysisPollingWorker(QObject):
 
                 elif status == "completed":
                     result = status_data.get("result")
-                    logger.info(f"Task {self.task_id} completed successfully")
+                    logger.info("Task %s completed successfully", self.task_id)
 
                     # Update status tracker
                     status_tracker.complete_analysis(result)
@@ -103,22 +103,22 @@ class SingleAnalysisPollingWorker(QObject):
                     return
 
                 elif status == "pending":
-                    logger.debug(f"Task {self.task_id} still pending (attempt {attempts})")
+                    logger.debug("Task %s still pending (attempt {attempts})", self.task_id)
                     status_tracker.update_status(
                         AnalysisState.POLLING,
                         5,
-                        "Analysis queued, waiting to start..."
+                        "Analysis queued, waiting to start...",
                     )
                 else:
                     logger.warning(f"Unknown status '{status}' for task {self.task_id}")
                     status_tracker.update_status(
                         AnalysisState.POLLING,
                         attempts * 100 // max_attempts,
-                        f"Unknown status: {status}"
+                        f"Unknown status: {status}",
                     )
 
             except requests.RequestException as exc:
-                logger.error(f"Network error polling task {self.task_id}: {exc}")
+                logger.exception("Network error polling task %s: {exc}", self.task_id)
                 workflow_logger.log_api_response(0, error=str(exc))
 
                 # For connection errors, provide more specific guidance
@@ -134,7 +134,7 @@ class SingleAnalysisPollingWorker(QObject):
                 return
 
             except Exception as exc:  # pragma: no cover - defensive
-                logger.error(f"Unexpected error polling task {self.task_id}: {exc}")
+                logger.exception("Unexpected error polling task %s: {exc}", self.task_id)
                 workflow_logger.log_api_response(0, error=str(exc))
                 self.error.emit(f"An unexpected error occurred while checking analysis status: {exc}")
                 self.finished.emit()
@@ -145,7 +145,7 @@ class SingleAnalysisPollingWorker(QObject):
         # Handle timeout
         if attempts >= max_attempts:
             timeout_msg = f"Analysis timed out after {max_attempts * poll_interval} seconds ({max_attempts} attempts)"
-            logger.error(f"Task {self.task_id} timed out")
+            logger.error("Task %s timed out", self.task_id)
             workflow_logger.log_workflow_timeout(max_attempts * poll_interval)
             status_tracker.update_status(AnalysisState.TIMEOUT, 100, "Analysis timed out")
             self.error.emit(timeout_msg)

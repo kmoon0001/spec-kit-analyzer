@@ -1,6 +1,5 @@
 
-"""
-Manages and monitors application performance metrics.
+"""Manages and monitors application performance metrics.
 
 This module provides a centralized service for tracking system and process
 performance, such as CPU and memory usage. It uses the `psutil` library
@@ -60,7 +59,7 @@ class PerformanceManager:
             import torch  # type: ignore
 
             info["cuda_available"] = bool(torch.cuda.is_available())
-        except Exception:
+        except (ModuleNotFoundError, ImportError):
             info["cuda_available"] = False
         return info
 
@@ -100,7 +99,7 @@ class PerformanceManager:
         try:
             return psutil.cpu_percent(interval=None)
         except Exception as exc:
-            logger.error("Could not retrieve CPU usage: %s", exc)
+            logger.exception("Could not retrieve CPU usage: %s", exc)
             return 0.0
 
     def get_memory_usage(self) -> dict[str, Any]:
@@ -115,7 +114,7 @@ class PerformanceManager:
                 "process_memory_mb": process_mem_info.rss / (1024 ** 2),
             }
         except Exception as exc:
-            logger.error("Could not retrieve memory usage: %s", exc)
+            logger.exception("Could not retrieve memory usage: %s", exc)
             return {}
 
 

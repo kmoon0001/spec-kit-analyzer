@@ -1,5 +1,4 @@
-"""
-Performance Metrics Collection System
+"""Performance Metrics Collection System
 
 This module provides comprehensive performance metrics collection for baseline
 and optimization testing, including statistical analysis and validation.
@@ -23,6 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ResponseTimeMetrics:
     """Response time performance metrics"""
+
     average_ms: float
     median_ms: float
     min_ms: float
@@ -36,6 +36,7 @@ class ResponseTimeMetrics:
 @dataclass
 class MemoryMetrics:
     """Memory usage performance metrics"""
+
     peak_usage_mb: float
     average_usage_mb: float
     min_usage_mb: float
@@ -48,6 +49,7 @@ class MemoryMetrics:
 @dataclass
 class CacheMetrics:
     """Cache performance metrics"""
+
     hit_rate: float
     miss_rate: float
     total_requests: int
@@ -59,6 +61,7 @@ class CacheMetrics:
 @dataclass
 class ResourceMetrics:
     """System resource utilization metrics"""
+
     cpu_usage_percent: float
     memory_usage_percent: float
     disk_io_mb_per_sec: float
@@ -70,6 +73,7 @@ class ResourceMetrics:
 @dataclass
 class ThroughputMetrics:
     """System throughput metrics"""
+
     documents_per_minute: float
     requests_per_second: float
     bytes_processed_per_second: float
@@ -79,6 +83,7 @@ class ThroughputMetrics:
 @dataclass
 class ErrorRateMetrics:
     """Error rate and reliability metrics"""
+
     error_rate_percent: float
     timeout_rate_percent: float
     retry_rate_percent: float
@@ -89,6 +94,7 @@ class ErrorRateMetrics:
 @dataclass
 class PerformanceMetrics:
     """Comprehensive performance metrics collection"""
+
     timestamp: datetime
     response_times: ResponseTimeMetrics | None = None
     memory_usage: MemoryMetrics | None = None
@@ -147,7 +153,7 @@ class BaselineMetricsCollector:
                     self.metrics_history = self.metrics_history[-1000:]
 
             except Exception as e:
-                logger.error(f"Error collecting metrics: {e}")
+                logger.exception("Error collecting metrics: %s", e)
 
             self._stop_event.wait(self.collection_interval)
 
@@ -164,7 +170,7 @@ class BaselineMetricsCollector:
         return PerformanceMetrics(
             timestamp=timestamp,
             memory_usage=memory_metrics,
-            resource_utilization=resource_metrics
+            resource_utilization=resource_metrics,
         )
 
     def _collect_resource_metrics(self) -> ResourceMetrics:
@@ -199,11 +205,11 @@ class BaselineMetricsCollector:
                 disk_io_mb_per_sec=disk_io_mb,
                 network_io_mb_per_sec=network_io_mb,
                 thread_count=thread_count,
-                process_count=len(psutil.pids())
+                process_count=len(psutil.pids()),
             )
 
         except Exception as e:
-            logger.error(f"Error collecting resource metrics: {e}")
+            logger.exception("Error collecting resource metrics: %s", e)
             return ResourceMetrics(0, 0, 0, 0, 0, 0)
 
     def _collect_memory_metrics(self) -> MemoryMetrics:
@@ -225,11 +231,11 @@ class BaselineMetricsCollector:
                 current_usage_mb=current_usage_mb,
                 memory_efficiency=min(1.0, current_usage_mb / (memory.total / 1024 / 1024)),
                 gc_collections=0,  # Would need GC integration
-                memory_leaks_detected=False
+                memory_leaks_detected=False,
             )
 
         except Exception as e:
-            logger.error(f"Error collecting memory metrics: {e}")
+            logger.exception("Error collecting memory metrics: %s", e)
             return MemoryMetrics(0, 0, 0, 0, 0, 0, False)
 
     def get_baseline_summary(self) -> PerformanceMetrics | None:
@@ -259,7 +265,7 @@ class BaselineMetricsCollector:
             current_usage_mb=memory_usage_values[-1],
             memory_efficiency=0.85,
             gc_collections=0,
-            memory_leaks_detected=False
+            memory_leaks_detected=False,
         )
 
         aggregated_resources = ResourceMetrics(
@@ -271,13 +277,13 @@ class BaselineMetricsCollector:
             disk_io_mb_per_sec=0.0,
             network_io_mb_per_sec=0.0,
             thread_count=self.metrics_history[-1].resource_utilization.thread_count if self.metrics_history[-1].resource_utilization else 0,
-            process_count=0
+            process_count=0,
         )
 
         return PerformanceMetrics(
             timestamp=datetime.now(),
             memory_usage=aggregated_memory,
-            resource_utilization=aggregated_resources
+            resource_utilization=aggregated_resources,
         )
 
 
@@ -330,10 +336,10 @@ class OptimizationMetricsCollector:
                 total_requests=1000,
                 cache_size_mb=128.0,
                 eviction_count=10,
-                average_lookup_time_ms=2.5
+                average_lookup_time_ms=2.5,
             )
         except Exception as e:
-            logger.error(f"Error collecting cache metrics: {e}")
+            logger.exception("Error collecting cache metrics: %s", e)
             return CacheMetrics(0, 0, 0, 0, 0, 0)
 
     async def measure_response_times(self, operation: Callable, iterations: int = 10) -> ResponseTimeMetrics:
@@ -353,7 +359,7 @@ class OptimizationMetricsCollector:
                 response_times.append(response_time_ms)
 
             except Exception as e:
-                logger.error(f"Error during operation measurement: {e}")
+                logger.exception("Error during operation measurement: %s", e)
                 continue
 
         if not response_times:
@@ -369,7 +375,7 @@ class OptimizationMetricsCollector:
             p95_ms=response_times[int(0.95 * len(response_times))],
             p99_ms=response_times[int(0.99 * len(response_times))],
             std_dev_ms=stdev(response_times) if len(response_times) > 1 else 0,
-            sample_count=len(response_times)
+            sample_count=len(response_times),
         )
 
 
@@ -435,7 +441,7 @@ class StatisticalAnalysisEngine:
             "timestamp": datetime.now(),
             "improvements": {},
             "regressions": {},
-            "statistical_significance": {}
+            "statistical_significance": {},
         }
 
         # Compare response times if available
@@ -444,20 +450,20 @@ class StatisticalAnalysisEngine:
             optimized_avg = optimized_metrics.response_times.average_ms
 
             improvement = StatisticalAnalysisEngine.calculate_improvement_percentage(
-                baseline_avg, optimized_avg
+                baseline_avg, optimized_avg,
             )
 
             if improvement > 0:
                 analysis["improvements"]["response_time"] = {
                     "improvement_percent": improvement,
                     "baseline_ms": baseline_avg,
-                    "optimized_ms": optimized_avg
+                    "optimized_ms": optimized_avg,
                 }
             elif improvement < 0:
                 analysis["regressions"]["response_time"] = {
                     "regression_percent": abs(improvement),
                     "baseline_ms": baseline_avg,
-                    "optimized_ms": optimized_avg
+                    "optimized_ms": optimized_avg,
                 }
 
         # Compare memory usage
@@ -466,20 +472,20 @@ class StatisticalAnalysisEngine:
             optimized_memory = optimized_metrics.memory_usage.average_usage_mb
 
             improvement = StatisticalAnalysisEngine.calculate_improvement_percentage(
-                baseline_memory, optimized_memory
+                baseline_memory, optimized_memory,
             )
 
             if improvement > 0:
                 analysis["improvements"]["memory_usage"] = {
                     "improvement_percent": improvement,
                     "baseline_mb": baseline_memory,
-                    "optimized_mb": optimized_memory
+                    "optimized_mb": optimized_memory,
                 }
             elif improvement < 0:
                 analysis["regressions"]["memory_usage"] = {
                     "regression_percent": abs(improvement),
                     "baseline_mb": baseline_memory,
-                    "optimized_mb": optimized_memory
+                    "optimized_mb": optimized_memory,
                 }
 
         # Add cache performance if available
@@ -488,7 +494,7 @@ class StatisticalAnalysisEngine:
             analysis["improvements"]["cache_performance"] = {
                 "hit_rate": cache_metrics.hit_rate,
                 "average_lookup_time_ms": cache_metrics.average_lookup_time_ms,
-                "cache_size_mb": cache_metrics.cache_size_mb
+                "cache_size_mb": cache_metrics.cache_size_mb,
             }
 
         return analysis
@@ -501,7 +507,7 @@ class StatisticalAnalysisEngine:
             "memory_metrics_valid": True,
             "resource_metrics_valid": True,
             "cache_metrics_valid": True,
-            "overall_valid": True
+            "overall_valid": True,
         }
 
         # Validate response times

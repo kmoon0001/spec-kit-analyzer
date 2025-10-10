@@ -56,7 +56,7 @@ def _build_analysis_context(payload: dict[str, Any]) -> dict[str, Any]:
             "total_findings": payload.get("total_findings"),
             "findings": payload.get("findings", []),
             "limitations_text": payload.get(
-                "limitations_text", DEFAULT_LIMITATIONS_TEXT
+                "limitations_text", DEFAULT_LIMITATIONS_TEXT,
             ),
         }
 
@@ -85,8 +85,8 @@ def generate_pdf_report(analysis_results_str: str, parent=None):
 
     template_path = os.path.abspath(
         os.path.join(
-            os.path.dirname(__file__), "..", "resources", "report_template.html"
-        )
+            os.path.dirname(__file__), "..", "resources", "report_template.html",
+        ),
     )
 
     if not os.path.exists(template_path):
@@ -101,7 +101,7 @@ def generate_pdf_report(analysis_results_str: str, parent=None):
     )
 
     file_path, _ = QFileDialog.getSaveFileName(
-        parent, "Save Report as PDF", "", "PDF Files (*.pdf)"
+        parent, "Save Report as PDF", "", "PDF Files (*.pdf)",
     )
 
     if not file_path:

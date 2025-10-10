@@ -41,7 +41,7 @@ class MixtureOfExpertsRouter:
         query_lower = query.lower()
         for expert_name, config in self.experts.items():
             if any(keyword in query_lower for keyword in config["keywords"]):
-                logger.info(f"Routing query to {expert_name} expert.")
+                logger.info("Routing query to %s expert.", expert_name)
                 return config["prompt"]
 
         logger.info("Routing query to default expert.")

@@ -1,5 +1,4 @@
-"""
-Performance Status Widget - Shows real-time performance metrics.
+"""Performance Status Widget - Shows real-time performance metrics.
 
 This widget provides a live view of the application's CPU and memory usage,
 helping to monitor and diagnose performance issues.
@@ -15,8 +14,7 @@ from ...core.performance_manager import get_performance_manager
 logger = logging.getLogger(__name__)
 
 class PerformanceStatusWidget(QWidget):
-    """
-    A widget that displays real-time CPU and memory usage.
+    """A widget that displays real-time CPU and memory usage.
     """
 
     def __init__(self, parent: QWidget | None = None):
@@ -55,7 +53,7 @@ class PerformanceStatusWidget(QWidget):
             memory_usage = self.performance_manager.get_memory_usage()
 
             # Update CPU Label
-            self.cpu_label.setText(f"CPU: {cpu_usage:.1f}%")
+            self.cpu_label.setText(f"CPU: {cpu_usage}%")
 
             # Update Memory Bar and Label
             if memory_usage:
@@ -63,12 +61,12 @@ class PerformanceStatusWidget(QWidget):
                 process_mem_mb = memory_usage.get("process_rss_mb", 0)
 
                 self.memory_bar.setValue(int(mem_percent))
-                self.memory_label.setText(f"{process_mem_mb:.1f} MB")
+                self.memory_label.setText(f"{process_mem_mb} MB")
 
                 # Set tooltip with detailed info
                 tooltip = (
-                    f"System Memory Usage: {mem_percent:.1f}%\n"
-                    f"Application Memory: {process_mem_mb:.1f} MB"
+                    f"System Memory Usage: {mem_percent}%\n"
+                    f"Application Memory: {process_mem_mb} MB"
                 )
                 self.setToolTip(tooltip)
 
@@ -82,6 +80,6 @@ class PerformanceStatusWidget(QWidget):
                 self.memory_bar.setStyleSheet(f"QProgressBar::chunk {{ background-color: {color}; }}")
 
         except Exception as e:
-            logger.error(f"Error updating performance metrics: {e}")
+            logger.exception("Error updating performance metrics: %s", e)
             self.cpu_label.setText("CPU: Err")
             self.memory_label.setText("Mem: Err")

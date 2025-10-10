@@ -1,5 +1,4 @@
-"""
-Dashboard widget for displaying compliance analytics and overview metrics.
+"""Dashboard widget for displaying compliance analytics and overview metrics.
 """
 from __future__ import annotations
 
@@ -19,10 +18,10 @@ from PySide6.QtWidgets import (
 
 
 class DashboardWidget(QWidget):
-    """
-    A widget to display an overview of compliance metrics, including
+    """A widget to display an overview of compliance metrics, including
     key performance indicators and recent analysis activity.
     """
+
     refresh_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -113,8 +112,7 @@ class DashboardWidget(QWidget):
         return box
 
     def load_data(self, data: dict[str, Any]) -> None:
-        """
-        Populates the dashboard with data from the API.
+        """Populates the dashboard with data from the API.
         """
         total_docs = data.get("total_documents_analyzed", 0)
         avg_score = data.get("overall_compliance_score", 0.0)
@@ -123,7 +121,7 @@ class DashboardWidget(QWidget):
         total_docs_value_label.setText(str(total_docs))
 
         avg_score_value_label = self.avg_score_label.property("value_label")
-        avg_score_value_label.setText(f"{avg_score:.1f}%")
+        avg_score_value_label.setText(f"{avg_score}%")
 
         self._clear_layout(self.breakdown_layout)
         categories = data.get("compliance_by_category", {})
@@ -132,7 +130,7 @@ class DashboardWidget(QWidget):
             label = QLabel(name, self)
             progress = QProgressBar(self)
             progress.setValue(int(score))
-            progress.setFormat(f"{score:.1f}%")
+            progress.setFormat(f"{score}%")
             progress.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             self.breakdown_layout.addWidget(label, row, 0)

@@ -1,5 +1,4 @@
-"""
-Meta Analytics Dashboard Widget for Organizational-Level Insights.
+"""Meta Analytics Dashboard Widget for Organizational-Level Insights.
 
 Provides comprehensive team analytics including performance trends,
 training needs identification, and benchmarking data for administrators.
@@ -31,8 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 class MetaAnalyticsWidget(QWidget):
-    """
-    Widget for displaying organizational-level analytics and insights.
+    """Widget for displaying organizational-level analytics and insights.
 
     Features:
     - Team performance overview
@@ -232,13 +230,13 @@ class MetaAnalyticsWidget(QWidget):
         # Update metric labels
         self.total_users_label.setText(f"Total Users: {metrics.get('total_users', 0)}")
         self.avg_score_label.setText(
-            f"Avg Compliance: {metrics.get('avg_compliance_score', 0):.1f}%"
+            f"Avg Compliance: {metrics.get('avg_compliance_score', 0):.1f}%",
         )
         self.total_findings_label.setText(
-            f"Total Findings: {metrics.get('total_findings', 0)}"
+            f"Total Findings: {metrics.get('total_findings', 0)}",
         )
         self.total_analyses_label.setText(
-            f"Total Analyses: {metrics.get('total_analyses', 0)}"
+            f"Total Analyses: {metrics.get('total_analyses', 0)}",
         )
 
         # Update discipline breakdown chart
@@ -278,7 +276,7 @@ class MetaAnalyticsWidget(QWidget):
             width = 0.35
 
             bars1 = ax.bar(
-                x - width / 2, scores, width, label="Avg Compliance Score", alpha=0.8
+                x - width / 2, scores, width, label="Avg Compliance Score", alpha=0.8,
             )
             ax2 = ax.twinx()
             bars2 = ax2.bar(
@@ -303,7 +301,7 @@ class MetaAnalyticsWidget(QWidget):
                 ax.text(
                     bar.get_x() + bar.get_width() / 2.0,
                     height + 1,
-                    f"{height:.1f}%",
+                    f"{height}%",
                     ha="center",
                     va="bottom",
                 )
@@ -409,7 +407,7 @@ class MetaAnalyticsWidget(QWidget):
                 ax.text(
                     bar.get_width() + 0.5,
                     bar.get_y() + bar.get_height() / 2,
-                    f"{pct:.1f}%",
+                    f"{pct}%",
                     ha="left",
                     va="center",
                 )
@@ -424,15 +422,15 @@ class MetaAnalyticsWidget(QWidget):
                     f"• {need['habit_name']} ({need['percentage_of_findings']:.1f}% of findings)\n"
                     f"  Priority: {need['priority'].upper()}\n"
                     f"  Affected users: {need['affected_users']}\n"
-                    f"  Focus: {need['training_focus']}\n"
+                    f"  Focus: {need['training_focus']}\n",
                 )
 
             self.training_recommendations.setText(
-                "Top Training Recommendations:\n\n" + "\n".join(recommendations)
+                "Top Training Recommendations:\n\n" + "\n".join(recommendations),
             )
         else:
             self.training_recommendations.setText(
-                "No specific training needs identified."
+                "No specific training needs identified.",
             )
 
     def update_trends_tab(self, data: dict[str, Any]):
@@ -461,10 +459,10 @@ class MetaAnalyticsWidget(QWidget):
             ax2 = ax.twinx()
 
             line1 = ax.plot(
-                weeks, scores, "b-o", label="Avg Compliance Score", linewidth=2
+                weeks, scores, "b-o", label="Avg Compliance Score", linewidth=2,
             )
             line2 = ax2.plot(
-                weeks, findings, "r-s", label="Total Findings", linewidth=2
+                weeks, findings, "r-s", label="Total Findings", linewidth=2,
             )
 
             ax.set_xlabel("Time Period")
@@ -531,7 +529,7 @@ class MetaAnalyticsWidget(QWidget):
                     ax.text(
                         bar.get_x() + bar.get_width() / 2.0,
                         bar.get_height() + 1,
-                        f"{value:.1f}%",
+                        f"{value}%",
                         ha="center",
                         va="bottom",
                     )
@@ -542,13 +540,13 @@ class MetaAnalyticsWidget(QWidget):
         if benchmarks:
             total_users = benchmarks.get("total_users_in_benchmark", 0)
             compliance_p50 = benchmarks.get("compliance_score_percentiles", {}).get(
-                "p50", 0
+                "p50", 0,
             )
 
             summary_text = f"""
 Benchmark Summary (based on {total_users} users):
 
-• Median compliance score: {compliance_p50:.1f}%
+• Median compliance score: {compliance_p50}%
 • 75th percentile: {benchmarks.get("compliance_score_percentiles", {}).get("p75", 0):.1f}%
 • 90th percentile: {benchmarks.get("compliance_score_percentiles", {}).get("p90", 0):.1f}%
 

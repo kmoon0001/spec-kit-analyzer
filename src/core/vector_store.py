@@ -1,5 +1,4 @@
-"""
-Manages the in-memory vector store for report embeddings using FAISS.
+"""Manages the in-memory vector store for report embeddings using FAISS.
 
 This module provides a singleton-like pattern for a vector store, ensuring that
 the FAISS index is initialized once and can be accessed throughout the application.
@@ -15,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 class VectorStore:
     """A singleton class to manage the FAISS index for report embeddings."""
+
     _instance = None
 
     def __new__(cls, embedding_dim: int = 768):
@@ -36,9 +36,9 @@ class VectorStore:
             self.index = faiss.IndexFlatL2(self.embedding_dim)
             self.index = faiss.IndexIDMap(self.index)
             self.is_initialized = True
-            logger.info(f"FAISS index initialized with embedding dimension: {self.embedding_dim}")
+            logger.info("FAISS index initialized with embedding dimension: %s", self.embedding_dim)
         except Exception as e:
-            logger.error(f"Failed to initialize FAISS index: {e}")
+            logger.exception("Failed to initialize FAISS index: %s", e)
             self.is_initialized = False
 
     def add_vectors(self, vectors: np.ndarray, ids: list[int]):
@@ -48,15 +48,15 @@ class VectorStore:
             return
 
         if vectors.shape[1] != self.embedding_dim:
-            logger.error(f"Vector dimension mismatch. Expected {self.embedding_dim}, got {vectors.shape[1]}")
+            logger.error("Vector dimension mismatch. Expected %s, got {vectors.shape[1]}", self.embedding_dim)
             return
 
         try:
-            self.index.add_with_ids(vectors.astype('float32'), np.array(ids))
+            self.index.add_with_ids(vectors.astype("float32"), np.array(ids))
             self.report_ids.extend(ids)
-            logger.info(f"Added {len(ids)} new vectors to the index. Total vectors: {self.index.ntotal}")
+            logger.info("Added %s new vectors to the index. Total vectors: {self.index.ntotal}", len(ids))
         except Exception as e:
-            logger.error(f"Failed to add vectors to FAISS index: {e}")
+            logger.exception("Failed to add vectors to FAISS index: %s", e)
 
     def search(self, query_vector: np.ndarray, k: int, threshold: float = 0.9) -> list[tuple[int, float]]:
         """Searches the index for similar vectors."""
@@ -65,7 +65,7 @@ class VectorStore:
             return []
 
         try:
-            distances, indices = self.index.search(query_vector.astype('float32'), k)
+            distances, indices = self.index.search(query_vector.astype("float32"), k)
             results = []
             for i, dist in zip(indices[0], distances[0], strict=False):
                 if i != -1:  # -1 indicates no result
@@ -76,7 +76,7 @@ class VectorStore:
                         results.append((i, similarity))
             return results
         except Exception as e:
-            logger.error(f"Failed to search FAISS index: {e}")
+            logger.exception("Failed to search FAISS index: %s", e)
             return []
 
 # Global instance of the vector store

@@ -1,5 +1,4 @@
-"""
-Report Generation Engine - Refactored Main Engine
+"""Report Generation Engine - Refactored Main Engine
 
 This is the simplified main engine that coordinates the separated components.
 All functionality is preserved while improving maintainability.
@@ -77,17 +76,17 @@ class ReportGenerationEngine:
         self.data_aggregation_service.register_data_provider(name, provider)
 
         # Also register with data integration service if available
-        if hasattr(self, 'data_integration_service') and self.data_integration_service:
+        if hasattr(self, "data_integration_service") and self.data_integration_service:
             try:
-                if hasattr(provider, 'provider_id'):
+                if hasattr(provider, "provider_id"):
                     self.data_integration_service.register_provider(provider)
             except Exception as e:
-                logger.warning(f"Could not register provider with data integration service: {e}")
+                logger.warning("Could not register provider with data integration service: %s", e)
 
     def register_report_exporter(self, format: ReportFormat, exporter: ReportExporter) -> None:
         """Register a report exporter"""
         self.report_exporters[format] = exporter
-        logger.info(f"Registered report exporter for format: {format.value}")
+        logger.info("Registered report exporter for format: %s", format.value)
 
     async def generate_report(self, config: ReportConfig) -> Report:
         """Generate a report based on configuration (preserves all existing functionality)"""
@@ -100,7 +99,7 @@ class ReportGenerationEngine:
             config=config,
             status=ReportStatus.GENERATING,
             created_at=datetime.now(),
-            updated_at=datetime.now()
+            updated_at=datetime.now(),
         )
 
         self.generated_reports[report_id] = report
@@ -108,7 +107,7 @@ class ReportGenerationEngine:
         try:
             # Get data from providers
             aggregated_data = self.data_aggregation_service.get_aggregated_data(
-                config.report_type, config.filters
+                config.report_type, config.filters,
             )
 
             # Generate report sections
@@ -132,10 +131,10 @@ class ReportGenerationEngine:
             report.status = ReportStatus.COMPLETED
             report.updated_at = datetime.now()
 
-            logger.info(f"Successfully generated report: {report_id}")
+            logger.info("Successfully generated report: %s", report_id)
 
         except Exception as e:
-            logger.error(f"Error generating report {report_id}: {e}")
+            logger.exception("Error generating report %s: {e}", report_id)
             report.status = ReportStatus.FAILED
             report.error_message = str(e)
             report.updated_at = datetime.now()
@@ -150,7 +149,7 @@ class ReportGenerationEngine:
         summary_section = ReportSection(
             id="executive_summary",
             title="Executive Summary",
-            content=self._generate_executive_summary(config, data)
+            content=self._generate_executive_summary(config, data),
         )
         sections.append(summary_section)
 
@@ -161,7 +160,7 @@ class ReportGenerationEngine:
                     id=f"analysis_{provider_name}",
                     title=f"{provider_name.replace('_', ' ').title()} Analysis",
                     content=self._format_provider_data(provider_data),
-                    data=provider_data
+                    data=provider_data,
                 )
                 sections.append(section)
 
@@ -218,7 +217,7 @@ class ReportGenerationEngine:
                 # Check content with guardrails
                 guardrail_result = await self.guardrails_service.check_content(section.content)
 
-                if guardrail_result.get('approved', True):
+                if guardrail_result.get("approved", True):
                     filtered_sections.append(section)
                 else:
                     # Generate safe alternative content
@@ -227,7 +226,7 @@ class ReportGenerationEngine:
                     filtered_sections.append(section)
 
             except Exception as e:
-                logger.warning(f"Error applying guardrails to section {section.id}: {e}")
+                logger.warning("Error applying guardrails to section %s: {e}", section.id)
                 filtered_sections.append(section)  # Include original on error
 
         return filtered_sections
@@ -246,10 +245,10 @@ class ReportGenerationEngine:
                     id="seven_habits_insights",
                     title="7 Habits Framework Insights",
                     content=content,
-                    data={"habits_insights": habits_insights}
+                    data={"habits_insights": habits_insights},
                 )
         except Exception as e:
-            logger.warning(f"Error generating 7 Habits insights: {e}")
+            logger.warning("Error generating 7 Habits insights: %s", e)
 
         return None
 
@@ -262,8 +261,8 @@ class ReportGenerationEngine:
         content += "<p>Based on the 7 Habits of Highly Effective People framework:</p>"
 
         for insight in habits_insights:
-            habit_name = insight.get('habit', 'Unknown Habit')
-            recommendation = insight.get('recommendation', 'No recommendation available')
+            habit_name = insight.get("habit", "Unknown Habit")
+            recommendation = insight.get("recommendation", "No recommendation available")
 
             content += f"""
             <div class='habit-insight'>
@@ -291,14 +290,14 @@ class ReportGenerationEngine:
         context = {
             "title": report.config.title,
             "description": report.config.description,
-            "generated_at": report.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            "generated_at": report.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             "sections": [
                 {
                     "title": section.title,
-                    "content": section.content
+                    "content": section.content,
                 }
                 for section in report.sections
-            ]
+            ],
         }
 
         # Add branding if available
@@ -326,9 +325,9 @@ class ReportGenerationEngine:
                         exported_files[format] = output_path
                         report.file_paths[format] = output_path
                 except Exception as e:
-                    logger.error(f"Error exporting report {report_id} to {format.value}: {e}")
+                    logger.exception("Error exporting report %s to {format.value}: {e}", report_id)
             else:
-                logger.warning(f"No exporter registered for format: {format.value}")
+                logger.warning("No exporter registered for format: %s", format.value)
 
         return exported_files
 
@@ -362,10 +361,10 @@ class ReportGenerationEngine:
                 logo_path=logo_path,
                 logo_position=logo_position,
                 primary_color=primary_color,
-                secondary_color=secondary_color
+                secondary_color=secondary_color,
             )
         except Exception as e:
-            logger.error(f"Error configuring branding: {e}")
+            logger.exception("Error configuring branding: %s", e)
             return False
 
     def disable_logo(self) -> bool:
@@ -376,7 +375,7 @@ class ReportGenerationEngine:
         try:
             return self.branding_service.disable_logo()
         except Exception as e:
-            logger.error(f"Error disabling logo: {e}")
+            logger.exception("Error disabling logo: %s", e)
             return False
 
     def get_branding_status(self) -> dict[str, Any]:

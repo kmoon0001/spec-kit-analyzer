@@ -1,5 +1,4 @@
-"""
-Enhanced Error Handling System
+"""Enhanced Error Handling System
 
 Provides comprehensive error handling, recovery mechanisms, and user-friendly
 error reporting for all system components.
@@ -19,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 class ErrorSeverity(Enum):
     """Error severity levels."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -28,6 +28,7 @@ class ErrorSeverity(Enum):
 
 class ErrorCategory(Enum):
     """Error categories for better classification."""
+
     SYSTEM = "system"
     USER_INPUT = "user_input"
     NETWORK = "network"
@@ -41,6 +42,7 @@ class ErrorCategory(Enum):
 @dataclass
 class ErrorContext:
     """Context information for error handling."""
+
     error_id: str
     timestamp: datetime
     severity: ErrorSeverity
@@ -85,7 +87,7 @@ class EnhancedError(Exception):
             ErrorCategory.DATA_PROCESSING: "There was an issue processing your document. Please verify the file format and try again.",
             ErrorCategory.AUTHENTICATION: "Authentication failed. Please check your credentials and try again.",
             ErrorCategory.PERMISSION: "You don't have permission to perform this action. Please contact your administrator.",
-            ErrorCategory.CONFIGURATION: "There's a configuration issue. Please contact your system administrator."
+            ErrorCategory.CONFIGURATION: "There's a configuration issue. Please contact your system administrator.",
         }
         return messages.get(self.category, "An unexpected error occurred. Please try again or contact support.")
 
@@ -100,13 +102,12 @@ class EnhancedError(Exception):
             "message": str(self),
             "user_message": self.user_message,
             "recovery_suggestions": self.recovery_suggestions,
-            "technical_details": self.technical_details
+            "technical_details": self.technical_details,
         }
 
 
 class ErrorHandler:
-    """
-    Comprehensive error handling system with recovery mechanisms.
+    """Comprehensive error handling system with recovery mechanisms.
 
     This system provides:
     - Intelligent error classification and severity assessment
@@ -122,6 +123,7 @@ class ErrorHandler:
         ... except Exception as e:
         ...     handled_error = error_handler.handle_error(e, component="pdf_export")
         ...     return handled_error.to_dict()
+
     """
 
     def __init__(self):
@@ -140,8 +142,7 @@ class ErrorHandler:
                     operation: str | None = None,
                     user_id: int | None = None,
                     context: dict[str, Any] | None = None) -> EnhancedError:
-        """
-        Handle an exception with enhanced error processing.
+        """Handle an exception with enhanced error processing.
 
         Args:
             exception: The original exception
@@ -152,6 +153,7 @@ class ErrorHandler:
 
         Returns:
             EnhancedError with comprehensive error information
+
         """
         try:
             # Classify the error
@@ -171,9 +173,9 @@ class ErrorHandler:
                     "exception_type": type(exception).__name__,
                     "traceback": traceback.format_exc(),
                     "context": context or {},
-                    "operation": operation
+                    "operation": operation,
                 },
-                original_exception=exception
+                original_exception=exception,
             )
 
             # Log the error
@@ -189,12 +191,12 @@ class ErrorHandler:
 
         except Exception as handler_error:
             # Fallback error handling
-            logger.critical(f"Error handler itself failed: {handler_error}")
+            logger.critical("Error handler itself failed: %s", handler_error)
             return EnhancedError(
                 message="Critical system error occurred",
                 severity=ErrorSeverity.CRITICAL,
                 category=ErrorCategory.SYSTEM,
-                component="error_handler"
+                component="error_handler",
             )
 
     async def handle_with_retry(self,
@@ -202,8 +204,7 @@ class ErrorHandler:
                               max_retries: int = 3,
                               component: str = "unknown",
                               backoff_factor: float = 1.0) -> Any:
-        """
-        Execute an operation with automatic retry on transient errors.
+        """Execute an operation with automatic retry on transient errors.
 
         Args:
             operation: The operation to execute
@@ -216,6 +217,7 @@ class ErrorHandler:
 
         Raises:
             EnhancedError: If all retry attempts fail
+
         """
         last_exception = None
 
@@ -236,7 +238,7 @@ class ErrorHandler:
                     break
 
                 if attempt < max_retries:
-                    logger.warning(f"Operation failed (attempt {attempt + 1}/{max_retries + 1}): {e}")
+                    logger.warning("Operation failed (attempt %s/{max_retries + 1}): {e}", attempt + 1)
                     continue
 
         # All retries failed
@@ -291,38 +293,38 @@ class ErrorHandler:
             ErrorCategory.NETWORK: [
                 "Check your internet connection",
                 "Try again in a few moments",
-                "Contact your network administrator if the problem persists"
+                "Contact your network administrator if the problem persists",
             ],
             ErrorCategory.USER_INPUT: [
                 "Verify that all required fields are filled out correctly",
                 "Check file format and size requirements",
-                "Review the input guidelines and try again"
+                "Review the input guidelines and try again",
             ],
             ErrorCategory.AI_MODEL: [
                 "The AI service may be temporarily overloaded - try again shortly",
                 "Try with a smaller document or simpler request",
-                "Contact support if the issue continues"
+                "Contact support if the issue continues",
             ],
             ErrorCategory.DATA_PROCESSING: [
                 "Verify the document format is supported",
                 "Try with a different document",
-                "Check that the file is not corrupted"
+                "Check that the file is not corrupted",
             ],
             ErrorCategory.AUTHENTICATION: [
                 "Check your username and password",
                 "Try logging out and logging back in",
-                "Contact your administrator to reset your credentials"
+                "Contact your administrator to reset your credentials",
             ],
             ErrorCategory.PERMISSION: [
                 "Contact your administrator for the necessary permissions",
                 "Verify you're logged in with the correct account",
-                "Check if your account has the required access level"
+                "Check if your account has the required access level",
             ],
             ErrorCategory.CONFIGURATION: [
                 "Contact your system administrator",
                 "Check the application configuration",
-                "Restart the application if possible"
-            ]
+                "Restart the application if possible",
+            ],
         }
 
         suggestions.extend(category_suggestions.get(category, []))
@@ -332,19 +334,19 @@ class ErrorHandler:
             suggestions.extend([
                 "Ensure the PDF export service is properly configured",
                 "Try exporting a smaller report",
-                "Check available disk space"
+                "Check available disk space",
             ])
         elif component == "plugin_system":
             suggestions.extend([
                 "Verify the plugin is compatible with this version",
                 "Check plugin dependencies",
-                "Try disabling and re-enabling the plugin"
+                "Try disabling and re-enabling the plugin",
             ])
         elif component == "ehr_integration":
             suggestions.extend([
                 "Verify EHR system credentials and connection settings",
                 "Check if the EHR system is accessible",
-                "Contact your EHR administrator"
+                "Contact your EHR administrator",
             ])
 
         return suggestions[:5]  # Limit to top 5 suggestions
@@ -355,14 +357,14 @@ class ErrorHandler:
             "ConnectionError",
             "TimeoutError",
             "TemporaryFailure",
-            "ServiceUnavailable"
+            "ServiceUnavailable",
         ]
 
         retryable_messages = [
             "timeout",
             "connection reset",
             "service unavailable",
-            "temporary failure"
+            "temporary failure",
         ]
 
         exception_type = type(exception).__name__
@@ -377,17 +379,17 @@ class ErrorHandler:
             "error_id": error.error_id,
             "component": error.component,
             "category": error.category.value,
-            "user_id": user_id
+            "user_id": user_id,
         }
 
         if error.severity == ErrorSeverity.CRITICAL:
-            logger.critical(f"Critical error: {error}", extra=log_data)
+            logger.critical("Critical error: %s", error, extra=log_data)
         elif error.severity == ErrorSeverity.HIGH:
-            logger.error(f"High severity error: {error}", extra=log_data)
+            logger.error("High severity error: %s", error, extra=log_data)
         elif error.severity == ErrorSeverity.MEDIUM:
-            logger.warning(f"Medium severity error: {error}", extra=log_data)
+            logger.warning("Medium severity error: %s", error, extra=log_data)
         else:
-            logger.info(f"Low severity error: {error}", extra=log_data)
+            logger.info("Low severity error: %s", error, extra=log_data)
 
     def _store_error_history(self, error: EnhancedError):
         """Store error in history for pattern analysis."""
@@ -396,7 +398,7 @@ class ErrorHandler:
             "component": error.component,
             "category": error.category.value,
             "severity": error.severity.value,
-            "error_type": type(error.original_exception).__name__ if error.original_exception else "Unknown"
+            "error_type": type(error.original_exception).__name__ if error.original_exception else "Unknown",
         })
 
         # Maintain history size limit
@@ -409,7 +411,7 @@ class ErrorHandler:
         recent_errors = [e for e in self.error_history[-10:] if e["component"] == error.component]
 
         if len(recent_errors) >= 3:
-            logger.warning(f"Error pattern detected in {error.component}: {len(recent_errors)} recent errors")
+            logger.warning("Error pattern detected in %s: {len(recent_errors)} recent errors", error.component)
 
     def _initialize_recovery_strategies(self):
         """Initialize recovery strategies for different error types."""
@@ -417,7 +419,7 @@ class ErrorHandler:
             "ConnectionError": self._recover_connection_error,
             "TimeoutError": self._recover_timeout_error,
             "MemoryError": self._recover_memory_error,
-            "FileNotFoundError": self._recover_file_not_found_error
+            "FileNotFoundError": self._recover_file_not_found_error,
         }
 
     def _recover_connection_error(self, context: dict[str, Any]) -> dict[str, Any]:
@@ -426,7 +428,7 @@ class ErrorHandler:
             "retry_recommended": True,
             "retry_delay": 5,
             "max_retries": 3,
-            "fallback_action": "use_cached_data"
+            "fallback_action": "use_cached_data",
         }
 
     def _recover_timeout_error(self, context: dict[str, Any]) -> dict[str, Any]:
@@ -435,7 +437,7 @@ class ErrorHandler:
             "retry_recommended": True,
             "retry_delay": 10,
             "max_retries": 2,
-            "fallback_action": "reduce_request_size"
+            "fallback_action": "reduce_request_size",
         }
 
     def _recover_memory_error(self, context: dict[str, Any]) -> dict[str, Any]:
@@ -443,7 +445,7 @@ class ErrorHandler:
         return {
             "retry_recommended": False,
             "immediate_action": "reduce_processing_load",
-            "fallback_action": "process_in_chunks"
+            "fallback_action": "process_in_chunks",
         }
 
     def _recover_file_not_found_error(self, context: dict[str, Any]) -> dict[str, Any]:
@@ -451,7 +453,7 @@ class ErrorHandler:
         return {
             "retry_recommended": False,
             "immediate_action": "verify_file_path",
-            "fallback_action": "use_default_file"
+            "fallback_action": "use_default_file",
         }
 
 

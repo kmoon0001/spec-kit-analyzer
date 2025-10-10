@@ -167,6 +167,7 @@ class ReportingSettings(BaseModel):
 
 class PDFExportSettings(BaseModel):
     """PDF export configuration settings."""
+
     enabled: bool = True
     page_size: str = "A4"
     margin_top: str = "1in"
@@ -180,6 +181,7 @@ class PDFExportSettings(BaseModel):
 
 class PluginSettings(BaseModel):
     """Plugin system configuration settings."""
+
     enabled: bool = True
     plugin_directories: list[str] = ["plugins", "src/plugins"]
     security_enabled: bool = True
@@ -189,6 +191,7 @@ class PluginSettings(BaseModel):
 
 class EnterpriseCopilotSettings(BaseModel):
     """Enterprise Copilot configuration settings."""
+
     enabled: bool = True
     max_query_length: int = 1000
     response_timeout_seconds: int = 30
@@ -199,6 +202,7 @@ class EnterpriseCopilotSettings(BaseModel):
 
 class EHRIntegrationSettings(BaseModel):
     """EHR integration configuration settings."""
+
     enabled: bool = True
     connection_timeout_seconds: int = 30
     max_retry_attempts: int = 3
@@ -242,8 +246,7 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    """
-    Initializes and returns the application settings, ensuring security best practices.
+    """Initializes and returns the application settings, ensuring security best practices.
     """
     load_dotenv()
     config_path = Path(__file__).parent.parent / "config.yaml"

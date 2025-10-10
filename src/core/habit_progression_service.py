@@ -1,5 +1,4 @@
-"""
-Individual Habit Progression Tracking Service.
+"""Individual Habit Progression Tracking Service.
 
 Tracks personal growth journey for each therapist using the 7 Habits framework.
 Provides individual analytics, goal setting, and achievement tracking.
@@ -18,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class HabitProgressionService:
-    """
-    Service for tracking individual habit progression and growth journey.
+    """Service for tracking individual habit progression and growth journey.
 
     Features:
     - Personal habit mastery tracking
@@ -33,10 +31,9 @@ class HabitProgressionService:
         self.habits_framework = SevenHabitsFramework()
 
     async def get_user_habit_progression(
-        self, db: AsyncSession, user_id: int, days_back: int = 90
+        self, db: AsyncSession, user_id: int, days_back: int = 90,
     ) -> dict[str, Any]:
-        """
-        Get comprehensive habit progression data for a user.
+        """Get comprehensive habit progression data for a user.
 
         Args:
             db: Database session
@@ -45,13 +42,14 @@ class HabitProgressionService:
 
         Returns:
             Dict with complete progression data
+
         """
         # Get user's analysis history
         cutoff_date = datetime.now(UTC) - timedelta(days=days_back)
 
         # Get user's reports with findings
         user_reports = await crud.get_user_reports_with_findings(
-            db, user_id=user_id, since_date=cutoff_date
+            db, user_id=user_id, since_date=cutoff_date,
         )
 
         if not user_reports:
@@ -72,7 +70,7 @@ class HabitProgressionService:
                         "issue_title": finding.issue_title or "",
                         "text": finding.problematic_text or "",
                         "risk": finding.risk,
-                    }
+                    },
                 )
 
                 finding_with_habit = {
@@ -89,24 +87,24 @@ class HabitProgressionService:
 
         # Calculate progression metrics
         progression_data = self._calculate_progression_metrics(
-            all_findings, findings_by_date, days_back
+            all_findings, findings_by_date, days_back,
         )
 
         # Add achievement data
         progression_data["achievements"] = await self._calculate_achievements(
-            db, user_id, all_findings
+            db, user_id, all_findings,
         )
 
         # Add goals and recommendations
         progression_data["current_goals"] = await self._get_user_goals(db, user_id)
         progression_data["recommendations"] = self._generate_recommendations(
-            progression_data
+            progression_data,
         )
 
         return progression_data
 
     def _calculate_progression_metrics(
-        self, all_findings: list[dict], findings_by_date: dict, days_back: int
+        self, all_findings: list[dict], findings_by_date: dict, days_back: int,
     ) -> dict[str, Any]:
         """Calculate detailed progression metrics."""
 
@@ -115,7 +113,7 @@ class HabitProgressionService:
 
         # Habit breakdown
         habit_metrics = self.habits_framework.get_habit_progression_metrics(
-            all_findings
+            all_findings,
         )
 
         # Time-based analysis
@@ -133,7 +131,7 @@ class HabitProgressionService:
         # Streaks and consistency
         current_streak = self._calculate_current_streak(findings_by_date)
         consistency_score = self._calculate_consistency_score(
-            findings_by_date, days_back
+            findings_by_date, days_back,
         )
 
         return {
@@ -150,7 +148,7 @@ class HabitProgressionService:
         }
 
     def _calculate_weekly_trends(
-        self, findings_by_date: dict, days_back: int
+        self, findings_by_date: dict, days_back: int,
     ) -> list[dict[str, Any]]:
         """Calculate weekly trend data for visualization."""
         weeks = []
@@ -181,7 +179,7 @@ class HabitProgressionService:
                     / len(week_findings)
                     if week_findings
                     else 0,
-                }
+                },
             )
 
         return list(reversed(weeks))  # Chronological order
@@ -193,10 +191,10 @@ class HabitProgressionService:
 
         # Compare recent weeks to earlier weeks
         recent_avg = sum(w["total_findings"] for w in weekly_trends[-4:]) / min(
-            4, len(weekly_trends)
+            4, len(weekly_trends),
         )
         earlier_avg = sum(w["total_findings"] for w in weekly_trends[:4]) / min(
-            4, len(weekly_trends)
+            4, len(weekly_trends),
         )
 
         if earlier_avg == 0:
@@ -222,7 +220,7 @@ class HabitProgressionService:
         return streak
 
     def _calculate_consistency_score(
-        self, findings_by_date: dict, days_back: int
+        self, findings_by_date: dict, days_back: int,
     ) -> float:
         """Calculate consistency score (0-100) based on regular improvement."""
         if days_back < 7:
@@ -276,7 +274,7 @@ class HabitProgressionService:
         }
 
     async def _calculate_achievements(
-        self, db: AsyncSession, user_id: int, all_findings: list[dict]
+        self, db: AsyncSession, user_id: int, all_findings: list[dict],
     ) -> list[dict[str, Any]]:
         """Calculate and award achievements."""
         achievements = []
@@ -302,7 +300,7 @@ class HabitProgressionService:
                         "icon": "🏆",
                         "earned_date": datetime.now(UTC).isoformat(),
                         "category": "mastery",
-                    }
+                    },
                 )
 
         # Analysis count achievements
@@ -319,7 +317,7 @@ class HabitProgressionService:
                         "icon": "📊",
                         "earned_date": datetime.now(UTC).isoformat(),
                         "category": "milestone",
-                    }
+                    },
                 )
 
         # Improvement achievements
@@ -332,11 +330,11 @@ class HabitProgressionService:
         try:
             return await crud.get_user_analysis_count(db, user_id)
         except Exception as e:
-            logger.error(f"Error getting user analysis count: {e}")
+            logger.exception("Error getting user analysis count: %s", e)
             return 0
 
     async def _get_user_goals(
-        self, db: AsyncSession, user_id: int
+        self, db: AsyncSession, user_id: int,
     ) -> list[dict[str, Any]]:
         """Get user's current goals from the database."""
         try:
@@ -355,7 +353,7 @@ class HabitProgressionService:
                 for goal in goals
             ]
         except Exception as e:
-            logger.error(f"Error getting user goals: {e}")
+            logger.exception("Error getting user goals: %s", e)
             return []
 
     def _generate_recommendations(self, progression_data: dict) -> list[dict[str, Any]]:
@@ -374,7 +372,7 @@ class HabitProgressionService:
                     "description": f"This habit represents {metrics['percentage']}% of your findings",
                     "action_items": habit_info["improvement_strategies"][:3],
                     "habit_number": habit_info["number"],
-                }
+                },
             )
 
         # Improvement rate recommendations
@@ -390,7 +388,7 @@ class HabitProgressionService:
                         "Set new challenge goals",
                         "Share your success strategies with peers",
                     ],
-                }
+                },
             )
         elif progression_data["improvement_rate"] < 5:
             recommendations.append(
@@ -404,7 +402,7 @@ class HabitProgressionService:
                         "Try new documentation strategies",
                         "Schedule focused practice sessions",
                     ],
-                }
+                },
             )
 
         # Consistency recommendations
@@ -420,7 +418,7 @@ class HabitProgressionService:
                         "Use reminders for documentation review",
                         "Analyze smaller batches more frequently",
                     ],
-                }
+                },
             )
 
         return recommendations
@@ -449,7 +447,7 @@ class HabitProgressionService:
         }
 
     async def set_user_goal(
-        self, db: AsyncSession, user_id: int, goal_data: dict[str, Any]
+        self, db: AsyncSession, user_id: int, goal_data: dict[str, Any],
     ) -> dict[str, Any]:
         """Set a new goal for the user."""
         # This would create a new goal in the database
@@ -461,15 +459,15 @@ class HabitProgressionService:
             **goal_data,
         }
 
-        logger.info(f"Created goal for user {user_id}: {goal['title']}")
+        logger.info("Created goal for user %s: {goal[", user_id, title']}")
         return goal
 
     async def update_goal_progress(
-        self, db: AsyncSession, user_id: int, goal_id: int, progress: int
+        self, db: AsyncSession, user_id: int, goal_id: int, progress: int,
     ) -> bool:
         """Update progress on a user's goal."""
         # This would update the goal in the database
         logger.info(
-            f"Updated goal {goal_id} progress to {progress}% for user {user_id}"
+            f"Updated goal {goal_id} progress to {progress}% for user {user_id}",
         )
         return True

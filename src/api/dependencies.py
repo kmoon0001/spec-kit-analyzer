@@ -29,8 +29,7 @@ def require_admin(current_user: models.User = Depends(get_current_active_user)):
 
 
 def get_analysis_service() -> Any:
-    """
-    Dependency to get the singleton AnalysisService instance.
+    """Dependency to get the singleton AnalysisService instance.
     The instance will be either a real or a mock service.
     """
     return app_state.get("analysis_service")

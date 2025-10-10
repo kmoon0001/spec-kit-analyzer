@@ -11,6 +11,7 @@ API_URL = settings.paths.api_url
 
 class ChatWorker(QObject):
     """Worker to handle AI chat requests asynchronously."""
+
     success = Signal(str)
     error = Signal(str)
     finished = Signal()
@@ -31,7 +32,7 @@ class ChatWorker(QObject):
                 f"{API_URL}/chat",
                 json=payload,
                 headers=headers,
-                timeout=60
+                timeout=60,
             )
             response.raise_for_status()
             self.success.emit(response.json().get("response", "No valid response from AI."))

@@ -1,5 +1,4 @@
-"""
-Multi-Agent Workflow Orchestrator
+"""Multi-Agent Workflow Orchestrator
 
 Coordinates multiple AI agents to work together on complex compliance analysis tasks,
 maximizing context sharing and prompt engineering effectiveness across the entire workflow.
@@ -18,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class AgentRole(Enum):
     """Defines the roles of different agents in the workflow."""
+
     DOCUMENT_ANALYZER = "document_analyzer"
     COMPLIANCE_CHECKER = "compliance_checker"
     RISK_ASSESSOR = "risk_assessor"
@@ -29,6 +29,7 @@ class AgentRole(Enum):
 @dataclass
 class WorkflowContext:
     """Shared context across all agents in the workflow."""
+
     workflow_id: str
     document_content: str
     document_type: str
@@ -44,6 +45,7 @@ class WorkflowContext:
 @dataclass
 class AgentResult:
     """Result from an individual agent."""
+
     agent_role: AgentRole
     success: bool
     data: dict[str, Any]
@@ -54,8 +56,7 @@ class AgentResult:
 
 
 class MultiAgentOrchestrator:
-    """
-    Orchestrates multiple AI agents to work collaboratively on compliance analysis.
+    """Orchestrates multiple AI agents to work collaboratively on compliance analysis.
 
     This orchestrator maximizes the benefits of multi-agent workflows by:
     - Sharing rich context between agents
@@ -75,6 +76,7 @@ class MultiAgentOrchestrator:
         >>> orchestrator = MultiAgentOrchestrator()
         >>> result = await orchestrator.execute_workflow(document, rubric, user_prefs)
         >>> print(f"Analysis confidence: {result.overall_confidence}")
+
     """
 
     def __init__(self):
@@ -94,8 +96,7 @@ class MultiAgentOrchestrator:
                              rubric_data: dict[str, Any],
                              user_preferences: dict[str, Any],
                              workflow_type: str = "comprehensive_analysis") -> dict[str, Any]:
-        """
-        Execute a multi-agent workflow for compliance analysis.
+        """Execute a multi-agent workflow for compliance analysis.
 
         Args:
             document_content: The document text to analyze
@@ -105,12 +106,13 @@ class MultiAgentOrchestrator:
 
         Returns:
             Dict containing comprehensive analysis results from all agents
+
         """
         workflow_id = str(uuid.uuid4())
         start_time = datetime.now()
 
         try:
-            logger.info(f"Starting multi-agent workflow {workflow_id} ({workflow_type})")
+            logger.info("Starting multi-agent workflow %s ({workflow_type})", workflow_id)
 
             # Initialize shared context
             context = WorkflowContext(
@@ -118,7 +120,7 @@ class MultiAgentOrchestrator:
                 document_content=document_content,
                 document_type=self._detect_document_type(document_content),
                 user_preferences=user_preferences,
-                rubric_data=rubric_data
+                rubric_data=rubric_data,
             )
 
             # Store active workflow
@@ -145,19 +147,19 @@ class MultiAgentOrchestrator:
                 "quality_metrics": context.quality_metrics,
                 "context_insights": context.agent_insights,
                 "cross_references": context.cross_references,
-                "success": all(result.success for result in results)
+                "success": all(result.success for result in results),
             }
 
-            logger.info(f"Multi-agent workflow {workflow_id} completed in {processing_time:.1f}ms")
+            logger.info("Multi-agent workflow %s completed in {processing_time}ms", workflow_id)
             return final_result
 
         except Exception as e:
-            logger.error(f"Multi-agent workflow {workflow_id} failed: {e}")
+            logger.exception("Multi-agent workflow %s failed: {e}", workflow_id)
             return {
                 "workflow_id": workflow_id,
                 "success": False,
                 "error": str(e),
-                "processing_time_ms": (datetime.now() - start_time).total_seconds() * 1000
+                "processing_time_ms": (datetime.now() - start_time).total_seconds() * 1000,
             }
         finally:
             # Cleanup
@@ -221,19 +223,19 @@ class MultiAgentOrchestrator:
                 confidence=result_data.get("confidence", 0.8),
                 processing_time_ms=processing_time,
                 context_updates=result_data.get("context_updates", {}),
-                next_agents=result_data.get("next_agents", [])
+                next_agents=result_data.get("next_agents", []),
             )
 
         except Exception as e:
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
-            logger.error(f"Agent {agent_role.value} failed: {e}")
+            logger.exception("Agent %s failed: {e}", agent_role.value)
 
             return AgentResult(
                 agent_role=agent_role,
                 success=False,
                 data={"error": str(e)},
                 confidence=0.0,
-                processing_time_ms=processing_time
+                processing_time_ms=processing_time,
             )
 
     def _prepare_agent_context(self, agent_role: AgentRole, context: WorkflowContext) -> dict[str, Any]:
@@ -245,7 +247,7 @@ class MultiAgentOrchestrator:
             "rubric_data": context.rubric_data,
             "user_preferences": context.user_preferences,
             "previous_insights": context.agent_insights,
-            "confidence_scores": context.confidence_scores
+            "confidence_scores": context.confidence_scores,
         }
 
         # Add role-specific context enhancements
@@ -253,7 +255,7 @@ class MultiAgentOrchestrator:
             base_context.update({
                 "focus": "Extract key clinical information, identify document structure, and prepare context for compliance analysis",
                 "output_requirements": ["clinical_concepts", "document_structure", "key_phrases", "medical_terminology"],
-                "prompt_optimization": "Focus on medical terminology and clinical context extraction"
+                "prompt_optimization": "Focus on medical terminology and clinical context extraction",
             })
 
         elif agent_role == AgentRole.COMPLIANCE_CHECKER:
@@ -261,7 +263,7 @@ class MultiAgentOrchestrator:
                 "focus": "Identify specific compliance issues using the provided rubric and regulatory guidelines",
                 "previous_analysis": context.agent_insights.get("document_analyzer", {}),
                 "output_requirements": ["compliance_issues", "rule_violations", "evidence_citations", "severity_levels"],
-                "prompt_optimization": "Use previous document analysis to focus compliance checking on relevant areas"
+                "prompt_optimization": "Use previous document analysis to focus compliance checking on relevant areas",
             })
 
         elif agent_role == AgentRole.RISK_ASSESSOR:
@@ -269,7 +271,7 @@ class MultiAgentOrchestrator:
                 "focus": "Assess financial and regulatory risks associated with identified compliance issues",
                 "compliance_findings": context.agent_insights.get("compliance_checker", {}),
                 "output_requirements": ["risk_levels", "financial_impact", "regulatory_consequences", "priority_rankings"],
-                "prompt_optimization": "Consider cumulative risk and interaction between multiple compliance issues"
+                "prompt_optimization": "Consider cumulative risk and interaction between multiple compliance issues",
             })
 
         elif agent_role == AgentRole.RECOMMENDATION_GENERATOR:
@@ -277,7 +279,7 @@ class MultiAgentOrchestrator:
                 "focus": "Generate specific, actionable recommendations based on all previous analysis",
                 "all_previous_insights": context.agent_insights,
                 "output_requirements": ["specific_actions", "implementation_steps", "timelines", "success_metrics"],
-                "prompt_optimization": "Synthesize insights from all previous agents to create comprehensive recommendations"
+                "prompt_optimization": "Synthesize insights from all previous agents to create comprehensive recommendations",
             })
 
         elif agent_role == AgentRole.QUALITY_REVIEWER:
@@ -285,7 +287,7 @@ class MultiAgentOrchestrator:
                 "focus": "Review and validate all analysis results for accuracy and completeness",
                 "all_agent_results": context.agent_insights,
                 "output_requirements": ["quality_score", "validation_results", "improvement_suggestions", "confidence_adjustments"],
-                "prompt_optimization": "Cross-validate findings between agents and identify potential inconsistencies"
+                "prompt_optimization": "Cross-validate findings between agents and identify potential inconsistencies",
             })
 
         return base_context
@@ -297,7 +299,7 @@ class MultiAgentOrchestrator:
             AgentRole.COMPLIANCE_CHECKER: self._compliance_checker_agent,
             AgentRole.RISK_ASSESSOR: self._risk_assessor_agent,
             AgentRole.RECOMMENDATION_GENERATOR: self._recommendation_generator_agent,
-            AgentRole.QUALITY_REVIEWER: self._quality_reviewer_agent
+            AgentRole.QUALITY_REVIEWER: self._quality_reviewer_agent,
         }
 
     def _initialize_workflow_templates(self):
@@ -308,19 +310,19 @@ class MultiAgentOrchestrator:
                 {"agent": "compliance_checker"},
                 {"agent": "risk_assessor"},
                 {"agent": "recommendation_generator"},
-                {"agent": "quality_reviewer"}
+                {"agent": "quality_reviewer"},
             ],
             "quick_check": [
                 {"agent": "document_analyzer"},
                 {"agent": "compliance_checker"},
-                {"agent": "quality_reviewer"}
+                {"agent": "quality_reviewer"},
             ],
             "risk_focused": [
                 {"agent": "document_analyzer"},
                 {"agent": "compliance_checker"},
                 {"agent": "risk_assessor", "parallel": ["recommendation_generator"]},
-                {"agent": "quality_reviewer"}
-            ]
+                {"agent": "quality_reviewer"},
+            ],
         }
 
     async def _document_analyzer_agent(self, context: dict[str, Any]) -> dict[str, Any]:
@@ -337,8 +339,8 @@ class MultiAgentOrchestrator:
             "context_updates": {
                 "document_complexity": "moderate",
                 "clinical_focus": "physical_therapy",
-                "completeness_score": 0.85
-            }
+                "completeness_score": 0.85,
+            },
         }
 
     async def _compliance_checker_agent(self, context: dict[str, Any]) -> dict[str, Any]:
@@ -351,8 +353,8 @@ class MultiAgentOrchestrator:
                     "rule_id": "MEDICARE_001",
                     "issue": "Missing medical necessity justification",
                     "evidence": "Treatment goals lack specific functional outcomes",
-                    "severity": "high"
-                }
+                    "severity": "high",
+                },
             ],
             "rule_violations": ["documentation_completeness", "medical_necessity"],
             "evidence_citations": ["Section 2, paragraph 3", "Treatment plan section"],
@@ -360,8 +362,8 @@ class MultiAgentOrchestrator:
             "confidence": 0.88,
             "context_updates": {
                 "compliance_risk": "medium",
-                "critical_areas": ["medical_necessity", "functional_outcomes"]
-            }
+                "critical_areas": ["medical_necessity", "functional_outcomes"],
+            },
         }
 
     async def _risk_assessor_agent(self, context: dict[str, Any]) -> dict[str, Any]:
@@ -376,8 +378,8 @@ class MultiAgentOrchestrator:
             "confidence": 0.85,
             "context_updates": {
                 "overall_risk": "medium-high",
-                "immediate_action_required": True
-            }
+                "immediate_action_required": True,
+            },
         }
 
     async def _recommendation_generator_agent(self, context: dict[str, Any]) -> dict[str, Any]:
@@ -388,20 +390,20 @@ class MultiAgentOrchestrator:
             "specific_actions": [
                 "Add specific functional outcome measurements to treatment goals",
                 "Include medical necessity justification in assessment section",
-                "Document patient's prior level of function for comparison"
+                "Document patient's prior level of function for comparison",
             ],
             "implementation_steps": [
                 "Review current documentation template",
                 "Add required fields for functional outcomes",
-                "Train staff on medical necessity documentation"
+                "Train staff on medical necessity documentation",
             ],
             "timelines": ["immediate", "1-2 weeks", "ongoing"],
             "success_metrics": ["compliance_score_improvement", "audit_readiness", "documentation_quality"],
             "confidence": 0.90,
             "context_updates": {
                 "improvement_potential": "high",
-                "implementation_complexity": "low"
-            }
+                "implementation_complexity": "low",
+            },
         }
 
     async def _quality_reviewer_agent(self, context: dict[str, Any]) -> dict[str, Any]:
@@ -413,18 +415,18 @@ class MultiAgentOrchestrator:
             "validation_results": {
                 "consistency_check": "passed",
                 "completeness_check": "passed",
-                "accuracy_check": "passed_with_notes"
+                "accuracy_check": "passed_with_notes",
             },
             "improvement_suggestions": [
                 "Consider additional context from user preferences",
-                "Cross-reference with historical analysis patterns"
+                "Cross-reference with historical analysis patterns",
             ],
             "confidence_adjustments": {
                 "document_analyzer": 0.92,
                 "compliance_checker": 0.90,  # Slightly increased after validation
-                "risk_assessor": 0.85
+                "risk_assessor": 0.85,
             },
-            "confidence": 0.89
+            "confidence": 0.89,
         }
 
     def _detect_document_type(self, content: str) -> str:
@@ -432,12 +434,11 @@ class MultiAgentOrchestrator:
         content_lower = content.lower()
         if "progress" in content_lower and "note" in content_lower:
             return "progress_note"
-        elif "evaluation" in content_lower or "assessment" in content_lower:
+        if "evaluation" in content_lower or "assessment" in content_lower:
             return "evaluation"
-        elif "treatment" in content_lower and "plan" in content_lower:
+        if "treatment" in content_lower and "plan" in content_lower:
             return "treatment_plan"
-        else:
-            return "clinical_document"
+        return "clinical_document"
 
     def _calculate_overall_confidence(self, results: list[AgentResult]) -> float:
         """Calculate overall confidence score from all agent results."""
@@ -450,7 +451,7 @@ class MultiAgentOrchestrator:
             AgentRole.COMPLIANCE_CHECKER: 0.30,
             AgentRole.RISK_ASSESSOR: 0.25,
             AgentRole.RECOMMENDATION_GENERATOR: 0.20,
-            AgentRole.QUALITY_REVIEWER: 0.10
+            AgentRole.QUALITY_REVIEWER: 0.10,
         }
 
         weighted_confidence = 0.0

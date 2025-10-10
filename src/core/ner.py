@@ -1,5 +1,4 @@
-"""
-Specialized Clinical Named Entity Recognition (NER) service.
+"""Specialized Clinical Named Entity Recognition (NER) service.
 
 This module uses an ensemble of transformer models to extract a wide range of
 clinical entities from text, leveraging a sophisticated merging strategy to
@@ -17,9 +16,9 @@ from typing import Any
 
 import transformers
 
-if 'file_utils' not in dir(transformers):
+if "file_utils" not in dir(transformers):
     import transformers.utils
-    sys.modules['transformers.file_utils'] = transformers.utils
+    sys.modules["transformers.file_utils"] = transformers.utils
 
 from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
 
@@ -47,16 +46,15 @@ def get_presidio_wrapper():
 
 
 class ClinicalNERService:
-    """
-    A service for high-accuracy clinical entity recognition using an ensemble of models.
+    """A service for high-accuracy clinical entity recognition using an ensemble of models.
     """
 
     def __init__(self, model_names: list[str] | None = None):
-        """
-        Initializes the clinical NER ensemble.
+        """Initializes the clinical NER ensemble.
 
         Args:
             model_names: Optional list of model names from the Hugging Face Hub.
+
         """
         self.model_names = list(model_names or [])
         self.pipelines = self._initialize_pipelines()
@@ -66,7 +64,7 @@ class ClinicalNERService:
         pipelines = []
         for model_name in self.model_names:
             try:
-                logger.info(f"Loading clinical NER model: {model_name}")
+                logger.info("Loading clinical NER model: %s", model_name)
                 tokenizer = AutoTokenizer.from_pretrained(model_name)
                 model = AutoModelForTokenClassification.from_pretrained(model_name)
                 pipelines.append(
@@ -75,22 +73,22 @@ class ClinicalNERService:
                         model=model,
                         tokenizer=tokenizer,
                         aggregation_strategy="simple",
-                    )
+                    ),
                 )
-                logger.info(f"Successfully loaded clinical NER model: {model_name}")
+                logger.info("Successfully loaded clinical NER model: %s", model_name)
             except Exception as e:
-                logger.error(f"Failed to load NER model {model_name}: {e}", exc_info=True)
+                logger.error("Failed to load NER model %s: {e}", model_name, exc_info=True)
         return pipelines
 
     def extract_entities(self, text: str) -> list[dict[str, Any]]:
-        """
-        Extracts and merges clinical entities from the text using the model ensemble.
+        """Extracts and merges clinical entities from the text using the model ensemble.
 
         Args:
             text: The input text to analyze.
 
         Returns:
             A merged and deduplicated list of detected clinical entities.
+
         """
         if not self.pipelines or not text.strip():
             return []
@@ -99,7 +97,7 @@ class ClinicalNERService:
         model_identifier = "_".join(self.model_names) if self.model_names else "default_ner"
         cached_results = NERCache.get_ner_results(text, model_identifier)
         if cached_results is not None:
-            logger.debug(f"Cache hit for NER results (model: {model_identifier})")
+            logger.debug("Cache hit for NER results (model: %s)", model_identifier)
             return cached_results
 
         start_time = time.time()
@@ -110,7 +108,7 @@ class ClinicalNERService:
                 if entities:
                     all_entities.extend(entities)
             except Exception as e:
-                logger.warning(f"A clinical NER pipeline failed during execution: {e}")
+                logger.warning("A clinical NER pipeline failed during execution: %s", e)
 
         merged_entities = self._merge_entities(all_entities)
 
@@ -119,7 +117,7 @@ class ClinicalNERService:
         ttl_hours = 24.0 if processing_time > 2.0 else 48.0  # Longer TTL for quick processing
         NERCache.set_ner_results(text, model_identifier, merged_entities, ttl_hours)
 
-        logger.debug(f"NER processing completed in {processing_time:.2f}s, cached with TTL {ttl_hours}h")
+        logger.debug("NER processing completed in %ss, cached with TTL {ttl_hours}h", processing_time)
         return merged_entities
 
     def _merge_entities(self, entities: list[dict[str, Any]]) -> list[dict[str, Any]]:

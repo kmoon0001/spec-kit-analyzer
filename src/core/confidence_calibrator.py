@@ -29,7 +29,7 @@ class TemperatureScaling:
         self.temperature = 1.0
         self.is_fitted = False
 
-    def fit(self, logits: np.ndarray, true_labels: np.ndarray) -> 'TemperatureScaling':
+    def fit(self, logits: np.ndarray, true_labels: np.ndarray) -> "TemperatureScaling":
         """Fit the temperature parameter using validation data.
 
         Args:
@@ -38,6 +38,7 @@ class TemperatureScaling:
 
         Returns:
             Self for method chaining
+
         """
         from scipy.optimize import minimize_scalar
 
@@ -49,16 +50,16 @@ class TemperatureScaling:
             probabilities = np.clip(probabilities, 1e-7, 1 - 1e-7)
             loss = -np.mean(
                 true_labels * np.log(probabilities) +
-                (1 - true_labels) * np.log(1 - probabilities)
+                (1 - true_labels) * np.log(1 - probabilities),
             )
             return loss
 
         # Find optimal temperature
-        result = minimize_scalar(temperature_loss, bounds=(0.1, 10.0), method='bounded')
+        result = minimize_scalar(temperature_loss, bounds=(0.1, 10.0), method="bounded")
         self.temperature = result.x
         self.is_fitted = True
 
-        logger.info(f"Temperature scaling fitted with temperature: {self.temperature:.3f}")
+        logger.info("Temperature scaling fitted with temperature: %s", self.temperature:.3f)
         return self
 
     def calibrate(self, logits: np.ndarray) -> np.ndarray:
@@ -69,6 +70,7 @@ class TemperatureScaling:
 
         Returns:
             Calibrated probabilities
+
         """
         if not self.is_fitted:
             logger.warning("Temperature scaling not fitted. Using temperature=1.0")
@@ -102,7 +104,7 @@ class PlattScaling:
         self.platt_model = LogisticRegression()
         self.is_fitted = False
 
-    def fit(self, scores: np.ndarray, true_labels: np.ndarray) -> 'PlattScaling':
+    def fit(self, scores: np.ndarray, true_labels: np.ndarray) -> "PlattScaling":
         """Fit Platt scaling using validation data.
 
         Args:
@@ -111,6 +113,7 @@ class PlattScaling:
 
         Returns:
             Self for method chaining
+
         """
         # Reshape for sklearn
         scores_reshaped = scores.reshape(-1, 1)
@@ -121,7 +124,7 @@ class PlattScaling:
 
         # Calculate cross-validation score for quality assessment
         cv_score = cross_val_score(self.platt_model, scores_reshaped, true_labels, cv=3)
-        logger.info(f"Platt scaling fitted with CV accuracy: {cv_score.mean():.3f} ± {cv_score.std():.3f}")
+        logger.info("Platt scaling fitted with CV accuracy: %s ± {cv_score.std():.3f}", cv_score.mean():.3f)
 
         return self
 
@@ -133,6 +136,7 @@ class PlattScaling:
 
         Returns:
             Calibrated probabilities
+
         """
         if not self.is_fitted:
             logger.warning("Platt scaling not fitted. Returning original scores.")
@@ -150,10 +154,10 @@ class IsotonicCalibration:
     """
 
     def __init__(self):
-        self.isotonic_model = IsotonicRegression(out_of_bounds='clip')
+        self.isotonic_model = IsotonicRegression(out_of_bounds="clip")
         self.is_fitted = False
 
-    def fit(self, scores: np.ndarray, true_labels: np.ndarray) -> 'IsotonicCalibration':
+    def fit(self, scores: np.ndarray, true_labels: np.ndarray) -> "IsotonicCalibration":
         """Fit isotonic regression using validation data.
 
         Args:
@@ -162,6 +166,7 @@ class IsotonicCalibration:
 
         Returns:
             Self for method chaining
+
         """
         self.isotonic_model.fit(scores, true_labels)
         self.is_fitted = True
@@ -177,6 +182,7 @@ class IsotonicCalibration:
 
         Returns:
             Calibrated probabilities
+
         """
         if not self.is_fitted:
             logger.warning("Isotonic calibration not fitted. Returning original scores.")
@@ -192,18 +198,18 @@ class ConfidenceCalibrator:
     and handles the selection of the best method based on validation data.
     """
 
-    def __init__(self, method: str = 'auto'):
-        """
-        Initialize the confidence calibrator.
+    def __init__(self, method: str = "auto"):
+        """Initialize the confidence calibrator.
 
         Args:
             method: Calibration method ('temperature', 'platt', 'isotonic', 'auto')
+
         """
         self.method = method
         self.calibrators = {
-            'temperature': TemperatureScaling(),
-            'platt': PlattScaling(),
-            'isotonic': IsotonicCalibration()
+            "temperature": TemperatureScaling(),
+            "platt": PlattScaling(),
+            "isotonic": IsotonicCalibration(),
         }
         self.best_calibrator: TemperatureScaling | PlattScaling | IsotonicCalibration | None = None
         self.is_fitted = False
@@ -212,7 +218,7 @@ class ConfidenceCalibrator:
     def fit(self,
             logits_or_scores: np.ndarray,
             true_labels: np.ndarray,
-            validation_split: float = 0.2) -> 'ConfidenceCalibrator':
+            validation_split: float = 0.2) -> "ConfidenceCalibrator":
         """Fit the confidence calibrator.
 
         Args:
@@ -222,10 +228,11 @@ class ConfidenceCalibrator:
 
         Returns:
             Self for method chaining
+
         """
-        if self.method == 'auto':
+        if self.method == "auto":
             self.best_calibrator = self._select_best_method(
-                logits_or_scores, true_labels, validation_split
+                logits_or_scores, true_labels, validation_split,
             )
         else:
             if self.method not in self.calibrators:
@@ -235,7 +242,7 @@ class ConfidenceCalibrator:
             self.best_calibrator.fit(logits_or_scores, true_labels)
 
         self.is_fitted = True
-        logger.info(f"Confidence calibrator fitted using method: {self.method}")
+        logger.info("Confidence calibrator fitted using method: %s", self.method)
         return self
 
     def calibrate(self, logits_or_scores: np.ndarray) -> np.ndarray:
@@ -246,6 +253,7 @@ class ConfidenceCalibrator:
 
         Returns:
             Calibrated confidence scores
+
         """
         if not self.is_fitted:
             logger.warning("Calibrator not fitted. Returning original scores.")
@@ -272,7 +280,7 @@ class ConfidenceCalibrator:
         val_labels = true_labels[val_idx]
 
         best_method = None
-        best_score = float('inf')
+        best_score = float("inf")
 
         for method_name, calibrator in self.calibrators.items():
             try:
@@ -286,11 +294,11 @@ class ConfidenceCalibrator:
                 ece = self._calculate_ece(calibrated_scores, val_labels)
 
                 self.calibration_metrics[method_name] = {
-                    'ece': ece,
-                    'brier_score': self._calculate_brier_score(calibrated_scores, val_labels)
+                    "ece": ece,
+                    "brier_score": self._calculate_brier_score(calibrated_scores, val_labels),
                 }
 
-                logger.info(f"{method_name} calibration - ECE: {ece:.4f}")
+                logger.info("%s calibration - ECE: {ece:.4f}", method_name)
 
                 if ece < best_score:
                     best_score = ece
@@ -298,14 +306,14 @@ class ConfidenceCalibrator:
                     self.method = method_name
 
             except Exception as e:
-                logger.warning(f"Failed to fit {method_name} calibrator: {e}")
+                logger.warning("Failed to fit %s calibrator: {e}", method_name)
                 continue
 
         if best_method is None:
             logger.warning("All calibration methods failed. Using temperature scaling as fallback.")
             best_method = TemperatureScaling()
             best_method.fit(train_scores, train_labels)
-            self.method = 'temperature'
+            self.method = "temperature"
 
         return best_method
 
@@ -342,27 +350,27 @@ class ConfidenceCalibrator:
             raise ValueError("Cannot save unfitted calibrator")
 
         save_data = {
-            'method': self.method,
-            'calibrator': self.best_calibrator,
-            'metrics': self.calibration_metrics
+            "method": self.method,
+            "calibrator": self.best_calibrator,
+            "metrics": self.calibration_metrics,
         }
 
-        with open(filepath, 'wb') as f:
+        with open(filepath, "wb") as f:
             pickle.dump(save_data, f)
 
-        logger.info(f"Calibrator saved to {filepath}")
+        logger.info("Calibrator saved to %s", filepath)
 
-    def load(self, filepath: str | Path) -> 'ConfidenceCalibrator':
+    def load(self, filepath: str | Path) -> "ConfidenceCalibrator":
         """Load a fitted calibrator from disk."""
-        with open(filepath, 'rb') as f:
+        with open(filepath, "rb") as f:
             save_data = pickle.load(f)
 
-        self.method = save_data['method']
-        self.best_calibrator = save_data['calibrator']
-        self.calibration_metrics = save_data.get('metrics', {})
+        self.method = save_data["method"]
+        self.best_calibrator = save_data["calibrator"]
+        self.calibration_metrics = save_data.get("metrics", {})
         self.is_fitted = True
 
-        logger.info(f"Calibrator loaded from {filepath}")
+        logger.info("Calibrator loaded from %s", filepath)
         return self
 
     def get_calibration_metrics(self) -> dict[str, dict[str, float]]:

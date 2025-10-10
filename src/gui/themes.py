@@ -1,5 +1,4 @@
-"""
-Theme definitions for the application GUI.
+"""Theme definitions for the application GUI.
 
 This module centralizes the color palettes for different UI themes,
 making it easy to add, remove, or modify themes without changing the
@@ -45,7 +44,7 @@ THEMES: dict[str, ThemeColors] = {
         ColorRole.HighlightedText: QColor(255, 255, 255), # White text on highlight
         ColorRole.Link: QColor(0, 100, 200),           # Blue links
         ColorRole.LinkVisited: QColor(100, 0, 200),    # Purple visited links
-    }
+    },
 }
 
 def get_theme_palette(theme_name: str) -> QPalette:

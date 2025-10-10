@@ -48,7 +48,7 @@ def parse_document_content(file_path: str) -> list[dict[str, str]]:
             {
                 "sentence": f"Error: File not found at {file_path}",
                 "source": "parser",
-            }
+            },
         ]
 
     extension = os.path.splitext(file_path)[1].lower()
@@ -59,17 +59,17 @@ def parse_document_content(file_path: str) -> list[dict[str, str]]:
             {
                 "sentence": f"Error: Unsupported file type '{extension}'. Supported formats: {supported_list}",
                 "source": "parser",
-            }
+            },
         ]
 
     cache_key = "parsed_document_" + hashlib.sha256(file_path.encode("utf-8")).hexdigest()
 
     cached_result = cache_service.get_from_disk(cache_key)
     if cached_result is not None:
-        logger.info(f"Cache hit for document: {os.path.basename(file_path)}")
+        logger.info("Cache hit for document: %s", os.path.basename(file_path))
         return cached_result
 
-    logger.info(f"Cache miss for document: {os.path.basename(file_path)}. Parsing from scratch.")
+    logger.info("Cache miss for document: %s. Parsing from scratch.", os.path.basename(file_path))
 
     try:
         if extension == ".pdf":
@@ -87,12 +87,12 @@ def parse_document_content(file_path: str) -> list[dict[str, str]]:
         return result
 
     except Exception as e:
-        logger.error(f"Error parsing {file_path}: {e}")
+        logger.exception("Error parsing %s: {e}", file_path)
         return [
             {
-                "sentence": f"Error parsing file: {str(e)}",
+                "sentence": f"Error parsing file: {e!s}",
                 "source": "parser",
-            }
+            },
         ]
 
 def _preprocess_image_for_ocr(image):
@@ -134,7 +134,7 @@ def _preprocess_image_for_ocr(image):
         return gray
 
     except Exception as e:
-        logger.warning(f"Image preprocessing failed: {e}, using original image")
+        logger.warning("Image preprocessing failed: %s, using original image", e)
         return image
 
 
@@ -145,7 +145,7 @@ def _parse_image_with_ocr(file_path: str) -> list[dict[str, str]]:
             {
                 "sentence": "Error: OCR functionality not available. Please install pytesseract and opencv-python.",
                 "source": "parser",
-            }
+            },
         ]
 
     try:
@@ -165,7 +165,7 @@ def _parse_image_with_ocr(file_path: str) -> list[dict[str, str]]:
                 {
                     "sentence": "Warning: No text could be extracted from the image. The image may be too low quality or contain no readable text.",
                     "source": "ocr",
-                }
+                },
             ]
 
         # Split into sentences and clean up
@@ -181,12 +181,12 @@ def _parse_image_with_ocr(file_path: str) -> list[dict[str, str]]:
         ]
 
     except Exception as e:
-        logger.error(f"OCR processing failed for {file_path}: {e}")
+        logger.exception("OCR processing failed for %s: {e}", file_path)
         return [
             {
-                "sentence": f"Error: OCR processing failed - {str(e)}",
+                "sentence": f"Error: OCR processing failed - {e!s}",
                 "source": "parser",
-            }
+            },
         ]
 
 
@@ -220,7 +220,7 @@ def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
 
                             # Preprocess and OCR
                             processed_image = _preprocess_image_for_ocr(pil_image)
-                            custom_config = r'--oem 3 --psm 6'
+                            custom_config = r"--oem 3 --psm 6"
                             ocr_text = pytesseract.image_to_string(processed_image, config=custom_config)
 
                             if ocr_text.strip():
@@ -234,7 +234,7 @@ def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
                                 ocr_pages.append(page_num + 1)
 
                         except Exception as e:
-                            logger.warning(f"OCR failed for page {page_num + 1}: {e}")
+                            logger.warning("OCR failed for page %s: {e}", page_num + 1)
                             text_content.append({
                                 "sentence": f"Warning: Page {page_num + 1} could not be processed (may be scanned image without OCR capability)",
                                 "source": "parser",
@@ -246,7 +246,7 @@ def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
                         })
 
             if ocr_pages:
-                logger.info(f"OCR was used for pages: {ocr_pages}")
+                logger.info("OCR was used for pages: %s", ocr_pages)
                 text_content.insert(0, {
                     "sentence": f"Note: OCR was used to extract text from scanned pages: {', '.join(map(str, ocr_pages))}",
                     "source": "ocr_info",
@@ -256,31 +256,31 @@ def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
                 {
                     "sentence": "Error: No text could be extracted from the PDF.",
                     "source": "parser",
-                }
+                },
             ]
 
     except Exception as e:
-        logger.error(f"PDF parsing failed for {file_path}: {e}")
+        logger.exception("PDF parsing failed for %s: {e}", file_path)
         return [
             {
-                "sentence": f"Error parsing PDF: {str(e)}",
+                "sentence": f"Error parsing PDF: {e!s}",
                 "source": "parser",
-            }
+            },
         ]
 
 
 def _split_into_sentences(text: str) -> list[str]:
     """Split text into sentences with medical document awareness."""
     # Clean up the text
-    text = re.sub(r'\s+', ' ', text)  # Normalize whitespace
-    text = re.sub(r'([.!?])\s*([A-Z])', r'\1\n\2', text)  # Split on sentence boundaries
+    text = re.sub(r"\s+", " ", text)  # Normalize whitespace
+    text = re.sub(r"([.!?])\s*([A-Z])", r"\1\n\2", text)  # Split on sentence boundaries
 
     # Handle medical abbreviations that shouldn't be split
-    medical_abbrevs = ['Dr.', 'Mr.', 'Mrs.', 'Ms.', 'PT.', 'OT.', 'SLP.', 'etc.', 'vs.', 'i.e.', 'e.g.']
+    medical_abbrevs = ["Dr.", "Mr.", "Mrs.", "Ms.", "PT.", "OT.", "SLP.", "etc.", "vs.", "i.e.", "e.g."]
     for abbrev in medical_abbrevs:
-        text = text.replace(abbrev + '\n', abbrev + ' ')
+        text = text.replace(abbrev + "\n", abbrev + " ")
 
-    sentences = [s.strip() for s in text.split('\n') if s.strip()]
+    sentences = [s.strip() for s in text.split("\n") if s.strip()]
 
     # Merge very short sentences (likely fragments)
     merged_sentences = []
@@ -368,7 +368,7 @@ def parse_document_into_sections(text: str) -> dict[str, str]:
         )
         content = text[match.end() : next_start].strip()
         normalized_header = next(
-            (item for item in headers if item.lower() == header.lower()), header
+            (item for item in headers if item.lower() == header.lower()), header,
         )
         sections[normalized_header] = content
 

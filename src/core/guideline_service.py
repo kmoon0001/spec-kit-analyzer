@@ -110,7 +110,7 @@ class GuidelineService:
             self.guideline_chunks = joblib.load(self.chunks_path)
             self.is_index_ready = True
             logger.info(
-                "Loaded %d guideline chunks from cache", len(self.guideline_chunks)
+                "Loaded %d guideline chunks from cache", len(self.guideline_chunks),
             )
             return True
         except Exception as exc:

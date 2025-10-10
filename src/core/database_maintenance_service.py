@@ -9,8 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseMaintenanceService:
-    """
-    A service to handle database maintenance tasks, such as purging old reports.
+    """A service to handle database maintenance tasks, such as purging old reports.
     """
 
     def __init__(self, db_path: str, retention_days: int = 90):
@@ -19,6 +18,7 @@ class DatabaseMaintenanceService:
         Args:
             db_path (str): The path to the SQLite database file.
             retention_days (int): The number of days to retain records. Records older than this will be cleaned.
+
         """
         self.settings = get_settings()
 
@@ -47,7 +47,7 @@ class DatabaseMaintenanceService:
         async with AsyncSessionLocal() as db:
             try:
                 num_deleted = await crud.delete_reports_older_than(
-                    db, days=retention_days
+                    db, days=retention_days,
                 )
                 if num_deleted > 0:
                     logger.info(
@@ -73,6 +73,7 @@ class DatabaseMaintenanceService:
             retention_days (int): The number of days to retain records. This parameter
                                   is currently unused as the retention period is read
                                   from settings, but kept for API compatibility.
+
         """
         """
         Synchronous entry point for the database maintenance task.

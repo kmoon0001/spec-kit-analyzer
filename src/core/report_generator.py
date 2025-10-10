@@ -1,6 +1,5 @@
 
-"""
-Clinical Compliance Report Generator
+"""Clinical Compliance Report Generator
 
 Generates comprehensive HTML reports following the structure defined in REPORT_ELEMENTS.md.
 Includes executive summary, detailed findings, AI transparency, and regulatory citations.
@@ -28,23 +27,22 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 class ReportGenerator:
-    """
-    Generates comprehensive clinical compliance reports following REPORT_ELEMENTS.md structure.
+    """Generates comprehensive clinical compliance reports following REPORT_ELEMENTS.md structure.
     """
 
     def __init__(self, llm_service=None):
         self.rubric_template_str = self._load_template(
-            os.path.join(ROOT_DIR, "src", "resources", "report_template.html")
+            os.path.join(ROOT_DIR, "src", "resources", "report_template.html"),
         )
         self.model_limitations_html = self._load_and_convert_markdown(
-            os.path.join(ROOT_DIR, "src", "resources", "model_limitations.md")
+            os.path.join(ROOT_DIR, "src", "resources", "model_limitations.md"),
         )
         self.settings = get_settings()
         self.habits_enabled = self.settings.habits_framework.enabled
         if self.habits_enabled:
             use_ai = self.settings.habits_framework.ai_features.use_ai_mapping
             self.habits_framework = SevenHabitsFramework(
-                use_ai_mapping=use_ai, llm_service=llm_service
+                use_ai_mapping=use_ai, llm_service=llm_service,
             )
         else:
             self.habits_framework = None
@@ -76,7 +74,7 @@ class ReportGenerator:
                 if mime_type:
                     return f'<div class="logo-container"><img src="data:{mime_type};base64,{encoded_string}" alt="Logo" class="logo"></div>'
             except Exception as e:
-                logger.error(f"Could not embed logo: {e}")
+                logger.exception("Could not embed logo: %s", e)
         return ""
 
     def generate_report(
@@ -102,7 +100,7 @@ class ReportGenerator:
         }
 
     def generate_html_report(
-        self, analysis_result: dict, doc_name: str, analysis_mode: str = "rubric"
+        self, analysis_result: dict, doc_name: str, analysis_mode: str = "rubric",
     ) -> str:
         return self._generate_rubric_report(analysis_result, doc_name)
 
@@ -150,7 +148,7 @@ class ReportGenerator:
         findings_rows_html = ""
         for finding in findings:
             finding_id = hashlib.sha1(f"{finding.get('text', '')}{finding.get('issue_title', '')}".encode()).hexdigest()[:10]
-            finding['finding_id'] = finding_id
+            finding["finding_id"] = finding_id
             row_class = self._get_finding_row_class(finding)
             risk_cell = self._generate_risk_cell(finding)
             text_cell = self._generate_text_cell(finding)
@@ -158,7 +156,7 @@ class ReportGenerator:
             recommendation_cell = self._generate_recommendation_cell(finding)
             prevention_cell = self._generate_prevention_cell(finding, analysis_result)
             confidence_cell = self._generate_confidence_cell(finding)
-            findings_rows_html += f'<tr {row_class}><td>{risk_cell}</td><td>{text_cell}</td><td>{issue_cell}</td><td>{recommendation_cell}</td><td>{prevention_cell}</td><td>{confidence_cell}</td></tr>'
+            findings_rows_html += f"<tr {row_class}><td>{risk_cell}</td><td>{text_cell}</td><td>{issue_cell}</td><td>{recommendation_cell}</td><td>{prevention_cell}</td><td>{confidence_cell}</td></tr>"
         return findings_rows_html
 
     def _get_finding_row_class(self, finding: dict) -> str:
@@ -215,14 +213,13 @@ class ReportGenerator:
         if self.habits_framework:
             context = {"document_type": analysis_result.get("document_type", "Unknown") if analysis_result else "Unknown", "discipline": analysis_result.get("discipline", "Unknown") if analysis_result else "Unknown", "risk_level": finding.get("risk", "Unknown"), "issue_category": finding.get("issue_category", "General")}
             return self.habits_framework.map_finding_to_habit(finding, context)
-        else:
-            try:
-                from .habit_mapper import get_habit_for_finding
-                legacy_habit = get_habit_for_finding(finding)
-                return {"habit_number": 1, "name": legacy_habit["name"], "explanation": legacy_habit["explanation"], "confidence": 0.5}
-            except ImportError:
-                logger.warning("Legacy habit mapper not available")
-                return None
+        try:
+            from .habit_mapper import get_habit_for_finding
+            legacy_habit = get_habit_for_finding(finding)
+            return {"habit_number": 1, "name": legacy_habit["name"], "explanation": legacy_habit["explanation"], "confidence": 0.5}
+        except ImportError:
+            logger.warning("Legacy habit mapper not available")
+            return None
 
     def _generate_habit_tag_html(self, habit_info: dict[str, Any]) -> str:
         habit_number = habit_info.get("habit_number", 1)
@@ -236,7 +233,7 @@ class ReportGenerator:
         if self.settings.habits_framework.is_prominent():
             confidence_indicator = f" ({confidence:.0%} confidence)" if confidence < 0.9 else ""
             habit_html = (
-                f'<div class="habit-tag prominent" data-confidence="{confidence:.2f}">'
+                f'<div class="habit-tag prominent" data-confidence="{confidence}">'
                 f'<div class="habit-badge">?? HABIT {habit_number}: {habit_name.upper()}{confidence_indicator}</div>'
                 f'<div class="habit-quick-tip">{explanation[:120]}{"..." if len(explanation) > 120 else ""}</div>'
                 "</div>"
@@ -244,19 +241,19 @@ class ReportGenerator:
         elif self.settings.habits_framework.is_subtle():
             habit_html = (
                 f'<div class="habit-tag subtle" title="Habit {habit_number}: {habit_name} - {explanation}" '
-                f'data-confidence="{confidence:.2f}">??</div>'
+                f'data-confidence="{confidence}">??</div>'
             )
         else:
             tooltip_text = f"{explanation} (Confidence: {confidence:.0%})"
             habit_html = (
                 f'<div class="habit-tag moderate" title="{tooltip_text}" '
-                f'data-confidence="{confidence:.2f}">?? Habit {habit_number}: {habit_name}</div>'
+                f'data-confidence="{confidence}">?? Habit {habit_number}: {habit_name}</div>'
             )
         return habit_html
 
     def _generate_recommendation_cell(self, finding: dict) -> str:
         recommendation = sanitize_human_text(
-            finding.get("personalized_tip") or finding.get("suggestion", "Review and update documentation")
+            finding.get("personalized_tip") or finding.get("suggestion", "Review and update documentation"),
         )
         priority = finding.get("priority")
         if priority:
@@ -307,7 +304,7 @@ class ReportGenerator:
         encoded_chat_context = urllib.parse.quote(chat_context)
         chat_link = f'<a href="chat://{encoded_chat_context}" class="chat-link">Ask AI</a>'
 
-        finding_id = finding.get('finding_id', '')
+        finding_id = finding.get("finding_id", "")
         feedback_correct_link = (
             f'<a href="feedback://correct?finding_id={finding_id}" '
             'class="feedback-link correct">??</a>'
@@ -349,7 +346,7 @@ class ReportGenerator:
                 recommendation = sanitize_human_text(item.get("recommendation", ""))
                 title = sanitize_human_text(item.get("title", item.get("id", "Checklist item")))
                 rows.append(
-                    f"<tr><td>{title}</td><td><span class='{status_class}'>{status_label}</span></td><td>{evidence}</td><td>{recommendation}</td></tr>"
+                    f"<tr><td>{title}</td><td><span class='{status_class}'>{status_label}</span></td><td>{evidence}</td><td>{recommendation}</td></tr>",
                 )
             rows_html = "".join(rows)
         return report_html.replace("<!-- Placeholder for checklist rows -->", rows_html)

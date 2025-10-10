@@ -28,8 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 class UIHandlers:
-    """
-    Handles UI-related events and operations for the main application window.
+    """Handles UI-related events and operations for the main application window.
 
     This class encapsulates all user interface event handling logic, including
     theme management, dialog operations, and user interactions. It follows the
@@ -42,11 +41,11 @@ class UIHandlers:
         >>> ui_handlers = UIHandlers(main_window)
         >>> ui_handlers.toggle_theme()  # Switch between light/dark themes
         >>> ui_handlers.show_settings_dialog()  # Open settings dialog
+
     """
 
     def __init__(self, main_window: MainApplicationWindow) -> None:
-        """
-        Initialize the UI handlers with a reference to the main window.
+        """Initialize the UI handlers with a reference to the main window.
 
         Args:
             main_window: The main application window instance that this handler
@@ -54,14 +53,14 @@ class UIHandlers:
 
         Raises:
             TypeError: If main_window is not a MainApplicationWindow instance.
+
         """
-        if not hasattr(main_window, 'statusBar'):
+        if not hasattr(main_window, "statusBar"):
             raise TypeError("main_window must be a valid MainApplicationWindow instance")
         self.main_window = main_window
 
     def toggle_theme(self) -> None:
-        """
-        Toggle between light and dark theme modes.
+        """Toggle between light and dark theme modes.
 
         This method switches the application's visual theme between light and dark modes,
         applying the new theme to all UI components and providing user feedback via the
@@ -75,6 +74,7 @@ class UIHandlers:
 
         Example:
             >>> ui_handlers.toggle_theme()  # Switches from light to dark or vice versa
+
         """
         medical_theme.toggle_theme()
         self.main_window._apply_medical_theme()
@@ -84,8 +84,7 @@ class UIHandlers:
         self.main_window.statusBar().showMessage(f"Switched to {theme_name} theme", 3000)
 
     def apply_theme(self, theme_name: str) -> None:
-        """
-        Apply a specific theme by name.
+        """Apply a specific theme by name.
 
         This method sets the application to use a specific theme variant,
         applying all associated styling and color schemes to the UI components.
@@ -107,6 +106,7 @@ class UIHandlers:
         Example:
             >>> ui_handlers.apply_theme("dark")  # Apply dark theme
             >>> ui_handlers.apply_theme("light")  # Apply light theme
+
         """
         if theme_name not in ["light", "dark", "auto"]:
             raise ValueError(f"Invalid theme name: {theme_name}. Must be 'light', 'dark', or 'auto'")
@@ -126,7 +126,7 @@ class UIHandlers:
                 "🎉 Easter Egg Found!",
                 "You found the secret! 🌴\n\n"
                 "Pacific Coast Therapy - Where compliance meets excellence!\n\n"
-                "Keep up the great documentation work! 💪"
+                "Keep up the great documentation work! 💪",
             )
             self.main_window.statusBar().showMessage("🎉 Easter egg activated!", 5000)
 
@@ -143,7 +143,7 @@ class UIHandlers:
                 "function": "Creates human-readable explanations of compliance issues and actionable advice",
                 "technology": "Microsoft Phi-2 (2.7B parameters) or Mistral-7B (quantized) - chosen for medical accuracy and local processing capability",
                 "why_chosen": "Selected for excellent reasoning capabilities, medical knowledge, and ability to run locally for privacy",
-                "use_cases": ["Compliance recommendations", "Report generation", "Improvement suggestions", "Personalized feedback"]
+                "use_cases": ["Compliance recommendations", "Report generation", "Improvement suggestions", "Personalized feedback"],
             },
             "FAISS+BM25": {
                 "full_name": "Hybrid Retrieval-Augmented Generation (RAG) System",
@@ -151,7 +151,7 @@ class UIHandlers:
                 "function": "Combines semantic search (FAISS) with keyword matching (BM25) for precise rule retrieval",
                 "technology": "FAISS vector database + BM25 ranking algorithm with hybrid scoring",
                 "why_chosen": "Hybrid approach ensures both semantic understanding and exact keyword matching for comprehensive rule coverage",
-                "use_cases": ["Rule matching", "Guideline retrieval", "Context-aware search", "Compliance verification"]
+                "use_cases": ["Rule matching", "Guideline retrieval", "Context-aware search", "Compliance verification"],
             },
             "Fact Checker": {
                 "full_name": "AI Fact Verification & Confidence Scoring System",
@@ -159,7 +159,7 @@ class UIHandlers:
                 "function": "Cross-references findings against multiple sources and applies confidence scoring to ensure accuracy",
                 "technology": "Secondary transformer model with specialized verification algorithms and uncertainty quantification",
                 "why_chosen": "Critical for medical compliance - reduces false positives and provides confidence metrics for clinical decision-making",
-                "use_cases": ["Finding verification", "Accuracy validation", "Confidence scoring", "False positive reduction"]
+                "use_cases": ["Finding verification", "Accuracy validation", "Confidence scoring", "False positive reduction"],
             },
             "BioBERT": {
                 "full_name": "Biomedical Named Entity Recognition (BioBERT)",
@@ -167,7 +167,7 @@ class UIHandlers:
                 "function": "Identifies biomedical entities, drug names, diseases, and general medical terminology",
                 "technology": "BioBERT - BERT pre-trained on biomedical literature (PubMed abstracts and PMC full-text articles)",
                 "why_chosen": "Specifically trained on biomedical texts, excels at general medical terminology and research-based language",
-                "use_cases": ["Biomedical term extraction", "Drug and disease identification", "Research terminology", "General medical concepts"]
+                "use_cases": ["Biomedical term extraction", "Drug and disease identification", "Research terminology", "General medical concepts"],
             },
             "ClinicalBERT": {
                 "full_name": "Clinical Named Entity Recognition (ClinicalBERT)",
@@ -175,7 +175,7 @@ class UIHandlers:
                 "function": "Identifies medical entities, conditions, treatments, and clinical terminology with high precision",
                 "technology": "BioBERT (biomedical BERT) + ClinicalBERT - dual model approach for comprehensive medical entity extraction",
                 "why_chosen": "BioBERT excels at general biomedical terms, ClinicalBERT specializes in clinical notes - together they provide comprehensive coverage",
-                "use_cases": ["Medical term extraction", "Clinical concept identification", "Entity linking", "Medical terminology validation"]
+                "use_cases": ["Medical term extraction", "Clinical concept identification", "Entity linking", "Medical terminology validation"],
             },
             "Chat Assistant": {
                 "full_name": "Conversational AI Assistant (Local LLM)",
@@ -183,7 +183,7 @@ class UIHandlers:
                 "function": "Offers contextual help, clarification on compliance issues, and educational guidance",
                 "technology": "Local conversational model based on Phi-2/Mistral with compliance-specific fine-tuning",
                 "why_chosen": "Local processing ensures privacy while providing instant, contextual assistance for complex compliance questions",
-                "use_cases": ["Interactive help", "Question answering", "Compliance guidance", "Educational support"]
+                "use_cases": ["Interactive help", "Question answering", "Compliance guidance", "Educational support"],
             },
             "MiniLM-L6": {
                 "full_name": "Semantic Embedding System (sentence-transformers/all-MiniLM-L6-v2)",
@@ -191,8 +191,8 @@ class UIHandlers:
                 "function": "Creates 384-dimensional vector representations of documents and rules for similarity matching",
                 "technology": "sentence-transformers/all-MiniLM-L6-v2 - optimized for semantic similarity with medical domain adaptation",
                 "why_chosen": "Excellent balance of performance, speed, and accuracy. Specifically chosen for medical text understanding and efficient local processing",
-                "use_cases": ["Semantic search", "Document similarity", "Context understanding", "Rule matching"]
-            }
+                "use_cases": ["Semantic search", "Document similarity", "Context understanding", "Rule matching"],
+            },
         }
 
         model_info = model_descriptions.get(model_name, {
@@ -200,7 +200,7 @@ class UIHandlers:
             "description": "AI model for compliance analysis",
             "function": "Supports document analysis and compliance checking",
             "technology": "Local AI processing",
-            "use_cases": ["Compliance analysis"]
+            "use_cases": ["Compliance analysis"],
         })
 
         # Create detailed popup
@@ -349,7 +349,7 @@ class UIHandlers:
         analysis = self.main_window._current_payload.get("analysis", {})
         doc_name = self.main_window._selected_file.name if self.main_window._selected_file else "Document"
         report_html = self.main_window._current_payload.get("report_html") or self.main_window.report_generator.generate_html_report(
-            analysis_result=analysis, doc_name=doc_name
+            analysis_result=analysis, doc_name=doc_name,
         )
         report_browser.setHtml(report_html)
 
@@ -426,15 +426,15 @@ class UIHandlers:
             "• Reset temporary files\n\n"
             "This action cannot be undone.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.No,
         )
 
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 # Clear various caches
-                if hasattr(self.main_window, '_current_payload'):
+                if hasattr(self.main_window, "_current_payload"):
                     self.main_window._current_payload = {}
-                if hasattr(self.main_window, '_cached_preview_content'):
+                if hasattr(self.main_window, "_cached_preview_content"):
                     self.main_window._cached_preview_content = ""
 
                 # Force garbage collection
@@ -444,7 +444,7 @@ class UIHandlers:
                 self.main_window.statusBar().showMessage("✅ All caches cleared successfully", 5000)
                 QMessageBox.information(self.main_window, "Cache Cleared", "All application caches have been cleared successfully!")
             except Exception as e:
-                QMessageBox.warning(self.main_window, "Error", f"Failed to clear caches: {str(e)}")
+                QMessageBox.warning(self.main_window, "Error", f"Failed to clear caches: {e!s}")
 
     def run_diagnostics(self) -> None:
         """Run comprehensive system diagnostics."""
@@ -466,7 +466,7 @@ class UIHandlers:
                     "healthy": "✅",
                     "warning": "⚠️",
                     "error": "❌",
-                    "unknown": "❓"
+                    "unknown": "❓",
                 }.get(result.status.value, "❓")
 
                 results_text += f"{status_icon} {component.replace('_', ' ').title()}\n"
@@ -501,7 +501,7 @@ class UIHandlers:
             self.main_window.statusBar().showMessage("✅ Diagnostics completed", 5000)
 
         except Exception as e:
-            QMessageBox.critical(self.main_window, "Diagnostics Error", f"Failed to run diagnostics:\n{str(e)}")
+            QMessageBox.critical(self.main_window, "Diagnostics Error", f"Failed to run diagnostics:\n{e!s}")
             self.main_window.statusBar().showMessage("❌ Diagnostics failed", 5000)
 
     def start_api_server(self) -> None:
@@ -513,7 +513,7 @@ class UIHandlers:
             "The server is required for document analysis to work.\n\n"
             "Do you want to start the API server now?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.Yes
+            QMessageBox.StandardButton.Yes,
         )
 
         if reply == QMessageBox.StandardButton.Yes:
@@ -525,7 +525,7 @@ class UIHandlers:
 
                     # Start in a separate process
                     subprocess.Popen([
-                        sys.executable, str(api_script)
+                        sys.executable, str(api_script),
                     ], creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0)
 
                     QMessageBox.information(
@@ -533,7 +533,7 @@ class UIHandlers:
                         "🚀 API Server Starting",
                         "The API server is starting in a separate window.\n\n"
                         "Please wait a moment for it to initialize, then try your analysis again.\n\n"
-                        "You can also run diagnostics (Tools → Run Diagnostics) to check the status."
+                        "You can also run diagnostics (Tools → Run Diagnostics) to check the status.",
                     )
 
                     self.main_window.statusBar().showMessage("✅ API server started", 5000)
@@ -543,16 +543,16 @@ class UIHandlers:
                         "Script Not Found",
                         f"Could not find API server script at: {api_script}\n\n"
                         "Please start the API server manually:\n"
-                        "python scripts/run_api.py"
+                        "python scripts/run_api.py",
                     )
 
             except Exception as e:
                 QMessageBox.critical(
                     self.main_window,
                     "Failed to Start API Server",
-                    f"Could not start the API server:\n\n{str(e)}\n\n"
+                    f"Could not start the API server:\n\n{e!s}\n\n"
                     "Please start it manually:\n"
-                    "python scripts/run_api.py"
+                    "python scripts/run_api.py",
                 )
 
     def show_about_dialog(self) -> None:
@@ -676,7 +676,7 @@ Memory:
             "• Manage user permissions\n"
             "• Reset user passwords\n"
             "• View user activity logs\n\n"
-            "This feature will be available in a future update!"
+            "This feature will be available in a future update!",
         )
 
     def check_license_status(self) -> None:
@@ -706,11 +706,11 @@ Memory:
                     self.main_window,
                     "🔔 Trial Period Notice",
                     f"Trial period: {days_remaining} days remaining\n\n"
-                    f"Contact your administrator to activate the full license."
+                    f"Contact your administrator to activate the full license.",
                 )
 
         except Exception as e:
-            logger.error(f"License check failed: {e}")
+            logger.exception("License check failed: %s", e)
 
     def show_license_activation_dialog(self) -> None:
         """Show license activation dialog for admin users."""
@@ -719,7 +719,7 @@ Memory:
                 self.main_window,
                 "🔐 License Activation",
                 "Only administrators can activate licenses.\n\n"
-                "Please contact your system administrator."
+                "Please contact your system administrator.",
             )
             return
 
@@ -727,7 +727,7 @@ Memory:
             self.main_window,
             "🔑 License Activation",
             "Enter activation code:",
-            echo=QLineEdit.EchoMode.Password
+            echo=QLineEdit.EchoMode.Password,
         )
 
         if ok and activation_code:
@@ -736,12 +736,12 @@ Memory:
                     self.main_window,
                     "✅ License Activated",
                     "Full license activated successfully!\n\n"
-                    "All features are now available."
+                    "All features are now available.",
                 )
             else:
                 QMessageBox.warning(
                     self.main_window,
                     "❌ Activation Failed",
                     "Invalid activation code.\n\n"
-                    "Please check the code and try again."
+                    "Please check the code and try again.",
                 )

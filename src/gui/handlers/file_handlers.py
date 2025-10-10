@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class FileHandlers:
-    """
-    Handles file operations and document management for the application.
+    """Handles file operations and document management for the application.
 
     This class encapsulates all file-related operations including document selection,
     file validation, content preview generation, and batch processing workflows.
@@ -39,11 +38,11 @@ class FileHandlers:
         >>> file_handlers = FileHandlers(main_window)
         >>> file_handlers.prompt_for_document()  # Open file selection dialog
         >>> file_handlers.prompt_for_folder()    # Open batch processing dialog
+
     """
 
     def __init__(self, main_window: MainApplicationWindow) -> None:
-        """
-        Initialize the file handlers with a reference to the main window.
+        """Initialize the file handlers with a reference to the main window.
 
         Args:
             main_window: The main application window instance that this handler
@@ -52,14 +51,14 @@ class FileHandlers:
 
         Raises:
             TypeError: If main_window is not a valid MainApplicationWindow instance.
+
         """
-        if not hasattr(main_window, 'statusBar'):
+        if not hasattr(main_window, "statusBar"):
             raise TypeError("main_window must be a valid MainApplicationWindow instance")
         self.main_window = main_window
 
     def prompt_for_document(self) -> None:
-        """
-        Open a file selection dialog for choosing a clinical document.
+        """Open a file selection dialog for choosing a clinical document.
 
         This method presents a native file dialog to the user, allowing them to
         select a clinical document for compliance analysis. The dialog is pre-configured
@@ -85,12 +84,13 @@ class FileHandlers:
         Example:
             >>> file_handlers.prompt_for_document()
             # Opens file dialog, user selects document, UI updates automatically
+
         """
         file_path, _ = QFileDialog.getOpenFileName(
             self.main_window,
             "Select clinical document",
             str(Path.home()),
-            "Documents (*.pdf *.docx *.txt *.md *.json)"
+            "Documents (*.pdf *.docx *.txt *.md *.json)",
         )
         if file_path:
             self.set_selected_file(Path(file_path))
@@ -131,7 +131,7 @@ class FileHandlers:
         file_info = f"""✅ DOCUMENT READY FOR ANALYSIS
 
 📄 {file_path.name}
-📊 Size: {file_size_mb:.1f} MB ({len(content):,} characters)
+📊 Size: {file_size_mb} MB ({len(content):,} characters)
 📁 Location: {file_path.parent.name}/
 📅 Modified: {datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')}
 
@@ -149,7 +149,7 @@ Click 'Run Analysis' to begin processing.
         folder_path = QFileDialog.getExistingDirectory(
             self.main_window,
             "Select folder for batch analysis",
-            str(Path.home())
+            str(Path.home()),
         )
         if folder_path:
             analysis_data = {
@@ -175,8 +175,8 @@ Click 'Run Analysis' to begin processing.
             return
 
         try:
-            if hasattr(self.main_window, 'report_preview_browser') and self.main_window.report_preview_browser:
-                Path(file_path).write_text(self.main_window.report_preview_browser.toHtml(), encoding='utf-8')
+            if hasattr(self.main_window, "report_preview_browser") and self.main_window.report_preview_browser:
+                Path(file_path).write_text(self.main_window.report_preview_browser.toHtml(), encoding="utf-8")
             else:
                 # Fallback to generating report HTML
                 from src.core.report_generator import ReportGenerator
@@ -184,11 +184,11 @@ Click 'Run Analysis' to begin processing.
                 analysis = self.main_window._current_payload.get("analysis", {})
                 doc_name = self.main_window._selected_file.name if self.main_window._selected_file else "Document"
                 report_html = report_generator.generate_html_report(analysis_result=analysis, doc_name=doc_name)
-                Path(file_path).write_text(report_html, encoding='utf-8')
+                Path(file_path).write_text(report_html, encoding="utf-8")
 
             self.main_window.statusBar().showMessage(f"Report exported to {file_path}", 5000)
         except Exception as e:
-            QMessageBox.warning(self.main_window, "Export Failed", f"Failed to export report: {str(e)}")
+            QMessageBox.warning(self.main_window, "Export Failed", f"Failed to export report: {e!s}")
 
     def export_report_pdf(self) -> None:
         """Export the current report as PDF."""
@@ -197,7 +197,7 @@ Click 'Run Analysis' to begin processing.
             return
 
         file_path, _ = QFileDialog.getSaveFileName(
-            self.main_window, "Export Report as PDF", "", "PDF Files (*.pdf)"
+            self.main_window, "Export Report as PDF", "", "PDF Files (*.pdf)",
         )
 
         if file_path:
@@ -226,8 +226,8 @@ Click 'Run Analysis' to begin processing.
                     metadata={
                         "title": f"Compliance Analysis - {doc_name}",
                         "author": "Therapy Compliance Analyzer",
-                        "subject": "Clinical Documentation Compliance Report"
-                    }
+                        "subject": "Clinical Documentation Compliance Report",
+                    },
                 )
 
                 if result["success"]:
@@ -241,8 +241,8 @@ Click 'Run Analysis' to begin processing.
                     QMessageBox.warning(self.main_window, "Export Failed", f"PDF export failed:\n{error_msg}\n\nTip: Install weasyprint for better PDF support:\npip install weasyprint")
 
             except Exception as e:
-                logger.error("PDF export failed: %s", str(e))
-                QMessageBox.warning(self.main_window, "Export Failed", f"Failed to export report: {str(e)}\n\nTip: Install weasyprint:\npip install weasyprint")
+                logger.exception("PDF export failed: %s", str(e))
+                QMessageBox.warning(self.main_window, "Export Failed", f"Failed to export report: {e!s}\n\nTip: Install weasyprint:\npip install weasyprint")
 
     def export_report_html(self) -> None:
         """Export the current report as HTML."""
@@ -251,7 +251,7 @@ Click 'Run Analysis' to begin processing.
             return
 
         file_path, _ = QFileDialog.getSaveFileName(
-            self.main_window, "Export Report as HTML", "", "HTML Files (*.html)"
+            self.main_window, "Export Report as HTML", "", "HTML Files (*.html)",
         )
 
         if file_path:
@@ -261,16 +261,16 @@ Click 'Run Analysis' to begin processing.
                 analysis = self.main_window._current_payload.get("analysis", {})
                 doc_name = self.main_window._selected_file.name if self.main_window._selected_file else "Document"
                 report_html = self.main_window._current_payload.get("report_html") or report_generator.generate_html_report(
-                    analysis_result=analysis, doc_name=doc_name
+                    analysis_result=analysis, doc_name=doc_name,
                 )
 
-                with open(file_path, 'w', encoding='utf-8') as f:
+                with open(file_path, "w", encoding="utf-8") as f:
                     f.write(report_html)
 
                 self.main_window.statusBar().showMessage(f"✅ Report exported to: {file_path}", 5000)
                 QMessageBox.information(self.main_window, "Export Successful", f"Report exported successfully to:\n{file_path}")
             except Exception as e:
-                QMessageBox.warning(self.main_window, "Export Failed", f"Failed to export report: {str(e)}")
+                QMessageBox.warning(self.main_window, "Export Failed", f"Failed to export report: {e!s}")
 
     def open_document_preview(self) -> None:
         """Open document preview in a popup window."""

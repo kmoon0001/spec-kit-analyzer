@@ -1,5 +1,4 @@
-"""
-Analysis Error Handler - User-friendly error messaging and recovery system.
+"""Analysis Error Handler - User-friendly error messaging and recovery system.
 
 This module provides comprehensive error handling with clear, actionable
 error messages and recovery suggestions for analysis workflow failures.
@@ -13,6 +12,7 @@ from typing import TypedDict
 
 class ErrorCategory(Enum):
     """Categories of analysis errors."""
+
     API_CONNECTION = "api_connection"
     AI_MODEL_LOADING = "ai_model_loading"
     FILE_PROCESSING = "file_processing"
@@ -26,6 +26,7 @@ class ErrorCategory(Enum):
 @dataclass
 class ErrorSolution:
     """Represents a solution for an error."""
+
     title: str
     description: str
     action: str | None = None
@@ -35,6 +36,7 @@ class ErrorSolution:
 @dataclass
 class AnalysisError:
     """Comprehensive error information with solutions."""
+
     category: ErrorCategory
     title: str
     message: str
@@ -46,6 +48,7 @@ class AnalysisError:
 
 class ErrorConfig(TypedDict):
     """Typed configuration for a categorized error response."""
+
     title: str
     message: str
     solutions: list[ErrorSolution]
@@ -54,8 +57,7 @@ class ErrorConfig(TypedDict):
 
 
 class AnalysisErrorHandler:
-    """
-    Comprehensive error handler for analysis workflow.
+    """Comprehensive error handler for analysis workflow.
 
     Categorizes errors and provides user-friendly messages with
     actionable solutions and troubleshooting guidance.
@@ -65,8 +67,7 @@ class AnalysisErrorHandler:
         self.error_patterns = self._initialize_error_patterns()
 
     def categorize_and_handle_error(self, error_message: str, context: dict[str, object] | None = None) -> AnalysisError:
-        """
-        Categorize an error and provide comprehensive handling information.
+        """Categorize an error and provide comprehensive handling information.
 
         Args:
             error_message: The raw error message
@@ -74,6 +75,7 @@ class AnalysisErrorHandler:
 
         Returns:
             AnalysisError with categorization and solutions
+
         """
         # Normalize error message for pattern matching
         normalized_error = error_message.lower().strip()
@@ -98,7 +100,7 @@ class AnalysisErrorHandler:
                 r"network.*unreachable",
                 r"timeout.*connecting",
                 r"connection.*timed out",
-                r"no route to host"
+                r"no route to host",
             ],
             ErrorCategory.AI_MODEL_LOADING: [
                 r"model.*not.*loaded",
@@ -108,7 +110,7 @@ class AnalysisErrorHandler:
                 r"model.*not.*ready",
                 r"loading.*model.*failed",
                 r"cuda.*error",
-                r"out of memory.*model"
+                r"out of memory.*model",
             ],
             ErrorCategory.FILE_PROCESSING: [
                 r"file.*not.*found",
@@ -119,7 +121,7 @@ class AnalysisErrorHandler:
                 r"unsupported.*format",
                 r"file.*too.*large",
                 r"empty.*file",
-                r"parsing.*error"
+                r"parsing.*error",
             ],
             ErrorCategory.ANALYSIS_TIMEOUT: [
                 r"analysis.*timed out",
@@ -127,7 +129,7 @@ class AnalysisErrorHandler:
                 r"request.*timeout",
                 r"operation.*timed out",
                 r"exceeded.*time.*limit",
-                r"analysis.*taking.*too.*long"
+                r"analysis.*taking.*too.*long",
             ],
             ErrorCategory.BACKEND_PROCESSING: [
                 r"internal.*server.*error",
@@ -138,7 +140,7 @@ class AnalysisErrorHandler:
                 r"server.*error",
                 r"service.*unavailable",
                 r"502.*bad.*gateway",
-                r"503.*service.*unavailable"
+                r"503.*service.*unavailable",
             ],
             ErrorCategory.AUTHENTICATION: [
                 r"unauthorized",
@@ -148,7 +150,7 @@ class AnalysisErrorHandler:
                 r"401.*error",
                 r"forbidden",
                 r"403.*error",
-                r"login.*required"
+                r"login.*required",
             ],
             ErrorCategory.SYSTEM_RESOURCES: [
                 r"out of memory",
@@ -157,8 +159,8 @@ class AnalysisErrorHandler:
                 r"no.*space.*left",
                 r"resource.*exhausted",
                 r"system.*overloaded",
-                r"cpu.*limit.*exceeded"
-            ]
+                r"cpu.*limit.*exceeded",
+            ],
         }
 
     def _create_error_response(self, category: ErrorCategory, original_error: str, context: dict[str, object] | None = None) -> AnalysisError:
@@ -173,23 +175,23 @@ class AnalysisErrorHandler:
                         title="Start the API Server",
                         description="The backend service may not be running",
                         action="Use Tools → Start API Server or run: python scripts/run_api.py",
-                        priority=1
+                        priority=1,
                     ),
                     ErrorSolution(
                         title="Check Network Connection",
                         description="Verify your network connection is working",
                         action="Try accessing other network resources",
-                        priority=2
+                        priority=2,
                     ),
                     ErrorSolution(
                         title="Restart the Application",
                         description="Sometimes a fresh start resolves connection issues",
                         action="Close and reopen the application",
-                        priority=3
-                    )
+                        priority=3,
+                    ),
                 ],
                 "severity": "critical",
-                "icon": "🔌"
+                "icon": "🔌",
             },
 
             ErrorCategory.AI_MODEL_LOADING: {
@@ -200,23 +202,23 @@ class AnalysisErrorHandler:
                         title="Wait for Model Loading",
                         description="AI models are still loading in the background",
                         action="Wait 2-3 minutes and try again",
-                        priority=1
+                        priority=1,
                     ),
                     ErrorSolution(
                         title="Check System Resources",
                         description="AI models require sufficient memory to load",
                         action="Close other applications to free up memory",
-                        priority=2
+                        priority=2,
                     ),
                     ErrorSolution(
                         title="Restart the API Server",
                         description="Restart the backend service to reload models",
                         action="Stop and restart the API server",
-                        priority=3
-                    )
+                        priority=3,
+                    ),
                 ],
                 "severity": "warning",
-                "icon": "🤖"
+                "icon": "🤖",
             },
 
             ErrorCategory.FILE_PROCESSING: {
@@ -227,23 +229,23 @@ class AnalysisErrorHandler:
                         title="Check File Format",
                         description="Ensure your file is in a supported format",
                         action="Use PDF, DOCX, or TXT files only",
-                        priority=1
+                        priority=1,
                     ),
                     ErrorSolution(
                         title="Try a Different File",
                         description="Test with a different document to isolate the issue",
                         action="Select another document and try again",
-                        priority=2
+                        priority=2,
                     ),
                     ErrorSolution(
                         title="Check File Size",
                         description="Very large files may cause processing issues",
                         action="Try with a smaller file (under 50MB)",
-                        priority=3
-                    )
+                        priority=3,
+                    ),
                 ],
                 "severity": "warning",
-                "icon": "📄"
+                "icon": "📄",
             },
 
             ErrorCategory.ANALYSIS_TIMEOUT: {
@@ -254,23 +256,23 @@ class AnalysisErrorHandler:
                         title="Try Again",
                         description="The system may have been temporarily overloaded",
                         action="Wait a moment and retry the analysis",
-                        priority=1
+                        priority=1,
                     ),
                     ErrorSolution(
                         title="Use a Smaller Document",
                         description="Large documents take longer to process",
                         action="Try with a shorter document first",
-                        priority=2
+                        priority=2,
                     ),
                     ErrorSolution(
                         title="Check System Resources",
                         description="Ensure your system has adequate resources",
                         action="Close other applications and try again",
-                        priority=3
-                    )
+                        priority=3,
+                    ),
                 ],
                 "severity": "warning",
-                "icon": "⏰"
+                "icon": "⏰",
             },
 
             ErrorCategory.BACKEND_PROCESSING: {
@@ -281,23 +283,23 @@ class AnalysisErrorHandler:
                         title="Retry the Analysis",
                         description="Backend errors are often temporary",
                         action="Wait a moment and try the analysis again",
-                        priority=1
+                        priority=1,
                     ),
                     ErrorSolution(
                         title="Check Server Logs",
                         description="Look for detailed error information",
                         action="Check the API server console for error details",
-                        priority=2
+                        priority=2,
                     ),
                     ErrorSolution(
                         title="Restart the Backend",
                         description="Restart the analysis service",
                         action="Stop and restart the API server",
-                        priority=3
-                    )
+                        priority=3,
+                    ),
                 ],
                 "severity": "critical",
-                "icon": "⚙️"
+                "icon": "⚙️",
             },
 
             ErrorCategory.AUTHENTICATION: {
@@ -308,17 +310,17 @@ class AnalysisErrorHandler:
                         title="Restart the Application",
                         description="Refresh your authentication session",
                         action="Close and reopen the application",
-                        priority=1
+                        priority=1,
                     ),
                     ErrorSolution(
                         title="Check User Credentials",
                         description="Verify your username and password are correct",
                         action="Try logging in again with correct credentials",
-                        priority=2
-                    )
+                        priority=2,
+                    ),
                 ],
                 "severity": "warning",
-                "icon": "🔐"
+                "icon": "🔐",
             },
 
             ErrorCategory.SYSTEM_RESOURCES: {
@@ -329,23 +331,23 @@ class AnalysisErrorHandler:
                         title="Free Up Memory",
                         description="Close unnecessary applications",
                         action="Close other programs to free up RAM",
-                        priority=1
+                        priority=1,
                     ),
                     ErrorSolution(
                         title="Check Disk Space",
                         description="Ensure you have adequate free disk space",
                         action="Free up disk space if needed",
-                        priority=2
+                        priority=2,
                     ),
                     ErrorSolution(
                         title="Restart Your Computer",
                         description="A restart can free up system resources",
                         action="Restart your computer and try again",
-                        priority=3
-                    )
+                        priority=3,
+                    ),
                 ],
                 "severity": "warning",
-                "icon": "💻"
+                "icon": "💻",
             },
 
             ErrorCategory.UNKNOWN: {
@@ -356,24 +358,24 @@ class AnalysisErrorHandler:
                         title="Try Again",
                         description="Many errors are temporary and resolve on retry",
                         action="Wait a moment and retry the operation",
-                        priority=1
+                        priority=1,
                     ),
                     ErrorSolution(
                         title="Run Diagnostics",
                         description="Check system health and identify issues",
                         action="Use Tools → Run Diagnostics to check system status",
-                        priority=2
+                        priority=2,
                     ),
                     ErrorSolution(
                         title="Restart the Application",
                         description="A fresh start often resolves unexpected issues",
                         action="Close and reopen the application",
-                        priority=3
-                    )
+                        priority=3,
+                    ),
                 ],
                 "severity": "warning",
-                "icon": "❓"
-            }
+                "icon": "❓",
+            },
         }
 
         config = error_configs.get(category, error_configs[ErrorCategory.UNKNOWN])
@@ -385,12 +387,11 @@ class AnalysisErrorHandler:
             technical_details=original_error,
             solutions=config["solutions"],
             severity=config["severity"],
-            icon=config["icon"]
+            icon=config["icon"],
         )
 
     def format_error_message(self, error: AnalysisError, include_technical: bool = False) -> str:
-        """
-        Format an error for display to the user.
+        """Format an error for display to the user.
 
         Args:
             error: The AnalysisError to format
@@ -398,6 +399,7 @@ class AnalysisErrorHandler:
 
         Returns:
             Formatted error message string
+
         """
         message = f"{error.icon} {error.title}\n\n"
         message += f"{error.message}\n\n"

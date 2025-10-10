@@ -1,5 +1,4 @@
-"""
-System Validator - Clean Version
+"""System Validator - Clean Version
 
 Comprehensive system validation to ensure all components are properly integrated.
 """
@@ -16,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 class ValidationStatus(Enum):
     """Validation status levels."""
+
     PASS = "pass"
     WARN = "warning"
     FAIL = "fail"
@@ -25,6 +25,7 @@ class ValidationStatus(Enum):
 @dataclass
 class ValidationResult:
     """Result of a validation check."""
+
     component: str
     test_name: str
     status: ValidationStatus
@@ -64,10 +65,10 @@ class SystemValidator:
                     component="system_validator",
                     test_name="validation_execution",
                     status=ValidationStatus.FAIL,
-                    message=f"Validation failed: {str(result)}",
+                    message=f"Validation failed: {result!s}",
                     details={"exception": str(result)},
                     duration_ms=0,
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(),
                 ))
             elif isinstance(result, list):
                 all_results.extend(result)
@@ -77,7 +78,7 @@ class SystemValidator:
         self.validation_results = all_results
 
         total_time = (datetime.now() - start_time).total_seconds() * 1000
-        logger.info(f"System validation completed in {total_time:.1f}ms")
+        logger.info("System validation completed in %sms", total_time)
 
         return all_results
 
@@ -108,7 +109,7 @@ class SystemValidator:
                     message=f"{service_name} imported successfully",
                     details={"module": module_path},
                     duration_ms=duration,
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(),
                 ))
 
             except Exception as e:
@@ -117,10 +118,10 @@ class SystemValidator:
                     component="core_services",
                     test_name=f"import_{service_name}",
                     status=ValidationStatus.FAIL,
-                    message=f"Failed to import {service_name}: {str(e)}",
+                    message=f"Failed to import {service_name}: {e!s}",
                     details={"error": str(e), "module": module_path},
                     duration_ms=duration,
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(),
                 ))
 
         return results
@@ -143,7 +144,7 @@ class SystemValidator:
                 message="FastAPI application imported successfully",
                 details={},
                 duration_ms=duration,
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             ))
 
         except Exception as e:
@@ -152,10 +153,10 @@ class SystemValidator:
                 component="api_endpoints",
                 test_name="main_app_import",
                 status=ValidationStatus.FAIL,
-                message=f"Failed to import FastAPI app: {str(e)}",
+                message=f"Failed to import FastAPI app: {e!s}",
                 details={"error": str(e)},
                 duration_ms=duration,
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             ))
 
         return results
@@ -186,7 +187,7 @@ class SystemValidator:
                     message=f"{feature_name} imported successfully",
                     details={"module": module_path},
                     duration_ms=duration,
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(),
                 ))
 
             except Exception as e:
@@ -195,10 +196,10 @@ class SystemValidator:
                     component="new_features",
                     test_name=f"import_{feature_name}",
                     status=ValidationStatus.FAIL,
-                    message=f"Failed to import {feature_name}: {str(e)}",
+                    message=f"Failed to import {feature_name}: {e!s}",
                     details={"error": str(e), "module": module_path},
                     duration_ms=duration,
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(),
                 ))
 
         return results
@@ -213,7 +214,7 @@ class SystemValidator:
             ValidationStatus.PASS: 0,
             ValidationStatus.WARN: 0,
             ValidationStatus.FAIL: 0,
-            ValidationStatus.SKIP: 0
+            ValidationStatus.SKIP: 0,
         }
 
         for result in results:
@@ -222,12 +223,11 @@ class SystemValidator:
         # Determine overall status
         if status_counts[ValidationStatus.FAIL] > 0:
             return ValidationStatus.FAIL
-        elif status_counts[ValidationStatus.WARN] > 0:
+        if status_counts[ValidationStatus.WARN] > 0:
             return ValidationStatus.WARN
-        elif status_counts[ValidationStatus.PASS] > 0:
+        if status_counts[ValidationStatus.PASS] > 0:
             return ValidationStatus.PASS
-        else:
-            return ValidationStatus.SKIP
+        return ValidationStatus.SKIP
 
 
 # Global system validator instance

@@ -171,7 +171,6 @@ class HabitGoalBase(BaseModel):
 class HabitGoalCreate(HabitGoalBase):
     """Schema for creating habit goals."""
 
-    pass
 
 class HabitGoalUpdate(BaseModel):
     """Schema for updating habit goals."""
@@ -208,7 +207,6 @@ class HabitAchievementBase(BaseModel):
 class HabitAchievementCreate(HabitAchievementBase):
     """Schema for creating habit achievements."""
 
-    pass
 
 class HabitAchievement(HabitAchievementBase):
     """Schema for habit achievement responses."""

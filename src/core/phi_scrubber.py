@@ -1,6 +1,5 @@
 
-"""
-State-of-the-art PHI scrubbing service built on the Presidio framework.
+"""State-of-the-art PHI scrubbing service built on the Presidio framework.
 """
 import logging
 
@@ -50,13 +49,13 @@ class PhiScrubberService:
                     supported_languages=["en"],
                 )
             except Exception as exc:
-                logger.error("Failed to initialize Presidio AnalyzerEngine: %s", exc)
+                logger.exception("Failed to initialize Presidio AnalyzerEngine: %s", exc)
                 analyzer = None
         if anonymizer is None and AnonymizerEngine is not None:
             try:
                 anonymizer = AnonymizerEngine()
             except Exception as exc:
-                logger.error("Failed to initialize Presidio AnonymizerEngine: %s", exc)
+                logger.exception("Failed to initialize Presidio AnonymizerEngine: %s", exc)
                 anonymizer = None
 
         self.analyzer = analyzer

@@ -1,5 +1,4 @@
-"""
-Memory Management Service for Therapy Compliance Analyzer
+"""Memory Management Service for Therapy Compliance Analyzer
 
 This module provides intelligent memory management and resource optimization
 for the application, including memory monitoring, cleanup strategies, and
@@ -24,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 class MemoryPressureLevel(Enum):
     """Memory pressure levels for adaptive behavior."""
+
     LOW = "low"
     MODERATE = "moderate"
     HIGH = "high"
@@ -33,6 +33,7 @@ class MemoryPressureLevel(Enum):
 @dataclass
 class MemoryMetrics:
     """Memory usage metrics."""
+
     total_memory: int
     available_memory: int
     used_memory: int
@@ -46,6 +47,7 @@ class MemoryMetrics:
 @dataclass
 class ResourceAllocation:
     """Resource allocation configuration."""
+
     max_cache_memory_mb: int
     max_model_memory_mb: int
     max_document_memory_mb: int
@@ -73,7 +75,7 @@ class MemoryMonitor:
         self._monitor_thread = threading.Thread(
             target=self._monitor_loop,
             daemon=True,
-            name="MemoryMonitor"
+            name="MemoryMonitor",
         )
         self._monitor_thread.start()
         logger.info("Memory monitoring started")
@@ -119,7 +121,7 @@ class MemoryMonitor:
             swap_used=swap.used,
             swap_percent=swap.percent,
             timestamp=datetime.now(),
-            pressure_level=pressure
+            pressure_level=pressure,
         )
 
     def _monitor_loop(self) -> None:
@@ -135,12 +137,12 @@ class MemoryMonitor:
                         try:
                             callback(metrics)
                         except Exception as e:
-                            logger.error(f"Error in memory callback: {e}")
+                            logger.exception("Error in memory callback: %s", e)
 
                 time.sleep(self.check_interval)
 
             except Exception as e:
-                logger.error(f"Error in memory monitoring: {e}")
+                logger.exception("Error in memory monitoring: %s", e)
                 time.sleep(self.check_interval)
 
 
@@ -161,9 +163,9 @@ class ResourceTracker:
                 self._weak_refs[component] = []
 
             self._resources[component][resource_id] = {
-                'size_bytes': size_bytes,
-                'created_at': datetime.now(),
-                'last_accessed': datetime.now()
+                "size_bytes": size_bytes,
+                "created_at": datetime.now(),
+                "last_accessed": datetime.now(),
             }
 
             # Create weak reference for automatic cleanup
@@ -178,21 +180,21 @@ class ResourceTracker:
         with self._lock:
             if (component in self._resources and
                 resource_id in self._resources[component]):
-                self._resources[component][resource_id]['last_accessed'] = datetime.now()
+                self._resources[component][resource_id]["last_accessed"] = datetime.now()
 
     def get_component_usage(self, component: str) -> dict[str, Any]:
         """Get resource usage for a component."""
         with self._lock:
             if component not in self._resources:
-                return {'total_size': 0, 'resource_count': 0, 'resources': {}}
+                return {"total_size": 0, "resource_count": 0, "resources": {}}
 
             resources = self._resources[component]
-            total_size = sum(r['size_bytes'] for r in resources.values())
+            total_size = sum(r["size_bytes"] for r in resources.values())
 
             return {
-                'total_size': total_size,
-                'resource_count': len(resources),
-                'resources': dict(resources)
+                "total_size": total_size,
+                "resource_count": len(resources),
+                "resources": dict(resources),
             }
 
     def get_total_usage(self) -> dict[str, Any]:
@@ -203,21 +205,21 @@ class ResourceTracker:
             components = {}
 
             for component, resources in self._resources.items():
-                component_size = sum(r['size_bytes'] for r in resources.values())
+                component_size = sum(r["size_bytes"] for r in resources.values())
                 component_count = len(resources)
 
                 components[component] = {
-                    'size_bytes': component_size,
-                    'resource_count': component_count
+                    "size_bytes": component_size,
+                    "resource_count": component_count,
                 }
 
                 total_size += component_size
                 total_count += component_count
 
             return {
-                'total_size': total_size,
-                'total_count': total_count,
-                'components': components
+                "total_size": total_size,
+                "total_count": total_count,
+                "components": components,
             }
 
     def find_stale_resources(self, max_age: timedelta) -> list[tuple[str, str]]:
@@ -228,7 +230,7 @@ class ResourceTracker:
         with self._lock:
             for component, resources in self._resources.items():
                 for resource_id, info in resources.items():
-                    if info['last_accessed'] < cutoff_time:
+                    if info["last_accessed"] < cutoff_time:
                         stale_resources.append((component, resource_id))
 
         return stale_resources
@@ -239,7 +241,7 @@ class ResourceTracker:
             if (component in self._resources and
                 resource_id in self._resources[component]):
                 del self._resources[component][resource_id]
-                logger.debug(f"Cleaned up garbage collected resource: {component}/{resource_id}")
+                logger.debug("Cleaned up garbage collected resource: %s/{resource_id}", component)
 
 
 class MemoryOptimizer:
@@ -261,11 +263,11 @@ class MemoryOptimizer:
         start_available = start_metrics.available
 
         optimization_results = {
-            'start_available_mb': start_available // (1024 * 1024),
-            'target_free_mb': target_free_mb,
-            'strategies_used': [],
-            'bytes_freed': 0,
-            'success': False
+            "start_available_mb": start_available // (1024 * 1024),
+            "target_free_mb": target_free_mb,
+            "strategies_used": [],
+            "bytes_freed": 0,
+            "success": False,
         }
 
         target_bytes = target_free_mb * 1024 * 1024
@@ -274,38 +276,38 @@ class MemoryOptimizer:
         # Strategy 1: Run garbage collection
         freed = self._run_garbage_collection()
         if freed > 0:
-            optimization_results['strategies_used'].append('garbage_collection')
+            optimization_results["strategies_used"].append("garbage_collection")
             total_freed += freed
 
         # Strategy 2: Clean up stale resources
         if total_freed < target_bytes:
             freed = self._cleanup_stale_resources()
             if freed > 0:
-                optimization_results['strategies_used'].append('stale_cleanup')
+                optimization_results["strategies_used"].append("stale_cleanup")
                 total_freed += freed
 
         # Strategy 3: Run optimization callbacks
         if total_freed < target_bytes:
             freed = self._run_optimization_callbacks()
             if freed > 0:
-                optimization_results['strategies_used'].append('callback_optimization')
+                optimization_results["strategies_used"].append("callback_optimization")
                 total_freed += freed
 
         # Strategy 4: Force aggressive cleanup
         if total_freed < target_bytes:
             freed = self._aggressive_cleanup()
             if freed > 0:
-                optimization_results['strategies_used'].append('aggressive_cleanup')
+                optimization_results["strategies_used"].append("aggressive_cleanup")
                 total_freed += freed
 
         end_metrics = psutil.virtual_memory()
         actual_freed = end_metrics.available - start_available
 
-        optimization_results['bytes_freed'] = max(actual_freed, total_freed)
-        optimization_results['end_available_mb'] = end_metrics.available // (1024 * 1024)
-        optimization_results['success'] = actual_freed >= (target_bytes * 0.8)  # 80% success threshold
+        optimization_results["bytes_freed"] = max(actual_freed, total_freed)
+        optimization_results["end_available_mb"] = end_metrics.available // (1024 * 1024)
+        optimization_results["success"] = actual_freed >= (target_bytes * 0.8)  # 80% success threshold
 
-        logger.info(f"Memory optimization completed: {optimization_results}")
+        logger.info("Memory optimization completed: %s", optimization_results)
         return optimization_results
 
     def _run_garbage_collection(self) -> int:
@@ -316,31 +318,31 @@ class MemoryOptimizer:
         for generation in range(3):
             collected = gc.collect(generation)
             if collected > 0:
-                logger.debug(f"GC generation {generation}: collected {collected} objects")
+                logger.debug("GC generation %s: collected {collected} objects", generation)
 
         after = psutil.Process().memory_info().rss
         freed = max(0, before - after)
 
         if freed > 0:
-            logger.info(f"Garbage collection freed ~{freed // 1024} KB")
+            logger.info("Garbage collection freed ~%s KB", freed // 1024)
 
         return freed
 
     def _cleanup_stale_resources(self) -> int:
         """Clean up stale resources."""
         stale_resources = self.resource_tracker.find_stale_resources(
-            timedelta(minutes=30)
+            timedelta(minutes=30),
         )
 
         total_freed = 0
         for component, resource_id in stale_resources:
             usage = self.resource_tracker.get_component_usage(component)
-            if resource_id in usage['resources']:
-                size = usage['resources'][resource_id]['size_bytes']
+            if resource_id in usage["resources"]:
+                size = usage["resources"][resource_id]["size_bytes"]
                 total_freed += size
 
         if total_freed > 0:
-            logger.info(f"Stale resource cleanup freed ~{total_freed // 1024} KB")
+            logger.info("Stale resource cleanup freed ~%s KB", total_freed // 1024)
 
         return total_freed
 
@@ -355,10 +357,10 @@ class MemoryOptimizer:
                     if freed > 0:
                         total_freed += freed
                 except Exception as e:
-                    logger.error(f"Error in optimization callback: {e}")
+                    logger.exception("Error in optimization callback: %s", e)
 
         if total_freed > 0:
-            logger.info(f"Optimization callbacks freed ~{total_freed // 1024} KB")
+            logger.info("Optimization callbacks freed ~%s KB", total_freed // 1024)
 
         return total_freed
 
@@ -378,7 +380,7 @@ class MemoryOptimizer:
         freed = max(0, before - after)
 
         if freed > 0:
-            logger.info(f"Aggressive cleanup freed ~{freed // 1024} KB")
+            logger.info("Aggressive cleanup freed ~%s KB", freed // 1024)
 
         return freed
 
@@ -410,7 +412,7 @@ class MemoryManager:
     def configure_allocation(self, config: ResourceAllocation) -> None:
         """Configure resource allocation limits."""
         self._allocation_config = config
-        logger.info(f"Resource allocation configured: {config}")
+        logger.info("Resource allocation configured: %s", config)
 
     def register_resource(self, component: str, resource_id: str,
                          resource: Any, size_bytes: int = 0) -> None:
@@ -423,28 +425,28 @@ class MemoryManager:
         usage = self.resource_tracker.get_total_usage()
 
         return {
-            'system_memory': {
-                'total_mb': metrics.total_memory // (1024 * 1024),
-                'available_mb': metrics.available_memory // (1024 * 1024),
-                'used_percent': metrics.memory_percent,
-                'pressure_level': metrics.pressure_level.value
+            "system_memory": {
+                "total_mb": metrics.total_memory // (1024 * 1024),
+                "available_mb": metrics.available_memory // (1024 * 1024),
+                "used_percent": metrics.memory_percent,
+                "pressure_level": metrics.pressure_level.value,
             },
-            'resource_usage': {
-                'total_size_mb': usage['total_size'] // (1024 * 1024),
-                'total_count': usage['total_count'],
-                'components': {
+            "resource_usage": {
+                "total_size_mb": usage["total_size"] // (1024 * 1024),
+                "total_count": usage["total_count"],
+                "components": {
                     comp: {
-                        'size_mb': info['size_bytes'] // (1024 * 1024),
-                        'count': info['resource_count']
+                        "size_mb": info["size_bytes"] // (1024 * 1024),
+                        "count": info["resource_count"],
                     }
-                    for comp, info in usage['components'].items()
-                }
+                    for comp, info in usage["components"].items()
+                },
             },
-            'allocation_config': {
-                'max_cache_mb': self._allocation_config.max_cache_memory_mb,
-                'max_model_mb': self._allocation_config.max_model_memory_mb,
-                'max_document_mb': self._allocation_config.max_document_memory_mb
-            }
+            "allocation_config": {
+                "max_cache_mb": self._allocation_config.max_cache_memory_mb,
+                "max_model_mb": self._allocation_config.max_model_memory_mb,
+                "max_document_mb": self._allocation_config.max_document_memory_mb,
+            },
         }
 
     def optimize_if_needed(self, force: bool = False) -> dict[str, Any] | None:
@@ -484,24 +486,24 @@ class MemoryManager:
                 max_model_memory_mb=4096,
                 max_document_memory_mb=1024,
                 gc_threshold_mb=512,
-                cleanup_threshold_mb=1024
+                cleanup_threshold_mb=1024,
             )
-        elif total_memory_mb >= 8192:  # 8GB+
+        if total_memory_mb >= 8192:  # 8GB+
             return ResourceAllocation(
                 max_cache_memory_mb=1024,
                 max_model_memory_mb=2048,
                 max_document_memory_mb=512,
                 gc_threshold_mb=256,
-                cleanup_threshold_mb=512
+                cleanup_threshold_mb=512,
             )
-        else:  # <8GB
-            return ResourceAllocation(
-                max_cache_memory_mb=512,
-                max_model_memory_mb=1024,
-                max_document_memory_mb=256,
-                gc_threshold_mb=128,
-                cleanup_threshold_mb=256
-            )
+        # <8GB
+        return ResourceAllocation(
+            max_cache_memory_mb=512,
+            max_model_memory_mb=1024,
+            max_document_memory_mb=256,
+            gc_threshold_mb=128,
+            cleanup_threshold_mb=256,
+        )
 
     def _handle_memory_pressure(self, metrics: MemoryMetrics) -> None:
         """Handle memory pressure events."""
@@ -509,10 +511,10 @@ class MemoryManager:
             return
 
         if metrics.pressure_level == MemoryPressureLevel.CRITICAL:
-            logger.warning(f"Critical memory pressure detected: {metrics.memory_percent:.1f}%")
+            logger.warning("Critical memory pressure detected: %s%", metrics.memory_percent)
             self.optimize_if_needed(force=True)
         elif metrics.pressure_level == MemoryPressureLevel.HIGH:
-            logger.info(f"High memory pressure detected: {metrics.memory_percent:.1f}%")
+            logger.info("High memory pressure detected: %s%", metrics.memory_percent)
             self.optimize_if_needed()
 
 # Global memory manager instance

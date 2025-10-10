@@ -1,5 +1,4 @@
-"""
-EHR Integration API Router
+"""EHR Integration API Router
 Provides APIs for integrating with Electronic Health Record systems.
 """
 
@@ -22,6 +21,7 @@ router = APIRouter(prefix="/ehr", tags=["EHR Integration"])
 
 class EHRConnectionConfig(BaseModel):
     """EHR connection configuration."""
+
     system_type: str = Field(..., description="EHR system type (epic, cerner, allscripts, athenahealth, nethealth, etc.)")
     endpoint_url: str = Field(..., description="EHR system API endpoint")
     client_id: str = Field(..., description="OAuth client ID")
@@ -33,6 +33,7 @@ class EHRConnectionConfig(BaseModel):
 
 class EHRSyncRequest(BaseModel):
     """EHR data synchronization request."""
+
     patient_ids: list[str] | None = Field(default=None, description="Specific patient IDs to sync")
     date_range_start: datetime | None = Field(default=None, description="Start date for data sync")
     date_range_end: datetime | None = Field(default=None, description="End date for data sync")
@@ -43,6 +44,7 @@ class EHRSyncRequest(BaseModel):
 
 class EHRDocumentMetadata(BaseModel):
     """EHR document metadata."""
+
     document_id: str
     patient_id: str
     document_type: str
@@ -56,21 +58,20 @@ class EHRDocumentMetadata(BaseModel):
 @router.post("/connect")
 async def connect_ehr_system(
     config: EHRConnectionConfig,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """
-    Connect to an EHR system and validate the connection.
+    """Connect to an EHR system and validate the connection.
 
     Requires admin privileges for security.
     """
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required for EHR integration"
+            detail="Admin privileges required for EHR integration",
         )
 
     try:
-        logger.info(f"Attempting EHR connection to {config.system_type} system")
+        logger.info("Attempting EHR connection to %s system", config.system_type)
 
         # Validate and establish connection
         connection_result = await ehr_connector.connect(
@@ -79,35 +80,34 @@ async def connect_ehr_system(
             client_id=config.client_id,
             client_secret=config.client_secret,
             scope=config.scope,
-            facility_id=config.facility_id
+            facility_id=config.facility_id,
         )
 
         if connection_result.get("success"):
-            logger.info(f"Successfully connected to {config.system_type} EHR system")
+            logger.info("Successfully connected to %s EHR system", config.system_type)
             return {
                 "success": True,
                 "message": f"Successfully connected to {config.system_type} EHR system",
                 "connection_id": connection_result.get("connection_id"),
                 "capabilities": connection_result.get("capabilities", []),
-                "connected_at": datetime.now().isoformat()
+                "connected_at": datetime.now().isoformat(),
             }
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to connect to EHR system: {connection_result.get('error', 'Unknown error')}"
-            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to connect to EHR system: {connection_result.get('error', 'Unknown error')}",
+        )
 
     except Exception as e:
-        logger.error(f"EHR connection failed: {e}")
-        raise HTTPException( from e
+        logger.exception("EHR connection failed: %s", e)
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"EHR connection failed: {str(e)}"
-        )
+            detail=f"EHR connection failed: {e!s}",
+        ) from e
 
 
 @router.get("/status")
 async def get_ehr_connection_status(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get the current EHR connection status."""
     try:
@@ -120,25 +120,24 @@ async def get_ehr_connection_status(
             "last_sync": status_info.get("last_sync"),
             "connection_health": status_info.get("health", "unknown"),
             "capabilities": status_info.get("capabilities", []),
-            "error_count": status_info.get("error_count", 0)
+            "error_count": status_info.get("error_count", 0),
         }
 
     except Exception as e:
-        logger.error(f"Failed to get EHR status: {e}")
-        raise HTTPException( from e
+        logger.exception("Failed to get EHR status: %s", e)
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get EHR status: {str(e)}"
-        )
+            detail=f"Failed to get EHR status: {e!s}",
+        ) from e
 
 
 @router.post("/sync")
 async def sync_ehr_data(
     sync_request: EHRSyncRequest,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """
-    Synchronize data from the connected EHR system.
+    """Synchronize data from the connected EHR system.
 
     This operation runs in the background to avoid timeout issues.
     """
@@ -148,7 +147,7 @@ async def sync_ehr_data(
         if not connection_status.get("connected"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No active EHR connection. Please connect to an EHR system first."
+                detail="No active EHR connection. Please connect to an EHR system first.",
             )
 
         # Start background sync task
@@ -162,31 +161,31 @@ async def sync_ehr_data(
             date_range_end=sync_request.date_range_end,
             document_types=sync_request.document_types,
             auto_analyze=sync_request.auto_analyze,
-            user_id=str(current_user.id)
+            user_id=str(current_user.id),
         )
 
-        logger.info(f"Started EHR sync task: {sync_task_id}")
+        logger.info("Started EHR sync task: %s", sync_task_id)
 
         return {
             "success": True,
             "message": "EHR data synchronization started",
             "sync_task_id": sync_task_id,
             "estimated_duration": "5-15 minutes",
-            "status_endpoint": f"/ehr/sync/{sync_task_id}/status"
+            "status_endpoint": f"/ehr/sync/{sync_task_id}/status",
         }
 
     except Exception as e:
-        logger.error(f"EHR sync failed to start: {e}")
-        raise HTTPException( from e
+        logger.exception("EHR sync failed to start: %s", e)
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to start EHR sync: {str(e)}"
-        )
+            detail=f"Failed to start EHR sync: {e!s}",
+        ) from e
 
 
 @router.get("/sync/{sync_task_id}/status")
 async def get_sync_status(
     sync_task_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get the status of an EHR synchronization task."""
     try:
@@ -195,17 +194,17 @@ async def get_sync_status(
         if not sync_status:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Sync task {sync_task_id} not found"
+                detail=f"Sync task {sync_task_id} not found",
             )
 
         return sync_status
 
     except Exception as e:
-        logger.error(f"Failed to get sync status: {e}")
-        raise HTTPException( from e
+        logger.exception("Failed to get sync status: %s", e)
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get sync status: {str(e)}"
-        )
+            detail=f"Failed to get sync status: {e!s}",
+        ) from e
 
 
 @router.get("/documents")
@@ -214,7 +213,7 @@ async def list_ehr_documents(
     offset: int = 0,
     document_type: str | None = None,
     analyzed_only: bool = False,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """List documents synchronized from the EHR system."""
     try:
@@ -222,7 +221,7 @@ async def list_ehr_documents(
             limit=limit,
             offset=offset,
             document_type=document_type,
-            analyzed_only=analyzed_only
+            analyzed_only=analyzed_only,
         )
 
         return {
@@ -230,22 +229,22 @@ async def list_ehr_documents(
             "total_count": documents.get("total_count", 0),
             "limit": limit,
             "offset": offset,
-            "has_more": documents.get("has_more", False)
+            "has_more": documents.get("has_more", False),
         }
 
     except Exception as e:
-        logger.error(f"Failed to list EHR documents: {e}")
-        raise HTTPException( from e
+        logger.exception("Failed to list EHR documents: %s", e)
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list EHR documents: {str(e)}"
-        )
+            detail=f"Failed to list EHR documents: {e!s}",
+        ) from e
 
 
 @router.post("/documents/{document_id}/analyze")
 async def analyze_ehr_document(
     document_id: str,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Analyze a specific EHR document for compliance."""
     try:
@@ -254,7 +253,7 @@ async def analyze_ehr_document(
         if not document:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Document {document_id} not found"
+                detail=f"Document {document_id} not found",
             )
 
         # Start background analysis
@@ -264,64 +263,64 @@ async def analyze_ehr_document(
             compliance_sync_service.analyze_ehr_document,
             document_id=document_id,
             analysis_task_id=analysis_task_id,
-            user_id=str(current_user.id)
+            user_id=str(current_user.id),
         )
 
-        logger.info(f"Started EHR document analysis: {analysis_task_id}")
+        logger.info("Started EHR document analysis: %s", analysis_task_id)
 
         return {
             "success": True,
             "message": f"Analysis started for document {document_id}",
             "analysis_task_id": analysis_task_id,
             "document_id": document_id,
-            "estimated_duration": "2-5 minutes"
+            "estimated_duration": "2-5 minutes",
         }
 
     except Exception as e:
-        logger.error(f"Failed to start EHR document analysis: {e}")
-        raise HTTPException( from e
+        logger.exception("Failed to start EHR document analysis: %s", e)
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to start document analysis: {str(e)}"
-        )
+            detail=f"Failed to start document analysis: {e!s}",
+        ) from e
 
 
 @router.get("/analytics/compliance-trends")
 async def get_ehr_compliance_trends(
     days: int = 30,
     department: str | None = None,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get compliance trends from EHR-synchronized documents."""
     try:
         trends = await compliance_sync_service.get_compliance_trends(
             days=days,
-            department=department
+            department=department,
         )
 
         return {
             "trends": trends,
             "period_days": days,
             "department": department,
-            "generated_at": datetime.now().isoformat()
+            "generated_at": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"Failed to get compliance trends: {e}")
-        raise HTTPException( from e
+        logger.exception("Failed to get compliance trends: %s", e)
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get compliance trends: {str(e)}"
-        )
+            detail=f"Failed to get compliance trends: {e!s}",
+        ) from e
 
 
 @router.post("/disconnect")
 async def disconnect_ehr_system(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Disconnect from the current EHR system."""
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required for EHR integration"
+            detail="Admin privileges required for EHR integration",
         )
 
     try:
@@ -332,15 +331,15 @@ async def disconnect_ehr_system(
         return {
             "success": True,
             "message": "Successfully disconnected from EHR system",
-            "disconnected_at": datetime.now().isoformat()
+            "disconnected_at": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"Failed to disconnect EHR system: {e}")
-        raise HTTPException( from e
+        logger.exception("Failed to disconnect EHR system: %s", e)
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to disconnect EHR system: {str(e)}"
-        )
+            detail=f"Failed to disconnect EHR system: {e!s}",
+        ) from e
 
 
 @router.get("/supported-systems")
@@ -352,33 +351,33 @@ async def get_supported_ehr_systems() -> dict[str, Any]:
                 "system_type": "epic",
                 "name": "Epic Systems",
                 "description": "Epic EHR integration via FHIR R4",
-                "capabilities": ["patient_data", "clinical_notes", "orders", "results"]
+                "capabilities": ["patient_data", "clinical_notes", "orders", "results"],
             },
             {
                 "system_type": "cerner",
                 "name": "Oracle Cerner",
                 "description": "Cerner EHR integration via FHIR R4",
-                "capabilities": ["patient_data", "clinical_notes", "medications", "allergies"]
+                "capabilities": ["patient_data", "clinical_notes", "medications", "allergies"],
             },
             {
                 "system_type": "allscripts",
                 "name": "Allscripts",
                 "description": "Allscripts EHR integration",
-                "capabilities": ["patient_data", "clinical_notes", "prescriptions"]
+                "capabilities": ["patient_data", "clinical_notes", "prescriptions"],
             },
             {
                 "system_type": "athenahealth",
                 "name": "athenahealth",
                 "description": "athenahealth EHR integration",
-                "capabilities": ["patient_data", "clinical_notes", "appointments"]
+                "capabilities": ["patient_data", "clinical_notes", "appointments"],
             },
             {
                 "system_type": "generic_fhir",
                 "name": "Generic FHIR",
                 "description": "Generic FHIR R4 compliant system",
-                "capabilities": ["patient_data", "clinical_notes", "observations"]
-            }
+                "capabilities": ["patient_data", "clinical_notes", "observations"],
+            },
         ],
         "fhir_version": "R4",
-        "security_standards": ["OAuth 2.0", "SMART on FHIR", "HL7 FHIR Security"]
+        "security_standards": ["OAuth 2.0", "SMART on FHIR", "HL7 FHIR Security"],
     }

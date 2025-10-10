@@ -16,13 +16,13 @@ class FactCheckerService:
         """Lazy-loads the NLI model."""
         if self.classifier is None:
             try:
-                logger.info(f"Loading fact-checking model: {self.model_name}")
+                logger.info("Loading fact-checking model: %s", self.model_name)
                 self.classifier = pipeline(
-                    "text2text-generation", model=self.model_name
+                    "text2text-generation", model=self.model_name,
                 )
                 logger.info("Fact-checking model loaded successfully.")
             except Exception as e:
-                logger.error(f"Failed to load fact-checking model: {e}")
+                logger.exception("Failed to load fact-checking model: %s", e)
                 # The service will be non-functional, but this prevents a crash
                 self.classifier = None
 
@@ -31,8 +31,7 @@ class FactCheckerService:
         return self.classifier is not None
 
     def check_consistency(self, premise: str, hypothesis: str) -> bool:
-        """
-        Checks if the hypothesis is supported by the premise.
+        """Checks if the hypothesis is supported by the premise.
         Returns True if the hypothesis is consistent, False otherwise.
         """
         if not self.is_ready():
@@ -40,7 +39,7 @@ class FactCheckerService:
 
         if not self.is_ready():
             logger.warning(
-                "Fact-checker model not available. Skipping consistency check."
+                "Fact-checker model not available. Skipping consistency check.",
             )
             return True  # Fail open, assuming consistency
 
@@ -58,12 +57,11 @@ class FactCheckerService:
             return "yes" in answer or "supported" in answer
 
         except Exception as e:
-            logger.error(f"Error during fact-checking: {e}")
+            logger.exception("Error during fact-checking: %s", e)
             return True  # Fail open
 
     def is_finding_plausible(self, finding: dict, rule: dict) -> bool:
-        """
-        Check if a finding is plausible given the associated rule.
+        """Check if a finding is plausible given the associated rule.
 
         Args:
             finding: Dictionary containing finding details
@@ -71,6 +69,7 @@ class FactCheckerService:
 
         Returns:
             True if the finding is plausible, False otherwise
+
         """
         try:
             # Extract relevant text from finding and rule
@@ -85,5 +84,5 @@ class FactCheckerService:
             return self.check_consistency(rule_text, finding_text)
 
         except Exception as e:
-            logger.error(f"Error checking finding plausibility: {e}")
+            logger.exception("Error checking finding plausibility: %s", e)
             return True  # Fail open

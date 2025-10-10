@@ -1,5 +1,4 @@
-"""
-Auto-Update System - Professional Software Update Management
+"""Auto-Update System - Professional Software Update Management
 Following industry best practices for secure software updates
 """
 
@@ -18,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class AutoUpdater:
-    """
-    Professional auto-update system with security features.
+    """Professional auto-update system with security features.
 
     Features:
     - Secure update verification with digital signatures
@@ -37,14 +35,14 @@ class AutoUpdater:
         self.backup_dir = Path("backup")
 
     def check_for_updates(self, force_check: bool = False) -> tuple[bool, dict | None]:
-        """
-        Check for available updates.
+        """Check for available updates.
 
         Args:
             force_check: Skip time-based check interval
 
         Returns:
             Tuple of (update_available, update_info)
+
         """
         try:
             # Check if we should skip based on interval
@@ -58,11 +56,11 @@ class AutoUpdater:
             response = requests.get(
                 f"{self.update_server}/api/version-check",
                 params={"current_version": self.current_version},
-                timeout=10
+                timeout=10,
             )
 
             if response.status_code != 200:
-                logger.warning(f"Update check failed: HTTP {response.status_code}")
+                logger.warning("Update check failed: HTTP %s", response.status_code)
                 return False, None
 
             update_info = response.json()
@@ -70,18 +68,17 @@ class AutoUpdater:
             # Compare versions
             latest_version = update_info.get("latest_version")
             if latest_version and version.parse(latest_version) > version.parse(self.current_version):
-                logger.info(f"Update available: {latest_version}")
+                logger.info("Update available: %s", latest_version)
                 return True, update_info
 
             return False, None
 
         except Exception as e:
-            logger.error(f"Update check failed: {e}")
+            logger.exception("Update check failed: %s", e)
             return False, None
 
     def download_and_install_update(self, update_info: dict, user_consent: bool = True) -> bool:
-        """
-        Download and install update with user consent.
+        """Download and install update with user consent.
 
         Args:
             update_info: Update information from server
@@ -89,6 +86,7 @@ class AutoUpdater:
 
         Returns:
             True if update successful
+
         """
         if not user_consent:
             logger.info("Update cancelled - no user consent")
@@ -114,13 +112,12 @@ class AutoUpdater:
             if self._install_update(update_file, update_info):
                 logger.info("Update installed successfully")
                 return True
-            else:
-                # Rollback on failure
-                self._rollback_update()
-                return False
+            # Rollback on failure
+            self._rollback_update()
+            return False
 
         except Exception as e:
-            logger.error(f"Update installation failed: {e}")
+            logger.exception("Update installation failed: %s", e)
             self._rollback_update()
             return False
 
@@ -136,17 +133,17 @@ class AutoUpdater:
             last_check = datetime.fromisoformat(data["last_check"])
             return datetime.now() - last_check >= self.update_check_interval
 
-        except Exception:
+        except (json.JSONDecodeError, PermissionError, ValueError, FileNotFoundError, OSError):
             return True
 
     def _record_update_check(self):
         """Record the time of last update check."""
         try:
             data = {"last_check": datetime.now().isoformat()}
-            with open(self.last_check_file, 'w') as f:
+            with open(self.last_check_file, "w") as f:
                 json.dump(data, f)
         except Exception as e:
-            logger.warning(f"Failed to record update check: {e}")
+            logger.warning("Failed to record update check: %s", e)
 
     def _create_backup(self) -> bool:
         """Create backup of current installation."""
@@ -160,7 +157,7 @@ class AutoUpdater:
             critical_files = [
                 "src/",
                 "config.yaml",
-                "requirements.txt"
+                "requirements.txt",
             ]
 
             for file_path in critical_files:
@@ -175,7 +172,7 @@ class AutoUpdater:
             return True
 
         except Exception as e:
-            logger.error(f"Backup creation failed: {e}")
+            logger.exception("Backup creation failed: %s", e)
             return False
 
     def _download_update(self, update_info: dict) -> Path | None:
@@ -193,10 +190,10 @@ class AutoUpdater:
             response = requests.get(download_url, stream=True, timeout=300)
             response.raise_for_status()
 
-            total_size = int(response.headers.get('content-length', 0))
+            total_size = int(response.headers.get("content-length", 0))
             downloaded = 0
 
-            with open(temp_file, 'wb') as f:
+            with open(temp_file, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
@@ -206,13 +203,13 @@ class AutoUpdater:
                         if total_size > 0:
                             progress = (downloaded / total_size) * 100
                             if progress % 10 < 1:
-                                logger.info(f"Download progress: {progress:.1f}%")
+                                logger.info("Download progress: %s%", progress)
 
             logger.info("Update downloaded successfully")
             return temp_file
 
         except Exception as e:
-            logger.error(f"Update download failed: {e}")
+            logger.exception("Update download failed: %s", e)
             return None
 
     def _verify_update_integrity(self, update_file: Path, update_info: dict) -> bool:
@@ -234,12 +231,11 @@ class AutoUpdater:
             if calculated_hash == expected_hash:
                 logger.info("Update integrity verified")
                 return True
-            else:
-                logger.error("Update integrity check failed")
-                return False
+            logger.error("Update integrity check failed")
+            return False
 
         except Exception as e:
-            logger.error(f"Update verification failed: {e}")
+            logger.exception("Update verification failed: %s", e)
             return False
 
     def _install_update(self, update_file: Path, update_info: dict) -> bool:
@@ -258,7 +254,7 @@ class AutoUpdater:
             # 4. Restart application if needed
 
             # For now, just log the action
-            logger.info(f"Update to version {update_info.get('latest_version')} installed")
+            logger.info("Update to version %s installed", update_info.get('latest_version'))
 
             # Clean up
             update_file.unlink()
@@ -266,7 +262,7 @@ class AutoUpdater:
             return True
 
         except Exception as e:
-            logger.error(f"Update installation failed: {e}")
+            logger.exception("Update installation failed: %s", e)
             return False
 
     def _rollback_update(self) -> bool:
@@ -296,7 +292,7 @@ class AutoUpdater:
             return True
 
         except Exception as e:
-            logger.error(f"Rollback failed: {e}")
+            logger.exception("Rollback failed: %s", e)
             return False
 
     def get_update_status(self) -> dict:
@@ -305,7 +301,7 @@ class AutoUpdater:
             "current_version": self.current_version,
             "last_check": self._get_last_check_time(),
             "auto_update_enabled": True,
-            "backup_available": self.backup_dir.exists()
+            "backup_available": self.backup_dir.exists(),
         }
 
     def _get_last_check_time(self) -> str | None:
@@ -315,7 +311,7 @@ class AutoUpdater:
                 with open(self.last_check_file) as f:
                     data = json.load(f)
                 return data.get("last_check")
-        except Exception:
+        except (json.JSONDecodeError, PermissionError, ValueError, FileNotFoundError, OSError):
             pass
         return None
 

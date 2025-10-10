@@ -1,5 +1,4 @@
-"""
-Performance optimization utilities for the Therapy Compliance Analyzer.
+"""Performance optimization utilities for the Therapy Compliance Analyzer.
 
 This module provides automatic performance tuning based on system capabilities
 and runtime performance monitoring.
@@ -64,7 +63,7 @@ class PerformanceOptimizer:
                 "gpu_name": gpu_name,
             }
         except Exception as e:
-            logger.warning(f"Failed to gather system info: {e}")
+            logger.warning("Failed to gather system info: %s", e)
             return {
                 "total_memory_gb": 8.0,  # Conservative default
                 "available_memory_gb": 4.0,
@@ -84,10 +83,9 @@ class PerformanceOptimizer:
 
         if memory_gb >= 16 and cpu_count >= 8:
             return "high_performance"
-        elif memory_gb >= 8 and cpu_count >= 4:
+        if memory_gb >= 8 and cpu_count >= 4:
             return "balanced"
-        else:
-            return "conservative"
+        return "conservative"
 
     def get_optimized_config(self) -> dict[str, Any]:
         """Generate optimized configuration based on system capabilities."""
@@ -158,10 +156,10 @@ class PerformanceOptimizer:
         try:
             with open(filepath, "w") as f:
                 json.dump(config, f, indent=2)
-            logger.info(f"Performance configuration saved to {filepath}")
+            logger.info("Performance configuration saved to %s", filepath)
             return filepath
         except Exception as e:
-            logger.error(f"Failed to save performance config: {e}")
+            logger.exception("Failed to save performance config: %s", e)
             raise
 
     def load_performance_config(self, filepath: str | None = None) -> dict[str, Any]:
@@ -176,10 +174,10 @@ class PerformanceOptimizer:
         try:
             with open(filepath) as f:
                 config = json.load(f)
-            logger.info(f"Performance configuration loaded from {filepath}")
+            logger.info("Performance configuration loaded from %s", filepath)
             return config
         except Exception as e:
-            logger.warning(f"Failed to load performance config: {e}, using defaults")
+            logger.warning("Failed to load performance config: %s, using defaults", e)
             return self.get_optimized_config()
 
     def monitor_performance(self) -> dict[str, Any]:
@@ -204,7 +202,7 @@ class PerformanceOptimizer:
                 "timestamp": psutil.boot_time(),
             }
         except Exception as e:
-            logger.warning(f"Failed to monitor performance: {e}")
+            logger.warning("Failed to monitor performance: %s", e)
             return {}
 
     def should_adjust_performance(self, current_metrics: dict[str, Any]) -> bool:
@@ -214,12 +212,12 @@ class PerformanceOptimizer:
 
         # Adjust if memory usage is consistently high
         if memory_usage > 85:
-            logger.warning(f"High memory usage detected: {memory_usage}%")
+            logger.warning("High memory usage detected: %s%", memory_usage)
             return True
 
         # Adjust if CPU usage is consistently high
         if cpu_usage > 90:
-            logger.warning(f"High CPU usage detected: {cpu_usage}%")
+            logger.warning("High CPU usage detected: %s%", cpu_usage)
             return True
 
         return False
@@ -235,20 +233,19 @@ class PerformanceOptimizer:
                 "context_length": 4096,
                 "recommendation": "High-end models with full precision",
             }
-        elif memory_gb >= 8:
+        if memory_gb >= 8:
             return {
                 "generator_profile": "standard",
                 "quantization": "q4_k_m",
                 "context_length": 2048,
                 "recommendation": "Balanced models with 4-bit quantization",
             }
-        else:
-            return {
-                "generator_profile": "lightweight",
-                "quantization": "q4_0",
-                "context_length": 1024,
-                "recommendation": "Lightweight models with aggressive quantization",
-            }
+        return {
+            "generator_profile": "lightweight",
+            "quantization": "q4_0",
+            "context_length": 1024,
+            "recommendation": "Lightweight models with aggressive quantization",
+        }
 
 
 def optimize_system_performance() -> dict[str, Any]:
@@ -264,10 +261,8 @@ def optimize_system_performance() -> dict[str, Any]:
     config["model_recommendations"] = model_recommendations
 
     # Log optimization results
-    logger.info(f"System optimized for {config['profile']} performance profile")
-    logger.info(
-        f"System specs: {config['system_info']['total_memory_gb']}GB RAM, "
-        f"{config['system_info']['cpu_count']} CPUs"
+    logger.info("System optimized for %s performance profile", config['profile'])
+    logger.info("System specs: %sGB RAM, %s CPUs", config['system_info']['total_memory_gb'], config['system_info']['cpu_count'],
     )
 
     return config
@@ -277,4 +272,4 @@ if __name__ == "__main__":
     # Run optimization when script is executed directly
     logging.basicConfig(level=logging.INFO)
     result = optimize_system_performance()
-    logger.info(f"Performance optimization complete. Profile: {result['profile']}")
+    logger.info("Performance optimization complete. Profile: %s", result['profile'])

@@ -1,5 +1,4 @@
-"""
-Compliance Sync Service
+"""Compliance Sync Service
 Handles synchronization and analysis of compliance data from EHR systems.
 """
 
@@ -12,8 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class ComplianceSyncService:
-    """
-    Service for synchronizing and analyzing compliance data from EHR systems.
+    """Service for synchronizing and analyzing compliance data from EHR systems.
     """
 
     def __init__(self):
@@ -28,8 +26,7 @@ class ComplianceSyncService:
                                document_types: list[str] | None = None,
                                auto_analyze: bool = False,
                                user_id: str | None = None) -> None:
-        """
-        Synchronize documents from EHR system (background task).
+        """Synchronize documents from EHR system (background task).
 
         Args:
             sync_task_id: Unique task identifier
@@ -39,9 +36,10 @@ class ComplianceSyncService:
             document_types: Types of documents to sync
             auto_analyze: Whether to automatically analyze synced documents
             user_id: User requesting the sync
+
         """
         try:
-            logger.info(f"Starting EHR document sync: {sync_task_id}")
+            logger.info("Starting EHR document sync: %s", sync_task_id)
 
             # Initialize sync task status
             self.sync_tasks[sync_task_id] = {
@@ -55,13 +53,13 @@ class ComplianceSyncService:
                     "date_range_start": date_range_start.isoformat() if date_range_start else None,
                     "date_range_end": date_range_end.isoformat() if date_range_end else None,
                     "document_types": document_types or ["progress_notes", "evaluations", "treatment_plans"],
-                    "auto_analyze": auto_analyze
+                    "auto_analyze": auto_analyze,
                 },
                 "results": {
                     "documents_synced": 0,
                     "documents_analyzed": 0,
-                    "errors": []
-                }
+                    "errors": [],
+                },
             }
 
             # Simulate sync process
@@ -70,7 +68,7 @@ class ComplianceSyncService:
                 ("Retrieving document list...", 30),
                 ("Downloading documents...", 70),
                 ("Processing documents...", 90),
-                ("Finalizing sync...", 100)
+                ("Finalizing sync...", 100),
             ]
 
             documents_synced = 0
@@ -109,21 +107,21 @@ class ComplianceSyncService:
                     "summary": {
                         "progress_notes": int(documents_synced * 0.6),
                         "evaluations": int(documents_synced * 0.25),
-                        "treatment_plans": int(documents_synced * 0.15)
-                    }
-                }
+                        "treatment_plans": int(documents_synced * 0.15),
+                    },
+                },
             })
 
-            logger.info(f"EHR document sync completed: {sync_task_id}")
+            logger.info("EHR document sync completed: %s", sync_task_id)
 
         except Exception as e:
-            logger.error(f"EHR document sync failed: {e}")
+            logger.exception("EHR document sync failed: %s", e)
             self.sync_tasks[sync_task_id] = {
                 "status": "failed",
                 "progress": 0,
-                "message": f"EHR sync failed: {str(e)}",
+                "message": f"EHR sync failed: {e!s}",
                 "error": str(e),
-                "failed_at": datetime.now().isoformat()
+                "failed_at": datetime.now().isoformat(),
             }
 
     async def get_sync_status(self, sync_task_id: str) -> dict[str, Any] | None:
@@ -134,16 +132,16 @@ class ComplianceSyncService:
                                  document_id: str,
                                  analysis_task_id: str,
                                  user_id: str) -> None:
-        """
-        Analyze a specific EHR document for compliance (background task).
+        """Analyze a specific EHR document for compliance (background task).
 
         Args:
             document_id: EHR document identifier
             analysis_task_id: Unique analysis task identifier
             user_id: User requesting the analysis
+
         """
         try:
-            logger.info(f"Starting EHR document analysis: {analysis_task_id}")
+            logger.info("Starting EHR document analysis: %s", analysis_task_id)
 
             # Initialize analysis task status
             self.analysis_tasks[analysis_task_id] = {
@@ -152,7 +150,7 @@ class ComplianceSyncService:
                 "message": "Initializing document analysis...",
                 "started_at": datetime.now().isoformat(),
                 "user_id": user_id,
-                "document_id": document_id
+                "document_id": document_id,
             }
 
             # Simulate analysis process
@@ -160,7 +158,7 @@ class ComplianceSyncService:
                 ("Retrieving document content...", 20),
                 ("Preprocessing document...", 40),
                 ("Running compliance analysis...", 80),
-                ("Generating report...", 100)
+                ("Generating report...", 100),
             ]
 
             for step_message, progress in analysis_steps:
@@ -179,18 +177,18 @@ class ComplianceSyncService:
                         "category": "Goal Documentation",
                         "severity": "medium",
                         "description": "Goals could be more specific and measurable",
-                        "recommendation": "Use SMART goal criteria"
+                        "recommendation": "Use SMART goal criteria",
                     },
                     {
                         "category": "Progress Measurement",
                         "severity": "low",
                         "description": "Include more objective measurements",
-                        "recommendation": "Add standardized outcome measures"
-                    }
+                        "recommendation": "Add standardized outcome measures",
+                    },
                 ],
                 "document_type": "progress_note",
                 "analysis_confidence": 0.92,
-                "processing_time_seconds": 6
+                "processing_time_seconds": 6,
             }
 
             # Complete the analysis task
@@ -199,26 +197,25 @@ class ComplianceSyncService:
                 "progress": 100,
                 "message": "Document analysis completed successfully",
                 "completed_at": datetime.now().isoformat(),
-                "results": analysis_results
+                "results": analysis_results,
             })
 
-            logger.info(f"EHR document analysis completed: {analysis_task_id}")
+            logger.info("EHR document analysis completed: %s", analysis_task_id)
 
         except Exception as e:
-            logger.error(f"EHR document analysis failed: {e}")
+            logger.exception("EHR document analysis failed: %s", e)
             self.analysis_tasks[analysis_task_id] = {
                 "status": "failed",
                 "progress": 0,
-                "message": f"Document analysis failed: {str(e)}",
+                "message": f"Document analysis failed: {e!s}",
                 "error": str(e),
-                "failed_at": datetime.now().isoformat()
+                "failed_at": datetime.now().isoformat(),
             }
 
     async def get_compliance_trends(self,
                                   days: int = 30,
                                   department: str | None = None) -> dict[str, Any]:
-        """
-        Get compliance trends from EHR-synchronized documents.
+        """Get compliance trends from EHR-synchronized documents.
 
         Args:
             days: Number of days to analyze
@@ -226,6 +223,7 @@ class ComplianceSyncService:
 
         Returns:
             Compliance trends data
+
         """
         try:
             # Simulate trend analysis
@@ -254,56 +252,56 @@ class ComplianceSyncService:
                     "start_date": dates[0],
                     "end_date": dates[-1],
                     "days": days,
-                    "department": department
+                    "department": department,
                 },
                 "compliance_trends": {
                     "dates": dates,
                     "scores": compliance_scores,
                     "average_score": sum(compliance_scores) / len(compliance_scores),
-                    "trend_direction": "improving" if compliance_scores[-1] > compliance_scores[0] else "declining"
+                    "trend_direction": "improving" if compliance_scores[-1] > compliance_scores[0] else "declining",
                 },
                 "volume_trends": {
                     "dates": dates,
                     "document_counts": document_counts,
                     "total_documents": sum(document_counts),
-                    "average_daily_volume": sum(document_counts) / len(document_counts)
+                    "average_daily_volume": sum(document_counts) / len(document_counts),
                 },
                 "top_issues": [
                     {
                         "category": "Goal Documentation",
                         "frequency": 0.28,
-                        "trend": "stable"
+                        "trend": "stable",
                     },
                     {
                         "category": "Progress Measurement",
                         "frequency": 0.22,
-                        "trend": "improving"
+                        "trend": "improving",
                     },
                     {
                         "category": "Assessment Detail",
                         "frequency": 0.18,
-                        "trend": "declining"
-                    }
+                        "trend": "declining",
+                    },
                 ],
                 "department_comparison": {
                     "current_department": compliance_scores[-1] if compliance_scores else 0.8,
                     "facility_average": 0.82,
-                    "national_benchmark": 0.85
-                }
+                    "national_benchmark": 0.85,
+                },
             }
 
             return trends
 
         except Exception as e:
-            logger.error(f"Failed to get compliance trends: {e}")
+            logger.exception("Failed to get compliance trends: %s", e)
             return {
                 "error": str(e),
                 "period": {
                     "start_date": None,
                     "end_date": None,
                     "days": days,
-                    "department": department
-                }
+                    "department": department,
+                },
             }
 
 

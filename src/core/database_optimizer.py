@@ -1,5 +1,4 @@
-"""
-Database Optimizer Service.
+"""Database Optimizer Service.
 
 Provides database optimization features including:
 - Query optimization and monitoring
@@ -23,8 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseOptimizer:
-    """
-    Provides database optimization capabilities and monitoring for the
+    """Provides database optimization capabilities and monitoring for the
     Therapy Compliance Analyzer application.
     """
 
@@ -33,6 +31,7 @@ class DatabaseOptimizer:
 
         Args:
             db_url (str): The URL of the database to optimize.
+
         """
         """Initialize the database optimizer."""
         logger.info("Initializing DatabaseOptimizer")
@@ -54,7 +53,7 @@ class DatabaseOptimizer:
         self.vacuum_size_threshold = 100 * 1024 * 1024  # 100MB
 
     async def analyze_table_statistics(
-        self, db: AsyncSession, table_name: str
+        self, db: AsyncSession, table_name: str,
     ) -> dict[str, Any]:
         """Analyzes statistics for a given database table.
 
@@ -68,6 +67,7 @@ class DatabaseOptimizer:
         Returns:
             Dict[str, Any]: A dictionary containing the table's statistics and
                             an indication if it needs optimization.
+
         """
         """
         Analyze table statistics for optimization insights.
@@ -82,13 +82,13 @@ class DatabaseOptimizer:
         try:
             # Get row count
             result = await db.execute(
-                text(f"SELECT COUNT(*) as row_count FROM {table_name}")
+                text(f"SELECT COUNT(*) as row_count FROM {table_name}"),
             )
             row_count = result.scalar()
 
             # Get table size information (SQLite specific)
             size_result = await db.execute(
-                text(f"SELECT SUM(pgsize) FROM dbstat WHERE name='{table_name}'")
+                text(f"SELECT SUM(pgsize) FROM dbstat WHERE name='{table_name}'"),
             )
             table_size = size_result.scalar() or 0
 
@@ -107,7 +107,7 @@ class DatabaseOptimizer:
                 "analyzed_at": datetime.now().isoformat(),
             }
         except Exception as e:
-            logger.error(f"Error analyzing table {table_name}: {e}")
+            logger.exception("Error analyzing table %s: {e}", table_name)
             return {
                 "table_name": table_name,
                 "error": str(e),
@@ -115,7 +115,7 @@ class DatabaseOptimizer:
             }
 
     async def get_optimization_recommendations(
-        self, db: AsyncSession
+        self, db: AsyncSession,
     ) -> list[dict[str, Any]]:
         """Generates a list of database optimization recommendations.
 
@@ -128,6 +128,7 @@ class DatabaseOptimizer:
         Returns:
             List[Dict[str, Any]]: A list of dictionaries, each representing an
                                   optimization recommendation.
+
         """
         """
         Get database optimization recommendations.
@@ -149,7 +150,7 @@ class DatabaseOptimizer:
                     "description": "Run VACUUM periodically to reclaim space",
                     "priority": "medium",
                     "impact": "storage optimization",
-                }
+                },
             )
 
             recommendations.append(
@@ -159,16 +160,16 @@ class DatabaseOptimizer:
                     "description": "Ensure proper indexes on frequently queried columns",
                     "priority": "high",
                     "impact": "query performance",
-                }
+                },
             )
 
         except Exception as e:
-            logger.error(f"Error getting optimization recommendations: {e}")
+            logger.exception("Error getting optimization recommendations: %s", e)
 
         return recommendations
 
     async def cleanup_old_data(
-        self, db: AsyncSession, days_to_keep: int = 90
+        self, db: AsyncSession, days_to_keep: int = 90,
     ) -> dict[str, Any]:
         """Cleans up old data from the database based on a retention policy.
 
@@ -183,6 +184,7 @@ class DatabaseOptimizer:
         Returns:
             Dict[str, Any]: A dictionary summarizing the cleanup operation, including
                             the number of records cleaned.
+
         """
         """
         Clean up old data based on retention policy.
@@ -200,7 +202,7 @@ class DatabaseOptimizer:
             # Call the existing CRUD function to delete old reports
             num_deleted = await delete_reports_older_than(db, days=days_to_keep)
 
-            logger.info(f"Successfully cleaned up {num_deleted} old reports.")
+            logger.info("Successfully cleaned up %s old reports.", num_deleted)
 
             return {
                 "cleanup_date": cutoff_date.isoformat(),
@@ -209,7 +211,7 @@ class DatabaseOptimizer:
                 "records_cleaned": num_deleted,
             }
         except Exception as e:
-            logger.error(f"Error during cleanup: {e}")
+            logger.exception("Error during cleanup: %s", e)
             return {
                 "cleanup_date": cutoff_date.isoformat(),
                 "days_kept": days_to_keep,

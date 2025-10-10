@@ -52,21 +52,21 @@ async def get_rubrics():
                 "id": "pt_compliance",
                 "name": "PT Compliance Rubric",
                 "discipline": "pt",
-                "description": "Physical Therapy compliance guidelines"
+                "description": "Physical Therapy compliance guidelines",
             },
             {
                 "id": "ot_compliance",
                 "name": "OT Compliance Rubric",
                 "discipline": "ot",
-                "description": "Occupational Therapy compliance guidelines"
+                "description": "Occupational Therapy compliance guidelines",
             },
             {
                 "id": "slp_compliance",
                 "name": "SLP Compliance Rubric",
                 "discipline": "slp",
-                "description": "Speech-Language Pathology compliance guidelines"
-            }
-        ]
+                "description": "Speech-Language Pathology compliance guidelines",
+            },
+        ],
     }
 
 
@@ -84,6 +84,6 @@ async def evaluate_document(payload: TherapyDocumentRequest) -> ComplianceResult
             text=payload.text,
             discipline=payload.discipline,
             document_type=payload.document_type,
-        )
+        ),
     )
     return ComplianceResultModel(**ComplianceService.to_dict(result))

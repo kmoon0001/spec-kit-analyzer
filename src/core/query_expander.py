@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ExpansionResult:
     """Result of query expansion containing original and expanded terms."""
+
     original_query: str
     expanded_terms: list[str]
     expansion_sources: dict[str, list[str]]  # source -> terms mapping
@@ -33,7 +34,7 @@ class ExpansionResult:
             sorted_expanded = sorted(
                 self.expanded_terms,
                 key=lambda t: self.confidence_scores.get(t, 0.0),
-                reverse=True
+                reverse=True,
             )
             all_terms = [self.original_query] + sorted_expanded[:max_terms-1]
 
@@ -48,6 +49,7 @@ class MedicalVocabulary:
 
         Args:
             vocab_file: Path to medical vocabulary JSON file
+
         """
         self.synonyms: dict[str, list[str]] = {}
         self.abbreviations: dict[str, list[str]] = {}
@@ -62,109 +64,109 @@ class MedicalVocabulary:
     def _load_vocabulary(self, vocab_file: str) -> None:
         """Load vocabulary from JSON file."""
         try:
-            with open(vocab_file, encoding='utf-8') as f:
+            with open(vocab_file, encoding="utf-8") as f:
                 vocab_data = json.load(f)
 
-            self.synonyms = vocab_data.get('synonyms', {})
-            self.abbreviations = vocab_data.get('abbreviations', {})
-            self.specialties = vocab_data.get('specialties', {})
-            self.treatments = vocab_data.get('treatments', {})
+            self.synonyms = vocab_data.get("synonyms", {})
+            self.abbreviations = vocab_data.get("abbreviations", {})
+            self.specialties = vocab_data.get("specialties", {})
+            self.treatments = vocab_data.get("treatments", {})
 
-            logger.info(f"Loaded medical vocabulary from {vocab_file}")
+            logger.info("Loaded medical vocabulary from %s", vocab_file)
 
         except Exception as e:
-            logger.warning(f"Failed to load vocabulary file {vocab_file}: {e}")
+            logger.warning("Failed to load vocabulary file %s: {e}", vocab_file)
             self._initialize_default_vocabulary()
 
     def _initialize_default_vocabulary(self) -> None:
         """Initialize with default medical vocabulary."""
         # Common medical synonyms
         self.synonyms = {
-            'physical therapy': ['physiotherapy', 'PT', 'rehabilitation', 'rehab'],
-            'occupational therapy': ['OT', 'occupational rehab', 'work therapy'],
-            'speech therapy': ['speech pathology', 'SLP', 'speech language pathology'],
-            'patient': ['client', 'individual', 'person', 'resident'],
-            'treatment': ['intervention', 'therapy', 'care', 'management'],
-            'assessment': ['evaluation', 'exam', 'examination', 'screening'],
-            'goals': ['objectives', 'targets', 'outcomes', 'aims'],
-            'progress': ['improvement', 'advancement', 'development', 'gains'],
-            'function': ['ability', 'capacity', 'performance', 'functioning'],
-            'mobility': ['movement', 'ambulation', 'locomotion', 'walking'],
-            'strength': ['power', 'force', 'muscle strength', 'muscular strength'],
-            'range of motion': ['ROM', 'flexibility', 'joint mobility', 'movement range'],
-            'balance': ['stability', 'equilibrium', 'postural control'],
-            'coordination': ['motor control', 'dexterity', 'fine motor skills'],
-            'pain': ['discomfort', 'ache', 'soreness', 'tenderness'],
-            'discharge': ['dismissal', 'release', 'completion', 'termination']
+            "physical therapy": ["physiotherapy", "PT", "rehabilitation", "rehab"],
+            "occupational therapy": ["OT", "occupational rehab", "work therapy"],
+            "speech therapy": ["speech pathology", "SLP", "speech language pathology"],
+            "patient": ["client", "individual", "person", "resident"],
+            "treatment": ["intervention", "therapy", "care", "management"],
+            "assessment": ["evaluation", "exam", "examination", "screening"],
+            "goals": ["objectives", "targets", "outcomes", "aims"],
+            "progress": ["improvement", "advancement", "development", "gains"],
+            "function": ["ability", "capacity", "performance", "functioning"],
+            "mobility": ["movement", "ambulation", "locomotion", "walking"],
+            "strength": ["power", "force", "muscle strength", "muscular strength"],
+            "range of motion": ["ROM", "flexibility", "joint mobility", "movement range"],
+            "balance": ["stability", "equilibrium", "postural control"],
+            "coordination": ["motor control", "dexterity", "fine motor skills"],
+            "pain": ["discomfort", "ache", "soreness", "tenderness"],
+            "discharge": ["dismissal", "release", "completion", "termination"],
         }
 
         # Medical abbreviations
         self.abbreviations = {
-            'PT': ['physical therapy', 'physiotherapy'],
-            'OT': ['occupational therapy'],
-            'SLP': ['speech language pathology', 'speech therapy'],
-            'ROM': ['range of motion'],
-            'ADL': ['activities of daily living'],
-            'IADL': ['instrumental activities of daily living'],
-            'MMT': ['manual muscle testing'],
-            'PROM': ['passive range of motion'],
-            'AROM': ['active range of motion'],
-            'FIM': ['functional independence measure'],
-            'SOAP': ['subjective objective assessment plan'],
-            'POC': ['plan of care'],
-            'LOS': ['length of stay'],
-            'D/C': ['discharge'],
-            'Dx': ['diagnosis'],
-            'Rx': ['prescription', 'treatment'],
-            'Hx': ['history'],
-            'c/o': ['complains of', 'complaint of'],
-            'w/c': ['wheelchair'],
-            'amb': ['ambulation', 'ambulate'],
-            'indep': ['independent'],
-            'assist': ['assistance'],
-            'min': ['minimal'],
-            'mod': ['moderate'],
-            'max': ['maximum'],
-            'CGA': ['contact guard assist'],
-            'SBA': ['standby assist'],
-            'WFL': ['within functional limits'],
-            'WNL': ['within normal limits']
+            "PT": ["physical therapy", "physiotherapy"],
+            "OT": ["occupational therapy"],
+            "SLP": ["speech language pathology", "speech therapy"],
+            "ROM": ["range of motion"],
+            "ADL": ["activities of daily living"],
+            "IADL": ["instrumental activities of daily living"],
+            "MMT": ["manual muscle testing"],
+            "PROM": ["passive range of motion"],
+            "AROM": ["active range of motion"],
+            "FIM": ["functional independence measure"],
+            "SOAP": ["subjective objective assessment plan"],
+            "POC": ["plan of care"],
+            "LOS": ["length of stay"],
+            "D/C": ["discharge"],
+            "Dx": ["diagnosis"],
+            "Rx": ["prescription", "treatment"],
+            "Hx": ["history"],
+            "c/o": ["complains of", "complaint of"],
+            "w/c": ["wheelchair"],
+            "amb": ["ambulation", "ambulate"],
+            "indep": ["independent"],
+            "assist": ["assistance"],
+            "min": ["minimal"],
+            "mod": ["moderate"],
+            "max": ["maximum"],
+            "CGA": ["contact guard assist"],
+            "SBA": ["standby assist"],
+            "WFL": ["within functional limits"],
+            "WNL": ["within normal limits"],
         }
 
         # Specialty-specific terms
         self.specialties = {
-            'physical_therapy': [
-                'gait training', 'therapeutic exercise', 'manual therapy',
-                'modalities', 'strengthening', 'stretching', 'endurance',
-                'balance training', 'transfer training', 'mobility training'
+            "physical_therapy": [
+                "gait training", "therapeutic exercise", "manual therapy",
+                "modalities", "strengthening", "stretching", "endurance",
+                "balance training", "transfer training", "mobility training",
             ],
-            'occupational_therapy': [
-                'activities of daily living', 'instrumental activities',
-                'cognitive rehabilitation', 'adaptive equipment',
-                'work hardening', 'sensory integration', 'fine motor skills',
-                'visual perceptual skills', 'home safety', 'driving assessment'
+            "occupational_therapy": [
+                "activities of daily living", "instrumental activities",
+                "cognitive rehabilitation", "adaptive equipment",
+                "work hardening", "sensory integration", "fine motor skills",
+                "visual perceptual skills", "home safety", "driving assessment",
             ],
-            'speech_therapy': [
-                'articulation', 'phonology', 'fluency', 'voice therapy',
-                'language therapy', 'swallowing therapy', 'dysphagia',
-                'aphasia', 'dysarthria', 'apraxia', 'cognitive communication'
-            ]
+            "speech_therapy": [
+                "articulation", "phonology", "fluency", "voice therapy",
+                "language therapy", "swallowing therapy", "dysphagia",
+                "aphasia", "dysarthria", "apraxia", "cognitive communication",
+            ],
         }
 
         # Treatment-related terms
         self.treatments = {
-            'therapeutic_exercise': [
-                'strengthening exercises', 'range of motion exercises',
-                'flexibility training', 'endurance training', 'conditioning'
+            "therapeutic_exercise": [
+                "strengthening exercises", "range of motion exercises",
+                "flexibility training", "endurance training", "conditioning",
             ],
-            'manual_therapy': [
-                'joint mobilization', 'soft tissue mobilization',
-                'massage', 'myofascial release', 'trigger point therapy'
+            "manual_therapy": [
+                "joint mobilization", "soft tissue mobilization",
+                "massage", "myofascial release", "trigger point therapy",
             ],
-            'modalities': [
-                'heat therapy', 'cold therapy', 'electrical stimulation',
-                'ultrasound', 'laser therapy', 'TENS', 'biofeedback'
-            ]
+            "modalities": [
+                "heat therapy", "cold therapy", "electrical stimulation",
+                "ultrasound", "laser therapy", "TENS", "biofeedback",
+            ],
         }
 
         logger.info("Initialized default medical vocabulary")
@@ -211,19 +213,19 @@ class MedicalVocabulary:
     def save_vocabulary(self, vocab_file: str) -> None:
         """Save current vocabulary to JSON file."""
         vocab_data = {
-            'synonyms': self.synonyms,
-            'abbreviations': self.abbreviations,
-            'specialties': self.specialties,
-            'treatments': self.treatments
+            "synonyms": self.synonyms,
+            "abbreviations": self.abbreviations,
+            "specialties": self.specialties,
+            "treatments": self.treatments,
         }
 
         try:
             Path(vocab_file).parent.mkdir(parents=True, exist_ok=True)
-            with open(vocab_file, 'w', encoding='utf-8') as f:
+            with open(vocab_file, "w", encoding="utf-8") as f:
                 json.dump(vocab_data, f, indent=2, ensure_ascii=False)
-            logger.info(f"Saved medical vocabulary to {vocab_file}")
+            logger.info("Saved medical vocabulary to %s", vocab_file)
         except Exception as e:
-            logger.error(f"Failed to save vocabulary to {vocab_file}: {e}")
+            logger.exception("Failed to save vocabulary to %s: {e}", vocab_file)
 
 
 class SemanticExpander:
@@ -234,6 +236,7 @@ class SemanticExpander:
 
         Args:
             embedding_model: Pre-trained embedding model (optional)
+
         """
         self.embedding_model = embedding_model
         self.medical_terms_cache: dict[str, list[tuple[str, float]]] = {}
@@ -253,6 +256,7 @@ class SemanticExpander:
 
         Returns:
             List of (term, similarity_score) tuples
+
         """
         if not self.embedding_model or not context_terms:
             return []
@@ -279,7 +283,7 @@ class SemanticExpander:
             return similarities[:max_expansions]
 
         except Exception as e:
-            logger.warning(f"Semantic expansion failed: {e}")
+            logger.warning("Semantic expansion failed: %s", e)
             return []
 
     def _get_embedding(self, text: str):
@@ -305,6 +309,7 @@ class QueryExpander:
         Args:
             medical_vocab: Medical vocabulary for synonym expansion
             semantic_expander: Semantic expander for similarity-based expansion
+
         """
         self.medical_vocab = medical_vocab or MedicalVocabulary()
         self.semantic_expander = semantic_expander or SemanticExpander()
@@ -318,8 +323,8 @@ class QueryExpander:
 
         # Term extraction patterns
         self.medical_term_pattern = re.compile(
-            r'\b(?:PT|OT|SLP|ROM|ADL|IADL|therapy|treatment|assessment|goals?|progress|function|mobility|strength|pain|discharge)\b',
-            re.IGNORECASE
+            r"\b(?:PT|OT|SLP|ROM|ADL|IADL|therapy|treatment|assessment|goals?|progress|function|mobility|strength|pain|discharge)\b",
+            re.IGNORECASE,
         )
 
     def expand_query(self,
@@ -337,6 +342,7 @@ class QueryExpander:
 
         Returns:
             ExpansionResult with expanded terms and metadata
+
         """
         logger.debug(f"Expanding query: '{query}' for discipline: {discipline}")
 
@@ -351,7 +357,7 @@ class QueryExpander:
         synonym_terms = self._expand_with_synonyms(key_terms)
         if synonym_terms:
             expanded_terms.extend(synonym_terms)
-            expansion_sources['synonyms'] = synonym_terms
+            expansion_sources["synonyms"] = synonym_terms
             for term in synonym_terms:
                 confidence_scores[term] = self.synonym_weight
 
@@ -359,7 +365,7 @@ class QueryExpander:
         abbrev_terms = self._expand_abbreviations(key_terms)
         if abbrev_terms:
             expanded_terms.extend(abbrev_terms)
-            expansion_sources['abbreviations'] = abbrev_terms
+            expansion_sources["abbreviations"] = abbrev_terms
             for term in abbrev_terms:
                 confidence_scores[term] = self.abbreviation_weight
 
@@ -368,7 +374,7 @@ class QueryExpander:
             specialty_terms = self._expand_with_specialty_terms(query, discipline)
             if specialty_terms:
                 expanded_terms.extend(specialty_terms)
-                expansion_sources['specialty'] = specialty_terms
+                expansion_sources["specialty"] = specialty_terms
                 for term in specialty_terms:
                     confidence_scores[term] = self.specialty_weight
 
@@ -377,7 +383,7 @@ class QueryExpander:
             context_terms = self._expand_with_context(query, context_entities)
             if context_terms:
                 expanded_terms.extend(context_terms)
-                expansion_sources['context'] = context_terms
+                expansion_sources["context"] = context_terms
                 for term in context_terms:
                     confidence_scores[term] = self.semantic_weight
 
@@ -386,7 +392,7 @@ class QueryExpander:
             doc_type_terms = self._expand_with_document_type(query, document_type)
             if doc_type_terms:
                 expanded_terms.extend(doc_type_terms)
-                expansion_sources['document_type'] = doc_type_terms
+                expansion_sources["document_type"] = doc_type_terms
                 for term in doc_type_terms:
                     confidence_scores[term] = self.specialty_weight
 
@@ -410,16 +416,16 @@ class QueryExpander:
             expanded_terms=unique_terms,
             expansion_sources=expansion_sources,
             confidence_scores=confidence_scores,
-            total_terms=len(unique_terms) + 1  # +1 for original query
+            total_terms=len(unique_terms) + 1,  # +1 for original query
         )
 
-        logger.debug(f"Query expansion complete: {len(unique_terms)} terms added")
+        logger.debug("Query expansion complete: %s terms added", len(unique_terms))
         return result
 
     def _extract_key_terms(self, query: str) -> list[str]:
         """Extract key medical terms from the query."""
         # Simple tokenization and medical term extraction
-        words = re.findall(r'\b\w+\b', query.lower())
+        words = re.findall(r"\b\w+\b", query.lower())
 
         # Filter for medical terms and important words
         key_terms = []
@@ -432,9 +438,9 @@ class QueryExpander:
 
         # Also include multi-word medical phrases
         medical_phrases = [
-            'physical therapy', 'occupational therapy', 'speech therapy',
-            'range of motion', 'activities of daily living', 'manual muscle testing',
-            'plan of care', 'medical necessity', 'treatment frequency'
+            "physical therapy", "occupational therapy", "speech therapy",
+            "range of motion", "activities of daily living", "manual muscle testing",
+            "plan of care", "medical necessity", "treatment frequency",
         ]
 
         query_lower = query.lower()
@@ -472,7 +478,7 @@ class QueryExpander:
             term_words = set(term.lower().split())
             # Include if there's word overlap or if it's a common term for the discipline
             if (term_words & query_words or
-                any(word in query.lower() for word in ['assessment', 'treatment', 'therapy', 'goals', 'progress'])):
+                any(word in query.lower() for word in ["assessment", "treatment", "therapy", "goals", "progress"])):
                 relevant_terms.append(term)
 
         return relevant_terms[:3]  # Limit to top 3 specialty terms
@@ -487,7 +493,7 @@ class QueryExpander:
             entity_lower = entity.lower()
             # Include medical terms, treatments, and assessments
             if (any(keyword in entity_lower for keyword in
-                   ['therapy', 'treatment', 'assessment', 'exercise', 'training', 'intervention']) or
+                   ["therapy", "treatment", "assessment", "exercise", "training", "intervention"]) or
                 len(entity) > 3):  # Include longer entities
                 relevant_entities.append(entity)
 
@@ -501,31 +507,31 @@ class QueryExpander:
     def _expand_with_document_type(self, query: str, document_type: str) -> list[str]:
         """Add terms specific to the document type."""
         doc_type_terms = {
-            'progress_note': ['progress', 'status', 'improvement', 'response', 'continuation'],
-            'evaluation': ['assessment', 'examination', 'baseline', 'initial', 'screening'],
-            'treatment_plan': ['plan', 'goals', 'objectives', 'intervention', 'strategy'],
-            'discharge_summary': ['discharge', 'completion', 'outcomes', 'final', 'summary']
+            "progress_note": ["progress", "status", "improvement", "response", "continuation"],
+            "evaluation": ["assessment", "examination", "baseline", "initial", "screening"],
+            "treatment_plan": ["plan", "goals", "objectives", "intervention", "strategy"],
+            "discharge_summary": ["discharge", "completion", "outcomes", "final", "summary"],
         }
 
-        doc_type_key = document_type.lower().replace(' ', '_')
+        doc_type_key = document_type.lower().replace(" ", "_")
         return doc_type_terms.get(doc_type_key, [])
 
     def get_expansion_statistics(self) -> dict[str, Any]:
         """Get statistics about query expansion performance."""
         return {
-            'vocabulary_size': {
-                'synonyms': len(self.medical_vocab.synonyms),
-                'abbreviations': len(self.medical_vocab.abbreviations),
-                'specialties': sum(len(terms) for terms in self.medical_vocab.specialties.values()),
-                'treatments': sum(len(terms) for terms in self.medical_vocab.treatments.values())
+            "vocabulary_size": {
+                "synonyms": len(self.medical_vocab.synonyms),
+                "abbreviations": len(self.medical_vocab.abbreviations),
+                "specialties": sum(len(terms) for terms in self.medical_vocab.specialties.values()),
+                "treatments": sum(len(terms) for terms in self.medical_vocab.treatments.values()),
             },
-            'expansion_weights': {
-                'synonym_weight': self.synonym_weight,
-                'abbreviation_weight': self.abbreviation_weight,
-                'specialty_weight': self.specialty_weight,
-                'semantic_weight': self.semantic_weight
+            "expansion_weights": {
+                "synonym_weight": self.synonym_weight,
+                "abbreviation_weight": self.abbreviation_weight,
+                "specialty_weight": self.specialty_weight,
+                "semantic_weight": self.semantic_weight,
             },
-            'configuration': {
-                'max_total_expansions': self.max_total_expansions
-            }
+            "configuration": {
+                "max_total_expansions": self.max_total_expansions,
+            },
         }

@@ -1,5 +1,4 @@
-"""
-Alert Router for Performance Monitoring
+"""Alert Router for Performance Monitoring
 
 This module provides alerting and notification management.
 """
@@ -17,6 +16,7 @@ class AlertRouter:
 
         Args:
             config: Monitoring configuration
+
         """
         self.config = config
         logger.info("Alert router initialized")
@@ -26,6 +26,7 @@ class AlertRouter:
 
         Args:
             config: New monitoring configuration
+
         """
         self.config = config
         logger.debug("Alert router configuration updated")

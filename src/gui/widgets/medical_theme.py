@@ -1,5 +1,4 @@
-"""
-Medical Theme System - Professional medical UI styling with light/dark themes.
+"""Medical Theme System - Professional medical UI styling with light/dark themes.
 """
 
 from PySide6.QtCore import QObject, Signal

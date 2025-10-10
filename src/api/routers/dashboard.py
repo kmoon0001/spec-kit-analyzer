@@ -33,13 +33,11 @@ async def get_dashboard_statistics(
 # --- AI Health Service ---#
 
 class AIHealthService:
-    """
-    Provides functionality to check the health of various AI components.
+    """Provides functionality to check the health of various AI components.
     """
 
     async def get_ai_component_health(self) -> dict[str, Any]:
-        """
-        Asynchronously checks the health of all registered AI components.
+        """Asynchronously checks the health of all registered AI components.
         """
         health_statuses = {
             "llm_service": await self._check_llm_service(),
@@ -72,8 +70,7 @@ class AIHealthService:
 def _resolve_generator_model(
     settings: Settings,
 ) -> tuple[str, str, str | None]:
-    """
-    Resolves the generator model from settings, preferring generator_profiles.
+    """Resolves the generator model from settings, preferring generator_profiles.
     """
     if settings.models.generator_profiles:
         profile = next(iter(settings.models.generator_profiles.values()))
@@ -107,7 +104,7 @@ async def get_dashboard_overview(
     # You can aggregate other data points here as needed
     other_data = {
         "recent_activity": [],
-        "system_metrics": {"cpu_usage": 0.0, "memory_usage": 0.0}
+        "system_metrics": {"cpu_usage": 0.0, "memory_usage": 0.0},
     }
 
     return {"ai_health": ai_health, **other_data}
@@ -132,7 +129,7 @@ async def read_report(
     db_report = await crud.get_report(db, report_id=report_id)
     if db_report is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Report not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Report not found",
         )
 
     report_html = report_generator.generate_html_report(
@@ -167,8 +164,7 @@ async def get_director_dashboard_data(
     end_date: datetime.date | None = None,
     discipline: str | None = None,
 ) -> DirectorDashboardData:
-    """
-    Provides aggregated analytics data for the director's dashboard.
+    """Provides aggregated analytics data for the director's dashboard.
     """
     if not settings.enable_director_dashboard:
         raise HTTPException(
@@ -177,13 +173,13 @@ async def get_director_dashboard_data(
         )
 
     total_findings = await crud.get_total_findings_count(
-        db, start_date=start_date, end_date=end_date, discipline=discipline
+        db, start_date=start_date, end_date=end_date, discipline=discipline,
     )
     team_summary = await crud.get_team_habit_summary(
-        db, start_date=start_date, end_date=end_date, discipline=discipline
+        db, start_date=start_date, end_date=end_date, discipline=discipline,
     )
     clinician_breakdown = await crud.get_clinician_habit_breakdown(
-        db, start_date=start_date, end_date=end_date, discipline=discipline
+        db, start_date=start_date, end_date=end_date, discipline=discipline,
     )
 
     return DirectorDashboardData(
@@ -199,10 +195,9 @@ async def get_director_dashboard_data(
     dependencies=[Depends(require_admin)],
 )
 async def generate_coaching_focus(
-    dashboard_data: DirectorDashboardData, settings: Settings = Depends(get_settings)
+    dashboard_data: DirectorDashboardData, settings: Settings = Depends(get_settings),
 ) -> CoachingFocus:
-    """
-    Generates an AI-powered weekly coaching focus based on team analytics.
+    """Generates an AI-powered weekly coaching focus based on team analytics.
     """
     if not settings.enable_director_dashboard:
         raise HTTPException(
@@ -269,10 +264,10 @@ async def generate_coaching_focus(
         return CoachingFocus(**coaching_data)
     except Exception as e:
         logger.exception("Failed to generate coaching focus", error=str(e))
-        raise HTTPException( from e
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate coaching focus: {e}",
-        )
+        ) from e
 
 
 @router.get(

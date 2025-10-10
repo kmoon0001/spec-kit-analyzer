@@ -1,5 +1,4 @@
-"""
-Worker for scanning directories for files with specific extensions.
+"""Worker for scanning directories for files with specific extensions.
 """
 
 from pathlib import Path

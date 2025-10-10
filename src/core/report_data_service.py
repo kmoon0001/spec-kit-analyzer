@@ -1,5 +1,4 @@
-"""
-Report Data Aggregation Service
+"""Report Data Aggregation Service
 
 This module handles data aggregation from multiple sources for report generation.
 Separated from the main engine for better maintainability and testing.
@@ -26,13 +25,13 @@ class DataAggregationService:
     def register_data_provider(self, name: str, provider: DataProvider) -> None:
         """Register a data provider"""
         self.data_providers[name] = provider
-        logger.info(f"Registered data provider: {name}")
+        logger.info("Registered data provider: %s", name)
 
     def unregister_data_provider(self, name: str) -> None:
         """Unregister a data provider"""
         if name in self.data_providers:
             del self.data_providers[name]
-            logger.info(f"Unregistered data provider: {name}")
+            logger.info("Unregistered data provider: %s", name)
 
     def get_aggregated_data(self, report_type: ReportType, filters: dict[str, Any]) -> dict[str, Any]:
         """Get aggregated data from all relevant providers"""
@@ -40,7 +39,7 @@ class DataAggregationService:
 
         # Check cache first
         if self._is_cache_valid(cache_key):
-            logger.debug(f"Returning cached data for {cache_key}")
+            logger.debug("Returning cached data for %s", cache_key)
             return self.cache[cache_key]
 
         aggregated_data = {}
@@ -50,9 +49,9 @@ class DataAggregationService:
                 if provider.supports_report_type(report_type):
                     provider_data = provider.get_data(report_type, filters)
                     aggregated_data[provider_name] = provider_data
-                    logger.debug(f"Got data from provider: {provider_name}")
+                    logger.debug("Got data from provider: %s", provider_name)
             except Exception as e:
-                logger.error(f"Error getting data from provider {provider_name}: {e}")
+                logger.exception("Error getting data from provider %s: {e}", provider_name)
                 aggregated_data[provider_name] = {"error": str(e)}
 
         # Cache the result
@@ -87,12 +86,12 @@ class DataAggregationService:
                 status[name] = {
                     "status": "healthy",
                     "supports_types": [rt.value for rt in ReportType if provider.supports_report_type(rt)],
-                    "last_check": datetime.now().isoformat()
+                    "last_check": datetime.now().isoformat(),
                 }
             except Exception as e:
                 status[name] = {
                     "status": "error",
                     "error": str(e),
-                    "last_check": datetime.now().isoformat()
+                    "last_check": datetime.now().isoformat(),
                 }
         return status

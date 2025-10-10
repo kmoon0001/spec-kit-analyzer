@@ -1,5 +1,4 @@
-"""
-7 Habits Educational Service.
+"""7 Habits Educational Service.
 
 Provides educational content and guidance for the 7 Habits framework
 in clinical documentation compliance.
@@ -12,8 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class HabitsEducationService:
-    """
-    Service for providing educational content about the 7 Habits framework.
+    """Service for providing educational content about the 7 Habits framework.
     """
 
     def __init__(self):
@@ -21,14 +19,14 @@ class HabitsEducationService:
         logger.info("Initializing HabitsEducationService")
 
     def get_habit_education(self, habit_number: int) -> dict[str, Any]:
-        """
-        Get educational content for a specific habit.
+        """Get educational content for a specific habit.
 
         Args:
             habit_number: The habit number (1-7)
 
         Returns:
             Educational content for the habit
+
         """
         habits_content = {
             1: {
@@ -114,23 +112,23 @@ class HabitsEducationService:
         )
 
     def get_all_habits_overview(self) -> list[dict[str, Any]]:
-        """
-        Get overview of all 7 habits.
+        """Get overview of all 7 habits.
 
         Returns:
             List of all habits with basic information
+
         """
         return [self.get_habit_education(i) for i in range(1, 8)]
 
     def get_habit_resources(self, habit_number: int) -> dict[str, Any]:
-        """
-        Get additional resources for a specific habit.
+        """Get additional resources for a specific habit.
 
         Args:
             habit_number: The habit number (1-7)
 
         Returns:
             Additional resources and references
+
         """
         return {
             "habit_number": habit_number,

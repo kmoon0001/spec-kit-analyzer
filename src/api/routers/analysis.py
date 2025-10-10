@@ -1,5 +1,4 @@
-"""
-Analysis API router for document compliance analysis.
+"""Analysis API router for document compliance analysis.
 
 Provides endpoints for uploading documents, running compliance analysis,
 and retrieving analysis results.
@@ -43,12 +42,11 @@ def run_analysis_and_save(
     analysis_mode: str,
     analysis_service: AnalysisService,
 ) -> None:
-    """
-    Background task to run document analysis on in-memory content and save results.
+    """Background task to run document analysis on in-memory content and save results.
     """
     async def _async_analysis():
         try:
-            logger.info(f"Starting analysis for task {task_id}")
+            logger.info("Starting analysis for task %s", task_id)
             result = await analysis_service.analyze_document(
                 file_content=file_content,
                 original_filename=original_filename,
@@ -61,7 +59,7 @@ def run_analysis_and_save(
                 "filename": original_filename,
                 "timestamp": datetime.datetime.now(datetime.UTC),
             }
-            logger.info(f"Analysis completed for task {task_id}")
+            logger.info("Analysis completed for task %s", task_id)
         except Exception as exc:
             logger.exception("Analysis task failed", task_id=task_id, error=str(exc))
             tasks[task_id] = {
@@ -134,13 +132,13 @@ async def submit_document(
 ) -> dict[str, str]:
     """Submit document for compliance analysis (alias for analyze_document for GUI compatibility)."""
     return await analyze_document(
-        background_tasks, file, discipline, analysis_mode, _current_user, analysis_service
+        background_tasks, file, discipline, analysis_mode, _current_user, analysis_service,
     )
 
 
 @router.get("/status/{task_id}")
 async def get_analysis_status(
-    task_id: str, _current_user: models.User = Depends(get_current_active_user)
+    task_id: str, _current_user: models.User = Depends(get_current_active_user),
 ) -> dict[str, Any]:
     """Retrieves the status of a background analysis task."""
     task = tasks.get(task_id)
@@ -203,7 +201,7 @@ async def export_report_to_pdf(
 
     except Exception as e:
         logger.exception("PDF export failed", task_id=task_id, error=str(e))
-        raise HTTPException(status_code=500, detail=f"PDF export failed: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"PDF export failed: {e!s}") from e
 
 
 @router.post("/feedback", response_model=schemas.FeedbackAnnotation, status_code=status.HTTP_201_CREATED)
@@ -217,7 +215,7 @@ async def submit_feedback(
         return await crud.create_feedback_annotation(db=db, feedback=feedback, user_id=current_user.id)
     except Exception as e:
         logger.exception("Failed to save feedback", error=str(e))
-        raise HTTPException( from e
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save feedback: {e}",
-        )
+        ) from e

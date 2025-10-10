@@ -1,5 +1,4 @@
-"""
-Report Generation Engine - Core reporting system
+"""Report Generation Engine - Core reporting system
 
 This module provides the foundational reporting infrastructure that integrates
 with existing performance and compliance systems without modifying them.
@@ -20,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class ReportType(Enum):
     """Types of reports that can be generated"""
+
     PERFORMANCE_ANALYSIS = "performance_analysis"
     COMPLIANCE_ANALYSIS = "compliance_analysis"
     DASHBOARD = "dashboard"
@@ -30,6 +30,7 @@ class ReportType(Enum):
 
 class ReportFormat(Enum):
     """Supported report export formats"""
+
     HTML = "html"
     PDF = "pdf"
     EXCEL = "excel"
@@ -39,6 +40,7 @@ class ReportFormat(Enum):
 
 class ReportStatus(Enum):
     """Report generation status"""
+
     PENDING = "pending"
     GENERATING = "generating"
     COMPLETED = "completed"
@@ -49,6 +51,7 @@ class ReportStatus(Enum):
 @dataclass
 class TimeRange:
     """Time range specification for reports"""
+
     start_time: datetime
     end_time: datetime
 
@@ -57,14 +60,14 @@ class TimeRange:
             raise ValueError("Start time must be before end time")
 
     @classmethod
-    def last_hours(cls, hours: int) -> 'TimeRange':
+    def last_hours(cls, hours: int) -> "TimeRange":
         """Create time range for last N hours"""
         end_time = datetime.now()
         start_time = end_time - timedelta(hours=hours)
         return cls(start_time, end_time)
 
     @classmethod
-    def last_days(cls, days: int) -> 'TimeRange':
+    def last_days(cls, days: int) -> "TimeRange":
         """Create time range for last N days"""
         end_time = datetime.now()
         start_time = end_time - timedelta(days=days)
@@ -74,6 +77,7 @@ class TimeRange:
 @dataclass
 class ReportConfig:
     """Configuration for report generation"""
+
     report_type: ReportType
     title: str
     description: str = ""
@@ -95,6 +99,7 @@ class ReportConfig:
 @dataclass
 class ReportSection:
     """Individual section within a report"""
+
     id: str
     title: str
     content: str
@@ -107,6 +112,7 @@ class ReportSection:
 @dataclass
 class Report:
     """Generated report structure"""
+
     id: str
     title: str
     description: str
@@ -144,13 +150,13 @@ class Report:
                     "section_type": s.section_type,
                     "data": s.data,
                     "charts": s.charts,
-                    "metadata": s.metadata
+                    "metadata": s.metadata,
                 }
                 for s in self.sections
             ],
             "metadata": self.metadata,
             "error_message": self.error_message,
-            "file_paths": {fmt.value: path for fmt, path in self.file_paths.items()}
+            "file_paths": {fmt.value: path for fmt, path in self.file_paths.items()},
         }
 
 
@@ -202,13 +208,13 @@ class DataAggregationService:
     def register_data_provider(self, name: str, provider: DataProvider) -> None:
         """Register a data provider"""
         self.data_providers[name] = provider
-        logger.info(f"Registered data provider: {name}")
+        logger.info("Registered data provider: %s", name)
 
     def unregister_data_provider(self, name: str) -> None:
         """Unregister a data provider"""
         if name in self.data_providers:
             del self.data_providers[name]
-            logger.info(f"Unregistered data provider: {name}")
+            logger.info("Unregistered data provider: %s", name)
 
     async def aggregate_data(self, config: ReportConfig) -> dict[str, Any]:
         """Aggregate data from all relevant providers"""
@@ -237,7 +243,7 @@ class DataAggregationService:
                 # Check cache first
                 if self._is_cache_valid(cache_key):
                     provider_data = self.cache[cache_key]
-                    logger.debug(f"Using cached data for provider: {provider_name}")
+                    logger.debug("Using cached data for provider: %s", provider_name)
                 else:
                     # Fetch fresh data
                     provider_data = await provider.get_data(config)
@@ -245,12 +251,12 @@ class DataAggregationService:
                     # Cache the data
                     self.cache[cache_key] = provider_data
                     self.cache_ttl[cache_key] = datetime.now() + self.default_cache_duration
-                    logger.debug(f"Fetched and cached data for provider: {provider_name}")
+                    logger.debug("Fetched and cached data for provider: %s", provider_name)
 
                 aggregated_data[provider_name] = provider_data
 
             except Exception as e:
-                logger.error(f"Error getting data from provider {provider_name}: {e}")
+                logger.exception("Error getting data from provider %s: {e}", provider_name)
                 # Continue with other providers
                 aggregated_data[provider_name] = {"error": str(e)}
 
@@ -285,28 +291,28 @@ class TemplateEngine:
     def _load_templates(self) -> None:
         """Load templates from the templates directory"""
         if not self.templates_dir.exists():
-            logger.warning(f"Templates directory not found: {self.templates_dir}")
+            logger.warning("Templates directory not found: %s", self.templates_dir)
             self._create_default_templates()
             return
 
         try:
             for template_file in self.templates_dir.glob("*.html"):
                 template_id = template_file.stem
-                with open(template_file, encoding='utf-8') as f:
+                with open(template_file, encoding="utf-8") as f:
                     self.templates[template_id] = f.read()
 
                 # Load metadata if available
-                metadata_file = template_file.with_suffix('.yaml')
+                metadata_file = template_file.with_suffix(".yaml")
                 if metadata_file.exists():
-                    with open(metadata_file, encoding='utf-8') as f:
+                    with open(metadata_file, encoding="utf-8") as f:
                         self.template_metadata[template_id] = yaml.safe_load(f)
 
-                logger.debug(f"Loaded template: {template_id}")
+                logger.debug("Loaded template: %s", template_id)
 
-            logger.info(f"Loaded {len(self.templates)} report templates")
+            logger.info("Loaded %s report templates", len(self.templates))
 
         except Exception as e:
-            logger.error(f"Error loading templates: {e}")
+            logger.exception("Error loading templates: %s", e)
             self._create_default_templates()
 
     def _create_default_templates(self) -> None:
@@ -353,7 +359,7 @@ class TemplateEngine:
     def render_template(self, template_id: str, context: dict[str, Any]) -> str:
         """Render a template with the given context"""
         if template_id not in self.templates:
-            logger.warning(f"Template not found: {template_id}, using default")
+            logger.warning("Template not found: %s, using default", template_id)
             template_id = "default"
 
         template_content = self.templates.get(template_id, self.templates["default"])
@@ -368,8 +374,8 @@ class TemplateEngine:
             return rendered
 
         except Exception as e:
-            logger.error(f"Error rendering template {template_id}: {e}")
-            return f"<html><body><h1>Error rendering report</h1><p>{str(e)}</p></body></html>"
+            logger.exception("Error rendering template %s: {e}", template_id)
+            return f"<html><body><h1>Error rendering report</h1><p>{e!s}</p></body></html>"
 
     def get_available_templates(self) -> list[str]:
         """Get list of available template IDs"""
@@ -399,18 +405,18 @@ class ReportConfigurationManager:
         try:
             for config_file in self.config_dir.glob("*.yaml"):
                 config_id = config_file.stem
-                with open(config_file, encoding='utf-8') as f:
+                with open(config_file, encoding="utf-8") as f:
                     config_data = yaml.safe_load(f)
 
                 config = self._dict_to_config(config_data)
                 self.configurations[config_id] = config
 
-                logger.debug(f"Loaded report configuration: {config_id}")
+                logger.debug("Loaded report configuration: %s", config_id)
 
-            logger.info(f"Loaded {len(self.configurations)} report configurations")
+            logger.info("Loaded %s report configurations", len(self.configurations))
 
         except Exception as e:
-            logger.error(f"Error loading configurations: {e}")
+            logger.exception("Error loading configurations: %s", e)
             self._create_default_configurations()
 
     def _create_default_configurations(self) -> None:
@@ -421,28 +427,28 @@ class ReportConfigurationManager:
                 title="Performance Analysis Report",
                 description="Comprehensive performance analysis with optimization comparisons",
                 time_range=TimeRange.last_hours(24),
-                template_id="performance_analysis"
+                template_id="performance_analysis",
             ),
             ReportType.COMPLIANCE_ANALYSIS: ReportConfig(
                 report_type=ReportType.COMPLIANCE_ANALYSIS,
                 title="Compliance Analysis Report",
                 description="Detailed compliance analysis with regulatory findings",
-                template_id="compliance_analysis"
+                template_id="compliance_analysis",
             ),
             ReportType.DASHBOARD: ReportConfig(
                 report_type=ReportType.DASHBOARD,
                 title="System Dashboard",
                 description="Real-time system performance and health dashboard",
                 time_range=TimeRange.last_hours(1),
-                template_id="dashboard"
+                template_id="dashboard",
             ),
             ReportType.EXECUTIVE_SUMMARY: ReportConfig(
                 report_type=ReportType.EXECUTIVE_SUMMARY,
                 title="Executive Summary",
                 description="High-level performance and compliance summary",
                 time_range=TimeRange.last_days(7),
-                template_id="executive_summary"
-            )
+                template_id="executive_summary",
+            ),
         }
 
         self.default_configs = default_configs
@@ -450,7 +456,7 @@ class ReportConfigurationManager:
         # Save default configurations
         for report_type, config in default_configs.items():
             config_file = self.config_dir / f"default_{report_type.value}.yaml"
-            with open(config_file, 'w', encoding='utf-8') as f:
+            with open(config_file, "w", encoding="utf-8") as f:
                 yaml.dump(self._config_to_dict(config), f, default_flow_style=False)
 
         logger.info("Created default report configurations")
@@ -458,44 +464,44 @@ class ReportConfigurationManager:
     def _dict_to_config(self, config_data: dict[str, Any]) -> ReportConfig:
         """Convert dictionary to ReportConfig"""
         time_range = None
-        if 'time_range' in config_data:
-            tr_data = config_data['time_range']
+        if "time_range" in config_data:
+            tr_data = config_data["time_range"]
             time_range = TimeRange(
-                start_time=datetime.fromisoformat(tr_data['start_time']),
-                end_time=datetime.fromisoformat(tr_data['end_time'])
+                start_time=datetime.fromisoformat(tr_data["start_time"]),
+                end_time=datetime.fromisoformat(tr_data["end_time"]),
             )
 
         return ReportConfig(
-            report_type=ReportType(config_data['report_type']),
-            title=config_data['title'],
-            description=config_data.get('description', ''),
+            report_type=ReportType(config_data["report_type"]),
+            title=config_data["title"],
+            description=config_data.get("description", ""),
             time_range=time_range,
-            data_sources=config_data.get('data_sources', []),
-            filters=config_data.get('filters', {}),
-            template_id=config_data.get('template_id'),
-            output_formats=[ReportFormat(fmt) for fmt in config_data.get('output_formats', ['html'])],
-            recipients=config_data.get('recipients', []),
-            metadata=config_data.get('metadata', {})
+            data_sources=config_data.get("data_sources", []),
+            filters=config_data.get("filters", {}),
+            template_id=config_data.get("template_id"),
+            output_formats=[ReportFormat(fmt) for fmt in config_data.get("output_formats", ["html"])],
+            recipients=config_data.get("recipients", []),
+            metadata=config_data.get("metadata", {}),
         )
 
     def _config_to_dict(self, config: ReportConfig) -> dict[str, Any]:
         """Convert ReportConfig to dictionary"""
         config_dict = {
-            'report_type': config.report_type.value,
-            'title': config.title,
-            'description': config.description,
-            'data_sources': config.data_sources,
-            'filters': config.filters,
-            'template_id': config.template_id,
-            'output_formats': [fmt.value for fmt in config.output_formats],
-            'recipients': config.recipients,
-            'metadata': config.metadata
+            "report_type": config.report_type.value,
+            "title": config.title,
+            "description": config.description,
+            "data_sources": config.data_sources,
+            "filters": config.filters,
+            "template_id": config.template_id,
+            "output_formats": [fmt.value for fmt in config.output_formats],
+            "recipients": config.recipients,
+            "metadata": config.metadata,
         }
 
         if config.time_range:
-            config_dict['time_range'] = {
-                'start_time': config.time_range.start_time.isoformat(),
-                'end_time': config.time_range.end_time.isoformat()
+            config_dict["time_range"] = {
+                "start_time": config.time_range.start_time.isoformat(),
+                "end_time": config.time_range.end_time.isoformat(),
             }
 
         return config_dict
@@ -513,10 +519,10 @@ class ReportConfigurationManager:
         self.configurations[config_id] = config
 
         config_file = self.config_dir / f"{config_id}.yaml"
-        with open(config_file, 'w', encoding='utf-8') as f:
+        with open(config_file, "w", encoding="utf-8") as f:
             yaml.dump(self._config_to_dict(config), f, default_flow_style=False)
 
-        logger.info(f"Saved report configuration: {config_id}")
+        logger.info("Saved report configuration: %s", config_id)
 
 
 class ReportGenerationEngine:
@@ -566,7 +572,7 @@ class ReportGenerationEngine:
             self.data_integration_service = DataIntegrationService()
             logger.info("Data integration service initialized successfully")
         except ImportError as e:
-            logger.warning(f"Data integration service not available: {e}")
+            logger.warning("Data integration service not available: %s", e)
             self.data_integration_service = None
 
     def register_data_provider(self, name: str, provider: DataProvider) -> None:
@@ -574,18 +580,18 @@ class ReportGenerationEngine:
         self.data_aggregation_service.register_data_provider(name, provider)
 
         # Also register with data integration service if available
-        if hasattr(self, 'data_integration_service') and self.data_integration_service:
+        if hasattr(self, "data_integration_service") and self.data_integration_service:
             try:
                 # Convert DataProvider to BaseDataProvider if needed
-                if hasattr(provider, 'provider_id'):
+                if hasattr(provider, "provider_id"):
                     self.data_integration_service.register_provider(provider)
             except Exception as e:
-                logger.warning(f"Could not register provider with data integration service: {e}")
+                logger.warning("Could not register provider with data integration service: %s", e)
 
     def register_report_exporter(self, format: ReportFormat, exporter: ReportExporter) -> None:
         """Register a report exporter"""
         self.report_exporters[format] = exporter
-        logger.info(f"Registered report exporter for format: {format.value}")
+        logger.info("Registered report exporter for format: %s", format.value)
 
     async def generate_report(self, config: ReportConfig) -> Report:
         """Generate a report based on configuration with AI guardrails and 7 Habits integration"""
@@ -600,11 +606,11 @@ class ReportGenerationEngine:
             report_type=config.report_type,
             generated_at=datetime.now(),
             config=config,
-            status=ReportStatus.GENERATING
+            status=ReportStatus.GENERATING,
         )
 
         try:
-            logger.info(f"Starting report generation with AI guardrails: {report_id}")
+            logger.info("Starting report generation with AI guardrails: %s", report_id)
 
             # Aggregate data from providers
             aggregated_data = await self.data_aggregation_service.aggregate_data(config)
@@ -635,7 +641,7 @@ class ReportGenerationEngine:
                     id="main_content",
                     title="Report Content",
                     content=rendered_content,
-                    section_type="html"
+                    section_type="html",
                 )
                 report.add_section(main_section)
 
@@ -646,16 +652,16 @@ class ReportGenerationEngine:
                 "sections_count": len(report.sections),
                 "ai_guardrails_applied": self.guardrails_service is not None,
                 "seven_habits_integrated": self.habits_framework is not None,
-                "responsible_ai_compliance": True
+                "responsible_ai_compliance": True,
             })
 
             # Store generated report
             self.generated_reports[report_id] = report
 
-            logger.info(f"Report generation completed with responsible AI controls: {report_id}")
+            logger.info("Report generation completed with responsible AI controls: %s", report_id)
 
         except Exception as e:
-            logger.error(f"Error generating report {report_id}: {e}")
+            logger.exception("Error generating report %s: {e}", report_id)
             report.status = ReportStatus.FAILED
             report.error_message = str(e)
 
@@ -686,7 +692,7 @@ class ReportGenerationEngine:
             title="Performance Summary",
             content="Performance analysis summary will be generated here.",
             section_type="summary",
-            data=data
+            data=data,
         )
         sections.append(summary_section)
 
@@ -697,7 +703,7 @@ class ReportGenerationEngine:
                 title="Performance Metrics",
                 content="Detailed performance metrics analysis.",
                 section_type="metrics",
-                data=data.get("performance_metrics", {})
+                data=data.get("performance_metrics", {}),
             )
             sections.append(metrics_section)
 
@@ -713,7 +719,7 @@ class ReportGenerationEngine:
             title="Compliance Overview",
             content="Compliance analysis overview will be generated here.",
             section_type="overview",
-            data=data
+            data=data,
         )
         sections.append(overview_section)
 
@@ -729,7 +735,7 @@ class ReportGenerationEngine:
             title="System Status",
             content="Real-time system status dashboard.",
             section_type="dashboard",
-            data=data
+            data=data,
         )
         sections.append(status_section)
 
@@ -745,7 +751,7 @@ class ReportGenerationEngine:
             title="Executive Summary",
             content="High-level executive summary of system performance and compliance.",
             section_type="executive",
-            data=data
+            data=data,
         )
         sections.append(exec_section)
 
@@ -762,7 +768,7 @@ class ReportGenerationEngine:
             "sections": report.sections,
             "metadata": report.metadata,
             "report_id": report.id,
-            "report_type": report.report_type.value
+            "report_type": report.report_type.value,
         }
 
         # Add branding context if available
@@ -779,7 +785,7 @@ class ReportGenerationEngine:
                 "secondary_color": "#6c757d",
                 "accent_color": "#28a745",
                 "font_family": "Arial, sans-serif",
-                "custom_css": self._get_default_css()
+                "custom_css": self._get_default_css(),
             }
 
         return self.template_engine.render_template(template_id, context)
@@ -836,15 +842,15 @@ class ReportGenerationEngine:
                 try:
                     output_path = output_dir / f"{report_id}.{format.value}"
                     exported_file = await self.report_exporters[format].export_report(
-                        report, format, str(output_path)
+                        report, format, str(output_path),
                     )
                     exported_files[format] = exported_file
                     report.file_paths[format] = exported_file
 
                 except Exception as e:
-                    logger.error(f"Error exporting report {report_id} to {format.value}: {e}")
+                    logger.exception("Error exporting report %s to {format.value}: {e}", report_id)
             else:
-                logger.warning(f"No exporter registered for format: {format.value}")
+                logger.warning("No exporter registered for format: %s", format.value)
 
         return exported_files
 
@@ -877,7 +883,7 @@ class ReportGenerationEngine:
                 self.branding_service.update_branding(
                     organization_name=organization_name,
                     primary_color=primary_color,
-                    **{k: v for k, v in kwargs.items() if k in ['secondary_color', 'accent_color', 'font_family', 'custom_css']}
+                    **{k: v for k, v in kwargs.items() if k in ["secondary_color", "accent_color", "font_family", "custom_css"]},
                 )
 
             # Configure logo if provided
@@ -889,28 +895,28 @@ class ReportGenerationEngine:
                     try:
                         position = LogoPosition(logo_position.lower())
                     except ValueError:
-                        logger.warning(f"Invalid logo position: {logo_position}, using default")
+                        logger.warning("Invalid logo position: %s, using default", logo_position)
 
-                size = LogoSize(kwargs.get('logo_size', 'medium').lower()) if 'logo_size' in kwargs else LogoSize.MEDIUM
+                size = LogoSize(kwargs.get("logo_size", "medium").lower()) if "logo_size" in kwargs else LogoSize.MEDIUM
 
                 success = self.branding_service.configure_logo(
                     logo_path,
                     position=position,
                     size=size,
-                    opacity=kwargs.get('logo_opacity', 1.0),
-                    custom_width=kwargs.get('logo_width'),
-                    custom_height=kwargs.get('logo_height')
+                    opacity=kwargs.get("logo_opacity", 1.0),
+                    custom_width=kwargs.get("logo_width"),
+                    custom_height=kwargs.get("logo_height"),
                 )
 
                 if not success:
-                    logger.error(f"Failed to configure logo: {logo_path}")
+                    logger.error("Failed to configure logo: %s", logo_path)
                     return False
 
             logger.info("Report branding configured successfully")
             return True
 
         except Exception as e:
-            logger.error(f"Error configuring branding: {e}")
+            logger.exception("Error configuring branding: %s", e)
             return False
 
     def disable_logo(self) -> bool:
@@ -923,7 +929,7 @@ class ReportGenerationEngine:
             logger.info("Logo disabled for reports")
             return True
         except Exception as e:
-            logger.error(f"Error disabling logo: {e}")
+            logger.exception("Error disabling logo: %s", e)
             return False
 
     def get_branding_status(self) -> dict[str, Any]:
@@ -932,7 +938,7 @@ class ReportGenerationEngine:
             return {
                 "branding_available": False,
                 "logo_enabled": False,
-                "organization_name": None
+                "organization_name": None,
             }
 
         config = self.branding_service.get_configuration()
@@ -943,7 +949,7 @@ class ReportGenerationEngine:
             "organization_name": config.organization_name,
             "primary_color": config.primary_color,
             "secondary_color": config.secondary_color,
-            "accent_color": config.accent_color
+            "accent_color": config.accent_color,
         }
 
     async def _apply_ai_guardrails_to_sections(self, sections: list[ReportSection],
@@ -958,12 +964,12 @@ class ReportGenerationEngine:
             try:
                 # Create context for guardrail evaluation
                 context = {
-                    'content_type': 'report_section',
-                    'section_type': section.section_type,
-                    'report_type': config.report_type.value,
-                    'ai_generated': True,
-                    'healthcare_context': True,
-                    'confidence_level': 'medium'  # Default confidence
+                    "content_type": "report_section",
+                    "section_type": section.section_type,
+                    "report_type": config.report_type.value,
+                    "ai_generated": True,
+                    "healthcare_context": True,
+                    "confidence_level": "medium",  # Default confidence
                 }
 
                 # Evaluate section content
@@ -978,16 +984,16 @@ class ReportGenerationEngine:
 
                 # Add transparency metadata
                 section.metadata.update({
-                    'ai_guardrails_applied': True,
-                    'guardrail_violations': len(guardrail_result.violations),
-                    'risk_level': guardrail_result.overall_risk_level.value,
-                    'transparency_notes': guardrail_result.transparency_notes
+                    "ai_guardrails_applied": True,
+                    "guardrail_violations": len(guardrail_result.violations),
+                    "risk_level": guardrail_result.overall_risk_level.value,
+                    "transparency_notes": guardrail_result.transparency_notes,
                 })
 
                 processed_sections.append(section)
 
             except Exception as e:
-                logger.error(f"Error applying guardrails to section {section.id}: {e}")
+                logger.exception("Error applying guardrails to section %s: {e}", section.id)
                 # Keep original section if guardrails fail
                 processed_sections.append(section)
 
@@ -1010,20 +1016,20 @@ class ReportGenerationEngine:
                     id="seven_habits_framework",
                     title="🎯 Personal Development - 7 Habits Framework",
                     content=self._format_habits_content(habits_insights),
-                    section_type="habits_framework"
+                    section_type="habits_framework",
                 )
 
                 habits_section.metadata.update({
-                    'framework_type': '7_habits',
-                    'habits_count': len(habits_insights),
-                    'educational_value': 'high',
-                    'personal_development': True
+                    "framework_type": "7_habits",
+                    "habits_count": len(habits_insights),
+                    "educational_value": "high",
+                    "personal_development": True,
                 })
 
                 # Insert habits section before recommendations
                 insert_index = len(sections)
                 for i, section in enumerate(sections):
-                    if 'recommendation' in section.id.lower():
+                    if "recommendation" in section.id.lower():
                         insert_index = i
                         break
 
@@ -1032,7 +1038,7 @@ class ReportGenerationEngine:
                 logger.info("7 Habits framework successfully integrated into report")
 
         except Exception as e:
-            logger.error(f"Error integrating 7 Habits framework: {e}")
+            logger.exception("Error integrating 7 Habits framework: %s", e)
 
         return sections
 
@@ -1045,21 +1051,21 @@ class ReportGenerationEngine:
             # Extract key findings from aggregated data
             findings = []
             for provider_data in aggregated_data.values():
-                if isinstance(provider_data, dict) and 'findings' in provider_data:
-                    findings.extend(provider_data['findings'])
+                if isinstance(provider_data, dict) and "findings" in provider_data:
+                    findings.extend(provider_data["findings"])
 
             # Map findings to habits using the framework
             for finding in findings[:5]:  # Limit to top 5 findings
                 habit_mapping = self.habits_framework.map_finding_to_habit(finding)
                 if habit_mapping:
                     habits_insights.append({
-                        'habit_number': habit_mapping.get('habit_number', 1),
-                        'habit_name': habit_mapping.get('name', 'Be Proactive'),
-                        'finding': finding.get('description', ''),
-                        'explanation': habit_mapping.get('explanation', ''),
-                        'actionable_steps': habit_mapping.get('actionable_steps', []),
-                        'personal_development_tip': habit_mapping.get('personal_development_tip', ''),
-                        'confidence': habit_mapping.get('confidence', 0.7)
+                        "habit_number": habit_mapping.get("habit_number", 1),
+                        "habit_name": habit_mapping.get("name", "Be Proactive"),
+                        "finding": finding.get("description", ""),
+                        "explanation": habit_mapping.get("explanation", ""),
+                        "actionable_steps": habit_mapping.get("actionable_steps", []),
+                        "personal_development_tip": habit_mapping.get("personal_development_tip", ""),
+                        "confidence": habit_mapping.get("confidence", 0.7),
                     })
 
             # Add general habits if no specific mappings found
@@ -1067,17 +1073,17 @@ class ReportGenerationEngine:
                 all_habits = self.habits_framework.get_all_habits()
                 for i, habit in enumerate(all_habits[:3]):  # Top 3 habits
                     habits_insights.append({
-                        'habit_number': i + 1,
-                        'habit_name': habit.get('name', f'Habit {i + 1}'),
-                        'finding': 'General professional development opportunity',
-                        'explanation': habit.get('explanation', ''),
-                        'actionable_steps': habit.get('actionable_steps', []),
-                        'personal_development_tip': habit.get('personal_development_tip', ''),
-                        'confidence': 0.6
+                        "habit_number": i + 1,
+                        "habit_name": habit.get("name", f"Habit {i + 1}"),
+                        "finding": "General professional development opportunity",
+                        "explanation": habit.get("explanation", ""),
+                        "actionable_steps": habit.get("actionable_steps", []),
+                        "personal_development_tip": habit.get("personal_development_tip", ""),
+                        "confidence": 0.6,
                     })
 
         except Exception as e:
-            logger.error(f"Error generating habits insights: {e}")
+            logger.exception("Error generating habits insights: %s", e)
 
         return habits_insights
 
@@ -1138,11 +1144,11 @@ class ReportGenerationEngine:
 
         try:
             context = {
-                'content_type': 'final_report',
-                'report_type': config.report_type.value,
-                'ai_generated': True,
-                'healthcare_context': True,
-                'final_check': True
+                "content_type": "final_report",
+                "report_type": config.report_type.value,
+                "ai_generated": True,
+                "healthcare_context": True,
+                "final_check": True,
             }
 
             guardrail_result = self.guardrails_service.evaluate_content(content, context)
@@ -1150,7 +1156,7 @@ class ReportGenerationEngine:
             if guardrail_result.modified_content and guardrail_result.is_safe():
                 logger.info("Final guardrails check applied modifications to report content")
                 return guardrail_result.modified_content
-            elif not guardrail_result.is_safe():
+            if not guardrail_result.is_safe():
                 logger.warning("Final guardrails check flagged content as unsafe")
                 # Add safety notice
                 safety_notice = """
@@ -1166,7 +1172,7 @@ class ReportGenerationEngine:
                 return safety_notice + content
 
         except Exception as e:
-            logger.error(f"Error in final guardrails check: {e}")
+            logger.exception("Error in final guardrails check: %s", e)
 
         return content
 
@@ -1196,7 +1202,7 @@ class ReportGenerationEngine:
             "responsible_ai_enabled": True,
             "transparency_enforced": True,
             "bias_mitigation_active": True,
-            "ethical_compliance_checked": True
+            "ethical_compliance_checked": True,
         }
 
     def get_seven_habits_status(self) -> dict[str, Any]:
@@ -1212,7 +1218,7 @@ class ReportGenerationEngine:
                 "habits_count": len(all_habits),
                 "integration_active": True,
                 "personal_development_enabled": True,
-                "educational_value": "high"
+                "educational_value": "high",
             }
         except Exception as e:
             return {"available": False, "error": str(e)}

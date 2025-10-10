@@ -49,12 +49,12 @@ class FolderAnalysisWorker(QObject):
 
                 if status == "processing":
                     reported_progress = int(
-                        status_data.get("progress", attempts * 100 // max_attempts)
+                        status_data.get("progress", attempts * 100 // max_attempts),
                     )
                     self.progress.emit(max(0, min(100, reported_progress)))
                 elif status == "failed":
                     error_msg = status_data.get(
-                        "error", "Unknown error during analysis."
+                        "error", "Unknown error during analysis.",
                     )
                     self.error.emit(error_msg)
                     self.finished.emit()

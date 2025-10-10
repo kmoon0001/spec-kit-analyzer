@@ -1,5 +1,4 @@
-"""
-File System Utilities
+"""File System Utilities
 
 This module contains helper functions for file and directory operations.
 """
@@ -13,15 +12,15 @@ logger = structlog.get_logger(__name__)
 
 
 def clear_temp_uploads(temp_dir: str):
-    """
-    Clears all files and subdirectories from a given temporary directory.
+    """Clears all files and subdirectories from a given temporary directory.
 
     Args:
         temp_dir (str): The absolute path to the temporary directory to clear.
+
     """
     if not os.path.exists(temp_dir):
         logger.warning(
-            "Temporary directory does not exist. Skipping cleanup.", path=temp_dir
+            "Temporary directory does not exist. Skipping cleanup.", path=temp_dir,
         )
         return
 
@@ -39,6 +38,6 @@ def clear_temp_uploads(temp_dir: str):
                 shutil.rmtree(file_path)
             logger.info("Successfully removed temporary file/directory", path=file_path)
         except (OSError, PermissionError) as e:
-            logger.error(
-                "Failed to delete temporary file", path=file_path, error=str(e)
+            logger.exception(
+                "Failed to delete temporary file", path=file_path, error=str(e),
             )

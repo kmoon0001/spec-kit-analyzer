@@ -1,5 +1,4 @@
-"""
-Individual Habits API Router.
+"""Individual Habits API Router.
 
 Provides endpoints for personal habit tracking, growth journey,
 achievements, and individual analytics.
@@ -29,8 +28,7 @@ async def get_personal_habit_profile(
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict[str, Any]:
-    """
-    Get comprehensive personal habit profile for the current user.
+    """Get comprehensive personal habit profile for the current user.
 
     Returns detailed habit progression, achievements, streaks, and
     personalized recommendations based on the user's analysis history.
@@ -45,11 +43,11 @@ async def get_personal_habit_profile(
 
     # Initialize habits framework and tracker
     habits_framework = SevenHabitsFramework(
-        use_ai_mapping=settings.habits_framework.ai_features.use_ai_mapping
+        use_ai_mapping=settings.habits_framework.ai_features.use_ai_mapping,
     )
 
     tracker = IndividualHabitTracker(
-        user_id=current_user.id, habits_framework=habits_framework
+        user_id=current_user.id, habits_framework=habits_framework,
     )
 
     try:
@@ -57,11 +55,11 @@ async def get_personal_habit_profile(
         return profile
 
     except Exception as e:
-        logger.exception(f"Failed to get habit profile for user {current_user.id}")
-        raise HTTPException( from e
+        logger.exception("Failed to get habit profile for user %s", current_user.id)
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate habit profile: {str(e)}",
-        )
+            detail=f"Failed to generate habit profile: {e!s}",
+        ) from e
 
 
 @router.get("/timeline/{habit_id}")
@@ -71,8 +69,7 @@ async def get_habit_timeline(
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict[str, Any]:
-    """
-    Get detailed timeline for a specific habit.
+    """Get detailed timeline for a specific habit.
 
     Shows daily breakdown of findings, compliance scores, and progress
     for the specified habit over the requested time period.
@@ -95,7 +92,7 @@ async def get_habit_timeline(
 
     habits_framework = SevenHabitsFramework()
     tracker = IndividualHabitTracker(
-        user_id=current_user.id, habits_framework=habits_framework
+        user_id=current_user.id, habits_framework=habits_framework,
     )
 
     try:
@@ -104,12 +101,12 @@ async def get_habit_timeline(
 
     except Exception as e:
         logger.exception(
-            f"Failed to get habit timeline for user {current_user.id}, habit {habit_id}"
+            f"Failed to get habit timeline for user {current_user.id}, habit {habit_id}",
         )
-        raise HTTPException( from e
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate habit timeline: {str(e)}",
-        )
+            detail=f"Failed to generate habit timeline: {e!s}",
+        ) from e
 
 
 @router.get("/goals")
@@ -158,11 +155,11 @@ async def get_personal_goals(
         }
 
     except Exception as e:
-        logger.exception(f"Failed to get goals for user {current_user.id}")
-        raise HTTPException( from e
+        logger.exception("Failed to get goals for user %s", current_user.id)
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get goals: {str(e)}",
-        )
+            detail=f"Failed to get goals: {e!s}",
+        ) from e
 
 
 @router.post("/goals")
@@ -171,8 +168,7 @@ async def create_personal_goal(
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict[str, Any]:
-    """
-    Create a new personal habit improvement goal.
+    """Create a new personal habit improvement goal.
 
     Expected goal_data format:
     {
@@ -214,7 +210,7 @@ async def create_personal_goal(
     try:
         # Parse target date
         target_date = datetime.fromisoformat(
-            goal_data["target_date"].replace("Z", "+00:00")
+            goal_data["target_date"].replace("Z", "+00:00"),
         )
 
         goal_create_data = {
@@ -228,7 +224,7 @@ async def create_personal_goal(
         }
 
         goal = await crud.create_personal_habit_goal(
-            db, current_user.id, goal_create_data
+            db, current_user.id, goal_create_data,
         )
 
         return {
@@ -247,16 +243,16 @@ async def create_personal_goal(
         }
 
     except ValueError as e:
-        raise HTTPException( from e
+        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid data format: {str(e)}",
-        )
+            detail=f"Invalid data format: {e!s}",
+        ) from e
     except Exception as e:
-        logger.exception(f"Failed to create goal for user {current_user.id}")
-        raise HTTPException( from e
+        logger.exception("Failed to create goal for user %s", current_user.id)
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create goal: {str(e)}",
-        )
+            detail=f"Failed to create goal: {e!s}",
+        ) from e
 
 
 @router.get("/achievements")
@@ -299,7 +295,7 @@ async def get_personal_achievements(
                         else ""
                     ),
                     "metadata": achievement.get("metadata", {}),
-                }
+                },
             )
             total_points += int(achievement.get("points_earned", 0))
 
@@ -312,11 +308,11 @@ async def get_personal_achievements(
         }
 
     except Exception as e:
-        logger.exception(f"Failed to get achievements for user {current_user.id}")
-        raise HTTPException( from e
+        logger.exception("Failed to get achievements for user %s", current_user.id)
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get achievements: {str(e)}",
-        )
+            detail=f"Failed to get achievements: {e!s}",
+        ) from e
 
 
 @router.get("/statistics")
@@ -339,11 +335,11 @@ async def get_personal_statistics(
         return stats
 
     except Exception as e:
-        logger.exception(f"Failed to get statistics for user {current_user.id}")
-        raise HTTPException( from e
+        logger.exception("Failed to get statistics for user %s", current_user.id)
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get statistics: {str(e)}",
-        )
+            detail=f"Failed to get statistics: {e!s}",
+        ) from e
 
 
 @router.get("/habits-info")
@@ -382,8 +378,7 @@ async def create_progress_snapshot(
     current_user: models.User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict[str, Any]:
-    """
-    Create a progress snapshot for trend tracking.
+    """Create a progress snapshot for trend tracking.
 
     This is typically called automatically by the system, but can be
     triggered manually for immediate snapshot creation.
@@ -403,7 +398,7 @@ async def create_progress_snapshot(
         # Get current habit profile
         habits_framework = SevenHabitsFramework()
         tracker = IndividualHabitTracker(
-            user_id=current_user.id, habits_framework=habits_framework
+            user_id=current_user.id, habits_framework=habits_framework,
         )
 
         profile = await tracker.get_personal_habit_profile(db, days_back=90)
@@ -426,7 +421,7 @@ async def create_progress_snapshot(
         }
 
         snapshot = await crud.create_habit_progress_snapshot(
-            db, current_user.id, snapshot_data
+            db, current_user.id, snapshot_data,
         )
 
         return {
@@ -438,8 +433,8 @@ async def create_progress_snapshot(
         }
 
     except Exception as e:
-        logger.exception(f"Failed to create snapshot for user {current_user.id}")
-        raise HTTPException( from e
+        logger.exception("Failed to create snapshot for user %s", current_user.id)
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create snapshot: {str(e)}",
-        )
+            detail=f"Failed to create snapshot: {e!s}",
+        ) from e

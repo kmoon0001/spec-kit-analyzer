@@ -13,7 +13,7 @@ from .query_expander import QueryExpander
 
 try:  # pragma: no cover - optional dependency during tests
     from src.database import crud
-except Exception:  # pragma: no cover - fallback when database layer unavailable
+except (sqlalchemy.exc.SQLAlchemyError, ModuleNotFoundError, ImportError, sqlite3.Error):
     crud = None  # type: ignore[assignment]
 
 
@@ -77,7 +77,7 @@ class HybridRetriever:
 
     @staticmethod
     def _load_rules_from_db() -> list[dict[str, str]]:
-        if crud is None or not hasattr(crud, 'get_all_rubrics'):
+        if crud is None or not hasattr(crud, "get_all_rubrics"):
             return []
         try:
             rubric_models = crud.get_all_rubrics()
@@ -111,13 +111,13 @@ class HybridRetriever:
                     query=query,
                     discipline=discipline,
                     document_type=document_type,
-                    context_entities=context_entities
+                    context_entities=context_entities,
                 )
                 expanded_query = expansion_result.get_expanded_query(max_terms=8)
                 logger.debug(f"Query expanded from '{query}' to '{expanded_query}' "
                            f"({expansion_result.total_terms} total terms)")
             except Exception as e:
-                logger.warning(f"Query expansion failed, using original query: {e}")
+                logger.warning("Query expansion failed, using original query: %s", e)
                 expanded_query = query
 
         # 1. Hybrid Retrieval (BM25 + Dense) with RRF
@@ -161,15 +161,15 @@ class HybridRetriever:
         final_rules = []
         for doc_id, score in sorted_reranked_docs:
             rule = self.rules[doc_id].copy()
-            rule['relevance_score'] = float(score)
+            rule["relevance_score"] = float(score)
 
             # Add expansion metadata if query expansion was used
             if expansion_result and self.use_query_expansion:
-                rule['query_expansion'] = {
-                    'original_query': expansion_result.original_query,
-                    'expanded_query': expanded_query,
-                    'expansion_sources': list(expansion_result.expansion_sources.keys()),
-                    'total_expansions': expansion_result.total_terms - 1
+                rule["query_expansion"] = {
+                    "original_query": expansion_result.original_query,
+                    "expanded_query": expanded_query,
+                    "expansion_sources": list(expansion_result.expansion_sources.keys()),
+                    "total_expansions": expansion_result.total_terms - 1,
                 }
 
             final_rules.append(rule)

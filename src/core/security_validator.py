@@ -1,5 +1,4 @@
-"""
-Security validation utilities for input sanitization and validation.
+"""Security validation utilities for input sanitization and validation.
 
 This module provides comprehensive security validation for user inputs,
 file uploads, and API parameters to prevent common security vulnerabilities.
@@ -44,14 +43,14 @@ class SecurityValidator:
 
     @staticmethod
     def validate_filename(filename: str) -> tuple[bool, str | None]:
-        """
-        Validate uploaded filename for security.
+        """Validate uploaded filename for security.
 
         Args:
             filename: The filename to validate
 
         Returns:
             Tuple of (is_valid, error_message)
+
         """
         if not filename:
             return False, "Filename is required"
@@ -64,7 +63,7 @@ class SecurityValidator:
 
         # Check for path traversal attempts
         if ".." in filename or "/" in filename or "\\" in filename:
-            logger.warning(f"Path traversal attempt detected in filename: {filename}")
+            logger.warning("Path traversal attempt detected in filename: %s", filename)
             return False, "Invalid filename: path traversal detected"
 
         # Validate file extension
@@ -91,14 +90,14 @@ class SecurityValidator:
 
     @staticmethod
     def validate_file_size(file_size: int) -> tuple[bool, str | None]:
-        """
-        Validate file size.
+        """Validate file size.
 
         Args:
             file_size: Size of file in bytes
 
         Returns:
             Tuple of (is_valid, error_message)
+
         """
         if file_size > SecurityValidator.MAX_FILE_SIZE_BYTES:
             return (
@@ -113,14 +112,14 @@ class SecurityValidator:
 
     @staticmethod
     def validate_discipline(discipline: str) -> tuple[bool, str | None]:
-        """
-        Validate discipline parameter.
+        """Validate discipline parameter.
 
         Args:
             discipline: The discipline to validate
 
         Returns:
             Tuple of (is_valid, error_message)
+
         """
         if not discipline:
             return False, "Discipline is required"
@@ -135,14 +134,14 @@ class SecurityValidator:
 
     @staticmethod
     def validate_analysis_mode(mode: str) -> tuple[bool, str | None]:
-        """
-        Validate analysis mode parameter.
+        """Validate analysis mode parameter.
 
         Args:
             mode: The analysis mode to validate
 
         Returns:
             Tuple of (is_valid, error_message)
+
         """
         if not mode:
             return False, "Analysis mode is required"
@@ -157,8 +156,7 @@ class SecurityValidator:
 
     @staticmethod
     def sanitize_text_input(text: str, max_length: int | None = None) -> str:
-        """
-        Sanitize text input to prevent XSS and injection attacks.
+        """Sanitize text input to prevent XSS and injection attacks.
 
         Args:
             text: The text to sanitize
@@ -166,6 +164,7 @@ class SecurityValidator:
 
         Returns:
             Sanitized text
+
         """
         if not text:
             return ""
@@ -179,7 +178,7 @@ class SecurityValidator:
         # Check for dangerous patterns
         for pattern in SecurityValidator.DANGEROUS_PATTERNS:
             if re.search(pattern, text, re.IGNORECASE):
-                logger.warning(f"Dangerous pattern detected in input: {pattern}")
+                logger.warning("Dangerous pattern detected in input: %s", pattern)
                 # Remove the dangerous pattern
                 text = re.sub(pattern, "", text, flags=re.IGNORECASE)
 
@@ -187,14 +186,14 @@ class SecurityValidator:
 
     @staticmethod
     def validate_username(username: str) -> tuple[bool, str | None]:
-        """
-        Validate username for security and format.
+        """Validate username for security and format.
 
         Args:
             username: The username to validate
 
         Returns:
             Tuple of (is_valid, error_message)
+
         """
         if not username:
             return False, "Username is required"
@@ -216,14 +215,14 @@ class SecurityValidator:
 
     @staticmethod
     def validate_password_strength(password: str) -> tuple[bool, str | None]:
-        """
-        Validate password strength.
+        """Validate password strength.
 
         Args:
             password: The password to validate
 
         Returns:
             Tuple of (is_valid, error_message)
+
         """
         if not password:
             return False, "Password is required"
@@ -251,14 +250,14 @@ class SecurityValidator:
 
     @staticmethod
     def sanitize_filename(filename: str) -> str:
-        """
-        Sanitize filename to prevent security issues.
+        """Sanitize filename to prevent security issues.
 
         Args:
             filename: The filename to sanitize
 
         Returns:
             Sanitized filename
+
         """
         # Get just the filename without path
         safe_name = Path(filename).name

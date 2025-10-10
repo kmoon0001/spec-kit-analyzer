@@ -33,7 +33,7 @@ class AnalysisStarterWorker(QObject):
                         files=files,
                         data=self.data,
                         headers=headers,
-                        timeout=120.0  # Increased timeout for file upload and task creation
+                        timeout=120.0,  # Increased timeout for file upload and task creation
                     )
             response.raise_for_status()
             task_id = response.json()["task_id"]
@@ -44,7 +44,7 @@ class AnalysisStarterWorker(QObject):
             if e.response is not None:
                 try:
                     error_detail = e.response.json().get("detail", str(e))
-                except Exception:
+                except (TypeError, ValueError, json.JSONDecodeError):
                     pass
             self.error.emit(f"Failed to start analysis: {error_detail}")
         except Exception as e:

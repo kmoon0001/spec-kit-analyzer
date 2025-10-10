@@ -1,5 +1,4 @@
-"""
-Performance Monitoring System
+"""Performance Monitoring System
 
 Comprehensive performance monitoring and metrics collection for all system components.
 Provides real-time insights into system health, performance bottlenecks, and optimization opportunities.
@@ -23,6 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PerformanceMetric:
     """Individual performance metric data point."""
+
     timestamp: datetime
     component: str
     operation: str
@@ -36,6 +36,7 @@ class PerformanceMetric:
 @dataclass
 class SystemHealth:
     """System health snapshot."""
+
     timestamp: datetime
     cpu_usage: float
     memory_usage: float
@@ -47,8 +48,7 @@ class SystemHealth:
 
 
 class PerformanceMonitor:
-    """
-    Comprehensive performance monitoring system.
+    """Comprehensive performance monitoring system.
 
     This system provides:
     - Real-time performance metrics collection
@@ -71,6 +71,7 @@ class PerformanceMonitor:
         ...     generate_pdf_report()
         >>> health = monitor.get_system_health()
         >>> print(f"System health: {health.cpu_usage}% CPU")
+
     """
 
     def __init__(self, max_metrics_history: int = 10000):
@@ -90,8 +91,7 @@ class PerformanceMonitor:
         logger.info("Performance monitoring system initialized")
 
     def track_operation(self, component: str, operation: str, metadata: dict[str, Any] | None = None):
-        """
-        Context manager for tracking operation performance.
+        """Context manager for tracking operation performance.
 
         Args:
             component: Component name (e.g., "pdf_export", "ai_analysis")
@@ -101,6 +101,7 @@ class PerformanceMonitor:
         Example:
             >>> with monitor.track_operation("ai_analysis", "compliance_check"):
             ...     result = analyze_compliance(document)
+
         """
         return OperationTracker(self, component, operation, metadata or {})
 
@@ -110,8 +111,7 @@ class PerformanceMonitor:
                                   func: Callable,
                                   *args,
                                   **kwargs) -> Any:
-        """
-        Track an async operation and return its result.
+        """Track an async operation and return its result.
 
         Args:
             component: Component name
@@ -122,6 +122,7 @@ class PerformanceMonitor:
 
         Returns:
             Result of the function execution
+
         """
         start_time = time.time()
         start_memory = self._get_memory_usage()
@@ -133,7 +134,7 @@ class PerformanceMonitor:
             "component": component,
             "operation": operation,
             "start_time": start_time,
-            "start_memory": start_memory
+            "start_memory": start_memory,
         }
 
         try:
@@ -161,7 +162,7 @@ class PerformanceMonitor:
                 memory_usage_mb=end_memory - start_memory,
                 cpu_usage_percent=(end_cpu + start_cpu) / 2,
                 success=success,
-                metadata=kwargs.get('metadata', {})
+                metadata=kwargs.get("metadata", {}),
             )
 
             # Store metric
@@ -177,8 +178,7 @@ class PerformanceMonitor:
                      duration_ms: float,
                      success: bool = True,
                      metadata: dict[str, Any] | None = None):
-        """
-        Manually record a performance metric.
+        """Manually record a performance metric.
 
         Args:
             component: Component name
@@ -186,6 +186,7 @@ class PerformanceMonitor:
             duration_ms: Operation duration in milliseconds
             success: Whether the operation was successful
             metadata: Additional metadata
+
         """
         metric = PerformanceMetric(
             timestamp=datetime.now(),
@@ -195,7 +196,7 @@ class PerformanceMonitor:
             memory_usage_mb=self._get_memory_usage(),
             cpu_usage_percent=self._get_cpu_usage(),
             success=success,
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         self._store_metric(metric)
@@ -222,12 +223,11 @@ class PerformanceMonitor:
             active_threads=threading.active_count(),
             response_time_avg=avg_response_time,
             error_rate=error_rate,
-            throughput=throughput
+            throughput=throughput,
         )
 
     def get_component_performance(self, component: str, hours: int = 24) -> dict[str, Any]:
-        """
-        Get performance statistics for a specific component.
+        """Get performance statistics for a specific component.
 
         Args:
             component: Component name
@@ -235,6 +235,7 @@ class PerformanceMonitor:
 
         Returns:
             Dict containing performance statistics
+
         """
         cutoff_time = datetime.now() - timedelta(hours=hours)
         component_metrics = [
@@ -251,7 +252,7 @@ class PerformanceMonitor:
                 "min_duration_ms": 0.0,
                 "max_duration_ms": 0.0,
                 "avg_memory_usage_mb": 0.0,
-                "operations_per_hour": 0.0
+                "operations_per_hour": 0.0,
             }
 
         successful_ops = [m for m in component_metrics if m.success]
@@ -269,18 +270,18 @@ class PerformanceMonitor:
             "operations_per_hour": len(component_metrics) / hours,
             "error_count": len(component_metrics) - len(successful_ops),
             "p95_duration_ms": self._calculate_percentile(durations, 95),
-            "p99_duration_ms": self._calculate_percentile(durations, 99)
+            "p99_duration_ms": self._calculate_percentile(durations, 99),
         }
 
     def get_performance_trends(self, hours: int = 24) -> dict[str, Any]:
-        """
-        Get performance trends over time.
+        """Get performance trends over time.
 
         Args:
             hours: Number of hours to analyze
 
         Returns:
             Dict containing trend analysis
+
         """
         cutoff_time = datetime.now() - timedelta(hours=hours)
         recent_metrics = [m for m in self.metrics_history if m.timestamp > cutoff_time]
@@ -304,23 +305,23 @@ class PerformanceMonitor:
                 "operation_count": len(metrics),
                 "avg_duration_ms": avg_duration,
                 "success_rate": success_rate,
-                "throughput": len(metrics)
+                "throughput": len(metrics),
             })
 
         return {
             "trends": trends,
-            "summary": f"Analyzed {len(recent_metrics)} operations over {hours} hours"
+            "summary": f"Analyzed {len(recent_metrics)} operations over {hours} hours",
         }
 
     def get_bottlenecks(self, threshold_ms: float = 1000.0) -> list[dict[str, Any]]:
-        """
-        Identify performance bottlenecks.
+        """Identify performance bottlenecks.
 
         Args:
             threshold_ms: Duration threshold for identifying slow operations
 
         Returns:
             List of bottleneck information
+
         """
         recent_metrics = [m for m in self.metrics_history if m.timestamp > datetime.now() - timedelta(hours=1)]
         slow_operations = [m for m in recent_metrics if m.duration_ms > threshold_ms]
@@ -340,7 +341,7 @@ class PerformanceMonitor:
                 "avg_duration_ms": avg_duration,
                 "max_duration_ms": max(m.duration_ms for m in metrics),
                 "impact_score": len(metrics) * avg_duration,  # Simple impact calculation
-                "recommendations": self._get_optimization_recommendations(operation, avg_duration)
+                "recommendations": self._get_optimization_recommendations(operation, avg_duration),
             })
 
         # Sort by impact score
@@ -362,18 +363,18 @@ class PerformanceMonitor:
 
         # Duration alert
         if metric.duration_ms > thresholds.get("max_duration_ms", 5000):
-            logger.warning(f"Performance alert: {metric.component}.{metric.operation} took {metric.duration_ms:.1f}ms")
+            logger.warning("Performance alert: %s.{metric.operation} took {metric.duration_ms}ms", metric.component)
 
         # Memory alert
         if metric.memory_usage_mb > thresholds.get("max_memory_mb", 100):
-            logger.warning(f"Memory alert: {metric.component}.{metric.operation} used {metric.memory_usage_mb:.1f}MB")
+            logger.warning("Memory alert: %s.{metric.operation} used {metric.memory_usage_mb}MB", metric.component)
 
         # Error rate alert
         component_recent = [m for m in self.component_metrics[metric.component][-10:]]
         if len(component_recent) >= 5:
             error_rate = sum(1 for m in component_recent if not m.success) / len(component_recent)
             if error_rate > thresholds.get("max_error_rate", 0.1):
-                logger.error(f"Error rate alert: {metric.component} has {error_rate:.1%} error rate")
+                logger.error("Error rate alert: %s has {error_rate * 100} error rate", metric.component)
 
     def _background_monitoring(self):
         """Background thread for continuous system monitoring."""
@@ -384,19 +385,19 @@ class PerformanceMonitor:
 
                 # Check system-level alerts
                 if health.cpu_usage > 90:
-                    logger.warning(f"High CPU usage: {health.cpu_usage:.1f}%")
+                    logger.warning("High CPU usage: %s%", health.cpu_usage)
 
                 if health.memory_usage > 90:
-                    logger.warning(f"High memory usage: {health.memory_usage:.1f}%")
+                    logger.warning("High memory usage: %s%", health.memory_usage)
 
                 if health.error_rate > 0.1:
-                    logger.warning(f"High error rate: {health.error_rate:.1%}")
+                    logger.warning("High error rate: %s", health.error_rate * 100)
 
                 # Sleep for monitoring interval
                 time.sleep(30)  # Monitor every 30 seconds
 
             except Exception as e:
-                logger.error(f"Background monitoring error: {e}")
+                logger.exception("Background monitoring error: %s", e)
                 time.sleep(60)  # Wait longer on error
 
     def _get_memory_usage(self) -> float:
@@ -414,7 +415,7 @@ class PerformanceMonitor:
 
     def _get_disk_usage(self) -> float:
         """Get disk usage percentage."""
-        return psutil.disk_usage('/').percent
+        return psutil.disk_usage("/").percent
 
     def _calculate_percentile(self, values: list[float], percentile: int) -> float:
         """Calculate percentile value."""
@@ -433,25 +434,25 @@ class PerformanceMonitor:
             recommendations.extend([
                 "Consider reducing PDF complexity or size",
                 "Implement PDF generation caching",
-                "Use background processing for large reports"
+                "Use background processing for large reports",
             ])
         elif "ai_analysis" in operation:
             recommendations.extend([
                 "Optimize document chunking strategy",
                 "Implement result caching for similar documents",
-                "Consider using smaller AI models for faster processing"
+                "Consider using smaller AI models for faster processing",
             ])
         elif "database" in operation:
             recommendations.extend([
                 "Add database indexes for frequently queried fields",
                 "Implement query result caching",
-                "Consider database connection pooling"
+                "Consider database connection pooling",
             ])
         else:
             recommendations.extend([
                 "Profile the operation to identify bottlenecks",
                 "Consider implementing caching",
-                "Optimize algorithm complexity"
+                "Optimize algorithm complexity",
             ])
 
         return recommendations
@@ -462,23 +463,23 @@ class PerformanceMonitor:
             "pdf_export": {
                 "max_duration_ms": 10000,  # 10 seconds
                 "max_memory_mb": 200,
-                "max_error_rate": 0.05
+                "max_error_rate": 0.05,
             },
             "ai_analysis": {
                 "max_duration_ms": 30000,  # 30 seconds
                 "max_memory_mb": 500,
-                "max_error_rate": 0.1
+                "max_error_rate": 0.1,
             },
             "database": {
                 "max_duration_ms": 1000,   # 1 second
                 "max_memory_mb": 50,
-                "max_error_rate": 0.01
+                "max_error_rate": 0.01,
             },
             "ehr_integration": {
                 "max_duration_ms": 15000,  # 15 seconds
                 "max_memory_mb": 100,
-                "max_error_rate": 0.05
-            }
+                "max_error_rate": 0.05,
+            },
         }
 
 
@@ -516,7 +517,7 @@ class OperationTracker:
             memory_usage_mb=end_memory - self.start_memory,
             cpu_usage_percent=(end_cpu + self.start_cpu) / 2,
             success=success,
-            metadata=self.metadata
+            metadata=self.metadata,
         )
 
         self.monitor._store_metric(metric)

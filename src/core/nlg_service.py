@@ -8,17 +8,16 @@ logger = logging.getLogger(__name__)
 
 
 class NLGService:
-    """
-    A service for generating Natural Language content, such as personalized tips.
+    """A service for generating Natural Language content, such as personalized tips.
     """
 
     def __init__(self, llm_service: LLMService, prompt_template_path: str):
-        """
-        Initializes the NLGService.
+        """Initializes the NLGService.
 
         Args:
             llm_service: An instance of the LLMService to use for generation.
             prompt_template_path: The path to the prompt template for generating tips.
+
         """
         self.llm_service = llm_service
         # Extract just the filename from the path for PromptManager
@@ -27,14 +26,14 @@ class NLGService:
         self.prompt_manager = PromptManager(template_name=template_name)
 
     def generate_personalized_tip(self, finding: dict[str, Any]) -> str:
-        """
-        Generates a personalized improvement tip for a given compliance finding.
+        """Generates a personalized improvement tip for a given compliance finding.
 
         Args:
             finding: A dictionary representing a single compliance finding.
 
         Returns:
             A string containing the generated tip.
+
         """
         if not self.llm_service.is_ready():
             logger.warning("LLM not available, returning generic tip.")
@@ -56,6 +55,6 @@ class NLGService:
             return generated_tip.strip()
 
         except Exception as e:
-            logger.error(f"Error generating personalized tip: {e}")
+            logger.exception("Error generating personalized tip: %s", e)
             # Fallback to the original suggestion if generation fails
             return finding.get("suggestion", "Error generating tip.")

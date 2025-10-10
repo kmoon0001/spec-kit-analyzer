@@ -10,8 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class EmbeddingService:
-    """
-    A thread-safe, lazy-loading service for generating sentence embeddings.
+    """A thread-safe, lazy-loading service for generating sentence embeddings.
 
     This service manages a SentenceTransformer model, ensuring it is only loaded
     into memory when first needed. This is crucial for optimizing memory usage,
@@ -22,11 +21,11 @@ class EmbeddingService:
     _lock = Lock()
 
     def __init__(self, model_name: str | None = None):
-        """
-        Initializes the EmbeddingService configuration.
+        """Initializes the EmbeddingService configuration.
 
         Args:
             model_name (str | None): The name of the SentenceTransformer model to use.
+
         """
         settings = get_settings()
         default_model = getattr(settings.retrieval, "dense_model_name", None)
@@ -65,8 +64,7 @@ class EmbeddingService:
                 self._load_model()
 
     def generate_embedding(self, text: str) -> Any:
-        """
-        Generates an embedding for the given text.
+        """Generates an embedding for the given text.
 
         The model is loaded on the first call to this method.
 
@@ -75,11 +73,12 @@ class EmbeddingService:
 
         Returns:
             The embedding vector, or None if the model failed to load.
+
         """
         self._ensure_model_loaded()
         if not self._model:
             logger.error(
-                "Sentence transformer model is not available. Cannot generate embedding."
+                "Sentence transformer model is not available. Cannot generate embedding.",
             )
             return None
 
@@ -87,6 +86,6 @@ class EmbeddingService:
             return self._model.encode(text)
         except Exception as e:
             logger.error(
-                "An error occurred during embedding generation: %s", e, exc_info=True
+                "An error occurred during embedding generation: %s", e, exc_info=True,
             )
             return None

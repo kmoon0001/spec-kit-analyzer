@@ -37,13 +37,13 @@ class RuleLoader:
             try:
                 rules.append(self._create_rule_from_graph(graph, subject, default_ns))  # type: ignore[arg-type]
             except Exception as exc:  # pragma: no cover - defensive
-                logger.error(
-                    "Failed to parse rule %s in %s: %s", subject, filepath, exc
+                logger.exception(
+                    "Failed to parse rule %s in %s: %s", subject, filepath, exc,
                 )
         return rules
 
     def _create_rule_from_graph(
-        self, graph: Graph, rule_uri: URIRef, default_ns: str
+        self, graph: Graph, rule_uri: URIRef, default_ns: str,
     ) -> ComplianceRule:
         def literal(predicate: str) -> str | None:
             value = graph.value(rule_uri, URIRef(default_ns + predicate))

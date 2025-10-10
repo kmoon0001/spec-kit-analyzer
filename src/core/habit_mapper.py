@@ -1,8 +1,7 @@
 
 
 def get_habit_for_finding(finding: dict) -> dict:
-    """
-    Maps a compliance finding to one of the 7 Habits and provides an explanation.
+    """Maps a compliance finding to one of the 7 Habits and provides an explanation.
 
     This is a simplified rule-based mapper. A more advanced version could use
     the AI to generate this mapping dynamically.

@@ -1,5 +1,4 @@
-"""
-Centralized exception handling for the Therapy Compliance Analyzer.
+"""Centralized exception handling for the Therapy Compliance Analyzer.
 
 This module defines custom exception classes and error handling utilities
 to provide consistent error management across the application.

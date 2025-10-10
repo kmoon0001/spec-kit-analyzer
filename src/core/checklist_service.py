@@ -21,6 +21,7 @@ class ChecklistItem:
         optional: Whether this item is optional or required for compliance
         discipline_specific: Optional discipline (PT, OT, SLP) if item is specific
         doc_types: Optional list of document types this item applies to
+
     """
 
     identifier: str
@@ -271,7 +272,7 @@ class DeterministicChecklistService:
         return "\n".join(lines)
 
     def _filter_applicable_checks(
-        self, doc_type: str | None, discipline: str | None
+        self, doc_type: str | None, discipline: str | None,
     ) -> list[ChecklistItem]:
         """Filter checklist items based on document type and discipline.
 
@@ -281,6 +282,7 @@ class DeterministicChecklistService:
 
         Returns:
             List of applicable checklist items
+
         """
         applicable_checks = []
 
@@ -317,6 +319,7 @@ class DeterministicChecklistService:
         Returns:
             List of dictionaries containing checklist results with status,
             evidence, and recommendations for each applicable item.
+
         """
         document_text = document_text or ""
 
@@ -343,7 +346,7 @@ class DeterministicChecklistService:
         results: list[dict[str, str]] = []
         for item in applicable_checks:
             evidence_sentence = self._locate_sentence(
-                sentences, sentences_lower, item.keywords
+                sentences, sentences_lower, item.keywords,
             )
             status = "pass" if evidence_sentence else "review"
             results.append(
@@ -355,7 +358,7 @@ class DeterministicChecklistService:
                     "recommendation": item.recommendation,
                     "optional": "yes" if item.optional else "no",
                     "discipline": item.discipline_specific or "all",
-                }
+                },
             )
         return results
 
@@ -367,7 +370,7 @@ class DeterministicChecklistService:
         return [sent.strip() for sent in sentences if sent.strip()]
 
     def get_checklist_summary(
-        self, discipline: str | None = None, doc_type: str | None = None
+        self, discipline: str | None = None, doc_type: str | None = None,
     ) -> dict[str, int]:
         """Get a summary of checklist items by category.
 
@@ -377,6 +380,7 @@ class DeterministicChecklistService:
 
         Returns:
             Dictionary with counts of required, optional, and total items
+
         """
         applicable_checks = self._filter_applicable_checks(doc_type, discipline)
 
@@ -394,7 +398,7 @@ class DeterministicChecklistService:
 
     @staticmethod
     def _locate_sentence(
-        sentences: list[str], sentences_lower: list[str], keywords: Iterable[str]
+        sentences: list[str], sentences_lower: list[str], keywords: Iterable[str],
     ) -> str | None:
         """Locate the first sentence containing any of the specified keywords."""
         keyword_set = [kw.lower() for kw in keywords]

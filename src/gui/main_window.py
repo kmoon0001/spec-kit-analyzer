@@ -156,7 +156,7 @@ class MainApplicationWindow(QMainWindow):
         self.konami_code = [
             Qt.Key.Key_Up, Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Down,
             Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Left, Qt.Key.Key_Right,
-            Qt.Key.Key_B, Qt.Key.Key_A
+            Qt.Key.Key_B, Qt.Key.Key_A,
         ]
         self.developer_mode = False
         self.is_testing = False
@@ -406,7 +406,7 @@ class MainApplicationWindow(QMainWindow):
             self.view_model.settings_loaded.connect(self.settings_editor.set_settings)
         self.view_model.analysis_result_received.connect(self.analysis_handlers.handle_analysis_success)
         self.view_model.rubrics_loaded.connect(self._on_rubrics_loaded)
-        if hasattr(self, 'dashboard_widget') and self.dashboard_widget:
+        if hasattr(self, "dashboard_widget") and self.dashboard_widget:
             self.view_model.dashboard_data_loaded.connect(self.dashboard_widget.load_data)
         if MetaAnalyticsWidget and self.meta_widget:
             self.view_model.meta_analytics_loaded.connect(self.meta_widget.update_data)
@@ -458,7 +458,7 @@ class MainApplicationWindow(QMainWindow):
 
     def _load_default_rubrics(self) -> None:
         """Load default rubrics immediately as fallback."""
-        if hasattr(self, 'rubric_selector') and self.rubric_selector:
+        if hasattr(self, "rubric_selector") and self.rubric_selector:
             self.rubric_selector.clear()
 
             # Add comprehensive default Medicare rubrics
@@ -525,7 +525,7 @@ class MainApplicationWindow(QMainWindow):
             memory_mb = memory.used // (1024 * 1024)
             memory_percent = memory.percent
 
-            resource_text = f"💻 CPU: {cpu_percent:.1f}% | RAM: {memory_mb}MB ({memory_percent:.1f}%)"
+            resource_text = f"💻 CPU: {cpu_percent}% | RAM: {memory_mb}MB ({memory_percent}%)"
             self.resource_label.setText(resource_text)
 
             # Change color based on usage
@@ -541,7 +541,7 @@ class MainApplicationWindow(QMainWindow):
         except Exception as e:
             if self.resource_label:
                 self.resource_label.setText("💻 Resource info unavailable")
-                self.resource_label.setToolTip(f"Error getting resource info: {str(e)}")
+                self.resource_label.setToolTip(f"Error getting resource info: {e!s}")
 
     def _save_gui_settings(self) -> None:
         """Save GUI settings including window geometry, theme, and preferences."""
@@ -693,7 +693,7 @@ class MainApplicationWindow(QMainWindow):
         super().keyPressEvent(event)
 
         # Initialize konami sequence if not exists
-        if not hasattr(self, 'konami_sequence'):
+        if not hasattr(self, "konami_sequence"):
             self.konami_sequence = []
 
         # Track konami code
@@ -725,7 +725,7 @@ class MainApplicationWindow(QMainWindow):
             "• Secret keyboard shortcuts active\n\n"
             "Welcome to the inner circle! 🕵️‍♂️\n\n"
             "Created with ❤️ by Kevin Moon\n"
-            "For all the amazing therapists out there!"
+            "For all the amazing therapists out there!",
         )
 
         self.developer_mode = True
@@ -743,12 +743,12 @@ class MainApplicationWindow(QMainWindow):
             "while staying compliant with all those tricky regulations.\n\n"
             "Remember: You're making a real difference in people's lives! 💪\n\n"
             "Keep being awesome! 🌟\n\n"
-            "- Kevin 🫶"
+            "- Kevin 🫶",
         )
 
     def _show_developer_console(self) -> None:
         """Show developer console dialog."""
-        if not hasattr(self, 'developer_mode') or not self.developer_mode:
+        if not hasattr(self, "developer_mode") or not self.developer_mode:
             QMessageBox.warning(self, "Access Denied", "Developer console requires Konami code activation!")
             return
 
@@ -781,7 +781,7 @@ This console is only available in developer mode! 🎮
         """Handle window resize events with responsive scaling."""
         super().resizeEvent(event)
 
-        if hasattr(self, 'tab_widget') and self.tab_widget:
+        if hasattr(self, "tab_widget") and self.tab_widget:
             self.tab_widget.updateGeometry()
 
 

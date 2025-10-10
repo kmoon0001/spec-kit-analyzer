@@ -32,8 +32,7 @@ class CorrelationIdMiddleware:
 
 
 def setup_logging():
-    """
-    Configures structured logging using structlog.
+    """Configures structured logging using structlog.
     This setup ensures that all logs are in JSON format, which is ideal for
     production environments and log analysis platforms.
     """

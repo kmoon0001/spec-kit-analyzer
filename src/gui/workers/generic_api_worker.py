@@ -1,5 +1,4 @@
-"""
-Generic QThread workers for making API calls and handling background tasks.
+"""Generic QThread workers for making API calls and handling background tasks.
 """
 from __future__ import annotations
 
@@ -20,6 +19,7 @@ WS_URL = API_URL.replace("http", "ws")
 
 class FeedbackWorker(QThread):
     """Worker to submit feedback to the API."""
+
     success = Signal(str)
     error = Signal(str)
 
@@ -42,8 +42,7 @@ class FeedbackWorker(QThread):
 
 
 class GenericApiWorker(QThread):
-    """
-    A worker that fetches data from a specified API endpoint.
+    """A worker that fetches data from a specified API endpoint.
     """
 
     success = Signal(object)
@@ -65,15 +64,14 @@ class GenericApiWorker(QThread):
             self.success.emit(data)
         except requests.HTTPError as e:
             self.error.emit(
-                f"API error: {e.response.status_code} for {self.endpoint}"
+                f"API error: {e.response.status_code} for {self.endpoint}",
             )
         except requests.RequestException as e:
             self.error.emit(f"Network error for {self.endpoint}: {e}")
 
 
 class HealthCheckWorker(QThread):
-    """
-    A worker that periodically checks the API's /health endpoint.
+    """A worker that periodically checks the API's /health endpoint.
     """
 
     status_update = Signal(str, str)  # status, color
@@ -102,8 +100,7 @@ class HealthCheckWorker(QThread):
 
 
 class TaskMonitorWorker(QThread):
-    """
-    A worker that periodically fetches the list of all tasks.
+    """A worker that periodically fetches the list of all tasks.
     """
 
     tasks_updated = Signal(dict)
@@ -135,9 +132,9 @@ class TaskMonitorWorker(QThread):
 
 
 class LogStreamWorker(QThread):
+    """A worker that connects to the log streaming WebSocket.
     """
-    A worker that connects to the log streaming WebSocket.
-    """
+
     new_log_message = Signal(str)
     error = Signal(str)
 

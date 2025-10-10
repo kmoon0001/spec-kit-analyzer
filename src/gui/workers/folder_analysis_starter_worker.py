@@ -11,8 +11,7 @@ API_URL = settings.paths.api_url
 
 
 class FolderAnalysisStarterWorker(QObject):
-    """
-    A one-shot worker to start the folder analysis on the backend without freezing the UI.
+    """A one-shot worker to start the folder analysis on the backend without freezing the UI.
     """
 
     success = Signal(str)  # Emits the task_id on success # type: ignore[attr-defined]

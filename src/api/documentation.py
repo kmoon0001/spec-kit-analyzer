@@ -1,5 +1,4 @@
-"""
-API Documentation configuration and setup.
+"""API Documentation configuration and setup.
 Provides comprehensive API documentation with examples and security schemes.
 """
 
@@ -22,11 +21,11 @@ DOCUMENTATION_CONFIG = {
 
 
 def setup_api_documentation(app: FastAPI) -> None:
-    """
-    Setup comprehensive API documentation for the application.
+    """Setup comprehensive API documentation for the application.
 
     Args:
         app: FastAPI application instance
+
     """
 
     # Set custom OpenAPI schema
@@ -80,7 +79,7 @@ def _add_security_schemes(schema: dict[str, Any]) -> None:
             "scheme": "bearer",
             "bearerFormat": "JWT",
             "description": "JWT token obtained from /auth/login endpoint",
-        }
+        },
     }
 
     # Add security requirements to protected endpoints
@@ -163,9 +162,9 @@ def _add_response_examples(schema: dict[str, Any]) -> None:
                                     "example": "pt_compliance_v1",
                                 },
                             },
-                        }
-                    }
-                }
+                        },
+                    },
+                },
             }
 
 

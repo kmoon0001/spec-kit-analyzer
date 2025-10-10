@@ -6,19 +6,18 @@ logger = logging.getLogger(__name__)
 
 
 class PromptManager:
-    """
-    Manages loading and formatting of prompt templates from the resources directory.
+    """Manages loading and formatting of prompt templates from the resources directory.
     """
 
     def __init__(self, template_name: str):
-        """
-        Initializes the PromptManager by loading a specific prompt template.
+        """Initializes the PromptManager by loading a specific prompt template.
 
         Args:
             template_name: The filename of the prompt template in the prompts directory.
+
         """
         prompts_dir = os.path.join(
-            os.path.dirname(__file__), "..", "resources", "prompts"
+            os.path.dirname(__file__), "..", "resources", "prompts",
         )
         self.template_path = os.path.join(prompts_dir, template_name)
         self.template_string = self._load_template()
@@ -33,19 +32,19 @@ class PromptManager:
             return f.read()
 
     def get_prompt(self, **kwargs: Any) -> str:
-        """
-        Formats the loaded prompt template with the given keyword arguments.
+        """Formats the loaded prompt template with the given keyword arguments.
 
         Args:
             **kwargs: The variables to substitute into the prompt template.
 
         Returns:
             The formatted prompt string.
+
         """
         try:
             return self.template_string.format(**kwargs)
         except KeyError as e:
-            logger.error(
+            logger.exception(
                 "Missing variable in prompt template %s: %s",
                 self.template_path,
                 e,
@@ -53,13 +52,13 @@ class PromptManager:
             raise
 
     def build_prompt(self, **kwargs: Any) -> str:
-        """
-        Alias for get_prompt to maintain backward compatibility.
+        """Alias for get_prompt to maintain backward compatibility.
 
         Args:
             **kwargs: The variables to substitute into the prompt template.
 
         Returns:
             The formatted prompt string.
+
         """
         return self.get_prompt(**kwargs)

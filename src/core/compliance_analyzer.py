@@ -1,5 +1,4 @@
-"""
-Compliance Analysis Engine for Clinical Documentation.
+"""Compliance Analysis Engine for Clinical Documentation.
 
 This module provides the core ComplianceAnalyzer class that orchestrates the analysis
 of clinical documents for regulatory compliance. It integrates multiple AI services
@@ -67,6 +66,7 @@ class ComplianceAnalyzer:
             nlg_service: An optional instance of NLGService for generating tips.
             deterministic_focus: Optional string for deterministic focus areas.
             confidence_calibrator: Optional ConfidenceCalibrator for improving confidence scores.
+
         """
         self.retriever = retriever
         self.ner_service = ner_service or ner_analyzer
@@ -84,13 +84,13 @@ class ComplianceAnalyzer:
                 "- Treatment frequency documented",
                 "- Goals reviewed or adjusted",
                 "- Medical necessity justified",
-            ]
+            ],
         )
         self.deterministic_focus = deterministic_focus or default_focus
 
         # Initialize confidence calibrator if not provided
         if self.confidence_calibrator is None:
-            self.confidence_calibrator = ConfidenceCalibrator(method='auto')
+            self.confidence_calibrator = ConfidenceCalibrator(method="auto")
             self._load_or_create_calibrator()
 
         logger.info("ComplianceAnalyzer initialized with all services.")
@@ -104,8 +104,8 @@ class ComplianceAnalyzer:
                 self.confidence_calibrator.load(calibrator_path)
                 logger.info("Loaded existing confidence calibrator")
             except Exception as e:
-                logger.warning(f"Failed to load calibrator: {e}. Will create new one.")
-                self.confidence_calibrator = ConfidenceCalibrator(method='auto')
+                logger.warning("Failed to load calibrator: %s. Will create new one.", e)
+                self.confidence_calibrator = ConfidenceCalibrator(method="auto")
         else:
             logger.info("No existing calibrator found. Will train on first batch of data.")
 
@@ -151,10 +151,10 @@ class ComplianceAnalyzer:
                     else:
                         finding.pop("is_low_confidence", None)
 
-            logger.debug(f"Calibrated confidence scores for {len(findings)} findings")
+            logger.debug("Calibrated confidence scores for %s findings", len(findings))
 
         except Exception as e:
-            logger.warning(f"Failed to calibrate confidence scores: {e}. Using raw scores.")
+            logger.warning("Failed to calibrate confidence scores: %s. Using raw scores.", e)
 
         return findings
 
@@ -165,6 +165,7 @@ class ComplianceAnalyzer:
             training_data: List of dictionaries containing:
                 - 'confidence': Original confidence score from LLM
                 - 'is_correct': Boolean indicating if the finding was correct
+
         """
         if not training_data:
             logger.warning("No training data provided for confidence calibrator")
@@ -176,12 +177,12 @@ class ComplianceAnalyzer:
             labels = []
 
             for item in training_data:
-                if 'confidence' in item and 'is_correct' in item:
-                    confidences.append(float(item['confidence']))
-                    labels.append(1 if item['is_correct'] else 0)
+                if "confidence" in item and "is_correct" in item:
+                    confidences.append(float(item["confidence"]))
+                    labels.append(1 if item["is_correct"] else 0)
 
             if len(confidences) < 10:
-                logger.warning(f"Insufficient training data ({len(confidences)} samples). Need at least 10.")
+                logger.warning("Insufficient training data (%s samples). Need at least 10.", len(confidences))
                 return
 
             # Train the calibrator
@@ -200,11 +201,11 @@ class ComplianceAnalyzer:
                 metrics = self.confidence_calibrator.get_calibration_metrics()
             else:
                 metrics = {}
-            logger.info(f"Confidence calibrator trained with {len(confidences)} samples")
-            logger.info(f"Calibration metrics: {metrics}")
+            logger.info("Confidence calibrator trained with %s samples", len(confidences))
+            logger.info("Calibration metrics: %s", metrics)
 
         except Exception as e:
-            logger.error(f"Failed to train confidence calibrator: {e}")
+            logger.exception("Failed to train confidence calibrator: %s", e)
 
     def get_calibration_metrics(self) -> dict[str, Any]:
         """Get calibration quality metrics."""
@@ -215,11 +216,11 @@ class ComplianceAnalyzer:
         return {
             "status": "fitted",
             "method": self.confidence_calibrator.method,
-            "metrics": metrics
+            "metrics": metrics,
         }
 
     async def analyze_document(
-        self, document_text: str, discipline: str, doc_type: str
+        self, document_text: str, discipline: str, doc_type: str,
     ) -> dict[str, Any]:
         """Analyzes a given document for compliance based on discipline and document type.
 
@@ -238,6 +239,7 @@ class ComplianceAnalyzer:
 
         Returns:
             A dictionary containing the comprehensive analysis result, including findings, explanations, and tips.
+
         """
         logger.info("Starting compliance analysis for document type: %s", doc_type)
 
@@ -246,15 +248,15 @@ class ComplianceAnalyzer:
             if self.ner_service:
                 entities = await asyncio.wait_for(
                     asyncio.to_thread(self.ner_service.extract_entities, document_text),
-                    timeout=30.0  # 30 second timeout for NER
+                    timeout=30.0,  # 30 second timeout for NER
                 )
             else:
                 entities = []
         except TimeoutError:
-            logger.error("NER extraction timed out after 30 seconds")
+            logger.exception("NER extraction timed out after 30 seconds")
             entities = []
         except Exception as e:
-            logger.error(f"NER extraction failed: {e}")
+            logger.exception("NER extraction failed: %s", e)
             entities = []
         entity_list_str = (
             ", ".join(
@@ -273,16 +275,16 @@ class ComplianceAnalyzer:
                     category_filter=discipline,
                     discipline=discipline,
                     document_type=doc_type,
-                    context_entities=[entity['word'] for entity in entities] if entities else None
+                    context_entities=[entity["word"] for entity in entities] if entities else None,
                 ),
-                timeout=60.0  # 1 minute timeout for rule retrieval
+                timeout=60.0,  # 1 minute timeout for rule retrieval
             )
             logger.info("Retrieved %d rules for analysis.", len(retrieved_rules))
         except TimeoutError:
-            logger.error("Rule retrieval timed out after 1 minute")
+            logger.exception("Rule retrieval timed out after 1 minute")
             retrieved_rules = []
         except Exception as e:
-            logger.error(f"Rule retrieval failed: {e}")
+            logger.exception("Rule retrieval failed: %s", e)
             retrieved_rules = []
 
         formatted_rules = self._format_rules_for_prompt(retrieved_rules)
@@ -307,10 +309,10 @@ class ComplianceAnalyzer:
                 # Add timeout to prevent hanging - use a much shorter timeout for testing
                 raw_analysis_result = await asyncio.wait_for(
                     asyncio.to_thread(self.llm_service.generate, prompt),
-                    timeout=30.0  # Reduced to 30 seconds for faster debugging
+                    timeout=30.0,  # Reduced to 30 seconds for faster debugging
                 )
             except TimeoutError:
-                logger.error("LLM generation timed out after 30 seconds - using fallback analysis")
+                logger.exception("LLM generation timed out after 30 seconds - using fallback analysis")
                 # Provide a basic fallback analysis when LLM times out
                 raw_analysis_result = '''{
                     "findings": [
@@ -328,7 +330,7 @@ class ComplianceAnalyzer:
                     "timeout": true
                 }'''
             except Exception as e:
-                logger.error(f"LLM generation failed: {e}")
+                logger.exception("LLM generation failed: %s", e)
                 # Provide a basic fallback analysis when LLM fails
                 raw_analysis_result = f'''{{
                     "findings": [
@@ -343,7 +345,7 @@ class ComplianceAnalyzer:
                         }}
                     ],
                     "summary": "Analysis failed but basic compliance check completed",
-                    "error": "{str(e)}",
+                    "error": "{e!s}",
                     "exception": true
                 }}'''
         else:
@@ -365,7 +367,7 @@ class ComplianceAnalyzer:
         try:
             initial_analysis = json.loads(raw_analysis_result)
         except json.JSONDecodeError:
-            logger.error("LLM returned non-JSON payload: %s", raw_analysis_result)
+            logger.exception("LLM returned non-JSON payload: %s", raw_analysis_result)
             initial_analysis = {"raw_output": raw_analysis_result}
 
         # Create explanation context with discipline and document type
@@ -379,7 +381,7 @@ class ComplianceAnalyzer:
 
         if self.explanation_engine:
             explained_analysis = self.explanation_engine.add_explanations(
-                initial_analysis, document_text, explanation_context, retrieved_rules
+                initial_analysis, document_text, explanation_context, retrieved_rules,
             )
         else:
             explained_analysis = initial_analysis
@@ -387,17 +389,17 @@ class ComplianceAnalyzer:
         # Apply confidence calibration before final post-processing
         if "findings" in explained_analysis and isinstance(explained_analysis["findings"], list):
             explained_analysis["findings"] = self._calibrate_confidence_scores(
-                explained_analysis["findings"]
+                explained_analysis["findings"],
             )
 
         final_analysis = await self._post_process_findings(
-            explained_analysis, retrieved_rules
+            explained_analysis, retrieved_rules,
         )
         logger.info("Compliance analysis complete.")
         return final_analysis
 
     async def _post_process_findings(
-        self, explained_analysis: dict[str, Any], retrieved_rules: list[dict[str, Any]]
+        self, explained_analysis: dict[str, Any], retrieved_rules: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """Post-processes the LLM-generated findings.
 
@@ -412,6 +414,7 @@ class ComplianceAnalyzer:
 
         Returns:
             The analysis result with post-processed findings.
+
         """
         findings = explained_analysis.get("findings")
         if not isinstance(findings, list):
@@ -420,11 +423,11 @@ class ComplianceAnalyzer:
         for finding in findings:
             rule_id = finding.get("rule_id")
             associated_rule = next(
-                (r for r in retrieved_rules if r.get("id") == rule_id), None
+                (r for r in retrieved_rules if r.get("id") == rule_id), None,
             )
 
             if associated_rule and self.fact_checker_service and not self.fact_checker_service.is_finding_plausible(
-                finding, associated_rule
+                finding, associated_rule,
             ):
                 finding["is_disputed"] = True
 
@@ -439,7 +442,7 @@ class ComplianceAnalyzer:
 
             if self.nlg_service:
                 tip = await asyncio.to_thread(
-                    self.nlg_service.generate_personalized_tip, finding
+                    self.nlg_service.generate_personalized_tip, finding,
                 )
                 finding["personalized_tip"] = tip
             else:
@@ -459,6 +462,7 @@ class ComplianceAnalyzer:
 
         Returns:
             A formatted string containing the rule names, details, and suggestions.
+
         """
         if not rules:
             return (

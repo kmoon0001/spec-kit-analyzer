@@ -28,6 +28,7 @@ class ComplianceService:
             rules: An optional iterable of ComplianceRule objects to use. If None, default rules are loaded.
             analysis_service: An optional analysis service instance to be used.
             **_unused: Unused keyword arguments.
+
         """
         provided_rules = list(rules or [])
         self.rules: list[ComplianceRule] = provided_rules or self._default_rules()
@@ -38,6 +39,7 @@ class ComplianceService:
 
         Returns:
             A list of dictionaries, each representing a compliance rule.
+
         """
         """Return available rules/rubrics for UI consumption."""
         return [asdict(rule) for rule in self.rules]
@@ -47,6 +49,7 @@ class ComplianceService:
 
         Returns:
             The analysis service instance, or None if not set.
+
         """
         """Expose the underlying analysis service when available."""
         return self.analysis_service
@@ -59,6 +62,7 @@ class ComplianceService:
 
         Returns:
             A ComplianceResult object containing the document and any compliance findings.
+
         """
         logger.info("Evaluating compliance for document %s", document.id)
         findings: list[ComplianceFinding] = []
@@ -74,7 +78,7 @@ class ComplianceService:
                         rule=rule,
                         text_snippet=self._build_snippet(rule),
                         risk_level=rule.severity,
-                    )
+                    ),
                 )
 
         result = ComplianceResult(
@@ -97,6 +101,7 @@ class ComplianceService:
 
         Returns:
             A list of default ComplianceRule objects.
+
         """
         """Load default Medicare Benefits Policy Manual compliance rules."""
         return [
@@ -197,6 +202,7 @@ class ComplianceService:
 
         Returns:
             True if the rule applies to the document's context, False otherwise.
+
         """
         # Check if rule applies to this discipline
         discipline_ok = (
@@ -222,6 +228,7 @@ class ComplianceService:
 
         Returns:
             True if any keyword is found in the text, False otherwise.
+
         """
         return any(keyword.lower() in text for keyword in keywords)
 
@@ -238,11 +245,12 @@ class ComplianceService:
 
         Returns:
             True if the rule is violated, False otherwise.
+
         """
         has_positive_context = True
         if rule.positive_keywords:
             has_positive_context = self._contains_any(
-                rule.positive_keywords, normalized_text
+                rule.positive_keywords, normalized_text,
             )
 
         if not has_positive_context:
@@ -263,14 +271,15 @@ class ComplianceService:
 
         Returns:
             A string snippet describing the violation.
+
         """
         if rule.negative_keywords:
             return "Required documentation terms were not detected: " + ", ".join(
-                rule.negative_keywords
+                rule.negative_keywords,
             )
         if rule.positive_keywords:
             return "Expected keywords were missing: " + ", ".join(
-                rule.positive_keywords
+                rule.positive_keywords,
             )
         return "Rule conditions not met by the document content."
 
@@ -283,6 +292,7 @@ class ComplianceService:
 
         Returns:
             A dictionary representation of the ComplianceResult.
+
         """
         document = asdict(result.document)
         findings = [

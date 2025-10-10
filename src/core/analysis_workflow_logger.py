@@ -1,5 +1,4 @@
-"""
-Analysis Workflow Logger - Comprehensive logging for analysis workflow debugging.
+"""Analysis Workflow Logger - Comprehensive logging for analysis workflow debugging.
 
 This module provides detailed logging capabilities to track each step of the
 document analysis process, helping identify where workflows fail or hang.
@@ -13,8 +12,7 @@ from typing import Any
 
 
 class AnalysisWorkflowLogger:
-    """
-    Comprehensive logger for analysis workflow debugging.
+    """Comprehensive logger for analysis workflow debugging.
 
     Tracks all steps of the analysis process including:
     - Analysis initiation
@@ -29,7 +27,7 @@ class AnalysisWorkflowLogger:
 
         # Create formatter for detailed logging
         formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
 
         # Add console handler if not already present
@@ -44,8 +42,7 @@ class AnalysisWorkflowLogger:
         self.session_start_time: float | None = None
 
     def log_analysis_start(self, file_path: str, rubric: str, user_id: str = "unknown") -> str:
-        """
-        Log the start of an analysis workflow.
+        """Log the start of an analysis workflow.
 
         Args:
             file_path: Path to the document being analyzed
@@ -54,6 +51,7 @@ class AnalysisWorkflowLogger:
 
         Returns:
             Session ID for tracking this analysis
+
         """
         session_id = f"analysis_{int(time.time())}"
         self.session_start_time = time.time()
@@ -66,25 +64,23 @@ class AnalysisWorkflowLogger:
             "rubric": rubric,
             "user_id": user_id,
             "start_time": datetime.now().isoformat(),
-            "steps": []
+            "steps": [],
         }
 
-        self.logger.info(
-            f"🚀 ANALYSIS STARTED - Session: {session_id} | "
-            f"File: {Path(file_path).name} ({self.current_session['file_size']} bytes) | "
-            f"Rubric: {rubric} | User: {user_id}"
+        self.logger.info("🚀 ANALYSIS STARTED - Session: %s | File: %s ({self.current_session[", session_id, Path(file_path).name, file_size']} bytes) | "
+            f"Rubric: {rubric} | User: {user_id}",
         )
 
         return session_id
 
     def log_api_request(self, endpoint: str, method: str = "POST", payload: dict | None = None) -> None:
-        """
-        Log API request details.
+        """Log API request details.
 
         Args:
             endpoint: API endpoint being called
             method: HTTP method (GET, POST, etc.)
             payload: Request payload (sensitive data will be sanitized)
+
         """
         if not self.current_session:
             self.logger.warning("API request logged without active session")
@@ -98,29 +94,27 @@ class AnalysisWorkflowLogger:
             "timestamp": datetime.now().isoformat(),
             "endpoint": endpoint,
             "method": method,
-            "payload_size": len(str(payload)) if payload else 0
+            "payload_size": len(str(payload)) if payload else 0,
         }
 
         self.current_session["steps"].append(step)
 
-        self.logger.info(
-            f"📤 API REQUEST - {method} {endpoint} | "
-            f"Payload size: {step['payload_size']} chars | "
-            f"Session: {self.current_session['session_id']}"
+        self.logger.info("📤 API REQUEST - %s {endpoint} | Payload size: %s chars | ", method, step['payload_size'], 
+            f"Session: {self.current_session['session_id']}",
         )
 
         if safe_payload:
-            self.logger.debug(f"Request payload: {safe_payload}")
+            self.logger.debug("Request payload: %s", safe_payload)
 
     def log_api_response(self, status_code: int, response: dict | None = None,
                         error: str | None = None) -> None:
-        """
-        Log API response details.
+        """Log API response details.
 
         Args:
             status_code: HTTP status code
             response: Response data
             error: Error message if request failed
+
         """
         if not self.current_session:
             self.logger.warning("API response logged without active session")
@@ -132,38 +126,34 @@ class AnalysisWorkflowLogger:
             "status_code": status_code,
             "success": 200 <= status_code < 300,
             "response_size": len(str(response)) if response else 0,
-            "error": error
+            "error": error,
         }
 
         self.current_session["steps"].append(step)
 
         if step["success"]:
-            self.logger.info(
-                f"✅ API RESPONSE - Status: {status_code} | "
-                f"Response size: {step['response_size']} chars | "
-                f"Session: {self.current_session['session_id']}"
+            self.logger.info("✅ API RESPONSE - Status: %s | Response size: %s chars | ", status_code, step['response_size'], 
+                f"Session: {self.current_session['session_id']}",
             )
 
             # Log task ID if present
             if response and "task_id" in response:
-                self.logger.info(f"📋 Task ID received: {response['task_id']}")
+                self.logger.info("📋 Task ID received: %s", response['task_id'])
         else:
-            self.logger.error(
-                f"❌ API ERROR - Status: {status_code} | "
-                f"Error: {error} | "
-                f"Session: {self.current_session['session_id']}"
+            self.logger.error("❌ API ERROR - Status: %s | Error: %s | ", status_code, error, 
+                f"Session: {self.current_session['session_id']}",
             )
 
     def log_polling_attempt(self, task_id: str, attempt: int, status: str | None = None,
                            progress: int | None = None) -> None:
-        """
-        Log polling attempt for analysis status.
+        """Log polling attempt for analysis status.
 
         Args:
             task_id: Analysis task ID being polled
             attempt: Polling attempt number
             status: Current analysis status
             progress: Analysis progress percentage
+
         """
         if not self.current_session:
             self.logger.warning("Polling attempt logged without active session")
@@ -175,28 +165,26 @@ class AnalysisWorkflowLogger:
             "task_id": task_id,
             "attempt": attempt,
             "status": status,
-            "progress": progress
+            "progress": progress,
         }
 
         self.current_session["steps"].append(step)
 
         elapsed = time.time() - self.session_start_time if self.session_start_time else 0
 
-        self.logger.info(
-            f"🔄 POLLING ATTEMPT #{attempt} - Task: {task_id[:8]}... | "
-            f"Status: {status} | Progress: {progress}% | "
-            f"Elapsed: {elapsed:.1f}s | Session: {self.current_session['session_id']}"
+        self.logger.info("🔄 POLLING ATTEMPT #%s - Task: {task_id[:8]}... | Status: %s | Progress: {progress}% | ", attempt, status, 
+            f"Elapsed: {elapsed}s | Session: {self.current_session['session_id']}",
         )
 
     def log_workflow_completion(self, success: bool, result: dict | None = None,
                                error: str | None = None) -> None:
-        """
-        Log workflow completion or failure.
+        """Log workflow completion or failure.
 
         Args:
             success: Whether the workflow completed successfully
             result: Analysis result data
             error: Error message if workflow failed
+
         """
         if not self.current_session:
             self.logger.warning("Workflow completion logged without active session")
@@ -210,33 +198,29 @@ class AnalysisWorkflowLogger:
             "success": success,
             "duration": duration,
             "result_size": len(str(result)) if result else 0,
-            "error": error
+            "error": error,
         }
 
         self.current_session["steps"].append(step)
 
         if success:
-            self.logger.info(
-                f"🎉 ANALYSIS COMPLETED - Duration: {duration:.1f}s | "
-                f"Result size: {step['result_size']} chars | "
-                f"Session: {self.current_session['session_id']}"
+            self.logger.info("🎉 ANALYSIS COMPLETED - Duration: %ss | Result size: %s chars | ", duration, step['result_size'], 
+                f"Session: {self.current_session['session_id']}",
             )
         else:
-            self.logger.error(
-                f"💥 ANALYSIS FAILED - Duration: {duration:.1f}s | "
-                f"Error: {error} | "
-                f"Session: {self.current_session['session_id']}"
+            self.logger.error("💥 ANALYSIS FAILED - Duration: %ss | Error: %s | ", duration, error, 
+                f"Session: {self.current_session['session_id']}",
             )
 
         # Log session summary
         self._log_session_summary()
 
     def log_workflow_timeout(self, timeout_seconds: float) -> None:
-        """
-        Log workflow timeout.
+        """Log workflow timeout.
 
         Args:
             timeout_seconds: Timeout threshold that was exceeded
+
         """
         if not self.current_session:
             self.logger.warning("Workflow timeout logged without active session")
@@ -244,10 +228,8 @@ class AnalysisWorkflowLogger:
 
         duration = time.time() - self.session_start_time if self.session_start_time else 0
 
-        self.logger.error(
-            f"⏰ ANALYSIS TIMEOUT - Duration: {duration:.1f}s | "
-            f"Timeout threshold: {timeout_seconds}s | "
-            f"Session: {self.current_session['session_id']}"
+        self.logger.error("⏰ ANALYSIS TIMEOUT - Duration: %ss | Timeout threshold: %ss | ", duration, timeout_seconds, 
+            f"Session: {self.current_session['session_id']}",
         )
 
         self._log_session_summary()
@@ -259,7 +241,7 @@ class AnalysisWorkflowLogger:
     def reset_session(self) -> None:
         """Reset current analysis session."""
         if self.current_session:
-            self.logger.debug(f"Resetting session: {self.current_session['session_id']}")
+            self.logger.debug("Resetting session: %s", self.current_session['session_id'])
 
         self.current_session = None
         self.session_start_time = None
@@ -268,7 +250,7 @@ class AnalysisWorkflowLogger:
         """Get file size safely."""
         try:
             return Path(file_path).stat().st_size
-        except Exception:
+        except (PermissionError, OSError, FileNotFoundError):
             return 0
 
     def _sanitize_payload(self, payload: dict) -> dict:
@@ -280,14 +262,14 @@ class AnalysisWorkflowLogger:
         safe_payload = payload.copy()
 
         # Remove or mask sensitive fields
-        sensitive_fields = ['password', 'token', 'key', 'secret', 'auth']
+        sensitive_fields = ["password", "token", "key", "secret", "auth"]
         for field in sensitive_fields:
             if field in safe_payload:
                 safe_payload[field] = "***REDACTED***"
 
         # Truncate large text fields
-        if 'content' in safe_payload and len(str(safe_payload['content'])) > 200:
-            safe_payload['content'] = str(safe_payload['content'])[:200] + "...[truncated]"
+        if "content" in safe_payload and len(str(safe_payload["content"])) > 200:
+            safe_payload["content"] = str(safe_payload["content"])[:200] + "...[truncated]"
 
         return safe_payload
 
@@ -306,10 +288,8 @@ class AnalysisWorkflowLogger:
 
         duration = time.time() - self.session_start_time if self.session_start_time else 0
 
-        self.logger.info(
-            f"📊 SESSION SUMMARY - {session['session_id']} | "
-            f"File: {session['file_name']} | Duration: {duration:.1f}s | "
-            f"Steps: {step_counts}"
+        self.logger.info("📊 SESSION SUMMARY - %s | File: %s | Duration: {duration}s | ", session['session_id'], session['file_name'], 
+            f"Steps: {step_counts}",
         )
 
 

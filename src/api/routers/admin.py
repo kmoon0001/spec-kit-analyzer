@@ -35,7 +35,7 @@ async def get_admin_dashboard(
 ):
     if not os.path.exists(ADMIN_HTML_PATH):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="admin.html not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="admin.html not found",
         )
     return FileResponse(ADMIN_HTML_PATH)
 
@@ -127,7 +127,7 @@ async def activate_user(
     db_user = await crud.get_user(db, user_id=user_id)
     if not db_user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found",
         )
 
     db_user.is_active = True
@@ -146,7 +146,7 @@ async def deactivate_user(
     db_user = await crud.get_user(db, user_id=user_id)
     if not db_user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found",
         )
 
     db_user.is_active = False

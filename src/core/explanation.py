@@ -1,5 +1,4 @@
-"""
-Enhanced explanation engine for clinical compliance analysis.
+"""Enhanced explanation engine for clinical compliance analysis.
 
 This module provides contextual explanations, regulatory citations, and actionable
 recommendations for compliance findings in therapy documentation. It enhances
@@ -25,8 +24,7 @@ class ExplanationContext:
 
 
 class ExplanationEngine:
-    """
-    Enhanced explanation engine for clinical compliance analysis.
+    """Enhanced explanation engine for clinical compliance analysis.
 
     Provides contextual explanations, regulatory citations, and actionable
     recommendations for compliance findings in therapy documentation.
@@ -47,8 +45,7 @@ class ExplanationEngine:
         context: ExplanationContext | None = None,
         retrieved_rules: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
-        """
-        Add comprehensive explanations to analysis findings.
+        """Add comprehensive explanations to analysis findings.
 
         Args:
             analysis_result: Raw analysis results with findings
@@ -57,9 +54,10 @@ class ExplanationEngine:
 retrieved_rules: List of compliance rules that were matched during analysis
         Returns:
             Enhanced analysis result with explanations and recommendations
+
         """
         if "findings" not in analysis_result or not isinstance(
-            analysis_result.get("findings"), list
+            analysis_result.get("findings"), list,
         ):
             logger.warning("No findings found in analysis result")
             return analysis_result
@@ -91,17 +89,17 @@ retrieved_rules: List of compliance rules that were matched during analysis
         # Add context snippet with improved window sizing
         if problematic_text:
             finding["context_snippet"] = self._get_context_snippet(
-                problematic_text, full_document_text
+                problematic_text, full_document_text,
             )
 
         # Add regulatory explanation
         finding["regulatory_explanation"] = self._generate_regulatory_explanation(
-            finding, context
+            finding, context,
         )
 
         # Add actionable recommendation
         finding["recommendation"] = self._generate_recommendation(
-            finding, context, retrieved_rules
+            finding, context, retrieved_rules,
         )
         # Add confidence with proper calculation (remove random generation)
         if "confidence" not in finding:
@@ -112,10 +110,10 @@ retrieved_rules: List of compliance rules that were matched during analysis
 
         # Add citation information
         finding["citation"] = self._get_regulatory_citation(
-            finding, context, retrieved_rules
+            finding, context, retrieved_rules,
         )
     def _generate_regulatory_explanation(
-        self, finding: dict[str, Any], context: ExplanationContext
+        self, finding: dict[str, Any], context: ExplanationContext,
     ) -> str:
         """Generate explanation of why this finding violates regulations."""
         issue_type = finding.get("issue_type", "compliance")
@@ -216,7 +214,7 @@ retrieved_rules: List of compliance rules that were matched during analysis
         )
 
     def _calculate_confidence(
-        self, finding: dict[str, Any], context: ExplanationContext
+        self, finding: dict[str, Any], context: ExplanationContext,
     ) -> float:
         """Calculate confidence score based on finding characteristics."""
         base_confidence = 0.85
@@ -366,7 +364,7 @@ retrieved_rules: List of compliance rules that were matched during analysis
             problematic_text = finding.get("text")
             if problematic_text:
                 finding["context_snippet"] = self._get_context_snippet(
-                    problematic_text, full_document_text
+                    problematic_text, full_document_text,
                 )
             if "confidence" not in finding:
                 # Use a deterministic confidence based on finding characteristics
@@ -382,10 +380,9 @@ retrieved_rules: List of compliance rules that were matched during analysis
 
     @staticmethod
     def _get_context_snippet(
-        text_to_find: str, full_text: str, window: int = 100
+        text_to_find: str, full_text: str, window: int = 100,
     ) -> str:
-        """
-        Extract context snippet around problematic text for better understanding.
+        """Extract context snippet around problematic text for better understanding.
 
         Args:
             text_to_find: The problematic text to locate
@@ -394,6 +391,7 @@ retrieved_rules: List of compliance rules that were matched during analysis
 
         Returns:
             Context snippet with the problematic text highlighted
+
         """
         try:
             if not text_to_find or not full_text:

@@ -1,5 +1,4 @@
-"""
-License Manager - Professional Trial Period and Licensing System
+"""License Manager - Professional Trial Period and Licensing System
 Following industry best practices for software licensing
 """
 
@@ -14,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class LicenseManager:
-    """
-    Professional license management system with trial period support.
+    """Professional license management system with trial period support.
 
     Features:
     - Secure trial period management
@@ -40,7 +38,7 @@ class LicenseManager:
             platform.processor(),
             str(uuid.getnode()),  # MAC address
             platform.system(),
-            platform.release()
+            platform.release(),
         ]
 
         # Create secure hash
@@ -58,34 +56,33 @@ class LicenseManager:
                 "trial_end": (datetime.now() + timedelta(days=self.trial_days)).isoformat(),
                 "hardware_id": self.get_hardware_fingerprint(),
                 "version": "1.0.0",
-                "status": "trial"
+                "status": "trial",
             }
 
             # Encrypt and save trial data
             encrypted_data = self._encrypt_license_data(trial_data)
-            with open(self.license_file, 'w') as f:
+            with open(self.license_file, "w") as f:
                 json.dump(encrypted_data, f)
 
             logger.info("Trial period initialized successfully")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to initialize trial: {e}")
+            logger.exception("Failed to initialize trial: %s", e)
             return False
 
     def check_license_status(self) -> tuple[bool, str, int | None]:
-        """
-        Check current license status.
+        """Check current license status.
 
         Returns:
             Tuple of (is_valid, status_message, days_remaining)
+
         """
         if not self.license_file.exists():
             # First run - initialize trial
             if self.initialize_trial():
                 return True, "Trial period started", self.trial_days
-            else:
-                return False, "Failed to initialize trial", None
+            return False, "Failed to initialize trial", None
 
         try:
             # Load and decrypt license data
@@ -113,22 +110,21 @@ class LicenseManager:
             if now <= trial_end:
                 days_remaining = (trial_end - now).days
                 return True, "Trial period active", days_remaining
-            else:
-                return False, "Trial period expired", 0
+            return False, "Trial period expired", 0
 
         except Exception as e:
-            logger.error(f"License check failed: {e}")
+            logger.exception("License check failed: %s", e)
             return False, "License verification failed", None
 
     def activate_full_license(self, activation_code: str) -> bool:
-        """
-        Activate full license with admin code.
+        """Activate full license with admin code.
 
         Args:
             activation_code: Secure activation code from admin
 
         Returns:
             True if activation successful
+
         """
         # Validate activation code (implement your own validation logic)
         if not self._validate_activation_code(activation_code):
@@ -147,19 +143,19 @@ class LicenseManager:
                 "status": "full",
                 "activation_date": datetime.now().isoformat(),
                 "activation_code": hashlib.sha256(activation_code.encode()).hexdigest(),
-                "hardware_id": self.get_hardware_fingerprint()
+                "hardware_id": self.get_hardware_fingerprint(),
             })
 
             # Save updated license
             encrypted_data = self._encrypt_license_data(license_data)
-            with open(self.license_file, 'w') as f:
+            with open(self.license_file, "w") as f:
                 json.dump(encrypted_data, f)
 
             logger.info("Full license activated successfully")
             return True
 
         except Exception as e:
-            logger.error(f"License activation failed: {e}")
+            logger.exception("License activation failed: %s", e)
             return False
 
     def _validate_activation_code(self, code: str) -> bool:
@@ -181,14 +177,14 @@ class LicenseManager:
             encrypted += chr(ord(char) ^ ord(key[i % len(key)]))
 
         return {
-            "data": encrypted.encode('latin1').hex(),
-            "checksum": hashlib.md5(json_str.encode()).hexdigest()
+            "data": encrypted.encode("latin1").hex(),
+            "checksum": hashlib.md5(json_str.encode()).hexdigest(),
         }
 
     def _decrypt_license_data(self, encrypted_data: dict[str, Any]) -> dict[str, Any]:
         """Decrypt license data."""
         try:
-            encrypted = bytes.fromhex(encrypted_data["data"]).decode('latin1')
+            encrypted = bytes.fromhex(encrypted_data["data"]).decode("latin1")
             key = self.get_hardware_fingerprint()[:8]
 
             decrypted = ""
@@ -202,7 +198,7 @@ class LicenseManager:
             return json.loads(decrypted)
 
         except Exception as e:
-            logger.error(f"License decryption failed: {e}")
+            logger.exception("License decryption failed: %s", e)
             raise
 
 

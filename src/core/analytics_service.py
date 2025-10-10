@@ -1,5 +1,4 @@
-"""
-Enhanced Analytics Service for compliance trend analysis and insights.
+"""Enhanced Analytics Service for compliance trend analysis and insights.
 Provides safe, stable analytics features with optional advanced capabilities.
 """
 
@@ -36,8 +35,7 @@ class AnalyticsInsight:
 
 
 class AnalyticsService:
-    """
-    Enhanced analytics service for compliance data analysis.
+    """Enhanced analytics service for compliance data analysis.
     Provides trend analysis, pattern detection, and actionable insights.
     """
 
@@ -45,14 +43,13 @@ class AnalyticsService:
         self.enable_advanced_features = enable_advanced_features
         self.cache: dict[str, Any] = {}  # Simple caching for expensive calculations
         logger.info(
-            f"Analytics service initialized (advanced features: {enable_advanced_features})"
+            f"Analytics service initialized (advanced features: {enable_advanced_features})",
         )
 
     def calculate_compliance_trends(
-        self, reports_data: list[dict[str, Any]], days: int = 30
+        self, reports_data: list[dict[str, Any]], days: int = 30,
     ) -> list[ComplianceTrend]:
-        """
-        Calculate compliance trends over time.
+        """Calculate compliance trends over time.
 
         Args:
             reports_data: List of report dictionaries with analysis results
@@ -60,6 +57,7 @@ class AnalyticsService:
 
         Returns:
             List of ComplianceTrend objects with daily statistics
+
         """
         try:
             # Group reports by date
@@ -75,7 +73,7 @@ class AnalyticsService:
                 if isinstance(report_date, str):
                     try:
                         report_date = datetime.fromisoformat(
-                            report_date.replace("Z", "+00:00")
+                            report_date.replace("Z", "+00:00"),
                         )
                     except ValueError:
                         continue
@@ -114,18 +112,17 @@ class AnalyticsService:
                 )
                 trends.append(trend)
 
-            logger.info(f"Calculated trends for {len(trends)} days")
+            logger.info("Calculated trends for %s days", len(trends))
             return trends
 
         except Exception as e:
-            logger.error(f"Error calculating compliance trends: {e}")
+            logger.exception("Error calculating compliance trends: %s", e)
             return []
 
     def identify_common_issues(
-        self, reports_data: list[dict[str, Any]], min_frequency: int = 3
+        self, reports_data: list[dict[str, Any]], min_frequency: int = 3,
     ) -> list[dict[str, Any]]:
-        """
-        Identify commonly occurring compliance issues.
+        """Identify commonly occurring compliance issues.
 
         Args:
             reports_data: List of report data
@@ -133,6 +130,7 @@ class AnalyticsService:
 
         Returns:
             List of common issues with frequency and impact data
+
         """
         try:
             issue_counter: Counter[str] = Counter()
@@ -150,7 +148,7 @@ class AnalyticsService:
                             "risk": risk,
                             "document": report.get("document_name", "Unknown"),
                             "date": report.get("analysis_date", "Unknown"),
-                        }
+                        },
                     )
 
             # Filter and format common issues
@@ -181,34 +179,34 @@ class AnalyticsService:
                             "impact": impact,
                             "risk_distribution": dict(risk_counts),
                             "affected_documents": len(
-                                set(d["document"] for d in details)
+                                set(d["document"] for d in details),
                             ),
-                        }
+                        },
                     )
 
             # Sort by frequency and impact
             common_issues.sort(
-                key=lambda x: (x["frequency"], x["impact"] == "High"), reverse=True
+                key=lambda x: (x["frequency"], x["impact"] == "High"), reverse=True,
             )
 
-            logger.info(f"Identified {len(common_issues)} common compliance issues")
+            logger.info("Identified %s common compliance issues", len(common_issues))
             return common_issues
 
         except Exception as e:
-            logger.error(f"Error identifying common issues: {e}")
+            logger.exception("Error identifying common issues: %s", e)
             return []
 
     def calculate_performance_metrics(
-        self, reports_data: list[dict[str, Any]]
+        self, reports_data: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        """
-        Calculate key performance metrics for compliance analysis.
+        """Calculate key performance metrics for compliance analysis.
 
         Args:
             reports_data: List of report data
 
         Returns:
             Dictionary with performance metrics
+
         """
         try:
             if not reports_data:
@@ -279,14 +277,13 @@ class AnalyticsService:
             return metrics
 
         except Exception as e:
-            logger.error(f"Error calculating performance metrics: {e}")
+            logger.exception("Error calculating performance metrics: %s", e)
             return {"error": str(e)}
 
     def generate_insights(
-        self, reports_data: list[dict[str, Any]], trends: list[ComplianceTrend]
+        self, reports_data: list[dict[str, Any]], trends: list[ComplianceTrend],
     ) -> list[AnalyticsInsight]:
-        """
-        Generate actionable insights from compliance data.
+        """Generate actionable insights from compliance data.
 
         Args:
             reports_data: List of report data
@@ -294,6 +291,7 @@ class AnalyticsService:
 
         Returns:
             List of AnalyticsInsight objects with recommendations
+
         """
         insights = []
 
@@ -314,28 +312,28 @@ class AnalyticsService:
                             AnalyticsInsight(
                                 insight_type="trend_decline",
                                 title="Declining Compliance Trend",
-                                description=f"Compliance scores have declined by {older_avg - recent_avg:.1f} points over the past week.",
+                                description=f"Compliance scores have declined by {older_avg - recent_avg} points over the past week.",
                                 impact_level="High",
                                 recommendation="Review recent documentation practices and provide additional training if needed.",
                                 data_points={
                                     "recent_avg": recent_avg,
                                     "older_avg": older_avg,
                                 },
-                            )
+                            ),
                         )
                     elif recent_avg > older_avg + 5:  # Significant improvement
                         insights.append(
                             AnalyticsInsight(
                                 insight_type="trend_improvement",
                                 title="Improving Compliance Trend",
-                                description=f"Compliance scores have improved by {recent_avg - older_avg:.1f} points over the past week.",
+                                description=f"Compliance scores have improved by {recent_avg - older_avg} points over the past week.",
                                 impact_level="Low",
                                 recommendation="Continue current documentation practices and consider sharing best practices with team.",
                                 data_points={
                                     "recent_avg": recent_avg,
                                     "older_avg": older_avg,
                                 },
-                            )
+                            ),
                         )
 
             # Common issues insights
@@ -350,7 +348,7 @@ class AnalyticsService:
                         impact_level=top_issue["impact"],
                         recommendation="Focus training and quality improvement efforts on this specific compliance area.",
                         data_points=top_issue,
-                    )
+                    ),
                 )
 
             # Performance insights
@@ -366,7 +364,7 @@ class AnalyticsService:
                         impact_level="High",
                         recommendation="Implement comprehensive compliance training and review documentation standards.",
                         data_points={"current_score": avg_score, "target_score": 70},
-                    )
+                    ),
                 )
             elif avg_score > 90:
                 insights.append(
@@ -377,21 +375,20 @@ class AnalyticsService:
                         impact_level="Low",
                         recommendation="Maintain current practices and consider mentoring other teams.",
                         data_points={"current_score": avg_score},
-                    )
+                    ),
                 )
 
-            logger.info(f"Generated {len(insights)} analytics insights")
+            logger.info("Generated %s analytics insights", len(insights))
             return insights
 
         except Exception as e:
-            logger.error(f"Error generating insights: {e}")
+            logger.exception("Error generating insights: %s", e)
             return []
 
     def export_analytics_data(
-        self, reports_data: list[dict[str, Any]], format_type: str = "summary"
+        self, reports_data: list[dict[str, Any]], format_type: str = "summary",
     ) -> dict[str, Any]:
-        """
-        Export analytics data in various formats for external analysis.
+        """Export analytics data in various formats for external analysis.
 
         Args:
             reports_data: List of report data
@@ -399,6 +396,7 @@ class AnalyticsService:
 
         Returns:
             Dictionary with exported data
+
         """
         try:
             if format_type == "summary":
@@ -416,7 +414,7 @@ class AnalyticsService:
                     "export_timestamp": datetime.now().isoformat(),
                 }
 
-            elif format_type == "detailed":
+            if format_type == "detailed":
                 trends = self.calculate_compliance_trends(reports_data)
                 insights = self.generate_insights(reports_data, trends)
 
@@ -445,15 +443,15 @@ class AnalyticsService:
                     "export_timestamp": datetime.now().isoformat(),
                 }
 
-            else:  # raw format
-                return {
-                    "reports": reports_data,
-                    "export_timestamp": datetime.now().isoformat(),
-                    "total_count": len(reports_data),
-                }
+            # raw format
+            return {
+                "reports": reports_data,
+                "export_timestamp": datetime.now().isoformat(),
+                "total_count": len(reports_data),
+            }
 
         except Exception as e:
-            logger.error(f"Error exporting analytics data: {e}")
+            logger.exception("Error exporting analytics data: %s", e)
             return {"error": str(e)}
 
 

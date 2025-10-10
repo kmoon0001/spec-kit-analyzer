@@ -32,14 +32,14 @@ class CacheService:
         for arg in args:
             try:
                 serialized = pickle.dumps(arg, protocol=5)
-            except Exception:
+            except (ValueError, json.JSONDecodeError):
                 serialized = repr(arg).encode("utf-8")
             hasher.update(serialized)
         for key, value in sorted(kwargs.items()):
             hasher.update(key.encode())
             try:
                 serialized = pickle.dumps(value, protocol=5)
-            except Exception:
+            except (ValueError, json.JSONDecodeError):
                 serialized = repr(value).encode("utf-8")
             hasher.update(serialized)
         return hasher.hexdigest()
@@ -134,7 +134,7 @@ class MemoryAwareLRUCache:
     def _estimate_size(self, value: Any) -> int:
         try:
             return len(pickle.dumps(value, protocol=5))
-        except Exception:
+        except (ValueError, json.JSONDecodeError):
             return len(str(value).encode("utf-8"))
 
     def _delete_entry(self, key: str) -> None:
@@ -156,7 +156,7 @@ class MemoryAwareLRUCache:
         size = self._estimate_size(value)
         if key in self.cache:
             self.current_size_bytes = max(
-                self.current_size_bytes - self.cache[key]["size"], 0
+                self.current_size_bytes - self.cache[key]["size"], 0,
             )
             del self.cache[key]
 
@@ -357,7 +357,7 @@ def get_cache_stats() -> dict[str, float]:
     for value in cache_service._direct_cache.values():
         try:
             direct_usage += len(pickle.dumps(value, protocol=5)) / (1024 ** 2)
-        except Exception:
+        except (ValueError, json.JSONDecodeError):
             direct_usage += len(str(value).encode("utf-8")) / (1024 ** 2)
 
     total_entries = (
@@ -371,7 +371,7 @@ def get_cache_stats() -> dict[str, float]:
     return {
         "total_entries": total_entries,
         "memory_usage_mb": round(
-            direct_usage + embedding_usage + ner_usage + llm_usage + doc_usage, 3
+            direct_usage + embedding_usage + ner_usage + llm_usage + doc_usage, 3,
         ),
         "system_memory_percent": float(vm.percent),
         "embedding_entries": EmbeddingCache.entry_count(),

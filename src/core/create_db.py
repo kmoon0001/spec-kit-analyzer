@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 # --- Configuration ---
@@ -28,6 +28,7 @@ def hash_password(password, salt):
 
     Returns:
         bytes: The hashed password.
+
     """
     kdf = PBKDF2HMAC(
         algorithm=HASH_ALGORITHM,
@@ -46,6 +47,7 @@ def add_user(cursor, username, password):
         cursor: The database cursor object.
         username (str): The username of the new user.
         password (str): The password of the new user.
+
     """
     # Check if user already exists
     cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
@@ -71,6 +73,7 @@ def generate_random_password(length=12):
 
     Returns:
         str: The generated random password.
+
     """
     alphabet = string.ascii_letters + string.digits + string.punctuation
     password = "".join(secrets.choice(alphabet) for i in range(length))
@@ -96,13 +99,13 @@ def main():
         password_hash BLOB NOT NULL,
         salt BLOB NOT NULL
     )
-    """
+    """,
     )
 
     # --- Add the admin user ---
     admin_password = generate_random_password()
     add_user(cursor, "admin", admin_password)
-    logging.info(f"Admin password: {admin_password}")
+    logging.info("Admin password: %s", admin_password)
 
     # --- Commit changes and close the connection ---
     conn.commit()
