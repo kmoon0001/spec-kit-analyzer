@@ -511,10 +511,10 @@ class MemoryManager:
             return
 
         if metrics.pressure_level == MemoryPressureLevel.CRITICAL:
-            logger.warning("Critical memory pressure detected: %s%", metrics.memory_percent)
+            logger.warning("Critical memory pressure detected: %.1f%%", metrics.memory_percent)
             self.optimize_if_needed(force=True)
         elif metrics.pressure_level == MemoryPressureLevel.HIGH:
-            logger.info("High memory pressure detected: %s%", metrics.memory_percent)
+            logger.info("High memory pressure detected: %.1f%%", metrics.memory_percent)
             self.optimize_if_needed()
 
 # Global memory manager instance

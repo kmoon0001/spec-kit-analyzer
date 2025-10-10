@@ -126,9 +126,8 @@ class AnalysisStatusTracker:
         # Log significant state changes
         if old_state != state:
             elapsed = self.get_elapsed_time()
-            logger.info("Analysis state changed: %s → {state.value} | Progress: %s% | Elapsed: {elapsed}s | ", old_state.value, self.progress, 
-                f"Analysis: {self.current_analysis}",
-            )
+            logger.info("Analysis state changed: %s → %s | Progress: %s%% | Elapsed: %ss | Analysis: %s", 
+                       old_state.value, state.value, self.progress, elapsed, self.current_analysis)
             self._trigger_status_callback(state)
 
         # Check for timeout

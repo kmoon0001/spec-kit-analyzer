@@ -50,7 +50,7 @@ class DataAggregationService:
                     provider_data = provider.get_data(report_type, filters)
                     aggregated_data[provider_name] = provider_data
                     logger.debug("Got data from provider: %s", provider_name)
-            except Exception as e:
+            except (ImportError, ModuleNotFoundError) as e:
                 logger.exception("Error getting data from provider %s: {e}", provider_name)
                 aggregated_data[provider_name] = {"error": str(e)}
 

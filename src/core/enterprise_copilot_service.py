@@ -112,7 +112,7 @@ class EnterpriseCopilotService:
             logger.info("Copilot query processed successfully in %sms", processing_time)
             return final_response
 
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Copilot query processing failed: %s", e)
             return {
                 "answer": "I encountered an error while processing your request. Please try rephrasing your question or contact support if the issue persists.",

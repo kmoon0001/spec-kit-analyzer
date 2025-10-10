@@ -75,7 +75,7 @@ class CalibrationTrainer:
             if self.db_path != ":memory:":
                 conn.commit()
                 conn.close()
-        except Exception:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
             if self.db_path != ":memory:":
                 conn.close()
             raise
@@ -95,7 +95,7 @@ class CalibrationTrainer:
             try:
                 yield conn
                 conn.commit()
-            except Exception:
+            except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
                 conn.rollback()
                 raise
             finally:

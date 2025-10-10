@@ -199,7 +199,7 @@ async def export_report_to_pdf(
 
         return {"task_id": task_id, "pdf_info": pdf_result, "message": "PDF exported successfully"}
 
-    except Exception as e:
+    except (ImportError, ModuleNotFoundError) as e:
         logger.exception("PDF export failed", task_id=task_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"PDF export failed: {e!s}") from e
 

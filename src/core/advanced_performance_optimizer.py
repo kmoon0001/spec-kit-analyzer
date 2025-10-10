@@ -149,7 +149,7 @@ class AdvancedPerformanceOptimizer:
                                              target_improvement: float = 30.0) -> dict[str, Any]:
         """Execute AI-driven intelligent optimization with advanced techniques.
         """
-        logger.info("Starting intelligent optimization (target: %s%)", target_improvement)
+        logger.info("Starting intelligent optimization (target: %.1f%%)", target_improvement)
 
         start_time = time.time()
         optimization_results: dict[str, Any] = {
@@ -318,7 +318,7 @@ class AdvancedPerformanceOptimizer:
                 if current_process.nice() > -5:  # Only if not already high priority
                     current_process.nice(-1)  # Increase priority slightly
                     results["optimizations_applied"].append("process_priority")
-            except Exception as e:
+            except (OSError, IOError, FileNotFoundError) as e:
                 results["warnings"].append(f"Process priority optimization failed: {e}")
 
             # Memory management optimization

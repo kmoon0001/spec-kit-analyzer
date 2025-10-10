@@ -180,7 +180,7 @@ def _parse_image_with_ocr(file_path: str) -> list[dict[str, str]]:
             if sentence.strip()
         ]
 
-    except Exception as e:
+    except (OSError, IOError, FileNotFoundError) as e:
         logger.exception("OCR processing failed for %s: {e}", file_path)
         return [
             {
@@ -259,7 +259,7 @@ def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
                 },
             ]
 
-    except Exception as e:
+    except (OSError, IOError, FileNotFoundError) as e:
         logger.exception("PDF parsing failed for %s: {e}", file_path)
         return [
             {

@@ -212,12 +212,12 @@ class PerformanceOptimizer:
 
         # Adjust if memory usage is consistently high
         if memory_usage > 85:
-            logger.warning("High memory usage detected: %s%", memory_usage)
+            logger.warning("High memory usage detected: %.1f%%", memory_usage)
             return True
 
         # Adjust if CPU usage is consistently high
         if cpu_usage > 90:
-            logger.warning("High CPU usage detected: %s%", cpu_usage)
+            logger.warning("High CPU usage detected: %.1f%%", cpu_usage)
             return True
 
         return False

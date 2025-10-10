@@ -247,7 +247,7 @@ async def create_personal_goal(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid data format: {e!s}",
         ) from e
-    except Exception as e:
+    except (ImportError, ModuleNotFoundError) as e:
         logger.exception("Failed to create goal for user %s", current_user.id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

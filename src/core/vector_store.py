@@ -55,7 +55,7 @@ class VectorStore:
             self.index.add_with_ids(vectors.astype("float32"), np.array(ids))
             self.report_ids.extend(ids)
             logger.info("Added %s new vectors to the index. Total vectors: {self.index.ntotal}", len(ids))
-        except Exception as e:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Failed to add vectors to FAISS index: %s", e)
 
     def search(self, query_vector: np.ndarray, k: int, threshold: float = 0.9) -> list[tuple[int, float]]:

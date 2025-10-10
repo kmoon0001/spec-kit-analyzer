@@ -385,7 +385,7 @@ class PerformanceMonitor:
 
                 # Check system-level alerts
                 if health.cpu_usage > 90:
-                    logger.warning("High CPU usage: %s%", health.cpu_usage)
+                    logger.warning("High CPU usage: %.1f%%", health.cpu_usage)
 
                 if health.memory_usage > 90:
                     logger.warning("High memory usage: %.1f%%", health.memory_usage)

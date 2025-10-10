@@ -208,7 +208,7 @@ class BaselineMetricsCollector:
                 process_count=len(psutil.pids()),
             )
 
-        except Exception as e:
+        except (OSError, IOError, FileNotFoundError) as e:
             logger.exception("Error collecting resource metrics: %s", e)
             return ResourceMetrics(0, 0, 0, 0, 0, 0)
 

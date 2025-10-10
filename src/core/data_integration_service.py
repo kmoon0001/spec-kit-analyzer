@@ -408,7 +408,7 @@ class DataIntegrationService:
                 try:
                     result = await task
                     results[provider_id] = result
-                except Exception as e:
+                except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
                     logger.exception("Error querying provider %s: {e}", provider_id)
                     # Create error result
                     error_metadata = DataSourceMetadata(

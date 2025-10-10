@@ -292,13 +292,31 @@ class MainViewModel(QObject):
 
     def stop_all_workers(self) -> None:
         """Stop all worker threads quickly - don't wait too long."""
+        logger.debug("Stopping %d worker threads", len(self._active_threads))
+        
         for thread in list(self._active_threads):
             try:
                 if thread.isRunning():
+                    # Try to stop the worker first if it has a stop method
+                    if hasattr(thread, '_worker_ref') and thread._worker_ref:
+                        worker = thread._worker_ref
+                        if hasattr(worker, 'stop'):
+                            worker.stop()
+                    
+                    # Request thread to quit
                     thread.quit()
-                    thread.wait(100)  # Wait max 100ms per thread
-                    if thread.isRunning():
-                        thread.terminate()  # Force terminate if still running
-            except Exception:
+                    
+                    # Wait briefly for graceful shutdown
+                    if not thread.wait(50):  # Reduced wait time
+                        logger.warning("Thread did not quit gracefully, terminating")
+                        thread.terminate()
+                        thread.wait(50)  # Brief wait after terminate
+                        
+            except (RuntimeError, AttributeError):
+                # Thread might already be destroyed
                 pass
+            except Exception as e:
+                logger.warning("Error stopping thread: %s", e)
+        
         self._active_threads.clear()
+        logger.debug("All worker threads stopped")

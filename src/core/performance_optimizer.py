@@ -518,7 +518,7 @@ class PerformanceOptimizer:
 
                 if result.get("status") == "completed":
                     improvement = result.get("total_improvement_percent", 0)
-                    logger.info("Scheduled optimization completed with %s% improvement", improvement)
+                    logger.info("Scheduled optimization completed with %.1f%% improvement", improvement)
                 else:
                     logger.warning("Scheduled optimization had issues: %s", result.get('status'))
 

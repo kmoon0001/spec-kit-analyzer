@@ -517,7 +517,7 @@ class MetricsCollector:
                         }
                         all_metrics.append(metric_dict)
 
-            except Exception as e:
+            except (ImportError, ModuleNotFoundError) as e:
                 logger.exception("Error collecting metrics from source '%s': {e}", source_name)
 
         logger.debug("Collected %s metrics from {len(sources_to_collect)} sources", len(all_metrics))
@@ -564,7 +564,7 @@ class MetricsCollector:
 
             return metric_dicts
 
-        except Exception as e:
+        except (ImportError, ModuleNotFoundError) as e:
             logger.exception("Error collecting metrics from source '%s': {e}", source_name)
             return []
 

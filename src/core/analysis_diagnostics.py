@@ -402,7 +402,7 @@ class AnalysisDiagnostics:
                 },
                 timestamp=time.time(),
             )
-        except Exception as e:
+        except (OSError, IOError, FileNotFoundError) as e:
             return DiagnosticResult(
                 component="file_system_access",
                 status=DiagnosticStatus.ERROR,
@@ -550,7 +550,7 @@ class AnalysisDiagnostics:
                 timestamp=time.time(),
             )
 
-        except Exception as e:
+        except (OSError, IOError, FileNotFoundError) as e:
             return DiagnosticResult(
                 component="file_validation",
                 status=DiagnosticStatus.ERROR,

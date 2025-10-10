@@ -46,7 +46,7 @@ class HybridRetriever:
         if self.use_reranker and reranker_model_name:
             try:
                 self.reranker = CrossEncoder(reranker_model_name)
-            except Exception as exc:
+            except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as exc:
                 logger.warning("Failed to initialize reranker '%s': %s", reranker_model_name, exc)
                 self.use_reranker = False
 
@@ -81,7 +81,7 @@ class HybridRetriever:
             return []
         try:
             rubric_models = crud.get_all_rubrics()
-        except Exception:
+        except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error):
             return []
         return [
             {"id": r.id, "name": getattr(r, "name", ""), "content": getattr(r, "content", ""), "category": getattr(r, "category", "")}

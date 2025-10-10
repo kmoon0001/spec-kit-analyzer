@@ -14,7 +14,7 @@ import pytest
 
 # Import PDF service with fallback handling
 try:
-    from src.core.pdf_export_service import pdf_export_service
+    from src.core.pdf_export_service import get_pdf_export_service
     PDF_SERVICE_AVAILABLE = True
 except ImportError:
     try:
@@ -74,7 +74,7 @@ class TestNewFeaturesIntegration:
         with patch('src.core.pdf_export_service_fallback.REPORTLAB_AVAILABLE', True):
             # Test PDF export with performance monitoring
             with performance_monitor.track_operation("test", "pdf_export"):
-                result = await pdf_export_service.export_report_to_pdf(
+                result = await get_pdf_export_service().export_report_to_pdf(
                     sample_report_data, 
                     "test_output.pdf"
                 )
@@ -233,7 +233,7 @@ class TestNewFeaturesIntegration:
             
             # 3. Export to PDF (if available)
             if PDF_SERVICE_AVAILABLE:
-                pdf_result = await pdf_export_service.export_report_to_pdf(
+                pdf_result = await get_pdf_export_service().export_report_to_pdf(
                     enhanced_report_data, 
                     "test_end_to_end.pdf"
                 )
@@ -351,7 +351,7 @@ class TestSystemStability:
             sample_data = {"title": "Test", "generated_at": "2024-01-15", "findings": []}
             
             for i in range(3):
-                task = pdf_export_service.export_report_to_pdf(
+                task = get_pdf_export_service().export_report_to_pdf(
                     sample_data, 
                     f"test_concurrent_{i}.pdf"
                 )

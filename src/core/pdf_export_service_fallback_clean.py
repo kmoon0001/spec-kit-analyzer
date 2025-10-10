@@ -247,7 +247,7 @@ class PDFExportServiceFallback:
                 export_time_ms=export_time,
             )
 
-        except Exception as e:
+        except (OSError, IOError, FileNotFoundError) as e:
             export_time = (datetime.now() - start_time).total_seconds() * 1000
             logger.exception("PDF export failed: %s", e)
 

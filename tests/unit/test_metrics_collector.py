@@ -18,7 +18,12 @@ from src.core.metrics_collector import (
     PerformanceMetric,
     MetricType
 )
-from src.core.performance_monitor import MonitoringConfiguration
+# Create a simple mock MonitoringConfiguration for testing
+class MonitoringConfiguration:
+    def __init__(self, collection_interval=5.0, retention_days=30, storage_path="monitoring"):
+        self.collection_interval = collection_interval
+        self.retention_days = retention_days
+        self.storage_path = storage_path
 
 
 class MockMetricSource(MetricSource):

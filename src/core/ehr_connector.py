@@ -235,7 +235,7 @@ class EHRConnector:
                 "message": "Successfully disconnected from EHR system",
             }
 
-        except Exception as e:
+        except (ImportError, ModuleNotFoundError) as e:
             logger.exception("Failed to disconnect from EHR system: %s", e)
             return {
                 "success": False,

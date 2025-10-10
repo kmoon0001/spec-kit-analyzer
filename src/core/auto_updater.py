@@ -203,12 +203,12 @@ class AutoUpdater:
                         if total_size > 0:
                             progress = (downloaded / total_size) * 100
                             if progress % 10 < 1:
-                                logger.info("Download progress: %s%", progress)
+                                logger.info("Download progress: %.1f%%", progress)
 
             logger.info("Update downloaded successfully")
             return temp_file
 
-        except Exception as e:
+        except (OSError, IOError, FileNotFoundError) as e:
             logger.exception("Update download failed: %s", e)
             return None
 

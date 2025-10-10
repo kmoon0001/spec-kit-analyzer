@@ -70,7 +70,8 @@ class PDFExportService:
             try:
                 from weasyprint.text.fonts import FontConfiguration
                 self.font_config = FontConfiguration()
-            except ImportError:
+            except (ImportError, OSError) as e:
+                logging.warning("Could not initialize WeasyPrint font configuration: %s", e)
                 self.font_config = None
 
         # Initialize fallback service if needed (lazy initialization)
@@ -176,7 +177,7 @@ class PDFExportService:
             logger.info("PDF export completed successfully. Size: %s bytes", len(pdf_bytes))
             return pdf_bytes
 
-        except Exception as e:
+        except (ImportError, ModuleNotFoundError) as e:
             logger.exception("PDF export failed: %s", e)
             raise PDFExportError(f"Failed to generate PDF report: {e!s}") from e
 
@@ -538,5 +539,12 @@ class PDFExportError(Exception):
 
 
 
-# Global PDF export service instance
-pdf_export_service = PDFExportService()
+# Global PDF export service instance (lazy initialization)
+pdf_export_service = None
+
+def get_pdf_export_service() -> PDFExportService:
+    """Get the global PDF export service instance (lazy initialization)."""
+    global pdf_export_service
+    if pdf_export_service is None:
+        pdf_export_service = PDFExportService()
+    return pdf_export_service

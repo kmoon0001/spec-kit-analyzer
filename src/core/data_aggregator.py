@@ -304,7 +304,7 @@ class TimeSeriesStorage:
 
                 return metrics
 
-            except Exception as e:
+            except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
                 logger.exception("Error querying raw metrics: %s", e)
                 return []
             finally:
@@ -372,7 +372,7 @@ class TimeSeriesStorage:
 
                 return metrics
 
-            except Exception as e:
+            except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
                 logger.exception("Error querying aggregated metrics: %s", e)
                 return []
             finally:
@@ -528,7 +528,7 @@ class DataAggregator:
 
             logger.debug("Buffered %s metrics for processing", len(metrics))
 
-        except Exception as e:
+        except (OSError, IOError, FileNotFoundError) as e:
             logger.exception("Error processing metrics: %s", e)
 
     def _start_background_threads(self) -> None:
