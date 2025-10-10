@@ -12,13 +12,28 @@ from typing import Dict, Any, Optional, List
 from io import BytesIO
 import base64
 
+# Check WeasyPrint availability without importing
+WEASYPRINT_AVAILABLE = False
 try:
-    from weasyprint import HTML, CSS
-    from weasyprint.text.fonts import FontConfiguration
+    import weasyprint
     WEASYPRINT_AVAILABLE = True
 except ImportError:
     WEASYPRINT_AVAILABLE = False
-    logging.warning("WeasyPrint not available. PDF export will be limited.")
+    logging.warning("WeasyPrint not available. Using ReportLab fallback for PDF export.")
+except Exception as e:
+    WEASYPRINT_AVAILABLE = False
+    logging.warning(f"WeasyPrint not available due to system dependencies: {e}. Using ReportLab fallback.")
+
+# Import fallback service
+if not WEASYPRINT_AVAILABLE:
+    try:
+        from .pdf_export_service_fallback_clean import PDFExportServiceFallback
+        FALLBACK_AVAILABLE = True
+    except ImportError:
+        FALLBACK_AVAILABLE = False
+        logging.error("Neither WeasyPrint nor ReportLab available for PDF export.")
+else:
+    FALLBACK_AVAILABLE = False
 
 from src.core.report_models import Report, ReportFormat
 from src.core.report_template_engine import TemplateEngine
@@ -54,6 +69,15 @@ class PDFExportService:
         self.template_engine = TemplateEngine()
         self.font_config = FontConfiguration() if WEASYPRINT_AVAILABLE else None
         
+        # Initialize fallback service if needed (lazy initialization)
+        self.fallback_service = None
+        if not WEASYPRINT_AVAILABLE and FALLBACK_AVAILABLE:
+            logger.info("PDF export service initialized with ReportLab fallback")
+        elif WEASYPRINT_AVAILABLE:
+            logger.info("PDF export service initialized with WeasyPrint")
+        else:
+            logger.error("No PDF generation backend available")
+        
         # PDF generation settings optimized for medical documents
         self.pdf_settings = {
             'page_size': 'A4',
@@ -65,8 +89,6 @@ class PDFExportService:
             'optimize_images': True,
             'pdf_version': '1.7',  # Widely compatible version
         }
-        
-        logger.info("PDF export service initialized")
     
     async def export_report_to_pdf(self, 
                                  report_data: Dict[str, Any],
@@ -100,8 +122,20 @@ class PDFExportService:
             ... }
             >>> pdf_bytes = await pdf_service.export_report_to_pdf(report_data)
         """
+        # Use fallback service if WeasyPrint is not available
         if not WEASYPRINT_AVAILABLE:
-            raise PDFExportError("PDF export requires WeasyPrint library. Please install with: pip install weasyprint")
+            if FALLBACK_AVAILABLE:
+                from .pdf_export_service_fallback_clean import get_pdf_export_service_fallback
+                fallback_service = get_pdf_export_service_fallback()
+                if fallback_service:
+                    logger.info("Using ReportLab fallback for PDF export")
+                    return await fallback_service.export_report_to_pdf(
+                        report_data=report_data,
+                        template_name=template_name,
+                        include_charts=include_charts,
+                        watermark=watermark
+                    )
+            raise PDFExportError("PDF export requires either WeasyPrint or ReportLab. Please install one of them.")
         
         try:
             logger.info(f"Starting PDF export for report: {report_data.get('title', 'Untitled')}")

@@ -88,51 +88,6 @@ async def ask_copilot(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Copilot query failed: {str(e)}"
         )
-) -> Dict[str, Any]:
-    """
-    Ask the Enterprise Copilot a question or request assistance.
-    
-    The copilot can help with:
-    - Compliance questions and guidance
-    - Data analysis and insights
-    - Workflow optimization suggestions
-    - Regulatory information
-    - Best practices recommendations
-    """
-    try:
-        logger.info(f"Enterprise Copilot query from user {current_user.username}: {query.query[:100]}...")
-        
-        # Process the query through the copilot service
-        response = await enterprise_copilot_service.process_query(
-            query=query.query,
-            context=query.context or {},
-            user_context={
-                "user_id": str(current_user.id),
-                "username": current_user.username,
-                "is_admin": current_user.is_admin,
-                "department": query.department
-            },
-            priority=query.priority
-        )
-        
-        return {
-            "success": True,
-            "response": response.get("answer", "I'm sorry, I couldn't process that request."),
-            "confidence": response.get("confidence", 0.5),
-            "sources": response.get("sources", []),
-            "suggestions": response.get("suggestions", []),
-            "follow_up_questions": response.get("follow_up_questions", []),
-            "response_time_ms": response.get("response_time_ms", 0),
-            "query_id": response.get("query_id"),
-            "timestamp": datetime.now().isoformat()
-        }
-    
-    except Exception as e:
-        logger.error(f"Enterprise Copilot query failed: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Copilot query failed: {str(e)}"
-        )
 
 
 @router.get("/capabilities")
