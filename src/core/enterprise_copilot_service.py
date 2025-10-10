@@ -259,39 +259,160 @@ class EnterpriseCopilotService:
             }
     
     def _initialize_knowledge_base(self) -> Dict[str, Any]:
-        """Initialize the compliance knowledge base."""
+        """Initialize the comprehensive compliance knowledge base with enhanced training data."""
         return {
             "compliance_rules": {
                 "medicare_documentation": [
                     "Documentation must be legible and complete",
                     "All entries must be dated and signed",
                     "Medical necessity must be clearly established",
-                    "Treatment goals must be specific and measurable"
+                    "Treatment goals must be specific and measurable",
+                    "Progress must be documented for each visit",
+                    "Functional outcomes must be objective and quantifiable",
+                    "Treatment frequency and duration must be justified",
+                    "Discharge planning must be documented when appropriate"
                 ],
                 "therapy_requirements": [
                     "Initial evaluation required before treatment",
                     "Progress notes required for each treatment session",
-                    "Re-evaluation required periodically",
-                    "Discharge summary required at end of care"
+                    "Re-evaluation required periodically based on discipline",
+                    "Discharge summary required at end of care",
+                    "Treatment plans must include specific functional goals",
+                    "Documentation must support skilled therapy services",
+                    "Patient education and home program must be documented"
+                ],
+                "pt_specific": [
+                    "Document range of motion measurements with goniometer",
+                    "Include strength testing with manual muscle testing grades",
+                    "Functional mobility assessments required",
+                    "Balance and fall risk assessments when appropriate",
+                    "Pain scales and functional outcome measures",
+                    "Gait analysis and assistive device training documentation"
+                ],
+                "ot_specific": [
+                    "Activities of Daily Living (ADL) assessments required",
+                    "Cognitive and perceptual evaluations when indicated",
+                    "Fine motor and hand function assessments",
+                    "Environmental modifications and adaptive equipment",
+                    "Work hardening and vocational assessments",
+                    "Sensory processing and integration evaluations"
+                ],
+                "slp_specific": [
+                    "Speech and language standardized assessments",
+                    "Swallowing evaluations and dysphagia management",
+                    "Cognitive-communication assessments",
+                    "Voice and fluency disorder evaluations",
+                    "Augmentative and alternative communication (AAC)",
+                    "Hearing screening and auditory processing"
                 ]
             },
             "documentation_templates": {
                 "progress_note": {
                     "sections": ["Subjective", "Objective", "Assessment", "Plan"],
-                    "required_elements": ["Date", "Signature", "Treatment provided", "Patient response"]
+                    "required_elements": ["Date", "Signature", "Treatment provided", "Patient response", "Functional changes", "Plan modifications"],
+                    "examples": {
+                        "subjective": "Patient reports decreased pain from 7/10 to 4/10 since last visit. States improved ability to climb stairs.",
+                        "objective": "ROM: Knee flexion 0-110° (improved from 0-95°). Strength: Quad 4/5, Hamstring 4/5. Gait: Independent with straight cane on level surfaces.",
+                        "assessment": "Patient demonstrating good progress toward functional goals. Improved knee ROM and strength contributing to enhanced mobility.",
+                        "plan": "Continue strengthening exercises. Progress to stair climbing training. Re-evaluate in 2 weeks."
+                    }
                 },
                 "evaluation": {
                     "sections": ["History", "Assessment", "Goals", "Plan"],
-                    "required_elements": ["Diagnosis", "Functional limitations", "Treatment goals", "Frequency/Duration"]
+                    "required_elements": ["Diagnosis", "Functional limitations", "Treatment goals", "Frequency/Duration", "Prognosis"],
+                    "examples": {
+                        "history": "65-year-old female s/p right total knee replacement 2 weeks ago. Prior level of function: independent in all ADLs and IADLs.",
+                        "assessment": "Significant limitations in knee ROM (0-75°), strength (3/5), and functional mobility. Requires assistance for stairs and prolonged walking.",
+                        "goals": "1. Increase knee ROM to 0-120° in 4 weeks. 2. Improve strength to 4+/5 in 6 weeks. 3. Independent stair climbing in 6 weeks.",
+                        "plan": "PT 3x/week for 6 weeks focusing on ROM, strengthening, and functional mobility training."
+                    }
+                },
+                "discharge_summary": {
+                    "sections": ["Initial Status", "Treatment Summary", "Final Status", "Recommendations"],
+                    "required_elements": ["Goals achieved", "Functional improvements", "Home program", "Follow-up recommendations"],
+                    "examples": {
+                        "treatment_summary": "Patient received 18 PT sessions over 6 weeks focusing on knee ROM, strengthening, and functional mobility.",
+                        "outcomes": "Achieved 2/3 goals: ROM improved to 0-115°, strength 4+/5. Stair climbing remains modified technique.",
+                        "recommendations": "Continue home exercise program. Follow up with physician in 4 weeks. Return to PT if functional decline."
+                    }
                 }
             },
             "best_practices": [
-                "Use objective, measurable language",
-                "Document patient's functional status",
-                "Include patient's response to treatment",
-                "Justify medical necessity",
-                "Update goals based on progress"
-            ]
+                "Use objective, measurable language with specific metrics",
+                "Document patient's functional status with standardized assessments",
+                "Include patient's response to treatment and participation level",
+                "Justify medical necessity with clear functional deficits",
+                "Update goals based on progress with specific timelines",
+                "Use person-first language and professional terminology",
+                "Document safety considerations and precautions",
+                "Include family/caregiver education when provided"
+            ],
+            "common_errors": {
+                "vague_language": {
+                    "error": "Patient is doing better",
+                    "correction": "Patient's pain decreased from 7/10 to 4/10, and knee ROM improved from 0-95° to 0-110°"
+                },
+                "missing_measurements": {
+                    "error": "Patient has limited range of motion",
+                    "correction": "Patient demonstrates knee flexion ROM of 0-85° (normal 0-135°)"
+                },
+                "unclear_goals": {
+                    "error": "Improve walking",
+                    "correction": "Patient will ambulate 150 feet independently without assistive device on level surfaces within 4 weeks"
+                },
+                "missing_justification": {
+                    "error": "Continue current treatment",
+                    "correction": "Continue strengthening exercises as patient demonstrates 4/5 strength with functional deficits in stair climbing requiring skilled intervention"
+                }
+            },
+            "regulatory_guidelines": {
+                "medicare_part_b": {
+                    "skilled_services": "Services must require the skills of a qualified therapist and cannot be performed by non-skilled personnel",
+                    "reasonable_necessary": "Services must be reasonable and necessary for the treatment of the patient's condition",
+                    "improvement_standard": "Patient must have potential for improvement or need skilled services to maintain function",
+                    "documentation_requirements": "All services must be documented with specific details of treatment provided and patient response"
+                },
+                "cms_guidelines": {
+                    "evaluation_requirements": "Comprehensive evaluation required before treatment initiation",
+                    "progress_documentation": "Regular documentation of patient progress toward established goals",
+                    "discharge_criteria": "Clear criteria for discharge when goals achieved or plateau reached"
+                }
+            },
+            "functional_outcome_measures": {
+                "pt_measures": ["Berg Balance Scale", "Timed Up and Go", "6-Minute Walk Test", "Functional Independence Measure (FIM)", "Lower Extremity Functional Scale"],
+                "ot_measures": ["Canadian Occupational Performance Measure (COPM)", "Assessment of Motor and Process Skills (AMPS)", "Kitchen Task Assessment", "Barthel Index"],
+                "slp_measures": ["Functional Independence Measure (FIM)", "American Speech-Language-Hearing Association Functional Assessment of Communication Skills", "Swallowing Quality of Life Scale"]
+            },
+            "icd_10_common_codes": {
+                "pt_codes": {
+                    "M25.561": "Pain in right knee",
+                    "M17.11": "Unilateral primary osteoarthritis, right knee",
+                    "Z96.651": "Presence of right artificial knee joint",
+                    "R26.2": "Difficulty in walking, not elsewhere classified"
+                },
+                "ot_codes": {
+                    "F84.0": "Autistic disorder",
+                    "G93.1": "Anoxic brain damage, not elsewhere classified",
+                    "S72.001A": "Fracture of unspecified part of neck of right femur, initial encounter"
+                },
+                "slp_codes": {
+                    "F80.1": "Expressive language disorder",
+                    "R13.10": "Dysphagia, unspecified",
+                    "F80.2": "Mixed receptive-expressive language disorder"
+                }
+            },
+            "contextual_responses": {
+                "documentation_help": {
+                    "progress_note": "For progress notes, focus on documenting specific changes since the last visit. Include objective measurements, patient's subjective report, and clear plan modifications based on progress.",
+                    "evaluation": "Initial evaluations should establish baseline function, identify specific deficits, and set measurable goals with realistic timelines. Include standardized assessments when appropriate.",
+                    "discharge": "Discharge summaries should compare initial and final status, document goal achievement, and provide clear recommendations for continued care or maintenance."
+                },
+                "compliance_questions": {
+                    "medical_necessity": "Medical necessity is established by documenting specific functional deficits that require skilled intervention, cannot be performed by non-skilled personnel, and have potential for improvement or maintenance of function.",
+                    "skilled_services": "Skilled services require the expertise of a qualified therapist and involve complex procedures, patient education, or assessment that cannot be safely performed by non-skilled personnel.",
+                    "goal_setting": "Goals should be SMART: Specific, Measurable, Achievable, Relevant, and Time-bound. Include functional outcomes that matter to the patient's daily life."
+                }
+            }
         }
     
     async def _analyze_query(self, query: str, context: Dict[str, Any], department: Optional[str]) -> Dict[str, Any]:

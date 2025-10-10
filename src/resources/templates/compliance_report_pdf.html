@@ -3,9 +3,516 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }} - PDF Export</title>
+    <title>{{ title }} - Professional Compliance Report</title>
     <style>
-        /* PDF-specific styles are injected by the PDF service */
+        /* Professional Medical Document Styling */
+        @page {
+            size: A4;
+            margin: 1in 0.75in;
+            
+            @top-left {
+                content: "{{ document_name | default('Clinical Document') }}";
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 9pt;
+                color: #666;
+                font-weight: 500;
+            }
+            
+            @top-center {
+                content: "Therapy Compliance Analysis Report";
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 10pt;
+                color: #2563eb;
+                font-weight: 600;
+                text-align: center;
+            }
+            
+            @top-right {
+                content: "{{ generated_at | format_date }}";
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 9pt;
+                color: #666;
+            }
+            
+            @bottom-left {
+                content: "Confidential Healthcare Information";
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 8pt;
+                color: #999;
+                font-style: italic;
+            }
+            
+            @bottom-right {
+                content: "Page " counter(page) " of " counter(pages);
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 9pt;
+                color: #666;
+                font-weight: 500;
+            }
+        }
+        
+        /* Base Typography */
+        body {
+            font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            color: #2d3748;
+            background: white;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Professional Header Styling */
+        .report-header {
+            border-bottom: 3pt solid #2563eb;
+            padding-bottom: 20pt;
+            margin-bottom: 30pt;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            padding: 25pt;
+            border-radius: 8pt;
+        }
+        
+        .report-header h1 {
+            font-size: 22pt;
+            font-weight: 700;
+            color: #1e40af;
+            margin: 0 0 15pt 0;
+            text-align: center;
+            letter-spacing: -0.5pt;
+        }
+        
+        .report-metadata {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15pt;
+            margin-top: 20pt;
+            font-size: 10pt;
+        }
+        
+        .report-metadata p {
+            margin: 5pt 0;
+            padding: 8pt 12pt;
+            background: white;
+            border-left: 3pt solid #3b82f6;
+            border-radius: 4pt;
+        }
+        
+        .report-metadata strong {
+            color: #1e40af;
+            font-weight: 600;
+        }
+        
+        /* Executive Summary Styling */
+        .executive-summary {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 2pt solid #f59e0b;
+            border-radius: 12pt;
+            padding: 25pt;
+            margin-bottom: 30pt;
+        }
+        
+        .executive-summary h2 {
+            color: #92400e;
+            font-size: 16pt;
+            font-weight: 700;
+            margin: 0 0 20pt 0;
+            text-align: center;
+            border-bottom: 1pt solid #f59e0b;
+            padding-bottom: 10pt;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15pt;
+            margin: 20pt 0;
+        }
+        
+        .metric-card {
+            background: white;
+            border: 2pt solid #e5e7eb;
+            border-radius: 8pt;
+            padding: 15pt;
+            text-align: center;
+            box-shadow: 0 2pt 4pt rgba(0,0,0,0.1);
+        }
+        
+        .metric-value {
+            font-size: 28pt;
+            font-weight: 800;
+            color: #1e40af;
+            display: block;
+            margin-bottom: 5pt;
+        }
+        
+        .metric-label {
+            font-size: 10pt;
+            color: #6b7280;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5pt;
+        }
+        
+        .summary-text {
+            background: white;
+            border-radius: 8pt;
+            padding: 20pt;
+            margin-top: 20pt;
+            border-left: 4pt solid #3b82f6;
+        }
+        
+        .summary-text h3 {
+            color: #1e40af;
+            font-size: 14pt;
+            margin: 0 0 12pt 0;
+            font-weight: 600;
+        }
+        
+        .summary-text p {
+            margin: 0;
+            line-height: 1.6;
+        }
+        
+        /* Section Headers */
+        h2 {
+            color: #1e40af;
+            font-size: 16pt;
+            font-weight: 700;
+            margin: 30pt 0 20pt 0;
+            padding: 12pt 0 8pt 0;
+            border-bottom: 2pt solid #e5e7eb;
+            page-break-after: avoid;
+        }
+        
+        h3 {
+            color: #374151;
+            font-size: 13pt;
+            font-weight: 600;
+            margin: 20pt 0 12pt 0;
+            page-break-after: avoid;
+        }
+        
+        h4 {
+            color: #4b5563;
+            font-size: 11pt;
+            font-weight: 600;
+            margin: 15pt 0 8pt 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5pt;
+        }
+        
+        /* Finding Cards */
+        .finding {
+            border: 2pt solid #e5e7eb;
+            border-radius: 8pt;
+            padding: 20pt;
+            margin-bottom: 20pt;
+            page-break-inside: avoid;
+            background: white;
+            box-shadow: 0 2pt 4pt rgba(0,0,0,0.05);
+        }
+        
+        .finding-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15pt;
+            padding-bottom: 10pt;
+            border-bottom: 1pt solid #e5e7eb;
+        }
+        
+        .finding-header h3 {
+            margin: 0;
+            font-size: 13pt;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .risk-badge {
+            padding: 6pt 12pt;
+            border-radius: 20pt;
+            font-size: 9pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5pt;
+        }
+        
+        .risk-high {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1pt solid #fca5a5;
+        }
+        
+        .risk-medium {
+            background: #fffbeb;
+            color: #d97706;
+            border: 1pt solid #fcd34d;
+        }
+        
+        .risk-low {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1pt solid #86efac;
+        }
+        
+        .finding.high-risk {
+            border-left: 6pt solid #dc2626;
+            background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+        }
+        
+        .finding.medium-risk {
+            border-left: 6pt solid #f59e0b;
+            background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+        }
+        
+        .finding.low-risk {
+            border-left: 6pt solid #10b981;
+            background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+        }
+        
+        .finding-content {
+            display: grid;
+            gap: 15pt;
+        }
+        
+        .evidence, .issue-description, .recommendation, .confidence {
+            padding: 12pt;
+            border-radius: 6pt;
+            border-left: 3pt solid #e5e7eb;
+        }
+        
+        .evidence {
+            background: #f8fafc;
+            border-left-color: #3b82f6;
+        }
+        
+        .issue-description {
+            background: #fef2f2;
+            border-left-color: #ef4444;
+        }
+        
+        .recommendation {
+            background: #f0fdf4;
+            border-left-color: #22c55e;
+        }
+        
+        .confidence {
+            background: #faf5ff;
+            border-left-color: #8b5cf6;
+        }
+        
+        blockquote {
+            margin: 8pt 0;
+            padding: 10pt 15pt;
+            background: #f9fafb;
+            border-left: 4pt solid #6b7280;
+            border-radius: 4pt;
+            font-style: italic;
+            color: #4b5563;
+        }
+        
+        /* Charts and Visualizations */
+        .charts-section {
+            margin-top: 30pt;
+        }
+        
+        .chart-container {
+            background: white;
+            border: 2pt solid #e5e7eb;
+            border-radius: 8pt;
+            padding: 20pt;
+            margin-bottom: 25pt;
+            text-align: center;
+        }
+        
+        .chart-container h3 {
+            color: #1e40af;
+            margin-bottom: 15pt;
+            font-size: 14pt;
+        }
+        
+        .chart-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4pt;
+            box-shadow: 0 2pt 8pt rgba(0,0,0,0.1);
+        }
+        
+        .chart-description {
+            margin-top: 12pt;
+            font-size: 10pt;
+            color: #6b7280;
+            font-style: italic;
+        }
+        
+        /* Action Plan Styling */
+        .action-plan-section {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border: 2pt solid #10b981;
+            border-radius: 12pt;
+            padding: 25pt;
+            margin-top: 30pt;
+        }
+        
+        .action-categories {
+            display: grid;
+            gap: 20pt;
+        }
+        
+        .action-category {
+            background: white;
+            border-radius: 8pt;
+            padding: 18pt;
+            border-left: 4pt solid #10b981;
+        }
+        
+        .action-category h3 {
+            color: #065f46;
+            margin: 0 0 12pt 0;
+            font-size: 13pt;
+        }
+        
+        .action-category ul {
+            margin: 0;
+            padding-left: 20pt;
+        }
+        
+        .action-category li {
+            margin-bottom: 8pt;
+            line-height: 1.4;
+        }
+        
+        /* Citations and References */
+        .citations-section {
+            background: #f8fafc;
+            border: 2pt solid #cbd5e1;
+            border-radius: 8pt;
+            padding: 20pt;
+            margin-top: 30pt;
+        }
+        
+        .citation {
+            background: white;
+            border: 1pt solid #e2e8f0;
+            border-radius: 6pt;
+            padding: 15pt;
+            margin-bottom: 15pt;
+        }
+        
+        .citation h3 {
+            color: #1e40af;
+            font-size: 12pt;
+            margin: 0 0 8pt 0;
+        }
+        
+        /* AI Transparency Section */
+        .ai-transparency-section {
+            background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+            border: 2pt solid #8b5cf6;
+            border-radius: 12pt;
+            padding: 25pt;
+            margin-top: 30pt;
+        }
+        
+        .ai-info h3 {
+            color: #6b21a8;
+            font-size: 14pt;
+            margin: 0 0 12pt 0;
+        }
+        
+        .disclaimers {
+            background: white;
+            border-radius: 8pt;
+            padding: 20pt;
+            margin-top: 15pt;
+        }
+        
+        .disclaimers p {
+            margin: 12pt 0;
+            padding: 10pt;
+            border-left: 3pt solid #8b5cf6;
+            background: #faf5ff;
+            border-radius: 4pt;
+        }
+        
+        /* Footer Styling */
+        .report-footer {
+            margin-top: 40pt;
+            padding-top: 20pt;
+            border-top: 2pt solid #e5e7eb;
+            font-size: 9pt;
+            color: #6b7280;
+        }
+        
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15pt;
+            margin-bottom: 15pt;
+        }
+        
+        .footer-disclaimer {
+            text-align: center;
+            font-style: italic;
+            padding: 10pt;
+            background: #f9fafb;
+            border-radius: 4pt;
+        }
+        
+        /* Utility Classes */
+        .page-break {
+            page-break-before: always;
+        }
+        
+        .no-break {
+            page-break-inside: avoid;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .font-bold {
+            font-weight: 700;
+        }
+        
+        .font-semibold {
+            font-weight: 600;
+        }
+        
+        /* Watermark */
+        .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 72pt;
+            color: rgba(59, 130, 246, 0.08);
+            z-index: -1;
+            pointer-events: none;
+            font-weight: 800;
+            letter-spacing: 8pt;
+        }
+        
+        /* Print Optimizations */
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .finding {
+                break-inside: avoid;
+            }
+            
+            .chart-container {
+                break-inside: avoid;
+            }
+        }
     </style>
 </head>
 <body>

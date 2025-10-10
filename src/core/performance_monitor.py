@@ -1,494 +1,524 @@
 """
-Performance Monitor Service for Therapy Compliance Analyzer
+Performance Monitoring System
 
-This module provides comprehensive performance monitoring with real-time metric
-collection, historical analysis, and intelligent insights.
+Comprehensive performance monitoring and metrics collection for all system components.
+Provides real-time insights into system health, performance bottlenecks, and optimization opportunities.
 """
 
 import logging
-import threading
+import asyncio
 import time
-import yaml
+import psutil
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, List, Optional, Any, Callable, TYPE_CHECKING
-from dataclasses import dataclass, asdict
-from enum import Enum
+from typing import Dict, List, Any, Optional, Callable
+from dataclasses import dataclass, field
+from collections import defaultdict, deque
+import threading
+import uuid
 
 logger = logging.getLogger(__name__)
 
-if TYPE_CHECKING:
-    from .alert_router import AlertRouter
-    from .analytics_agent import AnalyticsAgent
-    from .data_aggregator import DataAggregator
-    from .metrics_collector import MetricsCollector
 
-
-class MonitoringState(Enum):
-    """Performance monitoring states."""
-    STOPPED = "stopped"
-    STARTING = "starting"
-    RUNNING = "running"
-    STOPPING = "stopping"
-    ERROR = "error"
+@dataclass
+class PerformanceMetric:
+    """Individual performance metric data point."""
+    timestamp: datetime
+    component: str
+    operation: str
+    duration_ms: float
+    memory_usage_mb: float
+    cpu_usage_percent: float
+    success: bool
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
-class MonitoringConfiguration:
-    """Configuration for performance monitoring."""
-    collection_interval: float = 5.0  # seconds
-    retention_days: int = 30
-    max_metrics_per_batch: int = 1000
-    enable_real_time_alerts: bool = True
-    enable_predictive_analysis: bool = True
-    enable_benchmarking: bool = False
-    storage_path: str = "data/monitoring"
-    log_level: str = "INFO"
-    
-    # Alert thresholds
-    cpu_threshold: float = 80.0
-    memory_threshold: float = 85.0
-    response_time_threshold: float = 2000.0  # milliseconds
-    error_rate_threshold: float = 5.0  # percentage
-    
-    # Analytics settings
-    trend_analysis_window: int = 24  # hours
-    anomaly_detection_sensitivity: float = 2.0  # standard deviations
-    prediction_horizon: int = 6  # hours
-
-
-@dataclass
-class MonitoringStatus:
-    """Current monitoring system status."""
-    state: MonitoringState
-    uptime: timedelta
-    metrics_collected: int
-    alerts_generated: int
-    last_collection: Optional[datetime]
-    active_sources: int
-    storage_usage_mb: float
-    error_count: int
-    last_error: Optional[str]
+class SystemHealth:
+    """System health snapshot."""
+    timestamp: datetime
+    cpu_usage: float
+    memory_usage: float
+    disk_usage: float
+    active_threads: int
+    response_time_avg: float
+    error_rate: float
+    throughput: float
 
 
 class PerformanceMonitor:
-    """Central performance monitoring service."""
+    """
+    Comprehensive performance monitoring system.
     
-    def __init__(self, config: Optional[MonitoringConfiguration] = None):
-        """Initialize performance monitor.
+    This system provides:
+    - Real-time performance metrics collection
+    - System health monitoring and alerting
+    - Performance trend analysis and reporting
+    - Bottleneck identification and optimization suggestions
+    - Resource usage tracking and optimization
+    
+    Features:
+    - Component-level performance tracking
+    - Memory and CPU usage monitoring
+    - Response time analysis
+    - Error rate tracking
+    - Throughput measurement
+    - Performance alerts and notifications
+    
+    Example:
+        >>> monitor = PerformanceMonitor()
+        >>> with monitor.track_operation("pdf_export", "generate_report"):
+        ...     generate_pdf_report()
+        >>> health = monitor.get_system_health()
+        >>> print(f"System health: {health.cpu_usage}% CPU")
+    """
+    
+    def __init__(self, max_metrics_history: int = 10000):
+        """Initialize the performance monitoring system."""
+        self.max_metrics_history = max_metrics_history
+        self.metrics_history: deque = deque(maxlen=max_metrics_history)
+        self.component_metrics: Dict[str, List[PerformanceMetric]] = defaultdict(list)
+        self.active_operations: Dict[str, Dict[str, Any]] = {}
+        self.performance_thresholds = self._initialize_thresholds()
+        self.alerts_enabled = True
+        self.monitoring_active = True
+        
+        # Background monitoring thread
+        self.monitor_thread = threading.Thread(target=self._background_monitoring, daemon=True)
+        self.monitor_thread.start()
+        
+        logger.info("Performance monitoring system initialized")
+    
+    def track_operation(self, component: str, operation: str, metadata: Optional[Dict[str, Any]] = None):
+        """
+        Context manager for tracking operation performance.
         
         Args:
-            config: Monitoring configuration, uses defaults if None
+            component: Component name (e.g., "pdf_export", "ai_analysis")
+            operation: Operation name (e.g., "generate_report", "analyze_document")
+            metadata: Additional metadata to track
+            
+        Example:
+            >>> with monitor.track_operation("ai_analysis", "compliance_check"):
+            ...     result = analyze_compliance(document)
         """
-        self.config = config or MonitoringConfiguration()
-        self.state = MonitoringState.STOPPED
-        self.start_time: Optional[datetime] = None
-        
-        # Core components (will be initialized when needed)
-        self.metrics_collector: Optional["MetricsCollector"] = None
-        self.data_aggregator: Optional["DataAggregator"] = None
-        self.analytics_agent: Optional["AnalyticsAgent"] = None
-        self.alert_router: Optional["AlertRouter"] = None
-        
-        # Threading and synchronization
-        self._monitor_thread: Optional[threading.Thread] = None
-        self._stop_event = threading.Event()
-        self._lock = threading.RLock()
-        
-        # Status tracking
-        self._metrics_collected = 0
-        self._alerts_generated = 0
-        self._error_count = 0
-        self._last_error: Optional[str] = None
-        self._last_collection: Optional[datetime] = None
-        
-        # Callbacks for monitoring events
-        self._status_callbacks: List[Callable[[MonitoringStatus], None]] = []
-        self._metric_callbacks: List[Callable[[Dict[str, Any]], None]] = []
-        
-        # Ensure storage directory exists
-        Path(self.config.storage_path).mkdir(parents=True, exist_ok=True)
-        
-        logger.info("Performance monitor initialized")
+        return OperationTracker(self, component, operation, metadata or {})
     
-    def start_monitoring(self) -> bool:
-        """Start the performance monitoring system.
-        
-        Returns:
-            True if monitoring started successfully, False otherwise
+    async def track_async_operation(self, 
+                                  component: str, 
+                                  operation: str, 
+                                  func: Callable, 
+                                  *args, 
+                                  **kwargs) -> Any:
         """
-        with self._lock:
-            if self.state in [MonitoringState.RUNNING, MonitoringState.STARTING]:
-                logger.warning("Monitoring is already running or starting")
-                return True
+        Track an async operation and return its result.
+        
+        Args:
+            component: Component name
+            operation: Operation name
+            func: Async function to execute
+            *args: Function arguments
+            **kwargs: Function keyword arguments
             
-            if self.state == MonitoringState.STOPPING:
-                logger.warning("Cannot start monitoring while stopping")
-                return False
-            
-            self.state = MonitoringState.STARTING
-            logger.info("Starting performance monitoring system")
+        Returns:
+            Result of the function execution
+        """
+        start_time = time.time()
+        start_memory = self._get_memory_usage()
+        start_cpu = self._get_cpu_usage()
+        operation_id = str(uuid.uuid4())
+        
+        # Track active operation
+        self.active_operations[operation_id] = {
+            "component": component,
+            "operation": operation,
+            "start_time": start_time,
+            "start_memory": start_memory
+        }
         
         try:
-            # Initialize core components
-            self._initialize_components()
+            result = await func(*args, **kwargs)
+            success = True
+            return result
             
-            # Start monitoring thread
-            self._stop_event.clear()
-            self._monitor_thread = threading.Thread(
-                target=self._monitoring_loop,
-                name="PerformanceMonitor",
-                daemon=True
+        except Exception as e:
+            success = False
+            raise
+            
+        finally:
+            # Calculate metrics
+            end_time = time.time()
+            duration_ms = (end_time - start_time) * 1000
+            end_memory = self._get_memory_usage()
+            end_cpu = self._get_cpu_usage()
+            
+            # Create metric
+            metric = PerformanceMetric(
+                timestamp=datetime.now(),
+                component=component,
+                operation=operation,
+                duration_ms=duration_ms,
+                memory_usage_mb=end_memory - start_memory,
+                cpu_usage_percent=(end_cpu + start_cpu) / 2,
+                success=success,
+                metadata=kwargs.get('metadata', {})
             )
-            self._monitor_thread.start()
             
-            # Update state
-            with self._lock:
-                self.state = MonitoringState.RUNNING
-                self.start_time = datetime.now()
-                self._error_count = 0
-                self._last_error = None
+            # Store metric
+            self._store_metric(metric)
             
-            logger.info("Performance monitoring started successfully")
-            self._notify_status_change()
-            return True
-            
-        except Exception as e:
-            error_msg = f"Failed to start monitoring: {e}"
-            logger.error(error_msg)
-            
-            with self._lock:
-                self.state = MonitoringState.ERROR
-                self._error_count += 1
-                self._last_error = error_msg
-            
-            self._notify_status_change()
-            return False
+            # Remove from active operations
+            if operation_id in self.active_operations:
+                del self.active_operations[operation_id]
     
-    def stop_monitoring(self) -> bool:
-        """Stop the performance monitoring system.
-        
-        Returns:
-            True if monitoring stopped successfully, False otherwise
+    def record_metric(self,
+                     component: str,
+                     operation: str,
+                     duration_ms: float,
+                     success: bool = True,
+                     metadata: Optional[Dict[str, Any]] = None):
         """
-        with self._lock:
-            if self.state == MonitoringState.STOPPED:
-                logger.info("Monitoring is already stopped")
-                return True
-            
-            if self.state == MonitoringState.STOPPING:
-                logger.info("Monitoring is already stopping")
-                return True
-            
-            self.state = MonitoringState.STOPPING
-            logger.info("Stopping performance monitoring system")
-        
-        try:
-            # Signal monitoring thread to stop
-            self._stop_event.set()
-            
-            # Wait for monitoring thread to finish
-            if self._monitor_thread and self._monitor_thread.is_alive():
-                self._monitor_thread.join(timeout=10.0)
-                
-                if self._monitor_thread.is_alive():
-                    logger.warning("Monitoring thread did not stop gracefully")
-            
-            # Cleanup components
-            self._cleanup_components()
-            
-            # Update state
-            with self._lock:
-                self.state = MonitoringState.STOPPED
-                self.start_time = None
-            
-            logger.info("Performance monitoring stopped successfully")
-            self._notify_status_change()
-            return True
-            
-        except Exception as e:
-            error_msg = f"Error stopping monitoring: {e}"
-            logger.error(error_msg)
-            
-            with self._lock:
-                self.state = MonitoringState.ERROR
-                self._error_count += 1
-                self._last_error = error_msg
-            
-            self._notify_status_change()
-            return False
-    
-    def get_status(self) -> MonitoringStatus:
-        """Get current monitoring system status.
-        
-        Returns:
-            Current monitoring status
-        """
-        with self._lock:
-            uptime = (datetime.now() - self.start_time) if self.start_time else timedelta()
-            
-            # Calculate storage usage (simplified)
-            storage_usage_mb = 0.0
-            try:
-                storage_path = Path(self.config.storage_path)
-                if storage_path.exists():
-                    storage_usage_mb = sum(
-                        f.stat().st_size for f in storage_path.rglob('*') if f.is_file()
-                    ) / (1024 * 1024)
-            except Exception:
-                pass  # Ignore storage calculation errors
-            
-            return MonitoringStatus(
-                state=self.state,
-                uptime=uptime,
-                metrics_collected=self._metrics_collected,
-                alerts_generated=self._alerts_generated,
-                last_collection=self._last_collection,
-                active_sources=self._get_active_sources_count(),
-                storage_usage_mb=storage_usage_mb,
-                error_count=self._error_count,
-                last_error=self._last_error
-            )
-    
-    def configure_monitoring(self, config: MonitoringConfiguration) -> bool:
-        """Update monitoring configuration.
+        Manually record a performance metric.
         
         Args:
-            config: New monitoring configuration
+            component: Component name
+            operation: Operation name
+            duration_ms: Operation duration in milliseconds
+            success: Whether the operation was successful
+            metadata: Additional metadata
+        """
+        metric = PerformanceMetric(
+            timestamp=datetime.now(),
+            component=component,
+            operation=operation,
+            duration_ms=duration_ms,
+            memory_usage_mb=self._get_memory_usage(),
+            cpu_usage_percent=self._get_cpu_usage(),
+            success=success,
+            metadata=metadata or {}
+        )
+        
+        self._store_metric(metric)
+    
+    def get_system_health(self) -> SystemHealth:
+        """Get current system health snapshot."""
+        # Calculate recent metrics
+        recent_metrics = [m for m in self.metrics_history if m.timestamp > datetime.now() - timedelta(minutes=5)]
+        
+        if recent_metrics:
+            avg_response_time = sum(m.duration_ms for m in recent_metrics) / len(recent_metrics)
+            error_rate = sum(1 for m in recent_metrics if not m.success) / len(recent_metrics)
+            throughput = len(recent_metrics) / 5.0  # Operations per minute
+        else:
+            avg_response_time = 0.0
+            error_rate = 0.0
+            throughput = 0.0
+        
+        return SystemHealth(
+            timestamp=datetime.now(),
+            cpu_usage=self._get_cpu_usage(),
+            memory_usage=self._get_memory_usage_percent(),
+            disk_usage=self._get_disk_usage(),
+            active_threads=threading.active_count(),
+            response_time_avg=avg_response_time,
+            error_rate=error_rate,
+            throughput=throughput
+        )
+    
+    def get_component_performance(self, component: str, hours: int = 24) -> Dict[str, Any]:
+        """
+        Get performance statistics for a specific component.
+        
+        Args:
+            component: Component name
+            hours: Number of hours to analyze
             
         Returns:
-            True if configuration updated successfully, False otherwise
+            Dict containing performance statistics
         """
-        try:
-            with self._lock:
-                old_config = self.config
-                self.config = config
-                
-                # Ensure storage directory exists
-                Path(self.config.storage_path).mkdir(parents=True, exist_ok=True)
-                
-                # If monitoring is running, apply configuration changes
-                if self.state == MonitoringState.RUNNING:
-                    self._apply_configuration_changes(old_config, config)
-            
-            logger.info("Monitoring configuration updated successfully")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to update monitoring configuration: {e}")
-            return False
-    
-    def add_status_callback(self, callback: Callable[[MonitoringStatus], None]) -> None:
-        """Add callback for monitoring status changes.
-        
-        Args:
-            callback: Function to call when status changes
-        """
-        with self._lock:
-            self._status_callbacks.append(callback)
-    
-    def remove_status_callback(self, callback: Callable[[MonitoringStatus], None]) -> None:
-        """Remove status change callback.
-        
-        Args:
-            callback: Function to remove from callbacks
-        """
-        with self._lock:
-            if callback in self._status_callbacks:
-                self._status_callbacks.remove(callback)
-    
-    def add_metric_callback(self, callback: Callable[[Dict[str, Any]], None]) -> None:
-        """Add callback for new metrics.
-        
-        Args:
-            callback: Function to call when new metrics are collected
-        """
-        with self._lock:
-            self._metric_callbacks.append(callback)
-    
-    def export_configuration(self, file_path: str) -> bool:
-        """Export current configuration to YAML file.
-        
-        Args:
-            file_path: Path to save configuration file
-            
-        Returns:
-            True if export successful, False otherwise
-        """
-        try:
-            config_dict = asdict(self.config)
-            
-            with open(file_path, 'w') as f:
-                yaml.dump(config_dict, f, default_flow_style=False, indent=2)
-            
-            logger.info(f"Configuration exported to {file_path}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to export configuration: {e}")
-            return False
-    
-    def import_configuration(self, file_path: str) -> bool:
-        """Import configuration from YAML file.
-        
-        Args:
-            file_path: Path to configuration file
-            
-        Returns:
-            True if import successful, False otherwise
-        """
-        try:
-            with open(file_path, 'r') as f:
-                config_dict = yaml.safe_load(f)
-            
-            config = MonitoringConfiguration(**config_dict)
-            return self.configure_monitoring(config)
-            
-        except Exception as e:
-            logger.error(f"Failed to import configuration: {e}")
-            return False
-    
-    def _initialize_components(self) -> None:
-        """Initialize monitoring components."""
-        # Import here to avoid circular imports
-        from .metrics_collector import MetricsCollector
-        from .data_aggregator import DataAggregator
-        
-        # Initialize components
-        self.metrics_collector = MetricsCollector(self.config)
-        self.data_aggregator = DataAggregator(self.config)
-        
-        # Initialize optional components based on configuration
-        if self.config.enable_predictive_analysis:
-            try:
-                from .analytics_agent import AnalyticsAgent
-                self.analytics_agent = AnalyticsAgent(self.config)
-            except ImportError:
-                logger.warning("Analytics agent not available, predictive analysis disabled")
-        
-        if self.config.enable_real_time_alerts:
-            try:
-                from .alert_router import AlertRouter
-                self.alert_router = AlertRouter(self.config)
-            except ImportError:
-                logger.warning("Alert router not available, real-time alerts disabled")
-        
-        logger.debug("Monitoring components initialized")
-    
-    def _cleanup_components(self) -> None:
-        """Cleanup monitoring components."""
-        components = [
-            self.metrics_collector,
-            self.data_aggregator,
-            self.analytics_agent,
-            self.alert_router
+        cutoff_time = datetime.now() - timedelta(hours=hours)
+        component_metrics = [
+            m for m in self.metrics_history 
+            if m.component == component and m.timestamp > cutoff_time
         ]
         
-        for component in components:
-            if component and hasattr(component, 'cleanup'):
-                try:
-                    component.cleanup()
-                except Exception as e:
-                    logger.error(f"Error cleaning up component {component}: {e}")
+        if not component_metrics:
+            return {
+                "component": component,
+                "total_operations": 0,
+                "success_rate": 0.0,
+                "avg_duration_ms": 0.0,
+                "min_duration_ms": 0.0,
+                "max_duration_ms": 0.0,
+                "avg_memory_usage_mb": 0.0,
+                "operations_per_hour": 0.0
+            }
         
-        # Clear component references
-        self.metrics_collector = None
-        self.data_aggregator = None
-        self.analytics_agent = None
-        self.alert_router = None
+        successful_ops = [m for m in component_metrics if m.success]
+        durations = [m.duration_ms for m in component_metrics]
+        memory_usage = [m.memory_usage_mb for m in component_metrics]
         
-        logger.debug("Monitoring components cleaned up")
+        return {
+            "component": component,
+            "total_operations": len(component_metrics),
+            "success_rate": len(successful_ops) / len(component_metrics),
+            "avg_duration_ms": sum(durations) / len(durations),
+            "min_duration_ms": min(durations),
+            "max_duration_ms": max(durations),
+            "avg_memory_usage_mb": sum(memory_usage) / len(memory_usage),
+            "operations_per_hour": len(component_metrics) / hours,
+            "error_count": len(component_metrics) - len(successful_ops),
+            "p95_duration_ms": self._calculate_percentile(durations, 95),
+            "p99_duration_ms": self._calculate_percentile(durations, 99)
+        }
     
-    def _monitoring_loop(self) -> None:
-        """Main monitoring loop."""
-        logger.info("Monitoring loop started")
+    def get_performance_trends(self, hours: int = 24) -> Dict[str, Any]:
+        """
+        Get performance trends over time.
         
-        while not self._stop_event.is_set():
+        Args:
+            hours: Number of hours to analyze
+            
+        Returns:
+            Dict containing trend analysis
+        """
+        cutoff_time = datetime.now() - timedelta(hours=hours)
+        recent_metrics = [m for m in self.metrics_history if m.timestamp > cutoff_time]
+        
+        if not recent_metrics:
+            return {"trends": [], "summary": "No data available"}
+        
+        # Group metrics by hour
+        hourly_metrics = defaultdict(list)
+        for metric in recent_metrics:
+            hour_key = metric.timestamp.replace(minute=0, second=0, microsecond=0)
+            hourly_metrics[hour_key].append(metric)
+        
+        trends = []
+        for hour, metrics in sorted(hourly_metrics.items()):
+            avg_duration = sum(m.duration_ms for m in metrics) / len(metrics)
+            success_rate = sum(1 for m in metrics if m.success) / len(metrics)
+            
+            trends.append({
+                "hour": hour.isoformat(),
+                "operation_count": len(metrics),
+                "avg_duration_ms": avg_duration,
+                "success_rate": success_rate,
+                "throughput": len(metrics)
+            })
+        
+        return {
+            "trends": trends,
+            "summary": f"Analyzed {len(recent_metrics)} operations over {hours} hours"
+        }
+    
+    def get_bottlenecks(self, threshold_ms: float = 1000.0) -> List[Dict[str, Any]]:
+        """
+        Identify performance bottlenecks.
+        
+        Args:
+            threshold_ms: Duration threshold for identifying slow operations
+            
+        Returns:
+            List of bottleneck information
+        """
+        recent_metrics = [m for m in self.metrics_history if m.timestamp > datetime.now() - timedelta(hours=1)]
+        slow_operations = [m for m in recent_metrics if m.duration_ms > threshold_ms]
+        
+        # Group by component and operation
+        bottlenecks = defaultdict(list)
+        for metric in slow_operations:
+            key = f"{metric.component}.{metric.operation}"
+            bottlenecks[key].append(metric)
+        
+        result = []
+        for operation, metrics in bottlenecks.items():
+            avg_duration = sum(m.duration_ms for m in metrics) / len(metrics)
+            result.append({
+                "operation": operation,
+                "occurrence_count": len(metrics),
+                "avg_duration_ms": avg_duration,
+                "max_duration_ms": max(m.duration_ms for m in metrics),
+                "impact_score": len(metrics) * avg_duration,  # Simple impact calculation
+                "recommendations": self._get_optimization_recommendations(operation, avg_duration)
+            })
+        
+        # Sort by impact score
+        result.sort(key=lambda x: x["impact_score"], reverse=True)
+        return result
+    
+    def _store_metric(self, metric: PerformanceMetric):
+        """Store a performance metric."""
+        self.metrics_history.append(metric)
+        self.component_metrics[metric.component].append(metric)
+        
+        # Check for performance alerts
+        if self.alerts_enabled:
+            self._check_performance_alerts(metric)
+    
+    def _check_performance_alerts(self, metric: PerformanceMetric):
+        """Check if metric triggers any performance alerts."""
+        thresholds = self.performance_thresholds.get(metric.component, {})
+        
+        # Duration alert
+        if metric.duration_ms > thresholds.get("max_duration_ms", 5000):
+            logger.warning(f"Performance alert: {metric.component}.{metric.operation} took {metric.duration_ms:.1f}ms")
+        
+        # Memory alert
+        if metric.memory_usage_mb > thresholds.get("max_memory_mb", 100):
+            logger.warning(f"Memory alert: {metric.component}.{metric.operation} used {metric.memory_usage_mb:.1f}MB")
+        
+        # Error rate alert
+        component_recent = [m for m in self.component_metrics[metric.component][-10:]]
+        if len(component_recent) >= 5:
+            error_rate = sum(1 for m in component_recent if not m.success) / len(component_recent)
+            if error_rate > thresholds.get("max_error_rate", 0.1):
+                logger.error(f"Error rate alert: {metric.component} has {error_rate:.1%} error rate")
+    
+    def _background_monitoring(self):
+        """Background thread for continuous system monitoring."""
+        while self.monitoring_active:
             try:
-                loop_start = time.time()
+                # Record system health metrics
+                health = self.get_system_health()
                 
-                # Collect metrics
-                if self.metrics_collector:
-                    metrics = self.metrics_collector.collect_all_metrics()
-                    
-                    if metrics:
-                        # Update collection stats
-                        with self._lock:
-                            self._metrics_collected += len(metrics)
-                            self._last_collection = datetime.now()
-                        
-                        # Process metrics
-                        if self.data_aggregator:
-                            self.data_aggregator.process_metrics(metrics)
-                        
-                        # Notify metric callbacks
-                        self._notify_metric_callbacks(metrics)
+                # Check system-level alerts
+                if health.cpu_usage > 90:
+                    logger.warning(f"High CPU usage: {health.cpu_usage:.1f}%")
                 
-                # Calculate sleep time to maintain collection interval
-                loop_duration = time.time() - loop_start
-                sleep_time = max(0, self.config.collection_interval - loop_duration)
+                if health.memory_usage > 90:
+                    logger.warning(f"High memory usage: {health.memory_usage:.1f}%")
                 
-                if sleep_time > 0:
-                    self._stop_event.wait(sleep_time)
-                else:
-                    logger.warning(f"Monitoring loop took {loop_duration:.2f}s, "
-                                 f"longer than interval {self.config.collection_interval}s")
+                if health.error_rate > 0.1:
+                    logger.warning(f"High error rate: {health.error_rate:.1%}")
+                
+                # Sleep for monitoring interval
+                time.sleep(30)  # Monitor every 30 seconds
                 
             except Exception as e:
-                error_msg = f"Error in monitoring loop: {e}"
-                logger.error(error_msg)
-                
-                with self._lock:
-                    self._error_count += 1
-                    self._last_error = error_msg
-                
-                # Brief pause before retrying
-                self._stop_event.wait(1.0)
-        
-        logger.info("Monitoring loop stopped")
+                logger.error(f"Background monitoring error: {e}")
+                time.sleep(60)  # Wait longer on error
     
-    def _apply_configuration_changes(self, old_config: MonitoringConfiguration, 
-                                   new_config: MonitoringConfiguration) -> None:
-        """Apply configuration changes to running components."""
-        # Update component configurations if they exist
-        if self.metrics_collector and hasattr(self.metrics_collector, 'update_config'):
-            self.metrics_collector.update_config(new_config)
-        
-        if self.data_aggregator and hasattr(self.data_aggregator, 'update_config'):
-            self.data_aggregator.update_config(new_config)
-        
-        if self.analytics_agent and hasattr(self.analytics_agent, 'update_config'):
-            self.analytics_agent.update_config(new_config)
-        
-        if self.alert_router and hasattr(self.alert_router, 'update_config'):
-            self.alert_router.update_config(new_config)
-        
-        logger.debug("Configuration changes applied to components")
+    def _get_memory_usage(self) -> float:
+        """Get current memory usage in MB."""
+        process = psutil.Process()
+        return process.memory_info().rss / 1024 / 1024
     
-    def _get_active_sources_count(self) -> int:
-        """Get count of active metric sources."""
-        if self.metrics_collector and hasattr(self.metrics_collector, 'get_active_sources_count'):
-            return self.metrics_collector.get_active_sources_count()
-        return 0
+    def _get_memory_usage_percent(self) -> float:
+        """Get system memory usage percentage."""
+        return psutil.virtual_memory().percent
     
-    def _notify_status_change(self) -> None:
-        """Notify all status callbacks of status change."""
-        status = self.get_status()
+    def _get_cpu_usage(self) -> float:
+        """Get current CPU usage percentage."""
+        return psutil.cpu_percent(interval=0.1)
+    
+    def _get_disk_usage(self) -> float:
+        """Get disk usage percentage."""
+        return psutil.disk_usage('/').percent
+    
+    def _calculate_percentile(self, values: List[float], percentile: int) -> float:
+        """Calculate percentile value."""
+        if not values:
+            return 0.0
         
-        for callback in self._status_callbacks:
-            try:
-                callback(status)
-            except Exception as e:
-                logger.error(f"Error in status callback: {e}")
+        sorted_values = sorted(values)
+        index = int((percentile / 100.0) * len(sorted_values))
+        return sorted_values[min(index, len(sorted_values) - 1)]
     
-    def _notify_metric_callbacks(self, metrics: List[Dict[str, Any]]) -> None:
-        """Notify all metric callbacks of new metrics."""
-        for callback in self._metric_callbacks:
-            try:
-                for metric in metrics:
-                    callback(metric)
-            except Exception as e:
-                logger.error(f"Error in metric callback: {e}")
+    def _get_optimization_recommendations(self, operation: str, avg_duration: float) -> List[str]:
+        """Get optimization recommendations for slow operations."""
+        recommendations = []
+        
+        if "pdf_export" in operation:
+            recommendations.extend([
+                "Consider reducing PDF complexity or size",
+                "Implement PDF generation caching",
+                "Use background processing for large reports"
+            ])
+        elif "ai_analysis" in operation:
+            recommendations.extend([
+                "Optimize document chunking strategy",
+                "Implement result caching for similar documents",
+                "Consider using smaller AI models for faster processing"
+            ])
+        elif "database" in operation:
+            recommendations.extend([
+                "Add database indexes for frequently queried fields",
+                "Implement query result caching",
+                "Consider database connection pooling"
+            ])
+        else:
+            recommendations.extend([
+                "Profile the operation to identify bottlenecks",
+                "Consider implementing caching",
+                "Optimize algorithm complexity"
+            ])
+        
+        return recommendations
+    
+    def _initialize_thresholds(self) -> Dict[str, Dict[str, float]]:
+        """Initialize performance thresholds for different components."""
+        return {
+            "pdf_export": {
+                "max_duration_ms": 10000,  # 10 seconds
+                "max_memory_mb": 200,
+                "max_error_rate": 0.05
+            },
+            "ai_analysis": {
+                "max_duration_ms": 30000,  # 30 seconds
+                "max_memory_mb": 500,
+                "max_error_rate": 0.1
+            },
+            "database": {
+                "max_duration_ms": 1000,   # 1 second
+                "max_memory_mb": 50,
+                "max_error_rate": 0.01
+            },
+            "ehr_integration": {
+                "max_duration_ms": 15000,  # 15 seconds
+                "max_memory_mb": 100,
+                "max_error_rate": 0.05
+            }
+        }
+
+
+class OperationTracker:
+    """Context manager for tracking individual operations."""
+    
+    def __init__(self, monitor: PerformanceMonitor, component: str, operation: str, metadata: Dict[str, Any]):
+        self.monitor = monitor
+        self.component = component
+        self.operation = operation
+        self.metadata = metadata
+        self.start_time = None
+        self.start_memory = None
+        self.start_cpu = None
+    
+    def __enter__(self):
+        self.start_time = time.time()
+        self.start_memory = self.monitor._get_memory_usage()
+        self.start_cpu = self.monitor._get_cpu_usage()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        end_time = time.time()
+        duration_ms = (end_time - self.start_time) * 1000
+        end_memory = self.monitor._get_memory_usage()
+        end_cpu = self.monitor._get_cpu_usage()
+        
+        success = exc_type is None
+        
+        metric = PerformanceMetric(
+            timestamp=datetime.now(),
+            component=self.component,
+            operation=self.operation,
+            duration_ms=duration_ms,
+            memory_usage_mb=end_memory - self.start_memory,
+            cpu_usage_percent=(end_cpu + self.start_cpu) / 2,
+            success=success,
+            metadata=self.metadata
+        )
+        
+        self.monitor._store_metric(metric)
 
 
 # Global performance monitor instance
