@@ -56,3 +56,52 @@ class TaskMonitorWorker(QThread):
 
 
 __all__ = ["GenericApiWorker", "TaskMonitorWorker", "FeedbackWorker"]
+
+class HealthCheckWorker(QThread):
+    """Worker to check API health status."""
+    
+    success = Signal(dict)
+    error = Signal(str)
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+    
+    def run(self):
+        try:
+            response = requests.get(f"{API_URL}/health", timeout=5)
+            if response.status_code == 200:
+                self.success.emit(response.json())
+            else:
+                self.error.emit(f"Health check failed: {response.status_code}")
+        except Exception as e:
+            self.error.emit(f"Health check error: {str(e)}")
+class 
+LogStreamWorker(QThread):
+    """Worker to stream logs from the API."""
+    
+    log_received = Signal(str)
+    error = Signal(str)
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.running = False
+    
+    def run(self):
+        self.running = True
+        try:
+            # Simple log streaming implementation
+            while self.running:
+                try:
+                    response = requests.get(f"{API_URL}/logs/stream", timeout=1)
+                    if response.status_code == 200:
+                        self.log_received.emit(response.text)
+                except requests.exceptions.Timeout:
+                    continue  # Normal timeout, keep trying
+                except Exception as e:
+                    self.error.emit(f"Log stream error: {str(e)}")
+                    break
+        except Exception as e:
+            self.error.emit(f"Log stream failed: {str(e)}")
+    
+    def stop(self):
+        self.running = False

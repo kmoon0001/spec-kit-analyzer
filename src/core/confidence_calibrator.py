@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 class ConfidenceCalibrator:
     """Main confidence calibrator class."""
     
-    def __init__(self):
+    def __init__(self, method="auto"):
+        self.method = method
         self.calibrator = None
         self.is_fitted = False
     
