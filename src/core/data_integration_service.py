@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional, Any, TypeVar, Generic
 
-from .report_generation_engine import ReportConfig, ReportType, TimeRange
+from .report_models import ReportConfig, ReportType, TimeRange
 
 logger = logging.getLogger(__name__)
 

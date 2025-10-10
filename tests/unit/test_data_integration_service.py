@@ -18,7 +18,7 @@ from src.core.data_integration_service import (
     DataResult,
     DataSourceMetadata
 )
-from src.core.report_generation_engine import ReportConfig, ReportType, TimeRange
+from src.core.report_models import ReportConfig, ReportType, TimeRange
 
 
 class TestDataSourceMetadata:

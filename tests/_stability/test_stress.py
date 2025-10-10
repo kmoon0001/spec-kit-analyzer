@@ -9,7 +9,8 @@ from src.gui.main_window import MainApplicationWindow
 
 @pytest.fixture
 def main_app_window(qtbot, qapp, mocker):
-    from src.gui.main_window import MainApplicationWindow, MainViewModel
+    from src.gui.main_window import MainApplicationWindow
+    from src.gui.view_models.main_view_model import MainViewModel
     from src.database import models
 
     mock_user = MagicMock(spec=models.User)
