@@ -85,7 +85,7 @@ class AnalysisDiagnostics:
             try:
                 result = check()
                 diagnostics[result.component] = result
-                logger.debug(f"Diagnostic check '{result.component}': {result.status.value}")
+                logger.debug("Diagnostic check '%s': {result.status.value}", result.component)
             except (ValueError, TypeError, AttributeError) as e:
                 logger.exception("Diagnostic check failed: %s", e)
                 diagnostics[f"check_error_{check.__name__}"] = DiagnosticResult(

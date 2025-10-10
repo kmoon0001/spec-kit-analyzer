@@ -71,7 +71,7 @@ class DocumentClassifier:
                 logger.info("Document classified as: %s", classification)
                 return classification
             logger.warning(
-                f"LLM returned an unexpected document type: '{classification}'. Defaulting to 'Unknown'.",
+                "LLM returned an unexpected document type: '%s'. Defaulting to 'Unknown'.", classification
             )
             return "Unknown"
 

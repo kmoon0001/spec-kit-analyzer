@@ -55,13 +55,13 @@ async def parse_and_load_rubrics(db_session: AsyncSession, rubric_files: list[Pa
 
         # Skip if this name is already in the current batch to be added
         if name in names_to_add:
-            logger.info(f"Rubric '{name}' is a duplicate in this batch. Skipping.")
+            logger.info("Rubric '%s' is a duplicate in this batch. Skipping.", name)
             continue
 
         # Check if a rubric with the same name already exists in the database
         result = await db_session.execute(select(Rubric).filter_by(name=name))
         if result.scalars().first():
-            logger.info(f"Rubric '{name}' already exists in the database. Skipping.")
+            logger.info("Rubric '%s' already exists in the database. Skipping.", name)
             continue
 
         # If it's a new, unique rule, prepare it for addition
@@ -72,13 +72,13 @@ async def parse_and_load_rubrics(db_session: AsyncSession, rubric_files: list[Pa
         )
         rules_to_add.append(new_rubric)
         names_to_add.add(name)
-        logger.info(f"Prepared new rubric for addition: '{name}'")
+        logger.info("Prepared new rubric for addition: '%s'", name)
 
     if rules_to_add:
         db_session.add_all(rules_to_add)
         await db_session.commit()
         logger.info(
-            f"Successfully added {len(rules_to_add)} new rubrics to the database.",
+            "Successfully added %s new rubrics to the database.", len(rules_to_add)
         )
     else:
         logger.info("No new rubrics to add. Database is up-to-date.")

@@ -286,7 +286,7 @@ class PerformanceOptimizer:
                 memory_results["initial_memory_mb"] - memory_results["final_memory_mb"]
             )
 
-            logger.debug("Memory optimization completed - Freed %sMB", memory_results['memory_freed_mb']:.1f)
+            logger.debug("Memory optimization completed - Freed %.1fMB", memory_results['memory_freed_mb'])
 
         except Exception as e:
             logger.exception("Memory optimization error: %s", e)

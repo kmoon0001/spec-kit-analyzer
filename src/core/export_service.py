@@ -154,7 +154,7 @@ class ExportService:
 
             if size_mb > self.max_file_size_mb:
                 logger.warning(
-                    f"Export size ({size_mb}MB) exceeds limit ({self.max_file_size_mb}MB)",
+                    "Export size (%.1fMB) exceeds limit (%.1fMB)", size_mb, self.max_file_size_mb
                 )
                 return False
 

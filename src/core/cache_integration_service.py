@@ -155,9 +155,8 @@ class CacheIntegrationService:
     def cleanup_and_report(self):
         """Cleanup caches and log performance report."""
         stats = self.get_cache_performance_stats()
-        logger.info("Cache performance - Hit rate: %s%, Memory usage: %sMB, ", stats['hit_rate_percent'], stats['memory_usage_mb']:.1f, 
-            f"Total entries: {stats['total_entries']}",
-        )
+        logger.info("Cache performance - Hit rate: %s%%, Memory usage: %.1fMB, Total entries: %s", 
+                   stats['hit_rate_percent'], stats['memory_usage_mb'], stats['total_entries'])
 
         cleanup_all_caches()
 

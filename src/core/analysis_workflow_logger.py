@@ -67,9 +67,8 @@ class AnalysisWorkflowLogger:
             "steps": [],
         }
 
-        self.logger.info("🚀 ANALYSIS STARTED - Session: %s | File: %s ({self.current_session[", session_id, Path(file_path).name, file_size']} bytes) | "
-            f"Rubric: {rubric} | User: {user_id}",
-        )
+        self.logger.info("🚀 ANALYSIS STARTED - Session: %s | File: %s (%s bytes) | Rubric: %s | User: %s", 
+                         session_id, Path(file_path).name, file_size, rubric, user_id)
 
         return session_id
 

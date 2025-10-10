@@ -137,7 +137,7 @@ class AdvancedPerformanceOptimizer:
                 "timestamp": datetime.now().isoformat(),
             }
 
-            logger.info("Advanced analysis complete - Health Score: %s/100", analysis_result['system_health_score']:.1f)
+            logger.info("Advanced analysis complete - Health Score: %.1f/100", analysis_result['system_health_score'])
             return analysis_result
 
         except Exception as e:

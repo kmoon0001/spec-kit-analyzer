@@ -59,7 +59,7 @@ class TemperatureScaling:
         self.temperature = result.x
         self.is_fitted = True
 
-        logger.info("Temperature scaling fitted with temperature: %s", self.temperature:.3f)
+        logger.info("Temperature scaling fitted with temperature: %.3f", self.temperature)
         return self
 
     def calibrate(self, logits: np.ndarray) -> np.ndarray:
@@ -124,7 +124,7 @@ class PlattScaling:
 
         # Calculate cross-validation score for quality assessment
         cv_score = cross_val_score(self.platt_model, scores_reshaped, true_labels, cv=3)
-        logger.info("Platt scaling fitted with CV accuracy: %s ± {cv_score.std():.3f}", cv_score.mean():.3f)
+        logger.info("Platt scaling fitted with CV accuracy: %.3f ± %.3f", cv_score.mean(), cv_score.std())
 
         return self
 

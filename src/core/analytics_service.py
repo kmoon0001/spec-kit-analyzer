@@ -43,7 +43,7 @@ class AnalyticsService:
         self.enable_advanced_features = enable_advanced_features
         self.cache: dict[str, Any] = {}  # Simple caching for expensive calculations
         logger.info(
-            f"Analytics service initialized (advanced features: {enable_advanced_features})",
+            "Analytics service initialized (advanced features: %s)", enable_advanced_features
         )
 
     def calculate_compliance_trends(

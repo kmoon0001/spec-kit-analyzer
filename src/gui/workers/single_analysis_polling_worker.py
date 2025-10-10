@@ -110,7 +110,7 @@ class SingleAnalysisPollingWorker(QObject):
                         "Analysis queued, waiting to start...",
                     )
                 else:
-                    logger.warning(f"Unknown status '{status}' for task {self.task_id}")
+                    logger.warning("Unknown status '%s' for task {self.task_id}", status)
                     status_tracker.update_status(
                         AnalysisState.POLLING,
                         attempts * 100 // max_attempts,

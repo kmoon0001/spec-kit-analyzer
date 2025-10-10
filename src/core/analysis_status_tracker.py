@@ -178,8 +178,8 @@ class AnalysisStatusTracker:
 
         elapsed = self.get_elapsed_time()
         logger.info(
-            f"Analysis completed successfully | "
-            f"Duration: {elapsed}s | Analysis: {self.current_analysis}",
+            "Analysis completed successfully | Duration: %ss | Analysis: %s",
+            elapsed, self.current_analysis
         )
 
         self._trigger_status_callback(AnalysisState.COMPLETED)
@@ -196,8 +196,8 @@ class AnalysisStatusTracker:
 
         elapsed = self.get_elapsed_time()
         logger.info(
-            f"Analysis cancelled by user | "
-            f"Elapsed: {elapsed}s | Analysis: {self.current_analysis}",
+            "Analysis cancelled by user | Elapsed: %ss | Analysis: %s",
+            elapsed, self.current_analysis
         )
 
         self._trigger_status_callback(AnalysisState.CANCELLED)
@@ -315,9 +315,8 @@ class AnalysisStatusTracker:
 
         elapsed = self.get_elapsed_time()
         logger.error(
-            f"Analysis timed out | "
-            f"Elapsed: {elapsed}s | Threshold: {self.timeout_threshold}s | "
-            f"Analysis: {self.current_analysis}",
+            "Analysis timed out | Elapsed: %ss | Threshold: %ss | Analysis: %s",
+            elapsed, self.timeout_threshold, self.current_analysis
         )
 
         # Trigger timeout callbacks

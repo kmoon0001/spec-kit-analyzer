@@ -443,12 +443,12 @@ class MetricsCollector:
             source_name = source.get_source_name()
 
             if not source.is_available():
-                logger.warning(f"Metric source '{source_name}' is not available")
+                logger.warning("Metric source '%s' is not available", source_name)
                 return False
 
             with self._lock:
                 if source_name in self._sources:
-                    logger.warning(f"Metric source '{source_name}' already registered")
+                    logger.warning("Metric source '%s' already registered", source_name)
                     return False
 
                 self._sources[source_name] = source
@@ -473,7 +473,7 @@ class MetricsCollector:
         try:
             with self._lock:
                 if source_name not in self._sources:
-                    logger.warning(f"Metric source '{source_name}' not found")
+                    logger.warning("Metric source '%s' not found", source_name)
                     return False
 
                 source = self._sources.pop(source_name)
@@ -483,7 +483,7 @@ class MetricsCollector:
             return True
 
         except Exception as e:
-            logger.exception(f"Failed to unregister metric source '{source_name}': {e}")
+            logger.exception("Failed to unregister metric source '%s': {e}", source_name)
             return False
 
     def collect_all_metrics(self) -> list[dict[str, Any]]:
@@ -518,7 +518,7 @@ class MetricsCollector:
                         all_metrics.append(metric_dict)
 
             except Exception as e:
-                logger.exception(f"Error collecting metrics from source '{source_name}': {e}")
+                logger.exception("Error collecting metrics from source '%s': {e}", source_name)
 
         logger.debug("Collected %s metrics from {len(sources_to_collect)} sources", len(all_metrics))
         return all_metrics
@@ -535,14 +535,14 @@ class MetricsCollector:
         """
         with self._lock:
             if source_name not in self._sources:
-                logger.warning(f"Metric source '{source_name}' not found")
+                logger.warning("Metric source '%s' not found", source_name)
                 return []
 
             source = self._sources[source_name]
 
         try:
             if not source.is_available():
-                logger.warning(f"Metric source '{source_name}' is not available")
+                logger.warning("Metric source '%s' is not available", source_name)
                 return []
 
             metrics = source.collect_metrics()
@@ -565,7 +565,7 @@ class MetricsCollector:
             return metric_dicts
 
         except Exception as e:
-            logger.exception(f"Error collecting metrics from source '{source_name}': {e}")
+            logger.exception("Error collecting metrics from source '%s': {e}", source_name)
             return []
 
     def get_active_sources_count(self) -> int:

@@ -387,8 +387,8 @@ async def get_performance_alerts(
             "generated_at": overview_data["generated_at"],
         }
 
-    except Exception:
-        logger.exception("Failed to get performance alerts")
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        logger.exception("Failed to get performance alerts: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve performance alerts",

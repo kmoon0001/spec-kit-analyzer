@@ -52,7 +52,7 @@ def add_user(cursor, username, password):
     # Check if user already exists
     cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
     if cursor.fetchone():
-        logging.info(f"User '{username}' already exists.")
+        logging.info("User '%s' already exists.", username)
         return
 
     salt = os.urandom(SALT_SIZE)
@@ -62,7 +62,7 @@ def add_user(cursor, username, password):
         "INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)",
         (username, password_hash, salt),
     )
-    logging.info(f"User '{username}' added successfully.")
+    logging.info("User '%s' added successfully.", username)
 
 
 def generate_random_password(length=12):

@@ -186,7 +186,7 @@ class ResourcePool(Generic[T]):
         if config.preload_resources:
             self._preload_resources()
 
-        logger.info(f"Resource pool '{name}' initialized with config: {config}")
+        logger.info("Resource pool '%s' initialized with config: {config}", name)
 
     def acquire_resource(self, timeout: float | None = None) -> PooledResource[T] | None:
         """Acquire a resource from the pool."""
@@ -223,7 +223,7 @@ class ResourcePool(Generic[T]):
                         if pooled_resource.state == ResourceState.AVAILABLE:
                             return pooled_resource
             except queue.Empty:
-                logger.warning(f"Timeout waiting for resource in pool '{self.name}'")
+                logger.warning("Timeout waiting for resource in pool '%s'", self.name)
                 return None
 
         return None
@@ -283,7 +283,7 @@ class ResourcePool(Generic[T]):
 
             self._resources.clear()
 
-        logger.info(f"Resource pool '{self.name}' shut down")
+        logger.info("Resource pool '%s' shut down", self.name)
 
     def _create_resource(self) -> PooledResource[T]:
         """Create a new pooled resource."""

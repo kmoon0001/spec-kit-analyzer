@@ -101,7 +101,7 @@ async def get_habit_timeline(
 
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
         logger.exception(
-            f"Failed to get habit timeline for user {current_user.id}, habit {habit_id}",
+            "Failed to get habit timeline for user %s, habit %s", current_user.id, habit_id
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

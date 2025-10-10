@@ -113,7 +113,7 @@ class MLScheduler:
 
             # Log results
             duration = (datetime.now() - job_start).total_seconds()
-            logger.info("ML training job completed in %ss: {result[", duration, status']}")
+            logger.info("ML training job completed in %ss: %s", duration, result['status'])
 
             # Log detailed results based on status
             if result["status"] == "completed":

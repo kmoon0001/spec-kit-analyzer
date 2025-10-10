@@ -89,7 +89,7 @@ class FeatureConfig:
                 # Merge user config with defaults
                 self._merge_config(self.features, user_config)
                 logger.info(
-                    f"Loaded user feature configuration from {self.config_file}",
+                    "Loaded user feature configuration from %s", self.config_file
                 )
             else:
                 logger.info("No user feature configuration found, using defaults")

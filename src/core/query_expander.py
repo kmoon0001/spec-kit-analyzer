@@ -344,7 +344,7 @@ class QueryExpander:
             ExpansionResult with expanded terms and metadata
 
         """
-        logger.debug(f"Expanding query: '{query}' for discipline: {discipline}")
+        logger.debug("Expanding query: '%s' for discipline: {discipline}", query)
 
         expanded_terms = []
         expansion_sources = {}

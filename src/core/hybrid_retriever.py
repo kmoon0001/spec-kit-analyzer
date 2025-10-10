@@ -114,8 +114,8 @@ class HybridRetriever:
                     context_entities=context_entities,
                 )
                 expanded_query = expansion_result.get_expanded_query(max_terms=8)
-                logger.debug(f"Query expanded from '{query}' to '{expanded_query}' "
-                           f"({expansion_result.total_terms} total terms)")
+                logger.debug("Query expanded from '%s' to '%s' (%s total terms)", 
+                           query, expanded_query, expansion_result.total_terms)
             except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
                 logger.warning("Query expansion failed, using original query: %s", e)
                 expanded_query = query

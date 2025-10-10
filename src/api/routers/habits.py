@@ -120,8 +120,8 @@ async def get_progress_summary(
             next_milestone=next_milestone,
         )
 
-    except Exception:
-        logger.exception("Failed to get progress summary for user %s", current_user.id)
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        logger.exception("Failed to get progress summary for user %s: %s", current_user.id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve progress summary",
@@ -335,8 +335,8 @@ async def get_habit_details(
 
         return {"habit_id": f"habit_{habit_number}", **habit_details}
 
-    except Exception:
-        logger.exception("Failed to get habit details for habit %s", habit_number)
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        logger.exception("Failed to get habit details for habit %s: %s", habit_number, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve habit details",

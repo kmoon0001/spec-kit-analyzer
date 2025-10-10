@@ -4,5 +4,5 @@ try:
 
     if not hasattr(QtBot, "button_enum"):
         QtBot.button_enum = Qt.MouseButton
-except Exception:
+except (AttributeError, ImportError):
     pass

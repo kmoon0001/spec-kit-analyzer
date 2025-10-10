@@ -459,7 +459,7 @@ class HabitProgressionService:
             **goal_data,
         }
 
-        logger.info("Created goal for user %s: {goal[", user_id, title']}")
+        logger.info("Created goal for user %s: %s", user_id, goal['title'])
         return goal
 
     async def update_goal_progress(
@@ -468,6 +468,6 @@ class HabitProgressionService:
         """Update progress on a user's goal."""
         # This would update the goal in the database
         logger.info(
-            f"Updated goal {goal_id} progress to {progress}% for user {user_id}",
+            "Updated goal %s progress to %s%% for user %s", goal_id, progress, user_id
         )
         return True
