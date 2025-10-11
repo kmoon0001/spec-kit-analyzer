@@ -124,9 +124,15 @@ class MetricSource(ABC):
         with self._lock:
             return self._last_collection_time
 
-    @abstractmethod
     def cleanup(self) -> None:
-        """Cleanup resources used by this source. Default implementation does nothing."""
+        """Cleanup resources used by this source.
+
+        Subclasses can override this method to release resources, but the
+        base implementation provides a safe no-op so that lightweight test
+        doubles do not need to implement it explicitly.
+        """
+
+        return None
 
 
 class SystemMetricsSource(MetricSource):
@@ -144,6 +150,7 @@ class SystemMetricsSource(MetricSource):
 
     def is_available(self) -> bool:
         try:
+            __import__("psutil")
             return True
         except ImportError:
             logger.warning("psutil not available for system metrics collection")

@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import importlib.util
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from html import escape
 from pathlib import Path
 from typing import Any
 
 import PIL.Image as Image
+from textwrap import dedent
 
 from src.core.report_template_engine import TemplateEngine
 
@@ -75,6 +77,7 @@ class PDFExportService:
 
         self.template_engine = TemplateEngine()
         self.font_config = FontConfiguration() if WEASYPRINT_AVAILABLE and FontConfiguration else None
+        self._pdf_css_cache: str | None = None
         if WEASYPRINT_AVAILABLE:
             logger.info("PDF export service initialised using WeasyPrint backend")
         elif REPORTLAB_AVAILABLE:
@@ -121,36 +124,52 @@ class PDFExportService:
 
         base_filename = filename or document_name or "report"
         sanitized = self._sanitize_filename(base_filename)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         pdf_path = self.output_dir / f"compliance_report_{sanitized}_{timestamp}.pdf"
+
+        enhanced_html = self._enhance_html_for_pdf(html_content, metadata)
 
         logger.info("Starting synchronous PDF export: name=%s", sanitized)
 
         try:
-            pdf_bytes = self._render_pdf_bytes(html_content)
+            pdf_bytes = self._render_pdf_bytes(enhanced_html)
             pdf_path.write_bytes(pdf_bytes)
         except PDFExportError as exc:
             logger.error("PDF export failed: %s", exc)
-            return {"success": False, "error": str(exc)}
+            return {
+                "success": False,
+                "error": str(exc),
+                "pdf_path": None,
+                "filename": None,
+                "purge_at": None,
+            }
         except (FileNotFoundError, PermissionError, OSError) as exc:
             logger.exception("Unable to write PDF to %s", pdf_path)
-            return {"success": False, "error": str(exc)}
+            return {
+                "success": False,
+                "error": str(exc),
+                "pdf_path": None,
+                "filename": None,
+                "purge_at": None,
+            }
 
         file_size = pdf_path.stat().st_size
+        now_utc = datetime.now(UTC)
         result = {
             "success": True,
             "pdf_path": str(pdf_path),
             "filename": pdf_path.name,
             "file_size": file_size,
             "file_size_mb": round(file_size / (1024 * 1024), 2),
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": now_utc.isoformat(),
+            "purge_at": None,
         }
 
         if metadata:
             result["metadata"] = metadata
 
         if self.enable_auto_purge and self.retention_hours > 0:
-            result["purge_at"] = (datetime.now() + timedelta(hours=self.retention_hours)).isoformat()
+            result["purge_at"] = (now_utc + timedelta(hours=self.retention_hours)).isoformat()
 
         logger.info(
             "PDF export completed: path=%s size_mb=%.2f", result["pdf_path"], result["file_size_mb"]
@@ -356,15 +375,22 @@ class PDFExportService:
             if self.font_config is not None:
                 css_kwargs["font_config"] = self.font_config
 
-            html_doc = HTML(string=html_content, base_url=str(Path.cwd()))
-            css_doc = CSS(string=self._get_pdf_css_styles(), **css_kwargs)
-            return html_doc.write_pdf(
-                stylesheets=[css_doc],
-                font_config=self.font_config,
-                optimize_images=True,
-                presentational_hints=True,
-                pdf_version=self.pdf_settings["pdf_version"],
-            )
+            try:
+                html_doc = HTML(string=html_content, base_url=str(Path.cwd()))
+                css_doc = CSS(string=self.pdf_css, **css_kwargs)
+                pdf_bytes = html_doc.write_pdf(
+                    stylesheets=[css_doc],
+                    font_config=self.font_config,
+                    optimize_images=True,
+                    presentational_hints=True,
+                    pdf_version=self.pdf_settings["pdf_version"],
+                )
+            except Exception as exc:  # pragma: no cover - safety net
+                raise PDFExportError(f"Failed to render PDF bytes: {exc}") from exc
+
+            if not isinstance(pdf_bytes, (bytes, bytearray)):
+                pdf_bytes = str(pdf_bytes or "").encode("utf-8")
+            return bytes(pdf_bytes)
 
         if REPORTLAB_AVAILABLE:
             raise PDFExportError(
@@ -436,124 +462,274 @@ class PDFExportService:
             data["grouped_findings"] = grouped
         return data
 
+    @property
+    def pdf_css(self) -> str:
+        """CSS used for PDF rendering and inline HTML enhancement."""
+
+        if self._pdf_css_cache is None:
+            self._pdf_css_cache = self._get_pdf_css_styles()
+        return self._pdf_css_cache
+
     def _get_pdf_css_styles(self) -> str:
-        return """
-        @page {
-            size: A4;
-            margin: 1in 0.75in;
+        return dedent(
+            """
+            @page {
+                size: Letter;
+                margin: 1in 0.75in;
 
-            @top-center {
-                content: "Therapy Compliance Analysis Report";
-                font-family: 'Segoe UI', Arial, sans-serif;
-                font-size: 10pt;
-                color: #666;
+                @top-left {
+                    content: "Therapy Compliance Analysis Report";
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    font-size: 10pt;
+                    color: #4b5563;
+                }
+
+                @top-right {
+                    content: "Generated by Spec Kit Analyzer";
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    font-size: 9pt;
+                    color: #9ca3af;
+                }
+
+                @bottom-center {
+                    content: "CONFIDENTIAL • HIPAA Protected";
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    font-size: 9pt;
+                    color: #b91c1c;
+                }
+
+                @bottom-right {
+                    content: "Page " counter(page) " of " counter(pages);
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    font-size: 9pt;
+                    color: #4b5563;
+                }
             }
 
-            @bottom-right {
-                content: "Page " counter(page) " of " counter(pages);
+            body {
                 font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 11pt;
+                line-height: 1.45;
+                color: #1f2937;
+                background: #ffffff;
+            }
+
+            h1, h2, h3 {
+                color: #2563eb;
+                page-break-after: avoid;
+            }
+
+            .report-metadata {
+                border: 1pt solid #d1d5db;
+                border-radius: 6pt;
+                padding: 12pt;
+                margin: 16pt 0;
+                background: #f9fafb;
+            }
+
+            .metadata-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 8pt;
+            }
+
+            .metadata-table th,
+            .metadata-table td {
+                border: 1pt solid #e5e7eb;
+                padding: 6pt 8pt;
+                text-align: left;
+            }
+
+            .metadata-table th {
+                background: #e5f0ff;
+                font-weight: 600;
+            }
+
+            .finding {
+                border: 1pt solid #e5e7eb;
+                border-radius: 4pt;
+                padding: 12pt;
+                margin-bottom: 12pt;
+                page-break-inside: avoid;
+            }
+
+            .risk-high {
+                border-left: 4pt solid #dc2626;
+                background: #fef2f2;
+            }
+
+            .risk-medium {
+                border-left: 4pt solid #f59e0b;
+                background: #fffbeb;
+            }
+
+            .risk-low {
+                border-left: 4pt solid #10b981;
+                background: #f0fdf4;
+            }
+
+            .confidence-indicator {
+                display: inline-block;
+                padding: 4pt 8pt;
+                border-radius: 9999px;
                 font-size: 9pt;
-                color: #666;
+                font-weight: 600;
+                text-transform: uppercase;
             }
-        }
 
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 11pt;
-            line-height: 1.4;
-            color: #333;
-            background: #fff;
-        }
+            .high-confidence {
+                background: #d1fae5;
+                color: #047857;
+            }
 
-        h1, h2, h3 {
-            color: #2563eb;
-            page-break-after: avoid;
-        }
+            .medium-confidence {
+                background: #fef3c7;
+                color: #b45309;
+            }
 
-        .finding {
-            border: 1pt solid #e5e7eb;
-            border-radius: 4pt;
-            padding: 12pt;
-            margin-bottom: 12pt;
-            page-break-inside: avoid;
-        }
+            .low-confidence {
+                background: #fee2e2;
+                color: #b91c1c;
+            }
 
-        .finding.high-risk {
-            border-left: 4pt solid #dc2626;
-            background: #fef2f2;
-        }
+            .disputed {
+                background: #f5f3ff;
+                color: #6d28d9;
+            }
 
-        .finding.medium-risk {
-            border-left: 4pt solid #f59e0b;
-            background: #fffbeb;
-        }
+            .metrics-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12pt;
+                margin: 16pt 0;
+            }
 
-        .finding.low-risk {
-            border-left: 4pt solid #10b981;
-            background: #f0fdf4;
-        }
+            .metric-card {
+                border: 1pt solid #e5e7eb;
+                border-radius: 4pt;
+                padding: 12pt;
+                text-align: center;
+            }
 
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12pt;
-            margin: 16pt 0;
-        }
+            .metric-value {
+                font-size: 24pt;
+                font-weight: bold;
+                color: #2563eb;
+            }
 
-        .metric-card {
-            border: 1pt solid #e5e7eb;
-            border-radius: 4pt;
-            padding: 12pt;
-            text-align: center;
-        }
+            .metric-label {
+                font-size: 10pt;
+                color: #6b7280;
+                margin-top: 4pt;
+            }
 
-        .metric-value {
-            font-size: 24pt;
-            font-weight: bold;
-            color: #2563eb;
-        }
+            .report-footer {
+                margin-top: 24pt;
+                padding-top: 12pt;
+                border-top: 1pt solid #d1d5db;
+                font-size: 9pt;
+                color: #374151;
+            }
 
-        .metric-label {
-            font-size: 10pt;
-            color: #666;
-            margin-top: 4pt;
-        }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 12pt 0;
+            }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 12pt 0;
-        }
+            th,
+            td {
+                border: 1pt solid #e5e7eb;
+                padding: 8pt;
+                text-align: left;
+            }
 
-        th, td {
-            border: 1pt solid #e5e7eb;
-            padding: 8pt;
-            text-align: left;
-        }
+            th {
+                background: #f9fafb;
+                font-weight: bold;
+            }
 
-        th {
-            background: #f9fafb;
-            font-weight: bold;
-        }
+            .watermark {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%) rotate(-45deg);
+                font-size: 48pt;
+                color: rgba(0, 0, 0, 0.08);
+                z-index: -1;
+            }
+            """
+        )
 
-        .watermark {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(-45deg);
-            font-size: 48pt;
-            color: rgba(0, 0, 0, 0.1);
-            z-index: -1;
-            pointer-events: none;
-        }
-        """
+    def _enhance_html_for_pdf(self, html_content: str, data: dict[str, Any] | None) -> str:
+        """Inject styling, metadata and disclaimers into the supplied HTML."""
 
-    def _enhance_html_for_pdf(self, html_content: str, data: dict[str, Any]) -> str:
-        watermark = data.get("watermark")
-        if not watermark:
-            return html_content
-        watermark_div = f"<div class='watermark'>{watermark}</div>"
-        return html_content.replace("<body>", f"<body>{watermark_div}")
+        content = html_content or ""
+        if "<html" not in content.lower():
+            content = f"<html><head></head><body>{content}</body></html>"
+        elif "<head" not in content.lower():
+            content = content.replace("<html>", "<html><head></head>", 1)
+
+        if "<body" not in content.lower():
+            content = content.replace("</head>", "</head><body>") + "</body>"
+
+        style_block = f"<style>{self.pdf_css}</style>"
+        content = content.replace("<head>", f"<head>{style_block}", 1)
+
+        metadata_source: dict[str, Any] = {}
+        watermark_value: str | None = None
+        if isinstance(data, dict):
+            watermark_value = data.get("watermark") if isinstance(data.get("watermark"), str) else None
+            potential_metadata = data.get("metadata") if isinstance(data.get("metadata"), dict) else None
+            if potential_metadata:
+                metadata_source = potential_metadata
+            else:
+                metadata_source = {
+                    str(key): value for key, value in data.items() if isinstance(key, str) and key.lower() != "watermark"
+                }
+
+        watermark_html = ""
+        if watermark_value:
+            watermark_html = f"<div class='watermark'>{escape(watermark_value)}</div>"
+
+        metadata_html = ""
+        if metadata_source:
+            rows = "".join(
+                f"<tr><th>{escape(str(key))}</th><td>{escape(str(value))}</td></tr>"
+                for key, value in sorted(metadata_source.items())
+            )
+            metadata_html = (
+                "<section class='report-metadata'>"
+                "<h2>Report Metadata</h2>"
+                "<table class='metadata-table'>"
+                f"{rows}"
+                "</table>"
+                "</section>"
+            )
+
+        footer_html = (
+            "<footer class='report-footer'>"
+            "<p><strong>CONFIDENTIAL</strong> – HIPAA Protected Health Information.</p>"
+            "<p>This report leverages AI-assisted technology. Review before distribution.</p>"
+            "</footer>"
+        )
+
+        insertion = watermark_html + metadata_html
+        lower_content = content.lower()
+        body_start = lower_content.find("<body")
+        if body_start != -1:
+            body_end = lower_content.find('>', body_start)
+            if body_end != -1:
+                content = content[: body_end + 1] + insertion + content[body_end + 1 :]
+        else:
+            content = insertion + content
+
+        if "</body>" in lower_content:
+            content = content.replace("</body>", f"{footer_html}</body>")
+        else:
+            content += footer_html
+
+        return content
 
     def _combine_reports_data(self, reports: list[dict[str, Any]]) -> dict[str, Any]:
         combined = {
