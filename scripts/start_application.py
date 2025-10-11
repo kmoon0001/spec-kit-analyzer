@@ -26,7 +26,7 @@ def start_api_server():
         # Monitor the process output for Uvicorn's startup message
         for line in iter(process.stdout.readline, ''):
             print(f"[API] {line.strip()}")
-            if "Uvicorn running on http://127.0.0.1:8001" in line:
+            if "Application startup complete." in line:
                 print("✅ API server is ready!")
                 break
         

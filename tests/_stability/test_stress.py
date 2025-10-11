@@ -84,7 +84,7 @@ def test_rapid_tab_switching(main_app_window: MainApplicationWindow, qtbot):
         target_tab = 1 if tabs.count() > 1 else 0
         tabs.setCurrentIndex(target_tab)
         qtbot.wait(50)
-        # More lenient assertion - just check that we can switch tabs
+        # More lenient assertion - just check that we can switch tabsnot
         if tabs.count() > 1:
             assert tabs.currentIndex() >= 0 and tabs.currentIndex() < tabs.count()
 

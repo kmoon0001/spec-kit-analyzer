@@ -64,7 +64,7 @@ class MainViewModel(QObject):
             "filename": filename,
             "status": status,
             "progress": progress,
-            "timestamp": QThread.currentThreadId(),  # Corrected method
+            "timestamp": QThread.currentThread(),  # Corrected method
         }
         self._emit_combined_tasks()
 

@@ -163,7 +163,7 @@ class SettingsEditorWidget(QWidget):
             # Get system metrics
             memory = psutil.virtual_memory()
             disk = psutil.disk_usage("/")
-            cpu_percent = psutil.cpu_percent(interval=1)
+            cpu_percent = psutil.cpu_percent(interval=None)
 
             # Get process info
             process = psutil.Process(os.getpid())
@@ -454,6 +454,22 @@ class LogViewerWidget(QWidget):
 class TaskMonitorWidget(QWidget):
     """A widget that displays analysis tasks in a table."""
 
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._build_ui()
+
+    def _build_ui(self) -> None:
+        from PySide6.QtWidgets import QHeaderView, QTableWidget, QVBoxLayout
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.task_table = QTableWidget()
+        self.task_table.setColumnCount(4)
+        self.task_table.setHorizontalHeaderLabels(["Task ID", "File", "Status", "Timestamp"])
+        self.task_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.task_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        self.task_table.setColumnWidth(1, 200)
+        layout.addWidget(self.task_table)
+
     def update_tasks(self, tasks: dict[str, dict[str, Any]]) -> None:
         """Updates the table with the latest task data."""
         self.task_table.setRowCount(0)
@@ -490,8 +506,8 @@ class MissionControlWidget(QWidget):
         layout.addWidget(system_status_frame)
         
         # Add other frames as needed
-        # task_monitor_frame = self._build_task_monitor_frame()
-        # layout.addWidget(task_monitor_frame)
+        task_monitor_frame = self._build_task_monitor_frame()
+        layout.addWidget(task_monitor_frame)
 
     def update_overview(self, data: dict[str, Any]) -> None:
         if "ai_health" in data:
