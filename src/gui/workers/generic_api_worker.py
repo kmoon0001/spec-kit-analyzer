@@ -120,6 +120,11 @@ class TaskMonitorWorker(QThread):
                     break
                     
                 self.msleep(5000)  # Wait 5 seconds before next check
+                # Replace long sleep with shorter, responsive sleeps
+                for _ in range(50):  # Check every 100ms for 5 seconds
+                    if not self.running:
+                        break
+                    self.msleep(100)
                 
             except Exception as e:
                 self.error.emit(f"Task monitoring failed: {str(e)}")
@@ -155,7 +160,11 @@ class HealthCheckWorker(QThread):
             except Exception as e:
                 self.error.emit(f"Health check error: {str(e)}")
             
-            self.msleep(10000)  # Wait 10 seconds
+            # Replace long sleep with shorter, responsive sleeps
+            for _ in range(100):  # Check every 100ms for 10 seconds
+                if not self.running:
+                    break
+                self.msleep(100)
         self.finished.emit() # Emit finished signal
 
     def stop(self):
@@ -187,10 +196,11 @@ class LogStreamWorker(QThread):
                     if response.status_code == 200:
                         self.log_received.emit(response.text)
                 except requests.exceptions.Timeout:
-                    continue  # Normal timeout, keep trying
+                    pass  # Normal timeout, keep trying
                 except Exception as e:
                     self.error.emit(f"Log stream error: {str(e)}")
                     break
+                self.msleep(50) # Add a small sleep to yield control and check self.running
         except Exception as e:
             self.error.emit(f"Log stream failed: {str(e)}")
         finally:

@@ -294,25 +294,31 @@ class MainViewModel(QObject):
         """Stop all worker threads quickly - don't wait too long."""
         logger.debug("Stopping %d worker threads", len(self._active_threads))
 
-        for thread in list(self._active_threads):
+        for i, thread in enumerate(list(self._active_threads)):
+            logger.debug("Attempting to stop thread %d/%d (QThread ID: %s)", i + 1, len(self._active_threads), hex(id(thread)))
             try:
                 if thread.isRunning():
                     if hasattr(thread, "_worker_ref") and thread._worker_ref:
                         worker = thread._worker_ref
                         if hasattr(worker, "stop"):
+                            logger.debug("Calling stop() on worker %s in thread %s", worker.__class__.__name__, hex(id(thread)))
                             worker.stop()
 
+                    logger.debug("Calling quit() on thread %s", hex(id(thread)))
                     thread.quit()
 
                     if not thread.wait(11000):
-                        logger.warning("Thread did not quit gracefully, terminating")
+                        logger.warning("Thread %s did not quit gracefully within 11s, terminating", hex(id(thread)))
                         thread.terminate()
-                        thread.wait(1000)
+                        if not thread.wait(1000):
+                            logger.error("Thread %s did not terminate within 1s after forceful termination", hex(id(thread)))
+                    else:
+                        logger.debug("Thread %s quit gracefully", hex(id(thread)))
 
-            except (RuntimeError, AttributeError):
-                pass
+            except (RuntimeError, AttributeError) as e:
+                logger.warning("Error during thread %s shutdown (RuntimeError/AttributeError): %s", hex(id(thread)), e)
             except Exception as e:
-                logger.warning("Error stopping thread: %s", e)
+                logger.warning("Unexpected error stopping thread %s: %s", hex(id(thread)), e)
 
         self._active_threads.clear()
         logger.debug("All worker threads stopped")
