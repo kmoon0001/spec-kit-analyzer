@@ -536,12 +536,12 @@ class CacheWarmingService:
             prompt = item["prompt"]
             model_name = item["model_name"]
 
-            existing_response = LLMResponseCache.get_llm_response(prompt, model_name)
+            existing_response = LLMResponseCache.get_llm_response(model_name, prompt)
             if existing_response is None:
                 try:
                     response = await asyncio.to_thread(compute_func, prompt, model_name)
                     if response is not None:
-                        LLMResponseCache.set_llm_response(prompt, model_name, response)
+                        LLMResponseCache.set_llm_response(model_name, prompt, response)
 
                 except (FileNotFoundError, PermissionError, OSError) as e:
                     logger.exception("Error computing LLM response for warming: %s", e)

@@ -151,7 +151,7 @@ class LLMService:
 
         # Check cache first for performance optimization
         model_identifier = f"{self.model_repo_id}_{self.backend}"
-        cached_response = LLMResponseCache.get_llm_response(prompt, model_identifier)
+        cached_response = LLMResponseCache.get_llm_response(model_identifier, prompt)
         if cached_response is not None:
             logger.debug("Cache hit for LLM response (model: %s)", model_identifier)
             return cached_response
@@ -183,7 +183,7 @@ class LLMService:
                 # Cache the result for future use
                 generation_time = time.time() - start_time
                 ttl_hours = 6.0 if generation_time > 5.0 else 12.0  # Longer TTL for quick responses
-                LLMResponseCache.set_llm_response(prompt, model_identifier, result, ttl_hours)
+                LLMResponseCache.set_llm_response(model_identifier, prompt, result, ttl_hours)
 
                 logger.debug("LLM generation completed in %ss, cached with TTL {ttl_hours}h", generation_time)
                 return result
@@ -253,7 +253,7 @@ class LLMService:
             # Cache the result for future use
             generation_time = time.time() - start_time
             ttl_hours = 6.0 if generation_time > 5.0 else 12.0  # Longer TTL for quick responses
-            LLMResponseCache.set_llm_response(prompt, model_identifier, result, ttl_hours)
+            LLMResponseCache.set_llm_response(model_identifier, prompt, result, ttl_hours)
 
             logger.debug("LLM generation completed in %ss, cached with TTL {ttl_hours}h", generation_time)
             return result

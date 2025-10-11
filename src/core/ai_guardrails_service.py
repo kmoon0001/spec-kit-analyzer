@@ -496,6 +496,7 @@ class AIGuardrailsService:
     def __init__(self):
         self.guardrails = []
         self.violation_history = []
+        self.transparency_templates = self._load_transparency_templates()
         self._initialize_default_guardrails()
 
     def _initialize_default_guardrails(self) -> None:

@@ -370,6 +370,10 @@ class LLMResponseCache:
         cls._cache[f"{model_name}:{prompt}"] = response
     
     @classmethod
+    def set_llm_response(cls, model_name: str, prompt: str, response: str, ttl_hours: int = 24):
+        cls.set_response(model_name, prompt, response, ttl_hours)
+    
+    @classmethod
     def memory_usage_mb(cls) -> float:
         """Estimate memory usage of LLM response cache."""
         total_bytes = 0
