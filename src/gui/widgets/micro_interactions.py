@@ -9,6 +9,7 @@ from PySide6.QtCore import (
     Qt,
     QTimer,
     Signal,
+    Property,
 )
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QGraphicsOpacityEffect, QLabel, QPushButton, QWidget
@@ -234,62 +235,6 @@ class PulseAnimation(QWidget):
             self.is_pulsing = False
             self.pulse_group.stop()
             self.opacity_effect.setOpacity(1.0)
-
-
-class LoadingSpinner(QLabel):
-    """Animated loading spinner."""
-
-    def __init__(self, size=20, parent=None):
-        """Initialize the loading spinner."""
-        super().__init__(parent)
-        self.size = size
-        self.angle = 0
-        self.setup_spinner()
-
-    def setup_spinner(self):
-        """Setup spinner animation."""
-        self.setFixedSize(self.size, self.size)
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        # Rotation animation
-        self.rotation_animation = QPropertyAnimation(self, b"rotation")
-        self.rotation_animation.setDuration(1000)
-        self.rotation_animation.setStartValue(0)
-        self.rotation_animation.setEndValue(360)
-        self.rotation_animation.setLoopCount(-1)
-        self.rotation_animation.valueChanged.connect(self.update_rotation)
-
-    def update_rotation(self, angle):
-        """Update spinner rotation."""
-        self.angle = angle
-        self.update()
-
-    def start_spinning(self):
-        """Start spinner animation."""
-        self.rotation_animation.start()
-        self.show()
-
-    def stop_spinning(self):
-        """Stop spinner animation."""
-        self.rotation_animation.stop()
-        self.hide()
-
-    def paintEvent(self, event):
-        """Paint the spinner."""
-        from PySide6.QtGui import QPainter, QPen
-
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        # Draw spinner
-        pen = QPen(QColor(59, 130, 246))  # Blue color
-        pen.setWidth(3)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        painter.setPen(pen)
-
-        # Draw arc
-        rect = self.rect().adjusted(4, 4, -4, -4)
-        painter.drawArc(rect, self.angle * 16, 120 * 16)
 
 
 class ProgressRipple(QWidget):

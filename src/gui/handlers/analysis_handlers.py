@@ -75,10 +75,7 @@ class AnalysisHandlers:
             self.main_window.repeat_analysis_button.setEnabled(False)
         if self.main_window.stop_analysis_button:
             self.main_window.stop_analysis_button.setEnabled(True)
-        if self.main_window.view_report_button:
-            self.main_window.view_report_button.setEnabled(False)
-        if self.main_window.loading_spinner:
-            self.main_window.loading_spinner.start_spinning()
+
         self.main_window.show_progress(5, "Initializing...")
         self.main_window.statusBar().showMessage("⏳ Starting local analysis...")
 
@@ -113,8 +110,7 @@ class AnalysisHandlers:
                 self._reset_ui_after_stop("⏹️ Analysis stopped by user")
 
     def _reset_ui_after_stop(self, message: str):
-        if self.main_window.loading_spinner:
-            self.main_window.loading_spinner.stop_spinning()
+
         self.main_window.hide_progress()
         if self.main_window.run_analysis_button:
             self.main_window.run_analysis_button.setEnabled(True)

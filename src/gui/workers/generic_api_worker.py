@@ -132,16 +132,24 @@ class HealthCheckWorker(QThread):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.running = False
     
     def run(self):
-        try:
-            response = requests.get(f"{API_URL}/health", timeout=5)
-            if response.status_code == 200:
-                self.success.emit(response.json())
-            else:
-                self.error.emit(f"Health check failed: {response.status_code}")
-        except Exception as e:
-            self.error.emit(f"Health check error: {str(e)}")
+        self.running = True
+        while self.running:
+            try:
+                response = requests.get(f"{API_URL}/health", timeout=5)
+                if response.status_code == 200:
+                    self.success.emit(response.json())
+                else:
+                    self.error.emit(f"Health check failed: {response.status_code}")
+            except Exception as e:
+                self.error.emit(f"Health check error: {str(e)}")
+            
+            self.msleep(10000)  # Wait 10 seconds
+
+    def stop(self):
+        self.running = False
 
 class LogStreamWorker(QThread):
     """Worker to stream logs from the API."""

@@ -304,7 +304,7 @@ class MainViewModel(QObject):
 
                     thread.quit()
 
-                    if not thread.wait(50):
+                    if not thread.wait(11000):
                         logger.warning("Thread did not quit gracefully, terminating")
                         thread.terminate()
                         thread.wait(50)
