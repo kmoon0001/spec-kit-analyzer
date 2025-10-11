@@ -15,8 +15,7 @@ class TestNERPipeline:
     """Test cases for the NERPipeline class."""
 
     def test_initialization_with_empty_models(self):
-        """Test NERPipeline initialization with empty model list."""
-        pipeline = NERPipeline([])
+        pipeline = NERAnalyzer([])
         assert pipeline.model_names == []
         assert pipeline.pipelines == []
 
@@ -38,13 +37,13 @@ class TestNERPipeline:
 
     def test_extract_entities_empty_text(self):
         """Test entity extraction with empty text."""
-        pipeline = NERPipeline([])
+        pipeline = NERAnalyzer([])
         entities = pipeline.extract_entities("")
         assert entities == []
 
     def test_extract_entities_no_pipelines(self):
         """Test entity extraction when no pipelines are loaded."""
-        pipeline = NERPipeline([])
+        pipeline = NERAnalyzer([])
         entities = pipeline.extract_entities("Sample text")
         assert entities == []
 
@@ -59,7 +58,7 @@ class TestNERAnalyzer:
 
     def test_initialization(self, analyzer):
         """Test NERAnalyzer initialization."""
-        assert analyzer.ner_pipeline is not None
+        assert analyzer.pipelines is not None
         assert hasattr(analyzer, "presidio_wrapper")
         assert hasattr(analyzer, "clinical_patterns")
 

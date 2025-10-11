@@ -429,6 +429,8 @@ class TransparencyEnforcementGuardrail(BaseGuardrail):
     
     def evaluate(self, content: str, context: dict[str, Any]) -> list[GuardrailViolation]:
         """Evaluate content for transparency violations"""
+        if not content or content.isspace():
+            return []
         violations = []
         
         # Check for missing transparency elements

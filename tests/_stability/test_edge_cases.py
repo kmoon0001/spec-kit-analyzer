@@ -22,7 +22,7 @@ def mock_backend_services():
         patch("src.gui.workers.generic_api_worker.LogStreamWorker"),
         patch("src.gui.workers.single_analysis_polling_worker.SingleAnalysisPollingWorker"),
         patch("src.gui.workers.generic_api_worker.FeedbackWorker"),
-        patch("src.gui.main_window.requests.post"),
+        patch("src.gui.workers.generic_api_worker.requests.post"),
         patch("src.gui.workers.generic_api_worker.requests.get"),
         patch("src.gui.main_window.QMessageBox") as mock_msg_box,
     ):  # Mock message box to prevent popups
@@ -57,7 +57,7 @@ def test_large_file_upload(main_app_window: MainApplicationWindow, qtbot, tmp_pa
         "src.gui.main_window.QFileDialog.getOpenFileName",
         return_value=(str(large_file), "All Files (*.*)"),
     ):
-        main_app_window.open_file_dialog()
+        main_app_window._prompt_for_document()
 
     # Assert: The application should not crash, and the text area should contain the content.
     # We check a substring to avoid loading the whole 50MB into the test assertion.
@@ -86,7 +86,7 @@ def test_corrupted_file_upload(
         ),
     ):
         # Act
-        main_app_window.open_file_dialog()
+        main_app_window._prompt_for_document()
 
     # Assert: The application should not crash. It should display an error message in the text area.
     assert (

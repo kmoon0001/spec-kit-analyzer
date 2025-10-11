@@ -299,7 +299,7 @@ def _parse_pdf(file_path: str) -> list[dict[str, str]]:
     return _parse_pdf_with_ocr(file_path)
 
 def _parse_txt(file_path: str) -> list[dict[str, str]]:
-    with open(file_path, encoding="utf-8") as handle:
+    with open(file_path, "r", encoding="utf-8") as handle:
         text = handle.read().strip()
     return [{"sentence": text, "source": os.path.basename(file_path)}] if text else []
 

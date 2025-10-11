@@ -59,6 +59,7 @@ class ClinicalNERService:
         """
         self.model_names = list(model_names or [])
         self.pipelines = self._initialize_pipelines()
+        self.presidio_wrapper = get_presidio_wrapper()
         
         # Clinical patterns for clinician name extraction
         self.clinical_patterns = {
@@ -261,6 +262,9 @@ class ClinicalNERService:
 
 class NERPipeline(ClinicalNERService):
     """Convenience wrapper around ClinicalNERService with sensible defaults."""
+
+    def __init__(self):
+        super().__init__(model_names=DEFAULT_MODELS)
 
 
 # Alias for backward compatibility

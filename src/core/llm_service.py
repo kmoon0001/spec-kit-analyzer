@@ -213,6 +213,9 @@ class LLMService:
                 from transformers import StoppingCriteria, StoppingCriteriaList  # type: ignore
 
                 class _StopOnSequences(StoppingCriteria):
+                    def __init__(self, sequence_token_ids):
+                        self.sequence_token_ids = sequence_token_ids
+
                     def __call__(self, input_ids, scores, **kwargs):  # type: ignore[override]
                         tokens = input_ids[0].tolist()
                         for sequence in self.sequence_token_ids:

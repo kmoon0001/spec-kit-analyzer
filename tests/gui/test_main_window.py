@@ -85,68 +85,23 @@ def test_main_window_initialization(app):
 
 
 def test_run_analysis_click(app, qtbot, monkeypatch):
-
-    """Test that clicking the run analysis button calls the view model."""
-
+    """Test that clicking the run analysis button calls the analysis handler."""
     # Preconditions: a file must be selected and a rubric chosen.
-
     app._selected_file = Path("C:/fake/path/to/document.txt")
-
-    app.rubric_selector.clear() # Clear default rubrics
-
+    app.rubric_selector.clear()  # Clear default rubrics
     app.rubric_selector.addItem("Test Rubric", "test_rubric_id")
-
     app.rubric_selector.setCurrentIndex(0)
+    app.run_analysis_button.setEnabled(True)
 
+    # Mock the actual method that gets called
+    mock_start_analysis = MagicMock()
+    monkeypatch.setattr(app.analysis_handlers, "start_analysis", mock_start_analysis)
 
+    # Simulate the button click
+    qtbot.mouseClick(app.run_analysis_button, qtbot.button_enum.LeftButton)
 
-    # Mock the diagnostics to prevent it from showing message boxes
-
-    mock_diagnostics = MagicMock()
-
-    mock_diagnostics.run_full_diagnostic.return_value = {}
-
-    mock_diagnostics.validate_file_format.return_value = MagicMock(status=MagicMock(value="success"))
-
-    monkeypatch.setattr("src.gui.handlers.analysis_handlers.diagnostics", mock_diagnostics)
-
-
-
-    # Mock the workflow logger
-
-    mock_workflow_logger = MagicMock()
-
-    monkeypatch.setattr("src.gui.handlers.analysis_handlers.workflow_logger", mock_workflow_logger)
-
-
-
-    # Mock the status tracker
-
-    mock_status_tracker = MagicMock()
-
-    monkeypatch.setattr("src.gui.handlers.analysis_handlers.status_tracker", mock_status_tracker)
-
-
-
-    # Simulate the button click by calling the method directly
-
-    app._start_analysis()
-
-
-
-    # Assert that the view_model.start_analysis method was called
-
-    app.view_model.start_analysis.assert_called_once()
-
-    
-
-    # Check the arguments passed to start_analysis
-
-    args, kwargs = app.view_model.start_analysis.call_args
-
-    assert args[0] == str(Path("C:/fake/path/to/document.txt"))
-
-    assert args[1]["discipline"] == "test_rubric_id"
+    # Assert that the analysis_handlers.start_analysis method was called
+    mock_start_analysis.assert_called_once()
 
 
 

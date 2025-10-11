@@ -115,7 +115,7 @@ class FileHandlers:
             if self.main_window.run_analysis_button:
                 self.main_window.run_analysis_button.setEnabled(True)
             return
-        except (PermissionError, OSError) as exc:
+        except (PermissionError, OSError, UnicodeDecodeError) as exc:
             self.main_window._selected_file = None
             error_message = f"Could not display preview: {exc}"
             if self.main_window.file_display:
