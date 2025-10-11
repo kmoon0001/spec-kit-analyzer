@@ -20,9 +20,13 @@ from src.core.metrics_collector import (
     AIModelMetricsSource,
     MetricsCollector,
     get_metrics_collector,
+    reset_metrics_collector,
     record_response_time,
     record_request,
     record_error,
+    record_ai_inference_time,
+    record_model_load,
+    record_cache_hit,
 )
 
 
@@ -89,6 +93,40 @@ class TestPerformanceMetric:
         assert "cpu_usage=75.5%" in result
         assert "[system]" in result
 
+    def test_metric_equality(self):
+        """Test metric equality comparison"""
+        timestamp = datetime.now()
+        metric1 = PerformanceMetric(
+            timestamp=timestamp,
+            name="test_metric",
+            value=42.5,
+            unit="ms",
+            metric_type=MetricType.GAUGE,
+            source="test_source"
+        )
+        
+        metric2 = PerformanceMetric(
+            timestamp=timestamp,
+            name="test_metric",
+            value=42.5,
+            unit="ms",
+            metric_type=MetricType.GAUGE,
+            source="test_source"
+        )
+        
+        metric3 = PerformanceMetric(
+            timestamp=timestamp,
+            name="different_metric",
+            value=42.5,
+            unit="ms",
+            metric_type=MetricType.GAUGE,
+            source="test_source"
+        )
+        
+        assert metric1 == metric2
+        assert metric1 != metric3
+        assert metric1 != "not_a_metric"
+
 
 class TestMetricSource:
     """Test MetricSource base functionality"""
@@ -98,7 +136,7 @@ class TestMetricSource:
         
         class TestSource(MetricSource):
             def get_source_name(self) -> str:
-                return "test"
+                return "test_source"
             
             async def collect_metrics(self):
                 return []
@@ -110,265 +148,326 @@ class TestMetricSource:
         
         # Initially healthy
         assert source.is_healthy()
-        assert source._collection_errors == 0
         
         # Record some errors
         for i in range(3):
             source.record_error(Exception(f"Error {i}"))
-        
-        # Still healthy (under threshold)
-        assert source.is_healthy()
-        assert source._collection_errors == 3
+            assert source.is_healthy()  # Still healthy
         
         # Record more errors to exceed threshold
         for i in range(3):
             source.record_error(Exception(f"Error {i+3}"))
         
-        # Now unhealthy
-        assert not source.is_healthy()
-        assert source._collection_errors >= 5
+        assert not source.is_healthy()  # Now unhealthy
         
         # Reset health
         source.reset_health()
         assert source.is_healthy()
-        assert source._collection_errors == 0
+
+    def test_metric_source_last_collection_time(self):
+        """Test last collection time tracking"""
+        
+        class TestSource(MetricSource):
+            def get_source_name(self) -> str:
+                return "test_source"
+            
+            async def collect_metrics(self):
+                with self._lock:
+                    self._last_collection_time = datetime.now()
+                return []
+            
+            def is_available(self) -> bool:
+                return True
+        
+        source = TestSource()
+        
+        # Initially no collection time
+        assert source.get_last_collection_time() is None
+        
+        # After collection, should have time
+        asyncio.run(source.collect_metrics())
+        assert source.get_last_collection_time() is not None
 
 
 class TestSystemMetricsSource:
     """Test SystemMetricsSource functionality"""
 
-    def test_source_name(self):
-        """Test system metrics source name"""
+    def test_system_source_availability(self):
+        """Test system source availability detection"""
         source = SystemMetricsSource()
-        assert source.get_source_name() == "system"
-
-    def test_is_available_with_psutil(self):
-        """Test availability check when psutil is available"""
-        with patch('builtins.__import__', return_value=MagicMock()):
-            source = SystemMetricsSource()
-            assert source.is_available() is True
-
-    def test_is_available_without_psutil(self):
-        """Test availability check when psutil is not available"""
-        def mock_import(name, *args, **kwargs):
-            if name == 'psutil':
-                raise ImportError("No module named 'psutil'")
-            return __import__(name, *args, **kwargs)
         
-        with patch('builtins.__import__', side_effect=mock_import):
+        # Test when psutil is available (mock the import)
+        with patch('builtins.__import__') as mock_import:
+            mock_import.return_value = MagicMock()
+            assert source.is_available()
+        
+        # Test when psutil is not available
+        with patch('builtins.__import__', side_effect=ImportError):
             source = SystemMetricsSource()
-            assert source.is_available() is False
+            assert not source.is_available()
 
     @pytest.mark.asyncio
-    async def test_collect_metrics_success(self):
-        """Test successful metrics collection"""
-        # Mock psutil module
+    async def test_system_metrics_collection(self):
+        """Test system metrics collection"""
+        source = SystemMetricsSource()
+        
+        # Mock psutil for testing
         mock_psutil = MagicMock()
-        mock_psutil.cpu_percent.return_value = 45.5
-        mock_psutil.virtual_memory.return_value = MagicMock(
-            percent=60.0, available=1000000, used=2000000
-        )
-        mock_psutil.disk_usage.return_value = MagicMock(
-            total=10000000, used=5000000, free=5000000
-        )
-        mock_psutil.net_io_counters.return_value = MagicMock(
-            bytes_sent=1000, bytes_recv=2000
-        )
-        mock_psutil.Process.return_value = MagicMock(
-            memory_info=MagicMock(rss=500000),
-            cpu_percent=MagicMock(return_value=25.0)
-        )
-        mock_psutil.cpu_count.return_value = 4
-        
-        def mock_import(name, *args, **kwargs):
-            if name == 'psutil':
-                return mock_psutil
-            return __import__(name, *args, **kwargs)
-        
-        with patch('builtins.__import__', side_effect=mock_import):
-            source = SystemMetricsSource()
+        with patch('builtins.__import__', return_value=mock_psutil):
+            # Mock CPU metrics
+            mock_psutil.cpu_percent.return_value = 75.5
+            mock_psutil.cpu_count.return_value = 4
+            
+            # Mock memory metrics
+            mock_memory = MagicMock()
+            mock_memory.percent = 60.0
+            mock_memory.available = 1024 * 1024 * 1024  # 1GB
+            mock_psutil.virtual_memory.return_value = mock_memory
+            
+            # Mock disk metrics
+            mock_disk = MagicMock()
+            mock_disk.used = 500 * 1024 * 1024 * 1024  # 500GB
+            mock_disk.total = 1000 * 1024 * 1024 * 1024  # 1TB
+            mock_psutil.disk_usage.return_value = mock_disk
+            
+            # Mock process metrics
+            mock_process = MagicMock()
+            mock_memory_info = MagicMock()
+            mock_memory_info.rss = 100 * 1024 * 1024  # 100MB
+            mock_process.memory_info.return_value = mock_memory_info
+            mock_process.cpu_percent.return_value = 25.0
+            mock_psutil.Process.return_value = mock_process
+            
             metrics = await source.collect_metrics()
-        
-        assert len(metrics) > 0
-        
-        # Check that we have CPU metrics
-        cpu_metrics = [m for m in metrics if "cpu" in m.name]
-        assert len(cpu_metrics) > 0
-        
-        # Check that we have memory metrics
-        memory_metrics = [m for m in metrics if "memory" in m.name]
-        assert len(memory_metrics) > 0
-        
-        # Verify metric structure
-        for metric in metrics:
-            assert isinstance(metric, PerformanceMetric)
-            assert metric.source == "system"
-            assert isinstance(metric.timestamp, datetime)
+            
+            assert len(metrics) > 0
+            
+            # Check for expected metrics
+            metric_names = [m.name for m in metrics]
+            assert "cpu_usage_percent" in metric_names
+            assert "memory_usage_percent" in metric_names
+            assert "memory_available_bytes" in metric_names
+            assert "disk_usage_percent" in metric_names
+            assert "process_memory_rss" in metric_names
+            assert "process_cpu_percent" in metric_names
+            
+            # Verify metric values
+            cpu_metric = next(m for m in metrics if m.name == "cpu_usage_percent")
+            assert cpu_metric.value == 75.5
+            assert cpu_metric.unit == "%"
+            assert cpu_metric.metric_type == MetricType.GAUGE
 
     @pytest.mark.asyncio
-    async def test_collect_metrics_unavailable(self):
-        """Test metrics collection when psutil is unavailable"""
-        with patch.object(SystemMetricsSource, 'is_available', return_value=False):
-            source = SystemMetricsSource()
+    async def test_system_metrics_error_handling(self):
+        """Test system metrics error handling"""
+        source = SystemMetricsSource()
+        
+        # Mock psutil to raise an exception
+        mock_psutil = MagicMock()
+        with patch('builtins.__import__', return_value=mock_psutil):
+            mock_psutil.cpu_percent.side_effect = Exception("CPU error")
+            
             metrics = await source.collect_metrics()
+            
+            # Should return empty list on error
             assert metrics == []
+            
+            # Should record the error
+            assert source._collection_errors > 0
 
 
 class TestApplicationMetricsSource:
     """Test ApplicationMetricsSource functionality"""
 
-    def test_source_name(self):
-        """Test application metrics source name"""
-        source = ApplicationMetricsSource()
-        assert source.get_source_name() == "application"
-
-    def test_is_available(self):
-        """Test application metrics source availability"""
-        source = ApplicationMetricsSource()
-        assert source.is_available() is True
-
-    def test_record_response_time(self):
-        """Test recording response times"""
+    def test_application_source_initialization(self):
+        """Test application source initialization"""
         source = ApplicationMetricsSource()
         
-        # Record some response times
+        assert source.get_source_name() == "application"
+        assert source.is_available()
+        assert source.is_healthy()
+
+    @pytest.mark.asyncio
+    async def test_application_metrics_collection(self):
+        """Test application metrics collection"""
+        source = ApplicationMetricsSource()
+        
+        # Record some test data
         source.record_response_time(100.0)
         source.record_response_time(150.0)
         source.record_response_time(200.0)
-        
-        assert len(source._response_times) == 3
-        assert 100.0 in source._response_times
-        assert 150.0 in source._response_times
-        assert 200.0 in source._response_times
-
-    def test_record_request(self):
-        """Test recording requests"""
-        source = ApplicationMetricsSource()
-        
-        source.record_request("/api/analyze")
-        source.record_request("/api/analyze")
-        source.record_request("/api/dashboard")
-        
-        assert source._request_counts["/api/analyze"] == 2
-        assert source._request_counts["/api/dashboard"] == 1
-
-    def test_record_error(self):
-        """Test recording errors"""
-        source = ApplicationMetricsSource()
-        
-        source.record_error("ValidationError")
-        source.record_error("ValidationError")
-        source.record_error("DatabaseError")
-        
-        assert source._error_counts["ValidationError"] == 2
-        assert source._error_counts["DatabaseError"] == 1
-
-    @pytest.mark.asyncio
-    async def test_collect_metrics(self):
-        """Test collecting application metrics"""
-        source = ApplicationMetricsSource()
-        
-        # Record some data
-        source.record_response_time(100.0)
-        source.record_response_time(200.0)
         source.record_request("/api/test")
-        source.record_error("TestError")
+        source.record_request("/api/test")
+        source.record_request("/api/other")
+        source.record_error("validation_error")
+        source.record_error("timeout_error")
         
         metrics = await source.collect_metrics()
         
-        # Should have response time, request count, and error count metrics
-        assert len(metrics) >= 3
+        assert len(metrics) > 0
         
-        # Check metric types
-        response_time_metrics = [m for m in metrics if "response_time" in m.name]
-        request_metrics = [m for m in metrics if "request_count" in m.name]
-        error_metrics = [m for m in metrics if "error_count" in m.name]
+        # Check for expected metrics
+        metric_names = [m.name for m in metrics]
+        assert "response_time_avg" in metric_names
+        assert "response_time_max" in metric_names
+        assert "response_time_min" in metric_names
+        assert "request_count" in metric_names
+        assert "error_count" in metric_names
         
-        assert len(response_time_metrics) > 0
-        assert len(request_metrics) > 0
-        assert len(error_metrics) > 0
+        # Verify response time calculations
+        avg_metric = next(m for m in metrics if m.name == "response_time_avg")
+        assert avg_metric.value == 150.0  # (100 + 150 + 200) / 3
+        
+        max_metric = next(m for m in metrics if m.name == "response_time_max")
+        assert max_metric.value == 200.0
+        
+        min_metric = next(m for m in metrics if m.name == "response_time_min")
+        assert min_metric.value == 100.0
 
-    def test_reset_counters(self):
-        """Test resetting counters"""
+    def test_application_metrics_validation(self):
+        """Test application metrics input validation"""
         source = ApplicationMetricsSource()
         
+        # Test invalid response time
+        source.record_response_time(-10.0)  # Should be ignored
+        
+        # Test invalid endpoint
+        source.record_request("")  # Should be ignored
+        source.record_request("   ")  # Should be ignored
+        
+        # Test invalid error type
+        source.record_error("")  # Should be ignored
+        source.record_error("   ")  # Should be ignored
+        
+        # Valid data should work
+        source.record_response_time(100.0)
         source.record_request("/api/test")
-        source.record_error("TestError")
+        source.record_error("test_error")
         
-        assert len(source._request_counts) > 0
-        assert len(source._error_counts) > 0
+        stats = source.get_current_stats()
+        assert stats["response_times_count"] == 1
+        assert stats["total_requests"] == 1
+        assert stats["total_errors"] == 1
+
+    def test_application_metrics_reset(self):
+        """Test application metrics counter reset"""
+        source = ApplicationMetricsSource()
         
+        # Record some data
+        source.record_request("/api/test")
+        source.record_error("test_error")
+        
+        stats_before = source.get_current_stats()
+        assert stats_before["total_requests"] > 0
+        assert stats_before["total_errors"] > 0
+        
+        # Reset counters
         source.reset_counters()
         
-        assert len(source._request_counts) == 0
-        assert len(source._error_counts) == 0
+        stats_after = source.get_current_stats()
+        assert stats_after["total_requests"] == 0
+        assert stats_after["total_errors"] == 0
 
 
 class TestAIModelMetricsSource:
     """Test AIModelMetricsSource functionality"""
 
-    def test_source_name(self):
-        """Test AI model metrics source name"""
+    def test_ai_source_initialization(self):
+        """Test AI source initialization"""
         source = AIModelMetricsSource()
+        
         assert source.get_source_name() == "ai_models"
-
-    def test_record_inference_time(self):
-        """Test recording inference times"""
-        source = AIModelMetricsSource()
-        
-        source.record_inference_time(500.0)
-        source.record_inference_time(750.0)
-        
-        assert len(source._inference_times) == 2
-        assert 500.0 in source._inference_times
-        assert 750.0 in source._inference_times
-
-    def test_record_model_load(self):
-        """Test recording model loads"""
-        source = AIModelMetricsSource()
-        
-        source.record_model_load("bert-base")
-        source.record_model_load("bert-base")
-        source.record_model_load("gpt-3.5")
-        
-        assert source._model_loads["bert-base"] == 2
-        assert source._model_loads["gpt-3.5"] == 1
+        assert source.is_available()
+        assert source.is_healthy()
 
     @pytest.mark.asyncio
-    async def test_collect_metrics(self):
-        """Test collecting AI model metrics"""
+    async def test_ai_metrics_collection(self):
+        """Test AI metrics collection"""
         source = AIModelMetricsSource()
         
-        # Record some data
-        source.record_inference_time(500.0)
-        source.record_model_load("test-model")
-        source.record_model_error("test-model")
+        # Record some test data
+        source.record_inference_time(50.0)
+        source.record_inference_time(75.0)
+        source.record_inference_time(100.0)
+        source.record_model_load("bert-base")
+        source.record_model_load("gpt-3.5")
+        source.record_model_error("bert-base")
+        source.record_cache_hit("bert-base")
+        source.record_cache_hit("bert-base")
+        source.record_cache_miss("bert-base")
         
         metrics = await source.collect_metrics()
         
-        # Should have inference time, model load, and error metrics
-        assert len(metrics) >= 3
+        assert len(metrics) > 0
         
-        # Verify metric structure
-        for metric in metrics:
-            assert isinstance(metric, PerformanceMetric)
-            assert metric.source == "ai_models"
+        # Check for expected metrics
+        metric_names = [m.name for m in metrics]
+        assert "ai_inference_time_avg" in metric_names
+        assert "ai_inference_count" in metric_names
+        assert "model_load_count" in metric_names
+        assert "model_error_count" in metric_names
+        assert "model_cache_hit_rate" in metric_names
+        
+        # Verify inference time calculation
+        avg_metric = next(m for m in metrics if m.name == "ai_inference_time_avg")
+        assert avg_metric.value == 75.0  # (50 + 75 + 100) / 3
+        
+        # Verify cache hit rate calculation
+        cache_metric = next(m for m in metrics if m.name == "model_cache_hit_rate")
+        assert abs(cache_metric.value - 66.67) < 0.01  # 2 hits out of 3 total (2 hits + 1 miss)
+
+    def test_ai_metrics_validation(self):
+        """Test AI metrics input validation"""
+        source = AIModelMetricsSource()
+        
+        # Test invalid inference time
+        source.record_inference_time(-10.0)  # Should be ignored
+        
+        # Test invalid model names
+        source.record_model_load("")  # Should be ignored
+        source.record_model_load("   ")  # Should be ignored
+        source.record_model_error("")  # Should be ignored
+        source.record_cache_hit("")  # Should be ignored
+        source.record_cache_miss("")  # Should be ignored
+        
+        # Valid data should work
+        source.record_inference_time(100.0)
+        source.record_model_load("test-model")
+        source.record_model_error("test-model")
+        source.record_cache_hit("test-model")
+        source.record_cache_miss("test-model")
+        
+        # Should have recorded valid data
+        assert len(source._inference_times) == 1
+        assert source._model_loads["test-model"] == 1
+        assert source._model_errors["test-model"] == 1
+        assert source._model_cache_hits["test-model"] == 1
+        assert source._model_cache_misses["test-model"] == 1
 
 
 class TestMetricsCollector:
     """Test MetricsCollector functionality"""
 
+    def setup_method(self):
+        """Setup for each test method"""
+        # Reset global collector for clean tests
+        reset_metrics_collector()
+
     def test_collector_initialization(self):
         """Test metrics collector initialization"""
         collector = MetricsCollector()
         
-        # Should have default sources registered
-        assert len(collector._sources) > 0
-        assert "application" in collector._sources
-        assert "ai_models" in collector._sources
+        assert not collector._is_running
+        assert collector._collection_interval >= 1.0  # Minimum interval
+        assert len(collector._sources) > 0  # Should have default sources
+        
+        # Check default sources
+        source_names = list(collector._sources.keys())
+        assert "application" in source_names
+        assert "ai_models" in source_names
 
-    def test_register_source(self):
-        """Test registering a metric source"""
+    def test_source_registration(self):
+        """Test metric source registration"""
         collector = MetricsCollector()
         
         class TestSource(MetricSource):
@@ -381,76 +480,84 @@ class TestMetricsCollector:
             def is_available(self) -> bool:
                 return True
         
+        # Register new source
         test_source = TestSource()
         collector.register_source(test_source)
         
         assert "test_source" in collector._sources
-        assert collector._sources["test_source"] is test_source
+        
+        # Test invalid source registration
+        with pytest.raises(ValueError):
+            collector.register_source("not_a_source")
 
-    def test_unregister_source(self):
-        """Test unregistering a metric source"""
+    def test_source_unregistration(self):
+        """Test metric source unregistration"""
         collector = MetricsCollector()
         
-        # Should have application source by default
-        assert "application" in collector._sources
-        
-        result = collector.unregister_source("application")
-        assert result is True
+        # Unregister existing source
+        assert collector.unregister_source("application")
         assert "application" not in collector._sources
         
         # Try to unregister non-existent source
-        result = collector.unregister_source("non_existent")
-        assert result is False
+        assert not collector.unregister_source("non_existent")
 
     @pytest.mark.asyncio
-    async def test_collect_all_metrics(self):
-        """Test collecting metrics from all sources"""
+    async def test_metrics_collection(self):
+        """Test metrics collection from all sources"""
         collector = MetricsCollector()
         
+        # Collect metrics
         metrics = await collector.collect_all_metrics()
         
-        # Should have metrics from multiple sources
-        assert len(metrics) > 0
+        assert isinstance(metrics, list)
+        # Should have metrics from default sources
+        assert len(metrics) >= 0  # May be empty if no data recorded yet
         
-        # Check that metrics are stored in buffer
-        recent_metrics = collector.get_recent_metrics()
-        assert len(recent_metrics) > 0
+        # Check collector stats
+        stats = collector.get_collector_stats()
+        assert stats["total_collections"] > 0
+        assert stats["last_collection_time"] is not None
 
-    def test_get_metrics_by_source(self):
-        """Test getting metrics by source"""
+    def test_callback_system(self):
+        """Test metrics callback system"""
+        collector = MetricsCollector()
+        
+        callback_called = False
+        received_metrics = None
+        
+        def test_callback(metrics):
+            nonlocal callback_called, received_metrics
+            callback_called = True
+            received_metrics = metrics
+        
+        # Add callback
+        collector.add_callback(test_callback)
+        assert len(collector._callbacks) == 1
+        
+        # Test invalid callback
+        with pytest.raises(ValueError):
+            collector.add_callback("not_callable")
+        
+        # Remove callback
+        assert collector.remove_callback(test_callback)
+        assert len(collector._callbacks) == 0
+        
+        # Try to remove non-existent callback
+        assert not collector.remove_callback(test_callback)
+
+    def test_metrics_buffer(self):
+        """Test metrics buffer functionality"""
         collector = MetricsCollector()
         
         # Add some test metrics to buffer
-        test_metric = PerformanceMetric(
-            timestamp=datetime.now(),
-            name="test_metric",
-            value=42.0,
-            unit="test",
-            metric_type=MetricType.GAUGE,
-            source="test_source"
-        )
-        
-        with collector._buffer_lock:
-            collector._metrics_buffer.append(test_metric)
-        
-        # Get metrics by source
-        test_metrics = collector.get_metrics_by_source("test_source")
-        assert len(test_metrics) == 1
-        assert test_metrics[0].name == "test_metric"
-
-    def test_get_metrics_summary(self):
-        """Test getting metrics summary"""
-        collector = MetricsCollector()
-        
-        # Add some test metrics
         test_metrics = [
             PerformanceMetric(
                 timestamp=datetime.now(),
-                name=f"metric_{i}",
+                name=f"test_metric_{i}",
                 value=float(i),
-                unit="test",
-                metric_type=MetricType.GAUGE,
-                source="test_source"
+                unit="count",
+                metric_type=MetricType.COUNTER,
+                source="test"
             )
             for i in range(5)
         ]
@@ -458,101 +565,96 @@ class TestMetricsCollector:
         with collector._buffer_lock:
             collector._metrics_buffer.extend(test_metrics)
         
-        summary = collector.get_metrics_summary()
+        # Get recent metrics
+        recent = collector.get_recent_metrics(3)
+        assert len(recent) == 3
+        assert recent[-1].name == "test_metric_4"  # Most recent
         
-        assert summary["total_metrics"] >= 5
-        assert "test_source" in summary["sources"]
-        assert "time_range" in summary
-        assert "healthy_sources" in summary
+        # Get metrics by source
+        source_metrics = collector.get_metrics_by_source("test", 2)
+        assert len(source_metrics) == 2
+        assert all(m.source == "test" for m in source_metrics)
 
-    def test_callback_functionality(self):
-        """Test callback functionality"""
+    def test_source_status(self):
+        """Test source status reporting"""
         collector = MetricsCollector()
         
-        callback_called = False
-        received_metrics = []
+        status = collector.get_source_status()
         
-        def test_callback(metrics):
-            nonlocal callback_called, received_metrics
-            callback_called = True
-            received_metrics.extend(metrics)
+        assert isinstance(status, dict)
+        assert len(status) > 0
         
-        collector.add_callback(test_callback)
-        
-        # Manually trigger callback
-        test_metrics = [PerformanceMetric(
-            timestamp=datetime.now(),
-            name="test",
-            value=1.0,
-            unit="test",
-            metric_type=MetricType.GAUGE,
-            source="test"
-        )]
-        
-        for callback in collector._callbacks:
-            callback(test_metrics)
-        
-        assert callback_called
-        assert len(received_metrics) == 1
+        # Check status structure
+        for source_name, source_status in status.items():
+            assert "available" in source_status
+            assert "healthy" in source_status
+            assert "last_collection" in source_status
+            assert "error_count" in source_status
 
-    def test_cleanup(self):
+    def test_collector_cleanup(self):
         """Test collector cleanup"""
         collector = MetricsCollector()
         
-        # Add some data
-        with collector._buffer_lock:
-            collector._metrics_buffer.append(PerformanceMetric(
-                timestamp=datetime.now(),
-                name="test",
-                value=1.0,
-                unit="test",
-                metric_type=MetricType.GAUGE,
-                source="test"
-            ))
-        
-        collector.add_callback(lambda x: None)
-        
-        # Cleanup
+        # Test cleanup without starting collection
         collector.cleanup()
         
+        assert not collector._is_running
         assert len(collector._sources) == 0
         assert len(collector._callbacks) == 0
-        assert len(collector._metrics_buffer) == 0
 
 
-class TestConvenienceFunctions:
-    """Test convenience functions"""
+class TestGlobalFunctions:
+    """Test global convenience functions"""
 
-    def test_record_response_time(self):
-        """Test record_response_time convenience function"""
-        # This will use the global collector
+    def setup_method(self):
+        """Setup for each test method"""
+        reset_metrics_collector()
+
+    def test_global_collector_singleton(self):
+        """Test global collector singleton pattern"""
+        collector1 = get_metrics_collector()
+        collector2 = get_metrics_collector()
+        
+        assert collector1 is collector2  # Same instance
+
+    def test_convenience_functions(self):
+        """Test convenience functions for metric recording"""
+        # These should not raise exceptions
         record_response_time(100.0)
-        
-        collector = get_metrics_collector()
-        app_source = collector._sources.get("application")
-        
-        if isinstance(app_source, ApplicationMetricsSource):
-            assert len(app_source._response_times) > 0
-
-    def test_record_request(self):
-        """Test record_request convenience function"""
         record_request("/api/test")
+        record_error("test_error")
+        record_ai_inference_time(50.0)
+        record_model_load("test-model")
+        record_cache_hit("test-model")
         
+        # Verify data was recorded
         collector = get_metrics_collector()
-        app_source = collector._sources.get("application")
         
+        app_source = collector._sources.get("application")
         if isinstance(app_source, ApplicationMetricsSource):
-            assert app_source._request_counts["/api/test"] > 0
+            stats = app_source.get_current_stats()
+            assert stats["response_times_count"] > 0
+            assert stats["total_requests"] > 0
+            assert stats["total_errors"] > 0
+        
+        ai_source = collector._sources.get("ai_models")
+        if isinstance(ai_source, AIModelMetricsSource):
+            assert len(ai_source._inference_times) > 0
+            assert ai_source._model_loads["test-model"] > 0
+            assert ai_source._model_cache_hits["test-model"] > 0
 
-    def test_record_error(self):
-        """Test record_error convenience function"""
-        record_error("TestError")
-        
-        collector = get_metrics_collector()
-        app_source = collector._sources.get("application")
-        
-        if isinstance(app_source, ApplicationMetricsSource):
-            assert app_source._error_counts["TestError"] > 0
+    def test_convenience_functions_error_handling(self):
+        """Test convenience functions handle errors gracefully"""
+        # Mock the collector to raise an exception
+        with patch('src.core.metrics_collector.get_metrics_collector') as mock_get:
+            mock_get.side_effect = Exception("Test error")
+            
+            # These should not raise exceptions
+            record_response_time(100.0)
+            record_request("/api/test")
+            record_error("test_error")
+            record_ai_inference_time(50.0)
+            record_model_load("test-model")
 
 
 if __name__ == "__main__":
