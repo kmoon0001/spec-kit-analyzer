@@ -4,7 +4,9 @@ This module implements the Human-in-the-Loop (HITL) learning process,
 where user feedback is used to improve confidence calibration and other ML models.
 """
 
+import json
 import logging
+import numpy as np
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -70,9 +72,9 @@ class MLTrainingPipeline:
 
             if len(training_data) < self.min_samples_for_training:
                 logger.warning(
-                    "Insufficient training data: %s samples ",
+                    "Insufficient training data: %s samples (need %s)",
                     len(training_data),
-                    f"(need {self.min_samples_for_training})")
+                    self.min_samples_for_training)
                 return {
                     "status": "insufficient_data",
                     "message": f"Need {self.min_samples_for_training} samples, have {len(training_data)}",
@@ -257,7 +259,7 @@ class MLTrainingPipeline:
         training_data = self.calibration_trainer.get_training_data(min_samples=1)
 
         if len(training_data) < self.min_samples_for_training:
-            logger.info("Insufficient training data: %s/{self.min_samples_for_training}", len(training_data))
+            logger.info("Insufficient training data: %s/%s", len(training_data), self.min_samples_for_training)
             return False
 
         return True
@@ -308,5 +310,18 @@ class MLTrainingPipeline:
 
 
 # Backward compatibility function
-# Backward compatibility function
-# Backward compatibility function
+async def fine_tune_model_with_feedback(
+    db: AsyncSession | None = None, force_retrain: bool = False
+) -> dict[str, Any]:
+    """Legacy function for backward compatibility.
+    
+    Args:
+        db: Database session (for future expansion)
+        force_retrain: Force retraining even if not enough time has passed
+        
+    Returns:
+        Dictionary with training results and metrics
+    """
+    # Create a default pipeline instance
+    pipeline = MLTrainingPipeline()
+    return await pipeline.fine_tune_model_with_feedback(db=db, force_retrain=force_retrain)

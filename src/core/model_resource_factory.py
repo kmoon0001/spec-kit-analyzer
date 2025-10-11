@@ -109,23 +109,67 @@ class LLMResourceFactory(ResourceFactory[LLMService]):
 class EmbeddingModelResourceFactory(ResourceFactory[SentenceTransformer]):
     """Factory for creating and managing sentence transformer models."""
 
-    def initialize(self) -> None:
-        """Initialize model resource factories."""
-        if self._initialized:
-            return
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
+        self.model_name = model_name
+        self._model_size_mb = 0
 
+    def create_resource(self, resource_id: str) -> SentenceTransformer:
+        """Create a new sentence transformer model instance."""
         try:
-            # Create factories for common models
-            self._factories["llm"] = LLMResourceFactory()
-            self._factories["embeddings"] = EmbeddingModelResourceFactory()
-            self._factories["tokenizer"] = TokenizerResourceFactory("microsoft/DialoGPT-medium")
+            logger.info("Creating embedding model resource %s with model %s", resource_id, self.model_name)
 
-            self._initialized = True
-            logger.info("Model resource manager initialized")
+            # Create sentence transformer model
+            model = SentenceTransformer(self.model_name)
 
-        except (RuntimeError, AttributeError) as e:
-            logger.exception("Failed to initialize model resource manager: %s", e)
+            # Estimate model size for resource tracking
+            self._model_size_mb = self._estimate_model_size()
+
+            logger.info("Embedding model resource %s created successfully", resource_id)
+            return model
+
+        except Exception as e:
+            logger.exception("Failed to create embedding model resource %s: %s", resource_id, e)
             raise
+
+    def validate_resource(self, resource: SentenceTransformer) -> bool:
+        """Validate that a sentence transformer model is still usable."""
+        try:
+            # Simple validation - check if we can encode a test sentence
+            test_sentence = "This is a test sentence."
+            embedding = resource.encode(test_sentence)
+            return embedding is not None and len(embedding) > 0
+
+        except Exception as e:
+            logger.warning("Embedding model validation failed: %s", e)
+            return False
+
+    def dispose_resource(self, resource: SentenceTransformer) -> None:
+        """Dispose of a sentence transformer model."""
+        try:
+            # Clear model from memory
+            if hasattr(resource, '_modules'):
+                resource._modules.clear()
+            logger.debug("Embedding model resource disposed")
+
+        except Exception as e:
+            logger.warning("Error disposing embedding model resource: %s", e)
+
+    def get_resource_size_bytes(self) -> int:
+        """Get estimated resource size in bytes."""
+        return self._model_size_mb * 1024 * 1024
+
+    def _estimate_model_size(self) -> int:
+        """Estimate model size in MB based on model name."""
+        # Rough estimates based on common sentence transformer model sizes
+        size_estimates = {
+            "all-MiniLM-L6-v2": 90,
+            "all-mpnet-base-v2": 420,
+            "all-distilroberta-v1": 290,
+            "paraphrase-MiniLM-L6-v2": 90,
+            "paraphrase-mpnet-base-v2": 420,
+        }
+
+        return size_estimates.get(self.model_name, 200)  # Default 200MB
 
     def get_factory(self, model_type: str) -> ResourceFactory | None:
         """Get a resource factory by type."""
@@ -150,9 +194,37 @@ class ModelResourceManager:
     """Manager for model resources."""
     def __init__(self):
         self._resources = {}
+        self._initialized = False
+        self._factories = {}
+
+    def initialize(self) -> None:
+        """Initialize the model resource manager."""
+        if self._initialized:
+            logger.debug("Model resource manager already initialized")
+            return
+
+        try:
+            # Initialize resource factories
+            self._factories["llm"] = LLMResourceFactory()
+            self._factories["embeddings"] = EmbeddingModelResourceFactory()
+            self._factories["tokenizer"] = TokenizerResourceFactory("microsoft/DialoGPT-medium")
+
+            self._initialized = True
+            logger.info("Model resource manager initialized successfully")
+
+        except Exception as e:
+            logger.exception("Failed to initialize model resource manager: %s", e)
+            raise
 
     def get_resource(self, name: str):
+        """Get a resource by name."""
+        if not self._initialized:
+            self.initialize()
         return self._resources.get(name)
+
+    def is_initialized(self) -> bool:
+        """Check if the manager is initialized."""
+        return self._initialized
 
 
 class TokenizerResourceFactory:

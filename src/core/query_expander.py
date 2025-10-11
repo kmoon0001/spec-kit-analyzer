@@ -266,6 +266,15 @@ class MedicalVocabulary:
 class SemanticExpander:
     """Semantic query expansion using embeddings and similarity."""
 
+    def __init__(self, embedding_model=None):
+        """Initialize semantic expander.
+        
+        Args:
+            embedding_model: Optional embedding model for semantic similarity
+        """
+        self.embedding_model = embedding_model
+        self.medical_terms_cache = {}
+
     def expand_semantically(
         self, query: str, context_terms: list[str], max_expansions: int = 5, similarity_threshold: float = 0.7
     ) -> list[tuple[str, float]]:
@@ -328,6 +337,7 @@ class QueryExpander:
     def __init__(self, vocab_file: str | None = None):
         """Initialize the query expander with medical vocabulary."""
         self.medical_vocab = MedicalVocabulary(vocab_file)
+        self.semantic_expander = SemanticExpander()
         
         # Medical term pattern for identifying medical terminology
         self.medical_term_pattern = re.compile(
