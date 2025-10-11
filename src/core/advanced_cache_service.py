@@ -242,6 +242,17 @@ class CachePerformanceMonitor:
 class BatchCacheOperations:
     """Provides batch operations for improved cache performance."""
 
+    def __init__(self, max_workers: int = 4):
+        """Initialize batch cache operations.
+        
+        Args:
+            max_workers: Maximum number of worker threads for batch operations
+        """
+        import concurrent.futures
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+        self.performance_monitor = None  # Will be set by AdvancedCacheService
+        self.max_workers = max_workers
+
     @staticmethod
     def get_single_embedding(text: str) -> tuple[str, list[float] | None]:
         return text, EmbeddingCache.get_embedding(text)
@@ -357,6 +368,24 @@ class BatchCacheOperations:
 class CacheWarmingService:
     """Service for proactive cache warming to improve performance."""
 
+    def __init__(self, max_concurrent_warming: int = 2):
+        """Initialize cache warming service.
+        
+        Args:
+            max_concurrent_warming: Maximum number of concurrent warming operations
+        """
+        self.warming_queue = []
+        self._lock = threading.Lock()
+        self.max_concurrent_warming = max_concurrent_warming
+        self.warming_in_progress = False
+        self.batch_operations = BatchCacheOperations()
+        self.performance_monitor = None  # Will be set by AdvancedCacheService
+        self._warming_stats = {
+            "total_warmed": 0,
+            "warming_time_ms": 0,
+            "last_warming": None
+        }
+
     def schedule_warming(self,
                         cache_type: str,
                         items: list[Any],
@@ -391,7 +420,7 @@ class CacheWarmingService:
             if not inserted:
                 self.warming_queue.append(warming_request)
 
-        logger.debug("Scheduled %s items for {cache_type} cache warming (priority: {priority})", len(items))
+        logger.debug("Scheduled %s items for %s cache warming (priority: %s)", len(items), cache_type, priority)
 
     async def execute_warming(self, max_items: int = 100) -> dict[str, Any]:
         """Execute cache warming for queued items.
@@ -423,7 +452,7 @@ class CacheWarmingService:
                 with self._lock:
                     if not self.warming_queue:
                         break
-                    request = self.warming_queue.popleft()
+                    request = self.warming_queue.pop(0)
 
                 try:
                     cache_type = request["cache_type"]
@@ -463,7 +492,7 @@ class CacheWarmingService:
                 "remaining_queue_size": len(self.warming_queue),
             })
 
-            logger.info("Cache warming completed: %s items warmed in {duration_ms}ms", warmed_items)
+            logger.info("Cache warming completed: %s items warmed in %.2fms", warmed_items, duration_ms)
             return warming_results
 
         finally:
@@ -521,7 +550,7 @@ class CacheWarmingService:
                         if result is not None:
                             NERCache.set_ner_results(text, model_name, result)
 
-                    logger.debug("Warmed %s NER results for model {model_name}", len(missing_texts))
+                    logger.debug("Warmed %s NER results for model %s", len(missing_texts), model_name)
 
                 except (FileNotFoundError, PermissionError, OSError) as e:
                     logger.exception("Error computing NER results for warming: %s", e)
@@ -592,6 +621,16 @@ class CacheWarmingService:
 
 class AdvancedCacheService:
     """Advanced cache service with performance optimizations."""
+
+    def __init__(self):
+        """Initialize advanced cache service."""
+        self.performance_monitor = CachePerformanceMonitor()
+        self.batch_operations = BatchCacheOperations()
+        self.cache_warming = CacheWarmingService()
+        
+        # Connect components
+        self.batch_operations.performance_monitor = self.performance_monitor
+        self.cache_warming.performance_monitor = self.performance_monitor
 
     def get_comprehensive_stats(self) -> dict[str, Any]:
         """Get comprehensive cache statistics and performance metrics."""

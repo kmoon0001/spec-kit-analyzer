@@ -236,15 +236,21 @@ class ResourceTracker:
         with self._lock:
             if component in self._resources and resource_id in self._resources[component]:
                 del self._resources[component][resource_id]
-                logger.debug("Cleaned up garbage collected resource: %s/{resource_id}", component)
+                logger.debug("Cleaned up garbage collected resource: %s/%s", component, resource_id)
 
 
 class MemoryOptimizer:
     """Intelligent memory optimization strategies."""
     
-    def __init__(self):
+    def __init__(self, tracker: ResourceTracker | None = None):
+        """Initialize memory optimizer.
+        
+        Args:
+            tracker: Optional resource tracker for optimization decisions
+        """
         self._lock = threading.Lock()
         self._optimization_callbacks = []
+        self.tracker = tracker or ResourceTracker()
 
     def register_optimization_callback(self, callback: Callable[[], int]) -> None:
         """Register a callback that can free memory. Should return bytes freed."""
@@ -312,7 +318,7 @@ class MemoryOptimizer:
         for generation in range(3):
             collected = gc.collect(generation)
             if collected > 0:
-                logger.debug("GC generation %s: collected {collected} objects", generation)
+                logger.debug("GC generation %s: collected %s objects", generation, collected)
 
         after = psutil.Process().memory_info().rss
         freed = max(0, before - after)
@@ -324,12 +330,12 @@ class MemoryOptimizer:
 
     def _cleanup_stale_resources(self) -> int:
         """Clean up stale resources."""
-        stale_resources = self.resource_tracker.find_stale_resources(
+        stale_resources = self.tracker.find_stale_resources(
             timedelta(minutes=30))
 
         total_freed = 0
         for component, resource_id in stale_resources:
-            usage = self.resource_tracker.get_component_usage(component)
+            usage = self.tracker.get_component_usage(component)
             if resource_id in usage["resources"]:
                 size = usage["resources"][resource_id]["size_bytes"]
                 total_freed += size
@@ -384,8 +390,13 @@ class MemoryManager:
     def __init__(self):
         self.monitor = MemoryMonitor()
         self.resource_tracker = ResourceTracker()
-        self.optimizer = MemoryOptimizer()
-        self._allocation_config = ResourceAllocation()
+        self.optimizer = MemoryOptimizer(self.resource_tracker)
+        self._allocation_config = self._calculate_allocation_config()
+        self._auto_optimize = True
+        self._last_optimization = datetime.now() - timedelta(hours=2)  # Allow immediate optimization
+        
+        # Register memory pressure callback
+        self.monitor.add_callback(self._handle_memory_pressure)
 
     def start(self) -> None:
         """Start memory management services."""
@@ -396,6 +407,37 @@ class MemoryManager:
         """Stop memory management services."""
         self.monitor.stop_monitoring()
         logger.info("Memory manager stopped")
+
+    def register_resource(self, component: str, resource_id: str, resource: Any, size_bytes: int = 0) -> None:
+        """Register a resource for tracking."""
+        self.resource_tracker.register_resource(component, resource_id, resource, size_bytes)
+
+    def _calculate_allocation_config(self) -> ResourceAllocation:
+        """Calculate allocation config based on system memory."""
+        try:
+            total_memory_gb = psutil.virtual_memory().total / (1024**3)
+            
+            if total_memory_gb >= 16:
+                return ResourceAllocation(
+                    max_cache_memory_mb=2048,
+                    max_model_memory_mb=4096,
+                    max_document_memory_mb=1024,
+                    gc_threshold_mb=200,
+                    cleanup_threshold_mb=400
+                )
+            elif total_memory_gb >= 8:
+                return ResourceAllocation(
+                    max_cache_memory_mb=1024,
+                    max_model_memory_mb=2048,
+                    max_document_memory_mb=512,
+                    gc_threshold_mb=150,
+                    cleanup_threshold_mb=300
+                )
+            else:
+                return ResourceAllocation()  # Use defaults for smaller systems
+        except Exception as e:
+            logger.warning("Could not determine system memory, using defaults: %s", e)
+            return ResourceAllocation()
 
     def configure_allocation(self, config: ResourceAllocation) -> None:
         """Configure resource allocation limits."""

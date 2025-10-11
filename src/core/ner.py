@@ -59,6 +59,13 @@ class ClinicalNERService:
         """
         self.model_names = list(model_names or [])
         self.pipelines = self._initialize_pipelines()
+        
+        # Clinical patterns for clinician name extraction
+        self.clinical_patterns = {
+            "titles": r"\b(?:Dr\.?|Doctor|MD|DO|RN|NP|PA|PT|OT|SLP|DPT|OTR|CCC-SLP)\b",
+            "signature_keywords": r"\b(?:Signature|Signed|Therapist|Clinician|Provider)\b",
+            "name_pattern": r"(?P<name>[A-Z][a-z]+(?:\s+[A-Z][a-z]*)*(?:\s+[A-Z]\.)*)"
+        }
 
     def _initialize_pipelines(self) -> list[Any]:
         """Loads the transformer models into NER pipelines."""
@@ -153,24 +160,18 @@ class ClinicalNERService:
 
         return merged
 
-
-class NERPipeline(ClinicalNERService):
-    """Convenience wrapper around ClinicalNERService with sensible defaults."""
-
-
-# Alias for backward compatibility
-NERAnalyzer = ClinicalNERService
-
-
-DEFAULT_MODELS = [
-    "dslim/bert-base-NER",
-    "Jean-Baptiste/roberta-large-ner-english"]
-
-
-def extract_clinician_name(text: str | None) -> list[str]:
-    """Extract clinician names from text."""
-    if not isinstance(text, str) or not text.strip():
-        return []
+    def extract_clinician_name(self, text: str | None) -> list[str]:
+        """Extract clinician names from text using regex patterns.
+        
+        Args:
+            text: Input text to analyze
+            
+        Returns:
+            List of extracted clinician names
+        """
+        if not isinstance(text, str) or not text.strip():
+            return []
+            
         titles_regex = re.compile(self.clinical_patterns["titles"], re.IGNORECASE)
         signature_regex = re.compile(self.clinical_patterns["signature_keywords"], re.IGNORECASE)
         name_regex = re.compile(self.clinical_patterns["name_pattern"])
@@ -184,6 +185,25 @@ def extract_clinician_name(text: str | None) -> list[str]:
         return matches
 
     def extract_medical_entities(self, text: str | None) -> dict[str, list[str]]:
+        """Extract and categorize medical entities from text.
+        
+        Args:
+            text: Input text to analyze
+            
+        Returns:
+            Dictionary of categorized medical entities
+        """
+        if not isinstance(text, str) or not text.strip():
+            return {
+                "conditions": [],
+                "medications": [],
+                "procedures": [],
+                "anatomy": [],
+                "measurements": [],
+                "persons": [],
+                "other": [],
+            }
+            
         categories: dict[str, list[str]] = {
             "conditions": [],
             "medications": [],
@@ -193,6 +213,7 @@ def extract_clinician_name(text: str | None) -> list[str]:
             "persons": [],
             "other": [],
         }
+        
         for entity in self.extract_entities(text):
             group = (entity.get("entity_group") or "").lower()
             word = entity.get("word", "").strip()
@@ -215,6 +236,14 @@ def extract_clinician_name(text: str | None) -> list[str]:
         return categories
 
     def _deduplicate_entities(self, entities: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Deduplicate entities based on position and content.
+        
+        Args:
+            entities: List of entities to deduplicate
+            
+        Returns:
+            Deduplicated list of entities
+        """
         seen = set()
         deduped: list[dict[str, Any]] = []
         for entity in entities:
@@ -228,6 +257,22 @@ def extract_clinician_name(text: str | None) -> list[str]:
             seen.add(key)
             deduped.append(entity)
         return deduped
+
+
+class NERPipeline(ClinicalNERService):
+    """Convenience wrapper around ClinicalNERService with sensible defaults."""
+
+
+# Alias for backward compatibility
+NERAnalyzer = ClinicalNERService
+
+
+DEFAULT_MODELS = [
+    "dslim/bert-base-NER",
+    "Jean-Baptiste/roberta-large-ner-english"]
+
+
+
 
 
 __all__ = ["ClinicalNERService", "NERPipeline"]
