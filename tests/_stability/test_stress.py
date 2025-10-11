@@ -17,15 +17,22 @@ def main_app_window(qtbot, qapp, mocker):
     mock_user.username = "testuser"
     mock_token = "mock_token_string"
 
+    # Mock MainViewModel BEFORE the window is created
+    MockViewModel = mocker.patch("src.gui.main_window.MainViewModel")
+    
+    # Configure the mock instance that will be created
+    mock_view_model_instance = MockViewModel.return_value
+    mock_view_model_instance.show_message_box_signal = MagicMock()
+    mock_view_model_instance.meta_analytics_loaded = MagicMock()
+    mock_view_model_instance.analysis_result_received = MagicMock()
+    mock_view_model_instance.stop_all_workers = MagicMock()
+    mock_view_model_instance.start_workers = MagicMock() # also mock start_workers
+
     # Create the actual MainApplicationWindow instance
     window = MainApplicationWindow(user=mock_user, token=mock_token)
-
-    # Now, replace the view_model with a MagicMock and configure its signals/methods
-    window.view_model = MagicMock(spec=MainViewModel)
-    window.view_model.show_message_box_signal = MagicMock()
-    window.view_model.meta_analytics_loaded = MagicMock()
-    window.view_model.analysis_result_received = MagicMock() # Mock the signal too
-
+    
+    # The window will now have the mocked view model from the start
+    
     # Connect to the mocked signal with proper slot function
     def enable_analysis_buttons(result):
         """Enable both analysis buttons when analysis completes."""
