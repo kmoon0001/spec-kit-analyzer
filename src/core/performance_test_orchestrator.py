@@ -181,10 +181,42 @@ class SuiteManager:
 class ExecutionEngine:
     """Executes individual tests and collects results"""
 
+    def __init__(self):
+        """Initialize the execution engine."""
+        self.test_runners = {}
+        self.active_tests = {}
+
     def register_test_runner(self, category: PerformanceCategory, runner: Callable) -> None:
         """Register a test runner for a specific category"""
         self.test_runners[category] = runner
         logger.info("Registered test runner for category: %s", category.value)
+
+    async def execute_tests_parallel(self, configs: list[PerformanceTestConfig]) -> list[SingleTestResult]:
+        """Execute multiple tests in parallel."""
+        # Filter enabled tests
+        enabled_configs = [config for config in configs if getattr(config, 'enabled', True)]
+        
+        # Execute tests concurrently
+        tasks = [self.execute_test(config) for config in enabled_configs]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Convert exceptions to failed results
+        final_results = []
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                failed_result = SingleTestResult(
+                    test_name=enabled_configs[i].name,
+                    category=enabled_configs[i].category,
+                    status=ExecutionStatus.FAILED,
+                    start_time=datetime.now(),
+                    end_time=datetime.now(),
+                    error_message=str(result)
+                )
+                final_results.append(failed_result)
+            else:
+                final_results.append(result)
+        
+        return final_results
 
     async def execute_test(self, config: PerformanceTestConfig) -> SingleTestResult:
         """Execute a single performance test"""
@@ -266,8 +298,146 @@ class ExecutionEngine:
         return test_results
 
 
+class SuiteManager:
+    """Manages test suites and configurations."""
+    
+    def __init__(self, config_path: str | None = None):
+        """Initialize the suite manager.
+        
+        Args:
+            config_path: Optional path to YAML configuration file
+        """
+        self.test_suites = {}
+        self.test_configurations = {}
+        self.config_path = config_path
+        
+        if config_path:
+            self._load_configurations_from_yaml(config_path)
+        else:
+            self._load_default_suites()
+    
+    def _load_default_suites(self):
+        """Load default test suites."""
+        # Baseline tests suite
+        baseline_tests = [
+            PerformanceTestConfig(
+                name="baseline_response_time",
+                category=PerformanceCategory.BASELINE,
+                description="Baseline response time performance"
+            ),
+            PerformanceTestConfig(
+                name="document_processing_baseline",
+                category=PerformanceCategory.BASELINE,
+                description="Baseline document processing performance"
+            ),
+            PerformanceTestConfig(
+                name="analysis_baseline",
+                category=PerformanceCategory.BASELINE,
+                description="Baseline analysis performance"
+            )
+        ]
+        
+        # Optimization tests suite
+        optimization_tests = [
+            PerformanceTestConfig(
+                name="cache_optimization",
+                category=PerformanceCategory.OPTIMIZATION,
+                description="Cache optimization performance"
+            ),
+            PerformanceTestConfig(
+                name="memory_optimization",
+                category=PerformanceCategory.OPTIMIZATION,
+                description="Memory optimization performance"
+            )
+        ]
+        
+        # Load tests suite
+        load_tests = [
+            PerformanceTestConfig(
+                name="concurrent_processing",
+                category=PerformanceCategory.LOAD,
+                description="Concurrent document processing"
+            )
+        ]
+        
+        self.test_suites = {
+            "baseline_tests": baseline_tests,
+            "optimization_tests": optimization_tests,
+            "optimization_suite": optimization_tests,  # Alias for test compatibility
+            "load_tests": load_tests,
+            "full_suite": baseline_tests + optimization_tests + load_tests
+        }
+        
+        # Also populate test_configurations for individual access
+        all_tests = baseline_tests + optimization_tests + load_tests
+        self.test_configurations = {test.name: test for test in all_tests}
+    
+    def get_suite(self, suite_name: str) -> list[PerformanceTestConfig]:
+        """Get a test suite by name."""
+        suite_data = self.test_suites.get(suite_name, [])
+        
+        # If suite contains test names (strings), convert to test objects
+        if suite_data and isinstance(suite_data[0], str):
+            return [self.test_configurations[name] for name in suite_data if name in self.test_configurations]
+        
+        # Otherwise return as-is (already test objects)
+        return suite_data
+    
+    def get_available_suites(self) -> list[str]:
+        """Get list of available suite names."""
+        return list(self.test_suites.keys())
+    
+    def get_suite_tests(self, suite_name: str) -> list[PerformanceTestConfig]:
+        """Get test configurations for a suite."""
+        return self.get_suite(suite_name)
+    
+    def get_test_configuration(self, test_name: str) -> PerformanceTestConfig | None:
+        """Get a specific test configuration by name."""
+        return self.test_configurations.get(test_name)
+    
+    def _load_configurations_from_yaml(self, config_path: str) -> None:
+        """Load test configurations from YAML file."""
+        try:
+            with open(config_path, 'r') as f:
+                config_data = yaml.safe_load(f)
+            
+            # Load test configurations
+            tests = config_data.get('tests', [])
+            test_configs = []
+            
+            for test_data in tests:
+                config = PerformanceTestConfig(
+                    name=test_data['name'],
+                    category=PerformanceCategory(test_data['category']),
+                    description=test_data['description'],
+                    timeout_seconds=test_data.get('timeout_seconds', 300),
+                    enabled=test_data.get('enabled', True),
+                    parameters=test_data.get('parameters', {})
+                )
+                test_configs.append(config)
+                self.test_configurations[config.name] = config
+            
+            # Load test suites
+            suites = config_data.get('suites', {})
+            for suite_name, test_names in suites.items():
+                # Store test names for direct access
+                self.test_suites[suite_name] = test_names
+                
+        except Exception as e:
+            logger.exception("Failed to load configurations from YAML: %s", e)
+            # Fall back to default suites
+            self._load_default_suites()
+
+
 class PerformanceTestOrchestrator:
     """Main orchestrator for performance testing activities"""
+
+    def __init__(self):
+        """Initialize the performance test orchestrator."""
+        self.execution_engine = ExecutionEngine()
+        self.suite_manager = SuiteManager()
+        self.results_history = []
+        self._register_default_runners()
 
     def _register_default_runners(self) -> None:
         """Register default test runners for each category"""
@@ -486,3 +656,7 @@ class PerformanceTestOrchestrator:
     def get_test_history(self) -> list[PerformanceTestResults]:
         """Get historical test results"""
         return self.results_history.copy()
+
+    def get_available_suites(self) -> list[str]:
+        """Get list of available test suites."""
+        return self.suite_manager.get_available_suites()
