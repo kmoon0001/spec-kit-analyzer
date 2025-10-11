@@ -73,8 +73,9 @@ class MainApplicationWindow(QMainWindow):
     def __init__(self, user: models.User, token: str) -> None:
         super().__init__()
         self.setWindowTitle("Therapy Compliance Analyzer")
-        self.resize(1440, 920)
-        self.setMinimumSize(800, 500)
+        # Set larger minimum size to prevent UI cramping
+        self.setMinimumSize(1400, 900)
+        self.resize(1600, 1000)
 
         self.current_user = user
         self.auth_token = token
