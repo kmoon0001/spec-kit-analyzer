@@ -8,18 +8,18 @@ return the correct data and perform the correct calculations. They use a live,
 in-memory SQLite database to ensure full validation of the SQL logic.
 """
 
+import os
+from datetime import UTC, datetime, timedelta
+
+import numpy as np
 import pytest
 import pytest_asyncio
-import os
-import numpy as np
-from datetime import datetime, timedelta, timezone
-
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.database import Base, crud, models
 from src.core.vector_store import get_vector_store
+from src.database import Base, crud, models
 
 pytestmark = pytest.mark.integration
 
@@ -35,6 +35,7 @@ TestingSessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
 )
+
 
 @pytest_asyncio.fixture(scope="module", autouse=True)
 async def setup_database():
@@ -52,7 +53,6 @@ async def setup_database():
             except PermissionError as e:
                 pytest.fail(f"Could not remove test_crud.db, it is locked: {e}")
 
-
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
@@ -62,13 +62,15 @@ async def setup_database():
         try:
             os.remove("test_crud.db")
         except PermissionError:
-            pass # Ignore errors on teardown, the setup will handle it
+            pass  # Ignore errors on teardown, the setup will handle it
+
 
 @pytest_asyncio.fixture
 async def db_session() -> AsyncSession:
     """Provides a clean database session for each test."""
     async with TestingSessionLocal() as session:
         yield session
+
 
 @pytest_asyncio.fixture
 async def populated_db(db_session: AsyncSession) -> AsyncSession:
@@ -80,28 +82,40 @@ async def populated_db(db_session: AsyncSession) -> AsyncSession:
     # Create test reports with discipline correctly placed in analysis_result
     reports_data = [
         models.AnalysisReport(
-            id=1, document_name="report_1.txt", compliance_score=95.0, document_type="Progress Note",
-            analysis_date=datetime.now(timezone.utc) - timedelta(days=5),
+            id=1,
+            document_name="report_1.txt",
+            compliance_score=95.0,
+            document_type="Progress Note",
+            analysis_date=datetime.now(UTC) - timedelta(days=5),
             analysis_result={"discipline": "PT"},
-            document_embedding=np.random.rand(768).astype(np.float32).tobytes()
+            document_embedding=np.random.rand(768).astype(np.float32).tobytes(),
         ),
         models.AnalysisReport(
-            id=2, document_name="report_2.txt", compliance_score=85.0, document_type="Evaluation",
-            analysis_date=datetime.now(timezone.utc) - timedelta(days=10),
+            id=2,
+            document_name="report_2.txt",
+            compliance_score=85.0,
+            document_type="Evaluation",
+            analysis_date=datetime.now(UTC) - timedelta(days=10),
             analysis_result={"discipline": "PT"},
-            document_embedding=np.random.rand(768).astype(np.float32).tobytes()
+            document_embedding=np.random.rand(768).astype(np.float32).tobytes(),
         ),
         models.AnalysisReport(
-            id=3, document_name="report_3.txt", compliance_score=75.0, document_type="Progress Note",
-            analysis_date=datetime.now(timezone.utc) - timedelta(days=15),
+            id=3,
+            document_name="report_3.txt",
+            compliance_score=75.0,
+            document_type="Progress Note",
+            analysis_date=datetime.now(UTC) - timedelta(days=15),
             analysis_result={"discipline": "OT"},
-            document_embedding=np.random.rand(768).astype(np.float32).tobytes()
+            document_embedding=np.random.rand(768).astype(np.float32).tobytes(),
         ),
         models.AnalysisReport(
-            id=4, document_name="report_4.txt", compliance_score=90.0, document_type="Discharge Summary",
-            analysis_date=datetime.now(timezone.utc) - timedelta(days=20),
+            id=4,
+            document_name="report_4.txt",
+            compliance_score=90.0,
+            document_type="Discharge Summary",
+            analysis_date=datetime.now(UTC) - timedelta(days=20),
             analysis_result={"discipline": "SLP"},
-            document_embedding=np.random.rand(768).astype(np.float32).tobytes()
+            document_embedding=np.random.rand(768).astype(np.float32).tobytes(),
         ),
     ]
     db_session.add_all(reports_data)
@@ -111,15 +125,19 @@ async def populated_db(db_session: AsyncSession) -> AsyncSession:
     vector_store = get_vector_store()
     if not vector_store.is_initialized:
         vector_store.initialize_index()
-    
-    embeddings = np.array([np.frombuffer(r.document_embedding, dtype=np.float32) for r in reports_data if r.document_embedding])
+
+    embeddings = np.array(
+        [np.frombuffer(r.document_embedding, dtype=np.float32) for r in reports_data if r.document_embedding]
+    )
     ids = [r.id for r in reports_data if r.document_embedding]
     if len(embeddings) > 0:
         vector_store.add_vectors(embeddings, ids)
 
     return db_session
 
+
 # --- CRUD Function Tests ---
+
 
 @pytest.mark.asyncio
 async def test_get_dashboard_statistics(populated_db: AsyncSession):
@@ -132,6 +150,7 @@ async def test_get_dashboard_statistics(populated_db: AsyncSession):
     assert stats["compliance_by_category"]["Progress Note"]["average_score"] == pytest.approx(85.0)
     assert stats["compliance_by_category"]["Progress Note"]["document_count"] == 2
 
+
 @pytest.mark.asyncio
 async def test_get_organizational_metrics(populated_db: AsyncSession):
     """Test the calculation of organizational metrics."""
@@ -141,6 +160,7 @@ async def test_get_organizational_metrics(populated_db: AsyncSession):
     assert metrics["total_findings"] == 0  # We didn't add findings in this test
     assert metrics["total_analyses"] == 4
 
+
 @pytest.mark.asyncio
 async def test_get_discipline_breakdown(populated_db: AsyncSession):
     """Test the breakdown of metrics by discipline."""
@@ -149,6 +169,7 @@ async def test_get_discipline_breakdown(populated_db: AsyncSession):
     assert len(breakdown) == 3
     assert breakdown["PT"]["avg_compliance_score"] == pytest.approx(90.0)
     assert breakdown["OT"]["user_count"] == 1
+
 
 @pytest.mark.asyncio
 async def test_get_team_performance_trends(populated_db: AsyncSession):
@@ -175,6 +196,7 @@ async def test_get_team_performance_trends(populated_db: AsyncSession):
     assert trends[2]["week"] == 3
     assert trends[2]["avg_compliance_score"] == pytest.approx(82.5)
 
+
 @pytest.mark.asyncio
 async def test_get_benchmark_data(populated_db: AsyncSession):
     """Test the calculation of benchmark percentiles."""
@@ -182,32 +204,34 @@ async def test_get_benchmark_data(populated_db: AsyncSession):
     benchmarks = await crud.get_benchmark_data(populated_db, min_analyses=10)
     assert benchmarks["data_quality"] == "insufficient"
     assert benchmarks["total_analyses"] == 4
-    
+
     # Test with lower minimum threshold
     benchmarks = await crud.get_benchmark_data(populated_db, min_analyses=3)
     percentiles = benchmarks["compliance_score_percentiles"]
-    
+
     assert benchmarks["data_quality"] == "adequate"
     assert benchmarks["total_analyses"] == 4
     assert "p50" in percentiles
     assert "mean_score" in benchmarks
     assert "std_deviation" in benchmarks
 
+
 @pytest.mark.asyncio
 async def test_find_similar_report_vector_search(populated_db: AsyncSession):
     """Test the vector search path of find_similar_report."""
     report_2 = await crud.get_report(populated_db, 2)
-    
+
     similar_report = await crud.find_similar_report(
         db=populated_db,
         document_type="Evaluation",
         exclude_report_id=2,
         embedding=report_2.document_embedding,
-        threshold=0.5 # Lowered threshold for more reliable testing
+        threshold=0.5,  # Lowered threshold for more reliable testing
     )
 
     assert similar_report is not None
     assert isinstance(similar_report, models.AnalysisReport)
+
 
 @pytest.mark.asyncio
 async def test_find_similar_report_fallback(populated_db: AsyncSession):
@@ -215,9 +239,9 @@ async def test_find_similar_report_fallback(populated_db: AsyncSession):
     similar_report = await crud.find_similar_report(
         db=populated_db,
         document_type="Progress Note",
-        exclude_report_id=3, # Exclude report 3
-        embedding=None # No embedding
+        exclude_report_id=3,  # Exclude report 3
+        embedding=None,  # No embedding
     )
 
     assert similar_report is not None
-    assert similar_report.id == 1 # Should be the most recent 'Progress Note'
+    assert similar_report.id == 1  # Should be the most recent 'Progress Note'

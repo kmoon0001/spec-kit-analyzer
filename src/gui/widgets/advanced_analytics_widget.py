@@ -166,11 +166,7 @@ class ComplianceChart(QWidget):
                         points.append((x, y))
 
                     for i in range(len(points) - 1):
-                        painter.drawLine(
-                            points[i][0],
-                            points[i][1],
-                            points[i + 1][0],
-                            points[i + 1][1])
+                        painter.drawLine(points[i][0], points[i][1], points[i + 1][0], points[i + 1][1])
 
             painter.end()
 
@@ -218,8 +214,7 @@ class AdvancedAnalyticsWidget(QWidget):
         header_layout.addWidget(time_label)
 
         self.time_range = QComboBox()
-        self.time_range.addItems(
-            ["Last 7 Days", "Last 30 Days", "Last 90 Days", "Last Year"])
+        self.time_range.addItems(["Last 7 Days", "Last 30 Days", "Last 90 Days", "Last Year"])
         self.time_range.setCurrentText("Last 30 Days")
         self.time_range.currentTextChanged.connect(self.refresh_analytics)
         self.time_range.setStyleSheet("""
@@ -299,8 +294,7 @@ class AdvancedAnalyticsWidget(QWidget):
 
         # Compliance trend chart
         if MATPLOTLIB_AVAILABLE:
-            self.trend_chart = self.create_matplotlib_chart(
-                "Compliance Trends Over Time")
+            self.trend_chart = self.create_matplotlib_chart("Compliance Trends Over Time")
             charts_layout.addWidget(self.trend_chart)
         else:
             # Fallback chart
@@ -383,11 +377,9 @@ class AdvancedAnalyticsWidget(QWidget):
         benchmark_data = AnalyticsDataGenerator.generate_benchmark_data()
 
         # Overall ranking
-        ranking_label = QLabel(
-            f"🏆 Your Performance Ranking: {benchmark_data['percentile_ranking']}th Percentile")
+        ranking_label = QLabel(f"🏆 Your Performance Ranking: {benchmark_data['percentile_ranking']}th Percentile")
         ranking_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-        ranking_label.setStyleSheet(
-            "color: #007acc; padding: 10px; background: #f0f8ff; border-radius: 5px;")
+        ranking_label.setStyleSheet("color: #007acc; padding: 10px; background: #f0f8ff; border-radius: 5px;")
         comparison_layout.addWidget(ranking_label)
 
         # Detailed comparison
@@ -409,11 +401,7 @@ class AdvancedAnalyticsWidget(QWidget):
             industry_avg = benchmark_data["industry_averages"][metric]
             top_performer = benchmark_data["top_performers"][metric]
 
-            metric_widget = self.create_benchmark_comparison(
-                name,
-                your_score,
-                industry_avg,
-                top_performer)
+            metric_widget = self.create_benchmark_comparison(name, your_score, industry_avg, top_performer)
             comparison_layout.addWidget(metric_widget)
 
         layout.addWidget(comparison_frame)
@@ -500,8 +488,7 @@ class AdvancedAnalyticsWidget(QWidget):
 
         change_label = QLabel(change)
         change_label.setFont(QFont("Arial", 10))
-        change_label.setStyleSheet(
-            "color: #28a745;" if "↑" in change else "color: #dc3545;")
+        change_label.setStyleSheet("color: #28a745;" if "↑" in change else "color: #dc3545;")
 
         layout.addWidget(title_label)
         layout.addWidget(value_label)
@@ -521,21 +508,9 @@ class AdvancedAnalyticsWidget(QWidget):
         trend_data = AnalyticsDataGenerator.generate_compliance_trends()
 
         ax = figure.add_subplot(111)
-        ax.plot(
-            trend_data["overall_scores"],
-            label="Overall Compliance",
-            linewidth=2,
-            color="#007acc")
-        ax.plot(
-            trend_data["frequency_scores"],
-            label="Frequency Documentation",
-            linewidth=2,
-            color="#28a745")
-        ax.plot(
-            trend_data["goal_scores"],
-            label="Goal Specificity",
-            linewidth=2,
-            color="#ffc107")
+        ax.plot(trend_data["overall_scores"], label="Overall Compliance", linewidth=2, color="#007acc")
+        ax.plot(trend_data["frequency_scores"], label="Frequency Documentation", linewidth=2, color="#28a745")
+        ax.plot(trend_data["goal_scores"], label="Goal Specificity", linewidth=2, color="#ffc107")
 
         ax.set_title(title, fontsize=14, fontweight="bold")
         ax.set_ylabel("Compliance Score (%)")
@@ -663,12 +638,7 @@ class AdvancedAnalyticsWidget(QWidget):
 
         return widget
 
-    def create_benchmark_comparison(
-        self,
-        name: str,
-        your_score: float,
-        industry_avg: float,
-        top_performer: float):
+    def create_benchmark_comparison(self, name: str, your_score: float, industry_avg: float, top_performer: float):
         """Create benchmark comparison widget"""
         widget = QFrame()
         widget.setStyleSheet("""
@@ -787,8 +757,7 @@ class AdvancedAnalyticsWidget(QWidget):
             item_layout = QHBoxLayout()
 
             checkbox = QCheckBox()
-            checkbox.setStyleSheet(
-                "QCheckBox::indicator { width: 15px; height: 15px; }")
+            checkbox.setStyleSheet("QCheckBox::indicator { width: 15px; height: 15px; }")
 
             item_label = QLabel(item)
             item_label.setWordWrap(True)

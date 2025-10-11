@@ -258,19 +258,19 @@ feature_config = FeatureConfig()
 # Convenience functions for common feature checks
 def is_pdf_export_enabled() -> bool:
     """Check if PDF export is enabled and available."""
-    return is_feature_enabled("pdf_export.enabled")
+    return feature_config.is_feature_enabled("pdf_export.enabled")
 
 
 def is_help_system_enabled() -> bool:
     """Check if help system is enabled."""
-    return is_feature_enabled("help_system.enabled")
+    return feature_config.is_feature_enabled("help_system.enabled")
 
 
 def is_advanced_analytics_enabled() -> bool:
     """Check if advanced analytics are enabled."""
-    return is_feature_enabled("advanced_analytics.enabled")
+    return feature_config.is_feature_enabled("advanced_analytics.enabled")
 
 
 def is_data_export_enabled() -> bool:
     """Check if data export is enabled."""
-    return is_feature_enabled("data_export.enabled")
+    return feature_config.is_feature_enabled("data_export.enabled")

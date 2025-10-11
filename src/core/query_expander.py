@@ -36,9 +36,8 @@ class ExpansionResult:
         if max_terms and len(all_terms) > max_terms:
             # Keep original query and top-confidence expanded terms
             sorted_expanded = sorted(
-                self.expanded_terms,
-                key=lambda t: self.confidence_scores.get(t, 0.0),
-                reverse=True)
+                self.expanded_terms, key=lambda t: self.confidence_scores.get(t, 0.0), reverse=True
+            )
             all_terms = [self.original_query] + sorted_expanded[: max_terms - 1]
 
         return " ".join(all_terms)
@@ -268,7 +267,7 @@ class SemanticExpander:
 
     def __init__(self, embedding_model=None):
         """Initialize semantic expander.
-        
+
         Args:
             embedding_model: Optional embedding model for semantic similarity
         """
@@ -338,17 +337,17 @@ class QueryExpander:
         """Initialize the query expander with medical vocabulary."""
         self.medical_vocab = MedicalVocabulary(vocab_file)
         self.semantic_expander = SemanticExpander()
-        
+
         # Medical term pattern for identifying medical terminology
         self.medical_term_pattern = re.compile(
-            r'\b(?:'
-            r'[a-z]+(?:itis|osis|emia|uria|pathy|therapy|gram|scopy|tomy|ectomy)|'  # Medical suffixes
-            r'(?:cardio|neuro|gastro|hepato|nephro|pneumo|osteo|arthro)[a-z]*|'     # Medical prefixes
-            r'(?:mg|ml|cc|units?|dose|medication|treatment|diagnosis|symptom)'       # Medical terms
-            r')\b',
-            re.IGNORECASE
+            r"\b(?:"
+            r"[a-z]+(?:itis|osis|emia|uria|pathy|therapy|gram|scopy|tomy|ectomy)|"  # Medical suffixes
+            r"(?:cardio|neuro|gastro|hepato|nephro|pneumo|osteo|arthro)[a-z]*|"  # Medical prefixes
+            r"(?:mg|ml|cc|units?|dose|medication|treatment|diagnosis|symptom)"  # Medical terms
+            r")\b",
+            re.IGNORECASE,
         )
-        
+
         # Expansion weights and limits
         self.synonym_weight = 0.8
         self.abbreviation_weight = 0.9
@@ -362,7 +361,8 @@ class QueryExpander:
         query: str,
         discipline: str | None = None,
         document_type: str | None = None,
-        context_entities: list[str] | None = None) -> ExpansionResult:
+        context_entities: list[str] | None = None,
+    ) -> ExpansionResult:
         """Expand a query using multiple expansion strategies.
 
         Args:

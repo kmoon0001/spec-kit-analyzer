@@ -2,10 +2,9 @@ import asyncio
 import hashlib
 import logging
 import uuid
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
-
-import psutil  # type: ignore[import-untyped]
+from typing import Any
 
 from src.config import get_settings as _get_settings
 from src.core.cache_service import cache_service
@@ -16,27 +15,18 @@ from src.core.explanation import ExplanationEngine
 from src.core.fact_checker_service import FactCheckerService
 from src.core.hybrid_retriever import HybridRetriever
 from src.core.llm_service import LLMService
+from src.core.model_selection_utils import (
+    resolve_local_model_path,
+    select_generator_profile,
+)
 from src.core.ner import ClinicalNERService
 from src.core.nlg_service import NLGService
 from src.core.parsing import parse_document_content
 from src.core.phi_scrubber import PhiScrubberService
 from src.core.preprocessing_service import PreprocessingService
 from src.core.report_generator import ReportGenerator
-from src.core.text_utils import sanitize_bullets, sanitize_human_text
+from src.core.text_utils import sanitize_human_text
 from src.utils.prompt_manager import PromptManager
-
-from src.core.analysis_utils import (
-    build_bullet_highlights,
-    build_narrative_summary,
-    build_summary_fallback,
-    calculate_overall_confidence,
-    enrich_analysis_result,
-    trim_document_text,
-)
-from src.core.model_selection_utils import (
-    resolve_local_model_path,
-    select_generator_profile,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +59,8 @@ class AnalysisService:
             model_filename=filename,
             llm_settings=settings.llm.model_dump(),
             revision=revision,
-            local_model_path=local_model_path)
+            local_model_path=local_model_path,
+        )
         self.retriever = kwargs.get("retriever") or HybridRetriever()
         self.clinical_ner_service = kwargs.get("clinical_ner_service") or ClinicalNERService(
             model_names=settings.models.ner_ensemble
@@ -91,7 +82,8 @@ class AnalysisService:
             prompt_manager=self.prompt_manager,
             fact_checker_service=self.fact_checker_service,
             nlg_service=self.nlg_service,
-            deterministic_focus=settings.analysis.deterministic_focus)
+            deterministic_focus=settings.analysis.deterministic_focus,
+        )
         self.preprocessing = kwargs.get("preprocessing") or PreprocessingService()
         self.document_classifier = kwargs.get("document_classifier") or DocumentClassifier(
             llm_service=self.llm_service, prompt_template_path=settings.models.doc_classifier_prompt
@@ -114,7 +106,8 @@ class AnalysisService:
         document_text: str | None = None,
         file_content: bytes | None = None,
         original_filename: str | None = None,
-        progress_callback: Callable[[int, str], None] | None = None) -> Any:
+        progress_callback: Callable[[int, str], None] | None = None,
+    ) -> Any:
         """Analyzes document content for compliance, using a content-aware cache."""
 
         def _update_progress(percentage: int, message: str) -> None:
@@ -188,9 +181,9 @@ class AnalysisService:
                 analysis_result = await asyncio.wait_for(
                     self._maybe_await(
                         self.compliance_analyzer.analyze_document(
-                            document_text=scrubbed_text,
-                            discipline=discipline_clean,
-                            doc_type=doc_type_clean)),
+                            document_text=scrubbed_text, discipline=discipline_clean, doc_type=doc_type_clean
+                        )
+                    ),
                     timeout=600.0,  # 10 minute timeout for entire analysis
                 )
             except Exception as e:
@@ -207,10 +200,8 @@ class AnalysisService:
             # --- End of Pipeline ---
 
             enriched_result = self._enrich_analysis_result(
-                analysis_result,
-                document_text=scrubbed_text,
-                discipline=discipline_clean,
-                doc_type=doc_type_clean)
+                analysis_result, document_text=scrubbed_text, discipline=discipline_clean, doc_type=doc_type_clean
+            )
 
             _update_progress(95, "Generating report...")
             # Add timeout to report generation

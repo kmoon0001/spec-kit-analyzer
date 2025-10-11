@@ -123,7 +123,8 @@ class TemplateMetadata:
             required_data_fields=data.get("required_data_fields", []),
             optional_data_fields=data.get("optional_data_fields", []),
             tags=data.get("tags", []),
-            compatibility_version=data.get("compatibility_version", "1.0"))
+            compatibility_version=data.get("compatibility_version", "1.0"),
+        )
 
 
 class ComponentLibrary:
@@ -192,7 +193,8 @@ class ComponentLibrary:
                 """.strip(),
                 required_props=["title", "value"],
                 default_props={"unit": "", "css_class": ""},
-                css_classes=["metric-card", "card"]),
+                css_classes=["metric-card", "card"],
+            ),
             "progress_bar": ComponentDefinition(
                 id="progress_bar",
                 name="Progress Bar",
@@ -216,7 +218,8 @@ class ComponentLibrary:
                 """.strip(),
                 required_props=["percentage"],
                 default_props={"show_percentage": True},
-                css_classes=["progress-container"]),
+                css_classes=["progress-container"],
+            ),
         }
 
         # Save default components
@@ -237,7 +240,8 @@ class ComponentLibrary:
             default_props=data.get("default_props", {}),
             css_classes=data.get("css_classes", []),
             javascript_code=data.get("javascript_code"),
-            metadata=data.get("metadata", {}))
+            metadata=data.get("metadata", {}),
+        )
 
     def _save_component(self, comp_id: str, component: ComponentDefinition) -> None:
         """Save component to file"""
@@ -349,7 +353,8 @@ class TemplateValidator:
             author="system",
             created_at=datetime.now(),
             updated_at=datetime.now(),
-            required_data_fields=component.required_props)
+            required_data_fields=component.required_props,
+        )
 
         template_issues = self.validate_template(component.template_content, template_metadata)
         issues.extend(template_issues)
@@ -363,6 +368,16 @@ class TemplateValidator:
 
 class AdvancedTemplateRenderer:
     """Advanced template renderer with Jinja2 support"""
+
+    def __init__(self, component_library: ComponentLibrary):
+        from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+        self.component_library = component_library
+        self.jinja_env = Environment(
+            loader=FileSystemLoader("src/resources/templates"), autoescape=select_autoescape(["html", "xml"])
+        )
+        self._register_custom_filters()
+        self._register_custom_functions()
 
     def _register_custom_filters(self) -> None:
         """Register custom Jinja2 filters"""
@@ -414,7 +429,7 @@ class AdvancedTemplateRenderer:
             return json.dumps(config)
 
         # Register global functions
-        self.jinja_env.globals["render_component"] = render_component
+        self.jinja_env.globals["render_component"] = self.component_library.render_component
         self.jinja_env.globals["get_chart_config"] = get_chart_config
 
     def render_template(
@@ -504,7 +519,8 @@ class AdvancedTemplateRenderer:
                 version="1.0",
                 author="system",
                 created_at=datetime.now(),
-                updated_at=datetime.now())
+                updated_at=datetime.now(),
+            )
 
             return self.validator.validate_template(content, metadata)
 
@@ -542,7 +558,8 @@ class TemplateLibrary:
                         author="system",
                         created_at=datetime.now(),
                         updated_at=datetime.now(),
-                        supported_formats=[RenderFormat.HTML])
+                        supported_formats=[RenderFormat.HTML],
+                    )
                     self.templates[template_id] = metadata
                     self._save_metadata(template_id, metadata)
 
@@ -568,7 +585,8 @@ class TemplateLibrary:
                     updated_at=datetime.now(),
                     supported_formats=[RenderFormat.HTML, RenderFormat.PDF],
                     required_data_fields=["performance_metrics", "optimization_results"],
-                    tags=["performance", "analysis", "metrics"]),
+                    tags=["performance", "analysis", "metrics"],
+                ),
                 """
 <!DOCTYPE html>
 <!DOCTYPE html>
@@ -626,7 +644,8 @@ class TemplateLibrary:
     {% endif %}
 </body>
 </html>
-                """.strip()),
+                """.strip(),
+            ),
         ]
 
         # Create default templates

@@ -1,13 +1,3 @@
-"""Performance Optimization Service.
-import requests
-from requests.exceptions import HTTPError
-from scipy import stats
-
-This module provides comprehensive performance optimization for the Therapy
-Compliance Analyzer, including intelligent caching, batch processing, and
-proactive optimization strategies.
-"""
-
 import asyncio
 import logging
 import sqlite3
@@ -17,8 +7,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+import requests
 import sqlalchemy
 import sqlalchemy.exc
+from requests.exceptions import HTTPError
 
 from src.core.advanced_cache_service import advanced_cache_service
 from src.core.cache_service import get_cache_stats
@@ -95,12 +87,14 @@ class PerformanceOptimizer:
                 efficiency_score=efficiency_score,
                 bottlenecks=bottlenecks,
                 recommendations=recommendations,
-                timestamp=datetime.now())
+                timestamp=datetime.now(),
+            )
 
             logger.info(
                 "Performance analysis complete - Efficiency: %s, ",
                 efficiency_score,
-                f"Hit Rate: {cache_hit_rate * 100}, Response Time: {avg_response_time}ms")
+                f"Hit Rate: {cache_hit_rate * 100}, Response Time: {avg_response_time}ms",
+            )
 
             return metrics
 
@@ -115,7 +109,8 @@ class PerformanceOptimizer:
                 efficiency_score=0.0,
                 bottlenecks=[f"Analysis error: {e!s}"],
                 recommendations=["Fix analysis errors before optimization"],
-                timestamp=datetime.now())
+                timestamp=datetime.now(),
+            )
 
     async def optimize_performance(self, aggressive: bool = False, target_improvement: float = 20.0) -> dict[str, Any]:
         """Execute comprehensive performance optimization.
@@ -140,7 +135,8 @@ class PerformanceOptimizer:
         logger.info(
             "Starting performance optimization (aggressive: %s, ",
             aggressive,
-            f"target: {target_improvement}% improvement)")
+            f"target: {target_improvement}% improvement)",
+        )
 
         try:
             # Get baseline performance metrics
@@ -224,7 +220,8 @@ class PerformanceOptimizer:
             logger.info(
                 "Performance optimization completed in %ss - ",
                 time.time() - start_time,
-                f"Overall improvement: {total_improvement}%")
+                f"Overall improvement: {total_improvement}%",
+            )
 
             return optimization_results
 
@@ -328,9 +325,8 @@ class PerformanceOptimizer:
 
             # Schedule embedding warming
             self.advanced_cache.cache_warming.schedule_warming(
-                cache_type="embedding",
-                items=common_medical_texts,
-                priority=7)
+                cache_type="embedding", items=common_medical_texts, priority=7
+            )
             warming_results["warming_requests_scheduled"] += len(common_medical_texts)
 
             # Schedule NER warming for common compliance phrases
@@ -339,10 +335,7 @@ class PerformanceOptimizer:
                 for text in common_medical_texts[:5]  # Limit to avoid overload
             ]
 
-            self.advanced_cache.cache_warming.schedule_warming(
-                cache_type="ner",
-                items=ner_items,
-                priority=6)
+            self.advanced_cache.cache_warming.schedule_warming(cache_type="ner", items=ner_items, priority=6)
             warming_results["warming_requests_scheduled"] += len(ner_items)
 
             # Execute warming (limited to avoid performance impact)
@@ -540,9 +533,9 @@ class PerformanceOptimizer:
 performance_optimizer = PerformanceOptimizer()
 
 
-
 class LLMResponseCache:
     """LLM response cache implementation."""
+
     _cache = {}
 
     @classmethod
@@ -566,9 +559,9 @@ class LLMResponseCache:
         cls._cache.clear()
 
 
-
 class DocumentCache:
     """Document cache implementation."""
+
     _cache = {}
 
     @classmethod

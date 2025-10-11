@@ -7,6 +7,7 @@ import pytest
 # Note: PySide6 imports may need proper Qt testing environment setup
 try:
     from PySide6.QtWidgets import QApplication
+
     from src.gui.view_models.main_view_model import MainViewModel
 
     PYSIDE6_AVAILABLE = True
@@ -65,15 +66,11 @@ class TestMainViewModel:
     @patch("src.gui.view_models.main_view_model.HealthCheckWorker")
     @patch("src.gui.view_models.main_view_model.TaskMonitorWorker")
     @patch("src.gui.view_models.main_view_model.LogStreamWorker")
-    def test_start_workers(
-        self, mock_log_worker, mock_task_worker, mock_health_worker, view_model
-    ):
+    def test_start_workers(self, mock_log_worker, mock_task_worker, mock_health_worker, view_model):
         """Test that start_workers initializes all required workers."""
         with patch.object(view_model, "_run_worker") as mock_run_worker:
             with patch.object(view_model, "load_rubrics") as mock_load_rubrics:
-                with patch.object(
-                    view_model, "load_dashboard_data"
-                ) as mock_load_dashboard:
+                with patch.object(view_model, "load_dashboard_data") as mock_load_dashboard:
                     view_model.start_workers()
 
                     # Should call _run_worker for health check, task monitor, and log stream
@@ -134,9 +131,7 @@ class TestMainViewModel:
 
     @patch("src.gui.view_models.main_view_model.workflow_logger")
     @patch("src.gui.view_models.main_view_model.status_tracker")
-    def test_handle_analysis_task_started(
-        self, mock_status_tracker, mock_workflow_logger, view_model
-    ):
+    def test_handle_analysis_task_started(self, mock_status_tracker, mock_workflow_logger, view_model):
         """Test that analysis task started is handled correctly."""
         test_task_id = "test_task_123"
 
@@ -153,9 +148,7 @@ class TestMainViewModel:
 
     @patch("src.gui.view_models.main_view_model.workflow_logger")
     @patch("src.gui.view_models.main_view_model.status_tracker")
-    def test_on_analysis_polling_success(
-        self, mock_status_tracker, mock_workflow_logger, view_model
-    ):
+    def test_on_analysis_polling_success(self, mock_status_tracker, mock_workflow_logger, view_model):
         """Test successful analysis polling completion."""
         test_result = {"analysis": {"findings": []}, "status": "complete"}
 
@@ -165,9 +158,7 @@ class TestMainViewModel:
         view_model._on_analysis_polling_success(test_result)
 
         # Verify logging and status tracking
-        mock_workflow_logger.log_workflow_completion.assert_called_once_with(
-            True, test_result
-        )
+        mock_workflow_logger.log_workflow_completion.assert_called_once_with(True, test_result)
         mock_status_tracker.complete_analysis.assert_called_once_with(test_result)
 
         # Verify signal emission
@@ -184,9 +175,7 @@ class TestMainViewModel:
         mock_analysis_error = Mock()
         mock_analysis_error.icon = "❌"
         mock_analysis_error.severity = "critical"
-        mock_error_handler.categorize_and_handle_error.return_value = (
-            mock_analysis_error
-        )
+        mock_error_handler.categorize_and_handle_error.return_value = mock_analysis_error
         mock_error_handler.format_error_message.return_value = "Formatted error message"
 
         # Mock the signal emission
@@ -195,15 +184,11 @@ class TestMainViewModel:
         view_model._handle_analysis_error_with_logging(test_error)
 
         # Verify error processing
-        mock_error_handler.categorize_and_handle_error.assert_called_once_with(
-            test_error
-        )
+        mock_error_handler.categorize_and_handle_error.assert_called_once_with(test_error)
         mock_error_handler.format_error_message.assert_called()
 
         # Verify logging and status tracking
-        mock_workflow_logger.log_workflow_completion.assert_called_once_with(
-            False, error=test_error
-        )
+        mock_workflow_logger.log_workflow_completion.assert_called_once_with(False, error=test_error)
         mock_status_tracker.set_error.assert_called_once_with(test_error)
 
         # Verify signal emission

@@ -91,11 +91,8 @@ class AnalysisStatusTracker:
         self._trigger_status_callback(AnalysisState.STARTING)
 
     def update_status(
-        self,
-        state: AnalysisState,
-        progress: int | None = None,
-        message: str | None = None,
-        task_id: str | None = None) -> None:
+        self, state: AnalysisState, progress: int | None = None, message: str | None = None, task_id: str | None = None
+    ) -> None:
         """Update analysis status.
 
         Args:
@@ -131,7 +128,8 @@ class AnalysisStatusTracker:
                 state.value,
                 self.progress,
                 elapsed,
-                self.current_analysis)
+                self.current_analysis,
+            )
             self._trigger_status_callback(state)
 
         # Check for timeout
@@ -155,10 +153,7 @@ class AnalysisStatusTracker:
         self.last_update = time.time()
 
         elapsed = self.get_elapsed_time()
-        logger.error(
-            "Analysis failed: %s | Elapsed: %ss | Analysis: {self.current_analysis}",
-            error_message,
-            elapsed)
+        logger.error("Analysis failed: %s | Elapsed: %ss | Analysis: {self.current_analysis}", error_message, elapsed)
 
         self._trigger_status_callback(AnalysisState.FAILED)
 
@@ -324,7 +319,8 @@ class AnalysisStatusTracker:
             "Analysis timed out | Elapsed: %ss | Threshold: %ss | Analysis: %s",
             elapsed,
             self.timeout_threshold,
-            self.current_analysis)
+            self.current_analysis,
+        )
 
         # Trigger timeout callbacks
         for callback in self._timeout_callbacks:

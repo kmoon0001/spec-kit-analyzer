@@ -27,7 +27,8 @@ class LLMService:
         model_filename: str,
         llm_settings: dict[str, Any] | None = None,
         revision: str | None = None,
-        local_model_path: str | None = None) -> None:
+        local_model_path: str | None = None,
+    ) -> None:
         self.model_repo_id = model_repo_id
         self.model_filename = model_filename
         self.settings = llm_settings or {}
@@ -63,14 +64,9 @@ class LLMService:
                 self._load_ctransformers_model()
             else:
                 self._load_transformers_model()
-            logger.info(
-                "LLM loaded successfully",
-                extra={"backend": self.backend, "model": self.model_repo_id})
+            logger.info("LLM loaded successfully", extra={"backend": self.backend, "model": self.model_repo_id})
         except Exception as exc:
-            logger.critical(
-                "Fatal error: Failed to load LLM",
-                exc_info=True,
-                extra={"error": str(exc)})
+            logger.critical("Fatal error: Failed to load LLM", exc_info=True, extra={"error": str(exc)})
             self.llm = None
             self.tokenizer = None
         finally:
@@ -97,9 +93,7 @@ class LLMService:
                 model_kwargs[key] = value
         model_kwargs = {k: v for k, v in model_kwargs.items() if v not in (None, "")}
 
-        self.llm = AutoModelForCausalLM.from_pretrained(
-            source,
-            **model_kwargs)
+        self.llm = AutoModelForCausalLM.from_pretrained(source, **model_kwargs)
         self.tokenizer = None
         self.seq2seq = False
 
@@ -177,7 +171,8 @@ class LLMService:
                     top_k=top_k,
                     repetition_penalty=repetition_penalty,
                     stop=stop_sequences,
-                    **gen_params)
+                    **gen_params,
+                )
                 result = output.strip() if isinstance(output, str) else str(output)
 
                 # Cache the result for future use
@@ -193,10 +188,8 @@ class LLMService:
                 return "Error: tokenizer unavailable."
 
             inputs = self.tokenizer(
-                prompt,
-                return_tensors="pt",
-                truncation=True,
-                max_length=int(self.settings.get("context_length", 512)))
+                prompt, return_tensors="pt", truncation=True, max_length=int(self.settings.get("context_length", 512))
+            )
             device = next(self.llm.parameters()).device  # type: ignore[attr-defined]
             inputs = {key: value.to(device) for key, value in inputs.items()}
 
@@ -228,10 +221,8 @@ class LLMService:
                     if not sequence:
                         continue
                     encoded = self.tokenizer(
-                        sequence,
-                        add_special_tokens=False,
-                        return_attention_mask=False,
-                        return_token_type_ids=False)
+                        sequence, add_special_tokens=False, return_attention_mask=False, return_token_type_ids=False
+                    )
                     ids = encoded.get("input_ids")
                     if not ids:
                         continue
@@ -267,5 +258,3 @@ class LLMService:
 
     def generate_analysis(self, prompt: str, **kwargs) -> str:
         return self.generate(prompt, **kwargs)
-
-

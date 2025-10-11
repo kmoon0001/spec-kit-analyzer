@@ -460,6 +460,7 @@ class TaskMonitorWidget(QWidget):
 
     def _build_ui(self) -> None:
         from PySide6.QtWidgets import QHeaderView, QTableWidget, QVBoxLayout
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self.task_table = QTableWidget()
@@ -490,21 +491,21 @@ class MissionControlWidget(QWidget):
 
     start_analysis_requested = Signal()
     review_document_requested = Signal(dict)
-    
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._build_ui()
-    
+
     def _build_ui(self) -> None:
         """Build the mission control UI."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(20)
-        
+
         # Add the system status frame
         system_status_frame = self._build_system_status_frame()
         layout.addWidget(system_status_frame)
-        
+
         # Add other frames as needed
         task_monitor_frame = self._build_task_monitor_frame()
         layout.addWidget(task_monitor_frame)
@@ -556,7 +557,8 @@ class MissionControlWidget(QWidget):
             col += 1
 
         frame.setStyleSheet(
-            "#aiHealthFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }")
+            "#aiHealthFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }"
+        )
         return frame
 
     def _build_system_status_frame(self) -> QWidget:
@@ -575,7 +577,8 @@ class MissionControlWidget(QWidget):
         layout.addWidget(self.api_status_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         frame.setStyleSheet(
-            "#systemStatusFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }")
+            "#systemStatusFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }"
+        )
         return frame
 
     def _build_task_monitor_frame(self) -> QWidget:
@@ -593,7 +596,8 @@ class MissionControlWidget(QWidget):
         layout.addWidget(self.task_monitor)
 
         frame.setStyleSheet(
-            "#taskMonitorFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }")
+            "#taskMonitorFrame { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; }"
+        )
         return frame
 
     def _update_ai_health_display(self, health_data: dict[str, Any]) -> None:

@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+
 from src.core.document_classifier import DocumentClassifier
 from src.core.llm_service import LLMService
 

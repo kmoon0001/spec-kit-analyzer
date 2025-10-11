@@ -4,13 +4,12 @@ Handles API calls to fetch organizational analytics data without blocking the UI
 Follows the established worker patterns for consistency with other GUI workers.
 """
 
-import json
 import logging
 from typing import Any
 
 import requests
-from requests.exceptions import HTTPError
 from PySide6.QtCore import QObject, Signal
+from requests.exceptions import HTTPError
 
 from src.config import get_settings
 
@@ -34,11 +33,7 @@ class MetaAnalyticsWorker(QObject):
         self.discipline: str | None = None
         self.load_type: str = "overview"
 
-    def set_parameters(
-        self,
-        days_back: int = 90,
-        discipline: str | None = None,
-        load_type: str = "overview"):
+    def set_parameters(self, days_back: int = 90, discipline: str | None = None, load_type: str = "overview"):
         """Set parameters for the data loading."""
         self.days_back = days_back
         self.discipline = discipline
@@ -105,10 +100,8 @@ class MetaAnalyticsWorker(QObject):
             params["discipline"] = self.discipline
 
         response = requests.get(
-            f"{self.base_url}/meta-analytics/organizational-overview",
-            headers=headers,
-            params=params,
-            timeout=30)
+            f"{self.base_url}/meta-analytics/organizational-overview", headers=headers, params=params, timeout=30
+        )
         response.raise_for_status()
 
         return response.json()
@@ -122,10 +115,8 @@ class MetaAnalyticsWorker(QObject):
             params["discipline"] = self.discipline
 
         response = requests.get(
-            f"{self.base_url}/meta-analytics/training-needs",
-            headers=headers,
-            params=params,
-            timeout=30)
+            f"{self.base_url}/meta-analytics/training-needs", headers=headers, params=params, timeout=30
+        )
         response.raise_for_status()
 
         return response.json()
@@ -140,10 +131,8 @@ class MetaAnalyticsWorker(QObject):
             params["discipline"] = self.discipline
 
         response = requests.get(
-            f"{self.base_url}/meta-analytics/team-trends",
-            headers=headers,
-            params=params,
-            timeout=30)
+            f"{self.base_url}/meta-analytics/team-trends", headers=headers, params=params, timeout=30
+        )
         response.raise_for_status()
 
         return response.json()
@@ -155,10 +144,8 @@ class MetaAnalyticsWorker(QObject):
         params: dict[str, Any] = {"days_back": self.days_back}
 
         response = requests.get(
-            f"{self.base_url}/meta-analytics/benchmarks",
-            headers=headers,
-            params=params,
-            timeout=30)
+            f"{self.base_url}/meta-analytics/benchmarks", headers=headers, params=params, timeout=30
+        )
         response.raise_for_status()
 
         return response.json()
@@ -167,10 +154,7 @@ class MetaAnalyticsWorker(QObject):
         """Load performance alerts for immediate attention."""
         self.progress_updated.emit("Loading performance alerts...")
 
-        response = requests.get(
-            f"{self.base_url}/meta-analytics/performance-alerts",
-            headers=headers,
-            timeout=30)
+        response = requests.get(f"{self.base_url}/meta-analytics/performance-alerts", headers=headers, timeout=30)
         response.raise_for_status()
 
         return response.json()
@@ -182,28 +166,21 @@ class MetaAnalyticsWorker(QObject):
         params: dict[str, Any] = {"days_back": self.days_back}
 
         response = requests.get(
-            f"{self.base_url}/meta-analytics/discipline-comparison",
-            headers=headers,
-            params=params,
-            timeout=30)
+            f"{self.base_url}/meta-analytics/discipline-comparison", headers=headers, params=params, timeout=30
+        )
         response.raise_for_status()
 
         return response.json()
 
-    def load_peer_comparison(
-        self,
-        headers: dict[str, str],
-        user_id: int) -> dict[str, Any]:
+    def load_peer_comparison(self, headers: dict[str, str], user_id: int) -> dict[str, Any]:
         """Load peer comparison data for a specific user."""
         self.progress_updated.emit("Loading peer comparison...")
 
         params: dict[str, Any] = {"days_back": self.days_back}
 
         response = requests.get(
-            f"{self.base_url}/meta-analytics/peer-comparison/{user_id}",
-            headers=headers,
-            params=params,
-            timeout=30)
+            f"{self.base_url}/meta-analytics/peer-comparison/{user_id}", headers=headers, params=params, timeout=30
+        )
         response.raise_for_status()
 
         return response.json()

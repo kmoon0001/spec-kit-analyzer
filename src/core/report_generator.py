@@ -30,16 +30,16 @@ class ReportGenerator:
 
     def __init__(self, llm_service=None):
         self.rubric_template_str = self._load_template(
-            os.path.join(ROOT_DIR, "src", "resources", "report_template.html"))
+            os.path.join(ROOT_DIR, "src", "resources", "report_template.html")
+        )
         self.model_limitations_html = self._load_and_convert_markdown(
-            os.path.join(ROOT_DIR, "src", "resources", "model_limitations.md"))
+            os.path.join(ROOT_DIR, "src", "resources", "model_limitations.md")
+        )
         self.settings = get_settings()
         self.habits_enabled = self.settings.habits_framework.enabled
         if self.habits_enabled:
             use_ai = self.settings.habits_framework.ai_features.use_ai_mapping
-            self.habits_framework = SevenHabitsFramework(
-                use_ai_mapping=use_ai,
-                llm_service=llm_service)
+            self.habits_framework = SevenHabitsFramework(use_ai_mapping=use_ai, llm_service=llm_service)
         else:
             self.habits_framework = None
 
@@ -74,16 +74,12 @@ class ReportGenerator:
         return ""
 
     def generate_report(
-        self,
-        analysis_result: dict[str, Any],
-        *,
-        document_name: str | None = None,
-        analysis_mode: str = "rubric") -> dict[str, Any]:
+        self, analysis_result: dict[str, Any], *, document_name: str | None = None, analysis_mode: str = "rubric"
+    ) -> dict[str, Any]:
         doc_name = document_name or analysis_result.get("document_name", "Document")
         report_html = self.generate_html_report(
-            analysis_result=analysis_result,
-            doc_name=doc_name,
-            analysis_mode=analysis_mode)
+            analysis_result=analysis_result, doc_name=doc_name, analysis_mode=analysis_mode
+        )
         findings = analysis_result.get("findings", [])
         return {
             "analysis": analysis_result,
@@ -93,11 +89,7 @@ class ReportGenerator:
             "generated_at": datetime.now(tz=UTC).isoformat(),
         }
 
-    def generate_html_report(
-        self,
-        analysis_result: dict,
-        doc_name: str,
-        analysis_mode: str = "rubric") -> str:
+    def generate_html_report(self, analysis_result: dict, doc_name: str, analysis_mode: str = "rubric") -> str:
         return self._generate_rubric_report(analysis_result, doc_name)
 
     def _generate_rubric_report(self, analysis_result: dict, doc_name: str) -> str:
@@ -264,7 +256,8 @@ class ReportGenerator:
 
     def _generate_recommendation_cell(self, finding: dict) -> str:
         recommendation = sanitize_human_text(
-            finding.get("personalized_tip") or finding.get("suggestion", "Review and update documentation"))
+            finding.get("personalized_tip") or finding.get("suggestion", "Review and update documentation")
+        )
         priority = finding.get("priority")
         if priority:
             recommendation = f"<strong>Priority {sanitize_human_text(str(priority))}:</strong> {recommendation}"
@@ -347,7 +340,8 @@ class ReportGenerator:
                 recommendation = sanitize_human_text(item.get("recommendation", ""))
                 title = sanitize_human_text(item.get("title", item.get("id", "Checklist item")))
                 rows.append(
-                    f"<tr><td>{title}</td><td><span class='{status_class}'>{status_label}</span></td><td>{evidence}</td><td>{recommendation}</td></tr>")
+                    f"<tr><td>{title}</td><td><span class='{status_class}'>{status_label}</span></td><td>{evidence}</td><td>{recommendation}</td></tr>"
+                )
             rows_html = "".join(rows)
         return report_html.replace("<!-- Placeholder for checklist rows -->", rows_html)
 

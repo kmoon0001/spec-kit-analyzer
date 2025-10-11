@@ -1,11 +1,3 @@
-"""Multi-Agent Workflow Orchestrator
-import requests
-from requests.exceptions import HTTPError
-
-Coordinates multiple AI agents to work together on complex compliance analysis tasks,
-maximizing context sharing and prompt engineering effectiveness across the entire workflow.
-"""
-
 import asyncio
 import logging
 import uuid
@@ -13,6 +5,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any
+
+import requests
+from requests.exceptions import HTTPError
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +93,8 @@ class MultiAgentOrchestrator:
         document_content: str,
         rubric_data: dict[str, Any],
         user_preferences: dict[str, Any],
-        workflow_type: str = "comprehensive_analysis") -> dict[str, Any]:
+        workflow_type: str = "comprehensive_analysis",
+    ) -> dict[str, Any]:
         """Execute a multi-agent workflow for compliance analysis.
 
         Args:
@@ -123,7 +119,8 @@ class MultiAgentOrchestrator:
                 document_content=document_content,
                 document_type=self._detect_document_type(document_content),
                 user_preferences=user_preferences,
-                rubric_data=rubric_data)
+                rubric_data=rubric_data,
+            )
 
             # Store active workflow
             self.active_workflows[workflow_id] = context
@@ -225,7 +222,8 @@ class MultiAgentOrchestrator:
                 confidence=result_data.get("confidence", 0.8),
                 processing_time_ms=processing_time,
                 context_updates=result_data.get("context_updates", {}),
-                next_agents=result_data.get("next_agents", []))
+                next_agents=result_data.get("next_agents", []),
+            )
 
         except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
@@ -236,7 +234,8 @@ class MultiAgentOrchestrator:
                 success=False,
                 data={"error": str(e)},
                 confidence=0.0,
-                processing_time_ms=processing_time)
+                processing_time_ms=processing_time,
+            )
 
     def _prepare_agent_context(self, agent_role: AgentRole, context: WorkflowContext) -> dict[str, Any]:
         """Prepare optimized context for a specific agent with enhanced prompt engineering."""

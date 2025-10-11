@@ -130,7 +130,8 @@ class UIHandlers:
                 "🎉 Easter Egg Found!",
                 "You found the secret! 🌴\n\n"
                 "Pacific Coast Therapy - Where compliance meets excellence!\n\n"
-                "Keep up the great documentation work! 💪")
+                "Keep up the great documentation work! 💪",
+            )
             self.main_window.statusBar().showMessage("🎉 Easter egg activated!", 5000)
 
     def on_model_status_clicked(self, model_name: str) -> None:
@@ -235,7 +236,8 @@ class UIHandlers:
                 "function": "Supports document analysis and compliance checking",
                 "technology": "Local AI processing",
                 "use_cases": ["Compliance analysis"],
-            })
+            },
+        )
 
         # Create detailed popup
         dialog = QDialog(self.main_window)
@@ -394,9 +396,7 @@ class UIHandlers:
         doc_name = self.main_window._selected_file.name if self.main_window._selected_file else "Document"
         report_html = self.main_window._current_payload.get(
             "report_html"
-        ) or self.main_window.report_generator.generate_html_report(
-            analysis_result=analysis,
-            doc_name=doc_name)
+        ) or self.main_window.report_generator.generate_html_report(analysis_result=analysis, doc_name=doc_name)
         report_browser.setHtml(report_html)
 
         layout.addWidget(report_browser)
@@ -472,7 +472,8 @@ class UIHandlers:
             "• Reset temporary files\n\n"
             "This action cannot be undone.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No)
+            QMessageBox.StandardButton.No,
+        )
 
         if reply == QMessageBox.StandardButton.Yes:
             try:
@@ -561,7 +562,8 @@ class UIHandlers:
             "The server is required for document analysis to work.\n\n"
             "Do you want to start the API server now?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.Yes)
+            QMessageBox.StandardButton.Yes,
+        )
 
         if reply == QMessageBox.StandardButton.Yes:
             try:
@@ -576,14 +578,16 @@ class UIHandlers:
                             sys.executable,
                             str(api_script),
                         ],
-                        creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0)
+                        creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0,
+                    )
 
                     QMessageBox.information(
                         self.main_window,
                         "🚀 API Server Starting",
                         "The API server is starting in a separate window.\n\n"
                         "Please wait a moment for it to initialize, then try your analysis again.\n\n"
-                        "You can also run diagnostics (Tools → Run Diagnostics) to check the status.")
+                        "You can also run diagnostics (Tools → Run Diagnostics) to check the status.",
+                    )
 
                     self.main_window.statusBar().showMessage("✅ API server started", 5000)
                 else:
@@ -592,13 +596,15 @@ class UIHandlers:
                         "Script Not Found",
                         f"Could not find API server script at: {api_script}\n\n"
                         "Please start the API server manually:\n"
-                        "python scripts/run_api.py")
+                        "python scripts/run_api.py",
+                    )
 
             except Exception as e:
                 QMessageBox.critical(
                     self.main_window,
                     "Failed to Start API Server",
-                    f"Could not start the API server:\n\n{e!s}\n\nPlease start it manually:\npython scripts/run_api.py")
+                    f"Could not start the API server:\n\n{e!s}\n\nPlease start it manually:\npython scripts/run_api.py",
+                )
 
     def show_about_dialog(self) -> None:
         """Show about dialog with easter eggs."""
@@ -726,7 +732,8 @@ Memory:
             "• Manage user permissions\n"
             "• Reset user passwords\n"
             "• View user activity logs\n\n"
-            "This feature will be available in a future update!")
+            "This feature will be available in a future update!",
+        )
 
     def check_license_status(self) -> None:
         """Check license status and show trial information if needed."""
@@ -755,7 +762,8 @@ Memory:
                     self.main_window,
                     "🔔 Trial Period Notice",
                     f"Trial period: {days_remaining} days remaining\n\n"
-                    f"Contact your administrator to activate the full license.")
+                    f"Contact your administrator to activate the full license.",
+                )
 
         except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("License check failed: %s", e)
@@ -766,23 +774,24 @@ Memory:
             QMessageBox.information(
                 self.main_window,
                 "🔐 License Activation",
-                "Only administrators can activate licenses.\n\nPlease contact your system administrator.")
+                "Only administrators can activate licenses.\n\nPlease contact your system administrator.",
+            )
             return
 
         activation_code, ok = QInputDialog.getText(
-            self.main_window,
-            "🔑 License Activation",
-            "Enter activation code:",
-            echo=QLineEdit.EchoMode.Password)
+            self.main_window, "🔑 License Activation", "Enter activation code:", echo=QLineEdit.EchoMode.Password
+        )
 
         if ok and activation_code:
             if license_manager.activate_full_license(activation_code):
                 QMessageBox.information(
                     self.main_window,
                     "✅ License Activated",
-                    "Full license activated successfully!\n\nAll features are now available.")
+                    "Full license activated successfully!\n\nAll features are now available.",
+                )
             else:
                 QMessageBox.warning(
                     self.main_window,
                     "❌ Activation Failed",
-                    "Invalid activation code.\n\nPlease check the code and try again.")
+                    "Invalid activation code.\n\nPlease check the code and try again.",
+                )

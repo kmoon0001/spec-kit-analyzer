@@ -465,7 +465,8 @@ class SettingsDialog(QDialog):
         QMessageBox.information(
             self,
             "✅ Settings Applied",
-            "Your settings have been saved successfully!\n\nSome changes may require an application restart to take full effect.")
+            "Your settings have been saved successfully!\n\nSome changes may require an application restart to take full effect.",
+        )
 
     def save_settings(self):
         """Apply settings and close the dialog."""
@@ -478,7 +479,8 @@ class SettingsDialog(QDialog):
             self,
             "Confirm Cache Deletion",
             "Are you sure you want to delete all cached document and analysis data? This cannot be undone.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 cache_service.clear_disk_cache()

@@ -1,14 +1,14 @@
 import logging
-from collections import Counter
-from typing import Any
 
 from src.core.checklist_service import DeterministicChecklistService as ChecklistService
 from src.core.text_utils import sanitize_bullets, sanitize_human_text
 
 logger = logging.getLogger(__name__)
 
+
 def trim_document_text(document_text: str, *, max_chars: int = 12000) -> str:
     return document_text[:max_chars] + "..." if len(document_text) > max_chars else document_text
+
 
 def enrich_analysis_result(
     analysis_result: dict, *, document_text: str, discipline: str, doc_type: str, checklist_service: ChecklistService
@@ -25,6 +25,7 @@ def enrich_analysis_result(
     result["overall_confidence"] = calculate_overall_confidence(result, checklist)
     return result
 
+
 def build_summary_fallback(analysis_result: dict, checklist: list) -> str:
     findings = analysis_result.get("findings") or []
     highlights = ", ".join(sanitize_human_text(f.get("issue_title", "finding")) for f in findings[:3])
@@ -39,12 +40,14 @@ def build_summary_fallback(analysis_result: dict, checklist: list) -> str:
         base += f" Deterministic checks flagged: {titles}."
     return base
 
+
 def build_narrative_summary(base_summary: str, checklist: list) -> str:
     flagged = [item for item in checklist if item.get("status") != "pass"]
     if not flagged:
         return sanitize_human_text(base_summary + " Core documentation elements were present.")
     focus = ", ".join(sanitize_human_text(item.get("title", "")) for item in flagged[:3])
     return sanitize_human_text(f"{base_summary} Immediate follow-up recommended for: {focus}.")
+
 
 def build_bullet_highlights(analysis_result: dict, checklist: list, summary: str) -> list[str]:
     bullets = [
@@ -69,6 +72,7 @@ def build_bullet_highlights(analysis_result: dict, checklist: list, summary: str
         seen.add(lowered)
         sanitized.append(bullet)
     return sanitized
+
 
 def calculate_overall_confidence(analysis_result: dict, checklist: list) -> float:
     findings = analysis_result.get("findings") or []

@@ -481,7 +481,8 @@ class PluginManager:
                 author_email="unknown@example.com",
                 license="MIT",
                 min_system_version="2.0.0",
-                created_at=datetime.now())
+                created_at=datetime.now(),
+            )
 
         except (FileNotFoundError, PermissionError, OSError):
             logger.exception("Failed to extract metadata from %s: {e}", plugin_file)

@@ -212,10 +212,7 @@ class EHRIntegrationSettings(BaseModel):
 class Settings(BaseSettings):
     """Top-level application settings composed from config.yaml and environment."""
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="allow")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
 
     use_ai_mocks: bool = False
     enable_director_dashboard: bool = True

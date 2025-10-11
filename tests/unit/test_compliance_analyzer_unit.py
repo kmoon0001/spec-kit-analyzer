@@ -11,9 +11,7 @@ def compliance_analyzer() -> ComplianceAnalyzer:
     retriever.retrieve = AsyncMock(return_value=[])
 
     ner_pipeline = MagicMock()
-    ner_pipeline.extract_entities.return_value = [
-        {"entity_group": "ISSUE", "word": "transfers"}
-    ]
+    ner_pipeline.extract_entities.return_value = [{"entity_group": "ISSUE", "word": "transfers"}]
 
     llm_service = MagicMock()
     llm_service.generate.return_value = '{"findings": []}'
@@ -52,9 +50,7 @@ async def test_analyze_document_orchestration(compliance_analyzer: ComplianceAna
     )
 
     compliance_analyzer.retriever.retrieve.assert_awaited_once()
-    compliance_analyzer.ner_analyzer.extract_entities.assert_called_once_with(
-        document_text
-    )
+    compliance_analyzer.ner_analyzer.extract_entities.assert_called_once_with(document_text)
     compliance_analyzer.prompt_manager.get_prompt.assert_called_once()
     compliance_analyzer.llm_service.generate.assert_called_once()
     compliance_analyzer.explanation_engine.add_explanations.assert_called_once()

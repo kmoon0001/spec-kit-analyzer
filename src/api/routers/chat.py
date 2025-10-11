@@ -23,7 +23,8 @@ async def chat_with_ai(
     if not chat_llm.is_ready():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The chat model is not available. Please try again later.")
+            detail="The chat model is not available. Please try again later.",
+        )
 
     chat_service = ChatService(chat_llm)
 
@@ -33,5 +34,5 @@ async def chat_with_ai(
         return schemas.ChatResponse(response=response_text)
     except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred during the chat session: {e}") from e
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An error occurred during the chat session: {e}"
+        ) from e

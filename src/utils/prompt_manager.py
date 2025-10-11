@@ -16,11 +16,7 @@ class PromptManager:
             template_name: The filename of the prompt template in the prompts directory.
 
         """
-        prompts_dir = os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "resources",
-            "prompts")
+        prompts_dir = os.path.join(os.path.dirname(__file__), "..", "resources", "prompts")
         self.template_path = os.path.join(prompts_dir, template_name)
         self.template_string = self._load_template()
 
@@ -46,8 +42,5 @@ class PromptManager:
         try:
             return self.template_string.format(**kwargs)
         except KeyError as e:
-            logger.exception(
-                "Missing variable in prompt template",
-                template=self.template_path,
-                error=str(e))
+            logger.exception("Missing variable in prompt template", template=self.template_path, error=str(e))
             raise

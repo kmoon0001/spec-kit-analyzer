@@ -24,7 +24,8 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"status": "error", "database": "disconnected", "reason": str(e)}) from e
+            detail={"status": "error", "database": "disconnected", "reason": str(e)},
+        ) from e
 
 
 @router.get("/ai/status")

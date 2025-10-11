@@ -27,8 +27,7 @@ class AnalysisWorkflowLogger:
         self.logger.setLevel(logging.DEBUG)
 
         # Create formatter for detailed logging
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
         # Add console handler if not already present
         if not self.logger.handlers:
@@ -73,7 +72,8 @@ class AnalysisWorkflowLogger:
             Path(file_path).name,
             len(Path(file_path).read_bytes()) if Path(file_path).exists() else 0,
             rubric,
-            user_id)
+            user_id,
+        )
 
         return session_id
 
@@ -108,7 +108,8 @@ class AnalysisWorkflowLogger:
             method,
             endpoint,
             step["payload_size"],
-            f"Session: {self.current_session['session_id']}")
+            f"Session: {self.current_session['session_id']}",
+        )
 
         if safe_payload:
             self.logger.debug("Request payload: %s", safe_payload)
@@ -142,7 +143,8 @@ class AnalysisWorkflowLogger:
                 "✅ API RESPONSE - Status: %s | Response size: %s chars | ",
                 status_code,
                 step["response_size"],
-                f"Session: {self.current_session['session_id']}")
+                f"Session: {self.current_session['session_id']}",
+            )
 
             # Log task ID if present
             if response and "task_id" in response:
@@ -152,7 +154,8 @@ class AnalysisWorkflowLogger:
                 "❌ API ERROR - Status: %s | Error: %s | ",
                 status_code,
                 error,
-                f"Session: {self.current_session['session_id']}")
+                f"Session: {self.current_session['session_id']}",
+            )
 
     def log_polling_attempt(
         self, task_id: str, attempt: int, status: str | None = None, progress: int | None = None
@@ -187,7 +190,8 @@ class AnalysisWorkflowLogger:
             "🔄 POLLING ATTEMPT #%s - Task: {task_id[:8]}... | Status: %s | Progress: {progress}% | ",
             attempt,
             status,
-            f"Elapsed: {elapsed}s | Session: {self.current_session['session_id']}")
+            f"Elapsed: {elapsed}s | Session: {self.current_session['session_id']}",
+        )
 
     def log_workflow_completion(self, success: bool, result: dict | None = None, error: str | None = None) -> None:
         """Log workflow completion or failure.
@@ -220,13 +224,15 @@ class AnalysisWorkflowLogger:
                 "🎉 ANALYSIS COMPLETED - Duration: %ss | Result size: %s chars | ",
                 duration,
                 step["result_size"],
-                f"Session: {self.current_session['session_id']}")
+                f"Session: {self.current_session['session_id']}",
+            )
         else:
             self.logger.error(
                 "💥 ANALYSIS FAILED - Duration: %ss | Error: %s | ",
                 duration,
                 error,
-                f"Session: {self.current_session['session_id']}")
+                f"Session: {self.current_session['session_id']}",
+            )
 
         # Log session summary
         self._log_session_summary()
@@ -248,7 +254,8 @@ class AnalysisWorkflowLogger:
             "⏰ ANALYSIS TIMEOUT - Duration: %ss | Timeout threshold: %ss | ",
             duration,
             timeout_seconds,
-            f"Session: {self.current_session['session_id']}")
+            f"Session: {self.current_session['session_id']}",
+        )
 
         self._log_session_summary()
 
@@ -307,10 +314,12 @@ class AnalysisWorkflowLogger:
         duration = time.time() - self.session_start_time if self.session_start_time else 0
 
         self.logger.info(
-            "📊 SESSION SUMMARY - %s | File: %s | Duration: {duration}s | ",
+            "📊 SESSION SUMMARY - %s | File: %s | Duration: %ss | ",
             session["session_id"],
             session["file_name"],
-            f"Steps: {step_counts}")
+            duration,
+            f"Steps: {step_counts}",
+        )
 
 
 # Global logger instance

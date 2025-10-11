@@ -3,10 +3,12 @@ API entry point script.
 
 This script launches the FastAPI application using a Uvicorn server.
 """
-import sys
-import signal
+
 import importlib
+import signal
+import sys
 from pathlib import Path
+
 import uvicorn
 
 # Add project root to the Python path to allow for `src` imports
@@ -16,12 +18,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 # Global flag to control server shutdown
 server_running = True
 
+
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully."""
     global server_running
     print(f"\nReceived signal {signum}. Shutting down API server...")
     server_running = False
     sys.exit(0)
+
 
 def check_dependencies():
     """Check if all required dependencies are available."""
@@ -50,27 +54,26 @@ def check_dependencies():
         return False
 
 
-
 if __name__ == "__main__":
     # Set up signal handlers for graceful shutdown
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
-    
+
     print("Starting Therapy Compliance Analyzer API Server...")
     print("   Host: 127.0.0.1")
     print("   Port: 8001")
     print("   Press Ctrl+C to stop")
     print("-" * 50)
-    
+
     # Check dependencies first
     if not check_dependencies():
         print("X Dependency check failed. Please install requirements.")
         sys.exit(1)
-    
+
     try:
         # Import the app instance here to ensure the path is set up correctly
         from src.api.main import app
-        
+
         # Run the server directly with uvicorn
         print("Starting server...")
         uvicorn.run(
@@ -82,12 +85,13 @@ if __name__ == "__main__":
             access_log=True,
             timeout_keep_alive=30,
         )
-        
+
     except KeyboardInterrupt:
         print("\n✓ API server stopped by user")
     except Exception as e:
         print(f"\n✗ API server error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
     finally:

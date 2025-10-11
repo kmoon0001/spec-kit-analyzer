@@ -66,7 +66,8 @@ class EnhancedError(Exception):
         user_message: str | None = None,
         recovery_suggestions: list[str] | None = None,
         technical_details: dict[str, Any] | None = None,
-        original_exception: Exception | None = None):
+        original_exception: Exception | None = None,
+    ):
         super().__init__(message)
 
         self.error_id = str(uuid.uuid4())
@@ -127,7 +128,7 @@ class ErrorHandler:
         ...     return handled_error.to_dict()
 
     """
-    
+
     def __init__(self):
         """Initialize the error handler."""
         self.error_history = []
@@ -139,7 +140,8 @@ class ErrorHandler:
         component: str,
         operation: str | None = None,
         user_id: int | None = None,
-        context: dict[str, Any] | None = None) -> EnhancedError:
+        context: dict[str, Any] | None = None,
+    ) -> EnhancedError:
         """Handle an exception with enhanced error processing.
 
         Args:
@@ -173,7 +175,8 @@ class ErrorHandler:
                     "context": context or {},
                     "operation": operation,
                 },
-                original_exception=exception)
+                original_exception=exception,
+            )
 
             # Log the error
             self._log_error(enhanced_error, user_id)
@@ -193,7 +196,8 @@ class ErrorHandler:
                 message="Critical system error occurred",
                 severity=ErrorSeverity.CRITICAL,
                 category=ErrorCategory.SYSTEM,
-                component="error_handler")
+                component="error_handler",
+            )
 
     async def handle_with_retry(
         self, operation: Callable, max_retries: int = 3, component: str = "unknown", backoff_factor: float = 1.0
@@ -245,7 +249,11 @@ class ErrorHandler:
         exception_message = str(exception).lower()
 
         # Category classification
-        if "permission" in exception_message or "unauthorized" in exception_message or "access denied" in exception_message:
+        if (
+            "permission" in exception_message
+            or "unauthorized" in exception_message
+            or "access denied" in exception_message
+        ):
             category = ErrorCategory.PERMISSION
         elif "authentication" in exception_message or "login" in exception_message:
             category = ErrorCategory.AUTHENTICATION

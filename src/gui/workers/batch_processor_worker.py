@@ -43,11 +43,8 @@ class BatchProcessorWorker(QObject):
                 with open(file_path, "rb") as f:
                     files = {"file": (filename, f)}
                     response = requests.post(
-                        f"{API_URL}/analysis/analyze",
-                        files=files,
-                        data=self.analysis_data,
-                        headers=headers,
-                        timeout=30)
+                        f"{API_URL}/analysis/analyze", files=files, data=self.analysis_data, headers=headers, timeout=30
+                    )
                     response.raise_for_status()
                     task_id = response.json()["task_id"]
 

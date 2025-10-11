@@ -40,9 +40,7 @@ class WorkflowAutomationRequest(BaseModel):
 
 
 @router.post("/ask")
-async def ask_copilot(
-    query: CopilotQuery,
-    current_user: User = Depends(get_current_user)) -> dict[str, Any]:
+async def ask_copilot(query: CopilotQuery, current_user: User = Depends(get_current_user)) -> dict[str, Any]:
     """Ask the Enterprise Copilot a question or request assistance.
 
     The copilot can help with compliance questions, workflow automation,
@@ -58,7 +56,8 @@ async def ask_copilot(
                 context=query.context or {},
                 user_id=current_user.id,
                 department=query.department,
-                priority=query.priority)
+                priority=query.priority,
+            )
 
         return {
             "success": True,
@@ -74,8 +73,8 @@ async def ask_copilot(
     except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
         logger.exception("Copilot query failed: %s", e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Copilot query failed: {e!s}") from e
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Copilot query failed: {e!s}"
+        ) from e
 
 
 @router.get("/capabilities")
@@ -123,8 +122,8 @@ async def get_copilot_capabilities() -> dict[str, Any]:
 
 @router.post("/workflow/automate")
 async def create_workflow_automation(
-    request: WorkflowAutomationRequest,
-    current_user: User = Depends(get_current_user)) -> dict[str, Any]:
+    request: WorkflowAutomationRequest, current_user: User = Depends(get_current_user)
+) -> dict[str, Any]:
     """Create a new workflow automation.
 
     Supported workflow types:
@@ -136,8 +135,8 @@ async def create_workflow_automation(
     """
     if not current_user.is_admin:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Workflow automation requires admin privileges")
+            status_code=status.HTTP_403_FORBIDDEN, detail="Workflow automation requires admin privileges"
+        )
 
     try:
         logger.info("Creating workflow automation: %s", request.workflow_type)
@@ -147,7 +146,8 @@ async def create_workflow_automation(
             workflow_type=request.workflow_type,
             parameters=request.parameters,
             schedule=request.schedule,
-            user_id=current_user.id)
+            user_id=current_user.id,
+        )
 
         return {
             "success": True,
@@ -162,18 +162,17 @@ async def create_workflow_automation(
     except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
         logger.exception("Failed to create workflow automation: %s", e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create workflow automation: {e!s}") from e
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to create workflow automation: {e!s}"
+        ) from e
 
 
 @router.get("/workflow/list")
-async def list_workflow_automations(
-    current_user: User = Depends(get_current_user)) -> dict[str, Any]:
+async def list_workflow_automations(current_user: User = Depends(get_current_user)) -> dict[str, Any]:
     """List all workflow automations."""
     try:
         automations = await enterprise_copilot_service.list_workflow_automations(
-            user_id=current_user.id,
-            include_system=current_user.is_admin)
+            user_id=current_user.id, include_system=current_user.is_admin
+        )
 
         return {
             "success": True,
@@ -184,8 +183,8 @@ async def list_workflow_automations(
     except (PIL.UnidentifiedImageError, OSError, ValueError) as e:
         logger.exception("Failed to list workflow automations: %s", e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list workflow automations: {e!s}") from e
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to list workflow automations: {e!s}"
+        ) from e
 
 
 @router.get("/help/topics")

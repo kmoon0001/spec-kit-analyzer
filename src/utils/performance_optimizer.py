@@ -14,6 +14,7 @@ import psutil  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
+
 class PerformanceOptimizer:
     """Automatically optimize configuration based on system capabilities."""
 
@@ -43,9 +44,7 @@ class PerformanceOptimizer:
 
                 if torch.cuda.is_available():
                     gpu_available = True
-                    gpu_memory_gb = torch.cuda.get_device_properties(0).total_memory / (
-                        1024**3
-                    )
+                    gpu_memory_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
                     gpu_name = torch.cuda.get_device_name(0)
             except ImportError:
                 pass
@@ -246,6 +245,7 @@ class PerformanceOptimizer:
             "recommendation": "Lightweight models with aggressive quantization",
         }
 
+
 def optimize_system_performance() -> dict[str, Any]:
     """Main function to optimize system performance configuration."""
     optimizer = PerformanceOptimizer()
@@ -259,10 +259,13 @@ def optimize_system_performance() -> dict[str, Any]:
     config["model_recommendations"] = model_recommendations
 
     # Log optimization results
-    logger.info("System optimized for %s performance profile", config['profile'])
-    logger.info("System specs: %sGB RAM, %s CPUs", config['system_info']['total_memory_gb'], config['system_info']['cpu_count'])
+    logger.info("System optimized for %s performance profile", config["profile"])
+    logger.info(
+        "System specs: %sGB RAM, %s CPUs", config["system_info"]["total_memory_gb"], config["system_info"]["cpu_count"]
+    )
 
     return config
+
 
 if __name__ == "__main__":
     pass
@@ -272,4 +275,4 @@ if __name__ == "__main__":
     # Run optimization when script is executed directly
     logging.basicConfig(level=logging.INFO)
     result = optimize_system_performance()
-    logger.info("Performance optimization complete. Profile: %s", result['profile'])
+    logger.info("Performance optimization complete. Profile: %s", result["profile"])

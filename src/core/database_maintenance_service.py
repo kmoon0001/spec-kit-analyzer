@@ -42,26 +42,17 @@ class DatabaseMaintenanceService:
             logger.info("Database purging is disabled (retention_days <= 0).")
             return
 
-        logger.info(
-            "Starting database maintenance job: Purging reports older than %d days.",
-            retention_days)
+        logger.info("Starting database maintenance job: Purging reports older than %d days.", retention_days)
 
         async with AsyncSessionLocal() as db:
             try:
-                num_deleted = await crud.delete_reports_older_than(
-                    db,
-                    days=retention_days)
+                num_deleted = await crud.delete_reports_older_than(db, days=retention_days)
                 if num_deleted > 0:
-                    logger.info(
-                        "Successfully purged %d old reports from the database.",
-                        num_deleted)
+                    logger.info("Successfully purged %d old reports from the database.", num_deleted)
                 else:
                     logger.info("No old reports found to purge.")
             except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
-                logger.error(
-                    "An error occurred during the database purge operation: %s",
-                    e,
-                    exc_info=True)
+                logger.error("An error occurred during the database purge operation: %s", e, exc_info=True)
 
     def purge_old_reports(self, retention_days: int = 0):
         """Synchronous entry point to trigger the asynchronous purging of old reports.
@@ -87,6 +78,5 @@ class DatabaseMaintenanceService:
             logger.info("Database maintenance task finished.")
         except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.error(
-                "An unexpected error occurred while running the database maintenance task: %s",
-                e,
-                exc_info=True)
+                "An unexpected error occurred while running the database maintenance task: %s", e, exc_info=True
+            )

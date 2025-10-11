@@ -18,11 +18,7 @@ class AnalysisWorker(QObject):
     analysis_failed = Signal(str)
     finished = Signal()  # Add this line
 
-    def __init__(
-        self,
-        file_path: str,
-        discipline: str,
-        analysis_service: AnalysisService):
+    def __init__(self, file_path: str, discipline: str, analysis_service: AnalysisService):
         super().__init__()
         self.file_path = file_path
         self.discipline = discipline
@@ -36,6 +32,7 @@ class AnalysisWorker(QObject):
             self.progress_updated.emit(10)
 
             from pathlib import Path
+
             p = Path(self.file_path)
             if not p.exists():
                 raise FileNotFoundError(f"File not found: {self.file_path}")
@@ -53,9 +50,7 @@ class AnalysisWorker(QObject):
             asyncio.set_event_loop(loop)
 
             analysis_coro = self.analysis_service.analyze_document(
-                file_content=file_content,
-                original_filename=original_filename,
-                discipline=self.discipline
+                file_content=file_content, original_filename=original_filename, discipline=self.discipline
             )
             result = loop.run_until_complete(analysis_coro)
 

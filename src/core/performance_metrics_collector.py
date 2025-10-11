@@ -18,6 +18,9 @@ from statistics import mean, median, stdev
 from typing import Any
 
 import psutil
+import requests
+import scipy.stats as stats
+from requests.exceptions import HTTPError
 
 logger = logging.getLogger(__name__)
 
@@ -171,9 +174,8 @@ class BaselineMetricsCollector:
         memory_metrics = self._collect_memory_metrics()
 
         return PerformanceMetrics(
-            timestamp=timestamp,
-            memory_usage=memory_metrics,
-            resource_utilization=resource_metrics)
+            timestamp=timestamp, memory_usage=memory_metrics, resource_utilization=resource_metrics
+        )
 
     def _collect_resource_metrics(self) -> ResourceMetrics:
         """Collect system resource utilization metrics"""
@@ -207,7 +209,8 @@ class BaselineMetricsCollector:
                 disk_io_mb_per_sec=disk_io_mb,
                 network_io_mb_per_sec=network_io_mb,
                 thread_count=thread_count,
-                process_count=len(psutil.pids()))
+                process_count=len(psutil.pids()),
+            )
 
         except (OSError, FileNotFoundError) as e:
             logger.exception("Error collecting resource metrics: %s", e)
@@ -232,7 +235,8 @@ class BaselineMetricsCollector:
                 current_usage_mb=current_usage_mb,
                 memory_efficiency=min(1.0, current_usage_mb / (memory.total / 1024 / 1024)),
                 gc_collections=0,  # Would need GC integration
-                memory_leaks_detected=False)
+                memory_leaks_detected=False,
+            )
 
         except Exception as e:
             logger.exception("Error collecting memory metrics: %s", e)
@@ -261,7 +265,8 @@ class BaselineMetricsCollector:
             current_usage_mb=memory_usage_values[-1],
             memory_efficiency=0.85,
             gc_collections=0,
-            memory_leaks_detected=False)
+            memory_leaks_detected=False,
+        )
 
         aggregated_resources = ResourceMetrics(
             cpu_usage_percent=mean(cpu_usage_values),
@@ -273,12 +278,12 @@ class BaselineMetricsCollector:
             thread_count=self.metrics_history[-1].resource_utilization.thread_count
             if self.metrics_history[-1].resource_utilization
             else 0,
-            process_count=0)
+            process_count=0,
+        )
 
         return PerformanceMetrics(
-            timestamp=datetime.now(),
-            memory_usage=aggregated_memory,
-            resource_utilization=aggregated_resources)
+            timestamp=datetime.now(), memory_usage=aggregated_memory, resource_utilization=aggregated_resources
+        )
 
 
 class OptimizationMetricsCollector:
@@ -324,7 +329,8 @@ class OptimizationMetricsCollector:
                 total_requests=1000,
                 cache_size_mb=128.0,
                 eviction_count=10,
-                average_lookup_time_ms=2.5)
+                average_lookup_time_ms=2.5,
+            )
         except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("Error collecting cache metrics: %s", e)
             return CacheMetrics(0, 0, 0, 0, 0, 0)
@@ -362,7 +368,8 @@ class OptimizationMetricsCollector:
             p95_ms=response_times[int(0.95 * len(response_times))],
             p99_ms=response_times[int(0.99 * len(response_times))],
             std_dev_ms=stdev(response_times) if len(response_times) > 1 else 0,
-            sample_count=len(response_times))
+            sample_count=len(response_times),
+        )
 
 
 class StatisticalAnalysisEngine:
@@ -434,9 +441,7 @@ class StatisticalAnalysisEngine:
             baseline_avg = baseline_metrics.response_times.average_ms
             optimized_avg = optimized_metrics.response_times.average_ms
 
-            improvement = StatisticalAnalysisEngine.calculate_improvement_percentage(
-                baseline_avg,
-                optimized_avg)
+            improvement = StatisticalAnalysisEngine.calculate_improvement_percentage(baseline_avg, optimized_avg)
 
             if improvement > 0:
                 analysis["improvements"]["response_time"] = {
@@ -456,9 +461,7 @@ class StatisticalAnalysisEngine:
             baseline_memory = baseline_metrics.memory_usage.average_usage_mb
             optimized_memory = optimized_metrics.memory_usage.average_usage_mb
 
-            improvement = StatisticalAnalysisEngine.calculate_improvement_percentage(
-                baseline_memory,
-                optimized_memory)
+            improvement = StatisticalAnalysisEngine.calculate_improvement_percentage(baseline_memory, optimized_memory)
 
             if improvement > 0:
                 analysis["improvements"]["memory_usage"] = {

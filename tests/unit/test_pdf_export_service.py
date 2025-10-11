@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.core.pdf_export_service import PDFExportService, WEASYPRINT_AVAILABLE
+from src.core.pdf_export_service import WEASYPRINT_AVAILABLE, PDFExportService
 
 
 @pytest.fixture
@@ -134,9 +134,7 @@ class TestPDFGeneration:
 
     @patch("src.core.pdf_export_service.HTML")
     @patch("src.core.pdf_export_service.CSS")
-    def test_export_to_pdf_success(
-        self, mock_css, mock_html, pdf_service, sample_html, sample_metadata
-    ):
+    def test_export_to_pdf_success(self, mock_css, mock_html, pdf_service, sample_html, sample_metadata):
         """Test successful PDF export."""
         # Mock HTML and CSS objects
         mock_html_instance = MagicMock()
@@ -157,9 +155,7 @@ class TestPDFGeneration:
         assert "generated_at" in result
 
     @patch("src.core.pdf_export_service.HTML")
-    def test_export_to_pdf_with_metadata(
-        self, mock_html, pdf_service, sample_html, sample_metadata
-    ):
+    def test_export_to_pdf_with_metadata(self, mock_html, pdf_service, sample_html, sample_metadata):
         """Test PDF export includes metadata."""
         mock_html_instance = MagicMock()
         mock_html.return_value = mock_html_instance
@@ -406,9 +402,7 @@ class TestRetentionAndPurge:
         assert abs((purge_time - expected_purge).total_seconds()) < 60
 
     @patch("src.core.pdf_export_service.HTML")
-    def test_export_no_purge_time_when_disabled(
-        self, mock_html, temp_output_dir, sample_html
-    ):
+    def test_export_no_purge_time_when_disabled(self, mock_html, temp_output_dir, sample_html):
         """Test export doesn't set purge time when auto-purge disabled."""
         service = PDFExportService(
             output_dir=temp_output_dir,

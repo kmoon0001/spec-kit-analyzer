@@ -8,8 +8,6 @@ import asyncio
 import logging
 import sys
 import time
-from PIL import Image
-import PIL
 from collections.abc import Coroutine
 from contextlib import asynccontextmanager
 from typing import Any
@@ -30,6 +28,7 @@ from src.api.routers import admin, analysis, auth, chat, compliance, dashboard, 
 # Import new enterprise features
 try:
     from src.api.routers import ehr_integration, enterprise_copilot
+
     EHR_AVAILABLE = True
     COPILOT_AVAILABLE = True
 except ImportError:
@@ -48,6 +47,7 @@ logger = structlog.get_logger(__name__)
 
 # --- WebSocket Log Streaming --- #
 
+
 class WebSocketManager:
     """Manages active WebSocket connections."""
 
@@ -65,9 +65,11 @@ class WebSocketManager:
         for connection in self.active_connections:
             await connection.send_text(message)
 
+
 log_manager = WebSocketManager()
 log_manager = WebSocketManager()
 log_manager = WebSocketManager()
+
 
 class WebSocketLogHandler(logging.Handler):
     """A logging handler that broadcasts log records to WebSockets."""
@@ -76,13 +78,15 @@ class WebSocketLogHandler(logging.Handler):
         log_entry = self.format(record)
         asyncio.run_coroutine_threadsafe(log_manager.broadcast(log_entry), self.loop)
 
+
 # --- In-Memory Task Purging --- #
 # --- In-Memory Task Purging --- #
 # --- In-Memory Task Purging --- #
 
+
 class InMemoryTaskPurgeService:
     """A service to purge expired tasks from the in-memory task dictionary."""
-    
+
     def __init__(self, tasks=None, retention_period_minutes=60, purge_interval_seconds=300):
         self.tasks = tasks or {}
         self.retention_period_minutes = retention_period_minutes
@@ -96,7 +100,7 @@ class InMemoryTaskPurgeService:
     def stop(self) -> None:
         logger.info("Stopping in-memory task purge service.")
         self._stop_event.set()
-    
+
     async def purge_expired_tasks(self):
         """Purge expired tasks from memory."""
         while not self._stop_event.is_set():
@@ -104,24 +108,28 @@ class InMemoryTaskPurgeService:
                 # Simple purge logic - remove old tasks
                 current_time = time.time()
                 expired_keys = [
-                    key for key, task in self.tasks.items()
-                    if current_time - task.get('created_at', 0) > (self.retention_period_minutes * 60)
+                    key
+                    for key, task in self.tasks.items()
+                    if current_time - task.get("created_at", 0) > (self.retention_period_minutes * 60)
                 ]
                 for key in expired_keys:
                     self.tasks.pop(key, None)
-                
+
                 await asyncio.sleep(self.purge_interval_seconds)
             except Exception as e:
                 logger.error(f"Error in task purge: {e}")
                 await asyncio.sleep(60)  # Wait before retrying
 
+
 # --- Maintenance Jobs --- #
 # --- Maintenance Jobs --- #
 # --- Maintenance Jobs --- #
 
+
 def run_maintenance_jobs():
     """Instantiates and runs all scheduled maintenance services."""
     # ... (maintenance logic)
+
 
 scheduler = BackgroundScheduler(daemon=True)
 scheduler = BackgroundScheduler(daemon=True)
@@ -129,9 +137,11 @@ scheduler = BackgroundScheduler(daemon=True)
 in_memory_task_purge_service = InMemoryTaskPurgeService(
     tasks=analysis.tasks,
     retention_period_minutes=settings.maintenance.in_memory_retention_minutes,
-    purge_interval_seconds=settings.maintenance.in_memory_purge_interval_seconds)
+    purge_interval_seconds=settings.maintenance.in_memory_purge_interval_seconds,
+)
 
 # --- Vector Store Initialization ---
+
 
 async def initialize_vector_store():
     """Initializes and populates the vector store on application startup."""
@@ -163,7 +173,9 @@ async def initialize_vector_store():
     finally:
         await db.close()
 
+
 # --- Application Lifespan --- #
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -191,6 +203,7 @@ async def lifespan(app: FastAPI):
     await api_shutdown()
     scheduler.shutdown()
     in_memory_task_purge_service.stop()
+
 
 # --- FastAPI App Initialization --- #
 
@@ -233,12 +246,14 @@ if COPILOT_AVAILABLE:
 # Include plugin management
 try:
     from src.api.routers import plugins
+
     app.include_router(plugins.router, tags=["Plugin Management"])
     logging.info("Plugin Management API enabled")
 except ImportError:
     logging.warning("Plugin Management API not available")
 
 # --- WebSocket Endpoint --- #
+
 
 @app.websocket("/ws/logs")
 async def websocket_endpoint(websocket: WebSocket):
@@ -249,12 +264,15 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         log_manager.disconnect(websocket)
 
+
 # --- Root Endpoint --- #
+
 
 @app.get("/")
 def read_root():
     """Root endpoint providing API welcome message."""
     return {"message": "Welcome to the Clinical Compliance Analyzer API"}
+
 
 @app.get("/rubrics")
 @app.get("/rubrics")
@@ -283,6 +301,7 @@ async def get_rubrics():
             },
         ],
     }
+
 
 @app.get("/ai/status")
 async def get_ai_status():

@@ -13,7 +13,8 @@ class DocumentClassifier:
         self,
         llm_service: LLMService,
         prompt_template_path: str | None = None,
-        prompt_manager: PromptManager | None = None):
+        prompt_manager: PromptManager | None = None,
+    ):
         """Initializes the classifier with optional prompt overrides."""
         import os
 

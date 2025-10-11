@@ -1,7 +1,8 @@
 # MODIFIED: Corrected patch paths for worker modules.
 # MODIFIED: Provide mock user and token to MainApplicationWindow constructor.
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from src.gui.main_window import MainApplicationWindow
 
@@ -61,17 +62,12 @@ def test_large_file_upload(main_app_window: MainApplicationWindow, qtbot, tmp_pa
 
     # Assert: The application should not crash, and the text area should contain the content.
     # We check a substring to avoid loading the whole 50MB into the test assertion.
-    assert (
-        "This is a test sentence."
-        in main_app_window._cached_preview_content
-    )
+    assert "This is a test sentence." in main_app_window._cached_preview_content
     assert main_app_window.run_analysis_button.isEnabled()
 
 
 @pytest.mark.stability
-def test_corrupted_file_upload(
-    main_app_window: MainApplicationWindow, qtbot, mock_backend_services
-):
+def test_corrupted_file_upload(main_app_window: MainApplicationWindow, qtbot, mock_backend_services):
     """Tests that the application handles a corrupted or unreadable file gracefully."""
     # Arrange: Simulate the file dialog returning a path to a fake corrupted file
     # and simulate the open() call failing with a UnicodeDecodeError.
@@ -89,9 +85,6 @@ def test_corrupted_file_upload(
         main_app_window._prompt_for_document()
 
     # Assert: The application should not crash. It should display an error message in the text area.
-    assert (
-        "Could not display preview"
-        in main_app_window.file_display.toPlainText()
-    )
+    assert "Could not display preview" in main_app_window.file_display.toPlainText()
     # The run button should remain disabled because no valid document was loaded.
     assert not main_app_window.run_analysis_button.isEnabled()

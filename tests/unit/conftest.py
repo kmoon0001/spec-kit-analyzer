@@ -1,6 +1,9 @@
-import pytest
 import logging
+
+import pytest
+
 from src.api.main import WebSocketLogHandler
+
 
 @pytest.fixture(autouse=True)
 def disable_websocket_logging():

@@ -3,6 +3,7 @@
 
 import time
 
+
 def test_import(module_name, description):
     """Test a single import and time it."""
     print(f"Testing {description}...", end=" ", flush=True)
@@ -19,6 +20,7 @@ def test_import(module_name, description):
         print(f"❌ ERROR: {e}")
         return 0
 
+
 def test_from_import(import_stmt, description):
     """Test a from import and time it."""
     print(f"Testing {description}...", end=" ", flush=True)
@@ -34,6 +36,7 @@ def test_from_import(import_stmt, description):
     except Exception as e:
         print(f"❌ ERROR: {e}")
         return 0
+
 
 print("=== Finding Slow Imports ===\n")
 

@@ -55,7 +55,8 @@ class ComplianceAnalyzer:
         nlg_service: NLGService | None = None,
         deterministic_focus: str | None = None,
         ner_analyzer: ClinicalNERService | None = None,
-        confidence_calibrator: ConfidenceCalibrator | None = None) -> None:
+        confidence_calibrator: ConfidenceCalibrator | None = None,
+    ) -> None:
         """Initializes the ComplianceAnalyzer.
 
         Args:
@@ -86,7 +87,8 @@ class ComplianceAnalyzer:
                 "- Treatment frequency documented",
                 "- Goals reviewed or adjusted",
                 "- Medical necessity justified",
-            ])
+            ]
+        )
         self.deterministic_focus = deterministic_focus or default_focus
 
         # Initialize confidence calibrator if not provided
@@ -220,11 +222,7 @@ class ComplianceAnalyzer:
             "metrics": metrics,
         }
 
-    async def analyze_document(
-        self,
-        document_text: str,
-        discipline: str,
-        doc_type: str) -> dict[str, Any]:
+    async def analyze_document(self, document_text: str, discipline: str, doc_type: str) -> dict[str, Any]:
         """Analyzes a given document for compliance based on discipline and document type.
 
         This method orchestrates the compliance analysis process:
@@ -276,7 +274,8 @@ class ComplianceAnalyzer:
                     category_filter=discipline,
                     discipline=discipline,
                     document_type=doc_type,
-                    context_entities=[entity["word"] for entity in entities] if entities else None),
+                    context_entities=[entity["word"] for entity in entities] if entities else None,
+                ),
                 timeout=60.0,  # 1 minute timeout for rule retrieval
             )
             logger.info("Retrieved %d rules for analysis.", len(retrieved_rules))
@@ -295,7 +294,8 @@ class ComplianceAnalyzer:
                 context=formatted_rules,
                 discipline=discipline,
                 doc_type=doc_type,
-                deterministic_focus=self.deterministic_focus)
+                deterministic_focus=self.deterministic_focus,
+            )
         else:
             prompt = f"Analyze this document for compliance:\n{document_text}\n\nRules:\n{formatted_rules}"
 
@@ -373,34 +373,27 @@ class ComplianceAnalyzer:
         from src.core.explanation import ExplanationContext
 
         explanation_context = ExplanationContext(
-            document_type=doc_type,
-            discipline=discipline,
-            rubric_name=f"{discipline.upper()} Compliance Rubric")
+            document_type=doc_type, discipline=discipline, rubric_name=f"{discipline.upper()} Compliance Rubric"
+        )
 
         if self.explanation_engine:
             explained_analysis = self.explanation_engine.add_explanations(
-                initial_analysis,
-                document_text,
-                explanation_context,
-                retrieved_rules)
+                initial_analysis, document_text, explanation_context, retrieved_rules
+            )
         else:
             explained_analysis = initial_analysis
 
         # Apply confidence calibration before final post-processing
         if "findings" in explained_analysis and isinstance(explained_analysis["findings"], list):
-            explained_analysis["findings"] = self._calibrate_confidence_scores(
-                explained_analysis["findings"])
+            explained_analysis["findings"] = self._calibrate_confidence_scores(explained_analysis["findings"])
 
-        final_analysis = await self._post_process_findings(
-            explained_analysis,
-            retrieved_rules)
+        final_analysis = await self._post_process_findings(explained_analysis, retrieved_rules)
         logger.info("Compliance analysis complete.")
         return final_analysis
 
     async def _post_process_findings(
-        self,
-        explained_analysis: dict[str, Any],
-        retrieved_rules: list[dict[str, Any]]) -> dict[str, Any]:
+        self, explained_analysis: dict[str, Any], retrieved_rules: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Post-processes the LLM-generated findings.
 
         This includes:
@@ -422,16 +415,12 @@ class ComplianceAnalyzer:
 
         for finding in findings:
             rule_id = finding.get("rule_id")
-            associated_rule = next(
-                (r for r in retrieved_rules if r.get("id") == rule_id),
-                None)
+            associated_rule = next((r for r in retrieved_rules if r.get("id") == rule_id), None)
 
             if (
                 associated_rule
                 and self.fact_checker_service
-                and not self.fact_checker_service.is_finding_plausible(
-                    finding,
-                    associated_rule)
+                and not self.fact_checker_service.is_finding_plausible(finding, associated_rule)
             ):
                 finding["is_disputed"] = True
 
@@ -445,14 +434,10 @@ class ComplianceAnalyzer:
                 finding["is_low_confidence"] = True
 
             if self.nlg_service:
-                tip = await asyncio.to_thread(
-                    self.nlg_service.generate_personalized_tip,
-                    finding)
+                tip = await asyncio.to_thread(self.nlg_service.generate_personalized_tip, finding)
                 finding["personalized_tip"] = tip
             else:
-                finding.setdefault(
-                    "personalized_tip",
-                    finding.get("suggestion", "Tip generation unavailable."))
+                finding.setdefault("personalized_tip", finding.get("suggestion", "Tip generation unavailable."))
 
         return explained_analysis
 

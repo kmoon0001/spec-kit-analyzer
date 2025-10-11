@@ -6,11 +6,11 @@ where user feedback is used to improve confidence calibration and other ML model
 
 import json
 import logging
-import numpy as np
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.calibration_trainer import CalibrationTrainer
@@ -67,14 +67,14 @@ class MLTrainingPipeline:
                 }
 
             # Step 2: Fetch and prepare training data
-            training_data = self.calibration_trainer.get_training_data(
-                min_samples=self.min_samples_for_training)
+            training_data = self.calibration_trainer.get_training_data(min_samples=self.min_samples_for_training)
 
             if len(training_data) < self.min_samples_for_training:
                 logger.warning(
                     "Insufficient training data: %s samples (need %s)",
                     len(training_data),
-                    self.min_samples_for_training)
+                    self.min_samples_for_training,
+                )
                 return {
                     "status": "insufficient_data",
                     "message": f"Need {self.min_samples_for_training} samples, have {len(training_data)}",
@@ -90,9 +90,7 @@ class MLTrainingPipeline:
             evaluation_results = await self._evaluate_calibrator(results["calibrator"], training_data)
 
             # Step 5: Deploy if performance is acceptable
-            deployment_results = await self._deploy_if_improved(
-                results["calibrator"],
-                evaluation_results)
+            deployment_results = await self._deploy_if_improved(results["calibrator"], evaluation_results)
 
             # Step 6: Update training metadata
             self._update_training_metadata(evaluation_results)
@@ -192,7 +190,8 @@ class MLTrainingPipeline:
         logger.info(
             "Evaluation results: ECE improvement %.1%%, Brier improvement %.1%%",
             improvement_ece * 100,
-            improvement_brier * 100)
+            improvement_brier * 100,
+        )
 
         return evaluation_results
 
@@ -224,7 +223,8 @@ class MLTrainingPipeline:
         logger.info(
             "New calibrator not deployed - improvement %.1%% below threshold %.1%%",
             ece_improvement * 100,
-            self.performance_threshold * 100)
+            self.performance_threshold * 100,
+        )
 
         return {
             "deployed": False,
@@ -310,15 +310,13 @@ class MLTrainingPipeline:
 
 
 # Backward compatibility function
-async def fine_tune_model_with_feedback(
-    db: AsyncSession | None = None, force_retrain: bool = False
-) -> dict[str, Any]:
+async def fine_tune_model_with_feedback(db: AsyncSession | None = None, force_retrain: bool = False) -> dict[str, Any]:
     """Legacy function for backward compatibility.
-    
+
     Args:
         db: Database session (for future expansion)
         force_retrain: Force retraining even if not enough time has passed
-        
+
     Returns:
         Dictionary with training results and metrics
     """

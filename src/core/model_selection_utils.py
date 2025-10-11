@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from typing import Any
 
 import psutil  # type: ignore[import-untyped]
 
@@ -10,12 +9,14 @@ logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
+
 def _system_memory_gb() -> float:
     try:
         return psutil.virtual_memory().total / (1024**3)
     except Exception:
         # Fallback to a conservative default when system inspection fails
         return 16.0
+
 
 def _find_best_profile(profiles: dict, mem_gb: float) -> tuple[str, dict] | None:
     best_fit = None
@@ -29,6 +30,7 @@ def _find_best_profile(profiles: dict, mem_gb: float) -> tuple[str, dict] | None
             best_fit = (name, profile)
     return best_fit
 
+
 def select_generator_profile(models_cfg: dict) -> tuple[str, str, str | None]:
     profiles = models_cfg.get("generator_profiles") or {}
     if isinstance(profiles, dict) and profiles:
@@ -40,7 +42,9 @@ def select_generator_profile(models_cfg: dict) -> tuple[str, str, str | None]:
     return (
         models_cfg.get("generator", ""),
         models_cfg.get("generator_filename", ""),
-        models_cfg.get("generator_revision"))
+        models_cfg.get("generator_revision"),
+    )
+
 
 def resolve_local_model_path(settings: Settings) -> str | None:
     path_str = getattr(settings.models, "generator_local_path", None)

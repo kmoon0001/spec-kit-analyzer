@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 # Import the class we are testing
 from src.core.llm_analyzer import LLMComplianceAnalyzer
@@ -39,9 +40,7 @@ def test_llm_compliance_analyzer_initialization(mock_llm_service, mock_prompt_ma
     Tests that the LLMComplianceAnalyzer correctly initializes with its dependencies.
     """
     # Act
-    analyzer = LLMComplianceAnalyzer(
-        llm_service=mock_llm_service, prompt_manager=mock_prompt_manager
-    )
+    analyzer = LLMComplianceAnalyzer(llm_service=mock_llm_service, prompt_manager=mock_prompt_manager)
 
     # Assert
     assert analyzer.llm_service is mock_llm_service
@@ -51,18 +50,14 @@ def test_llm_compliance_analyzer_initialization(mock_llm_service, mock_prompt_ma
 def test_analyze_document_orchestration(mock_llm_service, mock_prompt_manager):
     """Tests that analyze_document correctly orchestrates calls to its dependencies."""
     # Arrange
-    analyzer = LLMComplianceAnalyzer(
-        llm_service=mock_llm_service, prompt_manager=mock_prompt_manager
-    )
+    analyzer = LLMComplianceAnalyzer(llm_service=mock_llm_service, prompt_manager=mock_prompt_manager)
 
     # Act
     result = analyzer.analyze_document("Test document text", "Test context")
 
     # Assert
     # 1. Verify that the prompt was built
-    mock_prompt_manager.get_prompt.assert_called_once_with(
-        context="Test context", document_text="Test document text"
-    )
+    mock_prompt_manager.get_prompt.assert_called_once_with(context="Test context", document_text="Test document text")
 
     # 2. Verify that the llm_service was called with the generated prompt
     mock_llm_service.generate.assert_called_once_with("This is a formatted prompt.")

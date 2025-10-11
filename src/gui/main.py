@@ -1,4 +1,3 @@
-
 import sys
 
 from PySide6.QtWidgets import QApplication, QMessageBox
@@ -28,6 +27,7 @@ def authenticate_user() -> tuple[str, str] | None:
             # User cancelled the login dialog
             return None
 
+
 def main():
     """Main function to run the application."""
     app = QApplication(sys.argv)
@@ -51,6 +51,7 @@ def main():
         main_win.show()
         return app.exec()
     return 0  # User cancelled login
+
 
 if __name__ == "__main__":
     pass

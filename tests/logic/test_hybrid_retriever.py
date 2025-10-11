@@ -1,6 +1,7 @@
-import pytest
+from unittest.mock import MagicMock, patch
+
 import numpy as np
-from unittest.mock import patch, MagicMock
+import pytest
 
 # Import the class to be tested
 from src.core.hybrid_retriever import HybridRetriever
@@ -17,9 +18,7 @@ def mock_sentence_transformer():
         mock_model.encode.side_effect = [
             np.random.rand(3, 384).astype("float32"),  # Corpus embeddings
             np.random.rand(384).astype("float32"),  # Query embedding for first retrieve
-            np.random.rand(384).astype(
-                "float32"
-            ),  # Query embedding for second retrieve
+            np.random.rand(384).astype("float32"),  # Query embedding for second retrieve
         ]
         mock_st.return_value = mock_model
         yield mock_st
@@ -72,8 +71,10 @@ async def test_rrf_ranking_logic(retriever):
     # With these rankings, the expected RRF order is A > C > B.
     # This is because A is ranked high by both, while C is high in one but low in the other.
 
-    with patch("src.core.hybrid_retriever.cos_sim", return_value=[mock_tensor]), \
-         patch.object(retriever, '_get_embedding', return_value=mock_tensor):
+    with (
+        patch("src.core.hybrid_retriever.cos_sim", return_value=[mock_tensor]),
+        patch.object(retriever, "_get_embedding", return_value=mock_tensor),
+    ):
         # Act
         results = await retriever.retrieve(query, top_k=3)
 
@@ -84,13 +85,13 @@ async def test_rrf_ranking_logic(retriever):
     result_names = [res["name"] for res in results]
     expected_order = ["Doc A", "Doc C", "Doc B"]
 
-    assert result_names == expected_order, (
-        f"Expected {expected_order}, but got {result_names}"
-    )
+    assert result_names == expected_order, f"Expected {expected_order}, but got {result_names}"
 
     # Also test that top_k works correctly
-    with patch("src.core.hybrid_retriever.cos_sim", return_value=[mock_tensor]), \
-         patch.object(retriever, '_get_embedding', return_value=mock_tensor):
+    with (
+        patch("src.core.hybrid_retriever.cos_sim", return_value=[mock_tensor]),
+        patch.object(retriever, "_get_embedding", return_value=mock_tensor),
+    ):
         results_top_2 = await retriever.retrieve(query, top_k=2)
 
     assert len(results_top_2) == 2

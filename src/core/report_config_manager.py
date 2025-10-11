@@ -50,18 +50,21 @@ class ReportConfigurationManager:
                 title="Performance Analysis Report",
                 description="Comprehensive analysis of system performance metrics",
                 time_range=TimeRange.last_days(7),
-                export_formats=[ReportFormat.HTML, ReportFormat.PDF]),
+                export_formats=[ReportFormat.HTML, ReportFormat.PDF],
+            ),
             ReportType.COMPLIANCE_ANALYSIS: ReportConfig(
                 report_type=ReportType.COMPLIANCE_ANALYSIS,
                 title="Compliance Analysis Report",
                 description="Analysis of compliance with regulatory requirements",
                 time_range=TimeRange.last_days(30),
-                export_formats=[ReportFormat.HTML, ReportFormat.PDF]),
+                export_formats=[ReportFormat.HTML, ReportFormat.PDF],
+            ),
             ReportType.DASHBOARD: ReportConfig(
                 report_type=ReportType.DASHBOARD,
                 title="Dashboard Report",
                 description="Executive dashboard with key metrics",
-                export_formats=[ReportFormat.HTML]),
+                export_formats=[ReportFormat.HTML],
+            ),
         }
 
         self.default_configs = default_configs
@@ -96,7 +99,8 @@ class ReportConfigurationManager:
             template_id=config_data.get("template_id"),
             export_formats=export_formats,
             filters=config_data.get("filters", {}),
-            metadata=config_data.get("metadata", {}))
+            metadata=config_data.get("metadata", {}),
+        )
 
     def _config_to_dict(self, config: ReportConfig) -> dict[str, any]:
         """Convert ReportConfig to dictionary"""

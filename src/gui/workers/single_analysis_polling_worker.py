@@ -1,5 +1,4 @@
 import logging
-import time
 from typing import Any
 
 import requests
@@ -49,12 +48,9 @@ class SingleAnalysisPollingWorker(QObject):
                 headers = {}
                 if self.token:
                     headers["Authorization"] = f"Bearer {self.token}"
-                
+
                 logger.debug("Sending status request to %s/analysis/status/%s", API_URL, self.task_id)
-                response = requests.get(
-                    f"{API_URL}/analysis/status/{self.task_id}",
-                    headers=headers,
-                    timeout=15)
+                response = requests.get(f"{API_URL}/analysis/status/{self.task_id}", headers=headers, timeout=15)
                 response.raise_for_status()
 
                 # Log API response
@@ -70,8 +66,8 @@ class SingleAnalysisPollingWorker(QObject):
                 status_data: dict[str, Any] = response.json()
                 logger.info("Polling response for task %s: %s", self.task_id, status_data)
                 status = status_data.get("status", "unknown")
-                progress = status_data.get("progress", 0) # Get actual progress from API
-                status_message = status_data.get("status_message", "") # Get actual status message from API
+                progress = status_data.get("progress", 0)  # Get actual progress from API
+                status_message = status_data.get("status_message", "")  # Get actual status message from API
 
                 # Log detailed polling status
                 workflow_logger.log_polling_attempt(self.task_id, attempts, status, progress, status_message)
@@ -84,7 +80,8 @@ class SingleAnalysisPollingWorker(QObject):
                     status_tracker.update_status(
                         AnalysisState.PROCESSING,
                         reported_progress,
-                        status_message if status_message else f"Processing... ({reported_progress}%)")
+                        status_message if status_message else f"Processing... ({reported_progress}%)",
+                    )
 
                     self.progress.emit(max(0, min(100, reported_progress)))
                     logger.debug("Task %s processing: %d%% - %s", self.task_id, reported_progress, status_message)
@@ -121,18 +118,12 @@ class SingleAnalysisPollingWorker(QObject):
                     # Use actual status message for pending
                     status_message = status_data.get("status_message", "Analysis queued, waiting to start...")
                     logger.debug("Task %s still pending (attempt %d): %s", self.task_id, attempts, status_message)
-                    status_tracker.update_status(
-                        AnalysisState.POLLING,
-                        5,
-                        status_message)
+                    status_tracker.update_status(AnalysisState.POLLING, 5, status_message)
                 else:
                     # Use actual status message for unknown status
                     status_message = status_data.get("status_message", f"Unknown status: {status}")
                     logger.warning("Unknown status '%s' for task %s: %s", status, self.task_id, status_message)
-                    status_tracker.update_status(
-                        AnalysisState.POLLING,
-                        progress,
-                        status_message)
+                    status_tracker.update_status(AnalysisState.POLLING, progress, status_message)
 
             except requests.RequestException as exc:
                 logger.exception("Network error polling task %s: %s", self.task_id, exc)
@@ -162,7 +153,9 @@ class SingleAnalysisPollingWorker(QObject):
             # Replace long sleep with shorter, responsive sleeps
             for _ in range(int(poll_interval * 10)):
                 if not self.is_running:
-                    logger.debug("SingleAnalysisPollingWorker stopping during responsive sleep for task %s", self.task_id)
+                    logger.debug(
+                        "SingleAnalysisPollingWorker stopping during responsive sleep for task %s", self.task_id
+                    )
                     break
                 self.msleep(100)
 

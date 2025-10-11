@@ -94,7 +94,8 @@ class AnalysisDiagnostics:
                     status=DiagnosticStatus.ERROR,
                     message=f"Diagnostic check failed: {e!s}",
                     details={"error": str(e)},
-                    timestamp=time.time())
+                    timestamp=time.time(),
+                )
 
         # Generate overall health summary
         overall_status = self._calculate_overall_status(diagnostics)
@@ -120,7 +121,8 @@ class AnalysisDiagnostics:
                         "response_time": response_time,
                         "server_info": response.json() if response.content else {},
                     },
-                    timestamp=time.time())
+                    timestamp=time.time(),
+                )
             return DiagnosticResult(
                 component="api_connectivity",
                 status=DiagnosticStatus.ERROR,
@@ -130,7 +132,8 @@ class AnalysisDiagnostics:
                     "status_code": response.status_code,
                     "response_time": response_time,
                 },
-                timestamp=time.time())
+                timestamp=time.time(),
+            )
 
         except requests.exceptions.ConnectionError:
             return DiagnosticResult(
@@ -142,7 +145,8 @@ class AnalysisDiagnostics:
                     "error": "Connection refused",
                     "suggestion": "Start the API server with: python scripts/run_api.py",
                 },
-                timestamp=time.time())
+                timestamp=time.time(),
+            )
         except requests.exceptions.Timeout:
             return DiagnosticResult(
                 component="api_connectivity",
@@ -153,14 +157,16 @@ class AnalysisDiagnostics:
                     "timeout": self.timeout,
                     "suggestion": "API server may be overloaded or slow",
                 },
-                timestamp=time.time())
+                timestamp=time.time(),
+            )
         except Exception as e:
             return DiagnosticResult(
                 component="api_connectivity",
                 status=DiagnosticStatus.ERROR,
                 message=f"API connectivity check failed: {e!s}",
                 details={"error": str(e)},
-                timestamp=time.time())
+                timestamp=time.time(),
+            )
 
     def check_api_health(self) -> DiagnosticResult:
         """Check detailed API health status."""
@@ -177,7 +183,8 @@ class AnalysisDiagnostics:
                         status=DiagnosticStatus.ERROR,
                         message=f"API returned non-JSON response: {response.text[:100]}",
                         details={"response_text": response.text[:500]},
-                        timestamp=time.time())
+                        timestamp=time.time(),
+                    )
 
                 # Handle the actual API response format
                 api_status = health_data.get("status", "unknown")
@@ -202,13 +209,15 @@ class AnalysisDiagnostics:
                         "api_status": api_status,
                         "database_status": database_status,
                     },
-                    timestamp=time.time())
+                    timestamp=time.time(),
+                )
             return DiagnosticResult(
                 component="api_health",
                 status=DiagnosticStatus.ERROR,
                 message=f"API health endpoint returned {response.status_code}",
                 details={"status_code": response.status_code},
-                timestamp=time.time())
+                timestamp=time.time(),
+            )
 
         except Exception as e:
             return DiagnosticResult(
@@ -216,7 +225,8 @@ class AnalysisDiagnostics:
                 status=DiagnosticStatus.ERROR,
                 message=f"API health check failed: {e!s}",
                 details={"error": str(e)},
-                timestamp=time.time())
+                timestamp=time.time(),
+            )
 
     def check_analysis_endpoints(self) -> DiagnosticResult:
         """Check analysis-specific API endpoints."""
@@ -274,7 +284,8 @@ class AnalysisDiagnostics:
             status=overall_status,
             message=message,
             details={"endpoints": endpoint_results},
-            timestamp=time.time())
+            timestamp=time.time(),
+        )
 
     def check_system_resources(self) -> DiagnosticResult:
         """Check system resource availability."""
@@ -318,7 +329,8 @@ class AnalysisDiagnostics:
                     "disk_percent": disk.percent,
                     "disk_free_gb": disk.free / (1024**3),
                 },
-                timestamp=time.time())
+                timestamp=time.time(),
+            )
 
         except ImportError:
             return DiagnosticResult(
@@ -326,14 +338,16 @@ class AnalysisDiagnostics:
                 status=DiagnosticStatus.WARNING,
                 message="Cannot check system resources (psutil not installed)",
                 details={"suggestion": "Install psutil for resource monitoring: pip install psutil"},
-                timestamp=time.time())
+                timestamp=time.time(),
+            )
         except Exception as e:
             return DiagnosticResult(
                 component="system_resources",
                 status=DiagnosticStatus.ERROR,
                 message=f"System resource check failed: {e!s}",
                 details={"error": str(e)},
-                timestamp=time.time())
+                timestamp=time.time(),
+            )
 
     def check_file_system_access(self) -> DiagnosticResult:
         """Check file system access for document processing."""
@@ -364,7 +378,8 @@ class AnalysisDiagnostics:
                         "write_access": True,
                         "read_access": True,
                     },
-                    timestamp=time.time())
+                    timestamp=time.time(),
+                )
             return DiagnosticResult(
                 component="file_system_access",
                 status=DiagnosticStatus.ERROR,
@@ -374,7 +389,8 @@ class AnalysisDiagnostics:
                     "expected_content": test_content,
                     "actual_content": read_content,
                 },
-                timestamp=time.time())
+                timestamp=time.time(),
+            )
 
         except PermissionError:
             return DiagnosticResult(
@@ -385,14 +401,16 @@ class AnalysisDiagnostics:
                     "error": "Permission denied",
                     "suggestion": "Check file system permissions for the application directory",
                 },
-                timestamp=time.time())
+                timestamp=time.time(),
+            )
         except (OSError, FileNotFoundError) as e:
             return DiagnosticResult(
                 component="file_system_access",
                 status=DiagnosticStatus.ERROR,
                 message=f"File system access check failed: {e!s}",
                 details={"error": str(e)},
-                timestamp=time.time())
+                timestamp=time.time(),
+            )
 
     def check_ai_model_status(self) -> DiagnosticResult:
         """Check AI model loading status."""
@@ -427,7 +445,8 @@ class AnalysisDiagnostics:
                         "total_models": total_models,
                         "model_details": ai_status.get("models", {}),
                     },
-                    timestamp=time.time())
+                    timestamp=time.time(),
+                )
             if response.status_code == 404:
                 return DiagnosticResult(
                     component="ai_model_status",
@@ -436,13 +455,15 @@ class AnalysisDiagnostics:
                     details={
                         "suggestion": "AI model status checking may not be implemented",
                     },
-                    timestamp=time.time())
+                    timestamp=time.time(),
+                )
             return DiagnosticResult(
                 component="ai_model_status",
                 status=DiagnosticStatus.ERROR,
                 message=f"AI status check returned {response.status_code}",
                 details={"status_code": response.status_code},
-                timestamp=time.time())
+                timestamp=time.time(),
+            )
 
         except Exception as e:
             return DiagnosticResult(
@@ -450,7 +471,8 @@ class AnalysisDiagnostics:
                 status=DiagnosticStatus.ERROR,
                 message=f"AI model status check failed: {e!s}",
                 details={"error": str(e)},
-                timestamp=time.time())
+                timestamp=time.time(),
+            )
 
     def validate_file_format(self, file_path: str) -> DiagnosticResult:
         """Validate if a file can be processed for analysis.
@@ -471,7 +493,8 @@ class AnalysisDiagnostics:
                     status=DiagnosticStatus.ERROR,
                     message="File does not exist",
                     details={"file_path": file_path},
-                    timestamp=time.time())
+                    timestamp=time.time(),
+                )
 
             # Check file size
             file_size = path.stat().st_size
@@ -483,7 +506,8 @@ class AnalysisDiagnostics:
                     status=DiagnosticStatus.ERROR,
                     message="File is empty",
                     details={"file_path": file_path, "file_size": file_size},
-                    timestamp=time.time())
+                    timestamp=time.time(),
+                )
 
             if file_size > max_size:
                 return DiagnosticResult(
@@ -495,7 +519,8 @@ class AnalysisDiagnostics:
                         "file_size": file_size,
                         "max_recommended_size": max_size,
                     },
-                    timestamp=time.time())
+                    timestamp=time.time(),
+                )
 
             # Check file extension
             supported_extensions = {".txt", ".pdf", ".docx", ".doc"}
@@ -511,7 +536,8 @@ class AnalysisDiagnostics:
                         "file_extension": file_extension,
                         "supported_extensions": list(supported_extensions),
                     },
-                    timestamp=time.time())
+                    timestamp=time.time(),
+                )
 
             return DiagnosticResult(
                 component="file_validation",
@@ -522,7 +548,8 @@ class AnalysisDiagnostics:
                     "file_size": file_size,
                     "file_extension": file_extension,
                 },
-                timestamp=time.time())
+                timestamp=time.time(),
+            )
 
         except (OSError, FileNotFoundError) as e:
             return DiagnosticResult(
@@ -530,7 +557,8 @@ class AnalysisDiagnostics:
                 status=DiagnosticStatus.ERROR,
                 message=f"File validation failed: {e!s}",
                 details={"file_path": file_path, "error": str(e)},
-                timestamp=time.time())
+                timestamp=time.time(),
+            )
 
     def _calculate_overall_status(self, diagnostics: dict[str, DiagnosticResult]) -> str:
         """Calculate overall system health status."""

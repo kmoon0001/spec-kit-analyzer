@@ -21,7 +21,8 @@ router = APIRouter(tags=["auth"])
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
-    auth_service: AuthService = Depends(get_auth_service)):
+    auth_service: AuthService = Depends(get_auth_service),
+):
     """Authenticate user and generate JWT access token.
 
     Args:
@@ -39,28 +40,24 @@ async def login_for_access_token(
     # Validate username format
     is_valid, error_msg = SecurityValidator.validate_username(form_data.username)
     if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
     user = await crud.get_user_by_username(db, username=form_data.username)
-    if not user or not auth_service.verify_password(
-        form_data.password,
-        user.hashed_password):
+    if not user or not auth_service.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"})
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is inactive or license has expired. Please contact support.")
+            detail="Account is inactive or license has expired. Please contact support.",
+        )
 
     access_token_expires = timedelta(minutes=auth_service.access_token_expire_minutes)
-    access_token = auth_service.create_access_token(
-        data={"sub": user.username},
-        expires_delta=access_token_expires)
+    access_token = auth_service.create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -69,7 +66,8 @@ async def change_password(
     password_data: schemas.UserPasswordChange,
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
-    auth_service: AuthService = Depends(get_auth_service)):
+    auth_service: AuthService = Depends(get_auth_service),
+):
     """Change user password with validation.
 
     Args:
@@ -86,25 +84,15 @@ async def change_password(
 
     """
     # Verify current password
-    if not auth_service.verify_password(
-        password_data.current_password,
-        current_user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Incorrect current password.")
+    if not auth_service.verify_password(password_data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password.")
 
     # Validate new password strength
-    is_valid, error_msg = SecurityValidator.validate_password_strength(
-        password_data.new_password)
+    is_valid, error_msg = SecurityValidator.validate_password_strength(password_data.new_password)
     if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
     new_hashed_password = auth_service.get_password_hash(password_data.new_password)
-    await crud.change_user_password(
-        db=db,
-        user=current_user,
-        new_hashed_password=new_hashed_password)
+    await crud.change_user_password(db=db, user=current_user, new_hashed_password=new_hashed_password)
 
     return {"message": "Password changed successfully."}

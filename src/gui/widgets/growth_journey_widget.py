@@ -111,9 +111,7 @@ class AchievementBadge(QWidget):
         self.refresh_button.setText("Loading...")
 
         # Create API worker
-        self.api_worker = GenericApiWorker(
-            endpoint="/habits/progression",
-            token=self.auth_token)
+        self.api_worker = GenericApiWorker(endpoint="/habits/progression", token=self.auth_token)
 
         self.api_worker.success.connect(self.on_data_loaded)
         self.api_worker.error.connect(self.on_data_error)
@@ -245,15 +243,14 @@ class AchievementBadge(QWidget):
         # Habit progress bars
         habit_breakdown = self.progression_data.get("habit_breakdown", {})
 
-        for habit_id in sorted(
-            habit_breakdown.keys(),
-            key=lambda x: int(x.split("_")[1])):
+        for habit_id in sorted(habit_breakdown.keys(), key=lambda x: int(x.split("_")[1])):
             habit_data = habit_breakdown[habit_id]
 
             progress_bar = HabitProgressBar(
                 habit_name=f"Habit {habit_data['habit_number']}: {habit_data['habit_name']}",
                 percentage=habit_data["percentage"],
-                mastery_level=habit_data["mastery_level"])
+                mastery_level=habit_data["mastery_level"],
+            )
 
             mastery_layout.addWidget(progress_bar)
 
@@ -378,5 +375,6 @@ class AchievementBadge(QWidget):
 
 class RecommendationCard:
     """Recommendation card widget."""
+
     def __init__(self, recommendation):
         self.recommendation = recommendation

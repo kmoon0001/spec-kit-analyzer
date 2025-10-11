@@ -96,7 +96,8 @@ class PDFExportServiceFallback:
                 fontSize=18,
                 spaceAfter=30,
                 alignment=TA_CENTER,
-                textColor=colors.darkblue)
+                textColor=colors.darkblue,
+            )
         )
 
         # Section header style
@@ -107,7 +108,8 @@ class PDFExportServiceFallback:
                 fontSize=14,
                 spaceAfter=12,
                 spaceBefore=20,
-                textColor=colors.darkblue)
+                textColor=colors.darkblue,
+            )
         )
 
         # Subsection header style
@@ -118,17 +120,13 @@ class PDFExportServiceFallback:
                 fontSize=12,
                 spaceAfter=8,
                 spaceBefore=12,
-                textColor=colors.darkgreen)
+                textColor=colors.darkgreen,
+            )
         )
 
         # Finding style
         self.styles.add(
-            ParagraphStyle(
-                name="Finding",
-                parent=self.styles["Normal"],
-                fontSize=10,
-                spaceAfter=6,
-                leftIndent=20)
+            ParagraphStyle(name="Finding", parent=self.styles["Normal"], fontSize=10, spaceAfter=6, leftIndent=20)
         )
 
         # Recommendation style
@@ -139,7 +137,8 @@ class PDFExportServiceFallback:
                 fontSize=10,
                 spaceAfter=6,
                 leftIndent=20,
-                textColor=colors.darkgreen)
+                textColor=colors.darkgreen,
+            )
         )
 
         # Code style (check if it already exists)
@@ -152,7 +151,8 @@ class PDFExportServiceFallback:
                     fontName="Courier",
                     leftIndent=20,
                     rightIndent=20,
-                    backgroundColor=colors.lightgrey)
+                    backgroundColor=colors.lightgrey,
+                )
             )
 
     async def export_report_to_pdf(
@@ -160,16 +160,15 @@ class PDFExportServiceFallback:
         report_data: dict[str, Any],
         template_name: str = "compliance_report_pdf",
         include_charts: bool = True,
-        watermark: str | None = None) -> bytes:
+        watermark: str | None = None,
+    ) -> bytes:
         """Export a compliance report to PDF format."""
         try:
             # Create temporary file
             temp_file = self.temp_dir / f"temp_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
 
             # Export to file
-            options = ExportOptions(
-                include_charts=include_charts,
-                watermark=watermark)
+            options = ExportOptions(include_charts=include_charts, watermark=watermark)
             result = await self.export_to_file(report_data, temp_file, options)
 
             if not result.success:
@@ -189,10 +188,8 @@ class PDFExportServiceFallback:
             raise
 
     async def export_to_file(
-        self,
-        report_data: dict[str, Any],
-        output_path: str | Path,
-        options: ExportOptions | None = None) -> ExportResult:
+        self, report_data: dict[str, Any], output_path: str | Path, options: ExportOptions | None = None
+    ) -> ExportResult:
         """Export report to PDF file."""
         start_time = datetime.now()
 
@@ -205,12 +202,8 @@ class PDFExportServiceFallback:
 
             # Create PDF document
             doc = SimpleDocTemplate(
-                str(output_path),
-                pagesize=letter,
-                rightMargin=72,
-                leftMargin=72,
-                topMargin=72,
-                bottomMargin=18)
+                str(output_path), pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18
+            )
 
             # Build document content
             story = []
@@ -245,11 +238,8 @@ class PDFExportServiceFallback:
             logger.info("PDF export completed: %s ({file_size} bytes)", output_path)
 
             return ExportResult(
-                success=True,
-                file_path=output_path,
-                file_size=file_size,
-                page_count=None,
-                export_time_ms=export_time)
+                success=True, file_path=output_path, file_size=file_size, page_count=None, export_time_ms=export_time
+            )
 
         except (OSError, FileNotFoundError) as e:
             export_time = (datetime.now() - start_time).total_seconds() * 1000
@@ -261,7 +251,8 @@ class PDFExportServiceFallback:
                 file_size=None,
                 page_count=None,
                 export_time_ms=export_time,
-                error_message=str(e))
+                error_message=str(e),
+            )
 
     def _add_metadata_section(self, story: list, report_data: dict[str, Any]):
         """Add metadata section to the PDF."""

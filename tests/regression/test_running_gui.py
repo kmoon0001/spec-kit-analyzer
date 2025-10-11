@@ -10,33 +10,35 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
     print("🚀 LAUNCHING THERAPY DOCUMENT COMPLIANCE ANALYSIS")
     print("=" * 60)
-    
-    from PySide6.QtWidgets import QApplication
-    from PySide6.QtCore import QTimer
-    from src.gui.main_window_ultimate import UltimateMainWindow
+
     import asyncio
+
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QApplication
+    from src.gui.main_window_ultimate import UltimateMainWindow
+
     from src.database import init_db
-    
+
     # Initialize database
     print("📊 Initializing database...")
     asyncio.run(init_db())
     print("   ✅ Database ready")
-    
+
     # Create application
     print("🖥️ Creating application...")
     app = QApplication([])
     print("   ✅ QApplication created")
-    
+
     # Create main window
     print("🏥 Creating main window...")
     main_win = UltimateMainWindow()
     print("   ✅ Main window created")
-    
+
     # Start the application
     print("⚡ Starting application...")
     main_win.start()
     print("   ✅ Application started and visible")
-    
+
     print("\n🎉 SUCCESS! Application is running!")
     print("=" * 60)
     print("✨ FEATURES AVAILABLE:")
@@ -62,22 +64,23 @@ try:
     print("   Ctrl+T - Chat Assistant")
     print("   F11 - Fullscreen")
     print("   ↑↑↓↓←→←→BA - Konami Code")
-    
+
     # Auto-close after showing info
     def close_app():
         print("\n👋 Demo complete - closing application")
         app.quit()
-    
+
     # Close after 3 seconds for demo
     QTimer.singleShot(3000, close_app)
-    
+
     # Run the application
     print("\n🔄 Running for 3 seconds to demonstrate...")
     app.exec()
-    
+
     print("✅ Application closed successfully!")
-    
+
 except Exception as e:
     print(f"\n❌ Error: {e}")
     import traceback
+
     traceback.print_exc()

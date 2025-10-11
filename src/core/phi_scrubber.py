@@ -23,7 +23,8 @@ class PhiScrubberService:
         replacement: str = "<PHI>",
         wrapper: object | None = None,
         analyzer: AnalyzerEngine | None = None,
-        anonymizer: AnonymizerEngine | None = None) -> None:
+        anonymizer: AnonymizerEngine | None = None,
+    ) -> None:
         """Initialise Presidio-based scrubbing service with injectable components."""
         self.default_replacement = replacement
 
@@ -43,8 +44,8 @@ class PhiScrubberService:
         if analyzer is None and AnalyzerEngine is not None:
             try:
                 analyzer = AnalyzerEngine(
-                    registry=registry if registry is not None else RecognizerRegistry(),
-                    supported_languages=["en"])
+                    registry=registry if registry is not None else RecognizerRegistry(), supported_languages=["en"]
+                )
             except Exception as exc:
                 logger.exception("Failed to initialize Presidio AnalyzerEngine: %s", exc)
                 analyzer = None
@@ -81,7 +82,8 @@ class PhiScrubberService:
             anonymized_result = self.anonymizer.anonymize(  # type: ignore[attr-defined]
                 text=text,
                 analyzer_results=analyzer_results,
-                operators={"DEFAULT": OperatorConfig("replace", {"new_value": token})})
+                operators={"DEFAULT": OperatorConfig("replace", {"new_value": token})},
+            )
             return anonymized_result.text
         except Exception as exc:
             logger.error("Error scrubbing text with Presidio: %s", exc, exc_info=True)

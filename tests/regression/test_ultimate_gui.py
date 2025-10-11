@@ -10,33 +10,37 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
     print("🚀 Testing Ultimate GUI...")
     print("=" * 50)
-    
+
     print("1. Testing PySide6 import...")
     from PySide6.QtWidgets import QApplication
+
     print("   ✅ PySide6 imported successfully")
-    
+
     print("2. Testing ultimate GUI import...")
     from src.gui.main_window_ultimate import UltimateMainWindow
+
     print("   ✅ Ultimate GUI imported successfully")
-    
+
     print("3. Creating QApplication...")
     app = QApplication([])
     print("   ✅ QApplication created")
-    
+
     print("4. Testing database init...")
     import asyncio
+
     from src.database import init_db
+
     asyncio.run(init_db())
     print("   ✅ Database initialized")
-    
+
     print("5. Creating ultimate main window...")
     main_win = UltimateMainWindow()
     print("   ✅ Ultimate main window created")
-    
+
     print("6. Starting application...")
     main_win.start()
     print("   ✅ Application started")
-    
+
     print("\n🎉 ULTIMATE GUI READY!")
     print("=" * 50)
     print("✨ ALL FEATURES INTEGRATED:")
@@ -63,8 +67,9 @@ try:
     print("   • Enter Konami Code for developer mode")
     print("   • Check Help > About > Easter Eggs Guide")
     print("\n✅ Ready to use! The ultimate version is complete.")
-    
+
 except Exception as e:
     print(f"\n❌ Error: {e}")
     import traceback
+
     traceback.print_exc()

@@ -51,7 +51,8 @@ class GuidelineService:
         self,
         sources: Sequence[str],
         cache_dir: str | Path = "data",
-        model_name: str = "sentence-transformers/all-MiniLM-L6-v2") -> None:
+        model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
+    ) -> None:
         settings = get_settings()
         self.sources = list(sources)
         self.model_name = model_name or settings.models.retriever
@@ -105,9 +106,7 @@ class GuidelineService:
             self.faiss_index = faiss.read_index(str(self.index_path))
             self.guideline_chunks = joblib.load(self.chunks_path)
             self.is_index_ready = True
-            logger.info(
-                "Loaded %d guideline chunks from cache",
-                len(self.guideline_chunks))
+            logger.info("Loaded %d guideline chunks from cache", len(self.guideline_chunks))
             return True
         except (FileNotFoundError, PermissionError, OSError) as exc:
             logger.warning("Failed to load guideline cache: %s", exc)

@@ -1,4 +1,3 @@
-
 import hashlib
 import logging
 import os
@@ -17,6 +16,7 @@ try:
     import cv2
     import numpy as np
     import pytesseract
+
     OCR_AVAILABLE = True
 except ImportError:
     OCR_AVAILABLE = False
@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 SUPPORTED_EXTENSIONS = {".pdf", ".txt", ".docx", ".png", ".jpg", ".jpeg", ".tiff", ".bmp"}
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".tiff", ".bmp"}
 
+
 def _get_file_hash(file_path: str) -> str:
     """Calculates the SHA256 hash of a file's content."""
     hasher = hashlib.sha256()
@@ -38,6 +39,7 @@ def _get_file_hash(file_path: str) -> str:
                 chunk = chunk.encode("utf-8")
             hasher.update(chunk)
     return hasher.hexdigest()
+
 
 def parse_document_content(file_path: str) -> list[dict[str, str]]:
     """Parse supported documents into sentence chunks with OCR support and content-based caching."""
@@ -93,6 +95,7 @@ def parse_document_content(file_path: str) -> list[dict[str, str]]:
             },
         ]
 
+
 def _preprocess_image_for_ocr(image):
     """Preprocess image for better OCR accuracy."""
     if not OCR_AVAILABLE:
@@ -134,6 +137,7 @@ def _preprocess_image_for_ocr(image):
     except Exception as e:
         logger.warning("Image preprocessing failed: %s, using original image", e)
         return image
+
 
 def _parse_image_with_ocr(file_path: str) -> list[dict[str, str]]:
     """Parse image files using OCR."""
@@ -186,6 +190,7 @@ def _parse_image_with_ocr(file_path: str) -> list[dict[str, str]]:
             },
         ]
 
+
 def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
     """Parse PDF with OCR fallback for scanned documents."""
     try:
@@ -202,10 +207,12 @@ def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
                     sentences = _split_into_sentences(page_text)
                     for sentence in sentences:
                         if sentence.strip():
-                            text_content.append({
-                                "sentence": sentence.strip(),
-                                "source": f"pdf_page_{page_num + 1}",
-                            })
+                            text_content.append(
+                                {
+                                    "sentence": sentence.strip(),
+                                    "source": f"pdf_page_{page_num + 1}",
+                                }
+                            )
                 else:
                     # Page appears to be scanned, try OCR
                     if OCR_AVAILABLE:
@@ -223,37 +230,50 @@ def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
                                 sentences = _split_into_sentences(ocr_text)
                                 for sentence in sentences:
                                     if sentence.strip():
-                                        text_content.append({
-                                            "sentence": sentence.strip(),
-                                            "source": f"ocr_page_{page_num + 1}",
-                                        })
+                                        text_content.append(
+                                            {
+                                                "sentence": sentence.strip(),
+                                                "source": f"ocr_page_{page_num + 1}",
+                                            }
+                                        )
                                 ocr_pages.append(page_num + 1)
 
                         except (PIL.UnidentifiedImageError, OSError, ValueError):
                             logger.warning("OCR failed for page %s: {e}", page_num + 1)
-                            text_content.append({
-                                "sentence": f"Warning: Page {page_num + 1} could not be processed (may be scanned image without OCR capability)",
-                                "source": "parser",
-                            })
+                            text_content.append(
+                                {
+                                    "sentence": f"Warning: Page {page_num + 1} could not be processed (may be scanned image without OCR capability)",
+                                    "source": "parser",
+                                }
+                            )
                     else:
-                        text_content.append({
-                            "sentence": f"Warning: Page {page_num + 1} appears to be scanned but OCR is not available. Install pytesseract for scanned document support.",
-                            "source": "parser",
-                        })
+                        text_content.append(
+                            {
+                                "sentence": f"Warning: Page {page_num + 1} appears to be scanned but OCR is not available. Install pytesseract for scanned document support.",
+                                "source": "parser",
+                            }
+                        )
 
             if ocr_pages:
                 logger.info("OCR was used for pages: %s", ocr_pages)
-                text_content.insert(0, {
-                    "sentence": f"Note: OCR was used to extract text from scanned pages: {', '.join(map(str, ocr_pages))}",
-                    "source": "ocr_info",
-                })
+                text_content.insert(
+                    0,
+                    {
+                        "sentence": f"Note: OCR was used to extract text from scanned pages: {', '.join(map(str, ocr_pages))}",
+                        "source": "ocr_info",
+                    },
+                )
 
-            return text_content if text_content else [
-                {
-                    "sentence": "Error: No text could be extracted from the PDF.",
-                    "source": "parser",
-                },
-            ]
+            return (
+                text_content
+                if text_content
+                else [
+                    {
+                        "sentence": "Error: No text could be extracted from the PDF.",
+                        "source": "parser",
+                    },
+                ]
+            )
 
     except (OSError, FileNotFoundError) as e:
         logger.exception("PDF parsing failed for %s: {e}", file_path)
@@ -263,6 +283,7 @@ def _parse_pdf_with_ocr(file_path: str) -> list[dict[str, str]]:
                 "source": "parser",
             },
         ]
+
 
 def _split_into_sentences(text: str) -> list[str]:
     """Split text into sentences with medical document awareness."""
@@ -294,19 +315,23 @@ def _split_into_sentences(text: str) -> list[str]:
 
     return merged_sentences
 
+
 def _parse_pdf(file_path: str) -> list[dict[str, str]]:
     """Legacy PDF parser - redirects to OCR-enabled version."""
     return _parse_pdf_with_ocr(file_path)
 
+
 def _parse_txt(file_path: str) -> list[dict[str, str]]:
-    with open(file_path, "r", encoding="utf-8") as handle:
+    with open(file_path, encoding="utf-8") as handle:
         text = handle.read().strip()
     return [{"sentence": text, "source": os.path.basename(file_path)}] if text else []
+
 
 def _parse_docx(file_path: str) -> list[dict[str, str]]:
     document = Document(file_path)
     text = "\n".join(paragraph.text for paragraph in document.paragraphs).strip()
     return [{"sentence": text, "source": os.path.basename(file_path)}] if text else []
+
 
 DEFAULT_SECTION_HEADERS = [
     "Subjective",
@@ -323,6 +348,7 @@ DEFAULT_SECTION_HEADERS = [
     "Treatment Plan",
 ]
 
+
 def load_section_headers() -> list[str]:
     try:
         with open("config.yaml", encoding="utf-8") as handle:
@@ -332,6 +358,7 @@ def load_section_headers() -> list[str]:
 
     headers = config.get("section_headers") or []
     return headers or DEFAULT_SECTION_HEADERS
+
 
 def parse_document_into_sections(text: str) -> dict[str, str]:
     headers = load_section_headers()
@@ -352,12 +379,9 @@ def parse_document_into_sections(text: str) -> dict[str, str]:
 
     for index, match in enumerate(matches):
         header = match.group(1)
-        next_start = (
-            matches[index + 1].start() if index + 1 < len(matches) else len(text)
-        )
+        next_start = matches[index + 1].start() if index + 1 < len(matches) else len(text)
         content = text[match.end() : next_start].strip()
-        normalized_header = next(
-            (item for item in headers if item.lower() == header.lower()), header)
+        normalized_header = next((item for item in headers if item.lower() == header.lower()), header)
         sections[normalized_header] = content
 
     return sections

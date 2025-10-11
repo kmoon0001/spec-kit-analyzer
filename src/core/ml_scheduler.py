@@ -73,7 +73,8 @@ class MLScheduler:
                     id=self.health_check_job_id,
                     name="ML System Health Check",
                     replace_existing=True,
-                    max_instances=1)
+                    max_instances=1,
+                )
 
             # Start the scheduler
             self.scheduler.start()
@@ -216,7 +217,8 @@ class MLScheduler:
         logger.info(
             "Training successful - ECE improvement: %s, ",
             ece_improvement * 100,
-            f"Deployed: {deployed}, Samples: {result.get('samples_used', 0)}")
+            f"Deployed: {deployed}, Samples: {result.get('samples_used', 0)}",
+        )
 
         if deployed:
             logger.info("New model deployed: %s", deployment_results.get("model_path", "unknown"))
@@ -249,7 +251,8 @@ class MLScheduler:
                 trigger="date",  # Run once immediately
                 id=f"{self.training_job_id}_immediate",
                 name="Immediate ML Training",
-                replace_existing=True)
+                replace_existing=True,
+            )
             logger.info("Immediate training job scheduled")
         except Exception as e:
             logger.exception("Failed to schedule immediate training: %s", e)

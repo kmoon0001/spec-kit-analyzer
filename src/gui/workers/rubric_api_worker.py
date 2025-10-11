@@ -1,4 +1,3 @@
-
 import requests
 from PySide6.QtCore import QObject, Signal, Slot
 from requests.exceptions import HTTPError

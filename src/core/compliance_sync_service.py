@@ -25,7 +25,8 @@ class ComplianceSyncService:
         date_range_end: datetime | None = None,
         document_types: list[str] | None = None,
         auto_analyze: bool = False,
-        user_id: str | None = None) -> None:
+        user_id: str | None = None,
+    ) -> None:
         """Synchronize documents from EHR system (background task).
 
         Args:

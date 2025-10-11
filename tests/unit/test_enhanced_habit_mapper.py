@@ -5,8 +5,9 @@ Tests all 7 habits mapping, AI-powered features, progression tracking,
 and configuration integration.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from src.core.enhanced_habit_mapper import SevenHabitsFramework, get_habit_for_finding
 
@@ -120,10 +121,7 @@ class TestRuleBasedMapping:
 
         assert result["habit_number"] == 4
         assert "Think Win-Win" in result["name"]
-        assert (
-            "collaboration" in result["explanation"].lower()
-            or "stakeholder" in result["explanation"].lower()
-        )
+        assert "collaboration" in result["explanation"].lower() or "stakeholder" in result["explanation"].lower()
 
     def test_habit_5_seek_first_to_understand_mapping(self):
         """Test Habit 5 (Seek First to Understand) mapping."""
@@ -230,7 +228,9 @@ class TestAIPoweredMapping:
         """Test AI mapping uses context information."""
         mock_llm = MagicMock()
         mock_llm.is_ready.return_value = True
-        mock_llm.generate.return_value = '{"habit_id": "habit_2", "explanation": "Test", "strategies": ["Strategy 1"], "confidence": 0.9}'
+        mock_llm.generate.return_value = (
+            '{"habit_id": "habit_2", "explanation": "Test", "strategies": ["Strategy 1"], "confidence": 0.9}'
+        )
         mock_llm.parse_json_output.return_value = {
             "habit_id": "habit_2",
             "explanation": "Test explanation",
@@ -318,22 +318,12 @@ class TestHabitProgression:
         # Mastered: <5%
         findings_mastered = [{"habit_id": "habit_1"}] + [{"habit_id": "habit_2"}] * 99
         metrics_mastered = framework.get_habit_progression_metrics(findings_mastered)
-        assert (
-            metrics_mastered["habit_breakdown"]["habit_1"]["mastery_level"]
-            == "Mastered"
-        )
+        assert metrics_mastered["habit_breakdown"]["habit_1"]["mastery_level"] == "Mastered"
 
         # Needs Focus: >25%
-        findings_needs_focus = [{"habit_id": "habit_1"}] * 30 + [
-            {"habit_id": "habit_2"}
-        ] * 70
-        metrics_needs_focus = framework.get_habit_progression_metrics(
-            findings_needs_focus
-        )
-        assert (
-            metrics_needs_focus["habit_breakdown"]["habit_1"]["mastery_level"]
-            == "Needs Focus"
-        )
+        findings_needs_focus = [{"habit_id": "habit_1"}] * 30 + [{"habit_id": "habit_2"}] * 70
+        metrics_needs_focus = framework.get_habit_progression_metrics(findings_needs_focus)
+        assert metrics_needs_focus["habit_breakdown"]["habit_1"]["mastery_level"] == "Needs Focus"
 
     def test_focus_areas_identification(self):
         """Test focus areas are identified correctly."""

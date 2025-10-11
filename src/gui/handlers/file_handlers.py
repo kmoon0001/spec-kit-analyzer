@@ -58,6 +58,19 @@ class FileHandlers:
             raise TypeError("main_window must be a valid MainApplicationWindow instance")
         self.main_window = main_window
 
+    def _enable_analysis_if_ready(self) -> None:
+        """Enable the 'Run Analysis' button only if a file is selected and all AI models are ready."""
+        if self.main_window.run_analysis_button:
+            all_models_ready = False
+            if self.main_window.status_component:
+                status_summary = self.main_window.status_component.get_overall_status()
+                all_models_ready = status_summary.get("all_ready", False)
+
+            if self.main_window._selected_file and all_models_ready:
+                self.main_window.run_analysis_button.setEnabled(True)
+            else:
+                self.main_window.run_analysis_button.setEnabled(False)
+
     def prompt_for_document(self) -> None:
         """Open a file selection dialog for choosing a clinical document.
 
@@ -88,10 +101,8 @@ class FileHandlers:
 
         """
         file_path, _ = QFileDialog.getOpenFileName(
-            self.main_window,
-            "Select clinical document",
-            str(Path.home()),
-            "Documents (*.pdf *.docx *.txt *.md *.json)")
+            self.main_window, "Select clinical document", str(Path.home()), "Documents (*.pdf *.docx *.txt *.md *.json)"
+        )
         if file_path:
             self.set_selected_file(Path(file_path))
 
@@ -112,8 +123,7 @@ class FileHandlers:
             self.main_window._cached_preview_content = placeholder
             if self.main_window.file_display:
                 self.main_window.file_display.setPlainText(placeholder)
-            if self.main_window.run_analysis_button:
-                self.main_window.run_analysis_button.setEnabled(True)
+            self._enable_analysis_if_ready()
             return
         except (PermissionError, OSError, UnicodeDecodeError) as exc:
             self.main_window._selected_file = None
@@ -149,14 +159,13 @@ class FileHandlers:
             self.main_window.file_display.setPlainText(file_info)
         self.main_window.statusBar().showMessage(f"✅ Document loaded: {self.main_window._selected_file.name}", 3000)
         if self.main_window.run_analysis_button:
-            self.main_window.run_analysis_button.setEnabled(True)
+            self._enable_analysis_if_ready()
 
     def prompt_for_folder(self) -> None:
         """Open folder dialog for batch analysis."""
         folder_path = QFileDialog.getExistingDirectory(
-            self.main_window,
-            "Select folder for batch analysis",
-            str(Path.home()))
+            self.main_window, "Select folder for batch analysis", str(Path.home())
+        )
         if folder_path:
             analysis_data = {
                 "discipline": self.main_window.rubric_selector.currentData() or ""
@@ -174,10 +183,8 @@ class FileHandlers:
             return
 
         file_path, _ = QFileDialog.getSaveFileName(
-            self.main_window,
-            "Save report",
-            str(Path.home() / "compliance_report.html"),
-            "HTML Files (*.html)")
+            self.main_window, "Save report", str(Path.home() / "compliance_report.html"), "HTML Files (*.html)"
+        )
         if not file_path:
             return
 
@@ -204,11 +211,7 @@ class FileHandlers:
             QMessageBox.information(self.main_window, "No Report", "No analysis report available to export.")
             return
 
-        file_path, _ = QFileDialog.getSaveFileName(
-            self.main_window,
-            "Export Report as PDF",
-            "",
-            "PDF Files (*.pdf)")
+        file_path, _ = QFileDialog.getSaveFileName(self.main_window, "Export Report as PDF", "", "PDF Files (*.pdf)")
 
         if file_path:
             try:
@@ -237,7 +240,8 @@ class FileHandlers:
                         "title": f"Compliance Analysis - {doc_name}",
                         "author": "Therapy Compliance Analyzer",
                         "subject": "Clinical Documentation Compliance Report",
-                    })
+                    },
+                )
 
                 if result["success"]:
                     # Copy the generated PDF to the user's chosen location
@@ -252,14 +256,16 @@ class FileHandlers:
                     QMessageBox.warning(
                         self.main_window,
                         "Export Failed",
-                        f"PDF export failed:\n{error_msg}\n\nTip: Install weasyprint for better PDF support:\npip install weasyprint")
+                        f"PDF export failed:\n{error_msg}\n\nTip: Install weasyprint for better PDF support:\npip install weasyprint",
+                    )
 
             except Exception as e:
                 logger.exception("PDF export failed: %s", str(e))
                 QMessageBox.warning(
                     self.main_window,
                     "Export Failed",
-                    f"Failed to export report: {e!s}\n\nTip: Install weasyprint:\npip install weasyprint")
+                    f"Failed to export report: {e!s}\n\nTip: Install weasyprint:\npip install weasyprint",
+                )
 
     def export_report_html(self) -> None:
         """Export the current report as HTML."""
@@ -267,11 +273,7 @@ class FileHandlers:
             QMessageBox.information(self.main_window, "No Report", "No analysis report available to export.")
             return
 
-        file_path, _ = QFileDialog.getSaveFileName(
-            self.main_window,
-            "Export Report as HTML",
-            "",
-            "HTML Files (*.html)")
+        file_path, _ = QFileDialog.getSaveFileName(self.main_window, "Export Report as HTML", "", "HTML Files (*.html)")
 
         if file_path:
             try:
@@ -280,9 +282,7 @@ class FileHandlers:
                 doc_name = self.main_window._selected_file.name if self.main_window._selected_file else "Document"
                 report_html = self.main_window._current_payload.get(
                     "report_html"
-                ) or report_generator.generate_html_report(
-                    analysis_result=analysis,
-                    doc_name=doc_name)
+                ) or report_generator.generate_html_report(analysis_result=analysis, doc_name=doc_name)
 
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(report_html)
@@ -333,6 +333,7 @@ class FileHandlers:
 
 class ReportGenerator:
     """Report generation utility."""
+
     def __init__(self):
         pass
 

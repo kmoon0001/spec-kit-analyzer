@@ -177,8 +177,7 @@ class CustomReportBuilder(QDialog):
         self.min_score_slider.setRange(0, 100)
         self.min_score_slider.setValue(70)
         self.min_score_label = QLabel("70%")
-        self.min_score_slider.valueChanged.connect(
-            lambda v: self.min_score_label.setText(f"{v}%"))
+        self.min_score_slider.valueChanged.connect(lambda v: self.min_score_label.setText(f"{v}%"))
 
         score_layout = QHBoxLayout()
         score_layout.addWidget(self.min_score_slider)
@@ -658,9 +657,8 @@ class CustomReportBuilder(QDialog):
 
             # Create template
             template = ReportTemplate(
-                template_name,
-                f"Custom template created on {datetime.now().strftime('%Y-%m-%d')}",
-                sections)
+                template_name, f"Custom template created on {datetime.now().strftime('%Y-%m-%d')}", sections
+            )
 
             # Add to templates (in a real implementation, this would be saved to file/database)
             template_key = template_name.lower().replace(" ", "_")
@@ -678,10 +676,8 @@ class CustomReportBuilder(QDialog):
         from PySide6.QtWidgets import QInputDialog
 
         name, ok = QInputDialog.getText(
-            self,
-            "Save Template",
-            "Enter template name:",
-            text=f"Custom Template {len(self.templates) + 1}")
+            self, "Save Template", "Enter template name:", text=f"Custom Template {len(self.templates) + 1}"
+        )
 
         return name, ok
 

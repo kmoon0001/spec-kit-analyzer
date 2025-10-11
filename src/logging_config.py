@@ -57,7 +57,8 @@ def setup_logging():
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
         wrapper_class=structlog.stdlib.BoundLogger,
-        cache_logger_on_first_use=True)
+        cache_logger_on_first_use=True,
+    )
 
     # Configure the root logger to use structlog
     root_logger = logging.getLogger()

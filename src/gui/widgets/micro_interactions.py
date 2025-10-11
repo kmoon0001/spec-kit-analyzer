@@ -9,10 +9,8 @@ from PySide6.QtCore import (
     Qt,
     QTimer,
     Signal,
-    Property,
 )
-from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QGraphicsOpacityEffect, QLabel, QPushButton, QWidget
+from PySide6.QtWidgets import QGraphicsOpacityEffect, QPushButton, QWidget
 
 
 class AnimatedButton(QPushButton):
@@ -49,10 +47,8 @@ class AnimatedButton(QPushButton):
         # Slight scale up on hover
         current_rect = self.geometry()
         hover_rect = QRect(
-            current_rect.x() - 2,
-            current_rect.y() - 1,
-            current_rect.width() + 4,
-            current_rect.height() + 2)
+            current_rect.x() - 2, current_rect.y() - 1, current_rect.width() + 4, current_rect.height() + 2
+        )
 
         self.hover_animation.setStartValue(current_rect)
         self.hover_animation.setEndValue(hover_rect)
@@ -70,10 +66,8 @@ class AnimatedButton(QPushButton):
         # Return to original size
         current_rect = self.geometry()
         original_rect = QRect(
-            current_rect.x() + 2,
-            current_rect.y() + 1,
-            current_rect.width() - 4,
-            current_rect.height() - 2)
+            current_rect.x() + 2, current_rect.y() + 1, current_rect.width() - 4, current_rect.height() - 2
+        )
 
         self.hover_animation.setStartValue(current_rect)
         self.hover_animation.setEndValue(original_rect)
@@ -91,10 +85,8 @@ class AnimatedButton(QPushButton):
         # Quick scale down on click
         current_rect = self.geometry()
         click_rect = QRect(
-            current_rect.x() + 1,
-            current_rect.y() + 1,
-            current_rect.width() - 2,
-            current_rect.height() - 2)
+            current_rect.x() + 1, current_rect.y() + 1, current_rect.width() - 2, current_rect.height() - 2
+        )
 
         self.click_animation.setStartValue(current_rect)
         self.click_animation.setEndValue(click_rect)
@@ -158,29 +150,13 @@ class SlideInWidget(QWidget):
 
         # Calculate start position based on direction
         if self.direction == "left":
-            start_rect = QRect(
-                -final_rect.width(),
-                final_rect.y(),
-                final_rect.width(),
-                final_rect.height())
+            start_rect = QRect(-final_rect.width(), final_rect.y(), final_rect.width(), final_rect.height())
         elif self.direction == "right":
-            start_rect = QRect(
-                parent_rect.width(),
-                final_rect.y(),
-                final_rect.width(),
-                final_rect.height())
+            start_rect = QRect(parent_rect.width(), final_rect.y(), final_rect.width(), final_rect.height())
         elif self.direction == "top":
-            start_rect = QRect(
-                final_rect.x(),
-                -final_rect.height(),
-                final_rect.width(),
-                final_rect.height())
+            start_rect = QRect(final_rect.x(), -final_rect.height(), final_rect.width(), final_rect.height())
         else:  # bottom
-            start_rect = QRect(
-                final_rect.x(),
-                parent_rect.height(),
-                final_rect.width(),
-                final_rect.height())
+            start_rect = QRect(final_rect.x(), parent_rect.height(), final_rect.width(), final_rect.height())
 
         self.setGeometry(start_rect)
         self.slide_animation.setStartValue(start_rect)
@@ -280,7 +256,8 @@ class ProgressRipple(QWidget):
                 font-size: 11px;
                 max-width: 250px;
             }
-        """)
+        """
+        )
 
         self.setText(self.content)
         self.setWordWrap(True)

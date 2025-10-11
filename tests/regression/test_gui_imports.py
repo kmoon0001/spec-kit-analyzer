@@ -8,7 +8,7 @@ print("Testing GUI imports individually...")
 imports_to_test = [
     "from src.config import get_settings",
     "from src.gui.dialogs.rubric_manager_dialog import RubricManagerDialog",
-    "from src.gui.dialogs.change_password_dialog import ChangePasswordDialog", 
+    "from src.gui.dialogs.change_password_dialog import ChangePasswordDialog",
     "from src.gui.dialogs.chat_dialog import ChatDialog",
     "from src.gui.workers.analysis_starter_worker import AnalysisStarterWorker",
     "from src.gui.workers.folder_analysis_starter_worker import FolderAnalysisStarterWorker",

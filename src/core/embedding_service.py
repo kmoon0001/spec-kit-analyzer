@@ -45,10 +45,7 @@ class EmbeddingService:
             self._model = SentenceTransformer(self.model_name)
             logger.info("Sentence transformer model loaded successfully.")
         except Exception as e:
-            logger.critical(
-                "Fatal error: Failed to load sentence transformer model. %s",
-                e,
-                exc_info=True)
+            logger.critical("Fatal error: Failed to load sentence transformer model. %s", e, exc_info=True)
             self._model = None
         finally:
             self.is_loading = False
@@ -76,15 +73,11 @@ class EmbeddingService:
         """
         self._ensure_model_loaded()
         if not self._model:
-            logger.error(
-                "Sentence transformer model is not available. Cannot generate embedding.")
+            logger.error("Sentence transformer model is not available. Cannot generate embedding.")
             return None
 
         try:
             return self._model.encode(text)
         except Exception as e:
-            logger.error(
-                "An error occurred during embedding generation: %s",
-                e,
-                exc_info=True)
+            logger.error("An error occurred during embedding generation: %s", e, exc_info=True)
             return None

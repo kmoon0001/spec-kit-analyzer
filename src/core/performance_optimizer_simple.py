@@ -53,7 +53,8 @@ class PerformanceOptimizer:
                 efficiency_score=0.85,
                 bottlenecks=["memory_usage", "cache_misses"],
                 recommendations=["Increase cache size", "Optimize memory usage"],
-                timestamp=datetime.now())
+                timestamp=datetime.now(),
+            )
 
         except Exception as e:
             logger.exception("Performance analysis failed: %s", e)
@@ -66,7 +67,8 @@ class PerformanceOptimizer:
                 efficiency_score=0.5,
                 bottlenecks=["analysis_error"],
                 recommendations=["Check system health"],
-                timestamp=datetime.now())
+                timestamp=datetime.now(),
+            )
 
     def optimize_performance(self, aggressive: bool = False, target_improvement: float = 20.0) -> dict[str, Any]:
         """Execute comprehensive performance optimization.
@@ -91,7 +93,8 @@ class PerformanceOptimizer:
         logger.info(
             "Starting performance optimization (aggressive: %s, ",
             aggressive,
-            f"target: {target_improvement}% improvement)")
+            f"target: {target_improvement}% improvement)",
+        )
 
         try:
             # Get baseline performance metrics

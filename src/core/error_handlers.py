@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 def handle_analysis_error(func: F) -> F:
     """Decorator to handle analysis-related errors."""
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -29,11 +30,13 @@ def handle_analysis_error(func: F) -> F:
                 f"Analysis operation failed in {func.__name__}",
                 details={"original_error": str(e)},
             ) from e
+
     return wrapper
 
 
 def handle_ai_model_error(func: F) -> F:
     """Decorator to handle AI model-related errors."""
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -44,11 +47,13 @@ def handle_ai_model_error(func: F) -> F:
                 f"AI model operation failed in {func.__name__}",
                 details={"original_error": str(e)},
             ) from e
+
     return wrapper
 
 
 def handle_security_error(func: F) -> F:
     """Decorator to handle security-related errors."""
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -59,25 +64,25 @@ def handle_security_error(func: F) -> F:
                 f"Security operation failed in {func.__name__}",
                 details={"original_error": str(e)},
             ) from e
+
     return wrapper
 
 
-def log_and_suppress_error(
-    error_message: str, return_value: Any = None, log_level: int = logging.ERROR
-) -> Callable:
+def log_and_suppress_error(error_message: str, return_value: Any = None, log_level: int = logging.ERROR) -> Callable:
     """Decorator to log errors and return a default value instead of raising.
 
     Useful for non-critical operations where graceful degradation is preferred.
     """
+
     def decorator(func: F) -> F:
         @wraps(func)
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                logger.log(
-                    log_level, "%s in %s: %s", error_message, func.__name__, str(e)
-                )
+                logger.log(log_level, "%s in %s: %s", error_message, func.__name__, str(e))
                 return return_value
+
         return wrapper
+
     return decorator

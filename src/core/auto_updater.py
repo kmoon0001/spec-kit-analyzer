@@ -54,9 +54,8 @@ class AutoUpdater:
 
             # Query update server
             response = requests.get(
-                f"{self.update_server}/api/version-check",
-                params={"current_version": self.current_version},
-                timeout=10)
+                f"{self.update_server}/api/version-check", params={"current_version": self.current_version}, timeout=10
+            )
 
             if response.status_code != 200:
                 logger.warning("Update check failed: HTTP %s", response.status_code)

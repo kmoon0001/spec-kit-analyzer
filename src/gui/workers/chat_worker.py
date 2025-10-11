@@ -1,4 +1,3 @@
-
 import requests
 from PySide6.QtCore import QObject, Signal, Slot
 from requests.exceptions import HTTPError
@@ -28,11 +27,7 @@ class ChatWorker(QObject):
             headers = {"Authorization": f"Bearer {self.token}"}
             payload = {"history": self.history}
 
-            response = requests.post(
-                f"{API_URL}/chat",
-                json=payload,
-                headers=headers,
-                timeout=60)
+            response = requests.post(f"{API_URL}/chat", json=payload, headers=headers, timeout=60)
             response.raise_for_status()
             self.success.emit(response.json().get("response", "No valid response from AI."))
         except requests.exceptions.RequestException as e:

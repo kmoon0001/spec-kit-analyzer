@@ -125,11 +125,7 @@ class DataResult(Generic[T]):
         """Convert result to dictionary representation"""
         return {
             "data": self.data,
-            "metadata": (
-                self.metadata.to_dict()
-                if hasattr(self.metadata, "to_dict")
-                else str(self.metadata)
-            ),
+            "metadata": (self.metadata.to_dict() if hasattr(self.metadata, "to_dict") else str(self.metadata)),
             "query": self.query.to_dict(),
             "retrieved_at": self.retrieved_at.isoformat(),
             "record_count": self.record_count,
@@ -194,49 +190,32 @@ class BaseDataProvider(ABC):
 
 class PerformanceDataProvider(BaseDataProvider):
     """Data provider for performance metrics and optimization results"""
-    
+
     def __init__(self):
         super().__init__(
-            provider_id="performance_metrics",
-            description="Provides performance metrics and optimization data"
+            provider_id="performance_metrics", description="Provides performance metrics and optimization data"
         )
         self.supported_source_types = [DataSourceType.PERFORMANCE_METRICS]
-    
+
     async def get_data(self, config: Any = None) -> dict[str, Any]:
         """Get performance data for report generation
-        
+
         Args:
             config: Optional configuration parameter (unused in current implementation)
         """
         return {
-            "summary": {
-                "total_optimizations": 15,
-                "avg_response_time": 150,
-                "system_health": "good"
-            },
-            "performance_metrics": {
-                "response_time": 150,
-                "accuracy": 0.95,
-                "throughput": 100
-            },
-            "optimization_results": {
-                "cache_hit_rate": 0.85,
-                "memory_usage": "optimized",
-                "response_time_ms": 150
-            },
-            "system_metrics": {
-                "cpu_usage": 45.2,
-                "memory_usage_mb": 512,
-                "disk_io_rate": "normal"
-            }
+            "summary": {"total_optimizations": 15, "avg_response_time": 150, "system_health": "good"},
+            "performance_metrics": {"response_time": 150, "accuracy": 0.95, "throughput": 100},
+            "optimization_results": {"cache_hit_rate": 0.85, "memory_usage": "optimized", "response_time_ms": 150},
+            "system_metrics": {"cpu_usage": 45.2, "memory_usage_mb": 512, "disk_io_rate": "normal"},
         }
-    
+
     def supports_report_type(self, report_type: Any) -> bool:
         """Check if this provider supports the given report type
-        
+
         Args:
             report_type: The report type to check support for
-            
+
         Returns:
             bool: True if the report type is supported
         """
@@ -251,25 +230,25 @@ class PerformanceDataProvider(BaseDataProvider):
         except ImportError:
             # Fallback for tests
             return True
-    
+
     async def query_data(self, query: DataQuery) -> "DataResult[dict[str, Any]]":
         """Execute a data query and return results"""
         cache_key = self._get_cache_key(query)
-        
+
         if self._is_cache_valid(cache_key):
             data = self._cache[cache_key]
         else:
             data = await self.get_data()
             self._cache_data(cache_key, data)
-        
+
         return DataResult(
             data=data,
             metadata=await self.get_metadata(),
             query=query,
             retrieved_at=datetime.now(),
-            record_count=len(data)
+            record_count=len(data),
         )
-    
+
     async def get_metadata(self) -> DataSourceMetadata:
         """Get metadata about this data source"""
         return DataSourceMetadata(
@@ -289,7 +268,7 @@ class PerformanceDataProvider(BaseDataProvider):
 
 class DataIntegrationService:
     """Main service for coordinating data integration across all providers
-    
+
     This service provides a centralized interface for managing data providers
     and executing queries across multiple data sources with proper error handling,
     caching, and health monitoring.
@@ -355,21 +334,21 @@ class DataIntegrationService:
 
     async def query_data(self, query: DataQuery) -> DataResult:
         """Execute a data query across relevant providers
-        
+
         Args:
             query: The data query to execute
-            
+
         Returns:
             DataResult: The query results with metadata
-            
+
         Raises:
             ValueError: If query is invalid
         """
         if not query.source_types:
             raise ValueError("Query must specify at least one source type")
-            
+
         self._query_stats["total_queries"] += 1
-        
+
         try:
             # Simple implementation - use first available provider
             for source_type in query.source_types:
@@ -378,12 +357,9 @@ class DataIntegrationService:
                     if provider_ids:
                         provider = self.providers[provider_ids[0]]
                         result = await provider.query_data(query)
-                        logger.debug(
-                            "Query executed successfully for source type %s", 
-                            source_type.value
-                        )
+                        logger.debug("Query executed successfully for source type %s", source_type.value)
                         return result
-            
+
             # Return empty result if no providers found
             logger.warning("No providers found for source types: %s", query.source_types)
             return DataResult(
@@ -430,7 +406,7 @@ class DataIntegrationService:
 
     def get_service_stats(self) -> dict[str, Any]:
         """Get service performance statistics
-        
+
         Returns:
             dict: Service statistics including query counts and provider info
         """
@@ -448,33 +424,30 @@ class DataIntegrationService:
 
     async def validate_all_providers(self) -> dict[str, dict[str, Any]]:
         """Validate all providers and return detailed status
-        
+
         Returns:
             dict: Detailed validation results for each provider
         """
         validation_results = {}
-        
+
         for provider_id, provider in self.providers.items():
             try:
                 # Test health check
                 is_healthy = await provider.health_check()
-                
+
                 # Test metadata retrieval
                 metadata = await provider.get_metadata()
-                
+
                 # Test basic query if possible
-                test_query = DataQuery(
-                    source_types=[DataSourceType.PERFORMANCE_METRICS],
-                    max_records=1
-                )
-                
+                test_query = DataQuery(source_types=[DataSourceType.PERFORMANCE_METRICS], max_records=1)
+
                 try:
                     await provider.query_data(test_query)
                     query_test_passed = True
                 except Exception as e:
                     query_test_passed = False
                     logger.debug("Query test failed for provider %s: %s", provider_id, e)
-                
+
                 validation_results[provider_id] = {
                     "health_check": is_healthy,
                     "metadata_available": metadata is not None,
@@ -482,7 +455,7 @@ class DataIntegrationService:
                     "last_updated": metadata.last_updated.isoformat() if metadata else None,
                     "data_quality": metadata.data_quality.value if metadata else "unknown",
                 }
-                
+
             except Exception as e:
                 logger.error("Validation failed for provider %s: %s", provider_id, e)
                 validation_results[provider_id] = {
@@ -491,5 +464,5 @@ class DataIntegrationService:
                     "query_test": False,
                     "error": str(e),
                 }
-        
+
         return validation_results

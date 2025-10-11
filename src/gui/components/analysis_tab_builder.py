@@ -249,7 +249,8 @@ class AnalysisTabBuilder:
                     "description": "Lenient analysis focusing on major compliance issues only",
                     "details": "• Identifies critical Medicare violations\n• Overlooks minor documentation gaps\n• Faster processing time\n• Suitable for initial reviews",
                     "use_case": "Best for: Quick assessments, high-volume processing",
-                }),
+                },
+            ),
             (
                 "Standard",
                 "📋",
@@ -257,7 +258,8 @@ class AnalysisTabBuilder:
                     "description": "Balanced analysis covering most compliance requirements",
                     "details": "• Comprehensive Medicare compliance checking\n• Identifies moderate to severe issues\n• Standard processing time\n• Recommended for most users",
                     "use_case": "Best for: Regular compliance reviews, quality assurance",
-                }),
+                },
+            ),
             (
                 "Strict",
                 "🔍",
@@ -265,7 +267,8 @@ class AnalysisTabBuilder:
                     "description": "Thorough analysis with detailed scrutiny of all elements",
                     "details": "• Exhaustive compliance verification\n• Identifies all potential issues\n• Longer processing time\n• Maximum regulatory protection",
                     "use_case": "Best for: Audit preparation, high-risk documentation",
-                }),
+                },
+            ),
         ]
 
         for i, (level, emoji, _info) in enumerate(self.main_window.strictness_levels):
@@ -471,7 +474,8 @@ class AnalysisTabBuilder:
             "• Key findings and recommendations\n"
             "• Medicare guideline compliance status\n"
             "• Actionable improvement suggestions\n\n"
-            "Select a rubric and click 'Run Analysis' to begin.")
+            "Select a rubric and click 'Run Analysis' to begin."
+        )
         self.main_window.analysis_summary_browser.setStyleSheet(f"""
             QTextBrowser {{
                 border: 2px solid {medical_theme.get_color("border_light")};
@@ -497,7 +501,8 @@ class AnalysisTabBuilder:
             "• Raw AI model outputs\n"
             "• Processing timestamps and metadata\n"
             "• Full compliance rule matching results\n\n"
-            "Run an analysis to populate this section with detailed technical information.")
+            "Run an analysis to populate this section with detailed technical information."
+        )
         self.main_window.detailed_results_browser.setStyleSheet(f"""
             QTextBrowser {{
                 border: 2px solid {medical_theme.get_color("border_light")};

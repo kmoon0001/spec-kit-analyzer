@@ -186,7 +186,7 @@ Click 'View Report' to see the detailed results.
         QMessageBox.critical(
             self.main_window,
             "Analysis Error",
-            f"The analysis could not be completed:\n\n{message}\n\nPlease check the logs for more details."
+            f"The analysis could not be completed:\n\n{message}\n\nPlease check the logs for more details.",
         )
 
     def on_strictness_selected_with_description(self, index: int) -> None:
@@ -221,10 +221,8 @@ Click 'View Report' to see the detailed results.
             self.main_window.strictness_description.setText(description_html)
 
     def on_ai_models_ready(self) -> None:
-        """Called when AI models are loaded and ready."""
-        if self.main_window.status_component:
-            self.main_window.status_component.set_all_ready()
-            status_text = self.main_window.status_component.get_status_text()
-        else:
-            status_text = "AI Models Ready"
-        self.main_window.statusBar().showMessage(f"✅ {status_text}", 5000)
+        """Called when all AI models are confirmed to be loaded and ready."""
+        if self.main_window.run_analysis_button:
+            self.main_window.run_analysis_button.setEnabled(True)
+
+        self.main_window.statusBar().showMessage("✅ All AI models are ready. You can now start the analysis.", 5000)

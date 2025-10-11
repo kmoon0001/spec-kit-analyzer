@@ -5,8 +5,9 @@ Tests the NERAnalyzer class functionality including entity extraction,
 clinician name detection, and medical entity categorization.
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from src.core.ner import NERAnalyzer, NERPipeline
 

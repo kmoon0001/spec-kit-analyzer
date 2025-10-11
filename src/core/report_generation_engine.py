@@ -1,14 +1,9 @@
-"""Report Generation Engine - Refactored Main Engine
-import requests
-from requests.exceptions import HTTPError
-
-This is the simplified main engine that coordinates the separated components.
-All functionality is preserved while improving maintainability.
-"""
-
 import logging
 from datetime import datetime
 from typing import Any
+
+import requests
+from requests.exceptions import HTTPError
 
 from .report_config_manager import ReportConfigurationManager
 from .report_data_service import DataAggregationService
@@ -105,15 +100,14 @@ class ReportGenerationEngine:
             config=config,
             status=ReportStatus.GENERATING,
             created_at=datetime.now(),
-            updated_at=datetime.now())
+            updated_at=datetime.now(),
+        )
 
         self.generated_reports[report_id] = report
 
         try:
             # Get data from providers
-            aggregated_data = self.data_aggregation_service.get_aggregated_data(
-                config.report_type,
-                config.filters)
+            aggregated_data = self.data_aggregation_service.get_aggregated_data(config.report_type, config.filters)
 
             # Generate report sections
             sections = await self._generate_report_sections(config, aggregated_data)
@@ -152,9 +146,8 @@ class ReportGenerationEngine:
 
         # Executive summary section
         summary_section = ReportSection(
-            id="executive_summary",
-            title="Executive Summary",
-            content=self._generate_executive_summary(config, data))
+            id="executive_summary", title="Executive Summary", content=self._generate_executive_summary(config, data)
+        )
         sections.append(summary_section)
 
         # Data analysis sections
@@ -164,7 +157,8 @@ class ReportGenerationEngine:
                     id=f"analysis_{provider_name}",
                     title=f"{provider_name.replace('_', ' ').title()} Analysis",
                     content=self._format_provider_data(provider_data),
-                    data=provider_data)
+                    data=provider_data,
+                )
                 sections.append(section)
 
         return sections
@@ -248,7 +242,8 @@ class ReportGenerationEngine:
                     id="seven_habits_insights",
                     title="7 Habits Framework Insights",
                     content=content,
-                    data={"habits_insights": habits_insights})
+                    data={"habits_insights": habits_insights},
+                )
         except Exception as e:
             logger.warning("Error generating 7 Habits insights: %s", e)
 
@@ -353,7 +348,8 @@ class ReportGenerationEngine:
         logo_path: str | None = None,
         logo_position: str | None = None,
         primary_color: str | None = None,
-        secondary_color: str | None = None) -> bool:
+        secondary_color: str | None = None,
+    ) -> bool:
         """Configure branding for reports (preserves existing functionality)"""
         if not self.branding_service:
             logger.warning("Branding service not available")
@@ -365,7 +361,8 @@ class ReportGenerationEngine:
                 logo_path=logo_path,
                 logo_position=logo_position,
                 primary_color=primary_color,
-                secondary_color=secondary_color)
+                secondary_color=secondary_color,
+            )
         except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Error configuring branding: %s", e)
             return False

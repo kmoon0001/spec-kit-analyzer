@@ -15,6 +15,7 @@ from src.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
+
 class ConfigValidator:
     """Validate and health-check application configuration."""
 
@@ -22,16 +23,14 @@ class ConfigValidator:
         self.validation_errors: list[str] = []
         self.validation_warnings: list[str] = []
 
-    def validate_config_file(
-        self, config_path: str = "config.yaml") -> tuple[bool, list[str], list[str]]:
+    def validate_config_file(self, config_path: str = "config.yaml") -> tuple[bool, list[str], list[str]]:
         """Validate the configuration file structure and values."""
         self.validation_errors.clear()
         self.validation_warnings.clear()
 
         # Check if config file exists
         if not os.path.exists(config_path):
-            self.validation_errors.append(
-                f"Configuration file not found: {config_path}")
+            self.validation_errors.append(f"Configuration file not found: {config_path}")
             return False, self.validation_errors, self.validation_warnings
 
         try:
@@ -67,8 +66,7 @@ class ConfigValidator:
         except yaml.YAMLError as e:
             self.validation_errors.append(f"YAML parsing error: {e!s}")
         except (ValueError, TypeError, AttributeError) as e:
-            self.validation_errors.append(
-                f"Unexpected error during validation: {e!s}")
+            self.validation_errors.append(f"Unexpected error during validation: {e!s}")
 
         is_valid = len(self.validation_errors) == 0
         return is_valid, self.validation_errors, self.validation_warnings
@@ -88,8 +86,7 @@ class ConfigValidator:
 
         for section in required_sections:
             if section not in config:
-                self.validation_errors.append(
-                    f"Missing required configuration section: {section}")
+                self.validation_errors.append(f"Missing required configuration section: {section}")
 
     def _validate_paths(self, paths_config: dict[str, Any]) -> None:
         """Validate path configurations."""
@@ -105,8 +102,7 @@ class ConfigValidator:
             # Skip URL validation
             if path_key == "api_url":
                 if not path_value.startswith(("http://", "https://")):
-                    self.validation_warnings.append(
-                        f"API URL should start with http:// or https://: {path_value}")
+                    self.validation_warnings.append(f"API URL should start with http:// or https://: {path_value}")
                 continue
 
             # Validate directory paths
@@ -116,8 +112,7 @@ class ConfigValidator:
                     Path(path_value).mkdir(parents=True, exist_ok=True)
                     logger.info("Ensured directory exists: %s", path_value)
                 except (FileNotFoundError, PermissionError, OSError) as e:
-                    self.validation_errors.append(
-                        f"Cannot create directory {path_value}: {e!s}")
+                    self.validation_errors.append(f"Cannot create directory {path_value}: {e!s}")
 
             # Validate file paths
             elif path_key in ["medical_dictionary"]:
@@ -142,8 +137,7 @@ class ConfigValidator:
                     os.makedirs(db_dir, exist_ok=True)
                     logger.info("Created database directory: %s", db_dir)
                 except (FileNotFoundError, PermissionError, OSError) as e:
-                    self.validation_errors.append(
-                        f"Cannot create database directory: {e!s}")
+                    self.validation_errors.append(f"Cannot create database directory: {e!s}")
 
         # Validate connection pool settings
         pool_size = db_config.get("pool_size", 5)
@@ -153,8 +147,7 @@ class ConfigValidator:
             self.validation_warnings.append("Database pool_size should be at least 1")
 
         if max_overflow < 0:
-            self.validation_warnings.append(
-                "Database max_overflow should be non-negative")
+            self.validation_warnings.append("Database max_overflow should be non-negative")
 
     def _validate_models(self, models_config: dict[str, Any]) -> None:
         """Validate model configuration."""
@@ -162,8 +155,7 @@ class ConfigValidator:
 
         for model_key in required_models:
             if model_key not in models_config:
-                self.validation_errors.append(
-                    f"Missing required model configuration: {model_key}")
+                self.validation_errors.append(f"Missing required model configuration: {model_key}")
 
         # Validate generator profiles
         if "generator_profiles" in models_config:
@@ -173,8 +165,7 @@ class ConfigValidator:
 
             for profile_name, profile_config in profiles.items():
                 if "repo" not in profile_config or "filename" not in profile_config:
-                    self.validation_errors.append(
-                        f"Generator profile {profile_name} missing repo or filename")
+                    self.validation_errors.append(f"Generator profile {profile_name} missing repo or filename")
 
         # Validate prompt file paths
         prompt_files = [
@@ -191,26 +182,22 @@ class ConfigValidator:
     def _validate_performance(self, perf_config: dict[str, Any]) -> None:
         """Validate performance configuration."""
         if not perf_config:
-            self.validation_warnings.append(
-                "No performance configuration found, using defaults")
+            self.validation_warnings.append("No performance configuration found, using defaults")
             return
 
         # Validate memory settings
         max_cache_mb = perf_config.get("max_cache_memory_mb", 2048)
         if max_cache_mb < 512:
-            self.validation_warnings.append(
-                "max_cache_memory_mb is very low, may impact performance")
+            self.validation_warnings.append("max_cache_memory_mb is very low, may impact performance")
         elif max_cache_mb > 8192:
-            self.validation_warnings.append(
-                "max_cache_memory_mb is very high, may cause memory issues")
+            self.validation_warnings.append("max_cache_memory_mb is very high, may cause memory issues")
 
         # Validate worker settings
         max_workers = perf_config.get("max_workers", 2)
         if max_workers < 1:
             self.validation_errors.append("max_workers must be at least 1")
         elif max_workers > 16:
-            self.validation_warnings.append(
-                "max_workers is very high, may cause resource contention")
+            self.validation_warnings.append("max_workers is very high, may cause resource contention")
 
         # Validate timeout settings
         timeouts = [
@@ -227,18 +214,15 @@ class ConfigValidator:
     def _validate_security(self, security_config: dict[str, Any]) -> None:
         """Validate security configuration."""
         if not security_config:
-            self.validation_warnings.append(
-                "No security configuration found, using defaults")
+            self.validation_warnings.append("No security configuration found, using defaults")
             return
 
         # Validate file size limits
         max_file_size = security_config.get("max_file_size_mb", 50)
         if max_file_size < 1:
-            self.validation_warnings.append(
-                "max_file_size_mb is very low, may reject valid documents")
+            self.validation_warnings.append("max_file_size_mb is very low, may reject valid documents")
         elif max_file_size > 500:
-            self.validation_warnings.append(
-                "max_file_size_mb is very high, may cause performance issues")
+            self.validation_warnings.append("max_file_size_mb is very high, may cause performance issues")
 
         # Validate allowed extensions
         allowed_extensions = security_config.get("allowed_file_extensions", [])
@@ -247,15 +231,13 @@ class ConfigValidator:
         else:
             for ext in allowed_extensions:
                 if not ext.startswith("."):
-                    self.validation_warnings.append(
-                        f"File extension should start with dot: {ext}")
+                    self.validation_warnings.append(f"File extension should start with dot: {ext}")
 
         # Validate rate limiting
         if security_config.get("enable_rate_limiting", True):
             max_requests = security_config.get("max_requests_per_minute", 60)
             if max_requests < 10:
-                self.validation_warnings.append(
-                    "max_requests_per_minute is very low, may impact usability")
+                self.validation_warnings.append("max_requests_per_minute is very low, may impact usability")
 
     def check_environment_variables(self) -> tuple[bool, list[str]]:
         """Check for required environment variables."""
@@ -280,20 +262,17 @@ class ConfigValidator:
             # Check temp directory permissions
             temp_dir = settings.paths.temp_upload_dir
             if not os.access(temp_dir, os.W_OK):
-                permission_errors.append(
-                    f"No write permission for temp directory: {temp_dir}")
+                permission_errors.append(f"No write permission for temp directory: {temp_dir}")
 
             # Check cache directory permissions
             cache_dir = getattr(settings.paths, "cache_dir", ".cache")
             if not os.access(cache_dir, os.W_OK):
-                permission_errors.append(
-                    f"No write permission for cache directory: {cache_dir}")
+                permission_errors.append(f"No write permission for cache directory: {cache_dir}")
 
             # Check logs directory permissions
             logs_dir = getattr(settings.paths, "logs_dir", "logs")
             if not os.access(logs_dir, os.W_OK):
-                permission_errors.append(
-                    f"No write permission for logs directory: {logs_dir}")
+                permission_errors.append(f"No write permission for logs directory: {logs_dir}")
 
         except (FileNotFoundError, PermissionError, OSError) as e:
             permission_errors.append(f"Error checking permissions: {e!s}")
@@ -342,18 +321,16 @@ class ConfigValidator:
 
         # Generate recommendations
         if config_warnings:
-            recommendations.append(
-                "Review configuration warnings and consider adjustments")
+            recommendations.append("Review configuration warnings and consider adjustments")
 
         if env_missing:
-            recommendations.append(
-                "Set recommended environment variables for production use")
+            recommendations.append("Set recommended environment variables for production use")
 
         if not config_valid:
-            recommendations.append(
-                "Fix configuration errors before running the application")
+            recommendations.append("Fix configuration errors before running the application")
 
         return report
+
 
 def validate_configuration() -> bool:
     """Main function to validate the application configuration."""
@@ -387,6 +364,7 @@ def validate_configuration() -> bool:
         logger.warning("Failed to save health report: %s", e)
 
     return status in ["healthy", "warning"]
+
 
 if __name__ == "__main__":
     pass

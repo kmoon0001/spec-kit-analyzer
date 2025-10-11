@@ -42,8 +42,7 @@ class RubricEditorDialog(QDialog):
         self.layout.addRow("Common Pitfalls:", self.common_pitfalls_editor)
         self.layout.addRow("Best Practice:", self.best_practice_editor)
 
-        self.button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
         self.layout.addWidget(self.button_box)
@@ -124,10 +123,7 @@ class RubricManagerDialog(QDialog):
             QMessageBox.warning(self, "Input Error", "Rubric name cannot be empty.")
             return
 
-        self._run_api_call(
-            RubricApiWorker.create,
-            new_data,
-            on_success=lambda _: self.load_rubrics())
+        self._run_api_call(RubricApiWorker.create, new_data, on_success=lambda _: self.load_rubrics())
 
     def edit_rubric(self):
         """Opens the editor to modify the selected rubric."""
@@ -147,11 +143,7 @@ class RubricManagerDialog(QDialog):
             self.on_api_error("Cannot edit rubric: Missing ID.")
             return
 
-        self._run_api_call(
-            RubricApiWorker.update,
-            rubric_id,
-            updated_data,
-            on_success=lambda _: self.load_rubrics())
+        self._run_api_call(RubricApiWorker.update, rubric_id, updated_data, on_success=lambda _: self.load_rubrics())
 
     def remove_rubric(self):
         """Removes the selected rubric after confirmation."""
@@ -172,14 +164,12 @@ class RubricManagerDialog(QDialog):
             self,
             "Confirm Deletion",
             f"Are you sure you want to delete '{rubric_name}'?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
         if reply != QMessageBox.StandardButton.Yes:
             return
 
-        self._run_api_call(
-            RubricApiWorker.delete,
-            rubric_id,
-            on_success=lambda _: self.load_rubrics())
+        self._run_api_call(RubricApiWorker.delete, rubric_id, on_success=lambda _: self.load_rubrics())
 
     def closeEvent(self, event):
         """Ensure worker thread is stopped on close."""

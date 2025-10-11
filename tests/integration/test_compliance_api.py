@@ -1,11 +1,14 @@
 import pytest
 from fastapi.testclient import TestClient
+
 from src.api.main import app
+
 
 @pytest.fixture
 def client():
     """Provides a test client for the FastAPI application."""
     return TestClient(app)
+
 
 @pytest.mark.integration
 class TestComplianceAPI:
@@ -43,7 +46,9 @@ class TestComplianceAPI:
         response = client.post("/compliance/evaluate", json=payload)
         assert response.status_code == 200
         data = response.json()
-        assert data["is_compliant"], f"Expected document to be compliant, but it had findings: {[f['rule']['issue_title'] for f in data['findings']]}"
+        assert data["is_compliant"], (
+            f"Expected document to be compliant, but it had findings: {[f['rule']['issue_title'] for f in data['findings']]}"
+        )
         assert len(data["findings"]) == 0
 
     def test_evaluate_endpoint_missing_signature(self, client):

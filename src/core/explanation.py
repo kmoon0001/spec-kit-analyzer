@@ -43,7 +43,8 @@ class ExplanationEngine:
         analysis_result: dict[str, Any],
         full_document_text: str,
         context: ExplanationContext | None = None,
-        retrieved_rules: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        retrieved_rules: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         """Add comprehensive explanations to analysis findings.
 
                 Args:
@@ -56,9 +57,7 @@ class ExplanationEngine:
                     Enhanced analysis result with explanations and recommendations
 
         """
-        if "findings" not in analysis_result or not isinstance(
-            analysis_result.get("findings"),
-            list):
+        if "findings" not in analysis_result or not isinstance(analysis_result.get("findings"), list):
             logger.warning("No findings found in analysis result")
             return analysis_result
 
@@ -81,26 +80,20 @@ class ExplanationEngine:
         finding: dict[str, Any],
         full_document_text: str,
         context: ExplanationContext,
-        retrieved_rules: list[dict[str, Any]] | None = None) -> None:
+        retrieved_rules: list[dict[str, Any]] | None = None,
+    ) -> None:
         """Enhance a single finding with explanations and context."""
         problematic_text = finding.get("text", "")
 
         # Add context snippet with improved window sizing
         if problematic_text:
-            finding["context_snippet"] = self._get_context_snippet(
-                problematic_text,
-                full_document_text)
+            finding["context_snippet"] = self._get_context_snippet(problematic_text, full_document_text)
 
         # Add regulatory explanation
-        finding["regulatory_explanation"] = self._generate_regulatory_explanation(
-            finding,
-            context)
+        finding["regulatory_explanation"] = self._generate_regulatory_explanation(finding, context)
 
         # Add actionable recommendation
-        finding["recommendation"] = self._generate_recommendation(
-            finding,
-            context,
-            retrieved_rules)
+        finding["recommendation"] = self._generate_recommendation(finding, context, retrieved_rules)
         # Add confidence with proper calculation (remove random generation)
         if "confidence" not in finding:
             finding["confidence"] = self._calculate_confidence(finding, context)
@@ -109,15 +102,9 @@ class ExplanationEngine:
         finding["severity"] = self._assess_severity(finding)
 
         # Add citation information
-        finding["citation"] = self._get_regulatory_citation(
-            finding,
-            context,
-            retrieved_rules)
+        finding["citation"] = self._get_regulatory_citation(finding, context, retrieved_rules)
 
-    def _generate_regulatory_explanation(
-        self,
-        finding: dict[str, Any],
-        context: ExplanationContext) -> str:
+    def _generate_regulatory_explanation(self, finding: dict[str, Any], context: ExplanationContext) -> str:
         """Generate explanation of why this finding violates regulations."""
         issue_type = finding.get("issue_type", "compliance")
         discipline = context.discipline or "therapy"
@@ -140,13 +127,12 @@ class ExplanationEngine:
 
         return explanations.get(
             issue_type,
-            f"This finding may impact compliance with Medicare and professional {discipline} documentation standards.")
+            f"This finding may impact compliance with Medicare and professional {discipline} documentation standards.",
+        )
 
     def _generate_recommendation(
-        self,
-        finding: dict[str, Any],
-        context: ExplanationContext,
-        retrieved_rules: list[dict[str, Any]] | None = None) -> str:
+        self, finding: dict[str, Any], context: ExplanationContext, retrieved_rules: list[dict[str, Any]] | None = None
+    ) -> str:
         """Generate specific, actionable recommendation for the finding."""
         # First, try to get specific recommendations from retrieved rules
         if retrieved_rules:
@@ -196,12 +182,10 @@ class ExplanationEngine:
                 recommendations["missing_goals"] += " Target communication and swallowing function improvements."
         return recommendations.get(
             issue_type,
-            f"Review documentation against applicable {discipline} compliance standards and add missing elements.")
+            f"Review documentation against applicable {discipline} compliance standards and add missing elements.",
+        )
 
-    def _calculate_confidence(
-        self,
-        finding: dict[str, Any],
-        context: ExplanationContext) -> float:
+    def _calculate_confidence(self, finding: dict[str, Any], context: ExplanationContext) -> float:
         """Calculate confidence score based on finding characteristics."""
         base_confidence = 0.85
 
@@ -308,10 +292,8 @@ class ExplanationEngine:
         return "Medium" if confidence > 0.75 else "Low"
 
     def _get_regulatory_citation(
-        self,
-        finding: dict[str, Any],
-        context: ExplanationContext,
-        retrieved_rules: list[dict[str, Any]] | None = None) -> str:
+        self, finding: dict[str, Any], context: ExplanationContext, retrieved_rules: list[dict[str, Any]] | None = None
+    ) -> str:
         """Get appropriate regulatory citation for the finding."""
         # First, try to find specific citation from retrieved rules
         if retrieved_rules:
@@ -347,9 +329,7 @@ class ExplanationEngine:
         for finding in findings:
             problematic_text = finding.get("text")
             if problematic_text:
-                finding["context_snippet"] = self._get_context_snippet(
-                    problematic_text,
-                    full_document_text)
+                finding["context_snippet"] = self._get_context_snippet(problematic_text, full_document_text)
             if "confidence" not in finding:
                 # Use a deterministic confidence based on finding characteristics
                 confidence = 0.90  # Default high confidence
@@ -363,10 +343,7 @@ class ExplanationEngine:
         return findings
 
     @staticmethod
-    def _get_context_snippet(
-        text_to_find: str,
-        full_text: str,
-        window: int = 100) -> str:
+    def _get_context_snippet(text_to_find: str, full_text: str, window: int = 100) -> str:
         """Extract context snippet around problematic text for better understanding.
 
         Args:

@@ -1,10 +1,12 @@
-import sys
 import os
-import pytest
+import sys
 from unittest.mock import patch
 
+import pytest
+
 # Add the project root to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 
 @pytest.fixture(autouse=True)
 def mock_global_services():

@@ -17,11 +17,7 @@ class FolderAnalysisStarterWorker(QObject):
     success = Signal(str)  # Emits the task_id on success # type: ignore[attr-defined]
     error = Signal(str)  # type: ignore[attr-defined]
 
-    def __init__(
-        self,
-        files: Iterable[tuple[str, tuple[str, object, str]]],
-        data: dict,
-        token: str):
+    def __init__(self, files: Iterable[tuple[str, tuple[str, object, str]]], data: dict, token: str):
         super().__init__()
         self.files = list(files)
         self.data = data
@@ -32,11 +28,8 @@ class FolderAnalysisStarterWorker(QObject):
         try:
             headers = {"Authorization": f"Bearer {self.token}"}
             response = requests.post(
-                f"{API_URL}/analysis/analyze_folder",
-                files=self.files,
-                data=self.data,
-                headers=headers,
-                timeout=120)
+                f"{API_URL}/analysis/analyze_folder", files=self.files, data=self.data, headers=headers, timeout=120
+            )
             response.raise_for_status()
             task_id = response.json()["task_id"]
             self.success.emit(task_id)

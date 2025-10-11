@@ -40,9 +40,7 @@ class ReportDialog(QDialog):
 
         self.button_box = QDialogButtonBox()
         self.print_button = QPushButton("Print to PDF")
-        self.button_box.addButton(
-            self.print_button,
-            QDialogButtonBox.ButtonRole.ActionRole)
+        self.button_box.addButton(self.print_button, QDialogButtonBox.ButtonRole.ActionRole)
         self.button_box.addButton(QDialogButtonBox.StandardButton.Close)
         self.main_layout.addWidget(self.button_box)
 
@@ -55,28 +53,18 @@ class ReportDialog(QDialog):
         """Handles clicks on links within the report, specifically for chat."""
         if url.scheme() == "chat":
             if not self.token:
-                QMessageBox.critical(
-                    self,
-                    "Error",
-                    "Authentication token is not available.")
+                QMessageBox.critical(self, "Error", "Authentication token is not available.")
                 return
 
             initial_context = urllib.parse.unquote(url.path())
-            chat_dialog = ChatDialog(
-                initial_context=initial_context,
-                token=self.token,
-                parent=self)
+            chat_dialog = ChatDialog(initial_context=initial_context, token=self.token, parent=self)
             chat_dialog.exec()
         else:
             logger.warning("Clicked on an unhandled link scheme: %s", url.scheme())
 
     def print_to_pdf(self):
         """Opens a file dialog to save the report content as a PDF."""
-        file_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Save Report as PDF",
-            "",
-            "PDF Files (*.pdf)")
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save Report as PDF", "", "PDF Files (*.pdf)")
         if file_path:
             try:
                 printer = QPrinter(QPrinter.PrinterMode.HighResolution)

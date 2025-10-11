@@ -147,7 +147,7 @@ class EmbeddingModelResourceFactory(ResourceFactory[SentenceTransformer]):
         """Dispose of a sentence transformer model."""
         try:
             # Clear model from memory
-            if hasattr(resource, '_modules'):
+            if hasattr(resource, "_modules"):
                 resource._modules.clear()
             logger.debug("Embedding model resource disposed")
 
@@ -192,6 +192,7 @@ class EmbeddingModelResourceFactory(ResourceFactory[SentenceTransformer]):
 # Global model resource manager instance
 class ModelResourceManager:
     """Manager for model resources."""
+
     def __init__(self):
         self._resources = {}
         self._initialized = False
@@ -229,6 +230,7 @@ class ModelResourceManager:
 
 class TokenizerResourceFactory:
     """Factory for tokenizer resources."""
+
     def __init__(self, model_name: str):
         self.model_name = model_name
 
@@ -239,12 +241,14 @@ class TokenizerResourceFactory:
 # Global model resource manager instance
 model_resource_manager = None
 
+
 def get_model_resource_manager():
     """Get or create the global model resource manager"""
     global model_resource_manager
     if model_resource_manager is None:
         model_resource_manager = ModelResourceManager()
     return model_resource_manager
+
 
 # Initialize the global instance
 model_resource_manager = ModelResourceManager()

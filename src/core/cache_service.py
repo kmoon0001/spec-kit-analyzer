@@ -1,4 +1,3 @@
-
 import hashlib
 import json
 import pickle
@@ -14,6 +13,7 @@ from src.config import get_settings
 
 settings = get_settings()
 CACHE_DIR = Path(settings.paths.cache_dir)
+
 
 class CacheService:
     """A multi-level caching service for expensive computations."""
@@ -107,16 +107,19 @@ class CacheService:
         """Decorator for in-memory LRU caching."""
         return self.in_memory_cache(func)
 
+
 # Singleton instance to be used across the application
 # Singleton instance to be used across the application
 # Singleton instance to be used across the application
 cache_service = CacheService()
 
+
 class MemoryAwareLRUCache:
     """An in-memory cache that tracks TTL and system memory pressure."""
-    
+
     def __init__(self, max_memory_mb: int = 512):
         from collections import OrderedDict
+
         self.cache = OrderedDict()
         self.current_size_bytes = 0
         self.max_memory_mb = max_memory_mb
@@ -135,9 +138,7 @@ class MemoryAwareLRUCache:
 
     def clear_expired(self) -> None:
         expired_keys = [
-            key
-            for key, entry in self.cache.items()
-            if entry["expires_at"] and entry["expires_at"] < datetime.now(UTC)
+            key for key, entry in self.cache.items() if entry["expires_at"] and entry["expires_at"] < datetime.now(UTC)
         ]
         for key in expired_keys:
             self._delete_entry(key)
@@ -148,42 +149,37 @@ class MemoryAwareLRUCache:
 
     def _current_memory_mb(self) -> float:
         return self.current_size_bytes / (1024**2)
-    
+
     def get(self, key: str, default=None):
         """Get a value from the cache."""
         entry = self.cache.get(key)
         if entry is None:
             return default
-        
+
         # Check if expired
         if entry["expires_at"] and entry["expires_at"] < datetime.now(UTC):
             self._delete_entry(key)
             return default
-        
+
         return entry["value"]
-    
+
     def set(self, key: str, value: Any, ttl_seconds: int = None, ttl_hours: float = None):
         """Set a value in the cache with optional TTL."""
         # Remove existing entry if it exists
         if key in self.cache:
             self._delete_entry(key)
-        
+
         # Calculate size and expiration
         size = self._estimate_size(value)
-        
+
         # Handle both ttl_seconds and ttl_hours
         if ttl_hours is not None:
             ttl_seconds = int(ttl_hours * 3600)
-        
+
         expires_at = datetime.now(UTC) + timedelta(seconds=ttl_seconds) if ttl_seconds else None
-        
+
         # Store the entry
-        self.cache[key] = {
-            "value": value,
-            "size": size,
-            "expires_at": expires_at,
-            "created_at": datetime.now(UTC)
-        }
+        self.cache[key] = {"value": value, "size": size, "expires_at": expires_at, "created_at": datetime.now(UTC)}
         self.current_size_bytes += size
 
     def _cleanup_if_needed(self) -> None:
@@ -209,6 +205,7 @@ class MemoryAwareLRUCache:
     def __len__(self) -> int:  # pragma: no cover - convenience helper
         return len(self.cache)
 
+
 def _hash_key(*parts: str) -> str:
     hasher = hashlib.sha256()
     for part in parts:
@@ -216,6 +213,7 @@ def _hash_key(*parts: str) -> str:
             continue
         hasher.update(part.encode("utf-8"))
     return hasher.hexdigest()
+
 
 class EmbeddingCache:
     """Cache for text embeddings keyed by content hash."""
@@ -235,16 +233,13 @@ class EmbeddingCache:
         return len(cls._cache)
 
     @classmethod
-    def memory_usage_mb(cls) -> float:
-        return cls._cache._current_memory_mb()
-    
-    @classmethod
     def clear(cls) -> None:
         cls._cache.clear()
-    
+
     @classmethod
     def memory_usage_mb(cls) -> float:
         return cls._cache._current_memory_mb()
+
 
 class NERCache:
     """Cache for NER results keyed by text and model name."""
@@ -257,11 +252,8 @@ class NERCache:
 
     @classmethod
     def set_ner_results(
-        cls,
-        text: str,
-        model_name: str,
-        results: list[dict[str, Any]],
-        ttl_hours: float | None = None) -> None:
+        cls, text: str, model_name: str, results: list[dict[str, Any]], ttl_hours: float | None = None
+    ) -> None:
         cls._cache.set(_hash_key(model_name, text), results, ttl_hours=ttl_hours)
 
     @classmethod
@@ -270,10 +262,8 @@ class NERCache:
 
     @classmethod
     def set_document_classification(
-        cls,
-        doc_hash: str,
-        classification: dict[str, Any],
-        ttl_hours: float | None = None) -> None:
+        cls, doc_hash: str, classification: dict[str, Any], ttl_hours: float | None = None
+    ) -> None:
         cls._cache.set(doc_hash, classification, ttl_hours=ttl_hours)
 
     @classmethod
@@ -281,26 +271,22 @@ class NERCache:
         return cls._cache.get(_hash_key(model_name, prompt))
 
     @classmethod
-    def set_llm_response(
-        cls,
-        prompt: str,
-        model_name: str,
-        response: str,
-        ttl_hours: float | None = None) -> None:
+    def set_llm_response(cls, prompt: str, model_name: str, response: str, ttl_hours: float | None = None) -> None:
         cls._cache.set(_hash_key(model_name, prompt), response, ttl_hours=ttl_hours)
-    
+
     @classmethod
     def memory_usage_mb(cls) -> float:
         return cls._cache._current_memory_mb()
-    
+
     @classmethod
     def entry_count(cls) -> int:
         return len(cls._cache)
-    
+
     @classmethod
     def clear(cls) -> None:
         """Clear all cached NER results."""
         cls._cache.clear()
+
 
 def get_cache_stats() -> dict[str, float]:
     """Return basic statistics about in-memory caches."""
@@ -313,9 +299,9 @@ def get_cache_stats() -> dict[str, float]:
     direct_usage = 0.0
     for value in cache_service._direct_cache.values():
         try:
-            direct_usage += len(pickle.dumps(value, protocol=5)) / (1024 ** 2)
+            direct_usage += len(pickle.dumps(value, protocol=5)) / (1024**2)
         except (ValueError, json.JSONDecodeError):
-            direct_usage += len(str(value).encode("utf-8")) / (1024 ** 2)
+            direct_usage += len(str(value).encode("utf-8")) / (1024**2)
 
     total_entries = (
         direct_entries
@@ -327,8 +313,7 @@ def get_cache_stats() -> dict[str, float]:
 
     return {
         "total_entries": total_entries,
-        "memory_usage_mb": round(
-            direct_usage + embedding_usage + ner_usage + llm_usage + doc_usage, 3),
+        "memory_usage_mb": round(direct_usage + embedding_usage + ner_usage + llm_usage + doc_usage, 3),
         "system_memory_percent": float(vm.percent),
         "embedding_entries": EmbeddingCache.entry_count(),
         "ner_entries": NERCache.entry_count(),
@@ -337,6 +322,7 @@ def get_cache_stats() -> dict[str, float]:
         "direct_entries": direct_entries,
     }
 
+
 def cleanup_all_caches() -> None:
     """Clear all in-memory and disk-based caches."""
     EmbeddingCache.clear()
@@ -344,6 +330,7 @@ def cleanup_all_caches() -> None:
     DocumentCache.clear()
     LLMResponseCache.clear()
     cache_service.clear_disk_cache()
+
 
 __all__ = [
     "CacheService",
@@ -354,18 +341,19 @@ __all__ = [
     "DocumentCache",
     "LLMResponseCache",
     "get_cache_stats",
-    "cleanup_all_caches"]
-
+    "cleanup_all_caches",
+]
 
 
 class LLMResponseCache:
     """LLM response cache implementation."""
+
     _cache = {}
 
     @classmethod
     def get_response(cls, model_name: str, prompt: str) -> str | None:
         return cls._cache.get(f"{model_name}:{prompt}")
-    
+
     @classmethod
     def get_llm_response(cls, model_name: str, prompt: str) -> str | None:
         return cls.get_response(model_name, prompt)
@@ -373,31 +361,33 @@ class LLMResponseCache:
     @classmethod
     def set_response(cls, model_name: str, prompt: str, response: str, ttl_hours: int = 24):
         cls._cache[f"{model_name}:{prompt}"] = response
-    
+
     @classmethod
     def set_llm_response(cls, model_name: str, prompt: str, response: str, ttl_hours: int = 24):
         cls.set_response(model_name, prompt, response, ttl_hours)
-    
+
     @classmethod
     def memory_usage_mb(cls) -> float:
         """Estimate memory usage of LLM response cache."""
         total_bytes = 0
         for key, value in cls._cache.items():
-            total_bytes += len(str(key).encode('utf-8'))
-            total_bytes += len(str(value).encode('utf-8'))
+            total_bytes += len(str(key).encode("utf-8"))
+            total_bytes += len(str(value).encode("utf-8"))
         return total_bytes / (1024 * 1024)
-    
+
     @classmethod
     def entry_count(cls) -> int:
         return len(cls._cache)
-    
+
     @classmethod
     def clear(cls) -> None:
         """Clear all cached LLM responses."""
         cls._cache.clear()
 
+
 class DocumentCache:
     """Document cache implementation."""
+
     _cache = {}
 
     @classmethod
@@ -407,35 +397,39 @@ class DocumentCache:
     @classmethod
     def set_document(cls, doc_id: str, document: dict):
         cls._cache[doc_id] = document
-    
+
     @classmethod
     def get_document_classification(cls, doc_id: str) -> str | None:
         doc = cls._cache.get(doc_id)
-        return doc.get('classification') if doc else None
-    
+        return doc.get("classification") if doc else None
+
     @classmethod
     def set_document_classification(cls, doc_id: str, classification: dict):
         if doc_id not in cls._cache:
             cls._cache[doc_id] = {}
-        cls._cache[doc_id]['classification'] = classification
-    
+        cls._cache[doc_id]["classification"] = classification
+
     @classmethod
     def memory_usage_mb(cls) -> float:
         """Estimate memory usage of document cache."""
         total_bytes = 0
         for key, value in cls._cache.items():
-            total_bytes += len(str(key).encode('utf-8'))
+            total_bytes += len(str(key).encode("utf-8"))
             try:
                 import pickle
-                total_bytes += len(pickle.dumps(value))
-            except:
-                total_bytes += len(str(value).encode('utf-8'))
+
+                total_bytes += len(pickle.dumps(value)) / (1024**2)
+            except (pickle.PicklingError, TypeError):
+                # Fallback for unpicklable objects
+                total_bytes += len(str(value).encode("utf-8")) / (1024**2)
+                # Log the error for debugging, but don't fail the size estimation
+                # logger.debug(f"Could not pickle object for size estimation: {e}")
         return total_bytes / (1024 * 1024)
-    
+
     @classmethod
     def entry_count(cls) -> int:
         return len(cls._cache)
-    
+
     @classmethod
     def clear(cls) -> None:
         """Clear all cached documents."""

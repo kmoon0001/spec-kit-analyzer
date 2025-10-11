@@ -1,6 +1,7 @@
-from unittest.mock import MagicMock, patch
-from src.gui.export import generate_pdf_report
 import json
+from unittest.mock import MagicMock, patch
+
+from src.gui.export import generate_pdf_report
 
 
 @patch("src.gui.export.QFileDialog.getSaveFileName")

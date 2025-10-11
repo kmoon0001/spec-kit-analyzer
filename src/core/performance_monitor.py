@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 class MonitoringState(Enum):
     """Monitoring system states."""
+
     STOPPED = "stopped"
     STARTING = "starting"
     RUNNING = "running"
@@ -36,6 +37,7 @@ class MonitoringState(Enum):
 @dataclass
 class MonitoringConfiguration:
     """Configuration for performance monitoring."""
+
     # Basic settings
     enabled: bool = True
     collection_interval: float = 5.0
@@ -44,23 +46,23 @@ class MonitoringConfiguration:
     max_metrics_history: int = 10000
     storage_path: str = "data/monitoring"
     log_level: str = "INFO"
-    
+
     # Feature flags
     enable_real_time_alerts: bool = True
     enable_predictive_analysis: bool = True
     enable_benchmarking: bool = False
-    
+
     # Alert thresholds
     cpu_threshold: float = 80.0
     memory_threshold: float = 85.0
     response_time_threshold: float = 2000.0
     error_rate_threshold: float = 5.0
-    
+
     # Analytics settings
     trend_analysis_window: int = 24
     anomaly_detection_sensitivity: float = 2.0
     prediction_horizon: int = 6
-    
+
     # Legacy compatibility
     alert_thresholds: dict[str, Any] = field(default_factory=dict)
 
@@ -68,6 +70,7 @@ class MonitoringConfiguration:
 @dataclass
 class MonitoringStatus:
     """Current monitoring status."""
+
     state: MonitoringState
     uptime: timedelta
     metrics_collected: int
@@ -144,7 +147,7 @@ class PerformanceMonitor:
         self.performance_thresholds = self._initialize_thresholds()
         self.alerts_enabled = True
         self.monitoring_active = True
-        
+
         # State management
         self.state = MonitoringState.STOPPED
         self._start_time = time.time()
@@ -152,17 +155,17 @@ class PerformanceMonitor:
         self._monitor_thread: threading.Thread | None = None
         self._status_callbacks: list[Callable] = []
         self._metric_callbacks: list[Callable] = []
-        
+
         # Test-expected attributes
         self.start_time: datetime | None = None
         self._metrics_collected: int = 0
         self._alerts_generated: int = 0
         self._error_count: int = 0
-        
+
         # Components
         self.metrics_collector = None
         self.data_aggregator = None
-        
+
         # Create storage directory if needed
         if self.config.storage_path:
             storage_path = Path(self.config.storage_path)
@@ -237,7 +240,8 @@ class PerformanceMonitor:
                 memory_usage_mb=end_memory - start_memory,
                 cpu_usage_percent=(end_cpu + start_cpu) / 2,
                 success=success,
-                metadata=kwargs.get("metadata", {}))
+                metadata=kwargs.get("metadata", {}),
+            )
 
             # Store metric
             self._store_metric(metric)
@@ -252,7 +256,8 @@ class PerformanceMonitor:
         operation: str,
         duration_ms: float,
         success: bool = True,
-        metadata: dict[str, Any] | None = None):
+        metadata: dict[str, Any] | None = None,
+    ):
         """Manually record a performance metric.
 
         Args:
@@ -271,7 +276,8 @@ class PerformanceMonitor:
             memory_usage_mb=self._get_memory_usage(),
             cpu_usage_percent=self._get_cpu_usage(),
             success=success,
-            metadata=metadata or {})
+            metadata=metadata or {},
+        )
 
         self._store_metric(metric)
 
@@ -297,7 +303,8 @@ class PerformanceMonitor:
             active_threads=threading.active_count(),
             response_time_avg=avg_response_time,
             error_rate=error_rate,
-            throughput=throughput)
+            throughput=throughput,
+        )
 
     def get_component_performance(self, component: str, hours: int = 24) -> dict[str, Any]:
         """Get performance statistics for a specific component.
@@ -574,14 +581,14 @@ class PerformanceMonitor:
         else:
             uptime_seconds = time.time() - self._start_time
             uptime = timedelta(seconds=uptime_seconds)
-            
+
         metrics_count = len(self.metrics_history)
         active_sources = self._get_active_sources_count()
-        
+
         last_collection = None
         if self.metrics_history:
             last_collection = self.metrics_history[-1].timestamp
-            
+
         return MonitoringStatus(
             state=self.state,
             uptime=uptime,
@@ -591,31 +598,31 @@ class PerformanceMonitor:
             active_sources=active_sources,
             storage_usage_mb=0.0,  # TODO: Calculate storage usage
             error_count=self._error_count,
-            last_error=self._last_error
+            last_error=self._last_error,
         )
 
     def start_monitoring(self) -> bool:
         """Start the monitoring system."""
         if self.state == MonitoringState.RUNNING:
             return True
-            
+
         if self.state == MonitoringState.STOPPING:
             return False
-            
+
         try:
             self.state = MonitoringState.STARTING
             self._initialize_components()
-            
+
             # Start monitoring thread
             self._monitor_thread = threading.Thread(target=self._background_monitoring, daemon=True)
             self._monitor_thread.start()
-            
+
             self.state = MonitoringState.RUNNING
             self.start_time = datetime.now()
             self._notify_status_callbacks()
             logger.info("Performance monitoring started")
             return True
-            
+
         except Exception as e:
             self._last_error = str(e)
             self.state = MonitoringState.ERROR
@@ -627,26 +634,26 @@ class PerformanceMonitor:
         """Stop the monitoring system."""
         if self.state == MonitoringState.STOPPED:
             return True
-            
+
         # If already stopping, don't change state
         if self.state == MonitoringState.STOPPING:
             return True
-            
+
         try:
             self.state = MonitoringState.STOPPING
             self.monitoring_active = False
-            
+
             # Wait for thread to finish
             if self._monitor_thread and self._monitor_thread.is_alive():
                 self._monitor_thread.join(timeout=10.0)
-                
+
             self._cleanup_components()
             self.state = MonitoringState.STOPPED
             self.start_time = None
             self._notify_status_callbacks()
             logger.info("Performance monitoring stopped")
             return True
-            
+
         except Exception as e:
             self._last_error = str(e)
             logger.error("Error stopping monitoring: %s", e)
@@ -657,15 +664,15 @@ class PerformanceMonitor:
         try:
             self.config = config
             self.max_metrics_history = config.max_metrics_history
-            
+
             # Create storage directory if needed
             if config.storage_path:
                 storage_path = Path(config.storage_path)
                 storage_path.mkdir(parents=True, exist_ok=True)
-                
+
             logger.info("Monitoring configuration updated")
             return True
-            
+
         except Exception as e:
             self._last_error = str(e)
             logger.error("Failed to configure monitoring: %s", e)
@@ -688,33 +695,34 @@ class PerformanceMonitor:
         """Export current configuration to file."""
         try:
             import yaml
+
             config_dict = {
-                'enabled': self.config.enabled,
-                'collection_interval': self.config.collection_interval,
-                'retention_days': self.config.retention_days,
-                'max_metrics_per_batch': self.config.max_metrics_per_batch,
-                'max_metrics_history': self.config.max_metrics_history,
-                'storage_path': self.config.storage_path,
-                'log_level': self.config.log_level,
-                'enable_real_time_alerts': self.config.enable_real_time_alerts,
-                'enable_predictive_analysis': self.config.enable_predictive_analysis,
-                'enable_benchmarking': self.config.enable_benchmarking,
-                'cpu_threshold': self.config.cpu_threshold,
-                'memory_threshold': self.config.memory_threshold,
-                'response_time_threshold': self.config.response_time_threshold,
-                'error_rate_threshold': self.config.error_rate_threshold,
-                'trend_analysis_window': self.config.trend_analysis_window,
-                'anomaly_detection_sensitivity': self.config.anomaly_detection_sensitivity,
-                'prediction_horizon': self.config.prediction_horizon,
-                'alert_thresholds': self.config.alert_thresholds
+                "enabled": self.config.enabled,
+                "collection_interval": self.config.collection_interval,
+                "retention_days": self.config.retention_days,
+                "max_metrics_per_batch": self.config.max_metrics_per_batch,
+                "max_metrics_history": self.config.max_metrics_history,
+                "storage_path": self.config.storage_path,
+                "log_level": self.config.log_level,
+                "enable_real_time_alerts": self.config.enable_real_time_alerts,
+                "enable_predictive_analysis": self.config.enable_predictive_analysis,
+                "enable_benchmarking": self.config.enable_benchmarking,
+                "cpu_threshold": self.config.cpu_threshold,
+                "memory_threshold": self.config.memory_threshold,
+                "response_time_threshold": self.config.response_time_threshold,
+                "error_rate_threshold": self.config.error_rate_threshold,
+                "trend_analysis_window": self.config.trend_analysis_window,
+                "anomaly_detection_sensitivity": self.config.anomaly_detection_sensitivity,
+                "prediction_horizon": self.config.prediction_horizon,
+                "alert_thresholds": self.config.alert_thresholds,
             }
-            
-            with open(file_path, 'w') as f:
+
+            with open(file_path, "w") as f:
                 yaml.dump(config_dict, f)
-                
+
             logger.info("Configuration exported to %s", file_path)
             return True
-            
+
         except Exception as e:
             self._last_error = str(e)
             logger.error("Failed to export configuration: %s", e)
@@ -724,16 +732,16 @@ class PerformanceMonitor:
         """Import configuration from file."""
         try:
             import yaml
-            
+
             if not Path(file_path).exists():
                 raise FileNotFoundError(f"Configuration file not found: {file_path}")
-                
-            with open(file_path, 'r') as f:
+
+            with open(file_path) as f:
                 config_dict = yaml.safe_load(f)
-                
+
             config = MonitoringConfiguration(**config_dict)
             return self.configure_monitoring(config)
-            
+
         except Exception as e:
             self._last_error = str(e)
             logger.error("Failed to import configuration: %s", e)
@@ -745,15 +753,17 @@ class PerformanceMonitor:
             # Initialize metrics collector
             if not self.metrics_collector:
                 from src.core.metrics_collector import MetricsCollector
+
                 self.metrics_collector = MetricsCollector(self.config)
-                
+
             # Initialize data aggregator
             if not self.data_aggregator:
                 from src.core.data_aggregator import DataAggregator
+
                 self.data_aggregator = DataAggregator(self.config)
-                
+
             logger.debug("Monitoring components initialized")
-            
+
         except Exception as e:
             logger.error("Failed to initialize components: %s", e)
             raise
@@ -761,14 +771,14 @@ class PerformanceMonitor:
     def _cleanup_components(self) -> None:
         """Cleanup monitoring components."""
         try:
-            if self.metrics_collector and hasattr(self.metrics_collector, 'cleanup'):
+            if self.metrics_collector and hasattr(self.metrics_collector, "cleanup"):
                 self.metrics_collector.cleanup()
-                
-            if self.data_aggregator and hasattr(self.data_aggregator, 'cleanup'):
+
+            if self.data_aggregator and hasattr(self.data_aggregator, "cleanup"):
                 self.data_aggregator.cleanup()
-                
+
             logger.debug("Monitoring components cleaned up")
-            
+
         except Exception as e:
             logger.error("Error during component cleanup: %s", e)
         finally:
@@ -780,10 +790,10 @@ class PerformanceMonitor:
         """Get count of active metric sources."""
         if self.metrics_collector:
             # Try both method names for compatibility
-            if hasattr(self.metrics_collector, 'get_active_sources_count'):
+            if hasattr(self.metrics_collector, "get_active_sources_count"):
                 count = self.metrics_collector.get_active_sources_count()
                 return count if isinstance(count, int) else 0
-            elif hasattr(self.metrics_collector, 'get_source_count'):
+            elif hasattr(self.metrics_collector, "get_source_count"):
                 count = self.metrics_collector.get_source_count()
                 return count if isinstance(count, int) else 0
         return 0
@@ -805,7 +815,7 @@ class PerformanceMonitor:
         # Handle both single metric and list of metrics
         if not isinstance(metrics, list):
             metrics = [metrics]
-            
+
         for metric in metrics:
             for callback in self._metric_callbacks:
                 try:
@@ -816,7 +826,7 @@ class PerformanceMonitor:
 
 class OperationTracker:
     """Context manager for tracking individual operations."""
-    
+
     def __init__(self, monitor, component: str, operation: str, metadata: dict):
         self.monitor = monitor
         self.component = component
@@ -845,7 +855,8 @@ class OperationTracker:
             memory_usage_mb=end_memory - self.start_memory,
             cpu_usage_percent=(end_cpu + self.start_cpu) / 2,
             success=success,
-            metadata=self.metadata)
+            metadata=self.metadata,
+        )
 
         self.monitor._store_metric(metric)
 

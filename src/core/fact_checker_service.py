@@ -20,9 +20,7 @@ class FactCheckerService:
         if self.classifier is None:
             try:
                 logger.info("Loading fact-checking model: %s", self.model_name)
-                self.classifier = pipeline(
-                    "text2text-generation",
-                    model=self.model_name)
+                self.classifier = pipeline("text2text-generation", model=self.model_name)
                 logger.info("Fact-checking model loaded successfully.")
             except (ValueError, TypeError, AttributeError) as e:
                 logger.exception("Failed to load fact-checking model: %s", e)
@@ -41,8 +39,7 @@ class FactCheckerService:
             self.load_model()
 
         if not self.is_ready():
-            logger.warning(
-                "Fact-checker model not available. Skipping consistency check.")
+            logger.warning("Fact-checker model not available. Skipping consistency check.")
             return True  # Fail open, assuming consistency
 
         try:

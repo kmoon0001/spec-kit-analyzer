@@ -114,17 +114,13 @@ class AdvancedPerformanceOptimizer:
                 self.performance_history = self.performance_history[-1000:]
 
             # AI-powered performance analysis
-            ai_insights = await self.ai_optimizer.analyze_performance_patterns(
-                self.performance_history)
+            ai_insights = await self.ai_optimizer.analyze_performance_patterns(self.performance_history)
 
             # Generate optimization recommendations
-            optimization_plan = await self.ai_optimizer.generate_optimization_plan(
-                current_metrics,
-                ai_insights)
+            optimization_plan = await self.ai_optimizer.generate_optimization_plan(current_metrics, ai_insights)
 
             # Predict future performance issues
-            predictions = await self.ai_optimizer.predict_performance_issues(
-                self.performance_history)
+            predictions = await self.ai_optimizer.predict_performance_issues(self.performance_history)
 
             analysis_result = {
                 "current_metrics": current_metrics,
@@ -661,7 +657,8 @@ class SystemResourceMonitor:
                 gpu_memory_usage_percent=gpu_memory,
                 temperature_celsius=temperature,
                 power_consumption_watts=power_consumption,
-                timestamp=datetime.now())
+                timestamp=datetime.now(),
+            )
 
         except (ImportError, ModuleNotFoundError, AttributeError) as e:
             logger.exception("Error collecting system metrics: %s", e)
@@ -677,7 +674,8 @@ class SystemResourceMonitor:
                 gpu_memory_usage_percent=None,
                 temperature_celsius=None,
                 power_consumption_watts=None,
-                timestamp=datetime.now())
+                timestamp=datetime.now(),
+            )
 
 
 class AIPerformanceOptimizer:
@@ -762,7 +760,8 @@ class AIPerformanceOptimizer:
                         estimated_duration_minutes=15,
                         prerequisites=["System administrator access"],
                         risks=["Temporary performance impact during optimization"],
-                        success_metrics=["CPU usage reduction > 20%", "Response time improvement"])
+                        success_metrics=["CPU usage reduction > 20%", "Response time improvement"],
+                    )
                 )
 
             # Memory optimization plans
@@ -777,7 +776,8 @@ class AIPerformanceOptimizer:
                         estimated_duration_minutes=10,
                         prerequisites=["Memory management permissions"],
                         risks=["Temporary cache miss increase"],
-                        success_metrics=["Memory usage reduction > 15%", "Cache efficiency improvement"])
+                        success_metrics=["Memory usage reduction > 15%", "Cache efficiency improvement"],
+                    )
                 )
 
             # AI-insight based plans
@@ -793,7 +793,8 @@ class AIPerformanceOptimizer:
                         estimated_duration_minutes=30,
                         prerequisites=["AI model deployment", "Historical data"],
                         risks=["Prediction accuracy dependency"],
-                        success_metrics=["CPU trend stabilization", "Proactive optimization triggers"])
+                        success_metrics=["CPU trend stabilization", "Proactive optimization triggers"],
+                    )
                 )
 
         except Exception as e:

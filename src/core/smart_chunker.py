@@ -15,8 +15,8 @@ except LookupError:
     nltk.download("punkt_tab", quiet=True)
     logger.info("'punkt' tokenizer downloaded successfully.")
 
-def sentence_window_chunker(
-    text: str, window_size: int = 1, metadata: dict | None = None):
+
+def sentence_window_chunker(text: str, window_size: int = 1, metadata: dict | None = None):
     """Splits text into sentences and creates chunks with a sliding window of context.
 
     Each chunk dictionary will contain the target sentence and the context window

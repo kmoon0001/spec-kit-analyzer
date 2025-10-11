@@ -90,9 +90,7 @@ class VirtualScrollArea(QScrollArea):
 
         # Calculate visible range with buffer
         first_visible = max(0, (viewport_top // self.item_height) - self.buffer_size)
-        last_visible = min(
-            len(self.items) - 1,
-            (viewport_bottom // self.item_height) + self.buffer_size)
+        last_visible = min(len(self.items) - 1, (viewport_bottom // self.item_height) + self.buffer_size)
 
         # Remove items outside visible range
         for index in list(self.visible_items.keys()):

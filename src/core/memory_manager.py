@@ -72,10 +72,7 @@ class MemoryMonitor:
             return
 
         self._monitoring = True
-        self._monitor_thread = threading.Thread(
-            target=self._monitor_loop,
-            daemon=True,
-            name="MemoryMonitor")
+        self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True, name="MemoryMonitor")
         self._monitor_thread.start()
         logger.info("Memory monitoring started")
 
@@ -120,7 +117,8 @@ class MemoryMonitor:
             swap_used=swap.used,
             swap_percent=swap.percent,
             timestamp=datetime.now(),
-            pressure_level=pressure)
+            pressure_level=pressure,
+        )
 
     def _monitor_loop(self) -> None:
         """Main monitoring loop."""
@@ -146,7 +144,7 @@ class MemoryMonitor:
 
 class ResourceTracker:
     """Track resource usage by component."""
-    
+
     def __init__(self):
         self._lock = threading.Lock()
         self._resources = {}
@@ -241,10 +239,10 @@ class ResourceTracker:
 
 class MemoryOptimizer:
     """Intelligent memory optimization strategies."""
-    
+
     def __init__(self, tracker: ResourceTracker | None = None):
         """Initialize memory optimizer.
-        
+
         Args:
             tracker: Optional resource tracker for optimization decisions
         """
@@ -330,8 +328,7 @@ class MemoryOptimizer:
 
     def _cleanup_stale_resources(self) -> int:
         """Clean up stale resources."""
-        stale_resources = self.tracker.find_stale_resources(
-            timedelta(minutes=30))
+        stale_resources = self.tracker.find_stale_resources(timedelta(minutes=30))
 
         total_freed = 0
         for component, resource_id in stale_resources:
@@ -386,7 +383,7 @@ class MemoryOptimizer:
 
 class MemoryManager:
     """Main memory management service."""
-    
+
     def __init__(self):
         self.monitor = MemoryMonitor()
         self.resource_tracker = ResourceTracker()
@@ -394,7 +391,7 @@ class MemoryManager:
         self._allocation_config = self._calculate_allocation_config()
         self._auto_optimize = True
         self._last_optimization = datetime.now() - timedelta(hours=2)  # Allow immediate optimization
-        
+
         # Register memory pressure callback
         self.monitor.add_callback(self._handle_memory_pressure)
 
@@ -416,14 +413,14 @@ class MemoryManager:
         """Calculate allocation config based on system memory."""
         try:
             total_memory_gb = psutil.virtual_memory().total / (1024**3)
-            
+
             if total_memory_gb >= 16:
                 return ResourceAllocation(
                     max_cache_memory_mb=2048,
                     max_model_memory_mb=4096,
                     max_document_memory_mb=1024,
                     gc_threshold_mb=200,
-                    cleanup_threshold_mb=400
+                    cleanup_threshold_mb=400,
                 )
             elif total_memory_gb >= 8:
                 return ResourceAllocation(
@@ -431,7 +428,7 @@ class MemoryManager:
                     max_model_memory_mb=2048,
                     max_document_memory_mb=512,
                     gc_threshold_mb=150,
-                    cleanup_threshold_mb=300
+                    cleanup_threshold_mb=300,
                 )
             else:
                 return ResourceAllocation()  # Use defaults for smaller systems
@@ -511,21 +508,24 @@ class MemoryManager:
                 max_model_memory_mb=4096,
                 max_document_memory_mb=1024,
                 gc_threshold_mb=512,
-                cleanup_threshold_mb=1024)
+                cleanup_threshold_mb=1024,
+            )
         if total_memory_mb >= 8192:  # 8GB+
             return ResourceAllocation(
                 max_cache_memory_mb=1024,
                 max_model_memory_mb=2048,
                 max_document_memory_mb=512,
                 gc_threshold_mb=256,
-                cleanup_threshold_mb=512)
+                cleanup_threshold_mb=512,
+            )
         # <8GB
         return ResourceAllocation(
             max_cache_memory_mb=512,
             max_model_memory_mb=1024,
             max_document_memory_mb=256,
             gc_threshold_mb=128,
-            cleanup_threshold_mb=256)
+            cleanup_threshold_mb=256,
+        )
 
     def _handle_memory_pressure(self, metrics: MemoryMetrics) -> None:
         """Handle memory pressure events."""

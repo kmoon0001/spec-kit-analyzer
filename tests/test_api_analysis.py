@@ -2,7 +2,7 @@
 # ruff: noqa: E402
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -66,7 +66,7 @@ def client():
         username="testuser",
         is_active=True,
         is_admin=False,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
 
     def override_get_current_active_user():
@@ -86,9 +86,7 @@ def test_analyze_document_api_route(client: TestClient, mocker):
     This test verifies the API logic, file handling, and background task creation.
     """
     # Mock the background task function to check if it's called correctly.
-    mock_run_analysis = mocker.patch(
-        "src.api.routers.analysis.run_analysis_and_save", return_value=None
-    )
+    mock_run_analysis = mocker.patch("src.api.routers.analysis.run_analysis_and_save", return_value=None)
 
     dummy_filename = "test_note.txt"
     with open(dummy_filename, "w") as f:

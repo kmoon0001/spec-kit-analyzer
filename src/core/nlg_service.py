@@ -47,7 +47,8 @@ class NLGService:
             prompt = self.prompt_manager.build_prompt(
                 issue_title=finding.get("issue_title", "N/A"),
                 issue_detail=finding.get("issue_detail", "N/A"),
-                text=finding.get("text", "N/A"))
+                text=finding.get("text", "N/A"),
+            )
 
             # Generate the tip using the LLM
             generated_tip = self.llm_service.generate_analysis(prompt)

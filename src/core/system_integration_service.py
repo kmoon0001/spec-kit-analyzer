@@ -163,10 +163,8 @@ class SystemIntegrationService:
 
             # Determine health status
             health_status = self._calculate_health_status(
-                memory_pressure,
-                cache_hit_rate,
-                resource_utilization,
-                optimization_score)
+                memory_pressure, cache_hit_rate, resource_utilization, optimization_score
+            )
 
             return SystemMetrics(
                 timestamp=datetime.now(),
@@ -177,7 +175,8 @@ class SystemIntegrationService:
                 active_resources=in_use_resources,
                 memory_usage_mb=memory_usage_mb,
                 cpu_usage_percent=0.0,  # Would need psutil for accurate CPU metrics
-                optimization_score=optimization_score)
+                optimization_score=optimization_score,
+            )
 
         except Exception as e:
             logger.exception("Error getting system metrics: %s", e)
@@ -190,7 +189,8 @@ class SystemIntegrationService:
                 active_resources=0,
                 memory_usage_mb=0,
                 cpu_usage_percent=0.0,
-                optimization_score=0.0)
+                optimization_score=0.0,
+            )
 
     def get_metrics_history(self, hours: int = 1) -> list[SystemMetrics]:
         """Get historical system metrics."""
@@ -302,18 +302,16 @@ class SystemIntegrationService:
     def _start_monitoring_thread(self) -> None:
         """Start the system monitoring thread."""
         self._monitor_thread = threading.Thread(
-            target=self._monitoring_loop,
-            daemon=True,
-            name="SystemIntegration-Monitor")
+            target=self._monitoring_loop, daemon=True, name="SystemIntegration-Monitor"
+        )
         self._monitor_thread.start()
 
     def _start_optimization_thread(self) -> None:
         """Start the optimization thread."""
         if self.config.enable_auto_optimization:
             self._optimization_thread = threading.Thread(
-                target=self._optimization_loop,
-                daemon=True,
-                name="SystemIntegration-Optimizer")
+                target=self._optimization_loop, daemon=True, name="SystemIntegration-Optimizer"
+            )
             self._optimization_thread.start()
 
     def _monitoring_loop(self) -> None:
@@ -376,7 +374,8 @@ class SystemIntegrationService:
         memory_pressure: MemoryPressureLevel,
         cache_hit_rate: float,
         resource_utilization: float,
-        optimization_score: float) -> SystemHealthStatus:
+        optimization_score: float,
+    ) -> SystemHealthStatus:
         """Calculate overall system health status."""
         # Weight different factors
         memory_score = {

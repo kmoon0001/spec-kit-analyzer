@@ -1,18 +1,12 @@
-"""Workflow Automation Service
-import requests
-from requests.exceptions import HTTPError
-
-Provides automated workflow capabilities for repetitive healthcare compliance tasks.
-This service enables users to create, schedule, and manage automated workflows
-while maintaining security and audit compliance.
-"""
-
 import asyncio
 import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
+
+import requests
+from requests.exceptions import HTTPError
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +70,8 @@ class WorkflowAutomationService:
         parameters: dict[str, Any],
         schedule: str | None = None,
         enabled: bool = True,
-        user_id: int = 0) -> dict[str, Any]:
+        user_id: int = 0,
+    ) -> dict[str, Any]:
         """Create a new workflow automation.
 
         Args:
@@ -114,7 +109,8 @@ class WorkflowAutomationService:
                 schedule=schedule,
                 enabled=enabled,
                 user_id=user_id,
-                next_execution=next_execution)
+                next_execution=next_execution,
+            )
 
             # Store automation
             self.automations[automation_id] = automation

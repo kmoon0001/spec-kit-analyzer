@@ -3,10 +3,11 @@ Integration tests for performance management system.
 Tests the integration between performance manager, cache service, and GUI components.
 """
 
-import pytest
-from unittest.mock import patch
-import sys
 import os
+import sys
+from unittest.mock import patch
+
+import pytest
 
 # Add src to path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
@@ -96,6 +97,7 @@ class TestPerformanceIntegration:
         """Test that performance status widget can be created."""
         try:
             from PySide6.QtWidgets import QApplication
+
             from src.gui.widgets.performance_status_widget import (
                 PerformanceStatusWidget,
             )
@@ -124,6 +126,7 @@ class TestPerformanceIntegration:
         """Test that performance settings dialog can be created."""
         try:
             from PySide6.QtWidgets import QApplication
+
             from src.gui.dialogs.performance_settings_dialog import (
                 PerformanceSettingsDialog,
             )

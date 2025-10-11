@@ -1,7 +1,7 @@
+import datetime
 import os
 import sys
 import time
-import datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -26,7 +26,7 @@ def client_with_auth_override():
         is_active=True,
         is_admin=False,
         hashed_password="dummy_hash_for_mock_flow",
-        created_at=datetime.datetime.now(datetime.timezone.utc),
+        created_at=datetime.datetime.now(datetime.UTC),
     )
 
     def override_get_current_active_user():
@@ -65,9 +65,7 @@ def test_full_mock_analysis_flow(client_with_auth_override: TestClient):
                 data={"discipline": "pt", "analysis_mode": "rubric"},
                 headers=headers,
             )
-        assert response.status_code == 202, (
-            f"Failed to submit document for analysis: {response.text}"
-        )
+        assert response.status_code == 202, f"Failed to submit document for analysis: {response.text}"
         response_data = response.json()
         task_id = response_data.get("task_id")
         assert task_id is not None, "API did not return a task_id"
@@ -75,9 +73,7 @@ def test_full_mock_analysis_flow(client_with_auth_override: TestClient):
         result = None
         for _ in range(10):  # Poll up to 10 times
             response = client.get(f"/analysis/status/{task_id}", headers=headers)
-            assert response.status_code == 200, (
-                f"Failed to get status for task {task_id}"
-            )
+            assert response.status_code == 200, f"Failed to get status for task {task_id}"
             data = response.json()
             if data.get("status") == "completed":
                 result = data

@@ -57,9 +57,7 @@ class SecurityValidator:
             return False, "Filename is required"
 
         if len(filename) > SecurityValidator.MAX_FILENAME_LENGTH:
-            return (
-                False,
-                f"Filename exceeds maximum length of {SecurityValidator.MAX_FILENAME_LENGTH}")
+            return (False, f"Filename exceeds maximum length of {SecurityValidator.MAX_FILENAME_LENGTH}")
 
         # Check for path traversal attempts
         if ".." in filename or "/" in filename or "\\" in filename:
@@ -71,7 +69,8 @@ class SecurityValidator:
         if file_ext not in SecurityValidator.ALLOWED_FILE_EXTENSIONS:
             return (
                 False,
-                f"File type not allowed. Allowed types: {', '.join(SecurityValidator.ALLOWED_FILE_EXTENSIONS)}")
+                f"File type not allowed. Allowed types: {', '.join(SecurityValidator.ALLOWED_FILE_EXTENSIONS)}",
+            )
 
         return True, None
 
@@ -99,9 +98,7 @@ class SecurityValidator:
 
         """
         if file_size > SecurityValidator.MAX_FILE_SIZE_BYTES:
-            return (
-                False,
-                f"File size exceeds maximum allowed size of {SecurityValidator.MAX_FILE_SIZE_MB}MB")
+            return (False, f"File size exceeds maximum allowed size of {SecurityValidator.MAX_FILE_SIZE_MB}MB")
 
         if file_size == 0:
             return False, "File is empty"
@@ -123,9 +120,7 @@ class SecurityValidator:
             return False, "Discipline is required"
 
         if discipline.lower() not in SecurityValidator.ALLOWED_DISCIPLINES:
-            return (
-                False,
-                f"Invalid discipline. Allowed values: {', '.join(SecurityValidator.ALLOWED_DISCIPLINES)}")
+            return (False, f"Invalid discipline. Allowed values: {', '.join(SecurityValidator.ALLOWED_DISCIPLINES)}")
 
         return True, None
 
@@ -146,7 +141,8 @@ class SecurityValidator:
         if mode.lower() not in SecurityValidator.ALLOWED_ANALYSIS_MODES:
             return (
                 False,
-                f"Invalid analysis mode. Allowed values: {', '.join(SecurityValidator.ALLOWED_ANALYSIS_MODES)}")
+                f"Invalid analysis mode. Allowed values: {', '.join(SecurityValidator.ALLOWED_ANALYSIS_MODES)}",
+            )
 
         return True, None
 
@@ -195,15 +191,11 @@ class SecurityValidator:
             return False, "Username is required"
 
         if len(username) > SecurityValidator.MAX_USERNAME_LENGTH:
-            return (
-                False,
-                f"Username exceeds maximum length of {SecurityValidator.MAX_USERNAME_LENGTH}")
+            return (False, f"Username exceeds maximum length of {SecurityValidator.MAX_USERNAME_LENGTH}")
 
         # Username should only contain alphanumeric characters, underscores, and hyphens
         if not re.match(r"^[a-zA-Z0-9_-]+$", username):
-            return (
-                False,
-                "Username can only contain letters, numbers, underscores, and hyphens")
+            return (False, "Username can only contain letters, numbers, underscores, and hyphens")
 
         return True, None
 
@@ -225,9 +217,7 @@ class SecurityValidator:
             return False, "Password must be at least 8 characters long"
 
         if len(password) > SecurityValidator.MAX_PASSWORD_LENGTH:
-            return (
-                False,
-                f"Password exceeds maximum length of {SecurityValidator.MAX_PASSWORD_LENGTH}")
+            return (False, f"Password exceeds maximum length of {SecurityValidator.MAX_PASSWORD_LENGTH}")
 
         # Check for at least one uppercase, one lowercase, and one digit
         if not re.search(r"[A-Z]", password):

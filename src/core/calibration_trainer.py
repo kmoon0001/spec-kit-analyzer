@@ -1,4 +1,5 @@
 """Training data collection and management for confidence calibration."""
+
 import json
 import logging
 import sqlite3
@@ -151,7 +152,9 @@ class CalibrationTrainer:
                     finding.get("issue_title"),
                     finding.get("priority", finding.get("severity")),
                     user_id,
-                    notes))
+                    notes,
+                ),
+            )
 
         logger.info("Recorded feedback: %s for finding with confidence {original_confidence:.3f}", user_feedback)
 
@@ -307,7 +310,7 @@ class CalibrationTrainer:
 
 class FeedbackCollector:
     """Helper class for collecting user feedback in the GUI."""
-    
+
     def __init__(self, trainer: CalibrationTrainer):
         """Initialize feedback collector with trainer."""
         self.trainer = trainer

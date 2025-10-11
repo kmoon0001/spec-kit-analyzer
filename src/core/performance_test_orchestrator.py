@@ -12,7 +12,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from pathlib import Path
 from typing import Any
 
 import sqlalchemy
@@ -85,99 +84,6 @@ class PerformanceTestResults:
     recommendations: list[str] = field(default_factory=list)
 
 
-class SuiteManager:
-    """Manages test suite configurations and organization"""
-
-    def __init__(self, config_path: Path | None = None):
-        self.config_path = config_path or Path("config/performance_tests.yaml")
-        self.test_configurations: dict[str, PerformanceTestConfig] = {}
-        self.test_suites: dict[str, list[str]] = {}
-        self._load_configurations()
-
-    def _load_configurations(self) -> None:
-        """Load test configurations from YAML file"""
-        try:
-            if self.config_path.exists():
-                with open(self.config_path) as f:
-                    config_data = yaml.safe_load(f)
-
-                # Load individual test configurations
-                for test_config in config_data.get("tests", []):
-                    test = PerformanceTestConfig(
-                        name=test_config["name"],
-                        category=PerformanceCategory(test_config["category"]),
-                        description=test_config["description"],
-                        timeout_seconds=test_config.get("timeout_seconds", 300),
-                        retry_count=test_config.get("retry_count", 3),
-                        enabled=test_config.get("enabled", True),
-                        parameters=test_config.get("parameters", {}),
-                        dependencies=test_config.get("dependencies", []))
-                    self.test_configurations[test.name] = test
-
-                # Load test suite definitions
-                self.test_suites = config_data.get("suites", {})
-
-                logger.info("Loaded %s test configurations", len(self.test_configurations))
-            else:
-                logger.warning("Test configuration file not found: %s", self.config_path)
-                self._create_default_configuration()
-
-        except (FileNotFoundError, PermissionError, OSError) as e:
-            logger.exception("Error loading test configurations: %s", e)
-            self._create_default_configuration()
-
-    def _create_default_configuration(self) -> None:
-        """Create default test configuration"""
-        default_tests = [
-            PerformanceTestConfig(
-                name="baseline_response_time",
-                category=PerformanceCategory.BASELINE,
-                description="Measure baseline response times without optimizations",
-                parameters={"document_count": 10, "iterations": 5}),
-            PerformanceTestConfig(
-                name="cache_optimization_test",
-                category=PerformanceCategory.OPTIMIZATION,
-                description="Test cache optimization effectiveness",
-                parameters={"cache_enabled": True, "document_count": 20}),
-            PerformanceTestConfig(
-                name="memory_optimization_test",
-                category=PerformanceCategory.OPTIMIZATION,
-                description="Test memory optimization effectiveness",
-                parameters={"memory_optimization": True, "document_count": 15}),
-            PerformanceTestConfig(
-                name="load_test_standard",
-                category=PerformanceCategory.LOAD,
-                description="Standard load testing with realistic document volumes",
-                parameters={"documents_per_minute": 30, "duration_minutes": 5}),
-        ]
-
-        for test in default_tests:
-            self.test_configurations[test.name] = test
-
-        self.test_suites = {
-            "full_suite": list(self.test_configurations.keys()),
-            "optimization_suite": [
-                "baseline_response_time",
-                "cache_optimization_test",
-                "memory_optimization_test",
-            ],
-            "load_suite": ["load_test_standard"],
-        }
-
-    def get_test_configuration(self, test_name: str) -> PerformanceTestConfig | None:
-        """Get configuration for a specific test"""
-        return self.test_configurations.get(test_name)
-
-    def get_suite_tests(self, suite_name: str) -> list[PerformanceTestConfig]:
-        """Get all test configurations for a test suite"""
-        test_names = self.test_suites.get(suite_name, [])
-        return [self.test_configurations[name] for name in test_names if name in self.test_configurations]
-
-    def get_available_suites(self) -> list[str]:
-        """Get list of available test suites"""
-        return list(self.test_suites.keys())
-
-
 class ExecutionEngine:
     """Executes individual tests and collects results"""
 
@@ -191,40 +97,11 @@ class ExecutionEngine:
         self.test_runners[category] = runner
         logger.info("Registered test runner for category: %s", category.value)
 
-    async def execute_tests_parallel(self, configs: list[PerformanceTestConfig]) -> list[SingleTestResult]:
-        """Execute multiple tests in parallel."""
-        # Filter enabled tests
-        enabled_configs = [config for config in configs if getattr(config, 'enabled', True)]
-        
-        # Execute tests concurrently
-        tasks = [self.execute_test(config) for config in enabled_configs]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Convert exceptions to failed results
-        final_results = []
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                failed_result = SingleTestResult(
-                    test_name=enabled_configs[i].name,
-                    category=enabled_configs[i].category,
-                    status=ExecutionStatus.FAILED,
-                    start_time=datetime.now(),
-                    end_time=datetime.now(),
-                    error_message=str(result)
-                )
-                final_results.append(failed_result)
-            else:
-                final_results.append(result)
-        
-        return final_results
-
     async def execute_test(self, config: PerformanceTestConfig) -> SingleTestResult:
         """Execute a single performance test"""
         result = SingleTestResult(
-            test_name=config.name,
-            category=config.category,
-            status=ExecutionStatus.RUNNING,
-            start_time=datetime.now())
+            test_name=config.name, category=config.category, status=ExecutionStatus.RUNNING, start_time=datetime.now()
+        )
 
         try:
             logger.info("Starting test: %s", config.name)
@@ -290,7 +167,8 @@ class ExecutionEngine:
                     status=ExecutionStatus.FAILED,
                     start_time=datetime.now(),
                     end_time=datetime.now(),
-                    error_message=str(result))
+                    error_message=str(result),
+                )
                 test_results.append(failed_result)
             else:
                 test_results.append(result)
@@ -300,22 +178,22 @@ class ExecutionEngine:
 
 class SuiteManager:
     """Manages test suites and configurations."""
-    
+
     def __init__(self, config_path: str | None = None):
         """Initialize the suite manager.
-        
+
         Args:
             config_path: Optional path to YAML configuration file
         """
         self.test_suites = {}
         self.test_configurations = {}
         self.config_path = config_path
-        
+
         if config_path:
             self._load_configurations_from_yaml(config_path)
         else:
             self._load_default_suites()
-    
+
     def _load_default_suites(self):
         """Load default test suites."""
         # Baseline tests suite
@@ -323,106 +201,106 @@ class SuiteManager:
             PerformanceTestConfig(
                 name="baseline_response_time",
                 category=PerformanceCategory.BASELINE,
-                description="Baseline response time performance"
+                description="Baseline response time performance",
             ),
             PerformanceTestConfig(
                 name="document_processing_baseline",
                 category=PerformanceCategory.BASELINE,
-                description="Baseline document processing performance"
+                description="Baseline document processing performance",
             ),
             PerformanceTestConfig(
                 name="analysis_baseline",
                 category=PerformanceCategory.BASELINE,
-                description="Baseline analysis performance"
-            )
+                description="Baseline analysis performance",
+            ),
         ]
-        
+
         # Optimization tests suite
         optimization_tests = [
             PerformanceTestConfig(
                 name="cache_optimization",
                 category=PerformanceCategory.OPTIMIZATION,
-                description="Cache optimization performance"
+                description="Cache optimization performance",
             ),
             PerformanceTestConfig(
                 name="memory_optimization",
                 category=PerformanceCategory.OPTIMIZATION,
-                description="Memory optimization performance"
-            )
+                description="Memory optimization performance",
+            ),
         ]
-        
+
         # Load tests suite
         load_tests = [
             PerformanceTestConfig(
                 name="concurrent_processing",
                 category=PerformanceCategory.LOAD,
-                description="Concurrent document processing"
+                description="Concurrent document processing",
             )
         ]
-        
+
         self.test_suites = {
             "baseline_tests": baseline_tests,
             "optimization_tests": optimization_tests,
             "optimization_suite": optimization_tests,  # Alias for test compatibility
             "load_tests": load_tests,
-            "full_suite": baseline_tests + optimization_tests + load_tests
+            "full_suite": baseline_tests + optimization_tests + load_tests,
         }
-        
+
         # Also populate test_configurations for individual access
         all_tests = baseline_tests + optimization_tests + load_tests
         self.test_configurations = {test.name: test for test in all_tests}
-    
+
     def get_suite(self, suite_name: str) -> list[PerformanceTestConfig]:
         """Get a test suite by name."""
         suite_data = self.test_suites.get(suite_name, [])
-        
+
         # If suite contains test names (strings), convert to test objects
         if suite_data and isinstance(suite_data[0], str):
             return [self.test_configurations[name] for name in suite_data if name in self.test_configurations]
-        
+
         # Otherwise return as-is (already test objects)
         return suite_data
-    
+
     def get_available_suites(self) -> list[str]:
         """Get list of available suite names."""
         return list(self.test_suites.keys())
-    
+
     def get_suite_tests(self, suite_name: str) -> list[PerformanceTestConfig]:
         """Get test configurations for a suite."""
         return self.get_suite(suite_name)
-    
+
     def get_test_configuration(self, test_name: str) -> PerformanceTestConfig | None:
         """Get a specific test configuration by name."""
         return self.test_configurations.get(test_name)
-    
+
     def _load_configurations_from_yaml(self, config_path: str) -> None:
         """Load test configurations from YAML file."""
         try:
-            with open(config_path, 'r') as f:
+            with open(config_path) as f:
                 config_data = yaml.safe_load(f)
-            
+
             # Load test configurations
-            tests = config_data.get('tests', [])
+            tests = config_data.get("tests", [])
             test_configs = []
-            
+
             for test_data in tests:
                 config = PerformanceTestConfig(
-                    name=test_data['name'],
-                    category=PerformanceCategory(test_data['category']),
-                    description=test_data['description'],
-                    timeout_seconds=test_data.get('timeout_seconds', 300),
-                    enabled=test_data.get('enabled', True),
-                    parameters=test_data.get('parameters', {})
+                    name=test_data["name"],
+                    category=PerformanceCategory(test_data["category"]),
+                    description=test_data["description"],
+                    timeout_seconds=test_data.get("timeout_seconds", 300),
+                    enabled=test_data.get("enabled", True),
+                    parameters=test_data.get("parameters", {}),
                 )
                 test_configs.append(config)
                 self.test_configurations[config.name] = config
-            
+
             # Load test suites
-            suites = config_data.get('suites', {})
+            suites = config_data.get("suites", {})
             for suite_name, test_names in suites.items():
                 # Store test names for direct access
                 self.test_suites[suite_name] = test_names
-                
+
         except Exception as e:
             logger.exception("Failed to load configurations from YAML: %s", e)
             # Fall back to default suites
@@ -493,9 +371,7 @@ class PerformanceTestOrchestrator:
         """Run a complete test suite"""
         logger.info("Starting test suite: %s", suite_name)
 
-        suite_result = PerformanceTestResults(
-            suite_name=suite_name,
-            start_time=datetime.now())
+        suite_result = PerformanceTestResults(suite_name=suite_name, start_time=datetime.now())
 
         try:
             # Get test configurations for the suite
@@ -541,9 +417,7 @@ class PerformanceTestOrchestrator:
             if config.category == PerformanceCategory.BASELINE and config.enabled
         ]
 
-        suite_result = PerformanceTestResults(
-            suite_name="baseline_tests",
-            start_time=datetime.now())
+        suite_result = PerformanceTestResults(suite_name="baseline_tests", start_time=datetime.now())
 
         if baseline_configs:
             test_results = await self.execution_engine.execute_tests_parallel(baseline_configs)
@@ -561,9 +435,7 @@ class PerformanceTestOrchestrator:
             if config.category == PerformanceCategory.OPTIMIZATION and config.enabled
         ]
 
-        suite_result = PerformanceTestResults(
-            suite_name="optimization_tests",
-            start_time=datetime.now())
+        suite_result = PerformanceTestResults(suite_name="optimization_tests", start_time=datetime.now())
 
         if optimization_configs:
             test_results = await self.execution_engine.execute_tests_parallel(optimization_configs)
@@ -623,8 +495,7 @@ class PerformanceTestOrchestrator:
 
         failed_tests = [r for r in test_results if r.status == ExecutionStatus.FAILED]
         if failed_tests:
-            recommendations.append(
-                f"Address {len(failed_tests)} failed tests to improve system reliability")
+            recommendations.append(f"Address {len(failed_tests)} failed tests to improve system reliability")
 
         completed_tests = [r for r in test_results if r.status == ExecutionStatus.COMPLETED]
 
@@ -636,8 +507,7 @@ class PerformanceTestOrchestrator:
         if response_times:
             avg_response_time = sum(response_times) / len(response_times)
             if avg_response_time > 200:
-                recommendations.append(
-                    "Consider enabling additional optimizations to improve response times")
+                recommendations.append("Consider enabling additional optimizations to improve response times")
 
         # Analyze memory usage
         memory_usage = [r.metrics.get("memory_usage_mb", 0) for r in completed_tests if "memory_usage_mb" in r.metrics]
@@ -645,8 +515,7 @@ class PerformanceTestOrchestrator:
         if memory_usage:
             avg_memory = sum(memory_usage) / len(memory_usage)
             if avg_memory > 400:
-                recommendations.append(
-                    "High memory usage detected - consider memory optimization strategies")
+                recommendations.append("High memory usage detected - consider memory optimization strategies")
 
         if not recommendations:
             recommendations.append("Performance tests completed successfully - system is performing well")

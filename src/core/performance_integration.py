@@ -1,15 +1,10 @@
-"""Performance Integration Service - Connects performance management to the main application.
-import requests
-from requests.exceptions import HTTPError
-from scipy import stats
-Provides a unified interface for performance monitoring and optimization.
-"""
-
 import logging
 from collections.abc import Callable
 from typing import Any
 
+import requests
 from PySide6.QtCore import QObject, QTimer, Signal
+from requests.exceptions import HTTPError
 
 logger = logging.getLogger(__name__)
 
@@ -78,14 +73,11 @@ class PerformanceIntegrationService(QObject):
                 status.update(
                     {
                         "current_profile": self.performance_manager.current_profile.value,
-                        "system_memory_percent": memory_stats.get(
-                            "system_used_percent",
-                            0),
+                        "system_memory_percent": memory_stats.get("system_used_percent", 0),
                         "process_memory_mb": memory_stats.get("process_memory_mb", 0),
-                        "gpu_available": self.performance_manager.system_info.get(
-                            "cuda_available",
-                            False),
-                    })
+                        "gpu_available": self.performance_manager.system_info.get("cuda_available", False),
+                    }
+                )
             except (FileNotFoundError, PermissionError, OSError) as e:
                 logger.exception("Error getting performance manager status: %s", e)
                 status["performance_error"] = str(e)
@@ -100,7 +92,8 @@ class PerformanceIntegrationService(QObject):
                         "cache_memory_mb": cache_stats.get("memory_usage_mb", 0),
                         "cache_entries": cache_stats.get("total_entries", 0),
                         "cache_hit_rate": self._get_cache_hit_rate(),
-                    })
+                    }
+                )
             except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
                 logger.exception("Error getting cache status: %s", e)
                 status["cache_error"] = str(e)
@@ -125,7 +118,8 @@ class PerformanceIntegrationService(QObject):
                 if memory_percent > 80:
                     # High memory usage - recommend conservative settings
                     optimization_results["recommendations"].append(
-                        "High memory usage detected. Consider switching to Conservative profile.")
+                        "High memory usage detected. Consider switching to Conservative profile."
+                    )
 
                     # Trigger adaptive cleanup
                     self.performance_manager.adaptive_cleanup()
@@ -139,9 +133,9 @@ class PerformanceIntegrationService(QObject):
                 cleanup_all_caches()
                 cache_stats_after = get_cache_stats()
 
-                memory_freed = cache_stats_before.get(
-                    "memory_usage_mb",
-                    0) - cache_stats_after.get("memory_usage_mb", 0)
+                memory_freed = cache_stats_before.get("memory_usage_mb", 0) - cache_stats_after.get(
+                    "memory_usage_mb", 0
+                )
                 if memory_freed > 0:
                     optimization_results["memory_freed_mb"] = memory_freed
                     optimization_results["cache_cleanup"] = True
@@ -175,20 +169,14 @@ class PerformanceIntegrationService(QObject):
 
             # Check for warning conditions
             if memory_percent > 90:
-                self._emit_warning(
-                    "critical",
-                    f"Critical memory usage: {memory_percent}%")
+                self._emit_warning("critical", f"Critical memory usage: {memory_percent}%")
             elif memory_percent > 80:
-                self._emit_warning(
-                    "warning",
-                    f"High memory usage: {memory_percent}%")
+                self._emit_warning("warning", f"High memory usage: {memory_percent}%")
 
             # Check process memory
             process_memory = memory_stats.get("process_memory_mb", 0)
             if process_memory > 2048:  # 2GB
-                self._emit_warning(
-                    "warning",
-                    f"High process memory usage: {process_memory} MB")
+                self._emit_warning("warning", f"High process memory usage: {process_memory} MB")
 
         except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("Error in performance check: %s", e)

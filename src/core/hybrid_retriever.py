@@ -28,7 +28,8 @@ class HybridRetriever:
         self,
         rules: list[dict[str, str]] | None = None,
         model_name: str | None = None,
-        query_expander: QueryExpander | None = None) -> None:
+        query_expander: QueryExpander | None = None,
+    ) -> None:
         settings = get_settings()
         self.rules = rules or self._load_rules_from_db()
 
@@ -101,7 +102,8 @@ class HybridRetriever:
         category_filter: str | None = None,
         discipline: str | None = None,
         document_type: str | None = None,
-        context_entities: list[str] | None = None) -> list[dict[str, str]]:
+        context_entities: list[str] | None = None,
+    ) -> list[dict[str, str]]:
         if not self.rules or not self.corpus:
             return []
 
@@ -112,16 +114,15 @@ class HybridRetriever:
         if self.use_query_expansion:
             try:
                 expansion_result = self.query_expander.expand_query(
-                    query=query,
-                    discipline=discipline,
-                    document_type=document_type,
-                    context_entities=context_entities)
+                    query=query, discipline=discipline, document_type=document_type, context_entities=context_entities
+                )
                 expanded_query = expansion_result.get_expanded_query(max_terms=8)
                 logger.debug(
                     "Query expanded from '%s' to '%s' (%s total terms)",
                     query,
                     expanded_query,
-                    expansion_result.total_terms)
+                    expansion_result.total_terms,
+                )
             except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
                 logger.warning("Query expansion failed, using original query: %s", e)
                 expanded_query = query

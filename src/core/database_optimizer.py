@@ -55,10 +55,7 @@ class DatabaseOptimizer:
         self.old_data_threshold_days = 90  # days
         self.vacuum_size_threshold = 100 * 1024 * 1024  # 100MB
 
-    async def analyze_table_statistics(
-        self,
-        db: AsyncSession,
-        table_name: str) -> dict[str, Any]:
+    async def analyze_table_statistics(self, db: AsyncSession, table_name: str) -> dict[str, Any]:
         """Analyzes statistics for a given database table.
 
         Retrieves row count, table size, and average row size to identify
@@ -85,13 +82,11 @@ class DatabaseOptimizer:
         """
         try:
             # Get row count
-            result = await db.execute(
-                text(f"SELECT COUNT(*) as row_count FROM {table_name}"))
+            result = await db.execute(text(f"SELECT COUNT(*) as row_count FROM {table_name}"))
             row_count = result.scalar()
 
             # Get table size information (SQLite specific)
-            size_result = await db.execute(
-                text(f"SELECT SUM(pgsize) FROM dbstat WHERE name='{table_name}'"))
+            size_result = await db.execute(text(f"SELECT SUM(pgsize) FROM dbstat WHERE name='{table_name}'"))
             table_size = size_result.scalar() or 0
 
             # Calculate average row size
@@ -116,9 +111,7 @@ class DatabaseOptimizer:
                 "analyzed_at": datetime.now().isoformat(),
             }
 
-    async def get_optimization_recommendations(
-        self,
-        db: AsyncSession) -> list[dict[str, Any]]:
+    async def get_optimization_recommendations(self, db: AsyncSession) -> list[dict[str, Any]]:
         """Generates a list of database optimization recommendations.
 
         These recommendations can include suggestions for regular maintenance tasks
@@ -152,7 +145,8 @@ class DatabaseOptimizer:
                     "description": "Run VACUUM periodically to reclaim space",
                     "priority": "medium",
                     "impact": "storage optimization",
-                })
+                }
+            )
 
             recommendations.append(
                 {
@@ -161,17 +155,15 @@ class DatabaseOptimizer:
                     "description": "Ensure proper indexes on frequently queried columns",
                     "priority": "high",
                     "impact": "query performance",
-                })
+                }
+            )
 
         except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
             logger.exception("Error getting optimization recommendations: %s", e)
 
         return recommendations
 
-    async def cleanup_old_data(
-        self,
-        db: AsyncSession,
-        days_to_keep: int = 90) -> dict[str, Any]:
+    async def cleanup_old_data(self, db: AsyncSession, days_to_keep: int = 90) -> dict[str, Any]:
         """Cleans up old data from the database based on a retention policy.
 
         This method deletes records older than a specified number of days,

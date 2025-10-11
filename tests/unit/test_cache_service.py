@@ -2,17 +2,18 @@
 Unit tests for the cache service and integration.
 """
 
-from unittest.mock import patch, MagicMock
-from src.core.cache_service import (
-    MemoryAwareLRUCache,
-    EmbeddingCache,
-    NERCache,
-    DocumentCache,
-    LLMResponseCache,
-    get_cache_stats,
-    cleanup_all_caches,
-)
+from unittest.mock import MagicMock, patch
+
 from src.core.cache_integration_service import CacheIntegrationService
+from src.core.cache_service import (
+    DocumentCache,
+    EmbeddingCache,
+    LLMResponseCache,
+    MemoryAwareLRUCache,
+    NERCache,
+    cleanup_all_caches,
+    get_cache_stats,
+)
 
 
 class TestMemoryAwareLRUCache:

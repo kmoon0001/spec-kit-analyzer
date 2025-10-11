@@ -38,10 +38,7 @@ class IndividualHabitTracker:
         self.user_id = user_id
         self.habits_framework = habits_framework
 
-    async def get_personal_habit_profile(
-        self,
-        db_session,
-        days_back: int = 90) -> dict[str, Any]:
+    async def get_personal_habit_profile(self, db_session, days_back: int = 90) -> dict[str, Any]:
         """Get comprehensive personal habit profile for the user.
 
         Args:
@@ -57,9 +54,8 @@ class IndividualHabitTracker:
 
         # Get user's reports with findings
         user_reports = await crud.get_user_reports_with_findings(
-            db_session,
-            user_id=self.user_id,
-            start_date=cutoff_date)
+            db_session, user_id=self.user_id, start_date=cutoff_date
+        )
 
         if not user_reports:
             return self._empty_profile()
@@ -74,7 +70,8 @@ class IndividualHabitTracker:
                         "issue_title": finding.issue_title or "",
                         "text": finding.problematic_text or "",
                         "risk": finding.risk or "LOW",
-                    })
+                    }
+                )
 
                 all_findings.append(
                     {
@@ -84,17 +81,14 @@ class IndividualHabitTracker:
                         "date": report.analysis_date,
                         "risk": finding.risk,
                         "confidence": finding.confidence_score or 0.8,
-                    })
+                    }
+                )
 
         # Calculate progression metrics
-        progression_metrics = self.habits_framework.get_habit_progression_metrics(
-            all_findings)
+        progression_metrics = self.habits_framework.get_habit_progression_metrics(all_findings)
 
         # Calculate personal insights
-        personal_insights = await self._calculate_personal_insights(
-            db_session,
-            all_findings,
-            user_reports)
+        personal_insights = await self._calculate_personal_insights(db_session, all_findings, user_reports)
 
         # Get achievement status
         achievements = await self._calculate_achievements(db_session, all_findings)
@@ -103,9 +97,7 @@ class IndividualHabitTracker:
         streaks = self._calculate_streaks(user_reports)
 
         # Generate personalized recommendations
-        recommendations = self._generate_personal_recommendations(
-            progression_metrics,
-            personal_insights)
+        recommendations = self._generate_personal_recommendations(progression_metrics, personal_insights)
 
         return {
             "user_id": self.user_id,
@@ -124,11 +116,7 @@ class IndividualHabitTracker:
             "generated_at": datetime.now(UTC).isoformat(),
         }
 
-    async def get_habit_timeline(
-        self,
-        db_session,
-        habit_id: str,
-        days_back: int = 30) -> dict[str, Any]:
+    async def get_habit_timeline(self, db_session, habit_id: str, days_back: int = 30) -> dict[str, Any]:
         """Get detailed timeline for a specific habit.
 
         Args:
@@ -143,9 +131,8 @@ class IndividualHabitTracker:
         cutoff_date = datetime.now(UTC) - timedelta(days=days_back)
 
         user_reports = await crud.get_user_reports_with_findings(
-            db_session,
-            user_id=self.user_id,
-            start_date=cutoff_date)
+            db_session, user_id=self.user_id, start_date=cutoff_date
+        )
 
         # Create daily timeline
         timeline = {}
@@ -169,7 +156,8 @@ class IndividualHabitTracker:
                     {
                         "issue_title": finding.issue_title or "",
                         "text": finding.problematic_text or "",
-                    })
+                    }
+                )
 
                 if finding_habit["habit_id"] == habit_id:
                     timeline[date_key]["habit_findings"] += 1
@@ -178,7 +166,8 @@ class IndividualHabitTracker:
                             "issue": finding.issue_title,
                             "risk": finding.risk,
                             "confidence": finding.confidence_score,
-                        })
+                        }
+                    )
 
         # Sort timeline by date
         sorted_timeline = sorted(timeline.values(), key=lambda x: x["date"])
@@ -191,8 +180,7 @@ class IndividualHabitTracker:
             "timeline": sorted_timeline,
             "summary": {
                 "total_days": len(sorted_timeline),
-                "days_with_findings": len(
-                    [d for d in sorted_timeline if d["habit_findings"] > 0]),
+                "days_with_findings": len([d for d in sorted_timeline if d["habit_findings"] > 0]),
                 "total_habit_findings": sum(d["habit_findings"] for d in sorted_timeline),
                 "avg_findings_per_day": sum(d["habit_findings"] for d in sorted_timeline)
                 / max(len(sorted_timeline), 1),
@@ -200,12 +188,8 @@ class IndividualHabitTracker:
         }
 
     async def set_personal_goal(
-        self,
-        db_session,
-        habit_id: str,
-        goal_type: str,
-        target_value: float,
-        target_date: datetime) -> dict[str, Any]:
+        self, db_session, habit_id: str, goal_type: str, target_value: float, target_date: datetime
+    ) -> dict[str, Any]:
         """Set a personal habit improvement goal.
 
         Args:
@@ -264,10 +248,8 @@ class IndividualHabitTracker:
         }
 
     async def _calculate_personal_insights(
-        self,
-        db_session,
-        findings: list[dict],
-        reports: list[Any]) -> dict[str, Any]:
+        self, db_session, findings: list[dict], reports: list[Any]
+    ) -> dict[str, Any]:
         """Calculate personalized insights from user's data."""
         if not findings:
             return {
@@ -312,7 +294,8 @@ class IndividualHabitTracker:
                     "habit_name": habit_details["name"],
                     "finding_count": count,
                     "strength_level": "Strong" if count < len(findings) * 0.1 else "Good",
-                })
+                }
+            )
 
         # Focus areas (highest finding rates)
         focus_areas = []
@@ -325,7 +308,8 @@ class IndividualHabitTracker:
                         "habit_name": habit_details["name"],
                         "finding_count": count,
                         "percentage": round(count / len(findings) * 100, 1),
-                    })
+                    }
+                )
 
         return {
             "improvement_trend": trend,
@@ -334,10 +318,7 @@ class IndividualHabitTracker:
             "total_analysis_days": len(set(f["date"].date() for f in findings)),
         }
 
-    async def _calculate_achievements(
-        self,
-        db_session,
-        findings: list[dict]) -> dict[str, Any]:
+    async def _calculate_achievements(self, db_session, findings: list[dict]) -> dict[str, Any]:
         """Calculate user achievements and badges."""
         badges = []
         milestones = []
@@ -366,7 +347,8 @@ class IndividualHabitTracker:
                         "icon": "🏆",
                         "earned_date": datetime.now(UTC).isoformat(),
                         "points": 100,
-                    })
+                    }
+                )
                 points += 100
 
         # Analysis milestones
@@ -383,7 +365,8 @@ class IndividualHabitTracker:
                         "icon": "📊",
                         "achieved": True,
                         "points": threshold // 10,
-                    })
+                    }
+                )
                 points += threshold // 10
 
         return {"badges": badges, "milestones": milestones, "total_points": points}
@@ -418,10 +401,7 @@ class IndividualHabitTracker:
             "last_analysis_date": sorted_reports[-1].analysis_date.isoformat() if sorted_reports else None,
         }
 
-    def _generate_personal_recommendations(
-        self,
-        progression_metrics: dict,
-        insights: dict) -> list[dict[str, Any]]:
+    def _generate_personal_recommendations(self, progression_metrics: dict, insights: dict) -> list[dict[str, Any]]:
         """Generate personalized improvement recommendations."""
         recommendations = []
 
@@ -440,7 +420,8 @@ class IndividualHabitTracker:
                     "description": f"This habit represents {habit_data['percentage']}% of your findings. Focusing here will have the biggest impact.",
                     "action_items": habit_details["improvement_strategies"][:3],
                     "habit_id": habit_id,
-                })
+                }
+            )
 
         # Improvement trend recommendations
         if insights.get("improvement_trend") == "declining":
@@ -455,7 +436,8 @@ class IndividualHabitTracker:
                         "Schedule time for documentation review",
                         "Consider additional training or resources",
                     ],
-                })
+                }
+            )
         elif insights.get("improvement_trend") == "improving":
             recommendations.append(
                 {
@@ -468,7 +450,8 @@ class IndividualHabitTracker:
                         "Share successful strategies with colleagues",
                         "Set new improvement goals",
                     ],
-                })
+                }
+            )
 
         # Strongest habit reinforcement
         if insights.get("strongest_habits"):
@@ -484,6 +467,7 @@ class IndividualHabitTracker:
                         "Share tips with team members",
                         "Maintain current excellence",
                     ],
-                })
+                }
+            )
 
         return recommendations

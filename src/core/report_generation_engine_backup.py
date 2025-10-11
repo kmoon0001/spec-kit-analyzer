@@ -386,24 +386,28 @@ class ReportConfigurationManager:
                 title="Performance Analysis Report",
                 description="Comprehensive performance analysis with optimization comparisons",
                 time_range=TimeRange.last_hours(24),
-                template_id="performance_analysis"),
+                template_id="performance_analysis",
+            ),
             ReportType.COMPLIANCE_ANALYSIS: ReportConfig(
                 report_type=ReportType.COMPLIANCE_ANALYSIS,
                 title="Compliance Analysis Report",
                 description="Detailed compliance analysis with regulatory findings",
-                template_id="compliance_analysis"),
+                template_id="compliance_analysis",
+            ),
             ReportType.DASHBOARD: ReportConfig(
                 report_type=ReportType.DASHBOARD,
                 title="System Dashboard",
                 description="Real-time system performance and health dashboard",
                 time_range=TimeRange.last_hours(1),
-                template_id="dashboard"),
+                template_id="dashboard",
+            ),
             ReportType.EXECUTIVE_SUMMARY: ReportConfig(
                 report_type=ReportType.EXECUTIVE_SUMMARY,
                 title="Executive Summary",
                 description="High-level performance and compliance summary",
                 time_range=TimeRange.last_days(7),
-                template_id="executive_summary"),
+                template_id="executive_summary",
+            ),
         }
 
         self.default_configs = default_configs
@@ -423,7 +427,8 @@ class ReportConfigurationManager:
             tr_data = config_data["time_range"]
             time_range = TimeRange(
                 start_time=datetime.fromisoformat(tr_data["start_time"]),
-                end_time=datetime.fromisoformat(tr_data["end_time"]))
+                end_time=datetime.fromisoformat(tr_data["end_time"]),
+            )
 
         return ReportConfig(
             report_type=ReportType(config_data["report_type"]),
@@ -435,7 +440,8 @@ class ReportConfigurationManager:
             template_id=config_data.get("template_id"),
             output_formats=[ReportFormat(fmt) for fmt in config_data.get("output_formats", ["html"])],
             recipients=config_data.get("recipients", []),
-            metadata=config_data.get("metadata", {}))
+            metadata=config_data.get("metadata", {}),
+        )
 
     def _config_to_dict(self, config: ReportConfig) -> dict[str, Any]:
         """Convert ReportConfig to dictionary"""
@@ -510,7 +516,8 @@ class ReportGenerationEngine:
             report_type=config.report_type,
             generated_at=datetime.now(),
             config=config,
-            status=ReportStatus.GENERATING)
+            status=ReportStatus.GENERATING,
+        )
 
         try:
             logger.info("Starting report generation with AI guardrails: %s", report_id)
@@ -541,10 +548,8 @@ class ReportGenerationEngine:
             # Add rendered content as main section if not already present
             if not any(s.id == "main_content" for s in report.sections):
                 main_section = ReportSection(
-                    id="main_content",
-                    title="Report Content",
-                    content=rendered_content,
-                    section_type="html")
+                    id="main_content", title="Report Content", content=rendered_content, section_type="html"
+                )
                 report.add_section(main_section)
 
             report.status = ReportStatus.COMPLETED
@@ -596,7 +601,8 @@ class ReportGenerationEngine:
             title="Performance Summary",
             content="Performance analysis summary will be generated here.",
             section_type="summary",
-            data=data)
+            data=data,
+        )
         sections.append(summary_section)
 
         # Metrics section
@@ -606,7 +612,8 @@ class ReportGenerationEngine:
                 title="Performance Metrics",
                 content="Detailed performance metrics analysis.",
                 section_type="metrics",
-                data=data.get("performance_metrics", {}))
+                data=data.get("performance_metrics", {}),
+            )
             sections.append(metrics_section)
 
         return sections
@@ -621,7 +628,8 @@ class ReportGenerationEngine:
             title="Compliance Overview",
             content="Compliance analysis overview will be generated here.",
             section_type="overview",
-            data=data)
+            data=data,
+        )
         sections.append(overview_section)
 
         return sections
@@ -636,7 +644,8 @@ class ReportGenerationEngine:
             title="System Status",
             content="Real-time system status dashboard.",
             section_type="dashboard",
-            data=data)
+            data=data,
+        )
         sections.append(status_section)
 
         return sections
@@ -651,7 +660,8 @@ class ReportGenerationEngine:
             title="Executive Summary",
             content="High-level executive summary of system performance and compliance.",
             section_type="executive",
-            data=data)
+            data=data,
+        )
         sections.append(exec_section)
 
         return sections
@@ -747,7 +757,8 @@ class ReportGenerationEngine:
         logo_path: str | None = None,
         logo_position: str | None = None,
         primary_color: str | None = None,
-        **kwargs) -> bool:
+        **kwargs,
+    ) -> bool:
         """Configure report branding including optional logo"""
         if not self.branding_service:
             logger.warning("Branding service not available")
@@ -763,7 +774,8 @@ class ReportGenerationEngine:
                         k: v
                         for k, v in kwargs.items()
                         if k in ["secondary_color", "accent_color", "font_family", "custom_css"]
-                    })
+                    },
+                )
 
             # Configure logo if provided
             if logo_path:
@@ -784,7 +796,8 @@ class ReportGenerationEngine:
                     size=size,
                     opacity=kwargs.get("logo_opacity", 1.0),
                     custom_width=kwargs.get("logo_width"),
-                    custom_height=kwargs.get("logo_height"))
+                    custom_height=kwargs.get("logo_height"),
+                )
 
                 if not success:
                     logger.error("Failed to configure logo: %s", logo_path)
@@ -897,7 +910,8 @@ class ReportGenerationEngine:
                     id="seven_habits_framework",
                     title="🎯 Personal Development - 7 Habits Framework",
                     content=self._format_habits_content(habits_insights),
-                    section_type="habits_framework")
+                    section_type="habits_framework",
+                )
 
                 habits_section.metadata.update(
                     {

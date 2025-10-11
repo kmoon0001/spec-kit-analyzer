@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 import httpx
@@ -8,20 +9,18 @@ from requests.exceptions import HTTPError
 
 from src.config import get_settings
 
+logger = logging.getLogger(__name__)
+
 settings = get_settings()
 API_URL = settings.paths.api_url
 
-
-import logging
-
-logger = logging.getLogger(__name__)
 
 class AnalysisStarterWorker(QObject):
     """A one-shot worker to start analysis using the httpx library."""
 
     success = Signal(str)
     error = Signal(str)
-    finished = Signal() # Added finished signal
+    finished = Signal()  # Added finished signal
 
     def __init__(self, file_path: str, data: dict, token: str):
         super().__init__()
@@ -64,4 +63,4 @@ class AnalysisStarterWorker(QObject):
             self.error.emit(f"An unexpected error occurred: {e}")
         finally:
             logger.debug("AnalysisStarterWorker run finished.")
-            self.finished.emit() # Emit finished signal
+            self.finished.emit()  # Emit finished signal

@@ -30,7 +30,7 @@ class HeaderComponent(QWidget):
         self.setObjectName("headerComponent")
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(15, 10, 15, 10) # Reduced vertical padding
+        layout.setContentsMargins(15, 10, 15, 10)  # Reduced vertical padding
         layout.setSpacing(15)
 
         # Logo section (left)
@@ -39,7 +39,7 @@ class HeaderComponent(QWidget):
 
         # Title section (center)
         title_section = self.create_title_section()
-        layout.addLayout(title_section, stretch=1) # Allow stretch
+        layout.addLayout(title_section, stretch=1)  # Allow stretch
 
         # Controls section (right)
         controls_section = self.create_controls_section()
@@ -71,7 +71,7 @@ class HeaderComponent(QWidget):
         self.title_label.setObjectName("titleLabel")
         self.title_label.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.title_label.setWordWrap(True) # Enable word wrap
+        self.title_label.setWordWrap(True)  # Enable word wrap
         layout.addWidget(self.title_label)
 
         # App description
@@ -79,7 +79,7 @@ class HeaderComponent(QWidget):
         self.description_label.setObjectName("descriptionLabel")
         self.description_label.setFont(QFont("Segoe UI", 12))
         self.description_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.description_label.setWordWrap(True) # Enable word wrap
+        self.description_label.setWordWrap(True)  # Enable word wrap
         layout.addWidget(self.description_label)
 
         return layout

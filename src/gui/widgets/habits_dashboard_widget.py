@@ -71,10 +71,7 @@ class HabitProgressBar(QWidget):
         # Percentage and mastery level
         font = QFont("Segoe UI", 8)
         painter.setFont(font)
-        painter.drawText(
-            self.width() - 120,
-            15,
-            f"{self.percentage}% - {self.mastery_level}")
+        painter.drawText(self.width() - 120, 15, f"{self.percentage}% - {self.mastery_level}")
 
 
 class WeeklyFocusWidget(QFrame):
@@ -130,13 +127,11 @@ class HabitDetailsWidget(QWidget):
         self.description_text.setPlainText(habit_info["description"].strip())
 
         # Clinical examples
-        examples_text = "\n".join(
-            [f"• {example}" for example in habit_info["clinical_examples"]])
+        examples_text = "\n".join([f"• {example}" for example in habit_info["clinical_examples"]])
         self.examples_text.setPlainText(examples_text)
 
         # Improvement strategies
-        strategies_text = "\n".join(
-            [f"• {strategy}" for strategy in habit_info["improvement_strategies"]])
+        strategies_text = "\n".join([f"• {strategy}" for strategy in habit_info["improvement_strategies"]])
         self.strategies_text.setPlainText(strategies_text)
 
 
@@ -158,8 +153,7 @@ class HabitsDashboardWidget(QWidget):
         message.setStyleSheet("color: #7f8c8d; font-size: 14px;")
         layout.addWidget(message)
 
-        enable_info = QLabel(
-            "Enable it in config.yaml: habits_framework.enabled = true")
+        enable_info = QLabel("Enable it in config.yaml: habits_framework.enabled = true")
         enable_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
         enable_info.setStyleSheet("color: #95a5a6; font-size: 12px;")
         layout.addWidget(enable_info)
@@ -214,9 +208,7 @@ class HabitsDashboardWidget(QWidget):
         self.habit_tabs = QTabWidget()
 
         # Add tab for each habit
-        for habit_id in sorted(
-            self.habits_framework.HABITS.keys(),
-            key=lambda x: int(x.split("_")[1])):
+        for habit_id in sorted(self.habits_framework.HABITS.keys(), key=lambda x: int(x.split("_")[1])):
             habit = self.habits_framework.get_habit_details(habit_id)
 
             details_widget = HabitDetailsWidget()
@@ -248,8 +240,7 @@ class HabitsDashboardWidget(QWidget):
                 + [{"habit_id": "habit_3"} for _ in range(8)]
             )
 
-            self.current_metrics = self.habits_framework.get_habit_progression_metrics(
-                sample_findings)
+            self.current_metrics = self.habits_framework.get_habit_progression_metrics(sample_findings)
             self.update_progress_display()
             self.update_weekly_focus()
 
@@ -268,15 +259,14 @@ class HabitsDashboardWidget(QWidget):
                 child.setParent(None)
 
         # Add progress bars for each habit
-        for habit_id in sorted(
-            self.current_metrics["habit_breakdown"].keys(),
-            key=lambda x: int(x.split("_")[1])):
+        for habit_id in sorted(self.current_metrics["habit_breakdown"].keys(), key=lambda x: int(x.split("_")[1])):
             habit_data = self.current_metrics["habit_breakdown"][habit_id]
 
             progress_bar = HabitProgressBar(
                 f"{habit_data['habit_number']}: {habit_data['habit_name']}",
                 habit_data["percentage"],
-                habit_data["mastery_level"])
+                habit_data["mastery_level"],
+            )
 
             self.progress_layout.addWidget(progress_bar)
 
@@ -296,8 +286,8 @@ class HabitsDashboardWidget(QWidget):
             self.weekly_focus.update_focus(habit_name, description)
         else:
             self.weekly_focus.update_focus(
-                "Great job! No major focus areas",
-                "Your documentation is well-balanced across all habits")
+                "Great job! No major focus areas", "Your documentation is well-balanced across all habits"
+            )
 
     def get_habit_metrics(self) -> dict | None:
         """Get current habit metrics."""

@@ -1,4 +1,3 @@
-
 import requests
 from PySide6.QtCore import QObject, Signal
 
@@ -21,7 +20,7 @@ class ApiAnalysisWorker(QObject):
             headers = {}
             if self.token:
                 headers["Authorization"] = f"Bearer {self.token}"
-            
+
             with open(self.file_path, "rb") as f:
                 files = {"file": (self.file_path, f)}
                 response = requests.post(self.api_url, files=files, headers=headers, timeout=120)

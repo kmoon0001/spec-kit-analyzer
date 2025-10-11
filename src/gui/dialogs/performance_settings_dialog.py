@@ -1,13 +1,7 @@
-"""Performance Settings Dialog - Configure system performance based on hardware capabilities.
-import requests
-from requests.exceptions import HTTPError
-from scipy import stats
-Integrates with the performance manager and help system for optimal user experience.
-"""
-
 import logging
 from typing import Any
 
+import requests
 from PySide6.QtCore import QThread, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -26,6 +20,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from requests.exceptions import HTTPError
 
 logger = logging.getLogger(__name__)
 
@@ -465,9 +460,7 @@ class PerformanceSettingsDialog(QDialog):
             "aggressive": {"speed": 95, "memory": 85, "gpu": 90},
         }
 
-        profile_indicators = indicators.get(
-            current_profile.value,
-            {"speed": 50, "memory": 50, "gpu": 25})
+        profile_indicators = indicators.get(current_profile.value, {"speed": 50, "memory": 50, "gpu": 25})
 
         self.speed_indicator.setValue(profile_indicators["speed"])
         self.memory_indicator.setValue(profile_indicators["memory"])
@@ -495,27 +488,23 @@ class PerformanceSettingsDialog(QDialog):
                 f"Based on your system:\n"
                 f"• {system_info.get('total_memory_gb', 'Unknown')}GB RAM\n"
                 f"• {system_info.get('cpu_count', 'Unknown')} CPU cores\n"
-                f"• GPU: {'Available' if system_info.get('cuda_available') else 'Not available'}")
+                f"• GPU: {'Available' if system_info.get('cuda_available') else 'Not available'}",
+            )
 
         except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Error in auto-detection: %s", e)
-            QMessageBox.warning(
-                self,
-                "Auto-Detection Failed",
-                f"Could not detect optimal settings: {e}")
+            QMessageBox.warning(self, "Auto-Detection Failed", f"Could not detect optimal settings: {e}")
 
     def update_system_info(self, system_info: dict[str, Any]):
         """Update system information display."""
         self.system_info = system_info
 
-        self.total_memory_label.setText(
-            f"{system_info.get('total_memory_gb', 'Unknown')} GB")
+        self.total_memory_label.setText(f"{system_info.get('total_memory_gb', 'Unknown')} GB")
         self.cpu_cores_label.setText(str(system_info.get("cpu_count", "Unknown")))
 
         if system_info.get("cuda_available"):
             self.gpu_available_label.setText("Yes")
-            self.gpu_memory_label.setText(
-                f"{system_info.get('gpu_memory_gb', 'Unknown')} GB")
+            self.gpu_memory_label.setText(f"{system_info.get('gpu_memory_gb', 'Unknown')} GB")
         else:
             self.gpu_available_label.setText("No")
             self.gpu_memory_label.setText("N/A")
@@ -566,22 +555,16 @@ class PerformanceSettingsDialog(QDialog):
             has_gpu = self.system_info.get("cuda_available", False)
 
             if memory_gb < 8:
-                recommendations.append(
-                    "• Consider using Conservative profile for optimal performance")
-                recommendations.append(
-                    "• Close other applications during analysis to free memory")
+                recommendations.append("• Consider using Conservative profile for optimal performance")
+                recommendations.append("• Close other applications during analysis to free memory")
             elif memory_gb >= 16 and has_gpu:
-                recommendations.append(
-                    "• Your system can handle Aggressive profile for maximum speed")
-                recommendations.append(
-                    "• GPU acceleration is available for faster processing")
+                recommendations.append("• Your system can handle Aggressive profile for maximum speed")
+                recommendations.append("• GPU acceleration is available for faster processing")
             else:
-                recommendations.append(
-                    "• Balanced profile is recommended for your system")
+                recommendations.append("• Balanced profile is recommended for your system")
 
             if not has_gpu:
-                recommendations.append(
-                    "• Consider upgrading to a system with dedicated GPU for better performance")
+                recommendations.append("• Consider upgrading to a system with dedicated GPU for better performance")
 
         if not recommendations:
             recommendations.append("• System information not yet available")
@@ -601,7 +584,8 @@ class PerformanceSettingsDialog(QDialog):
                 "• Conservative: Best for 6-8GB RAM systems\n"
                 "• Balanced: Best for 8-12GB RAM systems\n"
                 "• Aggressive: Best for 12GB+ RAM systems with GPU\n\n"
-                "Use Auto-Detect to automatically choose the best profile for your system.")
+                "Use Auto-Detect to automatically choose the best profile for your system.",
+            )
 
     def reset_to_defaults(self):
         """Reset settings to system defaults."""
@@ -612,7 +596,8 @@ class PerformanceSettingsDialog(QDialog):
             self,
             "Reset to Defaults",
             "This will reset all performance settings to system defaults. Continue?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
 
         if reply == QMessageBox.StandardButton.Yes:
             self.auto_detect_profile()
@@ -631,10 +616,7 @@ class PerformanceSettingsDialog(QDialog):
             # Emit settings changed signal
             self.settings_changed.emit(self.get_current_settings())
 
-            QMessageBox.information(
-                self,
-                "Settings Applied",
-                "Performance settings have been applied successfully.")
+            QMessageBox.information(self, "Settings Applied", "Performance settings have been applied successfully.")
 
         except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("Error applying settings: %s", e)
@@ -719,6 +701,7 @@ class PerformanceSettingsDialog(QDialog):
 
 class SystemProfiler:
     """System profiling utilities."""
+
     @staticmethod
     def get_system_info():
         return {"cpu_count": 4, "memory_gb": 8}

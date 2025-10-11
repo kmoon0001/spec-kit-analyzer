@@ -11,12 +11,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src"))
-)
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src")))
 
 from src.core.ner import NERAnalyzer
-
 
 # Legacy mock classes - kept for compatibility but no longer used
 # since we removed spaCy dependency
@@ -40,11 +37,7 @@ class MockSpan:
         self.label_ = label_
         self.start_char = start_char
         self.end_char = end_char
-        self.tokens = (
-            tokens
-            if tokens is not None
-            else [MockToken(t, i) for i, t in enumerate(text.split())]
-        )
+        self.tokens = tokens if tokens is not None else [MockToken(t, i) for i, t in enumerate(text.split())]
         if self.tokens:
             self.start = self.tokens[0].i
             self.end = self.tokens[-1].i + 1
@@ -114,9 +107,7 @@ def ner_analyzer(mocker):
     return analyzer
 
 
-@pytest.mark.skip(
-    reason="Skipping because optional transformer models are unavailable in this environment."
-)
+@pytest.mark.skip(reason="Skipping because optional transformer models are unavailable in this environment.")
 def test_extract_clinician_with_keyword(ner_analyzer):
     """Test clinician name identification using regex patterns."""
     text = "Signature: Dr. Jane Doe, PT"
@@ -128,9 +119,7 @@ def test_extract_clinician_with_keyword(ner_analyzer):
     assert any("Jane Doe" in entity for entity in entities)
 
 
-@pytest.mark.skip(
-    reason="Skipping because optional transformer models are unavailable in this environment."
-)
+@pytest.mark.skip(reason="Skipping because optional transformer models are unavailable in this environment.")
 def test_ignore_person_not_near_keyword(ner_analyzer):
     """Test that person names not near clinical keywords are ignored."""
     text = "The patient, John Smith, reported improvement."
@@ -140,9 +129,7 @@ def test_ignore_person_not_near_keyword(ner_analyzer):
     assert len(entities) == 0
 
 
-@pytest.mark.skip(
-    reason="Skipping because optional transformer models are unavailable in this environment."
-)
+@pytest.mark.skip(reason="Skipping because optional transformer models are unavailable in this environment.")
 def test_multiple_clinicians_found_and_deduplicated(ner_analyzer):
     """Test multiple clinicians found and deduplicated using regex patterns."""
     text = "Therapist: Dr. Emily White. Co-signed by: Michael Brown, COTA."
@@ -155,9 +142,7 @@ def test_multiple_clinicians_found_and_deduplicated(ner_analyzer):
     assert any("Emily White" in entity for entity in entities)
 
 
-@pytest.mark.skip(
-    reason="Skipping because optional transformer models are unavailable in this environment."
-)
+@pytest.mark.skip(reason="Skipping because optional transformer models are unavailable in this environment.")
 def test_deduplication_of_same_name(ner_analyzer):
     """Test that the same name found twice is deduplicated."""
     text = "Signature: Sarah Connor. Later, the note was signed by Sarah Connor."
@@ -169,9 +154,7 @@ def test_deduplication_of_same_name(ner_analyzer):
     assert len(sarah_connors) <= 1  # Should be deduplicated
 
 
-@pytest.mark.skip(
-    reason="Skipping because optional transformer models are unavailable in this environment."
-)
+@pytest.mark.skip(reason="Skipping because optional transformer models are unavailable in this environment.")
 def test_extract_medical_entities(ner_analyzer):
     """Test extraction and categorization of medical entities."""
     # Mock the NER pipeline to return medical entities
@@ -189,9 +172,7 @@ def test_extract_medical_entities(ner_analyzer):
 
     ner_analyzer.ner_pipeline.extract_entities.return_value = mock_entities
 
-    text = (
-        "Patient has diabetes, takes insulin, needs physical therapy for shoulder pain"
-    )
+    text = "Patient has diabetes, takes insulin, needs physical therapy for shoulder pain"
     result = ner_analyzer.extract_medical_entities(text)
 
     assert "diabetes" in result["conditions"]

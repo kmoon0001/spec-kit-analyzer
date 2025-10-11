@@ -157,14 +157,11 @@ class PerformanceDialog(QDialog):
 
             # Color coding
             if percent > 85:
-                self.memory_bar.setStyleSheet(
-                    "QProgressBar::chunk { background-color: red; }")
+                self.memory_bar.setStyleSheet("QProgressBar::chunk { background-color: red; }")
             elif percent > 70:
-                self.memory_bar.setStyleSheet(
-                    "QProgressBar::chunk { background-color: orange; }")
+                self.memory_bar.setStyleSheet("QProgressBar::chunk { background-color: orange; }")
             else:
-                self.memory_bar.setStyleSheet(
-                    "QProgressBar::chunk { background-color: green; }")
+                self.memory_bar.setStyleSheet("QProgressBar::chunk { background-color: green; }")
         except Exception as e:
             logger.exception("Error updating memory display: %s", e)
 
@@ -199,8 +196,7 @@ class PerformanceDialog(QDialog):
         try:
             from ...core.performance_manager import SystemProfiler
 
-            recommended = SystemProfiler.recommend_profile(
-                self.performance_manager.system_info)
+            recommended = SystemProfiler.recommend_profile(self.performance_manager.system_info)
 
             index = self.profile_combo.findData(recommended)
             if index >= 0:

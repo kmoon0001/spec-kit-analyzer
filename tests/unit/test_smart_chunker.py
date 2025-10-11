@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 # Import the function to be tested
 from src.core.smart_chunker import sentence_window_chunker

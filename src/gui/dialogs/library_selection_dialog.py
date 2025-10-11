@@ -15,8 +15,7 @@ class LibrarySelectionDialog(QDialog):
         self.library_list = QListWidget()
         layout.addWidget(self.library_list)
         self.populate_library_list()
-        button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         button_box.accepted.connect(self.confirm_selection)
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
@@ -31,18 +30,13 @@ class LibrarySelectionDialog(QDialog):
             if filename.endswith(".txt"):
                 display_name = os.path.splitext(filename)[0].replace("_", " ").title()
                 item = QListWidgetItem(display_name)
-                item.setData(
-                    Qt.ItemDataRole.UserRole,
-                    os.path.join(rubrics_dir, filename))
+                item.setData(Qt.ItemDataRole.UserRole, os.path.join(rubrics_dir, filename))
                 self.library_list.addItem(item)
 
     def confirm_selection(self):
         selected_items = self.library_list.selectedItems()
         if not selected_items:
-            QMessageBox.warning(
-                self,
-                "Selection Required",
-                "Please select a rubric from the list.")
+            QMessageBox.warning(self, "Selection Required", "Please select a rubric from the list.")
             return
         item = selected_items[0]
         self.selected_name = item.text()

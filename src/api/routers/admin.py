@@ -32,26 +32,22 @@ def get_filtered_settings() -> dict[str, Any]:
 @router.get("/dashboard", response_class=FileResponse)
 @router.get("/dashboard", response_class=FileResponse)
 @router.get("/dashboard", response_class=FileResponse)
-async def get_admin_dashboard(
-    admin_user: models.User = Depends(get_current_admin_user)):
+async def get_admin_dashboard(admin_user: models.User = Depends(get_current_admin_user)):
     if not os.path.exists(ADMIN_HTML_PATH):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="admin.html not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="admin.html not found")
     return FileResponse(ADMIN_HTML_PATH)
 
 
 @router.get("/settings", response_model=dict[str, Any])
-async def get_current_settings(
-    admin_user: models.User = Depends(get_current_admin_user)):
+async def get_current_settings(admin_user: models.User = Depends(get_current_admin_user)):
     """Endpoint to get the current, non-sensitive application settings."""
     return get_filtered_settings()
 
 
 @router.post("/settings")
 async def update_settings(
-    new_settings: dict[str, Any] = Body(...),
-    admin_user: models.User = Depends(get_current_admin_user)):
+    new_settings: dict[str, Any] = Body(...), admin_user: models.User = Depends(get_current_admin_user)
+):
     """Endpoint to validate and save new application settings."""
     try:
         # Load the current full settings to provide defaults
@@ -83,7 +79,8 @@ async def read_users(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
-    admin_user: models.User = Depends(get_current_admin_user)):
+    admin_user: models.User = Depends(get_current_admin_user),
+):
     result = await db.execute(select(models.User).offset(skip).limit(limit))
     return result.scalars().all()
 
@@ -93,21 +90,18 @@ async def create_user(
     user: schemas.UserCreate,
     db: AsyncSession = Depends(get_db),
     admin_user: models.User = Depends(get_current_admin_user),
-    auth_service: AuthService = Depends(get_auth_service)):
+    auth_service: AuthService = Depends(get_auth_service),
+):
     db_user = await crud.get_user_by_username(db, username=user.username)
     if db_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already registered")
 
     hashed_password = auth_service.get_password_hash(user.password)
     license_key = str(uuid.uuid4())
 
     new_user = models.User(
-        username=user.username,
-        hashed_password=hashed_password,
-        license_key=license_key,
-        is_active=True)
+        username=user.username, hashed_password=hashed_password, license_key=license_key, is_active=True
+    )
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
@@ -116,15 +110,12 @@ async def create_user(
 
 @router.put("/users/{user_id}/activate", response_model=schemas.User)
 async def activate_user(
-    user_id: int,
-    db: AsyncSession = Depends(get_db),
-    admin_user: models.User = Depends(get_current_admin_user)):
+    user_id: int, db: AsyncSession = Depends(get_db), admin_user: models.User = Depends(get_current_admin_user)
+):
     # Assuming crud.get_user is an async function that gets a user by ID
     db_user = await crud.get_user(db, user_id=user_id)
     if not db_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     db_user.is_active = True
     await db.commit()
@@ -134,15 +125,12 @@ async def activate_user(
 
 @router.put("/users/{user_id}/deactivate", response_model=schemas.User)
 async def deactivate_user(
-    user_id: int,
-    db: AsyncSession = Depends(get_db),
-    admin_user: models.User = Depends(get_current_admin_user)):
+    user_id: int, db: AsyncSession = Depends(get_db), admin_user: models.User = Depends(get_current_admin_user)
+):
     # Assuming crud.get_user is an async function that gets a user by ID
     db_user = await crud.get_user(db, user_id=user_id)
     if not db_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     db_user.is_active = False
     await db.commit()

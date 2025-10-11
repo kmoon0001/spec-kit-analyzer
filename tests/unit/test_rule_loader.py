@@ -1,6 +1,7 @@
 import unittest
-from src.core.rule_loader import RuleLoader
+
 from src.core.domain_models import ComplianceRule
+from src.core.rule_loader import RuleLoader
 
 
 class TestRuleLoader(unittest.TestCase):
@@ -23,9 +24,7 @@ class TestRuleLoader(unittest.TestCase):
         signature_rule = next((r for r in rules if "SignatureRule" in r.uri), None)
 
         self.assertIsNotNone(signature_rule, "SignatureRule not found in loaded rules.")
-        self.assertEqual(
-            signature_rule.issue_title, "Provider signature/date possibly missing"
-        )
+        self.assertEqual(signature_rule.issue_title, "Provider signature/date possibly missing")
         self.assertEqual(signature_rule.discipline, "pt")
         self.assertEqual(signature_rule.severity, "finding")
         self.assertIn("signature", signature_rule.negative_keywords)

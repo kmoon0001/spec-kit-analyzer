@@ -1,11 +1,12 @@
 # MODIFIED: Changed async_client to be a pytest_asyncio.fixture.
+from datetime import UTC, datetime
+
 import pytest
 import pytest_asyncio
-from datetime import datetime, timezone
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
-from src.api.main import app
 from src.api.dependencies import get_current_active_user
+from src.api.main import app
 from src.database import schemas
 
 
@@ -30,15 +31,13 @@ async def test_get_director_dashboard_with_filters(async_client, mocker):
         is_active=True,
         is_admin=True,
         hashed_password="$2b$12$mockhashedpasswordstringforetesting12345678901234567890",
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     try:
         app.dependency_overrides[get_current_active_user] = lambda: mock_user
 
         # Mock the CRUD functions
-        mock_crud = mocker.patch(
-            "src.api.routers.dashboard.crud", new_callable=mocker.AsyncMock
-        )
+        mock_crud = mocker.patch("src.api.routers.dashboard.crud", new_callable=mocker.AsyncMock)
         mock_crud.get_total_findings_count.return_value = 10
         mock_crud.get_team_habit_summary.return_value = []
         mock_crud.get_clinician_habit_breakdown.return_value = []
@@ -53,9 +52,7 @@ async def test_get_director_dashboard_with_filters(async_client, mocker):
             "end_date": "2023-01-31",
             "discipline": "PT",
         }
-        response = await async_client.get(
-            "/dashboard/director-dashboard", headers=headers, params=params
-        )
+        response = await async_client.get("/dashboard/director-dashboard", headers=headers, params=params)
 
         # Assertions
         assert response.status_code == 200

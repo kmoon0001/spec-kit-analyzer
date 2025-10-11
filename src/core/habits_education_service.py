@@ -107,7 +107,8 @@ class HabitsEducationService:
                 "description": "Habit not found",
                 "clinical_application": "",
                 "tips": [],
-            })
+            },
+        )
 
     def get_all_habits_overview(self) -> list[dict[str, Any]]:
         """Get overview of all 7 habits.

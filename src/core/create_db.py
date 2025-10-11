@@ -8,14 +8,14 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # --- Configuration ---
 DATABASE_PATH = os.path.join("data", "compliance.db")
 SALT_SIZE = 16
 HASH_ALGORITHM = hashes.SHA256()
 ITERATIONS = 100000
+
 
 def hash_password(password, salt):
     """Hashes a password using PBKDF2HMAC.
@@ -28,13 +28,9 @@ def hash_password(password, salt):
         bytes: The hashed password.
 
     """
-    kdf = PBKDF2HMAC(
-        algorithm=HASH_ALGORITHM,
-        length=32,
-        salt=salt,
-        iterations=ITERATIONS,
-        backend=default_backend())
+    kdf = PBKDF2HMAC(algorithm=HASH_ALGORITHM, length=32, salt=salt, iterations=ITERATIONS, backend=default_backend())
     return kdf.derive(password.encode())
+
 
 def add_user(cursor, username, password):
     """Adds a new user to the database.
@@ -55,9 +51,10 @@ def add_user(cursor, username, password):
     password_hash = hash_password(password, salt)
 
     cursor.execute(
-        "INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)",
-        (username, password_hash, salt))
+        "INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)", (username, password_hash, salt)
+    )
     logging.info("User '%s' added successfully.", username)
+
 
 def generate_random_password(length=12):
     """Generates a random password.
@@ -73,9 +70,9 @@ def generate_random_password(length=12):
     password = "".join(secrets.choice(alphabet) for i in range(length))
     return password
 
+
 def main():
-    """Main function to create and initialize the database with an admin user.
-    """
+    """Main function to create and initialize the database with an admin user."""
     # --- Create data directory if it doesn't exist ---
     os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
 
@@ -92,7 +89,8 @@ def main():
         password_hash BLOB NOT NULL,
         salt BLOB NOT NULL
     )
-    """)
+    """
+    )
 
     # --- Add the admin user ---
     admin_password = generate_random_password()
@@ -104,6 +102,7 @@ def main():
     conn.close()
 
     logging.info("Database created and initialized successfully.")
+
 
 if __name__ == "__main__":
     pass

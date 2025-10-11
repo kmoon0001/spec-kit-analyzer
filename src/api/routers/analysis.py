@@ -28,15 +28,17 @@ router = APIRouter(prefix="/analysis", tags=["analysis"])
 
 tasks: dict[str, dict[str, Any]] = {}
 
+
 def run_analysis_and_save(
     file_content: bytes,
     task_id: str,
     original_filename: str,
     discipline: str,
     analysis_mode: str,
-    analysis_service: AnalysisService) -> None:
-    """Background task to run document analysis on in-memory content and save results.
-    """
+    analysis_service: AnalysisService,
+) -> None:
+    """Background task to run document analysis on in-memory content and save results."""
+
     def _update_progress(percentage: int, message: str) -> None:
         tasks[task_id]["progress"] = percentage
         tasks[task_id]["status_message"] = message
@@ -51,7 +53,8 @@ def run_analysis_and_save(
                 original_filename=original_filename,
                 discipline=discipline,
                 analysis_mode=analysis_mode,
-                progress_callback=_update_progress)
+                progress_callback=_update_progress,
+            )
             tasks[task_id] = {
                 "status": "completed",
                 "result": result,
@@ -80,6 +83,7 @@ def run_analysis_and_save(
     finally:
         loop.close()
 
+
 @router.post("/analyze", status_code=status.HTTP_202_ACCEPTED)
 async def analyze_document(
     background_tasks: BackgroundTasks,
@@ -87,12 +91,13 @@ async def analyze_document(
     discipline: str = Form("pt"),
     analysis_mode: str = Form("rubric"),
     _current_user: models.User = Depends(get_current_active_user),
-    analysis_service: AnalysisService = Depends(get_analysis_service)) -> dict[str, str]:
+    analysis_service: AnalysisService = Depends(get_analysis_service),
+) -> dict[str, str]:
     """Upload and analyze a clinical document for compliance from in-memory content."""
     if analysis_service is None:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Analysis service is not ready yet.")
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Analysis service is not ready yet."
+        )
 
     safe_filename = SecurityValidator.validate_and_sanitize_filename(file.filename or "")
     SecurityValidator.validate_discipline(discipline)
@@ -109,15 +114,11 @@ async def analyze_document(
     }
 
     background_tasks.add_task(
-        run_analysis_and_save,
-        content,
-        task_id,
-        safe_filename,
-        discipline,
-        analysis_mode,
-        analysis_service)
+        run_analysis_and_save, content, task_id, safe_filename, discipline, analysis_mode, analysis_service
+    )
 
     return {"task_id": task_id, "status": "processing"}
+
 
 @router.post("/submit", status_code=status.HTTP_202_ACCEPTED)
 async def submit_document(
@@ -126,14 +127,16 @@ async def submit_document(
     discipline: str = Form("pt"),
     analysis_mode: str = Form("rubric"),
     _current_user: models.User = Depends(get_current_active_user),
-    analysis_service: AnalysisService = Depends(get_analysis_service)) -> dict[str, str]:
+    analysis_service: AnalysisService = Depends(get_analysis_service),
+) -> dict[str, str]:
     """Submit document for compliance analysis (alias for analyze_document for GUI compatibility)."""
-    return await analyze_document(
-        background_tasks, file, discipline, analysis_mode, _current_user, analysis_service)
+    return await analyze_document(background_tasks, file, discipline, analysis_mode, _current_user, analysis_service)
+
 
 @router.get("/status/{task_id}")
 async def get_analysis_status(
-    task_id: str, _current_user: models.User = Depends(get_current_active_user)) -> dict[str, Any]:
+    task_id: str, _current_user: models.User = Depends(get_current_active_user)
+) -> dict[str, Any]:
     """Retrieves the status of a background analysis task."""
     task = tasks.get(task_id)
     if not task:
@@ -147,15 +150,17 @@ async def get_analysis_status(
     task.setdefault("status_message", "Initializing...")
     return task
 
+
 @router.get("/all-tasks")
 async def get_all_tasks(_current_user: models.User = Depends(get_current_active_user)) -> dict[str, dict[str, Any]]:
     """Retrieves all current analysis tasks."""
     return tasks
 
+
 @router.post("/export-pdf/{task_id}")
 async def export_report_to_pdf(
-    task_id: str,
-    _current_user: models.User = Depends(get_current_active_user)) -> dict[str, Any]:
+    task_id: str, _current_user: models.User = Depends(get_current_active_user)
+) -> dict[str, Any]:
     """Export analysis report to PDF format."""
     from ...core.pdf_export_service import PDFExportService
     from ...core.report_generator import ReportGenerator
@@ -169,9 +174,7 @@ async def export_report_to_pdf(
         document_name = task.get("filename", "document")
 
         report_gen = ReportGenerator()
-        report_data = report_gen.generate_report(
-            analysis_result=analysis_result,
-            document_name=document_name)
+        report_data = report_gen.generate_report(analysis_result=analysis_result, document_name=document_name)
 
         pdf_service = PDFExportService()
         pdf_result = pdf_service.export_to_pdf(
@@ -184,7 +187,8 @@ async def export_report_to_pdf(
                 "Total Findings": len(analysis_result.get("findings", [])),
                 "Document Type": analysis_result.get("document_type", "Unknown"),
                 "Discipline": analysis_result.get("discipline", "Unknown"),
-            })
+            },
+        )
 
         if not pdf_result.get("success"):
             raise HTTPException(status_code=500, detail=f"PDF generation failed: {pdf_result.get('error')}")
@@ -195,16 +199,18 @@ async def export_report_to_pdf(
         logger.exception("PDF export failed", task_id=task_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"PDF export failed: {e!s}") from e
 
+
 @router.post("/feedback", response_model=schemas.FeedbackAnnotation, status_code=status.HTTP_201_CREATED)
 async def submit_feedback(
     feedback: schemas.FeedbackAnnotationCreate,
     db: AsyncSession = Depends(get_async_db),
-    current_user: models.User = Depends(get_current_active_user)):
+    current_user: models.User = Depends(get_current_active_user),
+):
     """Endpoint to receive and store user feedback on AI findings."""
     try:
         return await crud.create_feedback_annotation(db=db, feedback=feedback, user_id=current_user.id)
     except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
         logger.exception("Failed to save feedback", error=str(e))
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save feedback: {e}") from e
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to save feedback: {e}"
+        ) from e

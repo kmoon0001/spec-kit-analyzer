@@ -9,6 +9,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 try:
     import aiofiles
 except ImportError:

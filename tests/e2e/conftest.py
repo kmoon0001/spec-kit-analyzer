@@ -4,21 +4,19 @@ E2E Test Configuration and Fixtures
 Provides shared fixtures and configuration for end-to-end testing.
 """
 
-import pytest
 import asyncio
-import tempfile
 import shutil
+import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Dict, Any, Generator
+from typing import Any
 from unittest.mock import Mock
 
-import httpx
+import pytest
 from fastapi.testclient import TestClient
 
 # Import application components
 from src.api.main import app
-from src.database.database import get_async_db
-from src.database import models
 from src.config import get_settings
 
 
@@ -50,14 +48,14 @@ def test_client(test_settings) -> Generator[TestClient, None, None]:
 @pytest.fixture(scope="session")
 async def test_db(test_settings):
     """Create a test database for E2E testing."""
-    from src.database.database import engine, Base
-    
+    from src.database.database import Base, engine
+
     # Create all tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     yield
-    
+
     # Cleanup
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
@@ -70,7 +68,7 @@ def test_user_data():
         "username": "test_therapist",
         "email": "test@example.com",
         "password": "test_password_123",
-        "is_admin": False
+        "is_admin": False,
     }
 
 
@@ -116,27 +114,27 @@ def test_rubric_data():
                 "id": "subjective_required",
                 "description": "Progress note must include subjective section",
                 "pattern": r"SUBJECTIVE:",
-                "severity": "high"
+                "severity": "high",
             },
             {
                 "id": "objective_measurements",
                 "description": "Objective section must include measurable data",
                 "pattern": r"Range of Motion|Strength|Functional",
-                "severity": "medium"
+                "severity": "medium",
             },
             {
                 "id": "assessment_present",
                 "description": "Assessment section must be present",
                 "pattern": r"ASSESSMENT:",
-                "severity": "high"
+                "severity": "high",
             },
             {
                 "id": "plan_documented",
                 "description": "Plan section must be documented",
                 "pattern": r"PLAN:",
-                "severity": "high"
-            }
-        ]
+                "severity": "high",
+            },
+        ],
     }
 
 
@@ -159,19 +157,14 @@ def sample_document_file(temp_upload_dir, test_document_content):
 @pytest.fixture
 def mock_ai_services():
     """Mock AI services for faster testing."""
-    mocks = {
-        "llm_service": Mock(),
-        "ner_service": Mock(),
-        "embedding_service": Mock(),
-        "compliance_analyzer": Mock()
-    }
-    
+    mocks = {"llm_service": Mock(), "ner_service": Mock(), "embedding_service": Mock(), "compliance_analyzer": Mock()}
+
     # Configure mock responses
     mocks["llm_service"].generate_response.return_value = {
         "response": "This is a mock AI response for testing.",
-        "confidence": 0.85
+        "confidence": 0.85,
     }
-    
+
     mocks["compliance_analyzer"].analyze.return_value = {
         "findings": [
             {
@@ -180,13 +173,13 @@ def mock_ai_services():
                 "description": "This is a test compliance finding",
                 "severity": "medium",
                 "confidence": 0.8,
-                "evidence": "Test evidence text"
+                "evidence": "Test evidence text",
             }
         ],
         "overall_score": 75,
-        "document_type": "progress_note"
+        "document_type": "progress_note",
     }
-    
+
     return mocks
 
 
@@ -196,15 +189,12 @@ def authenticated_headers(test_client, test_user_data):
     # Create test user
     response = test_client.post("/auth/register", json=test_user_data)
     assert response.status_code in [200, 201, 409]  # 409 if user already exists
-    
+
     # Login to get token
-    login_data = {
-        "username": test_user_data["username"],
-        "password": test_user_data["password"]
-    }
+    login_data = {"username": test_user_data["username"], "password": test_user_data["password"]}
     response = test_client.post("/auth/login", data=login_data)
     assert response.status_code == 200
-    
+
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
@@ -221,61 +211,47 @@ def e2e_test_config():
             "document_analysis": 120,  # seconds
             "api_response": 5,  # seconds
             "pdf_export": 30,  # seconds
-        }
+        },
     }
 
 
 class E2ETestHelper:
     """Helper class for common E2E test operations."""
-    
-    def __init__(self, client: TestClient, headers: Dict[str, str]):
+
+    def __init__(self, client: TestClient, headers: dict[str, str]):
         self.client = client
         self.headers = headers
-    
-    def upload_document(self, file_path: Path) -> Dict[str, Any]:
+
+    def upload_document(self, file_path: Path) -> dict[str, Any]:
         """Upload a document and return the response."""
         with open(file_path, "rb") as f:
             files = {"file": (file_path.name, f, "text/plain")}
-            response = self.client.post(
-                "/upload-document",
-                files=files,
-                headers=self.headers
-            )
+            response = self.client.post("/upload-document", files=files, headers=self.headers)
         return response.json()
-    
-    def start_analysis(self, document_id: str, rubric_id: str) -> Dict[str, Any]:
+
+    def start_analysis(self, document_id: str, rubric_id: str) -> dict[str, Any]:
         """Start document analysis and return task ID."""
-        data = {
-            "document_id": document_id,
-            "rubric_id": rubric_id,
-            "analysis_type": "comprehensive"
-        }
-        response = self.client.post(
-            "/analyze",
-            json=data,
-            headers=self.headers
-        )
+        data = {"document_id": document_id, "rubric_id": rubric_id, "analysis_type": "comprehensive"}
+        response = self.client.post("/analyze", json=data, headers=self.headers)
         return response.json()
-    
-    def wait_for_analysis(self, task_id: str, timeout: int = 120) -> Dict[str, Any]:
+
+    def wait_for_analysis(self, task_id: str, timeout: int = 120) -> dict[str, Any]:
         """Wait for analysis to complete and return results."""
         import time
+
         start_time = time.time()
-        
+
         while time.time() - start_time < timeout:
-            response = self.client.get(
-                f"/analysis-status/{task_id}",
-                headers=self.headers
-            )
+            response = self.client.get(f"/analysis-status/{task_id}", headers=self.headers)
             result = response.json()
-            
+
             if result.get("status") == "completed":
                 return result
             elif result.get("status") == "failed":
                 raise Exception(f"Analysis failed: {result.get('error')}")
-            
+
             time.sleep(2)
-        
+
         raise TimeoutError(f"Analysis did not complete within {timeout} seconds")
 
 

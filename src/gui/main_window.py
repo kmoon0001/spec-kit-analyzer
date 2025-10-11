@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import random
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +13,6 @@ from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
     QDockWidget,
-    QFileDialog,
     QMainWindow,
     QMessageBox,
     QProgressBar,
@@ -25,9 +25,6 @@ from PySide6.QtWidgets import (
 )
 
 from src.config import get_settings
-from src.core import analysis_diagnostics as diagnostics
-from src.core import analysis_status_tracker as status_tracker
-from src.core import analysis_workflow_logger as workflow_logger
 from src.core.report_generator import ReportGenerator
 from src.database import models
 
@@ -36,6 +33,8 @@ from src.gui.components.header_component import HeaderComponent
 from src.gui.components.menu_builder import MenuBuilder
 from src.gui.components.status_component import StatusComponent
 from src.gui.components.tab_builder import TabBuilder
+
+# Import dialogs for test compatibility
 from src.gui.handlers.analysis_handlers import AnalysisHandlers
 from src.gui.handlers.file_handlers import FileHandlers
 from src.gui.handlers.ui_handlers import UIHandlers
@@ -47,9 +46,6 @@ from src.gui.widgets.medical_theme import medical_theme
 # Import minimal micro-interactions (subtle animations only)
 from src.gui.widgets.micro_interactions import AnimatedButton
 from src.gui.widgets.mission_control_widget import LogViewerWidget, MissionControlWidget, SettingsEditorWidget
-
-# Import dialogs for test compatibility
-from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
 
 try:
     from src.gui.widgets.meta_analytics_widget import MetaAnalyticsWidget
@@ -172,9 +168,34 @@ class MainApplicationWindow(QMainWindow):
             Qt.Key.Key_Left,
             Qt.Key.Key_Right,
             Qt.Key.Key_B,
-            Qt.Key.Key_A]
+            Qt.Key.Key_A,
+        ]
         self.developer_mode = False
         self.is_testing = False
+        self.model_status_timer = QTimer(self)  # Initialize the timer here
+
+    def _check_ai_models_status(self) -> None:
+        """Periodically check the status of AI models."""
+        if not self.status_component:
+            return
+
+        all_ready = True
+        for model_name, status in self.status_component.models.items():
+            if not status:
+                # In a real implementation, this would be a call to a service
+                # that checks the model's status. For now, we'll simulate it.
+                if random.random() < 0.3:  # 30% chance of a model becoming ready
+                    self.status_component.update_model_status(model_name, True)
+                all_ready = False
+
+        if all_ready:
+            self.model_status_timer.stop()
+            self.analysis_handlers.on_ai_models_ready()
+        else:
+            status_summary = self.status_component.get_overall_status()
+            self.statusBar().showMessage(
+                f"⌛ Loading AI Models: {status_summary['ready_count']}/{status_summary['total_count']}"
+            )
 
     def _build_ui(self) -> None:
         """Build the complete UI using modular builders."""
@@ -279,7 +300,7 @@ class MainApplicationWindow(QMainWindow):
 
         # Set Analysis as default tab
         self.tab_widget.setCurrentWidget(self.analysis_tab)
-        
+
         # Log tab count for debugging
         tab_count = self.tab_widget.count()
         logging.info(f"MainApplicationWindow initialized with {tab_count} tabs")
@@ -396,15 +417,14 @@ class MainApplicationWindow(QMainWindow):
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
 
-
-
     def _setup_keyboard_shortcuts(self) -> None:
         """Setup keyboard shortcuts for tab navigation."""
         shortcuts = [
             ("Ctrl+1", lambda: self.tab_widget.setCurrentIndex(0)),
             ("Ctrl+2", lambda: self.tab_widget.setCurrentIndex(1)),
             ("Ctrl+3", lambda: self.tab_widget.setCurrentIndex(2)),
-            ("Ctrl+4", lambda: self.tab_widget.setCurrentIndex(3))]
+            ("Ctrl+4", lambda: self.tab_widget.setCurrentIndex(3)),
+        ]
 
         for shortcut_key, callback in shortcuts:
             shortcut = QAction(self)
@@ -511,7 +531,11 @@ class MainApplicationWindow(QMainWindow):
         if self.status_component:
             self.status_component.set_all_loading()
 
-        QTimer.singleShot(2000, self.analysis_handlers.on_ai_models_ready)
+        # Start a recurring timer to check model statuses
+        self.model_status_timer = QTimer(self)
+        self.model_status_timer.timeout.connect(self._check_ai_models_status)
+        self.model_status_timer.start(1000)  # Check every second
+
         self._start_resource_monitoring()
 
     def _load_default_rubrics(self) -> None:
@@ -523,14 +547,16 @@ class MainApplicationWindow(QMainWindow):
             default_rubrics = [
                 (
                     "📋 Medicare Benefits Policy Manual - Chapter 15 (Covered Medical Services)",
-                    "medicare_benefits_policy_manual_ch15"),
+                    "medicare_benefits_policy_manual_ch15",
+                ),
                 ("📋 Medicare Part B Outpatient Therapy Guidelines", "medicare_part_b_therapy_guidelines"),
                 ("📋 CMS-1500 Documentation Requirements", "cms_1500_documentation_requirements"),
                 ("📋 Medicare Therapy Cap & Exception Guidelines", "medicare_therapy_cap_guidelines"),
                 ("📋 Skilled Therapy Documentation Standards", "skilled_therapy_documentation_standards"),
                 ("🏃 Physical Therapy - APTA Guidelines", "apta_pt_guidelines"),
                 ("🖐️ Occupational Therapy - AOTA Standards", "aota_ot_standards"),
-                ("🗣️ Speech-Language Pathology - ASHA Guidelines", "asha_slp_guidelines")]
+                ("🗣️ Speech-Language Pathology - ASHA Guidelines", "asha_slp_guidelines"),
+            ]
 
             for name, value in default_rubrics:
                 self.rubric_selector.addItem(name, value)
@@ -813,7 +839,8 @@ class MainApplicationWindow(QMainWindow):
             "• Secret keyboard shortcuts active\n\n"
             "Welcome to the inner circle! 🕵️‍♂️\n\n"
             "Created with ❤️ by Kevin Moon\n"
-            "For all the amazing therapists out there!")
+            "For all the amazing therapists out there!",
+        )
 
         self.developer_mode = True
         self.statusBar().showMessage("🎮 Developer Mode Activated! Press Ctrl+Shift+D for console", 10000)
@@ -830,7 +857,8 @@ class MainApplicationWindow(QMainWindow):
             "while staying compliant with all those tricky regulations.\n\n"
             "Remember: You're making a real difference in people's lives! 💪\n\n"
             "Keep being awesome! 🌟\n\n"
-            "- Kevin 🫶")
+            "- Kevin 🫶",
+        )
 
     def _show_developer_console(self) -> None:
         """Show developer console dialog."""

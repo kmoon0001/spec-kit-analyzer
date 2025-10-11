@@ -82,7 +82,8 @@ class MLTrendPredictorService:
         analysis_period_days: int = 30,
         departments: list[str] | None = None,
         insight_types: list[str] = None,
-        user_id: int = 0) -> dict[str, Any]:
+        user_id: int = 0,
+    ) -> dict[str, Any]:
         """Generate AI-powered compliance insights and recommendations.
 
         Args:
@@ -102,26 +103,16 @@ class MLTrendPredictorService:
             await asyncio.sleep(2)
 
             # Generate insights based on historical data analysis
-            insights = await self._analyze_compliance_patterns(
-                analysis_period_days,
-                departments,
-                insight_types)
+            insights = await self._analyze_compliance_patterns(analysis_period_days, departments, insight_types)
 
             # Generate trend predictions
-            trends = await self._predict_compliance_trends(
-                analysis_period_days,
-                departments)
+            trends = await self._predict_compliance_trends(analysis_period_days, departments)
 
             # Generate actionable recommendations
-            recommendations = await self._generate_recommendations(
-                insights,
-                trends,
-                departments)
+            recommendations = await self._generate_recommendations(insights, trends, departments)
 
             # Assess risk predictions
-            risk_predictions = await self._assess_risk_predictions(
-                trends,
-                analysis_period_days)
+            risk_predictions = await self._assess_risk_predictions(trends, analysis_period_days)
 
             # Calculate overall confidence score
             confidence_score = self._calculate_overall_confidence(insights, trends)
@@ -212,7 +203,8 @@ class MLTrendPredictorService:
                         "data_points": 150 + i * 50,
                         "departments": departments or ["All"],
                     },
-                    generated_at=datetime.now())
+                    generated_at=datetime.now(),
+                )
                 insights.append(insight)
 
         return insights
@@ -267,7 +259,8 @@ class MLTrendPredictorService:
                 prediction_period=f"Next {period_days} days",
                 confidence=trend_info["confidence"],
                 trend_direction=trend_info["direction"],
-                risk_level=trend_info["risk"])
+                risk_level=trend_info["risk"],
+            )
             trends.append(trend)
 
         return trends

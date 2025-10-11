@@ -60,12 +60,12 @@ class ClinicalNERService:
         self.model_names = list(model_names or [])
         self.pipelines = self._initialize_pipelines()
         self.presidio_wrapper = get_presidio_wrapper()
-        
+
         # Clinical patterns for clinician name extraction
         self.clinical_patterns = {
             "titles": r"\b(?:Dr\.?|Doctor|MD|DO|RN|NP|PA|PT|OT|SLP|DPT|OTR|CCC-SLP)\b",
             "signature_keywords": r"\b(?:Signature|Signed|Therapist|Clinician|Provider)\b",
-            "name_pattern": r"(?P<name>[A-Z][a-z]+(?:\s+[A-Z][a-z]*)*(?:\s+[A-Z]\.)*)"
+            "name_pattern": r"(?P<name>[A-Z][a-z]+(?:\s+[A-Z][a-z]*)*(?:\s+[A-Z]\.)*)",
         }
 
     def _initialize_pipelines(self) -> list[Any]:
@@ -78,10 +78,9 @@ class ClinicalNERService:
                 model = AutoModelForTokenClassification.from_pretrained(model_name)
                 pipelines.append(
                     pipeline(  # type: ignore[call-overload]
-                        "ner",
-                        model=model,
-                        tokenizer=tokenizer,
-                        aggregation_strategy="simple"))
+                        "ner", model=model, tokenizer=tokenizer, aggregation_strategy="simple"
+                    )
+                )
                 logger.info("Successfully loaded clinical NER model: %s", model_name)
             except Exception:
                 logger.error("Failed to load NER model %s: {e}", model_name, exc_info=True)
@@ -163,16 +162,16 @@ class ClinicalNERService:
 
     def extract_clinician_name(self, text: str | None) -> list[str]:
         """Extract clinician names from text using regex patterns.
-        
+
         Args:
             text: Input text to analyze
-            
+
         Returns:
             List of extracted clinician names
         """
         if not isinstance(text, str) or not text.strip():
             return []
-            
+
         titles_regex = re.compile(self.clinical_patterns["titles"], re.IGNORECASE)
         signature_regex = re.compile(self.clinical_patterns["signature_keywords"], re.IGNORECASE)
         name_regex = re.compile(self.clinical_patterns["name_pattern"])
@@ -187,10 +186,10 @@ class ClinicalNERService:
 
     def extract_medical_entities(self, text: str | None) -> dict[str, list[str]]:
         """Extract and categorize medical entities from text.
-        
+
         Args:
             text: Input text to analyze
-            
+
         Returns:
             Dictionary of categorized medical entities
         """
@@ -204,7 +203,7 @@ class ClinicalNERService:
                 "persons": [],
                 "other": [],
             }
-            
+
         categories: dict[str, list[str]] = {
             "conditions": [],
             "medications": [],
@@ -214,7 +213,7 @@ class ClinicalNERService:
             "persons": [],
             "other": [],
         }
-        
+
         for entity in self.extract_entities(text):
             group = (entity.get("entity_group") or "").lower()
             word = entity.get("word", "").strip()
@@ -238,21 +237,17 @@ class ClinicalNERService:
 
     def _deduplicate_entities(self, entities: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Deduplicate entities based on position and content.
-        
+
         Args:
             entities: List of entities to deduplicate
-            
+
         Returns:
             Deduplicated list of entities
         """
         seen = set()
         deduped: list[dict[str, Any]] = []
         for entity in entities:
-            key = (
-                entity.get("start"),
-                entity.get("end"),
-                entity.get("word"),
-                entity.get("entity_group"))
+            key = (entity.get("start"), entity.get("end"), entity.get("word"), entity.get("entity_group"))
             if key in seen:
                 continue
             seen.add(key)
@@ -271,12 +266,7 @@ class NERPipeline(ClinicalNERService):
 NERAnalyzer = ClinicalNERService
 
 
-DEFAULT_MODELS = [
-    "dslim/bert-base-NER",
-    "Jean-Baptiste/roberta-large-ner-english"]
-
-
-
+DEFAULT_MODELS = ["dslim/bert-base-NER", "Jean-Baptiste/roberta-large-ner-english"]
 
 
 __all__ = ["ClinicalNERService", "NERPipeline"]
