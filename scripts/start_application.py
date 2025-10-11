@@ -35,7 +35,7 @@ def start_api_server():
         print(f"❌ Failed to start API server: {e}")
         return None
 
-def wait_for_api_ready(max_attempts=30, delay=1):
+def wait_for_api_ready(max_attempts=5, delay=1):
     """Wait for the API to be ready by checking the health endpoint."""
     print("⏳ Waiting for API to be ready...")
     

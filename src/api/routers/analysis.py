@@ -37,19 +37,28 @@ def run_analysis_and_save(
     analysis_service: AnalysisService) -> None:
     """Background task to run document analysis on in-memory content and save results.
     """
+    def _update_progress(percentage: int, message: str) -> None:
+        tasks[task_id]["progress"] = percentage
+        tasks[task_id]["status_message"] = message
+        logger.info("Task %s progress: %d%% - %s", task_id, percentage, message)
+
     async def _async_analysis():
         try:
             logger.info("Starting analysis for task %s", task_id)
+            _update_progress(0, "Analysis started.")
             result = await analysis_service.analyze_document(
                 file_content=file_content,
                 original_filename=original_filename,
                 discipline=discipline,
-                analysis_mode=analysis_mode)
+                analysis_mode=analysis_mode,
+                progress_callback=_update_progress)
             tasks[task_id] = {
                 "status": "completed",
                 "result": result,
                 "filename": original_filename,
                 "timestamp": datetime.datetime.now(datetime.UTC),
+                "progress": 100,
+                "status_message": "Analysis complete.",
             }
             logger.info("Analysis completed for task %s", task_id)
         except (FileNotFoundError, PermissionError, OSError) as exc:
@@ -59,6 +68,8 @@ def run_analysis_and_save(
                 "error": str(exc),
                 "filename": original_filename,
                 "timestamp": datetime.datetime.now(datetime.UTC),
+                "progress": 0,
+                "status_message": f"Analysis failed: {exc}",
             }
 
     # Run the async function in a new event loop
@@ -131,6 +142,9 @@ async def get_analysis_status(
     if task["status"] == "completed":
         return tasks.pop(task_id)
 
+    # Ensure progress and status_message are always returned, even if not explicitly set yet
+    task.setdefault("progress", 0)
+    task.setdefault("status_message", "Initializing...")
     return task
 
 @router.get("/all-tasks")

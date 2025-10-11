@@ -3,7 +3,7 @@ import hashlib
 import logging
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import psutil  # type: ignore[import-untyped]
 
@@ -25,6 +25,19 @@ from src.core.report_generator import ReportGenerator
 from src.core.text_utils import sanitize_bullets, sanitize_human_text
 from src.utils.prompt_manager import PromptManager
 
+from src.core.analysis_utils import (
+    build_bullet_highlights,
+    build_narrative_summary,
+    build_summary_fallback,
+    calculate_overall_confidence,
+    enrich_analysis_result,
+    trim_document_text,
+)
+from src.core.model_selection_utils import (
+    resolve_local_model_path,
+    select_generator_profile,
+)
+
 logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -44,8 +57,8 @@ class AnalysisService:
 
     def __init__(self, *args, **kwargs):
         settings = _get_settings()
-        repo_id, filename, revision = self._select_generator_profile(settings.models.model_dump())
-        local_model_path = self._resolve_local_model_path(settings)
+        repo_id, filename, revision = select_generator_profile(settings.models.model_dump())
+        local_model_path = resolve_local_model_path(settings)
 
         # Stage 1 Service: Pure PHI Redaction
         self.phi_scrubber = kwargs.get("phi_scrubber") or PhiScrubberService()
@@ -100,8 +113,16 @@ class AnalysisService:
         analysis_mode: str | None = None,
         document_text: str | None = None,
         file_content: bytes | None = None,
-        original_filename: str | None = None) -> Any:
+        original_filename: str | None = None,
+        progress_callback: Callable[[int, str], None] | None = None) -> Any:
         """Analyzes document content for compliance, using a content-aware cache."""
+
+        def _update_progress(percentage: int, message: str) -> None:
+            if progress_callback:
+                progress_callback(percentage, message)
+
+        _update_progress(0, "Starting analysis pipeline...")
+
         temp_file_path: Path | None = None
         try:
             if file_content:
@@ -115,10 +136,12 @@ class AnalysisService:
             cached_result = cache_service.get_from_disk(cache_key)
             if cached_result is not None:
                 logger.info("Full analysis cache hit for key: %s", cache_key)
+                _update_progress(100, "Analysis completed from cache.")
                 return AnalysisOutput(cached_result)
 
             logger.info("Full analysis cache miss for key: %s. Running analysis.", cache_key)
 
+            _update_progress(5, "Parsing document content...")
             if file_content:
                 temp_dir = Path(_get_settings().paths.temp_upload_dir)
                 temp_dir.mkdir(exist_ok=True)
@@ -135,6 +158,7 @@ class AnalysisService:
             # --- Start of Optimized Two-Stage Pipeline ---
 
             # Stage 0: Initial text processing (optimized for speed)
+            _update_progress(10, "Preprocessing document text...")
             trimmed_text = self._trim_document_text(text_to_process)
             # Skip heavy preprocessing for faster analysis - basic cleaning only
             corrected_text = (
@@ -144,9 +168,11 @@ class AnalysisService:
             )
 
             # Stage 1: PHI Redaction (Security First)
+            _update_progress(30, "Performing PHI redaction...")
             scrubbed_text = self.phi_scrubber.scrub(corrected_text)
 
             # Stage 2: Clinical Analysis on Anonymized Text (optimized)
+            _update_progress(50, "Classifying document type...")
             discipline_clean = sanitize_human_text(discipline or "Unknown")
 
             # Fast-track for shorter documents (skip heavy classification)
@@ -156,6 +182,7 @@ class AnalysisService:
                 doc_type_raw = await self._maybe_await(self.document_classifier.classify_document(scrubbed_text))
                 doc_type_clean = sanitize_human_text(doc_type_raw or "Progress Note")
 
+            _update_progress(60, "Running compliance analysis...")
             # Add timeout to the entire compliance analysis
             try:
                 analysis_result = await asyncio.wait_for(
@@ -176,6 +203,7 @@ class AnalysisService:
                     "compliance_score": 0.0,
                 }
 
+            _update_progress(85, "Enriching analysis results...")
             # --- End of Pipeline ---
 
             enriched_result = self._enrich_analysis_result(
@@ -184,6 +212,7 @@ class AnalysisService:
                 discipline=discipline_clean,
                 doc_type=doc_type_clean)
 
+            _update_progress(95, "Generating report...")
             # Add timeout to report generation
             try:
                 report = await asyncio.wait_for(
@@ -207,136 +236,10 @@ class AnalysisService:
                 }
 
             cache_service.set_to_disk(cache_key, final_report)
+            _update_progress(100, "Analysis complete.")
             return AnalysisOutput(final_report)
 
         finally:
             if temp_file_path and temp_file_path.exists():
                 temp_file_path.unlink()
                 logger.info("Cleaned up temporary file: %s", temp_file_path)
-
-    @staticmethod
-    async def _maybe_await(value: Any) -> Any:
-        return await value if asyncio.iscoroutine(value) or asyncio.isfuture(value) else value
-
-    @staticmethod
-    def _trim_document_text(document_text: str, *, max_chars: int = 12000) -> str:
-        return document_text[:max_chars] + "..." if len(document_text) > max_chars else document_text
-
-    def _enrich_analysis_result(
-        self, analysis_result: dict, *, document_text: str, discipline: str, doc_type: str
-    ) -> dict:
-        result = dict(analysis_result)
-        result.setdefault("discipline", discipline)
-        result.setdefault("document_type", doc_type)
-        checklist = self.checklist_service.evaluate(document_text, doc_type=doc_type, discipline=discipline)
-        result["deterministic_checks"] = checklist
-        summary = sanitize_human_text(result.get("summary", "")) or self._build_summary_fallback(result, checklist)
-        result["summary"] = summary
-        result["narrative_summary"] = self._build_narrative_summary(summary, checklist)
-        result["bullet_highlights"] = self._build_bullet_highlights(result, checklist, summary)
-        result["overall_confidence"] = self._calculate_overall_confidence(result, checklist)
-        return result
-
-    @staticmethod
-    def _build_summary_fallback(analysis_result: dict, checklist: list) -> str:
-        findings = analysis_result.get("findings") or []
-        highlights = ", ".join(sanitize_human_text(f.get("issue_title", "finding")) for f in findings[:3])
-        base = (
-            f"Reviewed documentation uncovered {len(findings)} findings: {highlights}."
-            if findings
-            else "Reviewed documentation shows no LLM-generated compliance findings."
-        )
-        flagged = [item for item in checklist if item.get("status") != "pass"]
-        if flagged:
-            titles = ", ".join(sanitize_human_text(item.get("title", "")) for item in flagged[:3])
-            base += f" Deterministic checks flagged: {titles}."
-        return base
-
-    def _build_narrative_summary(self, base_summary: str, checklist: list) -> str:
-        flagged = [item for item in checklist if item.get("status") != "pass"]
-        if not flagged:
-            return sanitize_human_text(base_summary + " Core documentation elements were present.")
-        focus = ", ".join(sanitize_human_text(item.get("title", "")) for item in flagged[:3])
-        return sanitize_human_text(f"{base_summary} Immediate follow-up recommended for: {focus}.")
-
-    @staticmethod
-    def _build_bullet_highlights(analysis_result: dict, checklist: list, summary: str) -> list[str]:
-        bullets = [
-            f"{item.get('title')}: {item.get('recommendation')}" for item in checklist if item.get("status") != "pass"
-        ]
-        findings = analysis_result.get("findings") or []
-        for finding in findings[:4]:
-            issue = finding.get("issue_title") or finding.get("rule_name")
-            suggestion = finding.get("personalized_tip") or finding.get("suggestion")
-            if issue and suggestion:
-                bullets.append(f"{issue}: {suggestion}")
-            elif issue:
-                bullets.append(issue)
-
-        summary_lower = summary.lower()
-        seen: set[str] = set()
-        sanitized: list[str] = []
-        for bullet in sanitize_bullets(bullets):
-            lowered = bullet.lower()
-            if lowered in seen or lowered in summary_lower:
-                continue
-            seen.add(lowered)
-            sanitized.append(bullet)
-        return sanitized
-
-    @staticmethod
-    def _calculate_overall_confidence(analysis_result: dict, checklist: list) -> float:
-        findings = analysis_result.get("findings") or []
-        conf_values = [float(f.get("confidence")) for f in findings if isinstance(f.get("confidence"), int | float)]
-        base_conf = sum(conf_values) / len(conf_values) if conf_values else 0.85
-        penalty = 0.05 * sum(1 for item in checklist if item.get("status") != "pass")
-        return max(0.0, min(1.0, base_conf - penalty))
-
-    def _select_generator_profile(self, models_cfg: dict) -> tuple[str, str, str | None]:
-        profiles = models_cfg.get("generator_profiles") or {}
-        if isinstance(profiles, dict) and profiles:
-            mem_gb = self._system_memory_gb()
-            name, profile = self._find_best_profile(profiles, mem_gb) or next(iter(profiles.items()), (None, None))
-            if profile:
-                logger.info("Selected generator profile %s (system memory {mem_gb} GB)", name)
-                return profile.get("repo", ""), profile.get("filename", ""), profile.get("revision")
-        return (
-            models_cfg.get("generator", ""),
-            models_cfg.get("generator_filename", ""),
-            models_cfg.get("generator_revision"))
-
-    def _find_best_profile(self, profiles: dict, mem_gb: float) -> tuple[str, dict] | None:
-        best_fit = None
-        for name, profile in profiles.items():
-            if not (profile.get("repo") and profile.get("filename")):
-                continue
-            min_gb, max_gb = profile.get("min_system_gb"), profile.get("max_system_gb")
-            if (min_gb and mem_gb < float(min_gb)) or (max_gb and mem_gb > float(max_gb)):
-                continue
-            if best_fit is None or (profile.get("min_system_gb") or 0.0) >= (best_fit[1].get("min_system_gb") or 0.0):
-                best_fit = (name, profile)
-        return best_fit
-
-    def _resolve_local_model_path(self, settings) -> str | None:
-        path_str = getattr(settings.models, "generator_local_path", None)
-        if not path_str:
-            return None
-
-        candidate = Path(path_str)
-        path = candidate if candidate.is_absolute() else (ROOT_DIR / path_str).resolve()
-        if path.exists():
-            return str(path)
-
-        logger.warning("Configured generator_local_path does not exist: %s", path)
-        return None
-
-    @staticmethod
-    def _system_memory_gb() -> float:
-        try:
-            return psutil.virtual_memory().total / (1024**3)
-        except Exception:
-            # Fallback to a conservative default when system inspection fails
-            return 16.0
-
-
-__all__ = ["AnalysisService", "AnalysisOutput", "get_settings"]
