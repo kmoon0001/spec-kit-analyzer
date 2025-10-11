@@ -81,6 +81,17 @@ class DataQuery:
     aggregation_level: str = "raw"  # raw, hourly, daily, weekly
     include_metadata: bool = True
     max_records: int | None = None
+    
+    def to_dict(self) -> dict[str, Any]:
+        """Convert query to dictionary representation"""
+        return {
+            "source_types": [st.value for st in self.source_types],
+            "filters": self.filters,
+            "time_range": self.time_range.to_dict() if self.time_range else None,
+            "aggregation_level": self.aggregation_level,
+            "include_metadata": self.include_metadata,
+            "max_records": self.max_records
+        }
 
 
 @dataclass
@@ -94,6 +105,18 @@ class DataResult(Generic[T]):
     record_count: int = 0
     has_more: bool = False
     next_cursor: str | None = None
+    
+    def to_dict(self) -> dict[str, Any]:
+        """Convert result to dictionary representation"""
+        return {
+            "data": self.data,
+            "metadata": self.metadata.__dict__ if hasattr(self.metadata, '__dict__') else str(self.metadata),
+            "query": self.query.to_dict(),
+            "retrieved_at": self.retrieved_at.isoformat(),
+            "record_count": self.record_count,
+            "has_more": self.has_more,
+            "next_cursor": self.next_cursor
+        }
 
 
 class BaseDataProvider(ABC):
@@ -187,7 +210,7 @@ class PerformanceDataProvider(BaseDataProvider):
     
     def supports_report_type(self, report_type: ReportType) -> bool:
         """Check if this provider supports the given report type"""
-        return report_type in [ReportType.PERFORMANCE, ReportType.SYSTEM_STATUS]
+        return report_type in [ReportType.PERFORMANCE_ANALYSIS, ReportType.DASHBOARD]
     
     async def query_data(self, query: DataQuery) -> "DataResult[dict[str, Any]]":
         """Execute a data query and return results"""
@@ -204,7 +227,7 @@ class PerformanceDataProvider(BaseDataProvider):
         """Get metadata about this data source"""
         return DataSourceMetadata(
             source_id=self.provider_id,
-            source_type=DataSourceType.PERFORMANCE,
+            source_type=DataSourceType.PERFORMANCE_METRICS,
             last_updated=datetime.now(),
             record_count=100,
             schema_version="1.0"
@@ -224,6 +247,12 @@ class PerformanceDataProvider(BaseDataProvider):
 
 class DataIntegrationService:
     """Main service for coordinating data integration across all providers"""
+
+    def __init__(self):
+        """Initialize the data integration service"""
+        self.providers: dict[str, BaseDataProvider] = {}
+        self.provider_registry: dict[DataSourceType, list[str]] = {}
+        self._register_default_providers()
 
     def _register_default_providers(self) -> None:
         """Register default data providers"""
@@ -255,6 +284,47 @@ class DataIntegrationService:
                 self.provider_registry[source_type] = []
 
             if provider.provider_id not in self.provider_registry[source_type]:
+                self.provider_registry[source_type].append(provider.provider_id)
+
+        logger.info("Registered data provider: %s", provider.provider_id)
+
+    def unregister_provider(self, provider_id: str) -> bool:
+        """Unregister a data provider"""
+        if provider_id in self.providers:
+            provider = self.providers[provider_id]
+            del self.providers[provider_id]
+            
+            # Remove from registry
+            for source_type, provider_ids in self.provider_registry.items():
+                if provider_id in provider_ids:
+                    provider_ids.remove(provider_id)
+            
+            logger.info("Unregistered data provider: %s", provider_id)
+            return True
+        return False
+
+    async def query_data(self, query: DataQuery) -> DataResult:
+        """Execute a data query across relevant providers"""
+        # Simple implementation - use first available provider
+        for source_type in query.source_types:
+            if source_type in self.provider_registry:
+                provider_ids = self.provider_registry[source_type]
+                if provider_ids:
+                    provider = self.providers[provider_ids[0]]
+                    return await provider.query_data(query)
+        
+        # Return empty result if no providers found
+        return DataResult(
+            data={},
+            metadata=DataSourceMetadata(
+                source_id="none",
+                source_type=DataSourceType.HISTORICAL_DATA,
+                description="No data available",
+                last_updated=datetime.now()
+            ),
+            query=query,
+            retrieved_at=datetime.now()
+        )
                 self.provider_registry[source_type].append(provider.provider_id)
 
             logger.info("Registered data provider: %s", provider.provider_id)

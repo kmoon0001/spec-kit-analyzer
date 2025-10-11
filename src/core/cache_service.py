@@ -296,6 +296,11 @@ class NERCache:
     @classmethod
     def entry_count(cls) -> int:
         return len(cls._cache)
+    
+    @classmethod
+    def clear(cls) -> None:
+        """Clear all cached NER results."""
+        cls._cache.clear()
 
 def get_cache_stats() -> dict[str, float]:
     """Return basic statistics about in-memory caches."""
@@ -385,6 +390,11 @@ class LLMResponseCache:
     @classmethod
     def entry_count(cls) -> int:
         return len(cls._cache)
+    
+    @classmethod
+    def clear(cls) -> None:
+        """Clear all cached LLM responses."""
+        cls._cache.clear()
 
 class DocumentCache:
     """Document cache implementation."""
@@ -404,6 +414,12 @@ class DocumentCache:
         return doc.get('classification') if doc else None
     
     @classmethod
+    def set_document_classification(cls, doc_id: str, classification: dict):
+        if doc_id not in cls._cache:
+            cls._cache[doc_id] = {}
+        cls._cache[doc_id]['classification'] = classification
+    
+    @classmethod
     def memory_usage_mb(cls) -> float:
         """Estimate memory usage of document cache."""
         total_bytes = 0
@@ -419,3 +435,8 @@ class DocumentCache:
     @classmethod
     def entry_count(cls) -> int:
         return len(cls._cache)
+    
+    @classmethod
+    def clear(cls) -> None:
+        """Clear all cached documents."""
+        cls._cache.clear()
