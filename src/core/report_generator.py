@@ -11,6 +11,7 @@ import mimetypes
 import os
 import urllib.parse
 from collections import Counter
+from copy import deepcopy
 from datetime import UTC, datetime
 from typing import Any
 
@@ -74,23 +75,239 @@ class ReportGenerator:
         return ""
 
     def generate_report(
-        self, analysis_result: dict[str, Any], *, document_name: str | None = None, analysis_mode: str = "rubric"
+        self, analysis_result: dict[str, Any] | None, *, document_name: str | None = None, analysis_mode: str = "rubric"
     ) -> dict[str, Any]:
-        doc_name = document_name or analysis_result.get("document_name", "Document")
-        report_html = self.generate_html_report(
-            analysis_result=analysis_result, doc_name=doc_name, analysis_mode=analysis_mode
-        )
-        findings = analysis_result.get("findings", [])
-        return {
-            "analysis": analysis_result,
-            "findings": findings,
-            "summary": analysis_result.get("summary", ""),
+        """Build the structured compliance report payload used by downstream services.
+
+        The method is intentionally defensive. Real-world analysis runs may yield partial
+        dictionaries (for example when an upstream task times out). Instead of raising,
+        we normalize the payload, track which prerequisite stages finished, and surface
+        human-readable fallback messaging so the UI can render a degraded-but-useful
+        report instead of hanging at 50% progress.
+        """
+
+        safe_result = self._normalize_analysis_result(analysis_result)
+        doc_name = document_name or safe_result.get("document_name", "Document")
+        checkpoints = self._build_stage_checkpoints(safe_result)
+        fallback_messages = self._build_fallback_messages(safe_result, checkpoints)
+
+        report_ready = self._is_report_ready(checkpoints)
+        if report_ready:
+            report_html = self.generate_html_report(
+                analysis_result=safe_result, doc_name=doc_name, analysis_mode=analysis_mode
+            )
+        else:
+            report_html = self._build_fallback_report(doc_name, safe_result, checkpoints, fallback_messages)
+
+        payload: dict[str, Any] = {
+            "analysis": safe_result,
+            "findings": safe_result.get("findings", []),
+            "summary": safe_result.get("summary", ""),
             "report_html": report_html,
             "generated_at": datetime.now(tz=UTC).isoformat(),
+            "checkpoints": checkpoints,
+            "report_ready": report_ready,
         }
+        if fallback_messages:
+            payload["fallback_messages"] = fallback_messages
+        return payload
 
     def generate_html_report(self, analysis_result: dict, doc_name: str, analysis_mode: str = "rubric") -> str:
         return self._generate_rubric_report(analysis_result, doc_name)
+
+    def _normalize_analysis_result(self, analysis_result: dict[str, Any] | None) -> dict[str, Any]:
+        if isinstance(analysis_result, dict):
+            normalized: dict[str, Any] = deepcopy(analysis_result)
+        else:
+            logger.warning(
+                "Expected analysis_result to be a dict, received %s. Falling back to empty payload.",
+                type(analysis_result).__name__,
+            )
+            normalized = {}
+
+        findings = normalized.get("findings", [])
+        if not isinstance(findings, list):
+            findings = list(findings) if isinstance(findings, (tuple, set)) else []
+        normalized["findings"] = findings
+
+        summary = normalized.get("summary")
+        normalized["summary"] = summary if isinstance(summary, str) else ""
+
+        checklist = normalized.get("deterministic_checks", [])
+        if not isinstance(checklist, list):
+            checklist = []
+        normalized["deterministic_checks"] = checklist
+
+        highlights = normalized.get("bullet_highlights", [])
+        if not isinstance(highlights, list):
+            highlights = []
+        normalized["bullet_highlights"] = highlights
+
+        narrative = normalized.get("narrative_summary")
+        if not isinstance(narrative, str):
+            normalized["narrative_summary"] = ""
+
+        metadata = normalized.get("metadata")
+        if not isinstance(metadata, dict):
+            metadata = {}
+        normalized["metadata"] = metadata
+        metadata.setdefault("stage_flags", {})
+
+        return normalized
+
+    def _build_stage_checkpoints(self, analysis_result: dict[str, Any]) -> list[dict[str, Any]]:
+        stage_definitions = [
+            {
+                "id": "ingestion",
+                "label": "Document ingestion",
+                "required": True,
+                "paths": [
+                    ("metadata", "ingestion_status"),
+                    ("ingestion_status",),
+                    ("document_text",),
+                    ("source_text",),
+                ],
+                "success": "Source content parsed successfully.",
+                "failure": "Document text was unavailable when report generation started.",
+            },
+            {
+                "id": "analysis",
+                "label": "Compliance analysis",
+                "required": True,
+                "paths": [
+                    ("metadata", "analysis_status"),
+                    ("analysis_status",),
+                    ("findings",),
+                    ("compliance_score",),
+                ],
+                "success": "Findings and scoring data collected.",
+                "failure": "Compliance findings were missing or analysis halted early.",
+            },
+            {
+                "id": "enrichment",
+                "label": "Result enrichment",
+                "required": False,
+                "paths": [
+                    ("deterministic_checks",),
+                    ("bullet_highlights",),
+                    ("narrative_summary",),
+                ],
+                "success": "Narratives, highlights, and checklist items prepared.",
+                "failure": "Supplemental insights not available; continuing with base findings only.",
+            },
+            {
+                "id": "habit_mapping",
+                "label": "Habit mapper integration",
+                "required": False,
+                "paths": [
+                    ("habits",),
+                    ("metadata", "habits_status"),
+                ],
+                "success": "Habit framework insights generated.",
+                "failure": "Habit mapper skipped or encountered an error.",
+            },
+        ]
+
+        checkpoints: list[dict[str, Any]] = []
+        for stage in stage_definitions:
+            complete = any(self._resolve_path(analysis_result, path) for path in stage["paths"])
+            status = "completed" if complete else ("pending" if stage["required"] else "skipped")
+            checkpoints.append(
+                {
+                    "id": stage["id"],
+                    "label": stage["label"],
+                    "required": stage["required"],
+                    "status": status,
+                    "details": stage["success"] if complete else stage["failure"],
+                }
+            )
+        return checkpoints
+
+    @staticmethod
+    def _resolve_path(container: dict[str, Any], path: tuple[str, ...]) -> Any:
+        current: Any = container
+        for key in path:
+            if isinstance(current, dict) and key in current:
+                current = current[key]
+            else:
+                return None
+        return current
+
+    def _build_fallback_messages(
+        self, analysis_result: dict[str, Any], checkpoints: list[dict[str, Any]]
+    ) -> list[str]:
+        messages: list[str] = []
+
+        error = analysis_result.get("error")
+        if error:
+            messages.append(f"Analysis engine reported an error: {sanitize_human_text(str(error))}")
+
+        if analysis_result.get("exception"):
+            messages.append("An exception flag was raised during compliance analysis; results may be incomplete.")
+
+        missing_required = [cp["label"] for cp in checkpoints if cp["required"] and cp["status"] != "completed"]
+        if missing_required:
+            joined = ", ".join(missing_required)
+            messages.append(
+                f"The following pipeline checkpoints did not finish in time: {sanitize_human_text(joined)}."
+            )
+
+        if not analysis_result.get("findings"):
+            messages.append("No compliance findings were produced for this document.")
+
+        if not analysis_result.get("summary"):
+            messages.append("A narrative summary was unavailable when the report was generated.")
+
+        return messages
+
+    @staticmethod
+    def _is_report_ready(checkpoints: list[dict[str, Any]]) -> bool:
+        return all(cp["status"] == "completed" for cp in checkpoints if cp.get("required"))
+
+    def _build_fallback_report(
+        self,
+        document_name: str,
+        analysis_result: dict[str, Any],
+        checkpoints: list[dict[str, Any]],
+        fallback_messages: list[str],
+    ) -> str:
+        safe_doc_name = sanitize_human_text(document_name)
+        summary = sanitize_human_text(analysis_result.get("summary", "")) or (
+            "Report generation completed with partial results."
+        )
+        checkpoint_items = "".join(
+            (
+                "<li><strong>{label}:</strong> {details} ({status})</li>".format(
+                    label=sanitize_human_text(cp["label"]),
+                    details=sanitize_human_text(cp["details"]),
+                    status=sanitize_human_text(cp["status"]),
+                )
+            )
+            for cp in checkpoints
+        ) or "<li>No checkpoints were evaluated.</li>"
+
+        fallback_items = "".join(
+            f"<li>{sanitize_human_text(message)}</li>" for message in fallback_messages
+        ) or "<li>No additional context was provided.</li>"
+
+        findings_count = len(analysis_result.get("findings", []))
+        findings_note = (
+            "<p>No detailed findings are available. The analysis may have stopped before scoring completed.</p>"
+            if findings_count == 0
+            else f"<p>{findings_count} findings were captured before the pipeline exited early.</p>"
+        )
+
+        return (
+            "<section class=\"report-fallback\">"
+            f"<h1>{safe_doc_name} &mdash; Partial Compliance Report</h1>"
+            f"<p>{summary}</p>"
+            f"{findings_note}"
+            "<h2>Pipeline Checkpoints</h2>"
+            f"<ul>{checkpoint_items}</ul>"
+            "<h2>Next Steps</h2>"
+            f"<ul>{fallback_items}</ul>"
+            "</section>"
+        )
 
     def _generate_rubric_report(self, analysis_result: dict, doc_name: str) -> str:
         template_str = self.rubric_template_str
