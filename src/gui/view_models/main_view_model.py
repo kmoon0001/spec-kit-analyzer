@@ -103,7 +103,7 @@ class MainViewModel(QObject):
         worker.moveToThread(thread)
         thread._worker_ref = worker
 
-        def connect_signal(signal_name: str | None, callback: Callable | None, should_quit: bool) -> None:
+        def connect_signal(signal_name: str | None, callback: Callable | None) -> None:
             if not signal_name:
                 return
             if not hasattr(worker, signal_name):
@@ -113,14 +113,11 @@ class MainViewModel(QObject):
             signal = getattr(worker, signal_name)
             if callback is not None:
                 signal.connect(callback)
-            if should_quit:
-                signal.connect(thread.quit)
 
-        connect_signal(success_signal, on_success, auto_stop)
-        connect_signal(error_signal, on_error, auto_stop)
+        connect_signal(success_signal, on_success)
+        connect_signal(error_signal, on_error)
 
-        if hasattr(worker, "finished"):
-            worker.finished.connect(thread.quit)
+        worker.finished.connect(thread.quit)
 
         thread.finished.connect(thread.deleteLater)
         if hasattr(worker, "deleteLater"):

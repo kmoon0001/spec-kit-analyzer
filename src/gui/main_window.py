@@ -45,7 +45,7 @@ from src.gui.view_models.main_view_model import MainViewModel
 from src.gui.widgets.medical_theme import medical_theme
 
 # Import minimal micro-interactions (subtle animations only)
-from src.gui.widgets.micro_interactions import AnimatedButton, LoadingSpinner
+from src.gui.widgets.micro_interactions import AnimatedButton
 from src.gui.widgets.mission_control_widget import LogViewerWidget, MissionControlWidget, SettingsEditorWidget
 
 # Import dialogs for test compatibility
@@ -142,7 +142,7 @@ class MainApplicationWindow(QMainWindow):
         self.connection_label: QWidget | None = None
         self.connection_indicator: QWidget | None = None
         self.connection_status_widget: QWidget | None = None
-        self.loading_spinner: LoadingSpinner | None = None
+
         self.progress_bar: QProgressBar | None = None
 
         # Dock widgets
@@ -396,10 +396,7 @@ class MainApplicationWindow(QMainWindow):
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
 
-        # Loading spinner
-        self.loading_spinner = LoadingSpinner(size=16, parent=self)
-        self.loading_spinner.hide()
-        status.addPermanentWidget(self.loading_spinner)
+
 
     def _setup_keyboard_shortcuts(self) -> None:
         """Setup keyboard shortcuts for tab navigation."""

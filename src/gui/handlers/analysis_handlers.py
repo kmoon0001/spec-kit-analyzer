@@ -110,7 +110,6 @@ class AnalysisHandlers:
                 self._reset_ui_after_stop("⏹️ Analysis stopped by user")
 
     def _reset_ui_after_stop(self, message: str):
-
         self.main_window.hide_progress()
         if self.main_window.run_analysis_button:
             self.main_window.run_analysis_button.setEnabled(True)
