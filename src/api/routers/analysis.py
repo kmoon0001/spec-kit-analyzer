@@ -191,9 +191,28 @@ async def export_report_to_pdf(
         )
 
         if not pdf_result.get("success"):
-            raise HTTPException(status_code=500, detail=f"PDF generation failed: {pdf_result.get('error')}")
+            error_message = pdf_result.get("error", "Unknown error")
+            logger.error(
+                "PDF export failed; returning HTML fallback",
+                task_id=task_id,
+                error=error_message,
+            )
+            return {
+                "success": False,
+                "task_id": task_id,
+                "message": "PDF export failed. Returning HTML report instead.",
+                "pdf_info": pdf_result,
+                "fallback": "html",
+                "report_html": report_data["report_html"],
+                "error": error_message,
+            }
 
-        return {"task_id": task_id, "pdf_info": pdf_result, "message": "PDF exported successfully"}
+        return {
+            "success": True,
+            "task_id": task_id,
+            "pdf_info": pdf_result,
+            "message": "PDF exported successfully",
+        }
 
     except (ImportError, ModuleNotFoundError) as e:
         logger.exception("PDF export failed", task_id=task_id, error=str(e))
