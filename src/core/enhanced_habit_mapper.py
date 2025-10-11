@@ -1,7 +1,6 @@
 import logging
 from typing import Any, TypedDict
 
-import json
 import requests
 from requests.exceptions import HTTPError
 

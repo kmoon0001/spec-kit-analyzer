@@ -1,5 +1,5 @@
 """PDF Export Service for Compliance Reports
-from PIL import Image
+import PIL.Image as Image
 import PIL
 
 This service provides comprehensive PDF export functionality for compliance analysis reports,
