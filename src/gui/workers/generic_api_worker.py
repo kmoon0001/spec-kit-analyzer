@@ -19,6 +19,7 @@ class FeedbackWorker(QThread):
 
     success = Signal(str)
     error = Signal(str)
+    finished = Signal() # Added finished signal
 
     def __init__(self, token: str, feedback_data: dict[str, Any], parent: QThread | None = None) -> None:
         super().__init__(parent)
@@ -36,6 +37,8 @@ class FeedbackWorker(QThread):
             self.error.emit(f"Failed to submit feedback: {e.response.status_code}")
         except requests.RequestException as e:
             self.error.emit(f"Network error during feedback submission: {e}")
+        finally:
+            self.finished.emit() # Emit finished signal
 
 
 class GenericApiWorker(QThread):
@@ -43,6 +46,7 @@ class GenericApiWorker(QThread):
 
     success = Signal(object)
     error = Signal(str)
+    finished = Signal() # Added finished signal
 
     def __init__(self, method: str, endpoint: str, data: dict = None, token: str = None, parent=None):
         super().__init__(parent)
@@ -80,6 +84,8 @@ class GenericApiWorker(QThread):
                 
         except Exception as e:
             self.error.emit(f"Request failed: {str(e)}")
+        finally:
+            self.finished.emit() # Emit finished signal
 
     def stop(self) -> None:
         self.is_running = False
@@ -90,6 +96,7 @@ class TaskMonitorWorker(QThread):
 
     tasks_updated = Signal(dict)
     error = Signal(str)
+    finished = Signal() # Added finished signal
     
     def __init__(self, token: str = None, parent=None):
         super().__init__(parent)
@@ -117,6 +124,7 @@ class TaskMonitorWorker(QThread):
             except Exception as e:
                 self.error.emit(f"Task monitoring failed: {str(e)}")
                 break
+        self.finished.emit() # Emit finished signal
     
     def stop(self):
         self.running = False
@@ -129,6 +137,7 @@ class HealthCheckWorker(QThread):
     
     success = Signal(dict)
     error = Signal(str)
+    finished = Signal() # Added finished signal
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -147,6 +156,7 @@ class HealthCheckWorker(QThread):
                 self.error.emit(f"Health check error: {str(e)}")
             
             self.msleep(10000)  # Wait 10 seconds
+        self.finished.emit() # Emit finished signal
 
     def stop(self):
         self.running = False
@@ -156,6 +166,7 @@ class LogStreamWorker(QThread):
     
     log_received = Signal(str)
     error = Signal(str)
+    finished = Signal() # Added finished signal
     
     def __init__(self, token: str = None, parent=None):
         super().__init__(parent)
@@ -182,6 +193,8 @@ class LogStreamWorker(QThread):
                     break
         except Exception as e:
             self.error.emit(f"Log stream failed: {str(e)}")
+        finally:
+            self.finished.emit() # Emit finished signal
     
     def stop(self):
         self.running = False

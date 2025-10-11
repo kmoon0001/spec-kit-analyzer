@@ -103,7 +103,7 @@ class MainViewModel(QObject):
         worker.moveToThread(thread)
         thread._worker_ref = worker
 
-        def connect_signal(signal_name: str | None, callback: Callable | None) -> None:
+        def connect_signal(signal_name: str | None, callback: Callable | None, should_quit: bool) -> None:
             if not signal_name:
                 return
             if not hasattr(worker, signal_name):
@@ -113,10 +113,13 @@ class MainViewModel(QObject):
             signal = getattr(worker, signal_name)
             if callback is not None:
                 signal.connect(callback)
+            if should_quit:
+                signal.connect(thread.quit)
 
-        connect_signal(success_signal, on_success)
-        connect_signal(error_signal, on_error)
+        connect_signal(success_signal, on_success, auto_stop)
+        connect_signal(error_signal, on_error, auto_stop)
 
+        # Ensure the thread always quits when the worker's run() method finishes
         worker.finished.connect(thread.quit)
 
         thread.finished.connect(thread.deleteLater)
@@ -304,7 +307,7 @@ class MainViewModel(QObject):
                     if not thread.wait(11000):
                         logger.warning("Thread did not quit gracefully, terminating")
                         thread.terminate()
-                        thread.wait(50)
+                        thread.wait(1000)
 
             except (RuntimeError, AttributeError):
                 pass
