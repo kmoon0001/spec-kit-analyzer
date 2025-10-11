@@ -51,6 +51,7 @@ python-multipart==0.0.20
 
 # ===== PDF EXPORT =====
 weasyprint==63.1
+xhtml2pdf==0.2.11
 
 # ===== SCHEDULING & AUTOMATION =====
 
@@ -67,7 +68,7 @@ pandas==2.3.3
 
 # ===== OPTIONAL FEATURES =====
 # PDF Export (optional - graceful fallback)
-reportlab==4.4.4
+reportlab==3.6.13
 
 # Performance monitoring (optional)
 psutil==7.1.0

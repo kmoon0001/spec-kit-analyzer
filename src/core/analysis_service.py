@@ -166,15 +166,6 @@ class AnalysisService:
                             doc_type=doc_type_clean)),
                     timeout=600.0,  # 10 minute timeout for entire analysis
                 )
-            except TimeoutError:
-                logger.exception("Compliance analysis timed out after 10 minutes")
-                analysis_result = {
-                    "findings": [],
-                    "summary": "Analysis timed out - please try with a shorter document or contact support",
-                    "error": "Analysis timeout",
-                    "timeout": True,
-                    "compliance_score": 0.0,
-                }
             except Exception as e:
                 logger.exception("Compliance analysis failed: %s", e)
                 analysis_result = {

@@ -141,6 +141,6 @@ def test_rapid_dialog_opening(main_app_window: MainApplicationWindow, qtbot):
         with patch("src.gui.handlers.ui_handlers.ChangePasswordDialog") as mock_dialog:
             mock_instance = mock_dialog.return_value
             QTimer.singleShot(10, mock_instance.accept)
-            main_app_window.show_change_password_dialog()
+            main_app_window.show_.change_password_dialog()
             mock_instance.exec.assert_called_once()
         qtbot.wait(20)
