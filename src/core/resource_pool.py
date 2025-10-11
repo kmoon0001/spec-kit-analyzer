@@ -161,7 +161,52 @@ class PoolConfiguration:
 
 
 class ResourcePool(Generic[T]):
-    """Generic resource pool with lifecycle management."""
+    """Generic resource pool with lifecycle management.
+    
+    Implements industry best practices for resource pooling:
+    - Thread-safe operations with proper locking
+    - Resource lifecycle management
+    - Automatic cleanup and validation
+    - Metrics collection and monitoring
+    - Graceful shutdown handling
+    """
+
+    def __init__(self, name: str, factory: ResourceFactory[T], config: PoolConfiguration):
+        """Initialize the resource pool.
+        
+        Args:
+            name: Unique name for this pool
+            factory: Factory for creating resources
+            config: Pool configuration parameters
+        """
+        self.name = name
+        self.factory = factory
+        self.config = config
+        
+        # Thread-safe resource management
+        self._resources: dict[str, PooledResource[T]] = {}
+        self._available_queue: queue.Queue[str] = queue.Queue()
+        self._lock = threading.RLock()  # Reentrant lock for nested operations
+        
+        # Pool state management
+        self._shutdown = False
+        self._resource_counter = 0
+        self._next_id = 0  # For compatibility with existing code
+        self._maintenance_thread: threading.Thread | None = None
+        
+        # Metrics and monitoring
+        self._total_created = 0
+        self._total_disposed = 0
+        self._peak_size = 0
+        
+        # Start maintenance thread for cleanup and validation
+        self._start_maintenance_thread()
+        
+        # Preload resources if configured
+        if config.preload_resources:
+            self._preload_resources()
+            
+        logger.info("Resource pool '%s' initialized with config: %s", name, config)
 
     def acquire_resource(self, timeout: float | None = None) -> PooledResource[T] | None:
         """Acquire a resource from the pool."""
@@ -202,6 +247,140 @@ class ResourcePool(Generic[T]):
                 return None
 
         return None
+
+    def _create_resource(self) -> PooledResource[T] | None:
+        """Create a new resource using the factory."""
+        try:
+            self._next_id += 1
+            resource_id = f"{self.name}-{self._next_id}"
+            
+            logger.debug("Creating new resource: %s", resource_id)
+            raw_resource = self.factory.create_resource(resource_id)
+            
+            pooled_resource = PooledResource(raw_resource, resource_id, self)
+            self._resources[resource_id] = pooled_resource
+            self._total_created += 1
+            
+            # Update peak size tracking
+            current_size = len(self._resources)
+            if current_size > self._peak_size:
+                self._peak_size = current_size
+                
+            logger.debug("Created resource %s (pool size: %d)", resource_id, current_size)
+            return pooled_resource
+            
+        except Exception as e:
+            logger.exception("Failed to create resource: %s", e)
+            return None
+
+    def _on_resource_released(self, resource: PooledResource[T]) -> None:
+        """Handle resource release notification."""
+        if not self._shutdown and resource.state == ResourceState.AVAILABLE:
+            self._available_queue.put(resource.resource_id)
+            logger.debug("Resource %s returned to available queue", resource.resource_id)
+
+    def _preload_resources(self) -> None:
+        """Preload minimum number of resources."""
+        with self._lock:
+            for _ in range(self.config.min_size):
+                resource = self._create_resource()
+                if resource:
+                    self._available_queue.put(resource.resource_id)
+                    
+        logger.info("Preloaded %d resources for pool '%s'", self.config.min_size, self.name)
+
+    def _start_maintenance_thread(self) -> None:
+        """Start background maintenance thread."""
+        self._maintenance_thread = threading.Thread(
+            target=self._maintenance_loop,
+            name=f"ResourcePool-{self.name}-Maintenance",
+            daemon=True
+        )
+        self._maintenance_thread.start()
+
+    def _maintenance_loop(self) -> None:
+        """Background maintenance loop for resource cleanup and validation."""
+        while not self._shutdown:
+            try:
+                self._cleanup_expired_resources()
+                self._validate_resources()
+                self._ensure_minimum_resources()
+                time.sleep(self.config.validation_interval.total_seconds())
+            except Exception as e:
+                logger.exception("Error in maintenance loop: %s", e)
+                time.sleep(60)  # Wait longer on error
+
+    def _cleanup_expired_resources(self) -> None:
+        """Clean up expired and idle resources."""
+        now = datetime.now()
+        expired_resources = []
+        
+        with self._lock:
+            for resource_id, resource in list(self._resources.items()):
+                # Check for expired resources
+                if (resource.state == ResourceState.AVAILABLE and 
+                    now - resource.last_used > self.config.max_idle_time):
+                    resource.mark_expired()
+                    
+                # Check for lifetime exceeded
+                if now - resource.created_at > self.config.max_lifetime:
+                    resource.mark_expired()
+                    
+                # Collect expired resources for disposal
+                if resource.state == ResourceState.EXPIRED:
+                    expired_resources.append(resource)
+                    
+        # Dispose expired resources outside the lock
+        for resource in expired_resources:
+            self._dispose_resource(resource)
+
+    def _validate_resources(self) -> None:
+        """Validate available resources."""
+        invalid_resources = []
+        
+        with self._lock:
+            for resource in self._resources.values():
+                if (resource.state == ResourceState.AVAILABLE and 
+                    not self.factory.validate_resource(resource.resource)):
+                    invalid_resources.append(resource)
+                    
+        # Dispose invalid resources
+        for resource in invalid_resources:
+            logger.warning("Resource %s failed validation, disposing", resource.resource_id)
+            self._dispose_resource(resource)
+
+    def _dispose_resource(self, resource: PooledResource[T]) -> None:
+        """Dispose of a resource properly."""
+        try:
+            with self._lock:
+                if resource.resource_id in self._resources:
+                    del self._resources[resource.resource_id]
+                    
+            # Dispose the actual resource
+            self.factory.dispose_resource(resource.resource)
+            resource.dispose()
+            self._total_disposed += 1
+            
+            logger.debug("Disposed resource %s", resource.resource_id)
+            
+        except Exception as e:
+            logger.exception("Error disposing resource %s: %s", resource.resource_id, e)
+
+    def _ensure_minimum_resources(self) -> None:
+        """Ensure minimum number of resources are available."""
+        with self._lock:
+            available_count = sum(1 for r in self._resources.values() if r.state == ResourceState.AVAILABLE)
+
+            needed = self.config.min_size - available_count
+            for _ in range(needed):
+                if len(self._resources) < self.config.max_size:
+                    try:
+                        resource = self._create_resource()
+                        if resource:
+                            self._available_queue.put(resource.resource_id)
+                    except Exception as e:
+                        logger.exception("Failed to create minimum resource: %s", e)
+                        break
 
     def release_resource(self, pooled_resource: PooledResource[T]) -> None:
         """Release a resource back to the pool."""
@@ -257,85 +436,9 @@ class ResourcePool(Generic[T]):
 
         logger.info("Resource pool '%s' shut down", self.name)
 
-    def _create_resource(self) -> PooledResource[T]:
-        """Create a new pooled resource."""
-        resource_id = f"{self.name}-{self._next_id}"
-        self._next_id += 1
 
-        try:
-            resource = self.factory.create_resource(resource_id)
-            pooled_resource = PooledResource(resource, resource_id, self)
-            self._resources[resource_id] = pooled_resource
 
-            logger.debug("Created new resource: %s", resource_id)
-            return pooled_resource
 
-        except Exception:
-            logger.exception("Failed to create resource %s: {e}", resource_id)
-            raise
-
-    def _preload_resources(self) -> None:
-        """Preload minimum number of resources."""
-        with self._lock:
-            for _ in range(self.config.min_size):
-                try:
-                    resource = self._create_resource()
-                    self._available_queue.put(resource.resource_id)
-                except Exception as e:
-                    logger.exception("Failed to preload resource: %s", e)
-                    break
-
-    def _on_resource_released(self, pooled_resource: PooledResource[T]) -> None:
-        """Handle resource release notification."""
-        if not self._shutdown and pooled_resource.state == ResourceState.AVAILABLE:
-            self._available_queue.put(pooled_resource.resource_id)
-
-    def _maintenance_loop(self) -> None:
-        """Background maintenance loop."""
-        while not self._shutdown:
-            try:
-                self._cleanup_expired_resources()
-                self._validate_resources()
-                self._ensure_minimum_resources()
-
-                time.sleep(self.config.validation_interval.total_seconds())
-
-            except (ValueError, TypeError, AttributeError) as e:
-                logger.exception("Error in resource pool maintenance: %s", e)
-                time.sleep(5)  # Brief pause before retrying
-
-    def _cleanup_expired_resources(self) -> None:
-        """Clean up expired and old resources."""
-        now = datetime.now()
-        expired_resources = []
-
-        with self._lock:
-            for resource_id, resource in self._resources.items():
-                # Check if resource has exceeded maximum lifetime
-                if now - resource.created_at > self.config.max_lifetime:
-                    resource.mark_expired()
-                    expired_resources.append(resource_id)
-                    continue
-
-                # Check if resource has been idle too long
-                if resource.state == ResourceState.AVAILABLE and now - resource.last_used > self.config.max_idle_time:
-                    resource.mark_expired()
-                    expired_resources.append(resource_id)
-
-            # Remove expired resources
-            for resource_id in expired_resources:
-                if resource_id in self._resources:
-                    resource = self._resources[resource_id]
-                    try:
-                        self.factory.dispose_resource(resource.resource)
-                        resource.dispose()
-                        del self._resources[resource_id]
-                        logger.debug("Cleaned up expired resource: %s", resource_id)
-                    except Exception:
-                        logger.exception("Error disposing expired resource %s: {e}", resource_id)
-
-    def _validate_resources(self) -> None:
-        """Validate that resources are still usable."""
         invalid_resources = []
 
         with self._lock:
@@ -361,22 +464,6 @@ class ResourcePool(Generic[T]):
                         logger.debug("Removed invalid resource: %s", resource_id)
                     except Exception:
                         logger.exception("Error disposing invalid resource %s: {e}", resource_id)
-
-    def _ensure_minimum_resources(self) -> None:
-        """Ensure minimum number of resources are available."""
-        with self._lock:
-            available_count = sum(1 for r in self._resources.values() if r.state == ResourceState.AVAILABLE)
-
-            needed = self.config.min_size - available_count
-            for _ in range(needed):
-                if len(self._resources) < self.config.max_size:
-                    try:
-                        resource = self._create_resource()
-                        self._available_queue.put(resource.resource_id)
-                    except Exception as e:
-                        logger.exception("Failed to create minimum resource: %s", e)
-                        break
-
 
 class ResourcePoolManager:
     """Manager for multiple resource pools."""
