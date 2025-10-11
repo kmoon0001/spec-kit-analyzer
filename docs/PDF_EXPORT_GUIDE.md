@@ -72,6 +72,7 @@ Authorization: Bearer <token>
 **Response:**
 ```json
 {
+  "success": true,
   "task_id": "abc123",
   "pdf_info": {
     "success": true,
@@ -84,6 +85,26 @@ Authorization: Bearer <token>
   },
   "message": "PDF exported successfully"
 }
+
+When the PDF backend is unavailable or an export error occurs, the API returns a graceful fallback
+response instead of an HTTP 500 error:
+
+```json
+{
+  "success": false,
+  "task_id": "abc123",
+  "message": "PDF export failed. Returning HTML report instead.",
+  "fallback": "html",
+  "pdf_info": {
+    "success": false,
+    "error": "No PDF backend available. Install WeasyPrint with system dependencies to enable PDF export."
+  },
+  "report_html": "<html>...sanitized report html...</html>"
+}
+```
+
+The client can display or download the HTML payload while administrators install the required PDF
+dependencies.
 ```
 
 ### List Exported PDFs
