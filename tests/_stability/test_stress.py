@@ -1,4 +1,4 @@
-impytest
+import pytest
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QMessageBox, QDialog
 from unittest.mock import MagicMock, patch
