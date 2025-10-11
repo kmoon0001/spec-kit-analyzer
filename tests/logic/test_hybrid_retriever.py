@@ -72,7 +72,8 @@ async def test_rrf_ranking_logic(retriever):
     # With these rankings, the expected RRF order is A > C > B.
     # This is because A is ranked high by both, while C is high in one but low in the other.
 
-    with patch("src.core.hybrid_retriever.cos_sim", return_value=[mock_tensor]):
+    with patch("src.core.hybrid_retriever.cos_sim", return_value=[mock_tensor]), \
+         patch.object(retriever, '_get_embedding', return_value=mock_tensor):
         # Act
         results = await retriever.retrieve(query, top_k=3)
 
@@ -88,7 +89,8 @@ async def test_rrf_ranking_logic(retriever):
     )
 
     # Also test that top_k works correctly
-    with patch("src.core.hybrid_retriever.cos_sim", return_value=[mock_tensor]):
+    with patch("src.core.hybrid_retriever.cos_sim", return_value=[mock_tensor]), \
+         patch.object(retriever, '_get_embedding', return_value=mock_tensor):
         results_top_2 = await retriever.retrieve(query, top_k=2)
 
     assert len(results_top_2) == 2

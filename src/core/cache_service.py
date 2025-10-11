@@ -241,6 +241,10 @@ class EmbeddingCache:
     @classmethod
     def clear(cls) -> None:
         cls._cache.clear()
+    
+    @classmethod
+    def memory_usage_mb(cls) -> float:
+        return cls._cache._current_memory_mb()
 
 class NERCache:
     """Cache for NER results keyed by text and model name."""
@@ -284,8 +288,15 @@ class NERCache:
         response: str,
         ttl_hours: float | None = None) -> None:
         cls._cache.set(_hash_key(model_name, prompt), response, ttl_hours=ttl_hours)
+    
+    @classmethod
+    def memory_usage_mb(cls) -> float:
+        return cls._cache._current_memory_mb()
+    
+    @classmethod
+    def entry_count(cls) -> int:
+        return len(cls._cache)
 
-@classmethod
 def get_cache_stats() -> dict[str, float]:
     """Return basic statistics about in-memory caches."""
     vm = psutil.virtual_memory()
@@ -357,6 +368,19 @@ class LLMResponseCache:
     @classmethod
     def set_response(cls, model_name: str, prompt: str, response: str, ttl_hours: int = 24):
         cls._cache[f"{model_name}:{prompt}"] = response
+    
+    @classmethod
+    def memory_usage_mb(cls) -> float:
+        """Estimate memory usage of LLM response cache."""
+        total_bytes = 0
+        for key, value in cls._cache.items():
+            total_bytes += len(str(key).encode('utf-8'))
+            total_bytes += len(str(value).encode('utf-8'))
+        return total_bytes / (1024 * 1024)
+    
+    @classmethod
+    def entry_count(cls) -> int:
+        return len(cls._cache)
 
 class DocumentCache:
     """Document cache implementation."""
@@ -374,3 +398,20 @@ class DocumentCache:
     def get_document_classification(cls, doc_id: str) -> str | None:
         doc = cls._cache.get(doc_id)
         return doc.get('classification') if doc else None
+    
+    @classmethod
+    def memory_usage_mb(cls) -> float:
+        """Estimate memory usage of document cache."""
+        total_bytes = 0
+        for key, value in cls._cache.items():
+            total_bytes += len(str(key).encode('utf-8'))
+            try:
+                import pickle
+                total_bytes += len(pickle.dumps(value))
+            except:
+                total_bytes += len(str(value).encode('utf-8'))
+        return total_bytes / (1024 * 1024)
+    
+    @classmethod
+    def entry_count(cls) -> int:
+        return len(cls._cache)

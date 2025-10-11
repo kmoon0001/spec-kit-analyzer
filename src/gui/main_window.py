@@ -48,6 +48,9 @@ from src.gui.widgets.medical_theme import medical_theme
 from src.gui.widgets.micro_interactions import AnimatedButton, LoadingSpinner
 from src.gui.widgets.mission_control_widget import LogViewerWidget, MissionControlWidget, SettingsEditorWidget
 
+# Import dialogs for test compatibility
+from src.gui.dialogs.change_password_dialog import ChangePasswordDialog
+
 try:
     from src.gui.widgets.meta_analytics_widget import MetaAnalyticsWidget
 except ImportError:
@@ -232,21 +235,56 @@ class MainApplicationWindow(QMainWindow):
         self.tab_widget.setStyleSheet(self._get_tab_stylesheet())
         root_layout.addWidget(self.tab_widget, stretch=1)
 
-        # Create tabs using tab builder
-        self.analysis_tab = self.tab_builder.create_analysis_tab()
-        self.tab_widget.addTab(self.analysis_tab, "Analysis")
+        # Create tabs using tab builder with error handling
+        try:
+            self.analysis_tab = self.tab_builder.create_analysis_tab()
+            self.tab_widget.addTab(self.analysis_tab, "Analysis")
+            logging.info("Analysis tab created successfully")
+        except Exception as e:
+            logging.error(f"Failed to create Analysis tab: {e}")
+            # Create fallback tab
+            self.analysis_tab = QWidget()
+            self.tab_widget.addTab(self.analysis_tab, "Analysis")
 
-        self.dashboard_tab = self.tab_builder.create_dashboard_tab()
-        self.tab_widget.addTab(self.dashboard_tab, "Dashboard")
+        try:
+            self.dashboard_tab = self.tab_builder.create_dashboard_tab()
+            self.tab_widget.addTab(self.dashboard_tab, "Dashboard")
+            logging.info("Dashboard tab created successfully")
+        except Exception as e:
+            logging.error(f"Failed to create Dashboard tab: {e}")
+            # Create fallback tab
+            self.dashboard_tab = QWidget()
+            self.tab_widget.addTab(self.dashboard_tab, "Dashboard")
 
-        self.mission_control_tab = self.tab_builder.create_mission_control_tab()
-        self.tab_widget.addTab(self.mission_control_tab, "Mission Control")
+        try:
+            self.mission_control_tab = self.tab_builder.create_mission_control_tab()
+            self.tab_widget.addTab(self.mission_control_tab, "Mission Control")
+            logging.info("Mission Control tab created successfully")
+        except Exception as e:
+            logging.error(f"Failed to create Mission Control tab: {e}")
+            # Create fallback tab
+            self.mission_control_tab = QWidget()
+            self.tab_widget.addTab(self.mission_control_tab, "Mission Control")
 
-        self.settings_tab = self.tab_builder.create_settings_tab()
-        self.tab_widget.addTab(self.settings_tab, "Settings")
+        try:
+            self.settings_tab = self.tab_builder.create_settings_tab()
+            self.tab_widget.addTab(self.settings_tab, "Settings")
+            logging.info("Settings tab created successfully")
+        except Exception as e:
+            logging.error(f"Failed to create Settings tab: {e}")
+            # Create fallback tab
+            self.settings_tab = QWidget()
+            self.tab_widget.addTab(self.settings_tab, "Settings")
 
         # Set Analysis as default tab
         self.tab_widget.setCurrentWidget(self.analysis_tab)
+        
+        # Log tab count for debugging
+        tab_count = self.tab_widget.count()
+        logging.info(f"MainApplicationWindow initialized with {tab_count} tabs")
+        for i in range(tab_count):
+            tab_text = self.tab_widget.tabText(i)
+            logging.info(f"Tab {i}: {tab_text}")
 
     def _get_tab_stylesheet(self) -> str:
         """Get the stylesheet for the tab widget."""
@@ -608,6 +646,10 @@ class MainApplicationWindow(QMainWindow):
 
     def _prompt_for_folder(self) -> None:
         self.file_handlers.prompt_for_folder()
+
+    def _set_selected_file(self, file_path: Path) -> None:
+        """Set the selected file (delegation to file_handlers)."""
+        self.file_handlers.set_selected_file(file_path)
 
     def _export_report(self) -> None:
         self.file_handlers.export_report()

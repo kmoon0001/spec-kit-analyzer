@@ -53,25 +53,29 @@ class ActionType(Enum):
 class GuardrailViolation:
     """Represents a guardrail violation"""
 
-    guardrail_type: GuardrailType
+    guardrail_name: str
     violation_type: str
-    description: str
-    risk_level: RiskLevel
-    confidence: float
+    severity: str
+    message: str
     evidence: list[str]
-    suggested_action: ActionType
-    mitigation_strategy: str | None = None
+    suggested_fix: str
+    guardrail_type: GuardrailType = GuardrailType.CONTENT_SAFETY
+    risk_level: RiskLevel = RiskLevel.MEDIUM
+    confidence: float = 1.0
+    suggested_action: ActionType = ActionType.FLAG
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "guardrail_type": self.guardrail_type.value,
+            "guardrail_name": self.guardrail_name,
             "violation_type": self.violation_type,
-            "description": self.description,
+            "severity": self.severity,
+            "message": self.message,
+            "evidence": self.evidence,
+            "suggested_fix": self.suggested_fix,
+            "guardrail_type": self.guardrail_type.value,
             "risk_level": self.risk_level.value,
             "confidence": self.confidence,
-            "evidence": self.evidence,
             "suggested_action": self.suggested_action.value,
-            "mitigation_strategy": self.mitigation_strategy,
         }
 
 
@@ -131,6 +135,20 @@ class ContentSafetyGuardrail(BaseGuardrail):
         """Evaluate content for safety violations"""
         violations = []
         
+        # Check for harmful language
+        harmful_language = self._get_harmful_language(content)
+        if harmful_language:
+            violations.append(GuardrailViolation(
+                guardrail_name=self.name,
+                violation_type="prohibited_content",
+                severity="high",
+                message="Content contains harmful or inappropriate language",
+                evidence=harmful_language,
+                suggested_fix="Remove or rephrase harmful language",
+                risk_level=RiskLevel.HIGH,
+                confidence=0.9
+            ))
+        
         # Check for inappropriate medical claims
         inappropriate_claims = self._get_inappropriate_medical_claims(content)
         if inappropriate_claims:
@@ -140,10 +158,26 @@ class ContentSafetyGuardrail(BaseGuardrail):
                 severity="high",
                 message="Content contains inappropriate medical claims",
                 evidence=inappropriate_claims,
-                suggested_fix="Remove or qualify absolute medical claims"
+                suggested_fix="Remove or qualify absolute medical claims",
+                confidence=0.8
             ))
         
         return violations
+
+    def _get_harmful_language(self, content: str) -> list[str]:
+        """Check for harmful or inappropriate language."""
+        harmful_patterns = [
+            r"\b(?:kill|destroy|eliminate|annihilate).*?(?:pain|symptoms|condition)",
+            r"\b(?:deadly|lethal|toxic|poisonous).*?(?:treatment|medication)",
+            r"\b(?:dangerous|risky|harmful).*?(?:procedure|intervention)",
+        ]
+        
+        evidence = []
+        for pattern in harmful_patterns:
+            matches = re.finditer(pattern, content, re.IGNORECASE)
+            for match in matches:
+                evidence.append(match.group())
+        return evidence
 
     def _get_inappropriate_medical_claims(self, content: str) -> list[str]:
         """Check for inappropriate medical claims and return evidence."""
@@ -174,6 +208,51 @@ class BiasDetectionGuardrail(BaseGuardrail):
         """Evaluate content for bias violations"""
         violations = []
         
+        # Check for demographic bias
+        demographic_bias = self._get_demographic_bias(content)
+        if demographic_bias:
+            violations.append(GuardrailViolation(
+                guardrail_name=self.name,
+                violation_type="demographic_bias",
+                severity="high",
+                message="Content contains demographic bias or stereotyping",
+                evidence=demographic_bias,
+                suggested_fix="Remove generalizations about demographic groups",
+                guardrail_type=GuardrailType.BIAS_DETECTION,
+                risk_level=RiskLevel.HIGH,
+                confidence=0.8
+            ))
+        
+        # Check for socioeconomic bias
+        socioeconomic_bias = self._get_socioeconomic_bias(content)
+        if socioeconomic_bias:
+            violations.append(GuardrailViolation(
+                guardrail_name=self.name,
+                violation_type="socioeconomic_bias",
+                severity="high",
+                message="Content contains socioeconomic bias or stereotyping",
+                evidence=socioeconomic_bias,
+                suggested_fix="Avoid generalizations about socioeconomic groups",
+                guardrail_type=GuardrailType.BIAS_DETECTION,
+                risk_level=RiskLevel.HIGH,
+                confidence=0.8
+            ))
+        
+        # Check for geographic bias
+        geographic_bias = self._get_geographic_bias(content)
+        if geographic_bias:
+            violations.append(GuardrailViolation(
+                guardrail_name=self.name,
+                violation_type="geographic_bias",
+                severity="high",
+                message="Content contains geographic bias or stereotyping",
+                evidence=geographic_bias,
+                suggested_fix="Avoid generalizations about geographic regions",
+                guardrail_type=GuardrailType.BIAS_DETECTION,
+                risk_level=RiskLevel.HIGH,
+                confidence=0.8
+            ))
+        
         # Check for overconfident statements
         overconfident_statements = self._get_overconfident_statements(content)
         if overconfident_statements:
@@ -183,10 +262,56 @@ class BiasDetectionGuardrail(BaseGuardrail):
                 severity="medium",
                 message="Content contains overconfident statements",
                 evidence=overconfident_statements,
-                suggested_fix="Add qualifiers and uncertainty indicators"
+                suggested_fix="Add qualifiers and uncertainty indicators",
+                risk_level=RiskLevel.MEDIUM,
+                confidence=0.7
             ))
         
         return violations
+
+    def _get_demographic_bias(self, content: str) -> list[str]:
+        """Check for demographic bias and stereotyping."""
+        bias_patterns = [
+            r"\b(?:all|most|many|typical|usually).*?(?:elderly|old|senior).*?(?:patients|people).*?(?:have|are|do)",
+            r"\b(?:all|most|many|typical|usually).*?(?:young|teenage|adolescent).*?(?:patients|people).*?(?:have|are|do)",
+            r"\b(?:all|most|many|typical|usually).*?(?:male|female|men|women).*?(?:patients|people).*?(?:have|are|do)",
+        ]
+        
+        evidence = []
+        for pattern in bias_patterns:
+            matches = re.finditer(pattern, content, re.IGNORECASE)
+            for match in matches:
+                evidence.append(match.group())
+        return evidence
+    
+    def _get_socioeconomic_bias(self, content: str) -> list[str]:
+        """Check for socioeconomic bias and stereotyping."""
+        bias_patterns = [
+            r"\b(?:all|most|many|typical|usually).*?(?:low-income|poor|wealthy|rich).*?(?:patients|people).*?(?:have|are|do)",
+            r"\b(?:low-income|poor).*?(?:patients|people).*?(?:usually|typically|always|never).*?(?:have|are|do)",
+            r"\b(?:wealthy|rich).*?(?:patients|people).*?(?:usually|typically|always|never).*?(?:have|are|do)",
+        ]
+        
+        evidence = []
+        for pattern in bias_patterns:
+            matches = re.finditer(pattern, content, re.IGNORECASE)
+            for match in matches:
+                evidence.append(match.group())
+        return evidence
+    
+    def _get_geographic_bias(self, content: str) -> list[str]:
+        """Check for geographic bias and stereotyping."""
+        bias_patterns = [
+            r"\b(?:rural|urban|city|country).*?(?:patients|people).*?(?:typically|usually|always|never).*?(?:have|are|do|lack)",
+            r"\b(?:all|most|many|typical|usually).*?(?:rural|urban|city|country).*?(?:patients|people).*?(?:have|are|do)",
+        ]
+        
+        evidence = []
+        for pattern in bias_patterns:
+            matches = re.finditer(pattern, content, re.IGNORECASE)
+            for match in matches:
+                evidence.append(match.group())
+        return evidence
 
     def _get_overconfident_statements(self, content: str) -> list[str]:
         """Check for overconfident statements and return evidence."""
@@ -217,6 +342,22 @@ class EthicalComplianceGuardrail(BaseGuardrail):
         """Evaluate content for ethical compliance violations"""
         violations = []
         
+        # Check for explicit ethical violations
+        ethical_violations = self._detect_ethical_violations(content)
+        if ethical_violations:
+            violations.append(GuardrailViolation(
+                guardrail_name=self.name,
+                violation_type="ethical_violation",
+                severity="critical",
+                message="Content contains unethical recommendations or practices",
+                evidence=ethical_violations,
+                suggested_fix="Remove unethical content and ensure respect for patient autonomy and rights",
+                guardrail_type=GuardrailType.ETHICAL_COMPLIANCE,
+                risk_level=RiskLevel.CRITICAL,
+                confidence=0.9,
+                suggested_action=ActionType.BLOCK
+            ))
+        
         # Check for missing ethical considerations
         if self._missing_ethical_considerations(content, context):
             violations.append(GuardrailViolation(
@@ -225,7 +366,10 @@ class EthicalComplianceGuardrail(BaseGuardrail):
                 severity="high",
                 message="Content lacks necessary ethical considerations",
                 evidence=["Missing ethical considerations for healthcare context"],
-                suggested_fix="Include references to patient autonomy, informed consent, or professional judgment"
+                suggested_fix="Include references to patient autonomy, informed consent, or professional judgment",
+                guardrail_type=GuardrailType.ETHICAL_COMPLIANCE,
+                risk_level=RiskLevel.HIGH,
+                confidence=0.8
             ))
         
         return violations
@@ -250,6 +394,24 @@ class EthicalComplianceGuardrail(BaseGuardrail):
 
         return False
 
+    def _detect_ethical_violations(self, content: str) -> list[str]:
+        """Detect explicit ethical violations in content"""
+        violation_patterns = [
+            r"\b(?:force|coerce|compel).*?(?:patient|client).*?(?:comply|accept|agree)",
+            r"\b(?:regardless of|ignore|dismiss).*?(?:patient|their).*?(?:wishes|preferences|consent)",
+            r"\b(?:withhold|hide|conceal).*?(?:information|diagnosis|prognosis).*?(?:from|patient)",
+            r"\b(?:discriminate|bias|prejudice).*?(?:against|based on).*?(?:race|gender|age|religion)",
+            r"\b(?:experimental|untested).*?(?:treatment|procedure).*?(?:without|no).*?(?:consent|approval)",
+        ]
+        
+        violations = []
+        for pattern in violation_patterns:
+            matches = re.finditer(pattern, content, re.IGNORECASE)
+            for match in matches:
+                violations.append(match.group())
+        
+        return violations
+
 
 class TransparencyEnforcementGuardrail(BaseGuardrail):
     """Guardrail for enforcing AI transparency and explainability"""
@@ -271,14 +433,45 @@ class TransparencyEnforcementGuardrail(BaseGuardrail):
         
         # Check for missing transparency elements
         missing_elements = self._check_transparency_elements(content, context)
-        if missing_elements:
+        
+        # Create specific violations for each missing element
+        if "ai_disclosure" in missing_elements:
             violations.append(GuardrailViolation(
                 guardrail_name=self.name,
-                violation_type="missing_transparency",
+                violation_type="missing_ai_disclosure",
+                severity="high",
+                message="Content lacks AI disclosure statement",
+                evidence=["Missing AI-generated content disclosure"],
+                suggested_fix="Add clear indication that content is AI-generated",
+                guardrail_type=GuardrailType.TRANSPARENCY_ENFORCEMENT,
+                risk_level=RiskLevel.HIGH,
+                confidence=0.9
+            ))
+        
+        if "confidence_indicators" in missing_elements:
+            violations.append(GuardrailViolation(
+                guardrail_name=self.name,
+                violation_type="missing_confidence_indicators",
                 severity="medium",
-                message="Content lacks required transparency elements",
-                evidence=missing_elements,
-                suggested_fix="Add AI disclosure, confidence indicators, or human oversight references"
+                message="Content lacks confidence or uncertainty indicators",
+                evidence=["Missing confidence/uncertainty indicators"],
+                suggested_fix="Add confidence levels or uncertainty qualifiers",
+                guardrail_type=GuardrailType.TRANSPARENCY_ENFORCEMENT,
+                risk_level=RiskLevel.MEDIUM,
+                confidence=0.8
+            ))
+        
+        if "human_oversight" in missing_elements:
+            violations.append(GuardrailViolation(
+                guardrail_name=self.name,
+                violation_type="missing_human_oversight",
+                severity="medium",
+                message="Content lacks human oversight references",
+                evidence=["Missing human oversight or professional judgment references"],
+                suggested_fix="Add references to professional judgment or human review",
+                guardrail_type=GuardrailType.TRANSPARENCY_ENFORCEMENT,
+                risk_level=RiskLevel.MEDIUM,
+                confidence=0.7
             ))
         
         return violations
@@ -596,20 +789,84 @@ class AIGuardrailsService:
         logger.info("Cleared guardrail violation history")
 
 
-class AccuracyValidationGuardrail:
+class AccuracyValidationGuardrail(BaseGuardrail):
     """Accuracy validation guardrail."""
-    def __init__(self):
-        pass
-
-    def validate(self, content):
-        return True
     
-    def evaluate(self, content):
-        """Evaluate content for accuracy issues"""
-        return GuardrailResult(
-            guardrail_type=GuardrailType.ACCURACY_VALIDATION,
-            risk_level=RiskLevel.LOW,
-            action=ActionType.ALLOW,
-            confidence=0.9,
-            message="Content appears accurate"
+    def __init__(self):
+        super().__init__(
+            name="Accuracy Validation",
+            description="Validates content accuracy and identifies potential hallucinations"
         )
+
+    def evaluate(self, content: str, context: dict[str, Any]) -> list[GuardrailViolation]:
+        """Evaluate content for accuracy issues"""
+        violations = []
+        
+        # Check for potential hallucinations
+        hallucinations = self._get_potential_hallucinations(content)
+        if hallucinations:
+            violations.append(GuardrailViolation(
+                guardrail_name=self.name,
+                violation_type="potential_hallucination",
+                severity="high",
+                message="Content may contain hallucinated or unverifiable claims",
+                evidence=hallucinations,
+                suggested_fix="Verify claims with reliable sources",
+                guardrail_type=GuardrailType.ACCURACY_VALIDATION,
+                risk_level=RiskLevel.HIGH,
+                confidence=0.7
+            ))
+        
+        # Check for overconfident statements
+        overconfident = self._get_overconfident_medical_statements(content)
+        if overconfident:
+            violations.append(GuardrailViolation(
+                guardrail_name=self.name,
+                violation_type="overconfident_statement",
+                severity="medium",
+                message="Content contains overconfident medical statements",
+                evidence=overconfident,
+                suggested_fix="Add qualifiers and uncertainty indicators",
+                guardrail_type=GuardrailType.ACCURACY_VALIDATION,
+                risk_level=RiskLevel.MEDIUM,
+                confidence=0.8
+            ))
+        
+        return violations
+    
+    def _get_potential_hallucinations(self, content: str) -> list[str]:
+        """Check for potential hallucinations or unverifiable claims."""
+        hallucination_patterns = [
+            r"\b(?:studies show|research proves|scientists discovered).*?(?:without|no evidence|unproven)",
+            r"\b(?:new breakthrough|revolutionary|miracle).*?(?:treatment|cure|therapy)",
+            r"\b(?:100%|completely|totally).*?(?:safe|effective|guaranteed)",
+            r"\b(?:recent|new|latest).*?(?:FDA|research|study).*?(?:published|shows|proves).*?(?:last week|yesterday|today)",  # Recent unverifiable claims
+            r"\b(?:95\.\d+%|9[0-9]\.\d+%).*?(?:effectiveness|success|cure)",  # Suspiciously precise statistics
+            r"\b(?:according to|based on).*?(?:recent|new|unpublished).*?(?:research|study|findings)",  # Vague source references
+        ]
+        
+        evidence = []
+        for pattern in hallucination_patterns:
+            matches = re.finditer(pattern, content, re.IGNORECASE)
+            for match in matches:
+                evidence.append(match.group())
+        return evidence
+    
+    def _get_overconfident_medical_statements(self, content: str) -> list[str]:
+        """Check for overconfident medical statements."""
+        overconfident_patterns = [
+            r"\b(?:definitely|certainly|absolutely).*?(?:will|must|should).*?(?:improve|heal|cure|work)",
+            r"\b(?:always|never|all patients|every case).*?(?:respond|react|improve)",
+            r"\b(?:proven|established|confirmed).*?(?:to work|effective|successful)",
+            r"\b(?:shows|demonstrates).*?(?:9[0-9]\.\d+%|95\.\d+%).*?(?:effectiveness|success)",  # Suspiciously precise claims
+            r"\b(?:this|the).*?(?:treatment|therapy).*?(?:shows|demonstrates|proves).*?(?:high|significant).*?(?:effectiveness|success)",  # Overconfident treatment claims
+            r"\b(?:will|must).*?(?:definitely|certainly).*?(?:work|succeed|cure).*?(?:all|every).*?(?:patients|cases)",  # Definitive claims about all patients
+            r"\b(?:all patients|every patient).*?(?:without exception|guaranteed|always)",  # Universal patient claims
+        ]
+        
+        evidence = []
+        for pattern in overconfident_patterns:
+            matches = re.finditer(pattern, content, re.IGNORECASE)
+            for match in matches:
+                evidence.append(match.group())
+        return evidence

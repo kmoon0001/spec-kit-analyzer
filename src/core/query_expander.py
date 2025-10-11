@@ -325,6 +325,28 @@ class SemanticExpander:
 class QueryExpander:
     """Main query expansion service combining multiple expansion strategies."""
 
+    def __init__(self, vocab_file: str | None = None):
+        """Initialize the query expander with medical vocabulary."""
+        self.medical_vocab = MedicalVocabulary(vocab_file)
+        
+        # Medical term pattern for identifying medical terminology
+        self.medical_term_pattern = re.compile(
+            r'\b(?:'
+            r'[a-z]+(?:itis|osis|emia|uria|pathy|therapy|gram|scopy|tomy|ectomy)|'  # Medical suffixes
+            r'(?:cardio|neuro|gastro|hepato|nephro|pneumo|osteo|arthro)[a-z]*|'     # Medical prefixes
+            r'(?:mg|ml|cc|units?|dose|medication|treatment|diagnosis|symptom)'       # Medical terms
+            r')\b',
+            re.IGNORECASE
+        )
+        
+        # Expansion weights and limits
+        self.synonym_weight = 0.8
+        self.abbreviation_weight = 0.9
+        self.specialty_weight = 0.7
+        self.semantic_weight = 0.6
+        self.max_total_expansions = 10
+        self.max_per_strategy = 5
+
     def expand_query(
         self,
         query: str,

@@ -157,7 +157,7 @@ class TestAccuracyValidationGuardrail:
         violations = guardrail.evaluate(overconfident_content, context)
         
         assert len(violations) > 0
-        assert any(v.violation_type == "overconfident_statements" for v in violations)
+        assert any(v.violation_type == "overconfident_statement" for v in violations)
 
 
 class TestEthicalComplianceGuardrail:

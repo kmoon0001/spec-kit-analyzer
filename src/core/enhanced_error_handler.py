@@ -245,7 +245,7 @@ class ErrorHandler:
         exception_message = str(exception).lower()
 
         # Category classification
-        if "permission" in exception_message or "unauthorized" in exception_message:
+        if "permission" in exception_message or "unauthorized" in exception_message or "access denied" in exception_message:
             category = ErrorCategory.PERMISSION
         elif "authentication" in exception_message or "login" in exception_message:
             category = ErrorCategory.AUTHENTICATION
