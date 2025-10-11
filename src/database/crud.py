@@ -33,25 +33,71 @@ async def get_user(db: AsyncSession, user_id: int) -> models.User | None:
 default_admin_flag = False
 
 async def get_user_by_username(db: AsyncSession, username: str) -> models.User | None:
-    result = await db.execute(
-        select(models.User).where(models.User.username == username))
-    return result.scalars().first()
+    """Get user by username with input validation.
+    
+    Args:
+        db: Database session
+        username: Username to search for
+        
+    Returns:
+        models.User | None: User if found, None otherwise
+        
+    Raises:
+        ValueError: If username is invalid
+    """
+    if not username or not username.strip():
+        raise ValueError("Username cannot be empty")
+    
+    # Sanitize username - remove extra whitespace and convert to lowercase
+    clean_username = username.strip().lower()
+    
+    try:
+        result = await db.execute(
+            select(models.User).where(models.User.username == clean_username)
+        )
+        return result.scalars().first()
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        logger.error("Failed to get user by username %s: %s", clean_username, e)
+        raise
 
 async def create_user(
     db: AsyncSession,
     user: schemas.UserCreate,
     hashed_password: str,
     *,
-    is_admin: bool | None = None) -> models.User:
+    is_admin: bool | None = None,
+) -> models.User:
+    """Create a new user with proper transaction handling.
+    
+    Args:
+        db: Database session
+        user: User creation data
+        hashed_password: Pre-hashed password
+        is_admin: Optional admin flag override
+        
+    Returns:
+        models.User: The created user
+        
+    Raises:
+        sqlalchemy.exc.IntegrityError: If username already exists
+        sqlalchemy.exc.SQLAlchemyError: For other database errors
+    """
     db_user = models.User(
         username=user.username,
         hashed_password=hashed_password,
         is_active=True,
-        is_admin=is_admin if is_admin is not None else getattr(user, "is_admin", False))
+        is_admin=is_admin if is_admin is not None else getattr(user, "is_admin", False),
+    )
     db.add(db_user)
-    await db.commit()
-    await db.refresh(db_user)
-    return db_user
+    try:
+        await db.commit()
+        await db.refresh(db_user)
+        logger.info("Created user: %s", user.username)
+        return db_user
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        await db.rollback()
+        logger.error("Failed to create user %s: %s", user.username, e)
+        raise
 
 async def change_user_password(
     db: AsyncSession,
@@ -81,16 +127,56 @@ async def create_rubric(
     return db_rubric
 
 async def get_rubrics(
-    db: AsyncSession, skip: int = 0, limit: int = 100) -> list[models.ComplianceRubric]:
-    """Return a page of rubrics."""
+    db: AsyncSession, 
+    skip: int = 0, 
+    limit: int = 100,
+    discipline: str | None = None,
+    category: str | None = None,
+) -> list[models.ComplianceRubric]:
+    """Return a page of rubrics with optional filtering.
+    
+    Args:
+        db: Database session
+        skip: Number of records to skip (pagination)
+        limit: Maximum number of records to return
+        discipline: Optional discipline filter (PT, OT, SLP)
+        category: Optional category filter
+        
+    Returns:
+        list[models.ComplianceRubric]: List of rubrics
+        
+    Raises:
+        ValueError: If pagination parameters are invalid
+    """
+    # Validate pagination parameters
+    if skip < 0:
+        raise ValueError("Skip parameter must be non-negative")
+    if limit < 1 or limit > 1000:
+        raise ValueError("Limit must be between 1 and 1000")
+    
+    query = select(models.ComplianceRubric)
+    
+    # Apply filters
+    if discipline:
+        query = query.where(models.ComplianceRubric.discipline == discipline.upper())
+    if category:
+        query = query.where(models.ComplianceRubric.category == category)
+    
+    # Apply ordering and pagination
     query = (
-        select(models.ComplianceRubric)
-        .order_by(models.ComplianceRubric.name)
-        .offset(max(skip, 0))
-        .limit(max(limit, 1))
+        query.order_by(models.ComplianceRubric.discipline, models.ComplianceRubric.name)
+        .offset(skip)
+        .limit(limit)
     )
-    result = await db.execute(query)
-    return list(result.scalars().all())
+    
+    try:
+        result = await db.execute(query)
+        rubrics = list(result.scalars().all())
+        logger.debug("Retrieved %d rubrics (skip=%d, limit=%d)", len(rubrics), skip, limit)
+        return rubrics
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        logger.error("Failed to get rubrics: %s", e)
+        raise
 
 async def get_rubric(
     db: AsyncSession, rubric_id: int) -> models.ComplianceRubric | None:
@@ -119,39 +205,107 @@ async def update_rubric(
     await db.refresh(db_rubric)
     return db_rubric
 
-async def delete_rubric(db: AsyncSession, rubric_id: int) -> None:
-    """Delete a rubric if it exists."""
-    db_rubric = await get_rubric(db, rubric_id)
-    if db_rubric is None:
-        return
-    await db.delete(db_rubric)
-    await db.commit()
+async def delete_rubric(db: AsyncSession, rubric_id: int) -> bool:
+    """Delete a rubric if it exists.
+    
+    Args:
+        db: Database session
+        rubric_id: ID of the rubric to delete
+        
+    Returns:
+        bool: True if rubric was deleted, False if not found
+        
+    Raises:
+        sqlalchemy.exc.SQLAlchemyError: For database errors
+    """
+    if rubric_id <= 0:
+        raise ValueError("Rubric ID must be positive")
+    
+    try:
+        db_rubric = await get_rubric(db, rubric_id)
+        if db_rubric is None:
+            logger.warning("Attempted to delete non-existent rubric: %d", rubric_id)
+            return False
+        
+        await db.delete(db_rubric)
+        await db.commit()
+        logger.info("Deleted rubric: %s (ID: %d)", db_rubric.name, rubric_id)
+        return True
+        
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        await db.rollback()
+        logger.error("Failed to delete rubric %d: %s", rubric_id, e)
+        raise
 
 async def get_dashboard_statistics(db: AsyncSession) -> dict[str, Any]:
-    """Computes and returns key statistics for the main dashboard."""
-    total_docs_query = select(func.count(models.AnalysisReport.id))
-    total_docs_result = await db.execute(total_docs_query)
-    total_documents_analyzed = total_docs_result.scalar_one_or_none() or 0
+    """Computes and returns key statistics for the main dashboard.
+    
+    Args:
+        db: Database session
+        
+    Returns:
+        dict[str, Any]: Dashboard statistics including document counts and scores
+        
+    Raises:
+        sqlalchemy.exc.SQLAlchemyError: For database errors
+    """
+    try:
+        # Get total documents analyzed
+        total_docs_query = select(func.count(models.AnalysisReport.id))
+        total_docs_result = await db.execute(total_docs_query)
+        total_documents_analyzed = total_docs_result.scalar_one_or_none() or 0
 
-    avg_score_query = select(func.avg(models.AnalysisReport.compliance_score))
-    avg_score_result = await db.execute(avg_score_query)
-    overall_compliance_score = avg_score_result.scalar_one_or_none() or 0.0
+        # Get overall compliance score
+        avg_score_query = select(func.avg(models.AnalysisReport.compliance_score)).where(
+            models.AnalysisReport.compliance_score.is_not(None)
+        )
+        avg_score_result = await db.execute(avg_score_query)
+        overall_compliance_score = float(avg_score_result.scalar_one_or_none() or 0.0)
 
-    category_query = (
-        select(
-            models.AnalysisReport.document_type,
-            func.avg(models.AnalysisReport.compliance_score).label("average_score"))
-        .group_by(models.AnalysisReport.document_type)
-        .order_by(models.AnalysisReport.document_type)
-    )
-    category_result = await db.execute(category_query)
-    compliance_by_category = {row.document_type: row.average_score for row in category_result.all() if row.document_type}
+        # Get compliance by category
+        category_query = (
+            select(
+                models.AnalysisReport.document_type,
+                func.avg(models.AnalysisReport.compliance_score).label("average_score"),
+                func.count(models.AnalysisReport.id).label("document_count"),
+            )
+            .where(
+                models.AnalysisReport.document_type.is_not(None),
+                models.AnalysisReport.compliance_score.is_not(None),
+            )
+            .group_by(models.AnalysisReport.document_type)
+            .order_by(models.AnalysisReport.document_type)
+        )
+        category_result = await db.execute(category_query)
+        
+        compliance_by_category = {}
+        for row in category_result.all():
+            if row.document_type:
+                compliance_by_category[row.document_type] = {
+                    "average_score": float(row.average_score or 0.0),
+                    "document_count": int(row.document_count or 0),
+                }
 
-    return {
-        "total_documents_analyzed": total_documents_analyzed,
-        "overall_compliance_score": overall_compliance_score,
-        "compliance_by_category": compliance_by_category,
-    }
+        statistics = {
+            "total_documents_analyzed": total_documents_analyzed,
+            "overall_compliance_score": round(overall_compliance_score, 2),
+            "compliance_by_category": compliance_by_category,
+            "last_updated": datetime.datetime.now(datetime.UTC).isoformat(),
+        }
+        
+        logger.debug("Generated dashboard statistics: %d documents analyzed", total_documents_analyzed)
+        return statistics
+        
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        logger.error("Failed to get dashboard statistics: %s", e)
+        # Return default statistics on error
+        return {
+            "total_documents_analyzed": 0,
+            "overall_compliance_score": 0.0,
+            "compliance_by_category": {},
+            "last_updated": datetime.datetime.now(datetime.UTC).isoformat(),
+            "error": "Failed to load statistics",
+        }
 
 async def get_organizational_metrics(db: AsyncSession, days_back: int) -> dict[str, Any]:
     """Computes high-level organizational metrics."""
@@ -255,53 +409,96 @@ async def get_team_performance_trends(db: AsyncSession, days_back: int) -> list[
 
     return trends
 
-async def get_benchmark_data(db: AsyncSession) -> dict[str, Any]:
-    """Get benchmark data for compliance score percentiles."""
+async def get_benchmark_data(
+    db: AsyncSession, 
+    days_back: int = 365,
+    min_analyses: int = 10,
+) -> dict[str, Any]:
+    """Get benchmark data for compliance score percentiles.
+    
+    Args:
+        db: Database session
+        days_back: Number of days to look back for data
+        min_analyses: Minimum number of analyses required for meaningful benchmarks
+        
+    Returns:
+        dict[str, Any]: Benchmark data with percentiles and metadata
+    """
     try:
-        # Query all compliance scores from AnalysisReport
+        # Calculate cutoff date
+        cutoff_date = datetime.datetime.now(datetime.UTC) - timedelta(days=days_back)
+        
+        # Query compliance scores within the time window
         result = await db.execute(
             select(models.AnalysisReport.compliance_score)
-            .where(models.AnalysisReport.compliance_score.is_not(None))
+            .where(
+                models.AnalysisReport.compliance_score.is_not(None),
+                models.AnalysisReport.analysis_date >= cutoff_date,
+            )
+            .order_by(models.AnalysisReport.compliance_score)
         )
-        scores = [row[0] for row in result.fetchall()]
+        scores = [float(row[0]) for row in result.fetchall()]
         
-        if not scores:
-            # Return default benchmarks if no data
-            return {
-                "compliance_score_percentiles": {
-                    "p25": 70.0,
-                    "p50": 80.0,
-                    "p75": 90.0,
-                    "p90": 95.0
-                },
-                "total_analyses": 0
-            }
-        
-        # Calculate percentiles
-        import numpy as np
-        percentiles = {
-            "p25": float(np.percentile(scores, 25)),
-            "p50": float(np.percentile(scores, 50)),
-            "p75": float(np.percentile(scores, 75)),
-            "p90": float(np.percentile(scores, 90))
-        }
-        
-        return {
-            "compliance_score_percentiles": percentiles,
-            "total_analyses": len(scores)
-        }
-        
-    except Exception as e:
-        logger.error(f"Error getting benchmark data: {e}")
-        # Return default benchmarks on error
-        return {
+        # Default benchmarks for insufficient data
+        default_benchmarks = {
             "compliance_score_percentiles": {
+                "p10": 65.0,
                 "p25": 70.0,
                 "p50": 80.0,
                 "p75": 90.0,
-                "p90": 95.0
+                "p90": 95.0,
             },
-            "total_analyses": 0
+            "total_analyses": 0,
+            "data_quality": "insufficient",
+            "days_analyzed": days_back,
+            "last_updated": datetime.datetime.now(datetime.UTC).isoformat(),
+        }
+        
+        if len(scores) < min_analyses:
+            logger.warning(
+                "Insufficient data for benchmarks: %d analyses (minimum: %d)", 
+                len(scores), min_analyses
+            )
+            return {
+                **default_benchmarks,
+                "total_analyses": len(scores),
+            }
+        
+        # Calculate percentiles using numpy
+        percentiles = {
+            "p10": float(np.percentile(scores, 10)),
+            "p25": float(np.percentile(scores, 25)),
+            "p50": float(np.percentile(scores, 50)),
+            "p75": float(np.percentile(scores, 75)),
+            "p90": float(np.percentile(scores, 90)),
+        }
+        
+        # Calculate additional statistics
+        mean_score = float(np.mean(scores))
+        std_score = float(np.std(scores))
+        
+        benchmark_data = {
+            "compliance_score_percentiles": percentiles,
+            "total_analyses": len(scores),
+            "mean_score": round(mean_score, 2),
+            "std_deviation": round(std_score, 2),
+            "data_quality": "good" if len(scores) >= min_analyses * 2 else "adequate",
+            "days_analyzed": days_back,
+            "score_range": {
+                "min": float(min(scores)),
+                "max": float(max(scores)),
+            },
+            "last_updated": datetime.datetime.now(datetime.UTC).isoformat(),
+        }
+        
+        logger.debug("Generated benchmark data from %d analyses", len(scores))
+        return benchmark_data
+        
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error, ValueError) as e:
+        logger.error("Error getting benchmark data: %s", e)
+        return {
+            **default_benchmarks,
+            "error": str(e),
         }
 async def get_all_reports_with_embeddings(db: AsyncSession) -> list[models.AnalysisReport]:
     """Return all analysis reports that have an embedding stored."""
@@ -318,14 +515,111 @@ async def get_all_reports_with_embeddings(db: AsyncSession) -> list[models.Analy
     return list(result.scalars().unique().all())
 
 async def get_report(db: AsyncSession, report_id: int) -> models.AnalysisReport | None:
-    """Fetches a single analysis report with its findings eagerly loaded."""
-    query = (
-        select(models.AnalysisReport)
-        .options(selectinload(models.AnalysisReport.findings))
-        .where(models.AnalysisReport.id == report_id)
-    )
-    result = await db.execute(query)
-    return result.scalars().first()
+    """Fetches a single analysis report with its findings eagerly loaded.
+    
+    Args:
+        db: Database session
+        report_id: ID of the report to fetch
+        
+    Returns:
+        models.AnalysisReport | None: Report if found, None otherwise
+        
+    Raises:
+        ValueError: If report_id is invalid
+        sqlalchemy.exc.SQLAlchemyError: For database errors
+    """
+    if report_id <= 0:
+        raise ValueError("Report ID must be positive")
+    
+    try:
+        query = (
+            select(models.AnalysisReport)
+            .options(selectinload(models.AnalysisReport.findings))
+            .where(models.AnalysisReport.id == report_id)
+        )
+        result = await db.execute(query)
+        report = result.scalars().first()
+        
+        if report:
+            logger.debug("Retrieved report: %s (ID: %d)", report.document_name, report_id)
+        else:
+            logger.warning("Report not found: %d", report_id)
+            
+        return report
+        
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        logger.error("Failed to get report %d: %s", report_id, e)
+        raise
+
+
+async def create_analysis_report(
+    db: AsyncSession,
+    report_data: schemas.ReportCreate,
+    findings_data: list[schemas.FindingCreate] | None = None,
+) -> models.AnalysisReport:
+    """Create a new analysis report with optional findings.
+    
+    Args:
+        db: Database session
+        report_data: Report creation data
+        findings_data: Optional list of findings to create with the report
+        
+    Returns:
+        models.AnalysisReport: The created report with findings
+        
+    Raises:
+        ValueError: If report data is invalid
+        sqlalchemy.exc.SQLAlchemyError: For database errors
+    """
+    # Validate report data
+    if not report_data.document_name or not report_data.document_name.strip():
+        raise ValueError("Document name cannot be empty")
+    
+    if not (0 <= report_data.compliance_score <= 100):
+        raise ValueError("Compliance score must be between 0 and 100")
+    
+    try:
+        # Create the report
+        db_report = models.AnalysisReport(
+            document_name=report_data.document_name.strip(),
+            compliance_score=report_data.compliance_score,
+            document_type=report_data.document_type,
+            analysis_result=report_data.analysis_result or {},
+            document_embedding=report_data.document_embedding,
+        )
+        db.add(db_report)
+        await db.flush()  # Get the report ID without committing
+        
+        # Create findings if provided
+        if findings_data:
+            for finding_data in findings_data:
+                db_finding = models.Finding(
+                    report_id=db_report.id,
+                    rule_id=finding_data.rule_id,
+                    risk=finding_data.risk,
+                    personalized_tip=finding_data.personalized_tip,
+                    problematic_text=finding_data.problematic_text,
+                    confidence_score=finding_data.confidence_score,
+                )
+                db.add(db_finding)
+        
+        await db.commit()
+        await db.refresh(db_report)
+        
+        # Load findings for the response
+        await db.refresh(db_report, ["findings"])
+        
+        logger.info(
+            "Created analysis report: %s with %d findings", 
+            db_report.document_name, 
+            len(findings_data or [])
+        )
+        return db_report
+        
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        await db.rollback()
+        logger.error("Failed to create analysis report: %s", e)
+        raise
 
 async def find_similar_report(
     db: AsyncSession,
@@ -715,9 +1009,33 @@ async def get_user_habit_statistics(
     }
 
 async def create_habit_progress_snapshot(
-    db: AsyncSession, user_id: int, snapshot_data: dict[str, Any]) -> models.HabitProgressSnapshot:
-    """Persist a habit progress snapshot for a user."""
+    db: AsyncSession, user_id: int, snapshot_data: dict[str, Any]
+) -> models.HabitProgressSnapshot:
+    """Persist a habit progress snapshot for a user.
+    
+    Args:
+        db: Database session
+        user_id: ID of the user
+        snapshot_data: Snapshot data dictionary
+        
+    Returns:
+        models.HabitProgressSnapshot: The created snapshot
+        
+    Raises:
+        ValueError: If snapshot data is invalid
+        sqlalchemy.exc.SQLAlchemyError: For database errors
+    """
+    if user_id <= 0:
+        raise ValueError("User ID must be positive")
+    
     habit_breakdown = snapshot_data.get("habit_breakdown", {})
+    
+    # Validate habit percentages
+    for habit_num in range(1, 8):
+        habit_key = f"habit_{habit_num}"
+        percentage = habit_breakdown.get(habit_key, 0.0)
+        if not (0.0 <= percentage <= 100.0):
+            raise ValueError(f"Habit {habit_num} percentage must be between 0 and 100")
     snapshot = models.HabitProgressSnapshot(
         user_id=user_id,
         snapshot_date=datetime.datetime.utcnow().date(),
@@ -795,3 +1113,258 @@ async def get_user_reports_with_findings(
     result = await db.execute(query.order_by(models.AnalysisReport.analysis_date.desc()))
     return list(result.scalars().unique().all())
 
+
+# ---------------------------------------------------------------------------
+# Bulk Operations for Performance
+# ---------------------------------------------------------------------------
+
+async def bulk_create_findings(
+    db: AsyncSession, 
+    report_id: int, 
+    findings_data: list[schemas.FindingCreate]
+) -> list[models.Finding]:
+    """Create multiple findings for a report in a single transaction.
+    
+    Args:
+        db: Database session
+        report_id: ID of the report
+        findings_data: List of finding creation data
+        
+    Returns:
+        list[models.Finding]: List of created findings
+        
+    Raises:
+        ValueError: If input data is invalid
+        sqlalchemy.exc.SQLAlchemyError: For database errors
+    """
+    if report_id <= 0:
+        raise ValueError("Report ID must be positive")
+    
+    if not findings_data:
+        return []
+    
+    try:
+        findings = []
+        for finding_data in findings_data:
+            # Validate finding data
+            if not finding_data.rule_id or not finding_data.rule_id.strip():
+                raise ValueError("Rule ID cannot be empty")
+            
+            if finding_data.risk not in ["High", "Medium", "Low"]:
+                raise ValueError("Risk must be High, Medium, or Low")
+            
+            if not (0.0 <= finding_data.confidence_score <= 1.0):
+                raise ValueError("Confidence score must be between 0.0 and 1.0")
+            
+            db_finding = models.Finding(
+                report_id=report_id,
+                rule_id=finding_data.rule_id.strip(),
+                risk=finding_data.risk,
+                personalized_tip=finding_data.personalized_tip,
+                problematic_text=finding_data.problematic_text,
+                confidence_score=finding_data.confidence_score,
+            )
+            findings.append(db_finding)
+        
+        # Add all findings in bulk
+        db.add_all(findings)
+        await db.commit()
+        
+        # Refresh all findings
+        for finding in findings:
+            await db.refresh(finding)
+        
+        logger.info("Created %d findings for report %d", len(findings), report_id)
+        return findings
+        
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        await db.rollback()
+        logger.error("Failed to bulk create findings for report %d: %s", report_id, e)
+        raise
+
+
+async def bulk_update_user_preferences(
+    db: AsyncSession,
+    user_updates: list[dict[str, Any]]
+) -> int:
+    """Update multiple user preferences in a single transaction.
+    
+    Args:
+        db: Database session
+        user_updates: List of user update dictionaries with 'user_id' and update fields
+        
+    Returns:
+        int: Number of users updated
+        
+    Raises:
+        ValueError: If update data is invalid
+        sqlalchemy.exc.SQLAlchemyError: For database errors
+    """
+    if not user_updates:
+        return 0
+    
+    try:
+        updated_count = 0
+        for update_data in user_updates:
+            user_id = update_data.get("user_id")
+            if not user_id or user_id <= 0:
+                continue
+            
+            # Get the user
+            user = await get_user(db, user_id)
+            if not user:
+                continue
+            
+            # Update allowed fields
+            updated = False
+            if "is_active" in update_data:
+                user.is_active = bool(update_data["is_active"])
+                updated = True
+            
+            if "license_key" in update_data:
+                user.license_key = update_data["license_key"]
+                updated = True
+            
+            if updated:
+                user.updated_at = datetime.datetime.now(datetime.UTC)
+                updated_count += 1
+        
+        if updated_count > 0:
+            await db.commit()
+            logger.info("Bulk updated %d users", updated_count)
+        
+        return updated_count
+        
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        await db.rollback()
+        logger.error("Failed to bulk update users: %s", e)
+        raise
+
+
+# ---------------------------------------------------------------------------
+# Database Health and Maintenance
+# ---------------------------------------------------------------------------
+
+async def get_database_health(db: AsyncSession) -> dict[str, Any]:
+    """Get database health statistics and metrics.
+    
+    Args:
+        db: Database session
+        
+    Returns:
+        dict[str, Any]: Database health metrics
+    """
+    try:
+        # Get table counts
+        user_count = await db.scalar(select(func.count(models.User.id)))
+        report_count = await db.scalar(select(func.count(models.AnalysisReport.id)))
+        finding_count = await db.scalar(select(func.count(models.Finding.id)))
+        rubric_count = await db.scalar(select(func.count(models.ComplianceRubric.id)))
+        
+        # Get recent activity
+        recent_cutoff = datetime.datetime.now(datetime.UTC) - timedelta(days=7)
+        recent_reports = await db.scalar(
+            select(func.count(models.AnalysisReport.id))
+            .where(models.AnalysisReport.analysis_date >= recent_cutoff)
+        )
+        
+        # Calculate average compliance score
+        avg_score = await db.scalar(
+            select(func.avg(models.AnalysisReport.compliance_score))
+            .where(models.AnalysisReport.compliance_score.is_not(None))
+        )
+        
+        return {
+            "status": "healthy",
+            "table_counts": {
+                "users": user_count or 0,
+                "reports": report_count or 0,
+                "findings": finding_count or 0,
+                "rubrics": rubric_count or 0,
+            },
+            "recent_activity": {
+                "reports_last_7_days": recent_reports or 0,
+            },
+            "metrics": {
+                "average_compliance_score": round(float(avg_score or 0.0), 2),
+                "findings_per_report": round(
+                    (finding_count or 0) / max(report_count or 1, 1), 2
+                ),
+            },
+            "last_checked": datetime.datetime.now(datetime.UTC).isoformat(),
+        }
+        
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        logger.error("Failed to get database health: %s", e)
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "last_checked": datetime.datetime.now(datetime.UTC).isoformat(),
+        }
+
+
+async def cleanup_old_data(
+    db: AsyncSession,
+    days_to_keep: int = 365,
+    dry_run: bool = True
+) -> dict[str, int]:
+    """Clean up old data from the database.
+    
+    Args:
+        db: Database session
+        days_to_keep: Number of days of data to keep
+        dry_run: If True, only count what would be deleted
+        
+    Returns:
+        dict[str, int]: Counts of records that would be/were deleted
+    """
+    cutoff_date = datetime.datetime.now(datetime.UTC) - timedelta(days=days_to_keep)
+    
+    try:
+        # Count old reports
+        old_reports_query = select(func.count(models.AnalysisReport.id)).where(
+            models.AnalysisReport.analysis_date < cutoff_date
+        )
+        old_reports_count = await db.scalar(old_reports_query) or 0
+        
+        # Count old snapshots
+        old_snapshots_query = select(func.count(models.HabitProgressSnapshot.id)).where(
+            models.HabitProgressSnapshot.snapshot_date < cutoff_date.date()
+        )
+        old_snapshots_count = await db.scalar(old_snapshots_query) or 0
+        
+        cleanup_counts = {
+            "reports": old_reports_count,
+            "snapshots": old_snapshots_count,
+        }
+        
+        if not dry_run and (old_reports_count > 0 or old_snapshots_count > 0):
+            # Delete old reports (findings will be cascade deleted)
+            if old_reports_count > 0:
+                await db.execute(
+                    models.AnalysisReport.__table__.delete().where(
+                        models.AnalysisReport.analysis_date < cutoff_date
+                    )
+                )
+            
+            # Delete old snapshots
+            if old_snapshots_count > 0:
+                await db.execute(
+                    models.HabitProgressSnapshot.__table__.delete().where(
+                        models.HabitProgressSnapshot.snapshot_date < cutoff_date.date()
+                    )
+                )
+            
+            await db.commit()
+            logger.info(
+                "Cleaned up old data: %d reports, %d snapshots", 
+                old_reports_count, old_snapshots_count
+            )
+        
+        return cleanup_counts
+        
+    except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as e:
+        if not dry_run:
+            await db.rollback()
+        logger.error("Failed to cleanup old data: %s", e)
+        raise
