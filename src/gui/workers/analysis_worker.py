@@ -29,36 +29,47 @@ class AnalysisWorker(QObject):
         self.analysis_service = analysis_service
 
     def run(self):
-        """Run analysis in background thread."""
+        """Run analysis in background thread, correctly handling async operations."""
+        loop = None
         try:
-            self.status_updated.emit("🤖 Initializing AI models...")
+            self.status_updated.emit("🤖 Initializing analysis...")
             self.progress_updated.emit(10)
 
-            self.status_updated.emit("📄 Processing document...")
-            self.progress_updated.emit(30)
+            from pathlib import Path
+            p = Path(self.file_path)
+            if not p.exists():
+                raise FileNotFoundError(f"File not found: {self.file_path}")
 
-            # Run the actual analysis
-            result = self.analysis_service.analyze_document(
-                file_path=self.file_path,
-                discipline=self.discipline)
+            self.status_updated.emit(f"📄 Reading file: {p.name}")
+            self.progress_updated.emit(20)
+            file_content = p.read_bytes()
+            original_filename = p.name
+
+            self.status_updated.emit("🔬 Analyzing document with AI...")
+            self.progress_updated.emit(50)
+
+            # Create and run a new asyncio event loop in this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            analysis_coro = self.analysis_service.analyze_document(
+                file_content=file_content,
+                original_filename=original_filename,
+                discipline=self.discipline
+            )
+            result = loop.run_until_complete(analysis_coro)
 
             self.progress_updated.emit(80)
-            self.status_updated.emit("📊 Generating report...")
-
-            # Handle async result if needed
-            if hasattr(result, "__await__"):
-                # This is an async result, we need to handle it properly
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    result = loop.run_until_complete(result)
-                finally:
-                    loop.close()
+            self.status_updated.emit("📊 Finalizing report...")
 
             self.progress_updated.emit(100)
             self.status_updated.emit("✅ Analysis complete")
             self.analysis_completed.emit(result)
 
         except Exception as e:
-            logger.exception("Analysis failed: %s", e)
-            self.analysis_failed.emit(str(e))
+            logger.exception("Analysis failed in worker: %s", e)
+            self.analysis_failed.emit(f"An error occurred during analysis: {e}")
+        finally:
+            if loop and not loop.is_closed():
+                loop.close()
+            self.finished.emit()

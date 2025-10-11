@@ -28,13 +28,11 @@ class SettingsTabBuilder:
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(20)
 
-        # Title
         title = QLabel("⚙️ Application Settings", tab)
         title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {medical_theme.get_color('primary_blue')};")
         layout.addWidget(title)
 
-        # Settings tabs
         settings_tabs = QTabWidget(tab)
         settings_tabs.setStyleSheet(f"""
             QTabWidget::pane {{
@@ -56,27 +54,22 @@ class SettingsTabBuilder:
             }}
         """)
 
-        # User Preferences
         user_prefs_widget = self._create_user_preferences_widget()
         settings_tabs.addTab(user_prefs_widget, "👤 User Preferences")
 
-        # Analysis Settings
         analysis_settings_widget = self._create_analysis_settings_widget()
         settings_tabs.addTab(analysis_settings_widget, "📊 Analysis Settings")
 
-        # Report Settings
         report_settings_widget = self._create_report_settings_widget()
         settings_tabs.addTab(report_settings_widget, "📄 Report Settings")
 
-        # Performance Settings
         perf_widget = self._create_performance_settings_widget()
         settings_tabs.addTab(perf_widget, "⚡ Performance")
 
-        # Admin Settings (if admin)
-        if self.main_window.current_user.is_admin:
-            self.main_window.settings_editor = SettingsEditorWidget(tab)
-            self.main_window.settings_editor.save_requested.connect(self.main_window.view_model.save_settings)
-            settings_tabs.addTab(self.main_window.settings_editor, "🔧 Advanced (Admin)")
+        # Admin Settings (always shown for now)
+        self.main_window.settings_editor = SettingsEditorWidget(tab)
+        self.main_window.settings_editor.save_requested.connect(self.main_window.view_model.save_settings)
+        settings_tabs.addTab(self.main_window.settings_editor, "🔧 Advanced (Admin)")
 
         layout.addWidget(settings_tabs)
         return tab
@@ -92,15 +85,12 @@ class SettingsTabBuilder:
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(25)
 
-        # Theme selection
         theme_section = self._create_theme_section()
         layout.addWidget(theme_section)
 
-        # Account settings
         account_section = self._create_account_section()
         layout.addWidget(account_section)
 
-        # UI Preferences
         ui_section = self._create_ui_preferences_section()
         layout.addWidget(ui_section)
 
@@ -255,43 +245,41 @@ class SettingsTabBuilder:
         return widget
 
     def _create_report_settings_widget(self) -> QWidget:
-        """Create report settings widget."""
+        """Create report settings widget within a scroll area."""
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(20)
+        layout.setSpacing(15)
 
         section = QWidget()
         section.setStyleSheet(f"""
             QWidget {{
                 background: {medical_theme.get_color("bg_primary")};
-                border: 2px solid {medical_theme.get_color("border_light")};
+                border: none;
                 border-radius: 10px;
                 padding: 15px;
             }}
         """)
         section_layout = QVBoxLayout(section)
+        section_layout.setSpacing(15)
 
         title = QLabel("📄 Report Content Settings", section)
         title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         section_layout.addWidget(title)
 
-        # Add checkboxes with descriptions
         checkboxes_with_descriptions = [
-            (
-                "✅ Medicare Guidelines Compliance",
-                "Includes CMS compliance requirements and Medicare documentation standards",
-                True),
-            ("💪 Strengths & Best Practices", "Highlights well-documented areas and exemplary practices", True),
-            (
-                "⚠️ Weaknesses & Areas for Improvement",
-                "Identifies documentation gaps and areas that need attention",
-                True),
-            ("💡 Actionable Suggestions", "Provides specific, implementable recommendations", True),
-            ("📚 Educational Resources", "Includes links to relevant guidelines and training materials", True),
+            ("✅ Medicare Guidelines Compliance", "Includes CMS compliance requirements", True),
+            ("💪 Strengths & Best Practices", "Highlights well-documented areas", True),
+            ("⚠️ Weaknesses & Areas for Improvement", "Identifies documentation gaps", True),
+            ("💡 Actionable Suggestions", "Provides specific recommendations", True),
+            ("📚 Educational Resources", "Includes links to relevant guidelines", True),
             ("🎯 7 Habits Framework Integration", "Incorporates professional development strategies", True),
-            ("📊 Compliance Score & Risk Level", "Shows overall compliance percentage and risk assessment", True),
-            ("🔍 Detailed Findings Analysis", "Comprehensive breakdown of all compliance issues", True),
+            ("📊 Compliance Score & Risk Level", "Shows overall compliance score", True),
+            ("🔍 Detailed Findings Analysis", "Comprehensive breakdown of all issues", True),
         ]
 
         for checkbox_text, description, checked in checkboxes_with_descriptions:
@@ -312,8 +300,9 @@ class SettingsTabBuilder:
             section_layout.addWidget(container)
 
         layout.addWidget(section)
-        layout.addStretch()
-        return widget
+        scroll_area.setWidget(widget)
+
+        return scroll_area
 
     def _create_performance_settings_widget(self) -> QWidget:
         """Create performance settings widget."""

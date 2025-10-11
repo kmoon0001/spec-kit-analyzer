@@ -27,172 +27,72 @@ class HeaderComponent(QWidget):
 
     def init_ui(self):
         """Initialize the header UI."""
-        self.setFixedHeight(140)  # Larger height for title + description
         self.setObjectName("headerComponent")
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(15, 20, 15, 20)  # More vertical padding
+        layout.setContentsMargins(15, 10, 15, 10) # Reduced vertical padding
+        layout.setSpacing(15)
 
-        # Logo section (left - smaller)
+        # Logo section (left)
         logo_section = self.create_logo_section()
-        layout.addLayout(logo_section, stretch=0)
+        layout.addLayout(logo_section)
 
-        # Title section (center - takes much more space)
+        # Title section (center)
         title_section = self.create_title_section()
-        layout.addLayout(title_section, stretch=6)  # Much more space for title
+        layout.addLayout(title_section, stretch=1) # Allow stretch
 
-        # Controls section (right - smaller)
+        # Controls section (right)
         controls_section = self.create_controls_section()
-        layout.addLayout(controls_section, stretch=0)
+        layout.addLayout(controls_section)
 
     def create_logo_section(self):
-        """Create the logo section with professional medical icon."""
+        """Create the logo section."""
         layout = QHBoxLayout()
-        layout.setContentsMargins(0, 0, 10, 0)  # Minimal margins
-
-        # Professional medical compliance icon with easter egg
         self.icon_label = QLabel("📋")
-        self.icon_label.setFont(QFont("Segoe UI", 32))  # Made bigger
-        self.icon_label.setStyleSheet("""
-            QLabel {
-                color: #1d4ed8;
-                background: rgba(29, 78, 216, 0.1);
-                border-radius: 25px;
-                padding: 12px;
-                margin: 5px;
-            }
-            QLabel:hover {
-                background: rgba(29, 78, 216, 0.2);
-                transform: scale(1.05);
-            }
-        """)
-        self.icon_label.setFixedSize(60, 60)  # Made bigger
+        self.icon_label.setFont(QFont("Segoe UI", 28))
+        self.icon_label.setFixedSize(50, 50)
         self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.icon_label.setToolTip("Therapy Compliance Analyzer - Click me!")
         self.icon_label.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        # Easter egg functionality
-        self.icon_click_count = 0
         self.icon_label.mousePressEvent = self.on_icon_clicked
-
         layout.addWidget(self.icon_label)
-
         return layout
 
     def on_icon_clicked(self, event):
-        """Handle icon clicks for easter egg functionality."""
-        self.icon_click_count += 1
-
-        if self.icon_click_count == 3:
-            self.icon_label.setText("📊")
-            self.icon_label.setToolTip("Keep clicking! You're getting warmer...")
-        elif self.icon_click_count == 5:
-            self.icon_label.setText("🎯")
-            self.icon_label.setToolTip("Almost there! A few more clicks...")
-        elif self.icon_click_count == 7:
-            self.icon_label.setText("🎉")
-            self.icon_label.setToolTip("Congratulations! You found the easter egg!")
-            # Emit signal to parent if needed
-            from PySide6.QtWidgets import QMessageBox
-
-            QMessageBox.information(
-                self,
-                "🎉 Easter Egg Found!",
-                "Congratulations! You discovered the hidden easter egg!\n\n"
-                "🎯 You clicked the document icon 7 times!\n"
-                "🌟 This shows attention to detail - a key skill for compliance!\n\n"
-                "Keep up the great work! 🚀")
-            # Reset after showing message
-            self.icon_click_count = 0
-            self.icon_label.setText("📋")
-            self.icon_label.setToolTip("Therapy Compliance Analyzer - Click me!")
-        elif self.icon_click_count >= 10:
-            # Reset if too many clicks
-            self.icon_click_count = 0
-            self.icon_label.setText("📋")
-            self.icon_label.setToolTip("Therapy Compliance Analyzer - Click me!")
+        self.logo_clicked.emit()
 
     def create_title_section(self):
-        """Create the centered title section spanning the full width with large, bold text."""
+        """Create the centered title and description section."""
         layout = QVBoxLayout()
-        layout.setContentsMargins(30, 15, 30, 15)
-        layout.setSpacing(20)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(5)
 
-        # Main title - large, bold, spanning full width
-        self.title_label = QLabel("THERAPY REPORT COMPLIANCE ANALYSIS")
+        # Main title
+        self.title_label = QLabel("Therapy Report Compliance Analysis")
         self.title_label.setObjectName("titleLabel")
-        self.title_label.setFont(QFont("Segoe UI", 48, QFont.Weight.ExtraBold))  # Much larger and bolder
-        self.title_label.setStyleSheet("""
-            QLabel#titleLabel {
-                color: #1d4ed8;
-                text-align: center;
-                padding: 25px 40px;
-                background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-                border-radius: 20px;
-                border: 3px solid #cbd5e0;
-                font-weight: 900;
-                letter-spacing: 2px;
-                margin-bottom: 10px;
-                min-height: 100px;
-            }
-        """)
+        self.title_label.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.title_label.setMinimumHeight(120)  # Taller for larger text
+        self.title_label.setWordWrap(True) # Enable word wrap
         layout.addWidget(self.title_label)
 
-        # App description - large, bold, spanning full width
+        # App description
         self.description_label = QLabel("AI-Powered Clinical Documentation Analysis for Medicare Compliance")
         self.description_label.setObjectName("descriptionLabel")
-        self.description_label.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))  # Much larger and bold
-        self.description_label.setStyleSheet("""
-            QLabel#descriptionLabel {
-                color: #475569;
-                text-align: center;
-                padding: 18px 35px;
-                background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-                border-radius: 15px;
-                border: 2px solid #e2e8f0;
-                margin-top: 10px;
-                font-weight: 700;
-                letter-spacing: 1px;
-                min-height: 60px;
-            }
-        """)
+        self.description_label.setFont(QFont("Segoe UI", 12))
         self.description_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.description_label.setMinimumHeight(80)  # Taller for larger text
+        self.description_label.setWordWrap(True) # Enable word wrap
         layout.addWidget(self.description_label)
 
         return layout
 
     def create_controls_section(self):
-        """Create the compact controls section."""
+        """Create the controls section."""
         layout = QHBoxLayout()
-        layout.setContentsMargins(10, 0, 0, 0)  # Minimal margins
-
-        # Theme toggle button - removed emoji as requested
-        self.theme_button = QPushButton("Theme")
+        self.theme_button = QPushButton("🌙")
         self.theme_button.setObjectName("themeButton")
-        self.theme_button.setFixedSize(70, 45)  # Wider for text
+        self.theme_button.setFixedSize(40, 40)
         self.theme_button.setToolTip("Toggle Dark/Light Theme (Ctrl+T)")
         self.theme_button.clicked.connect(self.on_theme_toggle)
-        self.theme_button.setStyleSheet("""
-            QPushButton#themeButton {
-                background-color: #f1f5f9;
-                border: 2px solid #cbd5e0;
-                border-radius: 22px;
-                font-size: 18px;
-            }
-            QPushButton#themeButton:hover {
-                background-color: #e2e8f0;
-                border-color: #1d4ed8;
-            }
-            QPushButton#themeButton:pressed {
-                background-color: #cbd5e0;
-            }
-        """)
-
         layout.addWidget(self.theme_button)
-
         return layout
 
     def on_logo_clicked(self, event):
