@@ -1,111 +1,92 @@
-"""PDF Export Service for Compliance Reports
-import PIL.Image as Image
-import PIL
+"""PDF export service used to generate compliance reports.
 
-This service provides comprehensive PDF export functionality for compliance analysis reports,
-maintaining professional formatting and ensuring all critical information is preserved.
+This module provides a high level interface for turning rendered HTML
+reports into PDF documents while handling missing dependencies
+gracefully.  It is intentionally defensive so that issues with
+WeasyPrint or its system libraries do not stall the broader analysis
+pipeline.
 """
 
+from __future__ import annotations
+
+import importlib.util
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from src.core.report_models import ReportFormat
+import PIL.Image as Image
+
 from src.core.report_template_engine import TemplateEngine
-
-# Check WeasyPrint availability without importing at module level
-WEASYPRINT_AVAILABLE = False
-HTML = None  # For test mocking
-try:
-    import importlib.util
-
-    if importlib.util.find_spec("weasyprint") is not None:
-        WEASYPRINT_AVAILABLE = True
-        # Only import HTML if WeasyPrint is actually working
-        try:
-            from weasyprint import HTML
-        except (OSError, ImportError):
-            # WeasyPrint exists but has dependency issues
-            WEASYPRINT_AVAILABLE = False
-            HTML = None
-except ImportError:
-    WEASYPRINT_AVAILABLE = False
-    logging.warning("WeasyPrint not available. Using ReportLab fallback for PDF export.")
-except (ModuleNotFoundError, AttributeError) as e:
-    WEASYPRINT_AVAILABLE = False
-    logging.warning("WeasyPrint not available due to system dependencies: %s. Using ReportLab fallback.", e)
-
-# Check fallback availability
-FALLBACK_AVAILABLE = False
-if not WEASYPRINT_AVAILABLE:
-    try:
-        if importlib.util.find_spec("reportlab") is not None:
-            FALLBACK_AVAILABLE = True
-    except ImportError:
-        FALLBACK_AVAILABLE = False
-        logging.exception("Neither WeasyPrint nor ReportLab available for PDF export.")
 
 logger = logging.getLogger(__name__)
 
 
-class PDFExportError(Exception):
-    """Exception raised when PDF export fails."""
+def _is_module_available(module_name: str) -> bool:
+    """Return ``True`` when *module_name* can be imported."""
+    try:
+        return importlib.util.find_spec(module_name) is not None
+    except (ImportError, AttributeError):
+        return False
 
-    pass
+
+WEASYPRINT_AVAILABLE = _is_module_available("weasyprint")
+REPORTLAB_AVAILABLE = _is_module_available("reportlab")
+
+if WEASYPRINT_AVAILABLE:
+    try:
+        from weasyprint import CSS, HTML
+
+        try:
+            from weasyprint.text.fonts import FontConfiguration
+        except (ImportError, OSError):
+            FontConfiguration = None  # type: ignore[assignment]
+            logger.warning("WeasyPrint font configuration is unavailable; default fonts will be used.")
+    except (ImportError, OSError) as exc:  # pragma: no cover - guarded import
+        WEASYPRINT_AVAILABLE = False
+        CSS = HTML = None  # type: ignore[assignment]
+        FontConfiguration = None  # type: ignore[assignment]
+        logger.warning("WeasyPrint could not be imported: %s", exc)
+else:
+    CSS = HTML = None  # type: ignore[assignment]
+    FontConfiguration = None  # type: ignore[assignment]
+
+
+TRANSPARENT_PIXEL = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+
+
+class PDFExportError(Exception):
+    """Raised when PDF generation fails."""
 
 
 class PDFExportService:
-    """Professional PDF export service for compliance reports.
+    """High level PDF export facility."""
 
-    This service converts HTML compliance reports to high-quality PDF documents
-    suitable for printing, archiving, and professional distribution. It maintains
-    all formatting, charts, and interactive elements in a static PDF format.
-
-    Features:
-    - Professional medical document formatting
-    - Preserved styling and branding
-    - Embedded charts and visualizations
-    - Print-optimized layouts
-    - Accessibility compliance
-    - Digital signatures support (future)
-
-    Example:
-        >>> pdf_service = PDFExportService()
-        >>> pdf_bytes = await pdf_service.export_report_to_pdf(report_data)
-        >>> with open("compliance_report.pdf", "wb") as f:
-        ...     f.write(pdf_bytes)
-
-    """
-
-    def __init__(self, output_dir=None, retention_hours=24, enable_auto_purge=True):
-        """Initialize the PDF export service with professional settings."""
+    def __init__(
+        self,
+        output_dir: str | Path | None = None,
+        retention_hours: int = 24,
+        enable_auto_purge: bool = True,
+    ) -> None:
         self.output_dir = Path(output_dir) if output_dir else Path("temp/reports")
         self.retention_hours = retention_hours
         self.enable_auto_purge = enable_auto_purge
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         self.template_engine = TemplateEngine()
-        self.font_config = None
+        self.font_config = FontConfiguration() if WEASYPRINT_AVAILABLE and FontConfiguration else None
         if WEASYPRINT_AVAILABLE:
-            try:
-                from weasyprint.text.fonts import FontConfiguration
-
-                self.font_config = FontConfiguration()
-            except (ImportError, OSError) as e:
-                logging.warning("Could not initialize WeasyPrint font configuration: %s", e)
-                self.font_config = None
-
-        # Initialize fallback service if needed (lazy initialization)
-        self.fallback_service = None
-        if not WEASYPRINT_AVAILABLE and FALLBACK_AVAILABLE:
-            logger.info("PDF export service initialized with ReportLab fallback")
-        elif WEASYPRINT_AVAILABLE:
-            logger.info("PDF export service initialized with WeasyPrint")
+            logger.info("PDF export service initialised using WeasyPrint backend")
+        elif REPORTLAB_AVAILABLE:
+            logger.warning(
+                "ReportLab is installed but the fallback renderer is not fully configured. PDF export will raise a clear"
+                " error until WeasyPrint is installed."
+            )
         else:
-            logger.error("No PDF generation backend available")
+            logger.warning(
+                "No PDF rendering backend available. Install 'weasyprint' with its system dependencies or 'reportlab'."
+            )
 
-        # PDF generation settings optimized for medical documents
         self.pdf_settings = {
             "page_size": "A4",
             "margin_top": "1in",
@@ -114,13 +95,68 @@ class PDFExportService:
             "margin_right": "0.75in",
             "print_background": True,
             "optimize_images": True,
-            "pdf_version": "1.7",  # Widely compatible version
+            "pdf_version": "1.7",
         }
 
-    @property
-    def pdf_css(self) -> str:
-        """Get PDF-specific CSS styles."""
-        return self._get_pdf_css_styles()
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+    def export_to_pdf(
+        self,
+        html_content: str,
+        document_name: str,
+        filename: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Convert ``html_content`` into a PDF saved in ``output_dir``.
+
+        The method never raises on failure; instead it logs the problem
+        and returns a structure with ``success`` set to ``False`` so the
+        calling code can fall back to alternative flows without hanging
+        the analysis pipeline.
+        """
+
+        if not html_content or not html_content.strip():
+            return {"success": False, "error": "HTML content is empty"}
+
+        base_filename = filename or document_name or "report"
+        sanitized = self._sanitize_filename(base_filename)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        pdf_path = self.output_dir / f"compliance_report_{sanitized}_{timestamp}.pdf"
+
+        logger.info("Starting synchronous PDF export: name=%s", sanitized)
+
+        try:
+            pdf_bytes = self._render_pdf_bytes(html_content)
+            pdf_path.write_bytes(pdf_bytes)
+        except PDFExportError as exc:
+            logger.error("PDF export failed: %s", exc)
+            return {"success": False, "error": str(exc)}
+        except (FileNotFoundError, PermissionError, OSError) as exc:
+            logger.exception("Unable to write PDF to %s", pdf_path)
+            return {"success": False, "error": str(exc)}
+
+        file_size = pdf_path.stat().st_size
+        result = {
+            "success": True,
+            "pdf_path": str(pdf_path),
+            "filename": pdf_path.name,
+            "file_size": file_size,
+            "file_size_mb": round(file_size / (1024 * 1024), 2),
+            "generated_at": datetime.now().isoformat(),
+        }
+
+        if metadata:
+            result["metadata"] = metadata
+
+        if self.enable_auto_purge and self.retention_hours > 0:
+            result["purge_at"] = (datetime.now() + timedelta(hours=self.retention_hours)).isoformat()
+
+        logger.info(
+            "PDF export completed: path=%s size_mb=%.2f", result["pdf_path"], result["file_size_mb"]
+        )
+
+        return result
 
     async def export_report_to_pdf(
         self,
@@ -129,114 +165,41 @@ class PDFExportService:
         include_charts: bool = True,
         watermark: str | None = None,
     ) -> bytes:
-        """Export a compliance report to PDF format.
+        """Render structured ``report_data`` to a PDF and return the bytes."""
 
-        This method converts a structured compliance report into a professional
-        PDF document suitable for printing, archiving, and distribution.
-
-        Args:
-            report_data: Complete report data including findings, metrics, and metadata
-            template_name: PDF-specific template to use for rendering
-            include_charts: Whether to include charts and visualizations
-            watermark: Optional watermark text for document security
-
-        Returns:
-            bytes: PDF document as binary data ready for saving or transmission
-
-        Raises:
-            PDFExportError: If PDF generation fails due to template or data issues
-            ValueError: If report_data is invalid or missing required fields
-
-        Example:
-            >>> report_data = {
-            ...     "title": "Compliance Analysis Report",
-            ...     "findings": [...],
-            ...     "metrics": {...}
-            ... }
-            >>> pdf_bytes = await pdf_service.export_report_to_pdf(report_data)
-
-        """
-        # Use fallback service if WeasyPrint is not available
-        if not WEASYPRINT_AVAILABLE:
-            if FALLBACK_AVAILABLE:
-                from .pdf_export_service_fallback_clean import get_pdf_export_service_fallback
-
-                fallback_service = get_pdf_export_service_fallback()
-                if fallback_service:
-                    logger.info("Using ReportLab fallback for PDF export")
-                    return await fallback_service.export_report_to_pdf(
-                        report_data=report_data,
-                        template_name=template_name,
-                        include_charts=include_charts,
-                        watermark=watermark,
-                    )
+        if not WEASYPRINT_AVAILABLE and not REPORTLAB_AVAILABLE:
             raise PDFExportError(
-                "PDF export requires either WeasyPrint or ReportLab. Please install one of them."
-            ) from None
-
-        try:
-            logger.info("Starting PDF export for report: %s", report_data.get("title", "Untitled"))
-
-            # Validate report data
-            self._validate_report_data(report_data)
-
-            # Prepare data for PDF template
-            pdf_data = await self._prepare_pdf_data(report_data, include_charts, watermark)
-
-            # Generate HTML from PDF-optimized template
-            html_content = await self.template_engine.render_template(
-                template_name=template_name, data=pdf_data, format_type=ReportFormat.PDF
+                "PDF export requires WeasyPrint (recommended) or ReportLab. Install the dependencies and try again."
             )
 
-            # Enhance HTML for PDF
-            enhanced_html_content = self._enhance_html_for_pdf(html_content, pdf_data)
+        logger.info("Starting async PDF export for report: %s", report_data.get("title", "Untitled"))
+        self._validate_report_data(report_data)
 
-            # Apply PDF-specific CSS styling
-            pdf_css = self._get_pdf_css_styles()
-
-            # Generate PDF using WeasyPrint
-            from weasyprint import CSS, HTML
-
-            html_doc = HTML(string=enhanced_html_content, base_url=str(Path.cwd()))
-            css_doc = CSS(string=pdf_css, font_config=self.font_config)
-
-            # Render to PDF with professional settings
-            pdf_bytes = html_doc.write_pdf(
-                stylesheets=[css_doc],
-                font_config=self.font_config,
-                optimize_images=True,
-                pdf_version=self.pdf_settings["pdf_version"],
-            )
-
-            logger.info("PDF export completed successfully. Size: %s bytes", len(pdf_bytes))
-            return pdf_bytes
-
-        except (ImportError, ModuleNotFoundError) as e:
-            logger.exception("PDF export failed: %s", e)
-            raise PDFExportError(f"Failed to generate PDF report: {e!s}") from e
+        pdf_data = await self._prepare_pdf_data(report_data, include_charts, watermark)
+        html_content = self.template_engine.render_template(template_name, pdf_data)
+        enhanced_html = self._enhance_html_for_pdf(html_content, pdf_data)
+        pdf_bytes = self._render_pdf_bytes(enhanced_html)
+        logger.info(
+            "Async PDF export completed: title=%s size_bytes=%s",
+            report_data.get("title", "Untitled"),
+            len(pdf_bytes),
+        )
+        return pdf_bytes
 
     async def export_batch_reports_to_pdf(
-        self, reports: list[dict[str, Any]], combined: bool = True, output_dir: Path | None = None
+        self,
+        reports: list[dict[str, Any]],
+        combined: bool = True,
+        output_dir: Path | None = None,
     ) -> dict[str, Any]:
-        """Export multiple reports to PDF format.
+        """Export multiple reports to PDFs, optionally combined."""
 
-        Args:
-            reports: List of report data dictionaries
-            combined: Whether to combine all reports into a single PDF
-            output_dir: Directory to save individual PDFs (if not combined)
-
-        Returns:
-            Dict containing export results and file information
-
-        """
         try:
-            logger.info("Starting batch PDF export for %s reports", len(reports))
-
             if combined:
-                # Combine all reports into a single PDF
                 combined_data = self._combine_reports_data(reports)
-                pdf_bytes = await self.export_report_to_pdf(combined_data, template_name="batch_compliance_report_pdf")
-
+                pdf_bytes = await self.export_report_to_pdf(
+                    combined_data, template_name="batch_compliance_report_pdf"
+                )
                 return {
                     "success": True,
                     "type": "combined",
@@ -244,21 +207,21 @@ class PDFExportService:
                     "report_count": len(reports),
                     "file_size_bytes": len(pdf_bytes),
                 }
-            # Generate individual PDFs
-            results = []
-            for i, report_data in enumerate(reports):
-                try:
-                    pdf_bytes = await self.export_report_to_pdf(report_data)
 
-                    # Save to output directory if specified
+            results: list[dict[str, Any]] = []
+            for index, report in enumerate(reports):
+                try:
+                    pdf_bytes = await self.export_report_to_pdf(report)
                     if output_dir:
-                        filename = f"compliance_report_{i + 1:03d}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                        output_dir.mkdir(parents=True, exist_ok=True)
+                        filename = (
+                            f"compliance_report_{index + 1:03d}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                        )
                         file_path = output_dir / filename
                         file_path.write_bytes(pdf_bytes)
-
                         results.append(
                             {
-                                "index": i,
+                                "index": index,
                                 "success": True,
                                 "file_path": str(file_path),
                                 "file_size_bytes": len(pdf_bytes),
@@ -267,53 +230,164 @@ class PDFExportService:
                     else:
                         results.append(
                             {
-                                "index": i,
+                                "index": index,
                                 "success": True,
                                 "pdf_data": pdf_bytes,
                                 "file_size_bytes": len(pdf_bytes),
                             }
                         )
-
-                except (FileNotFoundError, PermissionError, OSError) as e:
-                    logger.exception("Failed to export report %s: {e}", i)
-                    results.append(
-                        {
-                            "index": i,
-                            "success": False,
-                            "error": str(e),
-                        }
-                    )
+                except (FileNotFoundError, PermissionError, OSError, PDFExportError) as exc:
+                    logger.exception("Failed to export report %s", index)
+                    results.append({"index": index, "success": False, "error": str(exc)})
 
             return {
                 "success": True,
                 "type": "individual",
                 "results": results,
                 "total_reports": len(reports),
-                "successful_exports": sum(1 for r in results if r["success"]),
+                "successful_exports": sum(1 for item in results if item.get("success")),
+            }
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.exception("Batch PDF export failed")
+            return {"success": False, "error": str(exc)}
+
+    def purge_old_pdfs(self, max_age_hours: int | None = None) -> dict[str, Any]:
+        """Delete PDFs older than ``max_age_hours`` from ``output_dir``."""
+
+        if not self.enable_auto_purge:
+            return {"purged": 0, "message": "Auto-purge disabled"}
+
+        max_age = max_age_hours or self.retention_hours
+        cutoff = datetime.now().timestamp() - (max_age * 3600)
+        purged = 0
+        total_size = 0
+        errors: list[str] = []
+
+        for pdf_file in self.output_dir.glob("*.pdf"):
+            try:
+                if pdf_file.stat().st_mtime < cutoff:
+                    file_size = pdf_file.stat().st_size
+                    pdf_file.unlink()
+                    purged += 1
+                    total_size += file_size
+            except (FileNotFoundError, PermissionError, OSError) as exc:
+                logger.warning("Failed to purge PDF %s: %s", pdf_file.name, exc)
+                errors.append(f"Failed to purge {pdf_file.name}: {exc}")
+
+        result = {
+            "purged": purged,
+            "total_size_mb": round(total_size / (1024 * 1024), 2),
+            "max_age_hours": max_age,
+        }
+
+        if errors:
+            result["errors"] = errors
+
+        return result
+
+    def get_pdf_info(self, pdf_path: str | Path) -> dict[str, Any] | None:
+        """Return metadata for ``pdf_path`` if it exists."""
+
+        path = Path(pdf_path)
+        if not path.exists():
+            return None
+
+        try:
+            stat = path.stat()
+            info = {
+                "filename": path.name,
+                "path": str(path.resolve()),
+                "size_bytes": stat.st_size,
+                "size_mb": round(stat.st_size / (1024 * 1024), 2),
+                "created_at": datetime.fromtimestamp(stat.st_ctime).isoformat(),
+                "modified_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                "is_readable": path.is_file() and stat.st_size > 0,
             }
 
-        except Exception as e:
-            logger.exception("Batch PDF export failed: %s", e)
-            return {
-                "success": False,
-                "error": str(e),
-            }
+            if _is_module_available("PyPDF2"):
+                import PyPDF2
+
+                with path.open("rb") as handle:
+                    reader = PyPDF2.PdfReader(handle)
+                    info.update(
+                        {
+                            "page_count": len(reader.pages),
+                            "encrypted": reader.is_encrypted,
+                            "pdf_version": getattr(reader, "pdf_version", "unknown"),
+                        }
+                    )
+
+            return info
+        except (FileNotFoundError, PermissionError, OSError) as exc:
+            logger.warning("Unable to read PDF info for %s: %s", path, exc)
+            return None
+
+    def list_pdfs(self, pattern: str = "*.pdf", sort_by: str = "modified") -> list[dict[str, Any]]:
+        """List PDFs in ``output_dir`` matching ``pattern`` sorted by ``sort_by``."""
+
+        items: list[dict[str, Any]] = []
+        for pdf_file in self.output_dir.glob(pattern):
+            if not pdf_file.is_file():
+                continue
+            info = self.get_pdf_info(pdf_file)
+            if info:
+                items.append(info)
+
+        sort_keys = {
+            "name": lambda entry: entry["filename"].lower(),
+            "size": lambda entry: entry["size_bytes"],
+            "created": lambda entry: entry["created_at"],
+            "modified": lambda entry: entry["modified_at"],
+        }
+
+        if sort_by in sort_keys:
+            items.sort(key=sort_keys[sort_by], reverse=sort_by != "name")
+
+        return items
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    def _render_pdf_bytes(self, html_content: str) -> bytes:
+        """Render HTML to PDF bytes using the available backend."""
+
+        if WEASYPRINT_AVAILABLE and HTML and CSS:
+            css_kwargs: dict[str, Any] = {}
+            if self.font_config is not None:
+                css_kwargs["font_config"] = self.font_config
+
+            html_doc = HTML(string=html_content, base_url=str(Path.cwd()))
+            css_doc = CSS(string=self._get_pdf_css_styles(), **css_kwargs)
+            return html_doc.write_pdf(
+                stylesheets=[css_doc],
+                font_config=self.font_config,
+                optimize_images=True,
+                presentational_hints=True,
+                pdf_version=self.pdf_settings["pdf_version"],
+            )
+
+        if REPORTLAB_AVAILABLE:
+            raise PDFExportError(
+                "ReportLab support is not fully configured. Install WeasyPrint or update the ReportLab fallback."
+            )
+
+        raise PDFExportError(
+            "No PDF backend available. Install WeasyPrint with system dependencies to enable PDF export."
+        )
 
     def _validate_report_data(self, report_data: dict[str, Any]) -> None:
-        """Validate report data for PDF export."""
-        required_fields = ["title", "generated_at", "findings"]
-        missing_fields = [field for field in required_fields if field not in report_data]
-
-        if missing_fields:
-            raise ValueError(f"Report data missing required fields: {missing_fields}")
+        required = ["title", "generated_at", "findings"]
+        missing = [field for field in required if field not in report_data]
+        if missing:
+            raise ValueError(f"Report data missing required fields: {missing}")
 
     async def _prepare_pdf_data(
-        self, report_data: dict[str, Any], include_charts: bool, watermark: str | None
+        self,
+        report_data: dict[str, Any],
+        include_charts: bool,
+        watermark: str | None,
     ) -> dict[str, Any]:
-        """Prepare report data specifically for PDF rendering."""
         pdf_data = report_data.copy()
-
-        # Add PDF-specific metadata
         pdf_data.update(
             {
                 "export_timestamp": datetime.now().isoformat(),
@@ -324,60 +398,45 @@ class PDFExportService:
             }
         )
 
-        # Convert charts to static images if included
         if include_charts and "charts" in pdf_data:
             pdf_data["charts"] = await self._convert_charts_for_pdf(pdf_data["charts"])
 
-        # Optimize content for print layout
-        pdf_data = self._optimize_content_for_print(pdf_data)
-
-        return pdf_data
+        return self._optimize_content_for_print(pdf_data)
 
     async def _convert_charts_for_pdf(self, charts: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Convert interactive charts to static images for PDF."""
-        converted_charts = []
-
+        converted: list[dict[str, Any]] = []
         for chart in charts:
             try:
-                # Convert chart data to base64 image (placeholder implementation)
-                # In production, this would use matplotlib, plotly, or similar
                 chart_copy = chart.copy()
-                chart_copy["image_data"] = (
-                    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
-                )
-                converted_charts.append(chart_copy)
+                # Placeholder transparent pixel ensures the PDF renders even when
+                # charts have not been converted to images yet.
+                chart_copy["image_data"] = self._transparent_pixel()
+                converted.append(chart_copy)
+            except (Image.UnidentifiedImageError, ValueError, OSError) as exc:
+                logger.warning("Failed to convert chart for PDF: %s", exc)
+                converted.append(chart)
+        return converted
 
-            except (Image.UnidentifiedImageError, OSError, ValueError) as e:
-                logger.warning("Failed to convert chart for PDF: %s", e)
-                # Include chart data without image as fallback
-                converted_charts.append(chart)
-
-        return converted_charts
+    def _transparent_pixel(self) -> str:
+        return f"data:image/png;base64,{TRANSPARENT_PIXEL}"
 
     def _optimize_content_for_print(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Optimize content layout and formatting for print."""
-        # Add page break hints for long content
         if "findings" in data and len(data["findings"]) > 10:
-            # Group findings for better page layout
+            grouped = []
             findings = data["findings"]
-            grouped_findings = []
-
-            for i in range(0, len(findings), 5):
-                group = findings[i : i + 5]
-                grouped_findings.append(
+            for index in range(0, len(findings), 5):
+                group = findings[index : index + 5]
+                grouped.append(
                     {
-                        "group_index": i // 5 + 1,
+                        "group_index": index // 5 + 1,
                         "findings": group,
-                        "page_break_after": i + 5 < len(findings),
+                        "page_break_after": index + 5 < len(findings),
                     }
                 )
-
-            data["grouped_findings"] = grouped_findings
-
+            data["grouped_findings"] = grouped
         return data
 
     def _get_pdf_css_styles(self) -> str:
-        """Get PDF-specific CSS styles for professional formatting."""
         return """
         @page {
             size: A4;
@@ -403,31 +462,12 @@ class PDFExportService:
             font-size: 11pt;
             line-height: 1.4;
             color: #333;
-            background: white;
+            background: #fff;
         }
 
         h1, h2, h3 {
             color: #2563eb;
             page-break-after: avoid;
-        }
-
-        h1 {
-            font-size: 18pt;
-            margin-bottom: 20pt;
-            border-bottom: 2pt solid #2563eb;
-            padding-bottom: 10pt;
-        }
-
-        h2 {
-            font-size: 14pt;
-            margin-top: 20pt;
-            margin-bottom: 12pt;
-        }
-
-        h3 {
-            font-size: 12pt;
-            margin-top: 16pt;
-            margin-bottom: 8pt;
         }
 
         .finding {
@@ -479,14 +519,6 @@ class PDFExportService:
             margin-top: 4pt;
         }
 
-        .page-break {
-            page-break-before: always;
-        }
-
-        .no-break {
-            page-break-inside: avoid;
-        }
-
         table {
             width: 100%;
             border-collapse: collapse;
@@ -514,245 +546,16 @@ class PDFExportService:
             z-index: -1;
             pointer-events: none;
         }
-
-        /* Risk level styling */
-        .risk-high {
-            border-left: 4pt solid #dc2626;
-            background: #fef2f2;
-            color: #991b1b;
-        }
-
-        .risk-medium {
-            border-left: 4pt solid #f59e0b;
-            background: #fffbeb;
-            color: #92400e;
-        }
-
-        .risk-low {
-            border-left: 4pt solid #10b981;
-            background: #f0fdf4;
-            color: #065f46;
-        }
-
-        /* Confidence level styling */
-        .high-confidence {
-            border: 2pt solid #10b981;
-            background: #f0fdf4;
-        }
-
-        .medium-confidence {
-            border: 2pt solid #f59e0b;
-            background: #fffbeb;
-        }
-
-        .low-confidence {
-            border: 2pt dashed #dc2626;
-            background: #fef2f2;
-        }
-
-        .disputed {
-            background: #fee2e2;
-            text-decoration: line-through;
-            border: 2pt solid #dc2626;
-        }
         """
 
-    def _get_pdf_css_styles(self) -> str:
-        """Get comprehensive PDF-specific CSS styles.
+    def _enhance_html_for_pdf(self, html_content: str, data: dict[str, Any]) -> str:
+        watermark = data.get("watermark")
+        if not watermark:
+            return html_content
+        watermark_div = f"<div class='watermark'>{watermark}</div>"
+        return html_content.replace("<body>", f"<body>{watermark_div}")
 
-        Industry best practice: Provide print-optimized styling with
-        proper page breaks, headers, and footers.
-
-        Returns:
-            CSS string optimized for PDF generation
-        """
-        return """
-        @page {
-            size: A4;
-            margin: 1in 0.75in;
-
-            @top-center {
-                content: "Therapy Compliance Analysis Report";
-                font-family: 'Segoe UI', Arial, sans-serif;
-                font-size: 10pt;
-                color: #666;
-            }
-
-            @bottom-right {
-                content: "Page " counter(page) " of " counter(pages);
-                font-family: 'Segoe UI', Arial, sans-serif;
-                font-size: 9pt;
-                color: #666;
-            }
-        }
-
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 11pt;
-            line-height: 1.4;
-            color: #333;
-            background: white;
-        }
-
-        h1, h2, h3 {
-            color: #2563eb;
-            page-break-after: avoid;
-        }
-
-        h1 {
-            font-size: 18pt;
-            margin-bottom: 20pt;
-            border-bottom: 2pt solid #2563eb;
-            padding-bottom: 10pt;
-        }
-
-        h2 {
-            font-size: 14pt;
-            margin-top: 20pt;
-            margin-bottom: 12pt;
-        }
-
-        h3 {
-            font-size: 12pt;
-            margin-top: 16pt;
-            margin-bottom: 8pt;
-        }
-
-        .finding {
-            border: 1pt solid #e5e7eb;
-            border-radius: 4pt;
-            padding: 12pt;
-            margin-bottom: 12pt;
-            page-break-inside: avoid;
-        }
-
-        .finding.high-risk {
-            border-left: 4pt solid #dc2626;
-            background: #fef2f2;
-        }
-
-        .finding.medium-risk {
-            border-left: 4pt solid #f59e0b;
-            background: #fffbeb;
-        }
-
-        .finding.low-risk {
-            border-left: 4pt solid #10b981;
-            background: #f0fdf4;
-        }
-
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12pt;
-            margin: 16pt 0;
-        }
-
-        .metric-card {
-            border: 1pt solid #e5e7eb;
-            border-radius: 4pt;
-            padding: 12pt;
-            text-align: center;
-        }
-
-        .metric-value {
-            font-size: 24pt;
-            font-weight: bold;
-            color: #2563eb;
-        }
-
-        .metric-label {
-            font-size: 10pt;
-            color: #666;
-            margin-top: 4pt;
-        }
-
-        .page-break {
-            page-break-before: always;
-        }
-
-        .no-break {
-            page-break-inside: avoid;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 12pt 0;
-        }
-
-        th, td {
-            border: 1pt solid #e5e7eb;
-            padding: 8pt;
-            text-align: left;
-        }
-
-        th {
-            background: #f9fafb;
-            font-weight: bold;
-        }
-
-        .watermark {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(-45deg);
-            font-size: 48pt;
-            color: rgba(0, 0, 0, 0.1);
-            z-index: -1;
-            pointer-events: none;
-        }
-
-        /* Risk level styling */
-        .risk-high {
-            border-left: 4pt solid #dc2626;
-            background: #fef2f2;
-            color: #991b1b;
-        }
-
-        .risk-medium {
-            border-left: 4pt solid #f59e0b;
-            background: #fffbeb;
-            color: #92400e;
-        }
-
-        .risk-low {
-            border-left: 4pt solid #10b981;
-            background: #f0fdf4;
-            color: #065f46;
-        }
-
-        /* Confidence level styling */
-        .high-confidence {
-            border: 2pt solid #10b981;
-            background: #f0fdf4;
-        }
-
-        .medium-confidence {
-            border: 2pt solid #f59e0b;
-            background: #fffbeb;
-        }
-
-        .low-confidence {
-            border: 2pt dashed #dc2626;
-            background: #fef2f2;
-        }
-
-        .disputed {
-            background: #fee2e2;
-            text-decoration: line-through;
-            border: 2pt solid #dc2626;
-        }
-        """
-
-    class PDFExportError(Exception):
-        """Exception raised when PDF export fails."""
-    
-        pass
-    
-    
-    # Global PDF export service instance (lazy initialization)pdf_export_service = None
-        """Combine multiple reports into a single document."""
+    def _combine_reports_data(self, reports: list[dict[str, Any]]) -> dict[str, Any]:
         combined = {
             "title": f"Combined Compliance Analysis Report ({len(reports)} Reports)",
             "generated_at": datetime.now().isoformat(),
@@ -762,323 +565,63 @@ class PDFExportService:
             "findings": [],
         }
 
-        # Combine all findings
-        for i, report in enumerate(reports):
-            if "findings" in report:
-                for finding in report["findings"]:
-                    finding_copy = finding.copy()
-                    finding_copy["source_report"] = i + 1
-                    finding_copy["source_title"] = report.get("title", f"Report {i + 1}")
-                    combined["findings"].append(finding_copy)
+        for index, report in enumerate(reports):
+            for finding in report.get("findings", []):
+                finding_copy = finding.copy()
+                finding_copy["source_report"] = index + 1
+                finding_copy["source_title"] = report.get("title", f"Report {index + 1}")
+                combined["findings"].append(finding_copy)
 
         return combined
 
     def _calculate_combined_metrics(self, reports: list[dict[str, Any]]) -> dict[str, Any]:
-        """Calculate combined metrics across multiple reports."""
         total_findings = 0
-        total_high_risk = 0
-        total_medium_risk = 0
-        total_low_risk = 0
-        compliance_scores = []
+        total_high = 0
+        total_medium = 0
+        total_low = 0
+        scores: list[float] = []
 
         for report in reports:
-            if "findings" in report:
-                findings = report["findings"]
-                total_findings += len(findings)
-
-                for finding in findings:
-                    risk_level = finding.get("risk_level", "").lower()
-                    if risk_level == "high":
-                        total_high_risk += 1
-                    elif risk_level == "medium":
-                        total_medium_risk += 1
-                    elif risk_level == "low":
-                        total_low_risk += 1
+            findings = report.get("findings", [])
+            total_findings += len(findings)
+            for finding in findings:
+                risk_level = finding.get("risk_level", "").lower()
+                if risk_level == "high":
+                    total_high += 1
+                elif risk_level == "medium":
+                    total_medium += 1
+                elif risk_level == "low":
+                    total_low += 1
 
             if "compliance_score" in report:
-                compliance_scores.append(report["compliance_score"])
+                try:
+                    scores.append(float(report["compliance_score"]))
+                except (TypeError, ValueError):
+                    logger.debug("Skipping non numeric compliance score: %s", report["compliance_score"])
 
-        avg_compliance_score = sum(compliance_scores) / len(compliance_scores) if compliance_scores else 0
-
+        average_score = sum(scores) / len(scores) if scores else 0.0
         return {
             "total_findings": total_findings,
-            "high_risk_findings": total_high_risk,
-            "medium_risk_findings": total_medium_risk,
-            "low_risk_findings": total_low_risk,
-            "average_compliance_score": round(avg_compliance_score, 1),
+            "high_risk_findings": total_high,
+            "medium_risk_findings": total_medium,
+            "low_risk_findings": total_low,
+            "average_compliance_score": round(average_score, 1),
             "report_count": len(reports),
         }
 
     def _sanitize_filename(self, filename: str) -> str:
-        """Sanitize filename for safe file system usage"""
-        if not filename:
-            return "document"
-
-        # Remove file extension
-        name = Path(filename).stem
-
-        # Replace spaces with underscores
+        name = Path(filename).stem or "document"
         name = name.replace(" ", "_")
+        return "".join(ch for ch in name if ch.isalnum() or ch in {"_", "-"})[:50]
 
-        # Remove special characters
-        import re
 
-        name = re.sub(r"[^\w\-_.]", "", name)
+_pdf_export_service: PDFExportService | None = None
 
-        return name[:50]  # Limit length for filesystem compatibility
 
-    def purge_old_pdfs(self, max_age_hours: int | None = None) -> dict[str, Any]:
-        """Purge old PDF files from the output directory.
+def get_pdf_export_service() -> PDFExportService:
+    """Return a shared :class:`PDFExportService` instance."""
 
-        Industry best practice: Implement automatic cleanup to prevent disk space issues
-        and maintain data retention policies for compliance.
-
-        Args:
-            max_age_hours: Maximum age in hours (defaults to retention_hours)
-
-        Returns:
-            Dict with purge statistics
-        """
-        if not self.enable_auto_purge:
-            return {"purged": 0, "message": "Auto-purge disabled"}
-
-        max_age = max_age_hours or self.retention_hours
-        cutoff_time = datetime.now().timestamp() - (max_age * 3600)
-
-        purged_count = 0
-        total_size = 0
-        errors = []
-
-        try:
-            for pdf_file in self.output_dir.glob("*.pdf"):
-                try:
-                    if pdf_file.stat().st_mtime < cutoff_time:
-                        file_size = pdf_file.stat().st_size
-                        pdf_file.unlink()
-                        purged_count += 1
-                        total_size += file_size
-                        logger.debug("Purged old PDF: %s", pdf_file.name)
-                except (OSError, PermissionError) as e:
-                    errors.append(f"Failed to purge {pdf_file.name}: {e}")
-                    logger.warning("Failed to purge PDF %s: %s", pdf_file.name, e)
-
-        except Exception as e:
-            logger.exception("Error during PDF purge: %s", e)
-            errors.append(f"Purge operation failed: {e}")
-
-        result = {
-            "purged": purged_count,
-            "total_size_mb": round(total_size / (1024 * 1024), 2),
-            "max_age_hours": max_age,
-        }
-
-        if errors:
-            result["errors"] = errors
-
-        logger.info("PDF purge completed: %d files removed, %.2f MB freed", purged_count, result["total_size_mb"])
-        return result
-
-    def get_pdf_info(self, pdf_path: str | Path) -> dict[str, Any] | None:
-        """Get information about a PDF file.
-
-        Industry best practice: Provide comprehensive file metadata for
-        audit trails and file management.
-
-        Args:
-            pdf_path: Path to the PDF file
-
-        Returns:
-            Dict with PDF information or None if file doesn't exist
-        """
-        pdf_file = Path(pdf_path)
-
-        if not pdf_file.exists():
-            return None
-
-        try:
-            stat = pdf_file.stat()
-
-            info = {
-                "filename": pdf_file.name,
-                "path": str(pdf_file.absolute()),
-                "size_bytes": stat.st_size,
-                "size_mb": round(stat.st_size / (1024 * 1024), 2),
-                "created_at": datetime.fromtimestamp(stat.st_ctime).isoformat(),
-                "modified_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                "is_readable": pdf_file.is_file() and pdf_file.stat().st_size > 0,
-            }
-
-            # Try to get PDF-specific metadata if PyPDF2 is available
-            try:
-                import PyPDF2
-
-                with open(pdf_file, "rb") as f:
-                    reader = PyPDF2.PdfReader(f)
-                    info.update(
-                        {
-                            "page_count": len(reader.pages),
-                            "encrypted": reader.is_encrypted,
-                            "pdf_version": getattr(reader, "pdf_version", "Unknown"),
-                        }
-                    )
-
-                    # Get metadata if available
-                    if reader.metadata:
-                        metadata = reader.metadata
-                        info["metadata"] = {
-                            "title": metadata.get("/Title", ""),
-                            "author": metadata.get("/Author", ""),
-                            "subject": metadata.get("/Subject", ""),
-                            "creator": metadata.get("/Creator", ""),
-                            "producer": metadata.get("/Producer", ""),
-                        }
-            except (ImportError, Exception) as e:
-                logger.debug("Could not extract PDF metadata: %s", e)
-
-            return info
-
-        except (OSError, PermissionError) as e:
-            logger.warning("Could not get PDF info for %s: %s", pdf_path, e)
-            return None
-
-    def list_pdfs(self, pattern: str = "*.pdf", sort_by: str = "modified") -> list[dict[str, Any]]:
-        """List PDF files in the output directory.
-
-        Industry best practice: Provide comprehensive file listing with
-        sorting and filtering capabilities for file management.
-
-        Args:
-            pattern: Glob pattern for file matching
-            sort_by: Sort criteria ('name', 'size', 'created', 'modified')
-
-        Returns:
-            List of PDF file information dictionaries
-        """
-        pdfs = []
-
-        try:
-            for pdf_file in self.output_dir.glob(pattern):
-                if pdf_file.is_file():
-                    info = self.get_pdf_info(pdf_file)
-                    if info:
-                        pdfs.append(info)
-
-        except Exception as e:
-            logger.exception("Error listing PDFs: %s", e)
-            return []
-
-        # Sort the results
-        sort_key_map = {
-            "name": lambda x: x["filename"].lower(),
-            "size": lambda x: x["size_bytes"],
-            "created": lambda x: x["created_at"],
-            "modified": lambda x: x["modified_at"],
-        }
-
-        if sort_by in sort_key_map:
-            pdfs.sort(key=sort_key_map[sort_by], reverse=(sort_by != "name"))
-
-        return pdfs
-
-    def list_pdfs(self, pattern: str = "*.pdf", sort_by: str = "modified") -> list[dict[str, Any]]:
-        """List PDF files in the output directory.
-
-        Industry best practice: Provide comprehensive file listing with
-        sorting and filtering capabilities for file management.
-
-        Args:
-            pattern: Glob pattern for file matching
-            sort_by: Sort criteria ('name', 'size', 'created', 'modified')
-
-        Returns:
-            List of PDF file information dictionaries
-
-        """
-        pdfs = []
-
-        try:
-            for pdf_file in self.output_dir.glob(pattern):
-                if pdf_file.is_file():
-                    info = self.get_pdf_info(pdf_file)
-                    if info:
-                        pdfs.append(info)
-
-        except Exception as e:
-            logger.exception("Error listing PDFs: %s", e)
-            return []
-
-        # Sort the results
-        sort_key_map = {
-            "name": lambda x: x["filename"].lower(),
-            "size": lambda x: x["size_bytes"],
-            "created": lambda x: x["created_at"],
-            "modified": lambda x: x["modified_at"],
-        }
-
-        if sort_by in sort_key_map:
-            pdfs.sort(key=sort_key_map[sort_by], reverse=(sort_by != "name"))
-
-        return pdfs
-
-    def _combine_reports_data(self, reports: list[dict[str, Any]]) -> dict[str, Any]:
-        """Combine multiple reports into a single document."""
-        combined = {
-            "title": f"Combined Compliance Analysis Report ({len(reports)} Reports)",
-            "generated_at": datetime.now().isoformat(),
-            "report_count": len(reports),
-            "reports": reports,
-            "combined_metrics": self._calculate_combined_metrics(reports),
-            "findings": [],
-        }
-
-        # Combine all findings
-        for i, report in enumerate(reports):
-            if "findings" in report:
-                for finding in report["findings"]:
-                    finding_copy = finding.copy()
-                    finding_copy["source_report"] = i + 1
-                    finding_copy["source_title"] = report.get("title", f"Report {i + 1}")
-                    combined["findings"].append(finding_copy)
-
-        return combined
-
-    def _calculate_combined_metrics(self, reports: list[dict[str, Any]]) -> dict[str, Any]:
-        """Calculate combined metrics across multiple reports."""
-        total_findings = 0
-        total_high_risk = 0
-        total_medium_risk = 0
-        total_low_risk = 0
-        compliance_scores = []
-
-        for report in reports:
-            if "findings" in report:
-                findings = report["findings"]
-                total_findings += len(findings)
-
-                for finding in findings:
-                    risk_level = finding.get("risk_level", "").lower()
-                    if risk_level == "high":
-                        total_high_risk += 1
-                    elif risk_level == "medium":
-                        total_medium_risk += 1
-                    elif risk_level == "low":
-                        total_low_risk += 1
-
-            if "compliance_score" in report:
-                compliance_scores.append(report["compliance_score"])
-
-        avg_compliance_score = sum(compliance_scores) / len(compliance_scores) if compliance_scores else 0
-
-        return {
-            "total_findings": total_findings,
-            "high_risk_findings": total_high_risk,
-            "medium_risk_findings": total_medium_risk,
-            "low_risk_findings": total_low_risk,
-            "average_compliance_score": round(avg_compliance_score, 1),
-            "report_count": len(reports),
-        }
-
-# Global PDF export service instance (lazy initialization)
-# Global PDF export service instance (lazy initialization)
-# Global PDF export service instance (lazy initialization)
-pdf_export_service = None
+    global _pdf_export_service
+    if _pdf_export_service is None:
+        _pdf_export_service = PDFExportService()
+    return _pdf_export_service
