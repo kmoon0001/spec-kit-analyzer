@@ -428,7 +428,8 @@ class TestPerformanceOptimization:
     def test_bottleneck_detection(self):
         """Test bottleneck detection functionality."""
         # Create some slow operations
-                    for _i in range(5):            performance_monitor.record_metric(
+        for _i in range(5):
+            performance_monitor.record_metric(
                 component="slow_component",
                 operation="slow_operation",
                 duration_ms=2000,  # 2 seconds - should be flagged as slow
