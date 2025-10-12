@@ -68,6 +68,18 @@ def run_analysis_and_save(
                 analysis_mode=analysis_mode,
                 progress_callback=_update_progress,
             )
+            analysis_payload = result if isinstance(result, dict) else {}
+            analysis_details = {}
+            if isinstance(analysis_payload, dict):
+                candidate = analysis_payload.get("analysis")
+                if isinstance(candidate, dict):
+                    analysis_details = candidate
+
+            findings = analysis_details.get("findings", []) if isinstance(analysis_details, dict) else []
+            compliance_score = analysis_details.get("compliance_score") if isinstance(analysis_details, dict) else None
+            document_type = analysis_details.get("document_type") if isinstance(analysis_details, dict) else None
+            report_html = analysis_payload.get("report_html") if isinstance(analysis_payload, dict) else None
+
             tasks[task_id] = {
                 "status": "completed",
                 "result": result,
@@ -75,6 +87,11 @@ def run_analysis_and_save(
                 "timestamp": datetime.datetime.now(datetime.UTC),
                 "progress": 100,
                 "status_message": "Analysis complete.",
+                "analysis": analysis_details,
+                "findings": findings,
+                "overall_score": compliance_score,
+                "document_type": document_type,
+                "report_html": report_html,
             }
             logger.info("Analysis completed for task %s", task_id)
         except (FileNotFoundError, PermissionError, OSError) as exc:
@@ -277,7 +294,7 @@ async def get_analysis_status(
         raise HTTPException(status_code=404, detail="Task not found")
 
     if task["status"] == "completed":
-        return tasks.pop(task_id)
+        return dict(task)
 
     # Ensure progress and status_message are always returned, even if not explicitly set yet
     task.setdefault("progress", 0)
