@@ -1,4 +1,5 @@
 import logging
+import re
 
 import nltk  # type: ignore[import-untyped]
 
@@ -8,12 +9,19 @@ logger = logging.getLogger(__name__)
 # --- NLTK Setup ---
 try:
     nltk.data.find("tokenizers/punkt")
-    nltk.data.find("tokenizers/punkt_tab")
+    PUNKT_AVAILABLE = True
 except LookupError:
-    logger.info("NLTK 'punkt' tokenizer not found. Downloading...")
-    nltk.download("punkt", quiet=True)
-    nltk.download("punkt_tab", quiet=True)
-    logger.info("'punkt' tokenizer downloaded successfully.")
+    logger.warning(
+        "NLTK 'punkt' tokenizer data is not available. Falling back to a simple sentence splitter."
+    )
+    PUNKT_AVAILABLE = False
+
+
+def _fallback_sentence_split(text: str) -> list[str]:
+    """Lightweight sentence splitter used when NLTK punkt data is unavailable."""
+
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    return [sentence.strip() for sentence in sentences if sentence.strip()]
 
 
 def sentence_window_chunker(text: str, window_size: int = 1, metadata: dict | None = None):
@@ -36,7 +44,14 @@ def sentence_window_chunker(text: str, window_size: int = 1, metadata: dict | No
     if not text:
         return []
 
-    sentences = nltk.sent_tokenize(text)
+    if PUNKT_AVAILABLE:
+        try:
+            sentences = nltk.sent_tokenize(text)
+        except LookupError:
+            logger.warning("Falling back to simple sentence splitting due to missing punkt data.")
+            sentences = _fallback_sentence_split(text)
+    else:
+        sentences = _fallback_sentence_split(text)
     chunks = []
 
     for i, sentence in enumerate(sentences):

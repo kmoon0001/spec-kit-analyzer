@@ -135,8 +135,102 @@ class TemperatureScaling:
 
     Temperature scaling is a simple and effective post-processing technique
     that applies a single scalar parameter to the logits before softmax.
+    The implementation below intentionally avoids heavy third-party
+    optimisers (such as ``scipy``) so that it can run in constrained
+    environments while still producing stable calibrated probabilities.
     """
 
+    def __init__(self, temperature: float = 1.0):
+        self.temperature = float(temperature)
+        self.is_fitted = False
+
+    @staticmethod
+    def _sigmoid(values: np.ndarray | list | float) -> np.ndarray:
+        """Numerically stable sigmoid that tolerates extreme values."""
+
+        array = np.asarray(values, dtype=float)
+        # Clip to avoid overflow in exp for extreme logits.
+        array = np.clip(array, -60.0, 60.0)
+        return 1.0 / (1.0 + np.exp(-array))
+
+    @staticmethod
+    def _nll_loss(logits: np.ndarray, labels: np.ndarray, temperature: float) -> float:
+        """Calculate the negative log-likelihood for a given temperature."""
+
+        scaled = logits / max(temperature, 1e-6)
+        probs = TemperatureScaling._sigmoid(scaled)
+        eps = 1e-12
+        loss = -np.mean(labels * np.log(probs + eps) + (1 - labels) * np.log(1 - probs + eps))
+        return float(loss)
+
+    def fit(self, logits: np.ndarray | list, labels: np.ndarray | list) -> "TemperatureScaling":
+        """Fit the temperature parameter using negative log-likelihood minimisation."""
+
+        logits_array = np.asarray(logits, dtype=float).reshape(-1)
+        labels_array = np.asarray(labels, dtype=float).reshape(-1)
+
+        if logits_array.size == 0 or labels_array.size != logits_array.size:
+            raise ValueError("Logits and labels must be non-empty arrays of the same length")
+
+        labels_array = np.clip(labels_array, 0.0, 1.0)
+
+        temperature = max(self.temperature, 1e-3)
+        best_temp = temperature
+        best_loss = self._nll_loss(logits_array, labels_array, temperature)
+
+        learning_rate = 0.05
+        for _ in range(200):
+            scaled = logits_array / max(temperature, 1e-6)
+            probs = self._sigmoid(scaled)
+            # Gradient of the NLL with respect to temperature.
+            gradient = -np.sum((probs - labels_array) * logits_array) / (
+                (logits_array.size) * max(temperature, 1e-6) ** 2
+            )
+
+            if not np.isfinite(gradient):
+                break
+
+            candidate = float(np.clip(temperature - learning_rate * gradient, 1e-3, 100.0))
+            candidate_loss = self._nll_loss(logits_array, labels_array, candidate)
+
+            if candidate_loss <= best_loss:
+                temperature = candidate
+                best_loss = candidate_loss
+                best_temp = candidate
+            else:
+                learning_rate *= 0.5
+
+            if learning_rate < 1e-4 or abs(candidate - temperature) < 1e-4:
+                break
+
+        # Fallback grid search to escape possible local minima.
+        grid = np.concatenate(
+            [
+                np.linspace(0.1, 0.9, 9),
+                np.linspace(1.0, 5.0, 17),
+                np.linspace(5.0, 10.0, 6),
+            ]
+        )
+        for candidate in grid:
+            loss = self._nll_loss(logits_array, labels_array, candidate)
+            if loss < best_loss - 1e-6:
+                best_loss = loss
+                best_temp = float(candidate)
+
+        self.temperature = float(best_temp)
+        self.is_fitted = True
+        return self
+
+    def calibrate(self, logits: np.ndarray | list) -> np.ndarray:
+        """Calibrate logits using the learnt temperature parameter."""
+
+        logits_array = np.asarray(logits, dtype=float)
+        if not self.is_fitted:
+            # If fit has not been called fall back to the raw sigmoid.
+            return self._sigmoid(logits_array)
+
+        scaled = logits_array / max(self.temperature, 1e-6)
+        return self._sigmoid(scaled)
 
 class PlattScaling:
     """Platt scaling calibration method."""
