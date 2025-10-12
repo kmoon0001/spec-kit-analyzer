@@ -45,8 +45,18 @@ class TestPDFExportService:
 
     @patch("src.core.pdf_export_service.WEASYPRINT_AVAILABLE", False)
     async def test_export_without_weasyprint(self, pdf_service, sample_report_data):
-        """Test PDF export when WeasyPrint is not available."""
-        with pytest.raises(PDFExportError, match="PDF export requires WeasyPrint"):
+        """Test PDF export uses fallback renderer when WeasyPrint is unavailable."""
+        result = await pdf_service.export_report_to_pdf(sample_report_data)
+
+        assert isinstance(result, bytes)
+        assert len(result) > 0
+
+    @patch("src.core.pdf_export_service.WEASYPRINT_AVAILABLE", False)
+    @patch("src.core.pdf_export_service.REPORTLAB_AVAILABLE", False)
+    @patch("src.core.pdf_export_service.FALLBACK_AVAILABLE", False)
+    async def test_export_without_backends(self, pdf_service, sample_report_data):
+        """Test PDF export raises when no rendering backend is available."""
+        with pytest.raises(PDFExportError):
             await pdf_service.export_report_to_pdf(sample_report_data)
 
     def test_validate_report_data_success(self, pdf_service, sample_report_data):

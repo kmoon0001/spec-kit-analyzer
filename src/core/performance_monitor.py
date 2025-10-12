@@ -512,7 +512,7 @@ class PerformanceMonitor:
             return 0.0
 
         total_size = 0
-        for dirpath, dirnames, filenames in os.walk(storage_path):
+        for dirpath, _dirnames, filenames in os.walk(storage_path):
             for f in filenames:
                 fp = Path(dirpath) / f
                 if fp.is_file():

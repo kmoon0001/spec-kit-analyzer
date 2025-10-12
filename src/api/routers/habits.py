@@ -7,6 +7,8 @@ achievement tracking, and habit analytics.
 import logging
 import sqlite3
 
+import requests
+
 import sqlalchemy
 import sqlalchemy.exc
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status

@@ -62,8 +62,8 @@ class TestContentSafetyGuardrail:
     def test_professional_content_passes(self, guardrail):
         """Test that professional medical content passes"""
         professional_content = """
-        The patient demonstrates progress in functional mobility. 
-        Treatment recommendations include continued physical therapy 
+        The patient demonstrates progress in functional mobility.
+        Treatment recommendations include continued physical therapy
         with focus on strength and balance training.
         """
         context = {"content_type": "clinical_note"}
@@ -388,7 +388,7 @@ class TestIntegrationScenarios:
         1. Physical therapy 3x weekly
         2. Pain management consultation
         3. Patient education on self-care techniques
-        
+
         Prognosis is generally positive with patient compliance.
         The system has a high confidence in this assessment, but it has limitations.
         Professional judgment required for medication adjustments.

@@ -132,7 +132,7 @@ class TestDocumentAnalysisWorkflow:
                 PROGRESS NOTE
                 Patient: Test Patient
                 Date: 2024-01-15
-                
+
                 SUBJECTIVE: Patient reports improvement
                 OBJECTIVE: ROM improved, strength 4/5
                 ASSESSMENT: Good progress noted
@@ -142,7 +142,7 @@ class TestDocumentAnalysisWorkflow:
                 INITIAL EVALUATION
                 Patient: Test Patient
                 Date: 2024-01-15
-                
+
                 HISTORY: Patient presents with lower back pain
                 EXAMINATION: Limited ROM, decreased strength
                 ASSESSMENT: Lumbar strain with functional limitations
@@ -152,7 +152,7 @@ class TestDocumentAnalysisWorkflow:
                 DISCHARGE SUMMARY
                 Patient: Test Patient
                 Date: 2024-01-15
-                
+
                 TREATMENT SUMMARY: Patient completed 12 sessions
                 OUTCOMES: Achieved all functional goals
                 RECOMMENDATIONS: Home exercise program
@@ -208,7 +208,7 @@ class TestDocumentAnalysisWorkflow:
                 PROGRESS NOTE {i + 1}
                 Patient: Test Patient {i + 1}
                 Date: 2024-01-15
-                
+
                 SUBJECTIVE: Patient {i + 1} reports status
                 OBJECTIVE: Measurements for patient {i + 1}
                 ASSESSMENT: Assessment for patient {i + 1}

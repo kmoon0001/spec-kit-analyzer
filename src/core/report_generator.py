@@ -354,9 +354,9 @@ class ReportGenerator:
             return '<tr><td colspan="6">No compliance findings identified.</td></tr>'
         findings_rows_html = ""
         for finding in findings:
-            finding_id = hashlib.sha1(
+            finding_id = hashlib.sha256(
                 f"{finding.get('text', '')}{finding.get('issue_title', '')}".encode()
-            ).hexdigest()[:10]
+            ).hexdigest()[:12]
             finding["finding_id"] = finding_id
             row_class = self._get_finding_row_class(finding)
             risk_cell = self._generate_risk_cell(finding)

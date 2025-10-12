@@ -1,13 +1,15 @@
-import json
-
 """Plugin Management API Router
 
 Provides REST API endpoints for managing plugins including discovery,
 loading, configuration, and status monitoring.
 """
 
+import json
 import logging
 from typing import Any
+
+import requests
+from requests.exceptions import HTTPError
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field

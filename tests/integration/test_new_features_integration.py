@@ -112,7 +112,7 @@ class TestNewFeaturesIntegration:
         document_content = """
         Patient: John Doe
         Date: 2024-01-15
-        
+
         Progress Note:
         Patient demonstrates improved range of motion in left shoulder.
         ROM: 0-120 degrees (improved from 0-90 degrees last visit).

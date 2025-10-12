@@ -181,8 +181,9 @@ class AutoUpdater:
                 logger.error("No download URL provided")
                 return None
 
-            # Create temporary file
-            temp_file = Path(tempfile.mktemp(suffix=".update"))
+            # Create temporary file in a safe way
+            with tempfile.NamedTemporaryFile(suffix=".update", delete=False) as tmp_handle:
+                temp_file = Path(tmp_handle.name)
 
             # Download with progress tracking
             response = requests.get(download_url, stream=True, timeout=300)

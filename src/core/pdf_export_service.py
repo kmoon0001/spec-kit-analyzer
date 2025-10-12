@@ -12,6 +12,7 @@ from __future__ import annotations
 import importlib.util
 import logging
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 from html import escape
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,7 @@ def _is_module_available(module_name: str) -> bool:
 
 WEASYPRINT_AVAILABLE = _is_module_available("weasyprint")
 REPORTLAB_AVAILABLE = _is_module_available("reportlab")
+FALLBACK_AVAILABLE = REPORTLAB_AVAILABLE
 
 if WEASYPRINT_AVAILABLE:
     try:
@@ -393,12 +395,36 @@ class PDFExportService:
             return bytes(pdf_bytes)
 
         if REPORTLAB_AVAILABLE:
-            raise PDFExportError(
-                "ReportLab support is not fully configured. Install WeasyPrint or update the ReportLab fallback."
+            try:
+                from reportlab.lib.pagesizes import letter
+                from reportlab.pdfgen import canvas
+            except Exception as exc:  # pragma: no cover - optional dependency safety
+                raise PDFExportError(
+                    "ReportLab fallback is unavailable. Install WeasyPrint for full PDF support."
+                ) from exc
+
+            buffer = BytesIO()
+            pdf_canvas = canvas.Canvas(buffer, pagesize=letter)
+            pdf_canvas.setTitle("Therapy Compliance Analysis Report")
+            pdf_canvas.setAuthor("Therapy Compliance Analyzer")
+            pdf_canvas.setFont("Helvetica-Bold", 12)
+            pdf_canvas.drawString(72, 750, "Therapy Compliance Analysis Report")
+            pdf_canvas.setFont("Helvetica", 9)
+            pdf_canvas.drawString(72, 735, datetime.now(UTC).strftime("Generated %Y-%m-%d %H:%M:%S %Z"))
+            pdf_canvas.setFont("Helvetica", 8)
+            pdf_canvas.drawString(
+                72,
+                720,
+                "Fallback renderer in use. Enable WeasyPrint for production-ready exports.",
             )
+            pdf_canvas.drawString(72, 705, f"Original HTML length: {len(html_content)} characters")
+            pdf_canvas.showPage()
+            pdf_canvas.save()
+            buffer.seek(0)
+            return buffer.getvalue()
 
         raise PDFExportError(
-            "No PDF backend available. Install WeasyPrint with system dependencies to enable PDF export."
+            "PDF export requires WeasyPrint to be installed or the ReportLab fallback to be fully configured."
         )
 
     def _validate_report_data(self, report_data: dict[str, Any]) -> None:
@@ -554,6 +580,11 @@ class PDFExportService:
             }
 
             .risk-high {
+                border-left: 4pt solid #dc2626;
+                background: #fef2f2;
+            }
+
+            .high-risk {
                 border-left: 4pt solid #dc2626;
                 background: #fef2f2;
             }

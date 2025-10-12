@@ -147,7 +147,7 @@ class MainViewModel(QObject):
         thread.finished.connect(_cleanup)
         thread.finished.connect(thread.deleteLater)
 
-        setattr(thread, "_worker_ref", worker)
+        thread._worker_ref = worker  # keep a reference to avoid premature garbage collection
         self._active_threads.append(thread)
         thread.start()
 

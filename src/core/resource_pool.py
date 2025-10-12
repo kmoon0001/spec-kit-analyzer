@@ -315,7 +315,7 @@ class ResourcePool(Generic[T]):
         expired_resources = []
 
         with self._lock:
-            for resource_id, resource in list(self._resources.items()):
+            for _resource_id, resource in list(self._resources.items()):
                 # Check for expired resources
                 if resource.state == ResourceState.AVAILABLE and now - resource.last_used > self.config.max_idle_time:
                     resource.mark_expired()

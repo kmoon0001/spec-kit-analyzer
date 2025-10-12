@@ -305,8 +305,8 @@ class TestEnterpriseCopilotWorkflow:
         start_time = time.time()
         responses = []
 
-        for _i, query in enumerate(queries):
-            query_data = {"query": query, "context": {"test_id": i}, "priority": "normal"}
+        for idx, query in enumerate(queries):
+            query_data = {"query": query, "context": {"test_id": idx}, "priority": "normal"}
 
             response = e2e_helper.client.post("/enterprise-copilot/ask", json=query_data, headers=e2e_helper.headers)
 
@@ -316,7 +316,7 @@ class TestEnterpriseCopilotWorkflow:
 
         # Verify all responses
         successful_responses = 0
-        for i, response in enumerate(responses):
+        for response in responses:
             if response.status_code == 200:
                 result = response.json()
                 if result.get("success"):

@@ -27,7 +27,7 @@ class CorrelationIdMiddleware:
         with structlog.contextvars.bound_contextvars(correlation_id=correlation_id):
             try:
                 await self.app(scope, receive, send_wrapper)
-            except Exception as e:
+            except Exception:
                 structlog.get_logger().exception("Unhandled exception in API request", correlation_id=correlation_id)
                 raise
 

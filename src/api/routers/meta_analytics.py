@@ -7,6 +7,9 @@ and anonymous benchmarking data. Admin-only access.
 import logging
 import sqlite3
 
+import requests
+from requests.exceptions import HTTPError
+
 import sqlalchemy
 import sqlalchemy.exc
 from fastapi import APIRouter, Depends, HTTPException, Query, status

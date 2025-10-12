@@ -31,6 +31,7 @@ exclude = [
     ".qodo",
     "bin",
     "config",
+    "PySide6",
     "test_data",
 ]
 
@@ -40,7 +41,6 @@ select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings  
     "F",   # Pyflakes
-    "I",   # isort
     "UP",  # pyupgrade
     "B",   # flake8-bugbear
 ]

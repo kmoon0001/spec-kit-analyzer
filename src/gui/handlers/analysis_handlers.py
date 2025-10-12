@@ -140,7 +140,7 @@ class AnalysisHandlers:
 ANALYSIS COMPLETE
 ================
 Document: {doc_name}
-Compliance Score: {analysis.get("compliance_score", "N/A")}% 
+Compliance Score: {analysis.get("compliance_score", "N/A")}%
 Total Findings: {len(analysis.get("findings", []))}
 
 Click 'View Report' to see the detailed results.

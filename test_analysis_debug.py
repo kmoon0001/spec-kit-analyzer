@@ -26,13 +26,13 @@ async def test_analysis():
     test_document = """
     Patient: John Doe
     Date: 2024-01-15
-    
+
     Progress Note:
-    Patient attended physical therapy session today. 
+    Patient attended physical therapy session today.
     Worked on range of motion exercises for shoulder.
     Patient tolerated treatment well.
     Plan: Continue current treatment plan.
-    
+
     Therapist: Jane Smith, PT
     """
 

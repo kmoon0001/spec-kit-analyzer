@@ -158,13 +158,13 @@ class TestNERIntegration:
         Patient: John Smith
         DOB: 01/15/1980
         Diagnosis: Right knee osteoarthritis
-        
+
         Treatment provided by Dr. Sarah Johnson, PT, DPT
         Patient demonstrates improved range of motion following
         therapeutic exercises. Prescribed ibuprofen 400mg TID.
-        
+
         Next appointment scheduled with therapist Mary Wilson, OT.
-        
+
         Signature: Dr. Sarah Johnson, PT
         Date: 03/15/2024
         """

@@ -69,7 +69,7 @@ class TestCachePerformanceMonitor:
         monitor = CachePerformanceMonitor()
 
         # Add data that should trigger recommendations
-        for i in range(20):
+        for _ in range(20):
             # Low hit rate and high response times
             monitor.record_operation("slow_cache", "get", 500.0, False)
 

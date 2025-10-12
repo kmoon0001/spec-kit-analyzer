@@ -180,7 +180,7 @@ class LicenseManager:
 
         return {
             "data": encrypted.encode("latin1").hex(),
-            "checksum": hashlib.md5(json_str.encode()).hexdigest(),
+            "checksum": hashlib.sha256(json_str.encode()).hexdigest(),
         }
 
     def _decrypt_license_data(self, encrypted_data: dict[str, Any]) -> dict[str, Any]:
@@ -194,7 +194,7 @@ class LicenseManager:
                 decrypted += chr(ord(char) ^ ord(key[i % len(key)]))
 
             # Verify checksum
-            if hashlib.md5(decrypted.encode()).hexdigest() != encrypted_data["checksum"]:
+            if hashlib.sha256(decrypted.encode()).hexdigest() != encrypted_data["checksum"]:
                 raise ValueError("License data corrupted")
 
             return json.loads(decrypted)

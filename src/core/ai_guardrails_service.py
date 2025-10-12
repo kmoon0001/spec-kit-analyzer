@@ -597,7 +597,7 @@ class AIGuardrailsService:
 
     def _generate_content_id(self, content: str) -> str:
         """Generate unique ID for content"""
-        return hashlib.md5(content.encode()).hexdigest()[:12]
+        return hashlib.sha256(content.encode()).hexdigest()[:16]
 
     def _calculate_overall_risk(self, violations: list[GuardrailViolation]) -> RiskLevel:
         """Calculate overall risk level from violations"""

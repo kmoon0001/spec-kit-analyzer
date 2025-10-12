@@ -77,24 +77,24 @@ def test_document_content():
     """Sample document content for testing."""
     return """
     PHYSICAL THERAPY PROGRESS NOTE
-    
+
     Patient: John Doe (DOB: 01/01/1980)
     Date: 2024-01-15
     Therapist: Jane Smith, PT
-    
+
     SUBJECTIVE:
     Patient reports decreased pain in lower back from 8/10 to 5/10 since last visit.
     States he is able to walk longer distances without significant discomfort.
-    
+
     OBJECTIVE:
     Range of Motion: Lumbar flexion 45 degrees (improved from 30 degrees)
     Strength: Hip flexors 4/5, Hip extensors 4/5
     Functional: Able to sit to stand with minimal assistance
-    
+
     ASSESSMENT:
     Patient demonstrates good progress with current treatment plan.
     Functional improvements noted in mobility and pain management.
-    
+
     PLAN:
     Continue current exercise program
     Progress to more challenging strengthening exercises

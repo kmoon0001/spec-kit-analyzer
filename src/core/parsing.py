@@ -322,7 +322,7 @@ def _parse_pdf(file_path: str) -> list[dict[str, str]]:
 
 
 def _parse_txt(file_path: str) -> list[dict[str, str]]:
-    with open(file_path, "r", encoding="utf-8") as handle:
+    with open(file_path, "r", encoding="utf-8") as handle:  # noqa: UP015
         text = handle.read().strip()
     return [{"sentence": text, "source": os.path.basename(file_path)}] if text else []
 

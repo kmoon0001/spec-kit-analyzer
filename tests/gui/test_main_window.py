@@ -22,7 +22,10 @@ def mock_user():
 def app(qtbot, mock_user):
     """Fixture to create the MainApplicationWindow."""
     # Mock the view model to prevent it from starting workers and API calls
-    with patch("src.gui.main_window.MainViewModel") as MockViewModel:
+    with (
+        patch("src.gui.main_window.MainViewModel") as MockViewModel,
+        patch("src.gui.handlers.ui_handlers.license_manager.check_license_status", return_value=(True, "License valid", 30)),
+    ):
         # Make sure the mock view model can be instantiated
         mock_instance = MockViewModel.return_value
 
