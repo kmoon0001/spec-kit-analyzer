@@ -123,3 +123,5 @@ api_server.log
 models/
 *.gguf
 
+
+venv_fresh/
