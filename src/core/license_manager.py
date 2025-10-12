@@ -45,9 +45,9 @@ class LicenseManager:
         combined = "|".join(identifiers)
         return hashlib.sha256(combined.encode()).hexdigest()[:16]
 
-    def initialize_trial(self) -> bool:
+    def initialize_trial(self, *, force: bool = False) -> bool:
         """Initialize trial period if not already started."""
-        if self.license_file.exists():
+        if self.license_file.exists() and not force:
             return True
 
         try:
@@ -89,7 +89,13 @@ class LicenseManager:
             with open(self.license_file) as f:
                 encrypted_data = json.load(f)
 
-            license_data = self._decrypt_license_data(encrypted_data)
+            try:
+                license_data = self._decrypt_license_data(encrypted_data)
+            except ValueError as exc:
+                logger.warning("License data invalid (%s); regenerating trial file.", exc)
+                if self.initialize_trial(force=True):
+                    return True, "Trial data reset due to corruption", self.trial_days
+                return False, "Failed to reset license data", None
 
             # Verify hardware fingerprint
             if license_data.get("hardware_id") != self.get_hardware_fingerprint():
@@ -115,6 +121,11 @@ class LicenseManager:
         except (FileNotFoundError, PermissionError, OSError) as e:
             logger.exception("License check failed: %s", e)
             return False, "License verification failed", None
+        except json.JSONDecodeError as exc:
+            logger.warning("License file unreadable (%s); regenerating trial file.", exc)
+            if self.initialize_trial(force=True):
+                return True, "Trial data reset due to invalid format", self.trial_days
+            return False, "Failed to reset license data", None
 
     def activate_full_license(self, activation_code: str) -> bool:
         """Activate full license with admin code.

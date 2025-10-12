@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from collections.abc import Callable
 from typing import Any
 
 from PySide6.QtCore import QThread
@@ -16,21 +19,44 @@ from PySide6.QtWidgets import (
 from ..workers.batch_processor_worker import BatchProcessorWorker
 from ..workers.file_scanner_worker import FileScannerWorker
 
+ScannerFactory = Callable[[str, list[str]], FileScannerWorker]
+ProcessorFactory = Callable[[list[str], str, dict[str, Any]], BatchProcessorWorker]
+
 
 class BatchAnalysisDialog(QDialog):
     """Dialog to manage scanning a folder and running a real-time batch analysis."""
 
     SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".json"]
 
-    def __init__(self, folder_path: str, token: str, analysis_data: dict[str, Any], parent=None):
+    def __init__(
+        self,
+        folder_path: str,
+        token: str,
+        analysis_data: dict[str, Any],
+        parent=None,
+        *,
+        scanner_factory: ScannerFactory | None = None,
+        processor_factory: ProcessorFactory | None = None,
+        use_async: bool = True,
+    ):
         super().__init__(parent)
         self.folder_path = folder_path
         self.token = token
         self.analysis_data = analysis_data
         self.files_to_process: list[str] = []
-        self.worker_thread: QThread | None = None
+
+        self._scanner_factory = scanner_factory or (
+            lambda path, extensions: FileScannerWorker(path, extensions)
+        )
+        self._processor_factory = processor_factory or (
+            lambda files, token, data: BatchProcessorWorker(files, token, data)
+        )
+        self._use_async = use_async
+
         self.scanner_worker: FileScannerWorker | None = None
         self.processor_worker: BatchProcessorWorker | None = None
+        self._scanner_thread: QThread | None = None
+        self._processor_thread: QThread | None = None
 
         self.setWindowTitle("Batch Analysis")
         self.setMinimumSize(700, 500)
@@ -66,16 +92,18 @@ class BatchAnalysisDialog(QDialog):
 
     def scan_folder(self):
         """Starts the worker to scan the folder for files."""
-        self.worker_thread = QThread()
-        self.scanner_worker = FileScannerWorker(self.folder_path, self.SUPPORTED_EXTENSIONS)
-        self.scanner_worker.moveToThread(self.worker_thread)
-
+        self.scanner_worker = self._scanner_factory(self.folder_path, self.SUPPORTED_EXTENSIONS)
         self.scanner_worker.file_found.connect(self.add_file_to_table)
         self.scanner_worker.finished.connect(self.on_scan_finished)
         self.scanner_worker.error.connect(self.on_scan_error)
 
-        self.worker_thread.started.connect(self.scanner_worker.run)
-        self.worker_thread.start()
+        if self._use_async:
+            self._scanner_thread = QThread()
+            self.scanner_worker.moveToThread(self._scanner_thread)
+            self._scanner_thread.started.connect(self.scanner_worker.run)
+            self._scanner_thread.start()
+        else:
+            self.scanner_worker.run()
 
     def add_file_to_table(self, file_name: str):
         row_position = self.results_table.rowCount()
@@ -89,38 +117,49 @@ class BatchAnalysisDialog(QDialog):
             self.status_label.setText(f"No supported documents found in {self.folder_path}.")
             self.start_button.setText("Close")
             self.start_button.setEnabled(True)
-            self.start_button.clicked.disconnect()
+            try:
+                self.start_button.clicked.disconnect()
+            except TypeError:
+                pass
             self.start_button.clicked.connect(self.accept)
         else:
             self.status_label.setText(f"Found {len(found_files)} documents. Ready to analyze.")
             self.start_button.setEnabled(True)
-        self.worker_thread.quit()
+        self._cleanup_scanner_thread()
 
     def on_scan_error(self, error_message: str):
+        self._cleanup_scanner_thread()
+        self._cleanup_processor_thread()
         QMessageBox.critical(self, "Scan Error", error_message)
         self.accept()
 
     def start_batch_analysis(self):
         """Starts the batch processor worker."""
+        if not self.files_to_process:
+            return
+
         self.start_button.setEnabled(False)
         self.close_button.setText("Cancel")
 
-        self.worker_thread = QThread()
-        self.processor_worker = BatchProcessorWorker(self.files_to_process, self.token, self.analysis_data)
-        self.processor_worker.moveToThread(self.worker_thread)
-
+        self.processor_worker = self._processor_factory(self.files_to_process, self.token, self.analysis_data)
         self.processor_worker.progress.connect(self.update_progress)
         self.processor_worker.file_completed.connect(self.update_file_status)
         self.processor_worker.finished.connect(self.on_batch_finished)
-        self.processor_worker.error.connect(self.on_scan_error)  # Can reuse scan error handler
+        self.processor_worker.error.connect(self.on_scan_error)
 
-        self.worker_thread.started.connect(self.processor_worker.run)
-        self.worker_thread.start()
+        if self._use_async:
+            self._processor_thread = QThread()
+            self.processor_worker.moveToThread(self._processor_thread)
+            self._processor_thread.started.connect(self.processor_worker.run)
+            self._processor_thread.start()
+        else:
+            self.processor_worker.run()
 
     def update_progress(self, current: int, total: int, filename: str):
+        total = max(total, 1)
         self.progress_bar.setRange(0, total)
-        self.progress_bar.setValue(current)
-        self.status_label.setText(f"Processing {current + 1}/{total}: {filename}")
+        self.progress_bar.setValue(min(current + 1, total))
+        self.status_label.setText(f"Processing {min(current + 1, total)}/{total}: {filename}")
 
     def update_file_status(self, filename: str, status: str):
         for row in range(self.results_table.rowCount()):
@@ -133,15 +172,33 @@ class BatchAnalysisDialog(QDialog):
         self.status_label.setText("Batch analysis complete.")
         self.progress_bar.setValue(self.progress_bar.maximum())
         self.close_button.setText("Close")
-        self.worker_thread.quit()
+        self._cleanup_processor_thread()
 
-    def closeEvent(self, event):
-        """Ensure worker threads are stopped on close."""
-        if self.scanner_worker and self.worker_thread.isRunning():
+    def _cleanup_scanner_thread(self) -> None:
+        if self._scanner_thread:
+            if self._scanner_thread.isRunning():
+                self._scanner_thread.quit()
+                self._scanner_thread.wait(2000)
+            self._scanner_thread = None
+        self.scanner_worker = None
+
+    def _cleanup_processor_thread(self) -> None:
+        if self._processor_thread:
+            if self._processor_thread.isRunning():
+                self._processor_thread.quit()
+                self._processor_thread.wait(2000)
+            self._processor_thread = None
+        self.processor_worker = None
+
+    def closeEvent(self, event):  # pragma: no cover - UI lifecycle
+        if self.scanner_worker:
             self.scanner_worker.stop()
-        if self.processor_worker and self.worker_thread.isRunning():
+        if self.processor_worker:
             self.processor_worker.stop()
-        if self.worker_thread:
-            self.worker_thread.quit()
-            self.worker_thread.wait(1000)
+        if self._scanner_thread and self._scanner_thread.isRunning():
+            self._scanner_thread.quit()
+            self._scanner_thread.wait(1000)
+        if self._processor_thread and self._processor_thread.isRunning():
+            self._processor_thread.quit()
+            self._processor_thread.wait(1000)
         super().closeEvent(event)
