@@ -32,6 +32,7 @@ exclude = [
     "bin",
     "config",
     "PySide6",
+    "venv_fresh",
     "test_data",
 ]
 
