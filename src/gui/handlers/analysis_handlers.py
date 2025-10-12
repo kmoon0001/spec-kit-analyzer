@@ -77,7 +77,7 @@ class AnalysisHandlers:
             self.main_window.stop_analysis_button.setEnabled(True)
 
         self.main_window.show_progress(5, "Initializing...")
-        self.main_window.statusBar().showMessage("⏳ Starting local analysis...")
+        self.main_window.statusBar().showMessage("Starting local analysis...")
 
     def repeat_analysis(self) -> None:
         """Repeat analysis on the same document with current settings."""
@@ -92,7 +92,7 @@ class AnalysisHandlers:
         if self.current_worker and self.current_worker.isRunning():
             reply = QMessageBox.question(
                 self.main_window,
-                "⏹️ Stop Analysis",
+                "Stop Analysis",
                 "Are you sure you want to stop the current analysis?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No,
@@ -107,7 +107,7 @@ class AnalysisHandlers:
                 if self.current_worker.isRunning():
                     self.current_worker.terminate()
                     logger.warning("Analysis thread terminated forcefully.")
-                self._reset_ui_after_stop("⏹️ Analysis stopped by user")
+                self._reset_ui_after_stop("Analysis stopped by user.")
 
     def _reset_ui_after_stop(self, message: str):
         self.main_window.hide_progress()
@@ -129,7 +129,7 @@ class AnalysisHandlers:
                 self.current_task_id, self.main_window._selected_file.name, "Completed", 100
             )
 
-        self._reset_ui_after_stop("✅ Analysis Complete")
+        self._reset_ui_after_stop("Analysis complete.")
         if self.main_window.view_report_button:
             self.main_window.view_report_button.setEnabled(True)
         self.main_window._current_payload = payload
@@ -182,7 +182,7 @@ Click 'View Report' to see the detailed results.
             self.main_window.view_model.update_local_task_status(
                 self.current_task_id, self.main_window._selected_file.name, "Error", 100
             )
-        self._reset_ui_after_stop(f"❌ Analysis Failed: {message}")
+        self._reset_ui_after_stop(f"Analysis failed: {message}")
         QMessageBox.critical(
             self.main_window,
             "Analysis Error",
@@ -225,4 +225,4 @@ Click 'View Report' to see the detailed results.
         if self.main_window.run_analysis_button:
             self.main_window.run_analysis_button.setEnabled(True)
 
-        self.main_window.statusBar().showMessage("✅ All AI models are ready. You can now start the analysis.", 5000)
+        self.main_window.statusBar().showMessage("All AI models are ready. You can now start the analysis.", 5000)

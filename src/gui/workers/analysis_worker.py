@@ -1,8 +1,11 @@
 import asyncio
 import logging
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
 
 from PySide6.QtCore import QObject
-from PySide6.QtCore import Signal as Signal
+from PySide6.QtCore import Signal
 
 from src.core.analysis_service import AnalysisService
 
@@ -10,61 +13,85 @@ logger = logging.getLogger(__name__)
 
 
 class AnalysisWorker(QObject):
-    """Background worker for document analysis."""
+    """Background worker that executes document analysis in a separate thread."""
 
     progress_updated = Signal(int)
     status_updated = Signal(str)
     analysis_completed = Signal(dict)
     analysis_failed = Signal(str)
-    finished = Signal()  # Add this line
+    finished = Signal()
 
-    def __init__(self, file_path: str, discipline: str, analysis_service: AnalysisService):
+    def __init__(
+        self,
+        file_path: str,
+        discipline: str,
+        analysis_service: AnalysisService,
+        *,
+        loop_factory: Callable[[], asyncio.AbstractEventLoop] | None = None,
+    ) -> None:
         super().__init__()
         self.file_path = file_path
         self.discipline = discipline
         self.analysis_service = analysis_service
+        self._loop_factory = loop_factory or asyncio.new_event_loop
+        self._progress_reached_finish = False
 
-    def run(self):
-        """Run analysis in background thread, correctly handling async operations."""
-        loop = None
+    def _emit_progress(self, percentage: int) -> None:
+        clamped = max(0, min(int(percentage), 100))
+        if clamped >= 100:
+            self._progress_reached_finish = True
+        self.progress_updated.emit(clamped)
+
+    def _emit_status(self, message: str) -> None:
+        if message:
+            self.status_updated.emit(message)
+
+    def run(self) -> None:
+        """Execute the analysis logic, relaying progress updates from the service."""
+        loop: asyncio.AbstractEventLoop | None = None
+        self._progress_reached_finish = False
+
         try:
-            self.status_updated.emit("🤖 Initializing analysis...")
-            self.progress_updated.emit(10)
+            self._emit_status("Preparing analysis...")
+            self._emit_progress(0)
 
-            from pathlib import Path
-
-            p = Path(self.file_path)
-            if not p.exists():
+            path = Path(self.file_path)
+            if not path.exists():
                 raise FileNotFoundError(f"File not found: {self.file_path}")
 
-            self.status_updated.emit(f"📄 Reading file: {p.name}")
-            self.progress_updated.emit(20)
-            file_content = p.read_bytes()
-            original_filename = p.name
+            self._emit_status(f"Reading document: {path.name}")
+            file_content = path.read_bytes()
+            original_filename = path.name
 
-            self.status_updated.emit("🔬 Analyzing document with AI...")
-            self.progress_updated.emit(50)
+            def progress_callback(percentage: int, message: str | None = None) -> None:
+                self._emit_progress(percentage)
+                if message is not None:
+                    self._emit_status(message)
 
-            # Create and run a new asyncio event loop in this thread
-            loop = asyncio.new_event_loop()
+            self._emit_status("Running analysis pipeline...")
+
+            loop = self._loop_factory()
             asyncio.set_event_loop(loop)
 
-            analysis_coro = self.analysis_service.analyze_document(
-                file_content=file_content, original_filename=original_filename, discipline=self.discipline
+            result: dict[str, Any] = loop.run_until_complete(
+                self.analysis_service.analyze_document(
+                    file_content=file_content,
+                    original_filename=original_filename,
+                    discipline=self.discipline,
+                    progress_callback=progress_callback,
+                )
             )
-            result = loop.run_until_complete(analysis_coro)
 
-            self.progress_updated.emit(80)
-            self.status_updated.emit("📊 Finalizing report...")
+            if not self._progress_reached_finish:
+                self._emit_progress(100)
 
-            self.progress_updated.emit(100)
-            self.status_updated.emit("✅ Analysis complete")
+            self._emit_status("Analysis complete.")
             self.analysis_completed.emit(result)
 
-        except Exception as e:
-            logger.exception("Analysis failed in worker: %s", e)
-            self.analysis_failed.emit(f"An error occurred during analysis: {e}")
+        except Exception as exc:  # pragma: no cover - logged for diagnostics
+            logger.exception("Analysis failed in worker: %s", exc)
+            self.analysis_failed.emit(f"An error occurred during analysis: {exc}")
         finally:
-            if loop and not loop.is_closed():
+            if loop is not None and not loop.is_closed():
                 loop.close()
             self.finished.emit()

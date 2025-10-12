@@ -112,11 +112,11 @@ class AnalysisService:
         document_text: str | None = None,
         file_content: bytes | None = None,
         original_filename: str | None = None,
-        progress_callback: Callable[[int, str], None] | None = None,
+        progress_callback: Callable[[int, str | None], None] | None = None,
     ) -> Any:
         """Analyzes document content for compliance, using a content-aware cache."""
 
-        def _update_progress(percentage: int, message: str) -> None:
+        def _update_progress(percentage: int, message: str | None) -> None:
             if progress_callback:
                 progress_callback(percentage, message)
 
