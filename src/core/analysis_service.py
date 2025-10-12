@@ -152,7 +152,7 @@ class AnalysisService:
 
             # Stage 0: Initial text processing (optimized for speed)
             _update_progress(10, "Preprocessing document text...")
-            trimmed_text = self._trim_document_text(text_to_process)
+            trimmed_text = text_to_process.strip()
             # Skip heavy preprocessing for faster analysis - basic cleaning only
             corrected_text = (
                 trimmed_text.strip()
