@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from src.config import get_settings as _get_settings
+from src.core.analysis_utils import enrich_analysis_result, trim_document_text
 from src.core.cache_service import cache_service
 from src.core.checklist_service import DeterministicChecklistService as ChecklistService
 from src.core.compliance_analyzer import ComplianceAnalyzer
@@ -157,7 +158,7 @@ class AnalysisService:
 
             # Stage 0: Initial text processing (optimized for speed)
             _update_progress(10, "Preprocessing document text...")
-            trimmed_text = self._trim_document_text(text_to_process)
+            trimmed_text = trim_document_text(text_to_process)
             # Skip heavy preprocessing for faster analysis - basic cleaning only
             corrected_text = (
                 trimmed_text.strip()
@@ -204,8 +205,12 @@ class AnalysisService:
             _update_progress(85, "Enriching analysis results...")
             # --- End of Pipeline ---
 
-            enriched_result = self._enrich_analysis_result(
-                analysis_result, document_text=scrubbed_text, discipline=discipline_clean, doc_type=doc_type_clean
+            enriched_result = enrich_analysis_result(
+                analysis_result,
+                document_text=scrubbed_text,
+                discipline=discipline_clean,
+                doc_type=doc_type_clean,
+                checklist_service=self.checklist_service,
             )
 
             _update_progress(95, "Generating report...")

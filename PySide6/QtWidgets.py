@@ -248,6 +248,10 @@ class QFileDialog:
     def getOpenFileName(*_args: Any, **_kwargs: Any) -> tuple[str, str]:
         return "", ""
 
+    @staticmethod
+    def getSaveFileName(*_args: Any, **_kwargs: Any) -> tuple[str, str]:
+        return "", ""
+
 
 class QTextBrowser(QTextEdit):
     pass

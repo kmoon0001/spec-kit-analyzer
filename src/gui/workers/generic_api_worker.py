@@ -22,7 +22,7 @@ class FeedbackWorker(QThread):
     finished = Signal()  # Added finished signal
 
     def __init__(self, token: str, feedback_data: dict[str, Any], parent: QThread | None = None) -> None:
-        super().__init__(parent)
+        super().__init__()
         self.token = token
         self.feedback_data = feedback_data
 
@@ -49,7 +49,7 @@ class GenericApiWorker(QThread):
     finished = Signal()  # Added finished signal
 
     def __init__(self, method: str, endpoint: str, data: dict = None, token: str = None, parent=None):
-        super().__init__(parent)
+        super().__init__()
         self.method = method.upper()
         self.endpoint = endpoint
         self.data = data or {}
@@ -99,7 +99,7 @@ class TaskMonitorWorker(QThread):
     finished = Signal()  # Added finished signal
 
     def __init__(self, token: str = None, parent=None):
-        super().__init__(parent)
+        super().__init__()
         self.token = token
         self.running = False
 
@@ -146,7 +146,7 @@ class HealthCheckWorker(QThread):
     finished = Signal()  # Added finished signal
 
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__()
         self.running = False
 
     def run(self):
@@ -180,7 +180,7 @@ class LogStreamWorker(QThread):
     finished = Signal()  # Added finished signal
 
     def __init__(self, token: str = None, parent=None):
-        super().__init__(parent)
+        super().__init__()
         self.token = token
         self.running = False
 

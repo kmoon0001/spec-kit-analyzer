@@ -96,51 +96,33 @@ class MainViewModel(QObject):
         *,
         success_signal: str | None = "success",
         error_signal: str | None = "error",
-        auto_stop: bool = True,
-        start_slot: str = "run",
+        auto_stop: bool = True,  # This parameter is now less relevant but kept for signature compatibility
+        start_slot: str = "run", # This parameter is no longer used but kept for signature compatibility
         **kwargs: Any,
     ) -> None:
-        thread = QThread()
         worker = worker_class(**kwargs)
-        worker.moveToThread(thread)
-        thread._worker_ref = worker
 
-        def connect_signal(signal_name: str | None, callback: Callable | None, should_quit: bool) -> None:
-            if not signal_name:
+        def connect_signal(signal_name: str | None, callback: Callable | None) -> None:
+            if not signal_name or not callback:
                 return
-            if not hasattr(worker, signal_name):
-                if callback is not None:
-                    raise AttributeError(f"{worker_class.__name__} does not expose signal '{signal_name}'") from None
-                return
-            signal = getattr(worker, signal_name)
-            if callback is not None:
-                signal.connect(callback)
-            if should_quit:
-                signal.connect(thread.quit)
+            if hasattr(worker, signal_name):
+                getattr(worker, signal_name).connect(callback)
+            else:
+                raise AttributeError(f"{worker_class.__name__} does not expose signal '{signal_name}'")
 
-        connect_signal(success_signal, on_success, auto_stop)
-        connect_signal(error_signal, on_error, auto_stop)
+        connect_signal(success_signal, on_success)
+        connect_signal(error_signal, on_error)
 
-        # Ensure the thread always quits when the worker's run() method finishes
-        worker.finished.connect(thread.quit)
 
-        thread.finished.connect(thread.deleteLater)
-        if hasattr(worker, "deleteLater"):
-            thread.finished.connect(worker.deleteLater)
 
         def _cleanup() -> None:
-            if hasattr(thread, "_worker_ref"):
-                thread._worker_ref = None
-            if thread in self._active_threads:
-                self._active_threads.remove(thread)
+            if worker in self._active_threads:
+                self._active_threads.remove(worker)
 
-        thread.finished.connect(_cleanup)
+        worker.finished.connect(_cleanup)
 
-        start_callable = getattr(worker, start_slot)
-        thread.started.connect(start_callable)
-
-        self._active_threads.append(thread)
-        thread.start()
+        self._active_threads.append(worker)
+        worker.start()
 
     def _start_health_check_worker(self) -> None:
         def handle_health_check_success(health_data):
