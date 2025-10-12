@@ -91,6 +91,11 @@ class AnalysisService:
         self.report_generator = kwargs.get("report_generator") or ReportGenerator()
         self.checklist_service = kwargs.get("checklist_service") or ChecklistService()
 
+    async def _maybe_await(self, obj):
+        if asyncio.iscoroutine(obj):
+            return await obj
+        return obj
+
     def _get_analysis_cache_key(self, content_hash: str, discipline: str, analysis_mode: str | None) -> str:
         hasher = hashlib.sha256()
         hasher.update(content_hash.encode())
@@ -152,7 +157,7 @@ class AnalysisService:
 
             # Stage 0: Initial text processing (optimized for speed)
             _update_progress(10, "Preprocessing document text...")
-            trimmed_text = text_to_process.strip()
+            trimmed_text = self._trim_document_text(text_to_process)
             # Skip heavy preprocessing for faster analysis - basic cleaning only
             corrected_text = (
                 trimmed_text.strip()

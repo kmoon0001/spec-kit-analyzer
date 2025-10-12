@@ -6,7 +6,7 @@ class LoginDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Login Required")
+
 
         self.layout = QFormLayout(self)
         self.username_input = QLineEdit(self)
