@@ -521,10 +521,10 @@ class ReportGenerator:
 
         finding_id = finding.get("finding_id", "")
         feedback_correct_link = (
-            f'<a href="feedback://correct?finding_id={finding_id}" class="feedback-link correct">??</a>'
+            f'<a href="feedback://correct?finding_id={finding_id}" class="feedback-link correct">Correct</a>'
         )
         feedback_incorrect_link = (
-            f'<a href="feedback://incorrect?finding_id={finding_id}" class="feedback-link incorrect">??</a>'
+            f'<a href="feedback://incorrect?finding_id={finding_id}" class="feedback-link incorrect">Incorrect</a>'
         )
         feedback_links = f'<div class="feedback-controls">{feedback_correct_link} {feedback_incorrect_link}</div>'
 

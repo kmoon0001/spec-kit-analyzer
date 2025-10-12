@@ -324,20 +324,56 @@ async def export_report_to_pdf(
         analysis_result = task.get("result", {})
         document_name = task.get("filename", "document")
 
-        report_gen = ReportGenerator()
-        report_data = report_gen.generate_report(analysis_result=analysis_result, document_name=document_name)
+        report_html = task.get("report_html") if isinstance(task.get("report_html"), str) else None
+        analysis_section = task.get("analysis") if isinstance(task.get("analysis"), dict) else None
+        findings = task.get("findings") if isinstance(task.get("findings"), list) else None
+        overall_score = task.get("overall_score")
+        document_type = task.get("document_type")
+        generated_at = task.get("generated_at")
+
+        if report_html is None or analysis_section is None:
+            report_gen = ReportGenerator()
+            generated_payload = report_gen.generate_report(analysis_result=analysis_result, document_name=document_name)
+            report_html = generated_payload.get("report_html")
+            analysis_section = generated_payload.get("analysis")
+            findings = generated_payload.get("findings", findings) or []
+            overall_score = (analysis_section or {}).get("compliance_score", overall_score)
+            document_type = (analysis_section or {}).get("document_type", document_type)
+            generated_at = generated_payload.get("generated_at", generated_at)
+
+            tasks[task_id]["analysis"] = analysis_section
+            tasks[task_id]["findings"] = findings
+            tasks[task_id]["overall_score"] = overall_score
+            tasks[task_id]["document_type"] = document_type
+            if report_html:
+                tasks[task_id]["report_html"] = report_html
+            if generated_at:
+                tasks[task_id]["generated_at"] = generated_at
+        else:
+            findings = findings or analysis_section.get("findings", [])
+            tasks[task_id]["findings"] = findings
+            overall_score = overall_score if overall_score is not None else analysis_section.get("compliance_score")
+            tasks[task_id]["overall_score"] = overall_score
+            document_type = document_type or analysis_section.get("document_type")
+            tasks[task_id]["document_type"] = document_type
+            if generated_at is None:
+                generated_at = datetime.datetime.now(datetime.UTC).isoformat()
+                tasks[task_id]["generated_at"] = generated_at
+
+        if not isinstance(report_html, str):
+            raise ValueError("Report HTML is not available for this task.")
 
         pdf_service = PDFExportService()
         pdf_result = pdf_service.export_to_pdf(
-            html_content=report_data["report_html"],
+            html_content=report_html,
             document_name=document_name,
             metadata={
                 "Document": document_name,
-                "Analysis Date": report_data["generated_at"],
-                "Compliance Score": analysis_result.get("compliance_score", "N/A"),
-                "Total Findings": len(analysis_result.get("findings", [])),
-                "Document Type": analysis_result.get("document_type", "Unknown"),
-                "Discipline": analysis_result.get("discipline", "Unknown"),
+                "Analysis Date": generated_at or datetime.datetime.now(datetime.UTC).isoformat(),
+                "Compliance Score": overall_score if overall_score is not None else "N/A",
+                "Total Findings": len(findings or []),
+                "Document Type": document_type or "Unknown",
+                "Discipline": (analysis_section or {}).get("discipline", "Unknown"),
             },
         )
 
@@ -354,7 +390,7 @@ async def export_report_to_pdf(
                 "message": "PDF export failed. Returning HTML report instead.",
                 "pdf_info": pdf_result,
                 "fallback": "html",
-                "report_html": report_data["report_html"],
+                "report_html": report_html,
                 "error": error_message,
             }
 
@@ -365,10 +401,9 @@ async def export_report_to_pdf(
             "message": "PDF exported successfully",
         }
 
-    except (ImportError, ModuleNotFoundError) as e:
+    except (ImportError, ModuleNotFoundError, ValueError) as e:
         logger.exception("PDF export failed", task_id=task_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"PDF export failed: {e!s}") from e
-
 
 @router.post("/feedback", response_model=schemas.FeedbackAnnotation, status_code=status.HTTP_201_CREATED)
 async def submit_feedback(
