@@ -27,13 +27,14 @@ from src.gui.widgets.medical_theme import medical_theme
 class SettingsDialog(QDialog):
     """A dialog for configuring application-wide settings."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, *, settings: QSettings | None = None, cache_service_override=None):
         super().__init__(parent)
         self.setWindowTitle("🔧 Application Settings")
         self.setMinimumSize(700, 600)  # Larger minimum size
         self.resize(800, 700)  # Default size
 
-        self.settings = QSettings("TherapyCo", "ComplianceAnalyzer")
+        self.settings = settings or QSettings("TherapyCo", "ComplianceAnalyzer")
+        self._cache_service = cache_service_override or cache_service
 
         # Apply medical theme
         self.setStyleSheet(
@@ -483,7 +484,7 @@ class SettingsDialog(QDialog):
         )
         if reply == QMessageBox.StandardButton.Yes:
             try:
-                cache_service.clear_disk_cache()
+                self._cache_service.clear_disk_cache()
                 QMessageBox.information(self, "Cache Cleared", "The application cache has been successfully cleared.")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to clear cache: {e}")
