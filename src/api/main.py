@@ -227,6 +227,7 @@ app.include_router(health.router, tags=["Health"])
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
 app.include_router(analysis.router, tags=["Analysis"])
+app.include_router(analysis.legacy_router, tags=["Analysis Legacy"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 app.include_router(compliance.router, tags=["Compliance"])
@@ -315,3 +316,4 @@ async def get_ai_status():
         },
         "last_updated": "2025-10-07T16:28:15Z",
     }
+

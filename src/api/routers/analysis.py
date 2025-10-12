@@ -13,6 +13,8 @@ from typing import Any
 import sqlalchemy
 import sqlalchemy.exc
 import structlog
+from pydantic import BaseModel
+
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +29,17 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
 tasks: dict[str, dict[str, Any]] = {}
+
+uploaded_documents: dict[str, dict[str, Any]] = {}
+legacy_router = APIRouter(tags=['analysis-legacy'])
+
+
+class LegacyAnalysisRequest(BaseModel):
+    document_id: str
+    rubric_id: str
+    analysis_type: str = 'comprehensive'
+    discipline: str | None = None
+
 
 
 def run_analysis_and_save(
@@ -82,6 +95,127 @@ def run_analysis_and_save(
         loop.run_until_complete(_async_analysis())
     finally:
         loop.close()
+
+
+@legacy_router.post("/upload-document")
+async def legacy_upload_document(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(get_current_active_user),
+) -> dict[str, Any]:
+    """Legacy-friendly endpoint to upload documents prior to analysis."""
+    try:
+        safe_filename = SecurityValidator.validate_and_sanitize_filename(file.filename or "")
+    except ValueError as exc:  # pragma: no cover - defensive sanitization
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    content = await file.read()
+    is_valid_size, error = SecurityValidator.validate_file_size(len(content))
+    if not is_valid_size:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error or "Invalid file size")
+
+    document_id = uuid.uuid4().hex
+    uploaded_documents[document_id] = {
+        "filename": safe_filename,
+        "content_bytes": content,
+        "content_text": content.decode("utf-8", errors="ignore"),
+        "uploaded_at": datetime.datetime.now(datetime.UTC),
+        "owner_id": current_user.id,
+    }
+
+    logger.info("Legacy upload stored", document_id=document_id, filename=safe_filename)
+    return {"status": "success", "document_id": document_id, "filename": safe_filename}
+
+
+@legacy_router.get("/documents/{document_id}")
+async def legacy_get_document(
+    document_id: str, current_user: models.User = Depends(get_current_active_user)
+) -> dict[str, Any]:
+    """Retrieve an uploaded document for compatibility clients."""
+    document = uploaded_documents.get(document_id)
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+
+    if document["owner_id"] != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this document.")
+
+    return {
+        "id": document_id,
+        "filename": document["filename"],
+        "content": document["content_text"],
+        "uploaded_at": document["uploaded_at"].isoformat(),
+    }
+
+
+@legacy_router.post("/analyze")
+async def legacy_start_analysis(
+    request: LegacyAnalysisRequest,
+    background_tasks: BackgroundTasks,
+    current_user: models.User = Depends(get_current_active_user),
+    analysis_service: AnalysisService = Depends(get_analysis_service),
+) -> dict[str, str]:
+    """Kick off an analysis job using a previously uploaded document."""
+    if analysis_service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Analysis service is not ready yet.",
+        )
+
+    document = uploaded_documents.get(request.document_id)
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+
+    if document["owner_id"] != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to analyze this document."
+        )
+
+    discipline = (request.discipline or "pt").lower()
+    is_valid, error = SecurityValidator.validate_discipline(discipline)
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error or "Invalid discipline")
+
+    analysis_mode = request.analysis_type.lower()
+    if analysis_mode == "comprehensive":
+        analysis_mode = "rubric"
+    is_valid_mode, mode_error = SecurityValidator.validate_analysis_mode(analysis_mode)
+    if not is_valid_mode:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=mode_error or "Invalid analysis mode")
+
+    task_id = uuid.uuid4().hex
+    tasks[task_id] = {
+        "status": "processing",
+        "filename": document["filename"],
+        "timestamp": datetime.datetime.now(datetime.UTC),
+    }
+
+    background_tasks.add_task(
+        run_analysis_and_save,
+        document["content_bytes"],
+        task_id,
+        document["filename"],
+        discipline,
+        analysis_mode,
+        analysis_service,
+    )
+
+    logger.info("Legacy analysis started", document_id=request.document_id, task_id=task_id)
+    return {"status": "started", "task_id": task_id}
+
+
+@legacy_router.get("/analysis-status/{task_id}")
+async def legacy_get_analysis_status(
+    task_id: str, current_user: models.User = Depends(get_current_active_user)
+) -> dict[str, Any]:
+    """Expose task status without the /analysis prefix for older clients."""
+    return await get_analysis_status(task_id, current_user)
+
+
+@legacy_router.post("/export-pdf/{task_id}")
+async def legacy_export_report(
+    task_id: str, current_user: models.User = Depends(get_current_active_user)
+) -> dict[str, Any]:
+    """Export analysis report to PDF for legacy clients."""
+    return await export_report_to_pdf(task_id, current_user)
 
 
 @router.post("/analyze", status_code=status.HTTP_202_ACCEPTED)
@@ -233,3 +367,5 @@ async def submit_feedback(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to save feedback: {e}"
         ) from e
+
+
