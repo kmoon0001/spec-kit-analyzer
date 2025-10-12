@@ -5,6 +5,7 @@ Provides real-time insights into system health, performance bottlenecks, and opt
 """
 
 import logging
+import os
 import threading
 import time
 import uuid
@@ -501,6 +502,23 @@ class PerformanceMonitor:
         """Get disk usage percentage."""
         return psutil.disk_usage("/").percent
 
+    def _calculate_storage_usage_mb(self) -> float:
+        """Calculate the total size of the monitoring storage directory in MB."""
+        if not self.config.storage_path:
+            return 0.0
+
+        storage_path = Path(self.config.storage_path)
+        if not storage_path.is_dir():
+            return 0.0
+
+        total_size = 0
+        for dirpath, dirnames, filenames in os.walk(storage_path):
+            for f in filenames:
+                fp = Path(dirpath) / f
+                if fp.is_file():
+                    total_size += fp.stat().st_size
+        return total_size / (1024 * 1024) # Convert bytes to MB
+
     def _calculate_percentile(self, values: list[float], percentile: int) -> float:
         """Calculate percentile value."""
         if not values:
@@ -596,7 +614,7 @@ class PerformanceMonitor:
             alerts_generated=self._alerts_generated,
             last_collection=last_collection,
             active_sources=active_sources,
-            storage_usage_mb=0.0,  # TODO: Calculate storage usage
+            storage_usage_mb=self._calculate_storage_usage_mb(),
             error_count=self._error_count,
             last_error=self._last_error,
         )
