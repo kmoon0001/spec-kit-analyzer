@@ -100,6 +100,7 @@ class MainViewModel(QObject):
         start_slot: str = "run", # This parameter is no longer used but kept for signature compatibility
         **kwargs: Any,
     ) -> None:
+        _ = auto_stop  # parameter retained for backwards compatibility
         worker = worker_class(**kwargs)
 
         def connect_signal(signal_name: str | None, callback: Callable | None) -> None:
@@ -113,16 +114,42 @@ class MainViewModel(QObject):
         connect_signal(success_signal, on_success)
         connect_signal(error_signal, on_error)
 
+        try:
+            is_thread = isinstance(worker, QThread)
+        except TypeError:
+            # Patched QThread in tests may not behave like a type
+            is_thread = False
+        if is_thread:
+            thread = worker
+        else:
+            thread = QThread(parent=self)
+            worker_class_name = getattr(worker_class, "__name__", worker_class.__class__.__name__)
+            thread.setObjectName(f"{worker_class_name}Thread")
+            worker.moveToThread(thread)
 
+            start_callable = getattr(worker, start_slot, None)
+            if not callable(start_callable):
+                start_callable = getattr(worker, "run", None)
+            if not callable(start_callable):
+                raise AttributeError(f"{worker_class.__name__} must implement a callable '{start_slot}' or 'run' method")
+            thread.started.connect(start_callable)
+
+            if hasattr(worker, "finished"):
+                worker.finished.connect(thread.quit)
+                worker.finished.connect(worker.deleteLater)
 
         def _cleanup() -> None:
-            if worker in self._active_threads:
-                self._active_threads.remove(worker)
+            if thread in self._active_threads:
+                self._active_threads.remove(thread)
 
-        worker.finished.connect(_cleanup)
+        if hasattr(worker, "finished") and not is_thread:
+            worker.finished.connect(_cleanup)
+        thread.finished.connect(_cleanup)
+        thread.finished.connect(thread.deleteLater)
 
-        self._active_threads.append(worker)
-        worker.start()
+        setattr(thread, "_worker_ref", worker)
+        self._active_threads.append(thread)
+        thread.start()
 
     def _start_health_check_worker(self) -> None:
         def handle_health_check_success(health_data):
@@ -290,33 +317,28 @@ class MainViewModel(QObject):
     def stop_all_workers(self) -> None:
         """Stop all worker threads quickly - don't wait too long."""
         logger.debug("Stopping %d worker threads", len(self._active_threads))
+        wait_timeout_ms = 50
 
         for i, thread in enumerate(list(self._active_threads)):
             logger.debug(
                 "Attempting to stop thread %d/%d (QThread ID: %s)", i + 1, len(self._active_threads), hex(id(thread))
             )
             try:
+                if not hasattr(thread, "isRunning"):
+                    continue
+
                 if thread.isRunning():
-                    if hasattr(thread, "_worker_ref") and thread._worker_ref:
-                        worker = thread._worker_ref
-                        if hasattr(worker, "stop"):
-                            logger.debug(
-                                "Calling stop() on worker %s in thread %s", worker.__class__.__name__, hex(id(thread))
-                            )
-                            worker.stop()
+                    worker = getattr(thread, "_worker_ref", None)
+                    if worker and hasattr(worker, "stop"):
+                        logger.debug("Calling stop() on worker %s in thread %s", worker.__class__.__name__, hex(id(thread)))
+                        worker.stop()
 
                     logger.debug("Calling quit() on thread %s", hex(id(thread)))
                     thread.quit()
 
-                    if not thread.wait(11000):
-                        logger.warning("Thread %s did not quit gracefully within 11s, terminating", hex(id(thread)))
+                    if not thread.wait(wait_timeout_ms):
+                        logger.warning("Thread %s did not quit within %d ms, terminating", hex(id(thread)), wait_timeout_ms)
                         thread.terminate()
-                        if not thread.wait(1000):
-                            logger.error(
-                                "Thread %s did not terminate within 1s after forceful termination", hex(id(thread))
-                            )
-                    else:
-                        logger.debug("Thread %s quit gracefully", hex(id(thread)))
 
             except (RuntimeError, AttributeError) as e:
                 logger.warning("Error during thread %s shutdown (RuntimeError/AttributeError): %s", hex(id(thread)), e)

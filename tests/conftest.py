@@ -50,7 +50,7 @@ def qapp() -> Iterator[QApplication]:
 
 
 @pytest.fixture
-def qtbot(qapp):
+def qtbot(qapp, request):
     """Fallback qtbot fixture that defers to pytest-qt when available."""
 
     if _QT_IMPORT_ERROR is not None:
@@ -60,9 +60,9 @@ def qtbot(qapp):
 
     from pytestqt.qtbot import QtBot  # Lazy import to avoid ImportError during collection
 
-    bot = QtBot(qapp)
+    _ = qapp  # ensure QApplication fixture is initialized
+    bot = QtBot(request)
     yield bot
-    bot._close_widgets()
 
 
 @pytest.fixture(autouse=True)

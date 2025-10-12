@@ -60,16 +60,21 @@ class FileHandlers:
 
     def _enable_analysis_if_ready(self) -> None:
         """Enable the 'Run Analysis' button only if a file is selected and all AI models are ready."""
-        if self.main_window.run_analysis_button:
-            all_models_ready = False
-            if self.main_window.status_component:
-                status_summary = self.main_window.status_component.get_overall_status()
-                all_models_ready = status_summary.get("all_ready", False)
+        run_button = getattr(self.main_window, "run_analysis_button", None)
+        if not run_button:
+            return
 
-            if self.main_window._selected_file and all_models_ready:
-                self.main_window.run_analysis_button.setEnabled(True)
-            else:
-                self.main_window.run_analysis_button.setEnabled(False)
+        status_component = getattr(self.main_window, "status_component", None)
+        if status_component is not None:
+            status_summary = status_component.get_overall_status() or {}
+            all_models_ready = bool(status_summary.get("all_ready", False))
+        else:
+            all_models_ready = True
+
+        if getattr(self.main_window, "_selected_file", None) and all_models_ready:
+            run_button.setEnabled(True)
+        else:
+            run_button.setEnabled(False)
 
     def prompt_for_document(self) -> None:
         """Open a file selection dialog for choosing a clinical document.
