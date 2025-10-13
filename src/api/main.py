@@ -219,11 +219,11 @@ async def auto_warm_ai_models():
                 logger.info(f"Auto-warming AI models with prompt {i+1}/{len(warm_prompts)}: '{prompt}'")
                 
                 # Warm up document classifier
-                await analysis_service.classify_document_type(prompt)
+                await analysis_service.document_classifier.classify_document(prompt)
                 
                 # Warm up NER (if not skipped)
                 if not settings.performance.skip_advanced_ner:
-                    await analysis_service.extract_entities(prompt)
+                    await analysis_service.clinical_ner_service.extract_entities(prompt)
                 
                 # Small delay between warm-ups
                 await asyncio.sleep(0.5)
