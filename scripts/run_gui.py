@@ -16,11 +16,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 # Set matplotlib backend before importing any GUI components
 import os
 
-import matplotlib
+try:
+    import matplotlib  # type: ignore[import-not-found]
+except Exception:
+    matplotlib = None  # type: ignore[assignment]
 
-# Force matplotlib to use the correct backend for PySide6
+# Prefer PySide6; avoid hard failure if matplotlib is absent
 os.environ["QT_API"] = "pyside6"
-matplotlib.use("Qt5Agg")
+if matplotlib is not None:
+    try:
+        matplotlib.use("Qt5Agg")
+    except Exception:
+        pass
 
 from PySide6.QtWidgets import QApplication, QMessageBox
 

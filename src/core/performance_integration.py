@@ -34,7 +34,8 @@ class PerformanceIntegrationService(QObject):
         # Setup monitoring timer
         self.monitor_timer = QTimer()
         self.monitor_timer.timeout.connect(self._check_performance)
-        self.monitor_timer.start(10000)  # Check every 10 seconds
+        self.monitor_timer.setInterval(10000)
+        self.monitor_timer.start()
 
         logger.info("Performance integration service initialized")
 
@@ -212,7 +213,8 @@ class PerformanceIntegrationService(QObject):
         """Enable or disable performance monitoring."""
         self.monitoring_enabled = enabled
         if enabled:
-            self.monitor_timer.start(10000)
+            self.monitor_timer.setInterval(10000)
+            self.monitor_timer.start()
         else:
             self.monitor_timer.stop()
 

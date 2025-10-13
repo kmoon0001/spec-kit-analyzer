@@ -1,1 +1,304 @@
-"""Clinical Compliance Analyzer API\n\nFastAPI backend for the Therapy Compliance Analyzer desktop application.\nProvides endpoints for document analysis, user management, and compliance reporting.\n"""\n\nimport asyncio\nimport logging\nimport sys\nimport time\nfrom collections.abc import Coroutine\nfrom contextlib import asynccontextmanager\nfrom typing import Any\n\nimport numpy as np\nimport structlog\nfrom apscheduler.schedulers.background import BackgroundScheduler\nfrom fastapi import FastAPI, WebSocket, WebSocketDisconnect\nfrom slowapi import Limiter, _rate_limit_exceeded_handler\nfrom slowapi.errors import RateLimitExceeded\nfrom slowapi.util import get_remote_address\nfrom starlette.exceptions import HTTPException as StarletteHTTPException\n\nfrom src.api.dependencies import shutdown_event as api_shutdown\nfrom src.api.dependencies import startup_event as api_startup\nfrom src.api.routers import admin, analysis, auth, chat, compliance, dashboard, feedback, habits, health, meta_analytics, users, rubric_router, individual_habits\n\n\ntry:\n    from src.api.routers import ehr_integration\n\n    EHR_AVAILABLE = True\nexcept ImportError:\n    EHR_AVAILABLE = False\nfrom src.api.global_exception_handler import global_exception_handler, http_exception_handler\nfrom src.config import get_settings\nfrom src.core.vector_store import get_vector_store\nfrom src.database import crud, get_async_db\nfrom src.logging_config import CorrelationIdMiddleware, configure_logging\n\nsettings = get_settings()\nlimiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])\n\nlogger = structlog.get_logger(__name__)\n\n# --- WebSocket Log Streaming --- #\n\n\nclass WebSocketManager:\n    """Manages active WebSocket connections."""\n\n    def __init__(self):\n        self.active_connections: list[WebSocket] = []\n\n    async def connect(self, websocket: WebSocket):\n        await websocket.accept()\n        self.active_connections.append(websocket)\n\n    def disconnect(self, websocket: WebSocket):\n        self.active_connections.remove(websocket)\n\n    async def broadcast(self, message: str):\n        for connection in self.active_connections:\n            await connection.send_text(message)\n\n\nlog_manager = WebSocketManager()\nlog_manager = WebSocketManager()\nlog_manager = WebSocketManager()\n\n\nclass WebSocketLogHandler(logging.Handler):\n    """A logging handler that broadcasts log records to WebSockets."""\n\n    def emit(self, record):\n        log_entry = self.format(record)\n        asyncio.run_coroutine_threadsafe(log_manager.broadcast(log_entry), self.loop)\n\n\n# --- In-Memory Task Purging --- #\n# --- In-Memory Task Purging --- #\n# --- In-Memory Task Purging --- #\n\n\nclass InMemoryTaskPurgeService:\n    """A service to purge expired tasks from the in-memory task dictionary."""\n\n    def __init__(self, tasks=None, retention_period_minutes=60, purge_interval_seconds=300):\n        self.tasks = tasks or {}\n        self.retention_period_minutes = retention_period_minutes\n        self.purge_interval_seconds = purge_interval_seconds\n        self._stop_event = asyncio.Event()\n\n    def start(self) -> Coroutine[Any, Any, None]:\n        logger.info("Starting in-memory task purge service.")\n        return asyncio.create_task(self.purge_expired_tasks())\n\n    def stop(self) -> None:\n        logger.info("Stopping in-memory task purge service.")\n        self._stop_event.set()\n\n    async def purge_expired_tasks(self):\n        """Purge expired tasks from memory."""\n        while not self._stop_event.is_set():\n            try:\n                # Simple purge logic - remove old tasks\n                current_time = time.time()\n                expired_keys = [\n                    key\n                    for key, task in self.tasks.items()\n                    if current_time - task.get("created_at", 0) > (self.retention_period_minutes * 60)\n                ]\n                for key in expired_keys:\n                    self.tasks.pop(key, None)\n\n                await asyncio.sleep(self.purge_interval_seconds)\n            except Exception as e:\n                logger.error(f"Error in task purge: {e}")\n                await asyncio.sleep(60)  # Wait before retrying\n\n\n# --- Maintenance Jobs --- #\n# --- Maintenance Jobs --- #\n# --- Maintenance Jobs --- #\n\n\ndef run_maintenance_jobs():\n    """Instantiates and runs all scheduled maintenance services."""\n    # ... (maintenance logic)\n\n\nscheduler = BackgroundScheduler(daemon=True)\nscheduler = BackgroundScheduler(daemon=True)\nscheduler = BackgroundScheduler(daemon=True)\nin_memory_task_purge_service = InMemoryTaskPurgeService(\n    tasks=analysis.tasks,\n    retention_period_minutes=settings.maintenance.in_memory_retention_minutes,\n    purge_interval_seconds=settings.maintenance.in_memory_purge_interval_seconds,\n)\n\n# --- Vector Store Initialization ---\n\n\nasync def initialize_vector_store():\n    """Initializes and populates the vector store on application startup."""\n    vector_store = get_vector_store()\n    if vector_store.is_initialized:\n        return\n\n    vector_store.initialize_index()\n    logger.info("Populating vector store with existing report embeddings...")\n\n    db_session_gen = get_async_db()\n    db = await db_session_gen.__anext__()\n    try:\n        reports = await crud.get_all_reports_with_embeddings(db)\n        if reports:\n            embeddings = [np.frombuffer(report.document_embedding, dtype=np.float32) for report in reports]\n            report_ids = [report.id for report in reports]\n\n            # Ensure all embeddings have the same dimension\n            embedding_dim = embeddings[0].shape[0]\n            valid_embeddings = [emb for emb in embeddings if emb.shape[0] == embedding_dim]\n            valid_ids = [id for emb, id in zip(embeddings, report_ids, strict=False) if emb.shape[0] == embedding_dim]\n\n            if valid_embeddings:\n                vector_store.add_vectors(np.array(valid_embeddings), valid_ids)\n            logger.info("Successfully populated vector store with %s embeddings.", len(valid_embeddings))\n        else:\n            logger.info("No existing reports with embeddings found to populate vector store.")\n    finally:\n        await db.close()\n\n\n# --- Application Lifespan --- #\n\n\n@asynccontextmanager\nasync def lifespan(app: FastAPI):\n    """Lifespan context manager for startup and shutdown events."""\n    configure_logging(settings.log_level)\n    if "pytest" not in sys.modules:\n        ws_handler = WebSocketLogHandler()\n        ws_handler.setLevel(logging.INFO)\n        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")\n        ws_handler.setFormatter(formatter)\n        logging.getLogger().addHandler(ws_handler)\n\n    await api_startup()\n    await initialize_vector_store()\n\n    run_maintenance_jobs()\n    scheduler.add_job(run_maintenance_jobs, "interval", days=1)\n    scheduler.start()\n    logger.info("Scheduler started for daily maintenance tasks.")\n\n    in_memory_task_purge_service.start()\n\n    yield\n\n    await api_shutdown()\n    scheduler.shutdown()\n    in_memory_task_purge_service.stop()\n\n\n# --- FastAPI App Initialization --- #\n\napp = FastAPI(\n    title="Therapy Compliance Analyzer API",\n    description="...",\n    version="1.0.0",\n    lifespan=lifespan,\n    # ... (other app config)\n)\n\napp.add_middleware(CorrelationIdMiddleware)\napp.state.limiter = limiter\napp.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)\napp.add_exception_handler(StarletteHTTPException, http_exception_handler)\napp.add_exception_handler(Exception, global_exception_handler)\n\n# --- Routers --- #\n\napp.include_router(health.router, tags=["Health"])\napp.include_router(auth.router, prefix="/auth", tags=["Authentication"])\napp.include_router(admin.router, prefix="/admin", tags=["Admin"])\napp.include_router(analysis.router, tags=["Analysis"])\napp.include_router(analysis.legacy_router, tags=["Analysis Legacy"])\napp.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])\napp.include_router(chat.router, prefix="/chat", tags=["Chat"])\napp.include_router(compliance.router, tags=["Compliance"])\napp.include_router(habits.router, tags=["Habits"])\napp.include_router(meta_analytics.router, tags=["Meta Analytics"])\napp.include_router(feedback.router)\napp.include_router(users.router, tags=["Users"])\napp.include_router(rubric_router.router, prefix="/rubrics", tags=["Rubrics"])\napp.include_router(individual_habits.router)\n\n\nif EHR_AVAILABLE:\n    app.include_router(ehr_integration.router, tags=["EHR Integration"])\n    logging.info("EHR Integration API enabled")\n\n\n\n# Include plugin management\ntry:\n    from src.api.routers import plugins\n\n    app.include_router(plugins.router, tags=["Plugin Management"])\n    logging.info("Plugin Management API enabled")\nexcept ImportError:\n    logging.warning("Plugin Management API not available")\n\n# --- WebSocket Endpoint --- #\n\n\n@app.websocket("/ws/logs")\nasync def websocket_endpoint(websocket: WebSocket):\n    await log_manager.connect(websocket)\n    try:\n        while True:\n            await websocket.receive_text()\n    except WebSocketDisconnect:\n        log_manager.disconnect(websocket)\n\n\n# --- Root Endpoint --- #\n\n\n@app.get("/")\ndef read_root():\n    """Root endpoint providing API welcome message."""\n    return {"message": "Welcome to the Clinical Compliance Analyzer API"}\n\n\n@app.get("/ai/status")\nasync def get_ai_status():\n    """Get AI model status (root level endpoint for GUI compatibility)"""\n    return {\n        "status": "ready",\n        "models": {\n            "llm": "loaded",\n            "embeddings": "loaded",\n            "ner": "loaded",\n        },\n        "last_updated": "2025-10-07T16:28:15Z",\n    }\n\n
+"""Clinical Compliance Analyzer API
+
+FastAPI backend for the Therapy Compliance Analyzer desktop application.
+Provides endpoints for document analysis, user management, and compliance reporting.
+"""
+
+import asyncio
+import logging
+import sys
+import time
+from collections.abc import Coroutine
+from contextlib import asynccontextmanager
+from typing import Any
+
+import numpy as np
+import structlog
+from apscheduler.schedulers.background import BackgroundScheduler
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from src.api.dependencies import shutdown_event as api_shutdown
+from src.api.dependencies import startup_event as api_startup
+from src.api.routers import (
+    admin,
+    analysis,
+    auth,
+    chat,
+    compliance,
+    dashboard,
+    feedback,
+    habits,
+    health,
+    meta_analytics,
+    users,
+    rubric_router,
+    individual_habits,
+)
+
+try:
+    from src.api.routers import ehr_integration
+
+    EHR_AVAILABLE = True
+except ImportError:
+    EHR_AVAILABLE = False
+
+from src.api.global_exception_handler import global_exception_handler, http_exception_handler
+from src.config import get_settings
+from src.core.vector_store import get_vector_store
+from src.database import crud, get_async_db
+from src.logging_config import CorrelationIdMiddleware, configure_logging
+
+settings = get_settings()
+limiter = Limiter(key_func=get_remote_address, default_limits=["100 per minute"])
+
+logger = structlog.get_logger(__name__)
+
+# --- WebSocket Log Streaming --- #
+
+
+class WebSocketManager:
+    """Manages active WebSocket connections."""
+
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            await connection.send_text(message)
+
+
+log_manager = WebSocketManager()
+
+
+class WebSocketLogHandler(logging.Handler):
+    """A logging handler that broadcasts log records to WebSockets."""
+
+    def __init__(self, loop: asyncio.AbstractEventLoop | None = None) -> None:
+        super().__init__()
+        try:
+            self.loop = loop or asyncio.get_running_loop()
+        except RuntimeError:
+            self.loop = None
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if not self.loop or self.loop.is_closed():
+            return
+        log_entry = self.format(record)
+        asyncio.run_coroutine_threadsafe(log_manager.broadcast(log_entry), self.loop)
+
+
+# --- In-Memory Task Purging --- #
+
+
+class InMemoryTaskPurgeService:
+    """A service to purge expired tasks from the in-memory task dictionary."""
+
+    def __init__(self, tasks=None, retention_period_minutes=60, purge_interval_seconds=300):
+        self.tasks = tasks or {}
+        self.retention_period_minutes = retention_period_minutes
+        self.purge_interval_seconds = purge_interval_seconds
+        self._stop_event = asyncio.Event()
+
+    def start(self) -> Coroutine[Any, Any, None]:
+        logger.info("Starting in-memory task purge service.")
+        return asyncio.create_task(self.purge_expired_tasks())
+
+    def stop(self) -> None:
+        logger.info("Stopping in-memory task purge service.")
+        self._stop_event.set()
+
+    async def purge_expired_tasks(self):
+        """Purge expired tasks from memory."""
+        while not self._stop_event.is_set():
+            try:
+                current_time = time.time()
+                expired_keys = [
+                    key
+                    for key, task in self.tasks.items()
+                    if current_time - task.get("created_at", 0) > (self.retention_period_minutes * 60)
+                ]
+                for key in expired_keys:
+                    self.tasks.pop(key, None)
+
+                await asyncio.sleep(self.purge_interval_seconds)
+            except Exception as e:
+                logger.error(f"Error in task purge: {e}")
+                await asyncio.sleep(60)
+
+
+# --- Maintenance Jobs --- #
+
+
+def run_maintenance_jobs():
+    """Instantiates and runs all scheduled maintenance services."""
+    # Placeholder for future maintenance tasks
+
+
+scheduler = BackgroundScheduler(daemon=True)
+in_memory_task_purge_service = InMemoryTaskPurgeService(
+    tasks=analysis.tasks,
+    retention_period_minutes=settings.maintenance.in_memory_retention_minutes,
+    purge_interval_seconds=settings.maintenance.in_memory_purge_interval_seconds,
+)
+
+# --- Vector Store Initialization ---
+
+
+async def initialize_vector_store():
+    """Initializes and populates the vector store on application startup."""
+    vector_store = get_vector_store()
+    if vector_store.is_initialized:
+        return
+
+    vector_store.initialize_index()
+    logger.info("Populating vector store with existing report embeddings...")
+
+    db_session_gen = get_async_db()
+    db = await db_session_gen.__anext__()
+    try:
+        reports = await crud.get_all_reports_with_embeddings(db)
+        if reports:
+            embeddings = [np.frombuffer(report.document_embedding, dtype=np.float32) for report in reports]
+            report_ids = [report.id for report in reports]
+
+            # Ensure all embeddings have the same dimension
+            embedding_dim = embeddings[0].shape[0]
+            valid_embeddings = [emb for emb in embeddings if emb.shape[0] == embedding_dim]
+            valid_ids = [id for emb, id in zip(embeddings, report_ids, strict=False) if emb.shape[0] == embedding_dim]
+
+            if valid_embeddings:
+                vector_store.add_vectors(np.array(valid_embeddings), valid_ids)
+            logger.info("Successfully populated vector store with %s embeddings.", len(valid_embeddings))
+        else:
+            logger.info("No existing reports with embeddings found to populate vector store.")
+    finally:
+        await db.close()
+
+
+# --- Application Lifespan --- #
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    configure_logging(settings.log_level)
+    if "pytest" not in sys.modules:
+        ws_handler = WebSocketLogHandler()
+        ws_handler.setLevel(logging.INFO)
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        ws_handler.setFormatter(formatter)
+        logging.getLogger().addHandler(ws_handler)
+
+    await api_startup()
+    await initialize_vector_store()
+
+    run_maintenance_jobs()
+    scheduler.add_job(run_maintenance_jobs, "interval", days=1)
+    scheduler.start()
+    logger.info("Scheduler started for daily maintenance tasks.")
+
+    in_memory_task_purge_service.start()
+
+    yield
+
+    await api_shutdown()
+    scheduler.shutdown()
+    in_memory_task_purge_service.stop()
+
+
+# --- FastAPI App Initialization --- #
+
+app = FastAPI(
+    title="Therapy Compliance Analyzer API",
+    description="...",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(CorrelationIdMiddleware)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(Exception, global_exception_handler)
+
+# --- Routers --- #
+
+app.include_router(health.router, tags=["Health"])
+app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+app.include_router(admin.router, prefix="/admin", tags=["Admin"])
+app.include_router(analysis.router, tags=["Analysis"])
+app.include_router(analysis.legacy_router, tags=["Analysis Legacy"])
+app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
+app.include_router(chat.router, prefix="/chat", tags=["Chat"])
+app.include_router(compliance.router, tags=["Compliance"])
+app.include_router(habits.router, tags=["Habits"])
+app.include_router(meta_analytics.router, tags=["Meta Analytics"])
+app.include_router(feedback.router)
+app.include_router(users.router, tags=["Users"])
+app.include_router(rubric_router.router, prefix="/rubrics", tags=["Rubrics"])
+app.include_router(individual_habits.router)
+
+if EHR_AVAILABLE:
+    app.include_router(ehr_integration.router, tags=["EHR Integration"])
+    logging.info("EHR Integration API enabled")
+
+# Include plugin management
+try:
+    from src.api.routers import plugins
+
+    app.include_router(plugins.router, tags=["Plugin Management"])
+    logging.info("Plugin Management API enabled")
+except ImportError:
+    logging.warning("Plugin Management API not available")
+
+# --- WebSocket Endpoint --- #
+
+
+@app.websocket("/ws/logs")
+async def websocket_endpoint(websocket: WebSocket):
+    await log_manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        log_manager.disconnect(websocket)
+
+
+# Minimal logs stream endpoint for compatibility with GUI pollers
+@app.get("/logs/stream")
+async def logs_stream():
+    return {"status": "ok", "message": "log stream endpoint available"}
+
+
+# --- Root Endpoint --- #
+
+
+@app.get("/")
+def read_root():
+    """Root endpoint providing API welcome message."""
+    return {"message": "Welcome to the Clinical Compliance Analyzer API"}
+
+
+@app.get("/ai/status")
+async def get_ai_status():
+    """Get AI model status (root level endpoint for GUI compatibility)"""
+    return {
+        "status": "ready",
+        "models": {
+            "llm": "loaded",
+            "embeddings": "loaded",
+            "ner": "loaded",
+        },
+        "last_updated": "2025-10-07T16:28:15Z",
+    }

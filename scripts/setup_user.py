@@ -8,7 +8,7 @@ sys.path.insert(0, ".")
 
 
 async def setup_user():
-    from src import crud
+    from src.database import crud
     from src.auth import AuthService
     from src.database import init_db
     from src.database.database import get_async_db
