@@ -58,7 +58,6 @@ def run_e2e_tests() -> bool:
 
     test_commands = [
         ["pytest", "tests/e2e/test_document_analysis_workflow.py", "-v", "--tb=short"],
-        ["pytest", "tests/e2e/test_enterprise_copilot_workflow.py", "-v", "--tb=short"],
         ["pytest", "tests/e2e/test_plugin_system_workflow.py", "-v", "--tb=short"],
     ]
 

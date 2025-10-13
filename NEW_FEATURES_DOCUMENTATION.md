@@ -179,7 +179,7 @@ GET /plugins/
 GET /plugins/my-plugin
 ```
 
-## 4. Enhanced Microsoft Enterprise Copilot
+## 4. Enhanced Microsoft Enterprise Service
 
 ### Overview
 AI-powered enterprise assistance providing natural language query processing, workflow automation, and contextual guidance for healthcare compliance.
@@ -188,8 +188,7 @@ AI-powered enterprise assistance providing natural language query processing, wo
 
 #### Natural Language Queries
 ```python
-POST /copilot/ask
-{
+POST /ask
     "query": "How do I document a patient's progress in PT?",
     "context": {"document_type": "progress_note"},
     "department": "Physical Therapy",
@@ -199,7 +198,7 @@ POST /copilot/ask
 
 #### Workflow Automation
 ```python
-POST /copilot/automate-workflow
+POST /automate-workflow
 {
     "workflow_type": "compliance_checking",
     "parameters": {
@@ -213,8 +212,7 @@ POST /copilot/automate-workflow
 
 #### Compliance Insights
 ```python
-POST /copilot/insights/compliance
-{
+POST /insights/compliance{
     "analysis_period_days": 30,
     "departments": ["PT", "OT", "SLP"],
     "insight_types": ["trends", "patterns", "recommendations"]
@@ -223,13 +221,12 @@ POST /copilot/insights/compliance
 
 #### Contextual Suggestions
 ```python
-GET /copilot/suggestions?context=document_creation&document_type=progress_note
+GET /suggestions?context=document_creation&document_type=progress_note
 ```
 
 ### Configuration
 ```yaml
-# config.yaml
-enterprise_copilot:
+enterprise_service:
   enabled: true
   max_query_length: 1000
   response_timeout_seconds: 30
@@ -260,7 +257,7 @@ pdf_export:
 plugins:
   enabled: true
   
-enterprise_copilot:
+enterprise_service:
   enabled: true
   
 ehr_integration:
@@ -274,7 +271,7 @@ The new services are automatically initialized when the application starts. Chec
 ```
 INFO: PDF export service initialized
 INFO: Plugin manager initialized
-INFO: Enterprise Copilot service initialized
+INFO: Enterprise service initialized
 INFO: EHR Integration API enabled
 INFO: Plugin Management API enabled
 ```
@@ -296,14 +293,14 @@ INFO: Plugin Management API enabled
 - `POST /plugins/{name}/unload` - Unload plugin
 - `GET /plugins/extension-points` - List extension points
 
-#### Enterprise Copilot
-- `POST /copilot/ask` - Ask natural language questions
-- `POST /copilot/automate-workflow` - Create workflow automation
-- `GET /copilot/workflows` - List user workflows
-- `POST /copilot/insights/compliance` - Generate compliance insights
-- `GET /copilot/suggestions` - Get contextual suggestions
-- `POST /copilot/feedback` - Submit feedback
-- `GET /copilot/capabilities` - Get copilot capabilities
+#### Enterprise Service
+- `POST /ask` - Ask natural language questions
+- `POST /automate-workflow` - Create workflow automation
+- `GET /workflows` - List user workflows
+- `POST /insights/compliance` - Generate compliance insights
+- `GET /suggestions` - Get contextual suggestions
+- `POST /feedback` - Submit feedback
+- `GET /capabilities` - Get capabilities
 
 ## Security Considerations
 
@@ -341,7 +338,7 @@ INFO: Plugin Management API enabled
 - **Issue**: Connection timeout
 - **Solution**: Verify endpoint URL and credentials
 
-#### Copilot Queries
+#### Queries
 - **Issue**: Low confidence responses
 - **Solution**: Provide more specific context and clear questions
 

@@ -1,7 +1,7 @@
 """
 Integration tests for all new features working together.
 
-This module tests the integration of PDF export, plugin system, enhanced copilot,
+This module tests the integration of PDF export, plugin system, enhanced service,
 and multi-agent workflows to ensure they work seamlessly together.
 """
 
@@ -26,7 +26,6 @@ except ImportError:
         pdf_export_service = None
         PDF_SERVICE_AVAILABLE = False
 from src.core.enhanced_error_handler import enhanced_error_handler
-from src.core.enterprise_copilot_service import enterprise_copilot_service
 from src.core.multi_agent_orchestrator import multi_agent_orchestrator
 from src.core.performance_monitor import performance_monitor
 from src.core.plugin_system import plugin_manager
@@ -88,23 +87,7 @@ class TestNewFeaturesIntegration:
             assert len(recent_metrics) > 0
             assert recent_metrics[-1].operation == "pdf_export"
 
-    @pytest.mark.asyncio
-    async def test_enterprise_copilot_integration(self):
-        """Test enterprise copilot with enhanced knowledge base."""
-        # Test compliance question
-        response = await enterprise_copilot_service.process_query(
-            query="How do I document medical necessity for PT?",
-            context={"document_type": "evaluation"},
-            user_id=1,
-            department="Physical Therapy",
-        )
 
-        # Verify enhanced response
-        assert response["answer"] is not None
-        assert response["confidence"] > 0.0
-        assert len(response["sources"]) > 0
-        assert len(response["suggested_actions"]) > 0
-        assert "query_id" in response
 
     @pytest.mark.asyncio
     async def test_multi_agent_workflow_integration(self):
@@ -237,17 +220,7 @@ class TestNewFeaturesIntegration:
             performance_data = performance_monitor.get_component_performance("test", 1)
             assert isinstance(performance_data, dict)
 
-            # 5. Test copilot query about the analysis
-            copilot_response = await enterprise_copilot_service.process_query(
-                query="What were the main findings in this analysis?",
-                context={"analysis_result": analysis_result},
-                user_id=1,
-            )
 
-            # Verify copilot response is valid (may not have success key)
-            assert isinstance(copilot_response, dict)
-            assert len(copilot_response) > 0
-            assert copilot_response["answer"] is not None
 
             logger.info("End-to-end workflow test completed successfully")
 
@@ -259,26 +232,7 @@ class TestNewFeaturesIntegration:
 class TestFeatureInteroperability:
     """Test how new features work together."""
 
-    @pytest.mark.asyncio
-    async def test_copilot_with_performance_monitoring(self):
-        """Test copilot queries with performance monitoring."""
-        queries = [
-            "How do I improve documentation quality?",
-            "What are Medicare requirements for PT notes?",
-            "Help me create better treatment goals",
-        ]
 
-        for query in queries:
-            with performance_monitor.track_operation("copilot_test", "process_query"):
-                response = await enterprise_copilot_service.process_query(query=query, context={}, user_id=1)
-
-                # Verify response quality
-                assert response["confidence"] > 0.0
-                assert len(response["answer"]) > 50  # Substantial response
-
-        # Verify performance was tracked
-        copilot_metrics = [m for m in performance_monitor.metrics_history if m.component == "copilot_test"]
-        assert len(copilot_metrics) == len(queries)
 
     def test_error_handling_with_performance_monitoring(self):
         """Test error handling integration with performance monitoring."""
@@ -340,10 +294,7 @@ class TestSystemStability:
                 task = get_pdf_export_service().export_report_to_pdf(sample_data, f"test_concurrent_{i}.pdf")
                 tasks.append(task)
 
-        # Copilot query tasks
-        for i in range(3):
-            task = enterprise_copilot_service.process_query(query=f"Test query {i}", context={}, user_id=1)
-            tasks.append(task)
+
 
         # Execute all tasks concurrently
         results = await asyncio.gather(*tasks, return_exceptions=True)

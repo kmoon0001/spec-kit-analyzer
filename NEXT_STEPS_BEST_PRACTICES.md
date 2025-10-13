@@ -41,7 +41,7 @@ python scripts/start_application.py
 - [ ] **Test with real therapy documents** (anonymized)
 - [ ] **Validate compliance findings** with domain experts
 - [ ] **Verify PDF export quality** for professional use
-- [ ] **Test Enterprise Copilot** with actual compliance questions
+- [ ] **Test Enterprise Service** with actual compliance questions
 
 ---
 
@@ -209,7 +209,7 @@ python scripts/security_check.py
 
 ### **End User Training**
 - [ ] **Basic Usage** - Document upload and analysis
-- [ ] **Advanced Features** - Enterprise Copilot and plugins
+- [ ] **Advanced Features** - Enterprise Service and plugins
 - [ ] **Report Interpretation** - Understanding compliance findings
 - [ ] **Best Practices** - Optimal usage patterns
 

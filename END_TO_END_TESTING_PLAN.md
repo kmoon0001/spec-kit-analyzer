@@ -35,13 +35,13 @@ User Journey: Upload → Analyze → Review → Export
 - ✅ PDF export successful
 - ✅ Dashboard updated with new data
 
-### **Scenario 2: Enterprise Copilot Workflow**
+### **Scenario 2: Enterprise Workflow**
 ```
 User Journey: Ask Question → Get AI Response → Follow Up → Apply Recommendations
 ```
 
 **Test Steps:**
-1. **Access Copilot** - Open Enterprise Copilot interface
+1. **Access Interface** - Open Enterprise interface
 2. **Submit Query** - Ask compliance-related question
 3. **Receive Response** - Get AI-generated answer with sources
 4. **Follow-up Questions** - Test conversation continuity
@@ -49,7 +49,7 @@ User Journey: Ask Question → Get AI Response → Follow Up → Apply Recommend
 6. **Feedback Loop** - Rate response quality
 
 **Expected Results:**
-- ✅ Copilot responds accurately to compliance questions
+- ✅ System responds accurately to compliance questions
 - ✅ Sources and confidence indicators provided
 - ✅ Conversation context maintained
 - ✅ Recommendations are actionable
@@ -167,7 +167,7 @@ pytest tests/e2e/test_performance.py --load-testing
 
 ### **Phase 1: Core Workflow Testing** (Immediate)
 - ✅ Document upload and analysis workflow
-- ✅ Basic enterprise copilot functionality
+- ✅ Basic enterprise functionality
 - ✅ PDF export and reporting
 
 ### **Phase 2: Advanced Feature Testing** (Next)
