@@ -10,6 +10,7 @@ from src.core.analysis_service import AnalysisService
 from src.core.compliance_service import ComplianceService
 from src.core.database_maintenance_service import DatabaseMaintenanceService
 from src.core.hybrid_retriever import HybridRetriever
+from src.config import get_settings  # added for mock-aware fast path
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ class AILoaderWorker(QObject):
         self._compliance_service: ComplianceService | None = None
 
     def run(self) -> None:
-        """Execute the AI loading workflow.
+        """
 
         Steps:
         1. Database maintenance and cleanup
@@ -43,6 +44,20 @@ class AILoaderWorker(QObject):
         5. Emit completion signal
         """
         try:
+            # Fast path: if mocks enabled, avoid heavy initialization entirely
+            settings = get_settings()
+            if bool(getattr(settings, "use_ai_mocks", False)):
+                self.status_updated.emit("AI Systems: Online (mock mode)")
+                self.progress_updated.emit(100)
+                health_map = {
+                    "llm_service": {"status": "Healthy"},
+                    "ner_service": {"status": "Healthy"},
+                    "transformer_models": {"status": "Healthy"},
+                    "vector_database": {"status": "Healthy"},
+                }
+                self.finished.emit(self._compliance_service, True, "AI Systems: Online", health_map)
+                return
+
             self._run_database_maintenance()
             self._initialize_retrieval_system()
             self._load_ai_services()
