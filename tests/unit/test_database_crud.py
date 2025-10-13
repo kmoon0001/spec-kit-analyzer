@@ -1,3 +1,4 @@
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import crud, models, schemas
@@ -27,7 +28,7 @@ async def test_change_user_password(db_session: AsyncSession):
 @pytest.mark.asyncio
 async def test_create_rubric(db_session: AsyncSession):
     rubric_data = schemas.RubricCreate(
-        name="Test Rubric 1",
+        name="Test Rubric 1_unique",
         discipline="PT",
         category="Test",
         regulation="Test Regulation",
@@ -35,7 +36,7 @@ async def test_create_rubric(db_session: AsyncSession):
         best_practice="Test Best Practice",
     )
     rubric = await crud.create_rubric(db_session, rubric_data)
-    assert rubric.name == "Test Rubric 1"
+    assert rubric.name == "Test Rubric 1_unique"
     assert rubric.discipline == "PT"
 
 @pytest.mark.asyncio
@@ -43,7 +44,7 @@ async def test_get_rubrics(db_session: AsyncSession):
     await crud.create_rubric(
         db_session,
         schemas.RubricCreate(
-            name="Test Rubric 2",
+            name="Test Rubric 2_unique",
             discipline="OT",
             category="Test",
             regulation="Test Regulation",
@@ -59,7 +60,7 @@ async def test_get_rubric(db_session: AsyncSession):
     rubric = await crud.create_rubric(
         db_session,
         schemas.RubricCreate(
-            name="Test Rubric 3",
+            name="Test Rubric 3_unique",
             discipline="SLP",
             category="Test",
             regulation="Test Regulation",
@@ -76,7 +77,7 @@ async def test_update_rubric(db_session: AsyncSession):
     rubric = await crud.create_rubric(
         db_session,
         schemas.RubricCreate(
-            name="Test Rubric 4",
+            name="Test Rubric 4_unique",
             discipline="PT",
             category="Test",
             regulation="Test Regulation",
@@ -85,7 +86,7 @@ async def test_update_rubric(db_session: AsyncSession):
         ),
     )
     updated_rubric_data = schemas.RubricCreate(
-        name="Updated Rubric",
+        name="Updated Rubric_unique",
         discipline="OT",
         category="Updated",
         regulation="Updated Regulation",
@@ -93,7 +94,7 @@ async def test_update_rubric(db_session: AsyncSession):
         best_practice="Updated Best Practice",
     )
     updated_rubric = await crud.update_rubric(db_session, rubric.id, updated_rubric_data)
-    assert updated_rubric.name == "Updated Rubric"
+    assert updated_rubric.name == "Updated Rubric_unique"
     assert updated_rubric.discipline == "OT"
 
 @pytest.mark.asyncio
@@ -101,7 +102,7 @@ async def test_delete_rubric(db_session: AsyncSession):
     rubric = await crud.create_rubric(
         db_session,
         schemas.RubricCreate(
-            name="Test Rubric 5",
+            name="Test Rubric 5_unique",
             discipline="PT",
             category="Test",
             regulation="Test Regulation",
