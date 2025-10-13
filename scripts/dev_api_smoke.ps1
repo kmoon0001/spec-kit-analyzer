@@ -10,11 +10,6 @@ Param(
 $ErrorActionPreference = 'Stop'
 
 function Get-Token {
-    try {
-        # Prefer dev-token when available (mock/dev mode)
-        $resp = Invoke-RestMethod -Method Get -Uri "$BaseUrl/auth/dev-token" -ErrorAction SilentlyContinue
-        if ($resp -and $resp.access_token) { return $resp.access_token }
-    } catch { }
     $body = @{ username = $Username; password = $Password }
     $resp = Invoke-RestMethod -Method Post -Uri "$BaseUrl/auth/token" -ContentType 'application/x-www-form-urlencoded' -Body $body
     return $resp.access_token

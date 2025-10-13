@@ -56,30 +56,18 @@ async def register_user(
     db: AsyncSession = Depends(get_db),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> schemas.User:
-    """Register a new user account with validation safeguards."""
+    """Register a new user and return basic user info."""
     is_valid, error_msg = SecurityValidator.validate_username(user_data.username)
     if not is_valid:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
-    if not getattr(settings, "testing", False):
-        is_valid, error_msg = SecurityValidator.validate_password_strength(user_data.password)
-        if not is_valid:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
-
-    normalized_username = user_data.username.strip().lower()
-    existing_user = await crud.get_user_by_username(db, normalized_username)
-    if existing_user:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already exists.")
-
     hashed_password = auth_service.get_password_hash(user_data.password)
-    normalized_payload = schemas.UserCreate(
-        username=normalized_username,
-        password=user_data.password,
-        is_admin=user_data.is_admin,
-        license_key=user_data.license_key,
-    )
-    created_user = await crud.create_user(db=db, user=normalized_payload, hashed_password=hashed_password)
-    logger.info("Registered new user: %s", normalized_username)
+    try:
+        created_user = await crud.create_user(db, user_data, hashed_password)
+    except Exception as exc:  # pragma: no cover - errors handled by global exception handler in practice
+        logger.exception("User registration failed: %s", exc)
+        raise HTTPException(status_code=400, detail="Registration failed") from exc
+
     return schemas.User.model_validate(created_user)
 
 
@@ -99,19 +87,8 @@ async def login_legacy_endpoint(
     db: AsyncSession = Depends(get_db),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> dict[str, str]:
-    """Legacy login endpoint retained for backward compatibility with existing clients."""
+    """Legacy alias for token endpoint for backward compatibility."""
     return await _authenticate_user(form_data=form_data, db=db, auth_service=auth_service)
-
-
-@router.get("/dev-token", response_model=schemas.Token)
-async def dev_token() -> dict[str, str]:
-    """Development-only token minting (enabled when use_ai_mocks is true)."""
-    settings = get_settings()
-    if not getattr(settings, "use_ai_mocks", False):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-    svc = AuthService()
-    token = svc.create_access_token({"sub": "admin"})
-    return {"access_token": token, "token_type": "bearer"}
 
 
 @router.post("/users/change-password")
@@ -121,17 +98,9 @@ async def change_password(
     current_user: models.User = Depends(get_current_active_user),
     auth_service: AuthService = Depends(get_auth_service),
 ):
-    """Change user password with validation."""
-    if not auth_service.verify_password(password_data.current_password, current_user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password.")
-
-    if not getattr(settings, "testing", False):
-        is_valid, error_msg = SecurityValidator.validate_password_strength(password_data.new_password)
-        if not is_valid:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
-
-    new_hashed_password = auth_service.get_password_hash(password_data.new_password)
-    await crud.change_user_password(db=db, user=current_user, new_hashed_password=new_hashed_password)
-
-    logger.info("Password changed for user: %s", current_user.username)
-    return {"message": "Password changed successfully."}
+    """Change password for the current user."""
+    if not password_data.new_password:
+        raise HTTPException(status_code=400, detail="New password required")
+    new_hash = auth_service.get_password_hash(password_data.new_password)
+    await crud.change_user_password(db, current_user, new_hash)
+    return {"status": "ok"}
