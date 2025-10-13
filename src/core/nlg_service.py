@@ -43,21 +43,42 @@ class NLGService:
             return finding.get("suggestion", "No tip available.")
 
         try:
-            # Build the prompt with the details of the finding
-            prompt = self.prompt_manager.build_prompt(
-                issue_title=finding.get("issue_title", "N/A"),
-                issue_detail=finding.get("issue_detail", "N/A"),
-                text=finding.get("text", "N/A"),
+            # Prepare variables with safe defaults
+            issue_title = finding.get("issue_title") or finding.get("title") or "N/A"
+            issue_detail = finding.get("issue_detail") or finding.get("description") or "N/A"
+            text_snippet = (
+                finding.get("text")
+                or finding.get("text_snippet")
+                or finding.get("problematic_text")
+                or "N/A"
             )
+
+            # First attempt: common variables
+            try:
+                prompt = self.prompt_manager.build_prompt(
+                    issue_title=issue_title,
+                    issue_detail=issue_detail,
+                    text=text_snippet,
+                )
+            except KeyError:
+                # Some templates expect a 'findings' variable; synthesize a compact string
+                synthesized_findings = f"Title: {issue_title}\nDetail: {issue_detail}\nText: {text_snippet}"
+                prompt = self.prompt_manager.build_prompt(
+                    findings=synthesized_findings,
+                    issue_title=issue_title,
+                    issue_detail=issue_detail,
+                    text=text_snippet,
+                )
 
             # Generate the tip using the LLM
             generated_tip = self.llm_service.generate_analysis(prompt)
-
-            # Basic cleanup of the generated text can be done here if needed
-            # For example, removing leading/trailing whitespace
-            return generated_tip.strip()
+            return (generated_tip or finding.get("suggestion", "")).strip() or finding.get(
+                "suggestion", "No tip available."
+            )
 
         except (requests.RequestException, ConnectionError, TimeoutError, HTTPError) as e:
             logger.exception("Error generating personalized tip: %s", e)
-            # Fallback to the original suggestion if generation fails
             return finding.get("suggestion", "Error generating tip.")
+        except Exception as e:  # Defensive catch to prevent GUI/API failures on unexpected template fields
+            logger.exception("NLG generation failed; falling back to suggestion: %s", e)
+            return finding.get("suggestion", "No tip available.")

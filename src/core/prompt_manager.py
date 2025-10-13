@@ -41,8 +41,14 @@ class PromptManager:
         try:
             return self.template_string.format(**kwargs)
         except KeyError as e:
-            logger.exception("Missing variable in prompt template %s: %s", self.template_path, e)
-            raise
+            logger.warning("Missing variable in prompt template %s: %s; substituting empty string.", self.template_path, e)
+
+            class _SafeDict(dict):
+                def __missing__(self, key: str) -> str:  # type: ignore[override]
+                    return ""
+
+            # Use format_map with a mapping that returns empty strings for missing keys
+            return self.template_string.format_map(_SafeDict(kwargs))
 
     def build_prompt(self, **kwargs: Any) -> str:
         """Alias for get_prompt to maintain backward compatibility.
