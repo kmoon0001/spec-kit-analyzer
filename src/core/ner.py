@@ -96,6 +96,15 @@ class ClinicalNERService:
             A merged and deduplicated list of detected clinical entities.
 
         """
+        # Allow performance flag to skip advanced NER entirely (for CPU-friendly runs)
+        try:
+            from src.config import get_settings  # lazy import to avoid cycles at module import
+
+            if bool(get_settings().performance.get("skip_advanced_ner", False)):
+                return []
+        except Exception:
+            pass
+
         if not self.pipelines or not text.strip():
             return []
 

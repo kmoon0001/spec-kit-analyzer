@@ -17,7 +17,7 @@ habits_framework:
 llm:
   context_length: 4096
   generation_params:
-    max_new_tokens: 256
+    max_new_tokens: 96
     repeat_penalty: 1.1
     stop_sequences:
     - </analysis>

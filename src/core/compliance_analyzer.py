@@ -288,8 +288,10 @@ class ComplianceAnalyzer:
 
         formatted_rules = self._format_rules_for_prompt(retrieved_rules)
         if self.prompt_manager:
+            # Cap document_text length to keep prompt compact for local CPU models
+            doc_for_prompt = document_text[:1500] if len(document_text) > 1500 else document_text
             prompt = self.prompt_manager.get_prompt(
-                document_text=document_text,
+                document_text=doc_for_prompt,
                 entity_list=entity_list_str,
                 context=formatted_rules,
                 discipline=discipline,
@@ -297,7 +299,8 @@ class ComplianceAnalyzer:
                 deterministic_focus=self.deterministic_focus,
             )
         else:
-            prompt = f"Analyze this document for compliance:\n{document_text}\n\nRules:\n{formatted_rules}"
+            doc_for_prompt = document_text[:1500] if len(document_text) > 1500 else document_text
+            prompt = f"Analyze this document for compliance:\n{doc_for_prompt}\n\nRules:\n{formatted_rules}"
 
         if self.llm_service:
             # Use shorter prompt for faster processing

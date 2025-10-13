@@ -56,8 +56,8 @@ class DocumentClassifier:
             return "Unknown"
 
         try:
-            # To speed up classification, we only use the first part of the document.
-            text_snippet = document_text[:2000]
+            # To speed up classification on CPU, use a smaller snippet
+            text_snippet = document_text[:800]
 
             prompt = self.prompt_manager.build_prompt(document_text=text_snippet)
 
@@ -65,7 +65,7 @@ class DocumentClassifier:
             raw_classification = self.llm_service.generate(prompt)
 
             # Clean up the output
-            classification = raw_classification.strip().replace('"', "")
+            classification = (raw_classification or "").strip().replace('"', "")
 
             # Ensure the classification is one of the valid types
             if classification in self.possible_types:
