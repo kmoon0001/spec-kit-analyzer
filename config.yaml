@@ -16,6 +16,8 @@ habits_framework:
   visibility_level: moderate
 llm:
   context_length: 1024
+  gpu_layers: 0
+  threads: 6
   generation_params:
     max_new_tokens: 64
     repeat_penalty: 1.1
@@ -32,9 +34,9 @@ models:
   analysis_prompt_template: src/resources/prompts/analysis_prompt_template.txt
   doc_classifier_prompt: src/resources/prompts/doc_classifier_prompt.txt
   fact_checker: microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext
-  generator: TheBloke/meditron-7B-GGUF
-  generator_filename: meditron-7b.Q4_K_M.gguf
-  generator_local_path: models/meditron
+  generator: TheBloke/Mistral-7B-Instruct-v0.2-GGUF
+  generator_filename: mistral-7b-instruct-v0.2.Q4_K_M.gguf
+  generator_local_path: models/mistral7b
   generator_profiles:
     clinical_fast:
       batch_size: 2
@@ -86,7 +88,6 @@ models:
       use_cache: true
   ner_ensemble:
   - d4data/biomedical-ner-all
-  - OpenMed/OpenMed-NER-PathologyDetect-PubMed-v2-109M
   nlg_prompt_template: src/resources/prompts/nlg_prompt_template.txt
   optimization:
     cache_models: true
@@ -124,13 +125,13 @@ performance:
   reduce_context_window: true
   simple_report_mode: true
   skip_advanced_ner: true
-  skip_fact_checking: false
+  skip_fact_checking: true
   smart_caching: true
 retrieval:
   batch_size: 16
   dense_model_name: pritamdeka/S-PubMedBert-MS-MARCO
   max_sequence_length: 512
-  rrf_k: 60
-  similarity_top_k: 10
+  rrf_k: 30
+  similarity_top_k: 5
 use_ai_mocks: false
 log_level: INFO
