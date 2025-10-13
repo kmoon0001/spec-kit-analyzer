@@ -23,7 +23,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.api.dependencies import shutdown_event as api_shutdown
 from src.api.dependencies import startup_event as api_startup
-from src.api.routers import admin, analysis, auth, chat, compliance, dashboard, feedback, habits, health, meta_analytics
+from src.api.routers import admin, analysis, auth, chat, compliance, dashboard, feedback, habits, health, meta_analytics, users, rubric_router, individual_habits
 
 # Import new enterprise features
 try:
@@ -234,6 +234,9 @@ app.include_router(compliance.router, tags=["Compliance"])
 app.include_router(habits.router, tags=["Habits"])
 app.include_router(meta_analytics.router, tags=["Meta Analytics"])
 app.include_router(feedback.router)
+app.include_router(users.router, tags=["Users"])
+app.include_router(rubric_router.router, prefix="/rubrics", tags=["Rubrics"])
+app.include_router(individual_habits.router)
 
 # Include enterprise features if available
 if EHR_AVAILABLE:
@@ -273,35 +276,6 @@ async def websocket_endpoint(websocket: WebSocket):
 def read_root():
     """Root endpoint providing API welcome message."""
     return {"message": "Welcome to the Clinical Compliance Analyzer API"}
-
-
-@app.get("/rubrics")
-@app.get("/rubrics")
-@app.get("/rubrics")
-async def get_rubrics():
-    """Get available compliance rubrics (root level endpoint for GUI compatibility)"""
-    return {
-        "rubrics": [
-            {
-                "id": "pt_compliance",
-                "name": "PT Compliance Rubric",
-                "discipline": "pt",
-                "description": "Physical Therapy compliance guidelines",
-            },
-            {
-                "id": "ot_compliance",
-                "name": "OT Compliance Rubric",
-                "discipline": "ot",
-                "description": "Occupational Therapy compliance guidelines",
-            },
-            {
-                "id": "slp_compliance",
-                "name": "SLP Compliance Rubric",
-                "discipline": "slp",
-                "description": "Speech-Language Pathology compliance guidelines",
-            },
-        ],
-    }
 
 
 @app.get("/ai/status")

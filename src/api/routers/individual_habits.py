@@ -347,10 +347,7 @@ async def create_progress_snapshot(
             "habit_breakdown": profile["habit_progression"]["habit_breakdown"],
             "total_findings": profile["habit_progression"]["total_findings"],
             "total_analyses": profile["analysis_period"]["total_reports"],
-            "primary_focus_habit": profile["habit_progression"]["top_focus_areas"][0][0]
-            if profile["habit_progression"]["top_focus_areas"]
-            else None,
-            "mastery_score": 100
+            "overall_progress_score": 100
             - (
                 profile["habit_progression"]["total_findings"]
                 / max(profile["analysis_period"]["total_reports"], 1)
@@ -365,8 +362,7 @@ async def create_progress_snapshot(
             "message": "Progress snapshot created successfully",
             "snapshot_id": snapshot.id,
             "snapshot_date": snapshot.snapshot_date.isoformat(),
-            "mastery_score": snapshot.mastery_score,
-            "primary_focus": snapshot.primary_focus_habit,
+            "mastery_score": snapshot.overall_progress_score,
         }
 
     except Exception as e:

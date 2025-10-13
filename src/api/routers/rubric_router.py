@@ -5,7 +5,7 @@ from ...auth import get_current_admin_user
 from ...database import crud, schemas
 from ...database.database import get_async_db as get_db
 
-router = APIRouter(prefix="/rubrics", tags=["rubrics"])
+router = APIRouter(tags=["rubrics"])
 
 
 @router.post("/", response_model=schemas.Rubric)

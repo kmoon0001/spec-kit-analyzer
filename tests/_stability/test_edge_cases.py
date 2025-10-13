@@ -73,7 +73,7 @@ def test_corrupted_file_upload(main_app_window: MainApplicationWindow, qtbot, mo
     # and simulate the open() call failing with a UnicodeDecodeError.
     with (
         patch(
-            "src.gui.main_window.QFileDialog.getOpenFileName",
+            "src.gui.handlers.file_handlers.QFileDialog.getOpenFileName",
             return_value=("/fake/path/corrupted.pdf", "All Files (*.*)"),
         ),
         patch(

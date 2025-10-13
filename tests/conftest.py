@@ -1,11 +1,19 @@
-from __future__ import annotations
-
 import os
 import sys
 from collections.abc import Iterator
 from unittest.mock import patch
 
 import pytest
+import pytest_asyncio
+from sqlalchemy import delete
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+import numpy as np
+from datetime import UTC, datetime, timedelta
+
+from src.core.vector_store import get_vector_store
+from src.database import Base, crud, models
+
 
 try:  # pragma: no cover - environment dependent
     import PySide6  # type: ignore[import-not-found]
@@ -22,6 +30,105 @@ else:  # pragma: no cover - environment dependent
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+
+engine = create_async_engine(TEST_DATABASE_URL)
+TestingSessionLocal = sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False,
+)
+
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def setup_database():
+    """Creates the test database and tables for the test session."""
+    if os.path.exists("test.db"):
+        try:
+            os.remove("test.db")
+        except PermissionError:
+            await engine.dispose()
+            try:
+                os.remove("test.db")
+            except PermissionError as e:
+                pytest.fail(f"Could not remove test.db, it is locked: {e}")
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    await engine.dispose()
+    if os.path.exists("test.db"):
+        try:
+            os.remove("test.db")
+        except PermissionError:
+            pass
+
+@pytest_asyncio.fixture
+async def db_session() -> AsyncSession:
+    """Provides a clean database session for each test."""
+    async with TestingSessionLocal() as session:
+        yield session
+
+@pytest_asyncio.fixture
+async def populated_db(db_session: AsyncSession) -> AsyncSession:
+    """Clears and populates the database with a set of test data."""
+    await db_session.execute(delete(models.AnalysisReport))
+    await db_session.commit()
+
+    reports_data = [
+        models.AnalysisReport(
+            id=1,
+            document_name="report_1.txt",
+            compliance_score=95.0,
+            document_type="Progress Note",
+            analysis_date=datetime.now(UTC) - timedelta(days=5),
+            analysis_result={"discipline": "PT"},
+            document_embedding=np.random.rand(768).astype(np.float32).tobytes(),
+        ),
+        models.AnalysisReport(
+            id=2,
+            document_name="report_2.txt",
+            compliance_score=85.0,
+            document_type="Evaluation",
+            analysis_date=datetime.now(UTC) - timedelta(days=10),
+            analysis_result={"discipline": "PT"},
+            document_embedding=np.random.rand(768).astype(np.float32).tobytes(),
+        ),
+        models.AnalysisReport(
+            id=3,
+            document_name="report_3.txt",
+            compliance_score=75.0,
+            document_type="Progress Note",
+            analysis_date=datetime.now(UTC) - timedelta(days=15),
+            analysis_result={"discipline": "OT"},
+            document_embedding=np.random.rand(768).astype(np.float32).tobytes(),
+        ),
+        models.AnalysisReport(
+            id=4,
+            document_name="report_4.txt",
+            compliance_score=90.0,
+            document_type="Discharge Summary",
+            analysis_date=datetime.now(UTC) - timedelta(days=20),
+            analysis_result={"discipline": "SLP"},
+            document_embedding=np.random.rand(768).astype(np.float32).tobytes(),
+        ),
+    ]
+    db_session.add_all(reports_data)
+    await db_session.commit()
+
+    vector_store = get_vector_store()
+    if not vector_store.is_initialized:
+        vector_store.initialize_index()
+
+    embeddings = np.array(
+        [np.frombuffer(r.document_embedding, dtype=np.float32) for r in reports_data if r.document_embedding]
+    )
+    ids = [r.id for r in reports_data if r.document_embedding]
+    if len(embeddings) > 0:
+        vector_store.add_vectors(embeddings, ids)
+
+    return db_session
 
 def _ensure_qapplication() -> QApplication:
     if (
@@ -71,7 +178,6 @@ def mock_global_services():
     Globally mocks backend services, workers, and dialogs to isolate the GUI
     for testing, preventing real network calls and other side effects.
     """
-    # For now, let's use a minimal mock setup that doesn't interfere with the new structure
     with patch("requests.post") as mock_post:
         mock_post.return_value.ok = True
         mock_post.return_value.json.return_value = {"access_token": "fake-token"}
