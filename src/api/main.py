@@ -50,6 +50,7 @@ from src.api.global_exception_handler import global_exception_handler, http_exce
 from src.config import get_settings
 from src.core.vector_store import get_vector_store
 from src.database import crud, get_async_db
+from src.database import init_db
 from src.logging_config import CorrelationIdMiddleware, configure_logging
 
 settings = get_settings()
@@ -199,6 +200,9 @@ async def lifespan(app: FastAPI):
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         ws_handler.setFormatter(formatter)
         logging.getLogger().addHandler(ws_handler)
+
+    # Ensure database schema is initialized before using any DB-dependent services
+    await init_db()
 
     await api_startup()
     await initialize_vector_store()

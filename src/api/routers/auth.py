@@ -103,6 +103,17 @@ async def login_legacy_endpoint(
     return await _authenticate_user(form_data=form_data, db=db, auth_service=auth_service)
 
 
+@router.get("/dev-token", response_model=schemas.Token)
+async def dev_token() -> dict[str, str]:
+    """Development-only token minting (enabled when use_ai_mocks is true)."""
+    settings = get_settings()
+    if not getattr(settings, "use_ai_mocks", False):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    svc = AuthService()
+    token = svc.create_access_token({"sub": "admin"})
+    return {"access_token": token, "token_type": "bearer"}
+
+
 @router.post("/users/change-password")
 async def change_password(
     password_data: schemas.UserPasswordChange,
