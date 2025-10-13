@@ -301,14 +301,14 @@ class ComplianceAnalyzer:
 
         if self.llm_service:
             # Use shorter prompt for faster processing
-            if len(prompt) > 4000:  # Truncate very long prompts
-                prompt = prompt[:3500] + "\n\n[Document truncated for faster analysis]"
+            if len(prompt) > 2500:  # Truncate very long prompts more aggressively
+                prompt = prompt[:2300] + "\n\n[Document truncated for faster analysis]"
 
             try:
-                # Add timeout to prevent hanging - use a much shorter timeout for testing
+                # Add timeout to prevent hanging - allow more time in production
                 raw_analysis_result = await asyncio.wait_for(
                     asyncio.to_thread(self.llm_service.generate, prompt),
-                    timeout=30.0,  # Reduced to 30 seconds for faster debugging
+                    timeout=90.0,  # Up to 90 seconds for local model generation
                 )
             except TimeoutError:
                 logger.exception("LLM generation timed out after 30 seconds - using fallback analysis")
