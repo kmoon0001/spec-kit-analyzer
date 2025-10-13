@@ -17,10 +17,8 @@
 
 ### Key Files Cleaned:
 - `src/api/routers/ehr_integration.py`
-- `src/api/routers/enterprise_copilot.py`
 - `src/core/advanced_performance_optimizer.py`
 - `src/core/auto_updater.py`
-- `src/core/enterprise_copilot_service.py`
 - `src/core/license_manager.py`
 - `src/core/ml_trend_predictor.py`
 - `src/core/workflow_automation.py`

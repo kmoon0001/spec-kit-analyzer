@@ -66,7 +66,6 @@ For a system of this complexity with 9 enterprise features, E2E testing provides
 
 1. **User Workflow Validation**
    - Complete document analysis pipeline
-   - Enterprise copilot interactions
    - Plugin system functionality
    - Report generation and export
 
@@ -94,7 +93,6 @@ For a system of this complexity with 9 enterprise features, E2E testing provides
 # Priority 1: Core Workflow Tests
 tests/e2e/
 ├── test_document_analysis_workflow.py    # Upload → Analyze → Export
-├── test_enterprise_copilot_workflow.py   # AI assistance scenarios
 ├── test_plugin_system_workflow.py        # Plugin management
 └── test_error_handling_scenarios.py      # Failure recovery
 

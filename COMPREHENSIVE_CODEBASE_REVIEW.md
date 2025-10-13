@@ -49,7 +49,7 @@ I have conducted a systematic line-by-line review of the entire codebase, focusi
 
 #### 3. **API Router Type Mismatches** (Medium Priority)
 - **Issue**: Background task user_id type mismatches (int vs str)
-- **Location**: `src/api/routers/enterprise_copilot.py`, `ehr_integration.py`
+- **Location**: `src/api/routers/ehr_integration.py`
 - **Impact**: API call failures
 - **Solution**: Standardize user_id types across API
 
