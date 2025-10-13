@@ -221,7 +221,7 @@ class GuidelineService:
 			return []
 
 		# Encode query as 2D array shape (1, dim)
-		q = self.model.encode([query], convert_to_numpy=True)
+		q = self.model.encode([query], convert_to_tensor=True)
 		query_array = np.asarray(q, dtype=np.float32)
 
 		if _FAISS_AVAILABLE and self.faiss_index is not None:

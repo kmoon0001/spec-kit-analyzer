@@ -93,6 +93,8 @@ def get_settings():
 class AnalysisService:
     """Orchestrates the document analysis process with a best-practices, two-stage pipeline."""
 
+    use_mocks: bool = False  # default for tests that construct via __new__
+
     def __init__(self, *args, **kwargs):
         settings = _get_settings()
         self._settings = settings
