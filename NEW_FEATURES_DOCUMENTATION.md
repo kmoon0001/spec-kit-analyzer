@@ -179,10 +179,10 @@ GET /plugins/
 GET /plugins/my-plugin
 ```
 
-## 4. Enhanced Microsoft Enterprise Service
+## 4. Enhanced Microsoft Service
 
 ### Overview
-AI-powered enterprise assistance providing natural language query processing, workflow automation, and contextual guidance for healthcare compliance.
+AI-powered assistance providing natural language query processing, workflow automation, and contextual guidance for healthcare compliance.
 
 ### Capabilities
 
@@ -226,9 +226,7 @@ GET /suggestions?context=document_creation&document_type=progress_note
 
 ### Configuration
 ```yaml
-enterprise_service:
-  enabled: true
-  max_query_length: 1000
+service:
   response_timeout_seconds: 30
   confidence_threshold: 0.7
   enable_learning: true
@@ -257,7 +255,7 @@ pdf_export:
 plugins:
   enabled: true
   
-enterprise_service:
+service:
   enabled: true
   
 ehr_integration:
@@ -271,7 +269,7 @@ The new services are automatically initialized when the application starts. Chec
 ```
 INFO: PDF export service initialized
 INFO: Plugin manager initialized
-INFO: Enterprise service initialized
+INFO: service initialized
 INFO: EHR Integration API enabled
 INFO: Plugin Management API enabled
 ```
@@ -293,7 +291,7 @@ INFO: Plugin Management API enabled
 - `POST /plugins/{name}/unload` - Unload plugin
 - `GET /plugins/extension-points` - List extension points
 
-#### Enterprise Service
+#### Service
 - `POST /ask` - Ask natural language questions
 - `POST /automate-workflow` - Create workflow automation
 - `GET /workflows` - List user workflows
