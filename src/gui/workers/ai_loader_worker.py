@@ -32,9 +32,11 @@ class AILoaderWorker(QObject):
         super().__init__()
         self._analysis_service: AnalysisService | None = None
         self._compliance_service: ComplianceService | None = None
+        self._should_stop = False
 
     def run(self) -> None:
         """
+        Run the AI initialization process.
 
         Steps:
         1. Database maintenance and cleanup
@@ -43,34 +45,48 @@ class AILoaderWorker(QObject):
         4. Perform health checks
         5. Emit completion signal
         """
+        if self._should_stop:
+            return
+            
         try:
             # Fast path: if mocks enabled, avoid heavy initialization entirely
             settings = get_settings()
             if bool(getattr(settings, "use_ai_mocks", False)):
-                self.status_updated.emit("AI Systems: Online (mock mode)")
-                self.progress_updated.emit(100)
-                health_map = {
-                    "llm_service": {"status": "Healthy"},
-                    "ner_service": {"status": "Healthy"},
-                    "transformer_models": {"status": "Healthy"},
-                    "vector_database": {"status": "Healthy"},
-                }
-                self.finished.emit(self._compliance_service, True, "AI Systems: Online", health_map)
+                if not self._should_stop:
+                    self.status_updated.emit("AI Systems: Online (mock mode)")
+                    self.progress_updated.emit(100)
+                    health_map = {
+                        "llm_service": {"status": "Healthy"},
+                        "ner_service": {"status": "Healthy"},
+                        "transformer_models": {"status": "Healthy"},
+                        "vector_database": {"status": "Healthy"},
+                    }
+                    self.finished.emit(self._compliance_service, True, "AI Systems: Online", health_map)
                 return
 
-            self._run_database_maintenance()
-            self._initialize_retrieval_system()
-            self._load_ai_services()
-            health_map = self._perform_health_checks()
+            if not self._should_stop:
+                self._run_database_maintenance()
+            if not self._should_stop:
+                self._initialize_retrieval_system()
+            if not self._should_stop:
+                self._load_ai_services()
+            if not self._should_stop:
+                health_map = self._perform_health_checks()
 
-            self.status_updated.emit("AI Systems: Online")
-            self.progress_updated.emit(100)
-            self.finished.emit(self._compliance_service, True, "AI Systems: Online", health_map)
+            if not self._should_stop:
+                self.status_updated.emit("AI Systems: Online")
+                self.progress_updated.emit(100)
+                self.finished.emit(self._compliance_service, True, "AI Systems: Online", health_map)
 
         except (ImportError, AttributeError, RuntimeError) as e:
             logger.error("AI loader worker failed: %s", str(e), exc_info=True)
-            self.status_updated.emit(f"AI Systems: Offline - {e}")
-            self.finished.emit(None, False, f"AI Systems: Offline - {e}", {})
+            if not self._should_stop:
+                self.status_updated.emit(f"AI Systems: Offline - {e}")
+                self.finished.emit(None, False, f"AI Systems: Offline - {e}", {})
+
+    def stop(self) -> None:
+        """Stop the worker gracefully."""
+        self._should_stop = True
 
     def _run_database_maintenance(self) -> None:
         """Run database cleanup and maintenance tasks."""

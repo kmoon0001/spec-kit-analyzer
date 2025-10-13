@@ -31,6 +31,7 @@ import sqlalchemy.exc
 from src.core.confidence_calibrator import ConfidenceCalibrator
 from src.core.explanation import ExplanationEngine
 from src.core.fact_checker_service import FactCheckerService
+from src.core.rag_fact_checker import RAGFactChecker
 from src.core.hybrid_retriever import HybridRetriever
 from src.core.llm_service import LLMService
 from src.core.ner import ClinicalNERService
@@ -52,6 +53,7 @@ class ComplianceAnalyzer:
         explanation_engine: ExplanationEngine | None = None,
         prompt_manager: PromptManager | None = None,
         fact_checker_service: FactCheckerService | None = None,
+        rag_fact_checker: RAGFactChecker | None = None,
         nlg_service: NLGService | None = None,
         deterministic_focus: str | None = None,
         ner_analyzer: ClinicalNERService | None = None,
@@ -66,6 +68,7 @@ class ComplianceAnalyzer:
             explanation_engine: An instance of ExplanationEngine for adding explanations.
             prompt_manager: An instance of PromptManager for generating prompts.
             fact_checker_service: An instance of FactCheckerService for verifying findings.
+            rag_fact_checker: An instance of RAGFactChecker for RAG-based fact-checking.
             nlg_service: An optional instance of NLGService for generating tips.
             deterministic_focus: Optional string for deterministic focus areas.
             confidence_calibrator: Optional ConfidenceCalibrator for improving confidence scores.
@@ -80,6 +83,7 @@ class ComplianceAnalyzer:
         self.explanation_engine = explanation_engine
         self.prompt_manager = prompt_manager
         self.fact_checker_service = fact_checker_service
+        self.rag_fact_checker = rag_fact_checker or RAGFactChecker(retriever)
         self.nlg_service = nlg_service
         self.confidence_calibrator = confidence_calibrator
         default_focus = "\n".join(
@@ -420,12 +424,33 @@ class ComplianceAnalyzer:
             rule_id = finding.get("rule_id")
             associated_rule = next((r for r in retrieved_rules if r.get("id") == rule_id), None)
 
-            if (
-                associated_rule
-                and self.fact_checker_service
-                and not self.fact_checker_service.is_finding_plausible(finding, associated_rule)
-            ):
-                finding["is_disputed"] = True
+            # RAG-based fact-checking (preferred) or traditional fact-checking
+            if associated_rule:
+                is_plausible = True
+                
+                # Try RAG-based fact-checking first
+                if self.rag_fact_checker and self.rag_fact_checker.is_ready():
+                    try:
+                        # Check if deep fact-checking is enabled in settings
+                        from src.config import get_settings
+                        settings = get_settings()
+                        deep_check = getattr(settings.performance, 'enable_deep_fact_checking', False)
+                        
+                        is_plausible = await self.rag_fact_checker.check_finding_plausibility(
+                            finding, associated_rule, deep_check=deep_check
+                        )
+                    except Exception as e:
+                        logger.warning(f"RAG fact-checking failed: {e}, falling back to traditional")
+                        # Fall back to traditional fact-checking
+                        if self.fact_checker_service:
+                            is_plausible = self.fact_checker_service.is_finding_plausible(finding, associated_rule)
+                
+                # Fall back to traditional fact-checking if RAG is not available
+                elif self.fact_checker_service:
+                    is_plausible = self.fact_checker_service.is_finding_plausible(finding, associated_rule)
+                
+                if not is_plausible:
+                    finding["is_disputed"] = True
 
             # Confidence threshold check (may have been updated by calibration)
             confidence = finding.get("confidence", 1.0)

@@ -315,9 +315,9 @@ class MainViewModel(QObject):
         )
 
     def stop_all_workers(self) -> None:
-        """Stop all worker threads quickly - don't wait too long."""
+        """Stop all worker threads gracefully with proper cleanup."""
         logger.debug("Stopping %d worker threads", len(self._active_threads))
-        wait_timeout_ms = 50
+        wait_timeout_ms = 2000  # Increased timeout for graceful shutdown
 
         for i, thread in enumerate(list(self._active_threads)):
             logger.debug(
@@ -339,6 +339,8 @@ class MainViewModel(QObject):
                     if not thread.wait(wait_timeout_ms):
                         logger.warning("Thread %s did not quit within %d ms, terminating", hex(id(thread)), wait_timeout_ms)
                         thread.terminate()
+                        # Wait a bit more after termination
+                        thread.wait(500)
 
             except (RuntimeError, AttributeError) as e:
                 logger.warning("Error during thread %s shutdown (RuntimeError/AttributeError): %s", hex(id(thread)), e)

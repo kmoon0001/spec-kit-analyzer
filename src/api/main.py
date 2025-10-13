@@ -188,6 +188,57 @@ async def initialize_vector_store():
         await db.close()
 
 
+async def auto_warm_ai_models():
+    """Auto-warm AI models with tiny prompts to reduce first-use latency."""
+    logger.info("Starting AI model auto-warming...")
+    
+    try:
+        # Import AI services
+        from src.core.analysis_service import AnalysisService
+        from src.core.hybrid_retriever import HybridRetriever
+        
+        # Initialize retriever
+        retriever = HybridRetriever()
+        await retriever.initialize()
+        
+        # Initialize analysis service
+        analysis_service = AnalysisService(retriever=retriever)
+        
+        # Tiny warm-up prompts
+        warm_prompts = [
+            "Test",
+            "Hello",
+            "Sample note",
+            "Patient visit",
+            "Assessment"
+        ]
+        
+        # Staggered warming with delays
+        for i, prompt in enumerate(warm_prompts):
+            try:
+                logger.info(f"Auto-warming AI models with prompt {i+1}/{len(warm_prompts)}: '{prompt}'")
+                
+                # Warm up document classifier
+                await analysis_service.classify_document_type(prompt)
+                
+                # Warm up NER (if not skipped)
+                if not settings.performance.skip_advanced_ner:
+                    await analysis_service.extract_entities(prompt)
+                
+                # Small delay between warm-ups
+                await asyncio.sleep(0.5)
+                
+            except Exception as e:
+                logger.warning(f"Auto-warm failed for prompt '{prompt}': {e}")
+                continue
+        
+        logger.info("AI model auto-warming completed successfully")
+        
+    except Exception as e:
+        logger.warning(f"Auto-warm initialization failed: {e}")
+        # Don't fail startup if auto-warm fails
+
+
 # --- Application Lifespan --- #
 
 
@@ -207,6 +258,9 @@ async def lifespan(app: FastAPI):
 
     await api_startup()
     await initialize_vector_store()
+    
+    # Auto-warm AI models in background to reduce first-use latency
+    asyncio.create_task(auto_warm_ai_models())
 
     run_maintenance_jobs()
     scheduler.add_job(run_maintenance_jobs, "interval", days=1)

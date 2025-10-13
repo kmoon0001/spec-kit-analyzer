@@ -18,6 +18,7 @@ llm:
   context_length: 1024
   gpu_layers: 0
   threads: 6
+  hf_model_type: mistral
   generation_params:
     max_new_tokens: 64
     repeat_penalty: 1.1
@@ -121,11 +122,15 @@ performance:
   model_quantization: true
   optimized_chunking: true
   overlap_size: 200
+  skip_advanced_ner: true
+  skip_fact_checking: true
+  enable_deep_fact_checking: false
+  rag_fact_checking:
+    similarity_threshold: 0.7
+    rerank_threshold: 0.8
   parallel_processing: true
   reduce_context_window: true
   simple_report_mode: true
-  skip_advanced_ner: true
-  skip_fact_checking: true
   smart_caching: true
 retrieval:
   batch_size: 16

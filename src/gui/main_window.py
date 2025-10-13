@@ -780,7 +780,7 @@ class MainApplicationWindow(QMainWindow):
             self.progress_bar.setValue(0)
 
     def closeEvent(self, event) -> None:
-        """Handle application close - exit quickly."""
+        """Handle application close - exit gracefully with proper cleanup."""
         logger.debug("Application closing - cleaning up resources")
 
         try:
@@ -789,7 +789,7 @@ class MainApplicationWindow(QMainWindow):
             pass
 
         try:
-            # Stop workers with a timeout to prevent hanging
+            # Stop workers with a longer timeout to prevent hanging
             self.view_model.stop_all_workers()
         except Exception as e:
             logger.warning("Error stopping workers during shutdown: %s", e)
@@ -800,7 +800,7 @@ class MainApplicationWindow(QMainWindow):
         # Use QTimer to delay quit slightly to allow cleanup
         from PySide6.QtCore import QTimer
 
-        QTimer.singleShot(100, QApplication.quit)
+        QTimer.singleShot(200, QApplication.quit)  # Increased delay for cleanup
 
     def keyPressEvent(self, event) -> None:
         """Handle key press events for Konami code and other shortcuts."""
