@@ -20,6 +20,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.dependencies import shutdown_event as api_shutdown
 from src.api.dependencies import startup_event as api_startup
@@ -228,6 +229,15 @@ app = FastAPI(
     description="...",
     version="1.0.0",
     lifespan=lifespan,
+)
+
+# CORS: allow localhost only (development)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://127.0.0.1", "http://localhost"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
 )
 
 app.add_middleware(CorrelationIdMiddleware)

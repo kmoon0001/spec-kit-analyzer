@@ -248,3 +248,42 @@ The Therapy Compliance Analyzer is ready to help you improve clinical documentat
 ---
 
 *For technical support or questions, refer to the documentation in `.kiro/steering/` or use the integrated AI assistant.*
+
+## Core Module Overview
+
+The `src/core` package contains the application’s analysis and ML services:
+- Analysis pipeline (`analysis_service.py`): orchestrates ingestion → analysis → reporting with progress callbacks.
+- Compliance analyzer (`compliance_analyzer.py`): rule/rubric evaluation and result shaping.
+- Retrieval & embeddings (`hybrid_retriever.py`, `vector_store.py`): BM25 + dense retrieval, FAISS-backed vector index with graceful fallbacks.
+- Guideline/rubric utilities (`guideline_service.py`, `rubric_loader.py`).
+- NER and NLP (`ner.py`, Presidio integration) and model selection helpers.
+- LLM integration (`llm_service.py`, `report_generator.py`, `pdf_export_service.py`).
+- Performance integration (`performance_integration.py`) and utilities.
+
+## Secrets and Startup (Best Practice)
+
+1) Generate a strong SECRET_KEY and set it in the environment:
+```powershell
+# Generate a secure key
+python scripts\generate_secret_key.py
+# Set it for the current session
+$env:SECRET_KEY = '<paste-generated-key>'
+```
+
+2) Start the API cleanly (frees port 8001, activates venv, sets env vars):
+```powershell
+./scripts/start_api_clean.ps1 -ApiHost '127.0.0.1' -ApiPort 8001 -LogLevel 'INFO'
+```
+
+3) Quick end-to-end smoke (token → rubrics → upload → status):
+```powershell
+python temp\dev_api_smoke.py
+```
+
+Notes:
+- CORS is restricted to localhost by default.
+- Mocks are disabled in `config.yaml` (`use_ai_mocks: false`). Enable via `USE_AI_MOCKS=1` if needed for fast demos.
+
+## CI
+
+A GitHub Actions workflow (`.github/workflows/ci.yml`) runs tests on push/PR with a test secret and mocks enabled for reliability.
