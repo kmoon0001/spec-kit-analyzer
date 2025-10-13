@@ -92,7 +92,6 @@ class SystemValidator:
             ("pdf_export_service", "src.core.pdf_export_service"),
             ("performance_monitor", "src.core.performance_monitor"),
             ("enhanced_error_handler", "src.core.enhanced_error_handler"),
-            ("enterprise_copilot_service", "src.core.enterprise_copilot_service"),
         ]
 
         for service_name, module_path in services_to_test:

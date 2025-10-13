@@ -188,17 +188,6 @@ class PluginSettings(BaseModel):
     max_plugins: int = 50
 
 
-class EnterpriseCopilotSettings(BaseModel):
-    """Enterprise Copilot configuration settings."""
-
-    enabled: bool = True
-    max_query_length: int = 1000
-    response_timeout_seconds: int = 30
-    confidence_threshold: float = 0.7
-    enable_learning: bool = True
-    max_history_entries: int = 1000
-
-
 class EHRIntegrationSettings(BaseModel):
     """EHR integration configuration settings."""
 
@@ -228,7 +217,6 @@ class Settings(BaseSettings):
     habits_framework: HabitsFrameworkSettings = HabitsFrameworkSettings()
     pdf_export: PDFExportSettings = PDFExportSettings()
     plugins: PluginSettings = PluginSettings()
-    enterprise_copilot: EnterpriseCopilotSettings = EnterpriseCopilotSettings()
     ehr_integration: EHRIntegrationSettings = EHRIntegrationSettings()
     performance: dict[str, Any] = {}
     logging: dict[str, Any] = {}

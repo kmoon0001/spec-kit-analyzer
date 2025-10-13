@@ -62,12 +62,6 @@ def main():
     if test_component("Plugin System", lambda: __import__("src.core.plugin_system", fromlist=["plugin_manager"])):
         tests_passed += 1
 
-    tests_total += 1
-    if test_component(
-        "Enterprise Copilot Service",
-        lambda: __import__("src.core.enterprise_copilot_service", fromlist=["enterprise_copilot_service"]),
-    ):
-        tests_passed += 1
 
     tests_total += 1
     if test_component(
@@ -89,12 +83,6 @@ def main():
         tests_passed += 1
 
     # Test 2: API Routers
-    tests_total += 1
-    if test_component(
-        "Enterprise Copilot API", lambda: __import__("src.api.routers.enterprise_copilot", fromlist=["router"])
-    ):
-        tests_passed += 1
-
     tests_total += 1
     if test_component("Plugins API", lambda: __import__("src.api.routers.plugins", fromlist=["router"])):
         tests_passed += 1

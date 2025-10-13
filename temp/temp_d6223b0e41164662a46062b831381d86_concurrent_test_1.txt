@@ -1,0 +1,10 @@
+
+                PROGRESS NOTE 1
+                Patient: Test Patient 1
+                Date: 2024-01-15
+
+                SUBJECTIVE: Patient 1 reports status
+                OBJECTIVE: Measurements for patient 1
+                ASSESSMENT: Assessment for patient 1
+                PLAN: Plan for patient 1
+            
