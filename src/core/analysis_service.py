@@ -1,5 +1,7 @@
 import asyncio
+import datetime
 import hashlib
+import json
 import logging
 import uuid
 from collections.abc import Callable
@@ -38,6 +40,51 @@ class AnalysisOutput(dict):
     """Dictionary wrapper for consistent analysis output."""
 
 
+
+class _MockLLMService:
+    """Lightweight mock implementation used when USE_AI_MOCKS is enabled."""
+
+    backend = "mock"
+
+    def is_ready(self) -> bool:
+        return True
+
+    def generate(self, prompt: str, **kwargs: Any) -> str:
+        return (
+            "Mock analysis response generated for testing purposes. "
+            "No real language model invocation occurred."
+        )
+
+    def generate_analysis(self, prompt: str, **kwargs: Any) -> str:
+        return self.generate(prompt, **kwargs)
+
+    def parse_json_output(self, raw: str | bytes) -> dict[str, Any]:
+        try:
+            if isinstance(raw, bytes):
+                raw = raw.decode("utf-8", errors="ignore")
+            return json.loads(raw)
+        except Exception:
+            return {"text": raw}
+
+
+class _MockRetriever:
+    async def retrieve(
+        self,
+        query: str,
+        top_k: int = 5,
+        **_: Any,
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "id": "mock-rule-1",
+                "name": "Comprehensive Documentation",
+                "content": "Include subjective, objective, assessment, and plan sections.",
+                "category": "Default",
+                "relevance_score": 0.95,
+            }
+        ]
+
+
 def get_settings():
     """Legacy helper retained for tests that patch this symbol."""
     return _get_settings()
@@ -48,11 +95,30 @@ class AnalysisService:
 
     def __init__(self, *args, **kwargs):
         settings = _get_settings()
+        self._settings = settings
+        self.use_mocks = bool(getattr(settings, "use_ai_mocks", False))
+
+        # Services used across both mocked and full pipelines
+        self.checklist_service = kwargs.get("checklist_service") or ChecklistService()
+        self.phi_scrubber = kwargs.get("phi_scrubber") or PhiScrubberService()
+        self.preprocessing = kwargs.get("preprocessing") or PreprocessingService()
+
+        if self.use_mocks:
+            # Lightweight substitutes to avoid heavyweight model loading during tests/CI runs.
+            self.llm_service = kwargs.get("llm_service") or _MockLLMService()
+            self.retriever = kwargs.get("retriever") or _MockRetriever()
+            self.clinical_ner_service = kwargs.get("clinical_ner_service")
+            self.document_classifier = kwargs.get("document_classifier")
+            self.prompt_manager = kwargs.get("prompt_manager") or None
+            self.explanation_engine = kwargs.get("explanation_engine") or None
+            self.fact_checker_service = kwargs.get("fact_checker_service") or None
+            self.nlg_service = kwargs.get("nlg_service") or None
+            self.compliance_analyzer = kwargs.get("compliance_analyzer") or None
+            self.report_generator = kwargs.get("report_generator") or None
+            return
+
         repo_id, filename, revision = select_generator_profile(settings.models.model_dump())
         local_model_path = resolve_local_model_path(settings)
-
-        # Stage 1 Service: Pure PHI Redaction
-        self.phi_scrubber = kwargs.get("phi_scrubber") or PhiScrubberService()
 
         # Stage 2 Services: Clinical Analysis on Anonymized Text
         self.llm_service = kwargs.get("llm_service") or LLMService(
@@ -85,12 +151,10 @@ class AnalysisService:
             nlg_service=self.nlg_service,
             deterministic_focus=settings.analysis.deterministic_focus,
         )
-        self.preprocessing = kwargs.get("preprocessing") or PreprocessingService()
         self.document_classifier = kwargs.get("document_classifier") or DocumentClassifier(
             llm_service=self.llm_service, prompt_template_path=settings.models.doc_classifier_prompt
         )
         self.report_generator = kwargs.get("report_generator") or ReportGenerator()
-        self.checklist_service = kwargs.get("checklist_service") or ChecklistService()
 
     async def _maybe_await(self, obj):
         if asyncio.iscoroutine(obj):
@@ -132,9 +196,12 @@ class AnalysisService:
                 raise ValueError("Either file_content or document_text must be provided")
 
             cache_key = self._get_analysis_cache_key(content_hash, discipline, analysis_mode)
-            cached_result = cache_service.get_from_disk(cache_key)
+            cached_result = None
+            if not self.use_mocks:
+                cached_result = cache_service.get_from_disk(cache_key)
             if cached_result is not None:
                 logger.info("Full analysis cache hit for key: %s", cache_key)
+                _update_progress(50, "Reusing cached analysis results...")
                 _update_progress(100, "Analysis completed from cache.")
                 return AnalysisOutput(cached_result)
 
@@ -153,6 +220,16 @@ class AnalysisService:
 
             if not text_to_process:
                 raise ValueError("Could not extract any text from the provided document.")
+
+
+            if self.use_mocks:
+                return await self._run_mock_pipeline(
+                    text_to_process=text_to_process,
+                    discipline=discipline,
+                    analysis_mode=analysis_mode,
+                    original_filename=original_filename,
+                    update_progress=_update_progress,
+                )
 
             # --- Start of Optimized Two-Stage Pipeline ---
 
@@ -236,11 +313,127 @@ class AnalysisService:
                     "error": f"Report generation failed: {e!s}",
                 }
 
-            cache_service.set_to_disk(cache_key, final_report)
+            if not self.use_mocks:
+                cache_service.set_to_disk(cache_key, final_report)
             _update_progress(100, "Analysis complete.")
             return AnalysisOutput(final_report)
 
         finally:
             if temp_file_path and temp_file_path.exists():
                 temp_file_path.unlink()
-                logger.info("Cleaned up temporary file: %s", temp_file_path)
+
+            logger.info("Cleaned up temporary file: %s", temp_file_path)
+
+
+    async def _run_mock_pipeline(
+        self,
+        *,
+        text_to_process: str,
+        discipline: str,
+        analysis_mode: str | None,
+        original_filename: str | None,
+        update_progress: Callable[[int, str], None],
+    ) -> AnalysisOutput:
+        """Fast-path analysis used when USE_AI_MOCKS is enabled."""
+    
+        update_progress(10, "Preprocessing document text...")
+        await asyncio.sleep(0.2)
+        sanitized_text = sanitize_human_text(text_to_process) or "Clinical document"
+        doc_length = len(sanitized_text)
+        doc_hash = hashlib.sha1(sanitized_text.encode("utf-8")).hexdigest()
+    
+        update_progress(30, "Performing PHI redaction (mock)...")
+        await asyncio.sleep(0.2)
+        discipline_clean = sanitize_human_text(discipline or "unknown").upper()
+        doc_type = "Progress Note" if doc_length < 4000 else "Evaluation"
+    
+        update_progress(60, "Generating compliance findings (mock)...")
+        await asyncio.sleep(0.2)
+        base_score = 88 + (int(doc_hash[:2], 16) % 7)
+        compliance_score = max(70, min(99, base_score))
+    
+        findings = [
+            {
+                "id": "mock-finding-1",
+                "title": "Goal documentation needs clarity",
+                "issue_title": "Document could benefit from clearer measurable goals",
+                "description": "Consider adding objective measurements to support progress reporting.",
+                "severity": "medium",
+                "confidence": 0.82,
+                "suggestion": "Add quantifiable functional goals tied to patient outcomes.",
+                "rule_name": "Goal Specificity",
+                "rule_id": "mock-rule-1",
+            }
+        ]
+    
+        deterministic_checks = [
+            {
+                "id": "deterministic-soap",
+                "title": "SOAP structure present",
+                "status": "pass",
+                "recommendation": "Ensure each section is updated for every visit.",
+            },
+            {
+                "id": "deterministic-plan",
+                "title": "Plan of Care references goals",
+                "status": "attention",
+                "recommendation": "Tie interventions directly to functional goals.",
+            },
+        ]
+    
+        summary = (
+            "Automated compliance mock analysis completed successfully. "
+            "One improvement opportunity identified for measurable goals."
+        )
+    
+        highlights = [
+            "Maintain detailed objective measures to support progress.",
+            "Ensure plan of care references functional goals explicitly.",
+        ]
+    
+        generated_at = datetime.datetime.now(datetime.UTC).isoformat()
+    
+        analysis_payload = {
+            "status": "completed",
+            "discipline": discipline_clean,
+            "document_type": doc_type,
+            "summary": summary,
+            "narrative_summary": summary,
+            "bullet_highlights": highlights,
+            "overall_confidence": 0.9,
+            "compliance_score": float(compliance_score),
+            "findings": findings,
+            "deterministic_checks": deterministic_checks,
+            "metadata": {
+                "analysis_mode": analysis_mode or "mock",
+                "document_name": original_filename or "uploaded_document",
+                "stage_flags": {
+                    "ingestion": True,
+                    "analysis": True,
+                    "enrichment": True,
+                },
+            },
+        }
+    
+        report_html = (
+            "<h1>Mock Compliance Report</h1>"
+            f"<p>Discipline: {discipline_clean}</p>"
+            f"<p>Document Type: {doc_type}</p>"
+            f"<p>Overall Score: {compliance_score}</p>"
+            f"<p>{summary}</p>"
+        )
+    
+        update_progress(90, "Synthesizing final report (mock)...")
+        await asyncio.sleep(0.2)
+    
+        payload = AnalysisOutput(
+            {
+                "analysis": analysis_payload,
+                "report_html": report_html,
+                "generated_at": generated_at,
+            }
+        )
+    
+        update_progress(100, "Analysis complete (mock).")
+        return payload
+

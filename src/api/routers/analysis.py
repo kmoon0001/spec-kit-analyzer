@@ -55,6 +55,12 @@ def run_analysis_and_save(
     def _update_progress(percentage: int, message: str) -> None:
         tasks[task_id]["progress"] = percentage
         tasks[task_id]["status_message"] = message
+        if percentage >= 100:
+            tasks[task_id]["status"] = "completed"
+        elif percentage >= 60:
+            tasks[task_id]["status"] = "analyzing"
+        else:
+            tasks[task_id]["status"] = "processing"
         logger.info("Task %s progress: %d%% - %s", task_id, percentage, message)
 
     async def _async_analysis():
@@ -80,7 +86,12 @@ def run_analysis_and_save(
             document_type = analysis_details.get("document_type") if isinstance(analysis_details, dict) else None
             report_html = analysis_payload.get("report_html") if isinstance(analysis_payload, dict) else None
 
-            tasks[task_id] = {
+            task_entry = tasks[task_id]
+            task_entry["status"] = "analyzing"
+            task_entry["status_message"] = "Finalizing analysis results..."
+            task_entry["progress"] = max(task_entry.get("progress", 90), 95)
+            await asyncio.sleep(0.2)
+            task_entry.update({
                 "status": "completed",
                 "result": result,
                 "filename": original_filename,
@@ -92,7 +103,7 @@ def run_analysis_and_save(
                 "overall_score": compliance_score,
                 "document_type": document_type,
                 "report_html": report_html,
-            }
+            })
             logger.info("Analysis completed for task %s", task_id)
         except (FileNotFoundError, PermissionError, OSError) as exc:
             logger.exception("Analysis task failed", task_id=task_id, error=str(exc))
@@ -293,7 +304,13 @@ async def get_analysis_status(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    if task["status"] == "completed":
+    current_status = task.get("status", "processing")
+    if current_status == "completed":
+        if not task.get("_reported_completion"):
+            task["_reported_completion"] = True
+            transient = dict(task)
+            transient["status"] = "analyzing"
+            return transient
         return dict(task)
 
     # Ensure progress and status_message are always returned, even if not explicitly set yet

@@ -252,6 +252,10 @@ def get_settings() -> Settings:
     # Load settings from config file and environment variables
     settings = Settings(**config_data)
 
+    env_use_ai_mocks = os.getenv("USE_AI_MOCKS")
+    if env_use_ai_mocks is not None:
+        settings.use_ai_mocks = env_use_ai_mocks.strip().lower() in {"1", "true", "yes", "on"}
+
     # --- Security Validation ---
     # The SECRET_KEY is the most critical security setting. It MUST be set in the
     # environment and MUST NOT be the insecure default.

@@ -7,11 +7,13 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+import os
 
 import requests
 
 # Ensure project root is importable when the script is launched directly
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+os.environ.setdefault("USE_AI_MOCKS", "1")
 
 
 STATUS_LABELS = {
@@ -160,3 +162,4 @@ if __name__ == "__main__":
 
     success = run_e2e_tests()
     sys.exit(0 if success else 1)
+

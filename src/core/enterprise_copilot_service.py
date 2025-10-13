@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Any
 
 import sqlalchemy
+from src.config import get_settings
 import sqlalchemy.exc
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,8 @@ class EnterpriseCopilotService:
 
     def __init__(self):
         """Initialize the Enterprise Copilot service."""
+        settings = get_settings()
+        self.use_mocks = bool(getattr(settings, "use_ai_mocks", False))
         self.knowledge_base = self._initialize_knowledge_base()
         self.query_history = {}
         self.feedback_data = []
@@ -71,6 +74,27 @@ class EnterpriseCopilotService:
 
             # Analyze the query to determine intent and extract key information
             query_analysis = await self._analyze_query(query, context, department)
+
+            if self.use_mocks:
+                mock_response = self._build_mock_response(query, context, query_analysis, department)
+                processing_time = (datetime.now() - start_time).total_seconds() * 1000
+                mock_response.update({
+                    "processing_time_ms": processing_time,
+                    "query_id": query_id,
+                    "intent": query_analysis.get("intent", "general"),
+                })
+                self.query_history[query_id] = {
+                    "query": query,
+                    "context": context,
+                    "user_id": user_id,
+                    "department": department,
+                    "priority": priority,
+                    "response": mock_response,
+                    "timestamp": start_time.isoformat(),
+                    "processing_time_ms": processing_time,
+                }
+                logger.info("Copilot mock response generated in %sms", processing_time)
+                return mock_response
 
             # Generate response based on query type
             if query_analysis["intent"] == "compliance_question":
@@ -126,6 +150,49 @@ class EnterpriseCopilotService:
                 "query_id": str(uuid.uuid4()),
                 "error": str(e),
             }
+
+    def _build_mock_response(
+        self, query: str, context: dict[str, Any] | None, query_analysis: dict[str, Any], department: str | None
+    ) -> dict[str, Any]:
+        discipline = ""
+        if isinstance(context, dict):
+            discipline = str(context.get("discipline", ""))
+        if not discipline and department:
+            discipline = str(department)
+        discipline_key = discipline.lower()
+        discipline_names = {"pt": "physical therapy", "ot": "occupational therapy", "slp": "speech-language pathology"}
+        keywords = {
+            "pt": ["physical", "therapy", "movement", "exercise"],
+            "ot": ["occupational", "therapy", "daily living", "activities"],
+            "slp": ["speech", "language", "communication", "swallowing"],
+        }
+        selected_keywords = keywords.get(discipline_key, ["compliance", "documentation"])
+        discipline_label = discipline_names.get(discipline_key, "clinical")
+        answer = (
+            f"For {discipline_label} documentation, focus on {selected_keywords[0]} requirements and "
+            f"align your notes with current {selected_keywords[1]} standards. Include measurable outcomes, "
+            f"reference medical necessity, and ensure your plan of care reflects {selected_keywords[-1]} objectives."
+        )
+        suggested_actions = [
+            f"Review the latest {discipline_label} documentation guidelines",
+            "Document measurable goals tied to patient function",
+            "Add clear evidence supporting medical necessity",
+        ]
+        follow_ups = [
+            f"Do you need examples of strong {discipline_label} goals?",
+            "Would you like tips on linking outcomes to reimbursement?",
+        ]
+        sources = [
+            f"{discipline_label.title()} Compliance Handbook",
+            "Medicare Documentation Standards",
+        ]
+        return {
+            "answer": answer,
+            "confidence": 0.85,
+            "sources": sources,
+            "suggested_actions": suggested_actions,
+            "follow_up_questions": follow_ups,
+        }
 
     async def get_contextual_suggestions(
         self, context: str | None = None, document_type: str | None = None, user_id: int = None

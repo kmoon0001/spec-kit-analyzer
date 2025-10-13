@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from requests.exceptions import HTTPError
 
 from src.auth import get_current_user
+from ...config import get_settings
 from src.core.enterprise_copilot_service import enterprise_copilot_service
 from src.core.performance_monitor import performance_monitor
 from src.database.models import User
@@ -46,6 +47,13 @@ async def ask_copilot(query: CopilotQuery, current_user: User = Depends(get_curr
     The copilot can help with compliance questions, workflow automation,
     data analysis, and general healthcare documentation guidance.
     """
+    if not query.query or not query.query.strip():
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Query cannot be empty.")
+    if query.priority.lower() not in {"low", "normal", "high"}:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid priority value.")
+    if query.context is not None and not isinstance(query.context, dict):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Context must be an object.")
+
     try:
         logger.info("Copilot query from %s: {query.query[:100]}...", current_user.username)
 
@@ -237,6 +245,19 @@ async def get_help_topics() -> dict[str, Any]:
 @router.get("/status")
 async def get_copilot_status() -> dict[str, Any]:
     """Get Enterprise Copilot system status."""
+    settings = get_settings()
+    if getattr(settings, "use_ai_mocks", False):
+        return {
+            "status": "operational",
+            "version": "1.0.0",
+            "uptime": "mock",
+            "active_sessions": 0,
+            "total_queries_today": 0,
+            "average_response_time_ms": 5,
+            "capabilities_enabled": True,
+            "last_updated": datetime.now().isoformat(),
+        }
+
     try:
         status_info = await enterprise_copilot_service.get_system_status()
 
