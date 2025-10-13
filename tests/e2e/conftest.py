@@ -39,7 +39,7 @@ def test_settings():
 
 
 @pytest.fixture(scope="session")
-def test_client(test_settings) -> Generator[TestClient, None, None]:
+def test_client(test_settings, test_db) -> Generator[TestClient, None, None]:
     """Create a test client for the FastAPI application."""
     with TestClient(app) as client:
         yield client
@@ -48,11 +48,32 @@ def test_client(test_settings) -> Generator[TestClient, None, None]:
 @pytest.fixture(scope="session")
 async def test_db(test_settings):
     """Create a test database for E2E testing."""
-    from src.database.database import Base, engine
+    from sqlalchemy.exc import IntegrityError
+
+    from src.database import crud, schemas
+    from src.database.database import AsyncSessionLocal, Base, engine
 
     # Create all tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Seed default rubrics so end-to-end workflows have options
+    async with AsyncSessionLocal() as session:
+        default_rubrics = [
+            schemas.RubricCreate(
+                name="PT Compliance Test Rubric",
+                discipline="PT",
+                category="Default",
+                regulation="Standard PT compliance rubric",
+                common_pitfalls="Missing subjective/objective data",
+                best_practice="Document all SOAP sections",
+            ),
+        ]
+        for rubric in default_rubrics:
+            try:
+                await crud.create_rubric(session, rubric)
+            except IntegrityError:
+                await session.rollback()
 
     yield
 

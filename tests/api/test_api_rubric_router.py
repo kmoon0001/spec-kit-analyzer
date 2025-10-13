@@ -1,22 +1,26 @@
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.database import crud, schemas
+
 from src.auth import AuthService
+from src.database import crud, schemas
+
+
+async def _create_and_login_user(client: AsyncClient, db_session: AsyncSession, *, username: str, is_admin: bool) -> str:
+    user_data = schemas.UserCreate(username=username, password="password", is_admin=is_admin)
+    hashed_password = AuthService().get_password_hash(user_data.password)
+    await crud.create_user(db_session, user_data, hashed_password)
+    login_data = {"username": user_data.username, "password": "password"}
+    response = await client.post("/auth/login", data=login_data)
+    assert response.status_code == 200
+    return response.json()["access_token"]
+
 
 @pytest.mark.asyncio
 async def test_create_rubric(client: AsyncClient, db_session: AsyncSession):
-    # Create an admin user and log in
-    admin_user_create = schemas.UserCreate(username="admin_rubric", password="password", is_admin=True)
-    hashed_password = AuthService().get_password_hash(admin_user_create.password)
-    admin_user = await crud.create_user(db_session, admin_user_create, hashed_password)
-    login_data = {"username": admin_user.username, "password": "password"}
-    response = await client.post("/auth/login", data=login_data)
-    assert response.status_code == 200
-    token = response.json()["access_token"]
-
-    # Create a rubric
+    token = await _create_and_login_user(client, db_session, username="admin_rubric", is_admin=True)
     headers = {"Authorization": f"Bearer {token}"}
+
     rubric_data = {
         "name": "Test Rubric",
         "discipline": "PT",
@@ -29,62 +33,26 @@ async def test_create_rubric(client: AsyncClient, db_session: AsyncSession):
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Test Rubric"
-    assert "id" in data
+    assert data["value"] == data["id"]
+
 
 @pytest.mark.asyncio
-async def test_read_rubrics(client: AsyncClient, db_session: AsyncSession):
-    # Create an admin user and log in
-    admin_user_create = schemas.UserCreate(username="admin_rubric_read", password="password", is_admin=True)
-    hashed_password = AuthService().get_password_hash(admin_user_create.password)
-    admin_user = await crud.create_user(db_session, admin_user_create, hashed_password)
-    login_data = {"username": admin_user.username, "password": "password"}
-    response = await client.post("/auth/login", data=login_data)
-    assert response.status_code == 200
-    token = response.json()["access_token"]
-
-    # Read rubrics
+async def test_read_rubrics_requires_active_user(client: AsyncClient, db_session: AsyncSession):
+    token = await _create_and_login_user(client, db_session, username="regular_reader", is_admin=False)
     headers = {"Authorization": f"Bearer {token}"}
+
     response = await client.get("/rubrics/", headers=headers)
     assert response.status_code == 200
-    assert isinstance(response.json(), list)
+    payload = response.json()
+    assert "rubrics" in payload
+    assert isinstance(payload["rubrics"], list)
 
-@pytest.mark.asyncio
-async def test_unauthorized_access(client: AsyncClient, db_session: AsyncSession):
-    # Create a regular user and log in
-    user_create = schemas.UserCreate(username="regular_rubric", password="password")
-    hashed_password = AuthService().get_password_hash(user_create.password)
-    user = await crud.create_user(db_session, user_create, hashed_password)
-    login_data = {"username": user.username, "password": "password"}
-    response = await client.post("/auth/login", data=login_data)
-    assert response.status_code == 200
-    token = response.json()["access_token"]
-
-    # Try to create a rubric
-    headers = {"Authorization": f"Bearer {token}"}
-    rubric_data = {
-        "name": "Unauthorized Rubric",
-        "discipline": "PT",
-        "category": "Test",
-        "regulation": "Test Regulation",
-        "common_pitfalls": "Test Pitfalls",
-        "best_practice": "Test Best Practice",
-    }
-    response = await client.post("/rubrics/", json=rubric_data, headers=headers)
-    assert response.status_code == 403
 
 @pytest.mark.asyncio
 async def test_read_rubric(client: AsyncClient, db_session: AsyncSession):
-    # Create an admin user and log in
-    admin_user_create = schemas.UserCreate(username="admin_rubric_read_one", password="password", is_admin=True)
-    hashed_password = AuthService().get_password_hash(admin_user_create.password)
-    admin_user = await crud.create_user(db_session, admin_user_create, hashed_password)
-    login_data = {"username": admin_user.username, "password": "password"}
-    response = await client.post("/auth/login", data=login_data)
-    assert response.status_code == 200
-    token = response.json()["access_token"]
-
-    # Create a rubric to read
+    token = await _create_and_login_user(client, db_session, username="admin_rubric_read_one", is_admin=True)
     headers = {"Authorization": f"Bearer {token}"}
+
     rubric_data = {
         "name": "Test Rubric to Read",
         "discipline": "PT",
@@ -97,25 +65,38 @@ async def test_read_rubric(client: AsyncClient, db_session: AsyncSession):
     assert response.status_code == 200
     rubric_id = response.json()["id"]
 
-    # Read the rubric
     response = await client.get(f"/rubrics/{rubric_id}", headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Test Rubric to Read"
+    assert data["value"] == rubric_id
+
+
+@pytest.mark.asyncio
+async def test_unauthorized_create_still_allows_read(client: AsyncClient, db_session: AsyncSession):
+    token = await _create_and_login_user(client, db_session, username="regular_rubric", is_admin=False)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    rubric_data = {
+        "name": "Unauthorized Rubric",
+        "discipline": "PT",
+        "category": "Test",
+        "regulation": "Test Regulation",
+        "common_pitfalls": "Test Pitfalls",
+        "best_practice": "Test Best Practice",
+    }
+    response = await client.post("/rubrics/", json=rubric_data, headers=headers)
+    assert response.status_code == 403
+
+    response = await client.get("/rubrics/", headers=headers)
+    assert response.status_code == 200
+
 
 @pytest.mark.asyncio
 async def test_update_rubric(client: AsyncClient, db_session: AsyncSession):
-    # Create an admin user and log in
-    admin_user_create = schemas.UserCreate(username="admin_rubric_update", password="password", is_admin=True)
-    hashed_password = AuthService().get_password_hash(admin_user_create.password)
-    admin_user = await crud.create_user(db_session, admin_user_create, hashed_password)
-    login_data = {"username": admin_user.username, "password": "password"}
-    response = await client.post("/auth/login", data=login_data)
-    assert response.status_code == 200
-    token = response.json()["access_token"]
-
-    # Create a rubric to update
+    token = await _create_and_login_user(client, db_session, username="admin_rubric_update", is_admin=True)
     headers = {"Authorization": f"Bearer {token}"}
+
     rubric_data = {
         "name": "Test Rubric to Update",
         "discipline": "PT",
@@ -128,7 +109,6 @@ async def test_update_rubric(client: AsyncClient, db_session: AsyncSession):
     assert response.status_code == 200
     rubric_id = response.json()["id"]
 
-    # Update the rubric
     updated_rubric_data = {
         "name": "Updated Rubric",
         "discipline": "OT",
@@ -141,20 +121,14 @@ async def test_update_rubric(client: AsyncClient, db_session: AsyncSession):
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Updated Rubric"
+    assert data["value"] == rubric_id
+
 
 @pytest.mark.asyncio
 async def test_delete_rubric(client: AsyncClient, db_session: AsyncSession):
-    # Create an admin user and log in
-    admin_user_create = schemas.UserCreate(username="admin_rubric_delete", password="password", is_admin=True)
-    hashed_password = AuthService().get_password_hash(admin_user_create.password)
-    admin_user = await crud.create_user(db_session, admin_user_create, hashed_password)
-    login_data = {"username": admin_user.username, "password": "password"}
-    response = await client.post("/auth/login", data=login_data)
-    assert response.status_code == 200
-    token = response.json()["access_token"]
-
-    # Create a rubric to delete
+    token = await _create_and_login_user(client, db_session, username="admin_rubric_delete", is_admin=True)
     headers = {"Authorization": f"Bearer {token}"}
+
     rubric_data = {
         "name": "Test Rubric to Delete",
         "discipline": "PT",
@@ -167,10 +141,10 @@ async def test_delete_rubric(client: AsyncClient, db_session: AsyncSession):
     assert response.status_code == 200
     rubric_id = response.json()["id"]
 
-    # Delete the rubric
     response = await client.delete(f"/rubrics/{rubric_id}", headers=headers)
     assert response.status_code == 200
+    data = response.json()
+    assert data["value"] == rubric_id
 
-    # Verify it was deleted
     response = await client.get(f"/rubrics/{rubric_id}", headers=headers)
     assert response.status_code == 404

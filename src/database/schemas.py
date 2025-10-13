@@ -95,6 +95,16 @@ class Rubric(RubricBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class RubricPublic(Rubric):
+    value: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RubricListResponse(BaseModel):
+    rubrics: list[RubricPublic]
+
+
 # --- Schemas for Users and Auth ---
 
 
