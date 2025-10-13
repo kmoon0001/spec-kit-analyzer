@@ -304,8 +304,8 @@ class ComplianceAnalyzer:
 
         if self.llm_service:
             # Use shorter prompt for faster processing
-            if len(prompt) > 2500:  # Truncate very long prompts more aggressively
-                prompt = prompt[:2300] + "\n\n[Document truncated for faster analysis]"
+            if len(prompt) > 1800:  # Truncate very long prompts for CPU
+                prompt = prompt[:1600] + "\n\n[Document truncated for faster analysis]"
 
             try:
                 # Add timeout to prevent hanging - allow more time in production
