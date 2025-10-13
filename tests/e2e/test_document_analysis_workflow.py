@@ -125,7 +125,7 @@ class TestDocumentAnalysisWorkflow:
         assert analysis_time <= e2e_test_config["performance_thresholds"]["document_analysis"]
         assert pdf_export_time <= e2e_test_config["performance_thresholds"]["pdf_export"]
 
-        print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Complete document analysis workflow test passed!")
+        print("[OK] Complete document analysis workflow test passed!")
 
     @pytest.mark.asyncio
     async def test_analysis_with_different_document_types(
@@ -196,7 +196,7 @@ class TestDocumentAnalysisWorkflow:
             assert "document_type" in results
             assert results["overall_score"] >= 0
 
-            print(f"ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ {doc_type} analysis completed successfully")
+            print(f"[OK] {doc_type} analysis completed successfully")
 
     @pytest.mark.asyncio
     async def test_concurrent_analysis(
@@ -255,7 +255,7 @@ class TestDocumentAnalysisWorkflow:
         for i, results in enumerate(completed_results):
             assert results["status"] == "completed"
             assert results["overall_score"] >= 0
-            print(f"ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Concurrent analysis {i + 1} completed successfully")
+            print(f"[OK] Concurrent analysis {i + 1} completed successfully")
 
         # Verify reasonable performance (should not be much slower than sequential)
         expected_max_time = e2e_test_config["performance_thresholds"]["document_analysis"] * 2
@@ -279,10 +279,10 @@ class TestDocumentAnalysisWorkflow:
         if upload_response.status_code == 200:
             # If upload succeeds, analysis should handle empty content
             document_id = upload_response.json()["document_id"]
-            rubrics_payload = rubrics_response.json()["rubrics"]
-            rubric_id = _extract_rubric_id(rubrics_payload[0])
             rubrics_response = e2e_helper.client.get("/rubrics", headers=e2e_helper.headers)
-            rubric_id = rubrics_response.json()["rubrics"][0]["id"]
+            rubrics_payload = rubrics_response.json()["rubrics"]
+            assert rubrics_payload, "No rubrics available for error handling test"
+            rubric_id = _extract_rubric_id(rubrics_payload[0])
 
             analysis_response = e2e_helper.start_analysis(document_id, rubric_id)
 
@@ -294,7 +294,7 @@ class TestDocumentAnalysisWorkflow:
             # Upload rejection is also acceptable
             assert upload_response.status_code in [400, 422]
 
-        print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Error handling test completed")
+        print("[OK] Error handling test completed")
 
     @pytest.mark.asyncio
     async def test_analysis_progress_monitoring(self, e2e_helper: E2ETestHelper, sample_document_file: Path):
@@ -302,11 +302,12 @@ class TestDocumentAnalysisWorkflow:
 
         # Upload document and start analysis
         upload_response = e2e_helper.upload_document(sample_document_file)
-        rubrics_payload = rubrics_response.json()["rubrics"]
-        rubric_id = _extract_rubric_id(rubrics_payload[0])
+        document_id = upload_response["document_id"]
 
         rubrics_response = e2e_helper.client.get("/rubrics", headers=e2e_helper.headers)
-        rubric_id = rubrics_response.json()["rubrics"][0]["id"]
+        rubrics_payload = rubrics_response.json()["rubrics"]
+        assert rubrics_payload, "No rubrics available for progress monitoring test"
+        rubric_id = _extract_rubric_id(rubrics_payload[0])
 
         analysis_response = e2e_helper.start_analysis(document_id, rubric_id)
         task_id = analysis_response["task_id"]
@@ -338,4 +339,4 @@ class TestDocumentAnalysisWorkflow:
         seen_states = set(progress_states)
         assert len(seen_states.intersection(possible_states)) >= 2
 
-        print(f"ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Progress monitoring test completed. Saw states: {seen_states}")
+        print(f"[OK] Progress monitoring test completed. Saw states: {seen_states}")
