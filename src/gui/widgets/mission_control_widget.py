@@ -446,6 +446,14 @@ class SettingsEditorWidget(QWidget):
 class LogViewerWidget(QWidget):
     """A widget that displays log messages."""
 
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.log_browser = QTextBrowser()
+        self.log_browser.setReadOnly(True)
+        layout.addWidget(self.log_browser)
+
     def add_log_message(self, message: str) -> None:
         """Appends a new log message to the browser."""
         self.log_browser.append(message)
