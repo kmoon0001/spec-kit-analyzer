@@ -126,13 +126,13 @@ class SettingsTabBuilder:
 
         theme_buttons = QHBoxLayout()
         light_button = AnimatedButton("☀️ Light Theme", theme_section)
-        light_button.clicked.connect(lambda: self.main_window._apply_theme("light"))
+        light_button.clicked.connect(lambda checked: self.main_window._apply_theme("light"))
         light_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
         light_button.setMinimumHeight(40)
         theme_buttons.addWidget(light_button)
 
         dark_button = AnimatedButton("🌙 Dark Theme", theme_section)
-        dark_button.clicked.connect(lambda: self.main_window._apply_theme("dark"))
+        dark_button.clicked.connect(lambda checked: self.main_window._apply_theme("dark"))
         dark_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
         dark_button.setMinimumHeight(40)
         theme_buttons.addWidget(dark_button)
