@@ -1,4 +1,7 @@
 import pytest
+
+pytest.importorskip("sqlalchemy")
+
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import crud, schemas, models

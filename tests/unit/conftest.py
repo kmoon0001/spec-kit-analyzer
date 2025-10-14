@@ -2,14 +2,20 @@ import logging
 
 import pytest
 
-from src.api.main import WebSocketLogHandler
+try:  # pragma: no cover - dependency availability
+    from src.api.main import WebSocketLogHandler
+except ModuleNotFoundError:  # pragma: no cover - handled via skip logic
+    WebSocketLogHandler = None  # type: ignore[assignment]
 
 
 @pytest.fixture(autouse=True)
 def disable_websocket_logging():
     """Fixture to disable the conflicting WebSocketLogHandler for all unit tests."""
+    if WebSocketLogHandler is None:
+        yield
+        return
+
     root_logger = logging.getLogger()
-    # Find and remove any existing instances of WebSocketLogHandler
     for handler in root_logger.handlers[:]:
         if isinstance(handler, WebSocketLogHandler):
             root_logger.removeHandler(handler)
