@@ -4,10 +4,11 @@ import logging
 from typing import Any
 
 from fastapi import Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth import get_current_active_user
 from src.core.hybrid_retriever import HybridRetriever
-from src.database import models
+from src.database import models, get_async_db
 
 from ..core.analysis_service import AnalysisService
 
@@ -16,6 +17,11 @@ logger = logging.getLogger(__name__)
 
 # This dictionary will hold our singleton instances
 app_state: dict[str, Any] = {}
+
+
+def get_db() -> AsyncSession:
+    """Database dependency for FastAPI endpoints."""
+    return Depends(get_async_db)
 
 
 def require_admin(current_user: models.User = Depends(get_current_active_user)):

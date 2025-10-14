@@ -30,6 +30,9 @@ if matplotlib is not None:
         pass
 
 from PySide6.QtWidgets import QApplication, QMessageBox
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def check_api_connection(max_attempts=5, delay=2):
@@ -65,9 +68,10 @@ if __name__ == "__main__":
 
             # Show a dialog to the user
             app = QApplication(sys.argv)
-    # Apply PyCharm dark theme
-    app.setStyleSheet(pycharm_theme.get_application_stylesheet())
-    logger.info("Applied PyCharm dark theme")
+            # Apply PyCharm dark theme
+            from src.gui.widgets.pycharm_dark_theme import pycharm_theme
+            app.setStyleSheet(pycharm_theme.get_application_stylesheet())
+            logger.info("Applied PyCharm dark theme")
 
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Warning)
@@ -81,7 +85,7 @@ if __name__ == "__main__":
 
         # Use the proper authentication flow from src.gui.main
         from src.gui.main import main as gui_main
-from src.gui.widgets.pycharm_dark_theme import pycharm_theme
+        from src.gui.widgets.pycharm_dark_theme import pycharm_theme
 
         gui_main()
 

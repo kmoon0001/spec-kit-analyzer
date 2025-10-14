@@ -265,6 +265,7 @@ async def lifespan(app: FastAPI):
     await initialize_vector_store()
     
     # Auto-warm AI models in background to reduce first-use latency
+    # Note: This runs as a background task and should not block startup
     asyncio.create_task(auto_warm_ai_models())
 
     run_maintenance_jobs()
