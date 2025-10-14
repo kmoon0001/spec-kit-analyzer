@@ -6,6 +6,7 @@ Provides endpoints for JWT token generation, user registration, and password upd
 import logging
 from datetime import timedelta
 
+import sqlalchemy
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,6 +65,10 @@ async def register_user(
     hashed_password = auth_service.get_password_hash(user_data.password)
     try:
         created_user = await crud.create_user(db, user_data, hashed_password)
+    except sqlalchemy.exc.IntegrityError as exc:
+        if "UNIQUE constraint failed: users.username" in str(exc):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already exists")
+        raise HTTPException(status_code=400, detail="Registration failed") from exc
     except Exception as exc:  # pragma: no cover - errors handled by global exception handler in practice
         logger.exception("User registration failed: %s", exc)
         raise HTTPException(status_code=400, detail="Registration failed") from exc

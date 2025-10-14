@@ -213,7 +213,7 @@ def authenticated_headers(test_client, test_user_data):
 
     # Login to get token
     login_data = {"username": test_user_data["username"], "password": test_user_data["password"]}
-    response = test_client.post("/auth/login", data=login_data)
+    response = test_client.post("/auth/token", data=login_data)
     assert response.status_code == 200
 
     token = response.json()["access_token"]
