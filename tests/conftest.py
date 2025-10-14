@@ -19,6 +19,55 @@ else:
     NUMPY_IMPORT_ERROR = None
 
 try:  # pragma: no cover - dependency availability
+    import yaml  # type: ignore[import-not-found]
+except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
+    YAML_IMPORT_ERROR = exc
+else:
+    YAML_IMPORT_ERROR = None
+
+try:  # pragma: no cover - dependency availability
+    import requests  # type: ignore[import-untyped]
+except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
+    REQUESTS_IMPORT_ERROR = exc
+else:
+    REQUESTS_IMPORT_ERROR = None
+
+try:  # pragma: no cover - dependency availability
+    import jinja2  # type: ignore[import-untyped]
+except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
+    JINJA_IMPORT_ERROR = exc
+else:
+    JINJA_IMPORT_ERROR = None
+
+try:  # pragma: no cover - dependency availability
+    import psutil  # type: ignore[import-untyped]
+except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
+    PSUTIL_IMPORT_ERROR = exc
+else:
+    PSUTIL_IMPORT_ERROR = None
+
+try:  # pragma: no cover - dependency availability
+    import rdflib  # type: ignore[import-untyped]
+except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
+    RDFLIB_IMPORT_ERROR = exc
+else:
+    RDFLIB_IMPORT_ERROR = None
+
+try:  # pragma: no cover - dependency availability
+    import nltk  # type: ignore[import-untyped]
+except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
+    NLTK_IMPORT_ERROR = exc
+else:
+    NLTK_IMPORT_ERROR = None
+
+try:  # pragma: no cover - dependency availability
+    import httpx  # type: ignore[import-untyped]
+except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
+    HTTPX_IMPORT_ERROR = exc
+else:
+    HTTPX_IMPORT_ERROR = None
+
+try:  # pragma: no cover - dependency availability
     from sqlalchemy import delete
     from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
     from sqlalchemy.orm import sessionmaker
@@ -31,7 +80,13 @@ except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
 else:
     SQLALCHEMY_IMPORT_ERROR = None
 
-from src.core.vector_store import get_vector_store
+try:  # pragma: no cover - dependency availability
+    from src.core.vector_store import get_vector_store
+except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
+    VECTOR_STORE_IMPORT_ERROR = exc
+    get_vector_store = None  # type: ignore[assignment]
+else:
+    VECTOR_STORE_IMPORT_ERROR = None
 
 if SQLALCHEMY_IMPORT_ERROR is None:
     from src.database import Base, models
@@ -153,6 +208,12 @@ if SQLALCHEMY_IMPORT_ERROR is None:
         db_session.add_all(reports_data)
         await db_session.commit()
 
+        if VECTOR_STORE_IMPORT_ERROR is not None or get_vector_store is None:
+            pytest.skip(
+                "Vector store dependencies are unavailable in this environment.",
+                allow_module_level=True,
+            )
+
         vector_store = get_vector_store()
         if not vector_store.is_initialized:
             vector_store.initialize_index()
@@ -236,6 +297,11 @@ def qtbot(qapp, request):
 def mock_global_services():
     """Globally mock backend services to avoid real network calls during tests."""
 
+    if REQUESTS_IMPORT_ERROR is not None:
+        # ``requests`` is optional for regression tests; skip the patch when absent.
+        yield
+        return
+
     with patch("requests.post") as mock_post:
         mock_post.return_value.ok = True
         mock_post.return_value.json.return_value = {"access_token": "fake-token"}
@@ -243,15 +309,31 @@ def mock_global_services():
 
 
 def pytest_ignore_collect(path, config):  # pragma: no cover - collection control
-    del config  # config unused by this helper
+    del config  # configuration is unused in the heuristic skip logic
     path_str = str(path)
+
     if SQLALCHEMY_IMPORT_ERROR is not None:
         if any(segment in path_str for segment in ("tests/api", "tests/integration")):
             return True
+
     if NUMPY_IMPORT_ERROR is not None:
+        if "tests/unit" in path_str or "tests/logic" in path_str:
+            return True
+
+    if REQUESTS_IMPORT_ERROR is not None or YAML_IMPORT_ERROR is not None or JINJA_IMPORT_ERROR is not None:
+        if "tests/gui" in path_str or "tests/_stability" in path_str:
+            return True
+
+    if PSUTIL_IMPORT_ERROR is not None or RDFLIB_IMPORT_ERROR is not None or NLTK_IMPORT_ERROR is not None:
         if "tests/unit" in path_str:
             return True
+
+    if HTTPX_IMPORT_ERROR is not None:
+        if "tests/api" in path_str:
+            return True
+
     if _QT_IS_STUB:
         if any(segment in path_str for segment in ("tests/gui", "tests/_stability", "tests/integration")):
             return True
+
     return False
