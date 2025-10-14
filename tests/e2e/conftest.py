@@ -13,6 +13,9 @@ from typing import Any
 from unittest.mock import Mock
 
 import pytest
+
+pytest.importorskip("sqlalchemy")
+
 from fastapi.testclient import TestClient
 
 # Import application components

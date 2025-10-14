@@ -1,138 +1,160 @@
-"""Manages the in-memory vector store for report embeddings using FAISS.
-
-This module provides a singleton-like pattern for a vector store, ensuring that
-the FAISS index is initialized once and can be accessed throughout the application.
-This is crucial for efficiently finding similar reports based on their embeddings.
-"""
+"""Manage in-memory embeddings for similarity search with optional FAISS support."""
+from __future__ import annotations
 
 import logging
 import sqlite3
+from typing import Any
 
-# FAISS may not be available in some environments (e.g., Windows py3.13).
-# Fall back to a pure-NumPy implementation when not installed.
 try:  # pragma: no cover - environment dependent
-	import faiss  # type: ignore
-	_FAISS_AVAILABLE = True
-except Exception:  # pragma: no cover - environment dependent
-	faiss = None  # type: ignore
-	_FAISS_AVAILABLE = False
+    import numpy as np
+except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
+    np = None  # type: ignore[assignment]
+    _NUMPY_AVAILABLE = False
+    _NUMPY_IMPORT_ERROR = exc
+else:  # pragma: no cover - environment dependent
+    _NUMPY_AVAILABLE = True
+    _NUMPY_IMPORT_ERROR = None
 
-import numpy as np
-import sqlalchemy
-import sqlalchemy.exc
+try:  # pragma: no cover - environment dependent
+    import faiss  # type: ignore
+except Exception:  # pragma: no cover - handled via skip logic
+    faiss = None  # type: ignore[assignment]
+    _FAISS_AVAILABLE = False
+else:  # pragma: no cover - environment dependent
+    _FAISS_AVAILABLE = True
 
 logger = logging.getLogger(__name__)
 
 
 class VectorStore:
-	"""A singleton class to manage the FAISS index for report embeddings."""
+    """Singleton-like storage for document embeddings."""
 
-	_instance = None
+    _instance: "VectorStore" | None = None
 
-	def __new__(cls, embedding_dim: int = 768):
-		if cls._instance is None:
-			cls._instance = super().__new__(cls)
-			cls._instance.embedding_dim = embedding_dim
-			cls._instance.index = None
-			cls._instance.report_ids = []
-			cls._instance.is_initialized = False
-			# Fallback storage when FAISS is unavailable
-			cls._instance._fallback_vectors: list[np.ndarray] = []
-			cls._instance._fallback_ids: list[int] = []
-		return cls._instance
+    def __new__(cls, embedding_dim: int = 768) -> "VectorStore":
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.embedding_dim = embedding_dim
+            cls._instance.index = None
+            cls._instance.report_ids: list[int] = []
+            cls._instance.is_initialized = False
+            cls._instance._fallback_vectors: list[Any] = []
+            cls._instance._fallback_ids: list[int] = []
+        return cls._instance
 
-	def initialize_index(self):
-		"""Initializes the FAISS index (or fallback arrays when FAISS is missing)."""
-		if self.is_initialized:
-			logger.info("FAISS index is already initialized.")
-			return
+    def initialize_index(self) -> None:
+        """Initialise FAISS index or fallback storage."""
+        if self.is_initialized:
+            logger.info("FAISS index is already initialized.")
+            return
 
-		if _FAISS_AVAILABLE:
-			try:
-				self.index = faiss.IndexFlatL2(self.embedding_dim)
-				self.index = faiss.IndexIDMap(self.index)
-				self.is_initialized = True
-				logger.info("FAISS index initialized with embedding dimension: %s", self.embedding_dim)
-			except Exception as exc:  # pragma: no cover - defensive
-				logger.exception("Failed to initialize FAISS index: %s", exc)
-				self.is_initialized = False
-		else:
-			# Use simple in-memory storage with NumPy for distance computations
-			self._fallback_vectors = []
-			self._fallback_ids = []
-			self.is_initialized = True
-			logger.info("FAISS not available; using in-memory vector store fallback.")
+        if _FAISS_AVAILABLE:
+            try:
+                index = faiss.IndexFlatL2(self.embedding_dim)
+                self.index = faiss.IndexIDMap(index)
+                self.is_initialized = True
+                logger.info("FAISS index initialized with embedding dimension: %s", self.embedding_dim)
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.exception("Failed to initialize FAISS index: %s", exc)
+                self.index = None
+                self.is_initialized = False
+        else:
+            if not _NUMPY_AVAILABLE:
+                logger.warning(
+                    "NumPy is unavailable; vector store fallback cannot be initialised."
+                )
+                self.is_initialized = False
+                return
 
-	def _total_vectors(self) -> int:
-		if _FAISS_AVAILABLE and self.index is not None:
-			return int(getattr(self.index, "ntotal", 0))
-		return len(self._fallback_ids)
+            self._fallback_vectors = []
+            self._fallback_ids = []
+            self.is_initialized = True
+            logger.info("FAISS not available; using in-memory vector store fallback.")
 
-	def add_vectors(self, vectors: np.ndarray, ids: list[int]):
-		"""Adds vectors to the index or the fallback store."""
-		if not self.is_initialized:
-			logger.warning("Cannot add vectors: vector store is not initialized.")
-			return
+    def _total_vectors(self) -> int:
+        if _FAISS_AVAILABLE and self.index is not None:
+            return int(getattr(self.index, "ntotal", 0))
+        return len(self._fallback_ids)
 
-		if vectors.ndim != 2 or vectors.shape[1] != self.embedding_dim:
-			logger.error("Vector dimension mismatch. Expected %s, got %s", self.embedding_dim, vectors.shape[1] if vectors.ndim == 2 else None)
-			return
+    def add_vectors(self, vectors: Any, ids: list[int]) -> None:
+        """Add embeddings to the store."""
+        if not self.is_initialized:
+            logger.warning("Cannot add vectors: vector store is not initialized.")
+            return
 
-		try:
-			if _FAISS_AVAILABLE and self.index is not None:
-				self.index.add_with_ids(vectors.astype("float32"), np.array(ids))
-				self.report_ids.extend(ids)
-				logger.info("Added %s new vectors to the index. Total vectors: %s", len(ids), self._total_vectors())
-			else:
-				for vec, vec_id in zip(vectors, ids, strict=False):
-					self._fallback_vectors.append(vec.astype("float32"))
-					self._fallback_ids.append(int(vec_id))
-				self.report_ids.extend(ids)
-				logger.info("Added %s vectors to fallback store. Total vectors: %s", len(ids), self._total_vectors())
-		except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as exc:
-			logger.exception("Failed to add vectors to vector store: %s", exc)
+        if _FAISS_AVAILABLE and self.index is not None:
+            try:
+                self.index.add_with_ids(vectors.astype("float32"), np.array(ids))  # type: ignore[arg-type]
+                self.report_ids.extend(ids)
+                logger.info("Added %s new vectors to the index. Total vectors: %s", len(ids), self._total_vectors())
+            except Exception as exc:  # pragma: no cover - defensive fallback
+                logger.exception("Failed to add vectors to vector store: %s", exc)
+            return
 
-	def search(self, query_vector: np.ndarray, k: int, threshold: float = 0.9) -> list[tuple[int, float]]:
-		"""Searches the index for similar vectors.
+        if not _NUMPY_AVAILABLE or np is None:
+            logger.warning("NumPy is unavailable; skipping add_vectors in fallback mode.")
+            return
 
-		Returns a list of (id, similarity) pairs with similarity in [0,1].
-		"""
-		if not self.is_initialized or self._total_vectors() == 0:
-			logger.warning("Cannot search: vector store is not initialized or is empty.")
-			return []
+        if vectors.ndim != 2 or vectors.shape[1] != self.embedding_dim:  # type: ignore[attr-defined]
+            logger.error(
+                "Vector dimension mismatch. Expected %s, got %s",
+                self.embedding_dim,
+                vectors.shape[1] if vectors.ndim == 2 else None,  # type: ignore[index]
+            )
+            return
 
-		try:
-			query = query_vector.astype("float32").reshape(1, -1)
-			if _FAISS_AVAILABLE and self.index is not None:
-				distances, indices = self.index.search(query, k)
-				results: list[tuple[int, float]] = []
-				for idx, dist in zip(indices[0], distances[0], strict=False):
-					if idx != -1:  # -1 indicates no result
-						similarity = 1 - (float(dist) / float(self.embedding_dim))
-						if similarity >= threshold:
-							results.append((int(idx), float(similarity)))
-				return results
-			# Fallback: brute-force L2 nearest neighbors
-			stack = np.stack(self._fallback_vectors, axis=0)
-			dists = np.linalg.norm(stack - query, axis=1)
-			topk_indices = np.argsort(dists)[: max(k, 0)]
-			results: list[tuple[int, float]] = []
-			for pos in topk_indices:
-				idx = self._fallback_ids[int(pos)]
-				dist = float(dists[int(pos)])
-				similarity = 1 - (dist / float(self.embedding_dim))
-				if similarity >= threshold:
-					results.append((int(idx), float(similarity)))
-			return results
-		except (sqlalchemy.exc.SQLAlchemyError, sqlite3.Error) as exc:
-			logger.exception("Failed to search vector store: %s", exc)
-			return []
+        for vec, vec_id in zip(vectors, ids, strict=False):
+            self._fallback_vectors.append(vec.astype("float32"))
+            self._fallback_ids.append(int(vec_id))
+        self.report_ids.extend(ids)
+        logger.info("Added %s vectors to fallback store. Total vectors: %s", len(ids), self._total_vectors())
+
+    def search(self, query_vector: Any, k: int, threshold: float = 0.9) -> list[tuple[int, float]]:
+        """Search for similar embeddings."""
+        if not self.is_initialized or self._total_vectors() == 0:
+            logger.warning("Cannot search: vector store is not initialized or is empty.")
+            return []
+
+        if _FAISS_AVAILABLE and self.index is not None:
+            try:
+                query = query_vector.astype("float32").reshape(1, -1)
+                distances, indices = self.index.search(query, k)
+                results: list[tuple[int, float]] = []
+                for idx, dist in zip(indices[0], distances[0], strict=False):
+                    if idx != -1:
+                        similarity = 1 - (float(dist) / float(self.embedding_dim))
+                        if similarity >= threshold:
+                            results.append((int(idx), float(similarity)))
+                return results
+            except Exception as exc:  # pragma: no cover - defensive fallback
+                logger.exception("Failed to search vector store: %s", exc)
+                return []
+
+        if not _NUMPY_AVAILABLE or np is None:
+            logger.warning("NumPy is unavailable; skipping search in fallback mode.")
+            return []
+
+        try:
+            query = query_vector.astype("float32").reshape(1, -1)
+            stack = np.stack(self._fallback_vectors, axis=0)
+            dists = np.linalg.norm(stack - query, axis=1)
+            topk_indices = np.argsort(dists)[: max(k, 0)]
+            results: list[tuple[int, float]] = []
+            for pos in topk_indices:
+                idx = self._fallback_ids[int(pos)]
+                dist = float(dists[int(pos)])
+                similarity = 1 - (dist / float(self.embedding_dim))
+                if similarity >= threshold:
+                    results.append((int(idx), float(similarity)))
+            return results
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            logger.exception("Failed to search vector store: %s", exc)
+            return []
 
 
-# Global instance of the vector store
-vector_store = VectorStore()
+_vector_store = VectorStore()
 
 
 def get_vector_store() -> VectorStore:
-	"""Returns the global instance of the vector store."""
-	return vector_store
+    """Return the global vector store instance."""
+    return _vector_store

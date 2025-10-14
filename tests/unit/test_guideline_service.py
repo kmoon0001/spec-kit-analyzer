@@ -1,8 +1,9 @@
 import os
 from unittest.mock import MagicMock, patch
 
-import numpy as np
 import pytest
+
+np = pytest.importorskip("numpy")
 
 from src.core.guideline_service import GuidelineService
 

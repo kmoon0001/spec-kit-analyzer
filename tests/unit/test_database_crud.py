@@ -1,5 +1,8 @@
 
 import pytest
+
+pytest.importorskip("sqlalchemy")
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import crud, models, schemas
 

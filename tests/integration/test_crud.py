@@ -11,9 +11,12 @@ in-memory SQLite database to ensure full validation of the SQL logic.
 import os
 from datetime import UTC, datetime, timedelta
 
-import numpy as np
 import pytest
 import pytest_asyncio
+
+np = pytest.importorskip("numpy")
+pytest.importorskip("sqlalchemy")
+
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker

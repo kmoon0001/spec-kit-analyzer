@@ -1,7 +1,8 @@
 from unittest.mock import MagicMock, patch
 
-import numpy as np
 import pytest
+
+np = pytest.importorskip("numpy")
 
 # Import the class to be tested
 from src.core.hybrid_retriever import HybridRetriever

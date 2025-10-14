@@ -3,6 +3,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import pytest_asyncio
+
+pytest.importorskip("sqlalchemy")
+
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
