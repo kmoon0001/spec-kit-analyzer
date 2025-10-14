@@ -208,7 +208,7 @@ class TestMainViewModel:
 
         # Verify running thread was quit
         mock_thread1.quit.assert_called_once()
-        mock_thread1.wait.assert_called_once_with(50)
+        mock_thread1.wait.assert_called_once_with(2000)
 
         # Verify non-running thread was not quit
         mock_thread2.quit.assert_not_called()
