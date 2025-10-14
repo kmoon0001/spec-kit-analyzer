@@ -10,6 +10,16 @@ import pytest_asyncio
 
 pytest_plugins = ("pytest_asyncio",)
 
+
+def pytest_addoption(parser) -> None:  # pragma: no cover - pytest hook
+    """Register stub ini options expected by the test configuration."""
+
+    parser.addini(
+        "qt_api",
+        "Preferred Qt binding for GUI tests (stubbed during offline execution).",
+        default="pyside6",
+    )
+
 try:  # pragma: no cover - dependency availability
     import numpy as np
 except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
@@ -66,6 +76,20 @@ except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
     HTTPX_IMPORT_ERROR = exc
 else:
     HTTPX_IMPORT_ERROR = None
+
+try:  # pragma: no cover - dependency availability
+    import PIL  # type: ignore[import-not-found]
+except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
+    PIL_IMPORT_ERROR = exc
+else:
+    PIL_IMPORT_ERROR = None
+
+try:  # pragma: no cover - dependency availability
+    import torch  # type: ignore[import-untyped]
+except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
+    TORCH_IMPORT_ERROR = exc
+else:
+    TORCH_IMPORT_ERROR = None
 
 try:  # pragma: no cover - dependency availability
     from sqlalchemy import delete
@@ -310,26 +334,29 @@ def mock_global_services():
 
 def pytest_ignore_collect(path, config):  # pragma: no cover - collection control
     del config  # configuration is unused in the heuristic skip logic
-    path_str = str(path)
 
-    if SQLALCHEMY_IMPORT_ERROR is not None:
+    path_str = str(path)
+    if SQLALCHEMY_IMPORT_ERROR is not None or HTTPX_IMPORT_ERROR is not None:
         if any(segment in path_str for segment in ("tests/api", "tests/integration")):
             return True
 
-    if NUMPY_IMPORT_ERROR is not None:
-        if "tests/unit" in path_str or "tests/logic" in path_str:
+    if NUMPY_IMPORT_ERROR is not None or TORCH_IMPORT_ERROR is not None:
+        if any(segment in path_str for segment in ("tests/unit", "tests/logic")):
             return True
 
-    if REQUESTS_IMPORT_ERROR is not None or YAML_IMPORT_ERROR is not None or JINJA_IMPORT_ERROR is not None:
-        if "tests/gui" in path_str or "tests/_stability" in path_str:
-            return True
-
-    if PSUTIL_IMPORT_ERROR is not None or RDFLIB_IMPORT_ERROR is not None or NLTK_IMPORT_ERROR is not None:
-        if "tests/unit" in path_str:
-            return True
-
-    if HTTPX_IMPORT_ERROR is not None:
-        if "tests/api" in path_str:
+    if any(
+        error is not None
+        for error in (
+            REQUESTS_IMPORT_ERROR,
+            YAML_IMPORT_ERROR,
+            JINJA_IMPORT_ERROR,
+            PSUTIL_IMPORT_ERROR,
+            RDFLIB_IMPORT_ERROR,
+            NLTK_IMPORT_ERROR,
+            PIL_IMPORT_ERROR,
+        )
+    ):
+        if any(segment in path_str for segment in ("tests/unit", "tests/gui", "tests/_stability")):
             return True
 
     if _QT_IS_STUB:
