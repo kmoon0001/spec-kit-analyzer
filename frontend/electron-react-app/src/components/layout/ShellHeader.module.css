@@ -1,0 +1,58 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-lg) var(--spacing-xl);
+  background: linear-gradient(120deg, rgba(30, 64, 175, 0.92), rgba(15, 23, 42, 0.9));
+  border-bottom: 1px solid rgba(30, 64, 175, 0.35);
+  box-shadow: 0 24px 36px -32px rgba(15, 23, 42, 0.85);
+}
+
+.branding {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 18px;
+  background: rgba(59, 130, 246, 0.25);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #dbeafe;
+  box-shadow: inset 0 0 0 1px rgba(147, 197, 253, 0.35);
+}
+
+.title {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: rgba(226, 232, 240, 0.8);
+  font-size: 0.9rem;
+  max-width: 480px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.userBadge {
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.15);
+  color: #f8fafc;
+  font-size: 0.85rem;
+}

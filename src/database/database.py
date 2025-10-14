@@ -134,6 +134,14 @@ async def init_db() -> None:
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
 
+        # Ensure preferences column exists for user table
+        if "sqlite" in DATABASE_URL:
+            result = await conn.execute(text("PRAGMA table_info(users)"))
+            columns = [row[1] for row in result.fetchall()]
+            if "preferences" not in columns:
+                logger.info("Adding preferences column to users table")
+                await conn.execute(text("ALTER TABLE users ADD COLUMN preferences JSON"))
+
         # Apply SQLite-specific optimizations if enabled
         if "sqlite" in DATABASE_URL and settings.database.sqlite_optimizations:
             logger.info("Applying SQLite performance optimizations")

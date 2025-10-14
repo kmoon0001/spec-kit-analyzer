@@ -1,5 +1,5 @@
 import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -108,6 +108,26 @@ class RubricListResponse(BaseModel):
 # --- Schemas for Users and Auth ---
 
 
+class UserPreferences(BaseModel):
+    theme_mode: Literal['system', 'light', 'dark'] = 'system'
+    startup_screen: Literal['analysis', 'dashboard', 'mission_control'] = 'analysis'
+    enable_beta_widgets: bool = True
+    auto_start_backend: bool = False
+    stream_analysis_logs: bool = True
+    default_strictness: Literal['lenient', 'standard', 'strict'] = 'standard'
+    auto_export_format: Literal['pdf', 'pdf_html'] = 'pdf_html'
+
+
+class UserPreferencesUpdate(BaseModel):
+    theme_mode: Literal['system', 'light', 'dark'] | None = None
+    startup_screen: Literal['analysis', 'dashboard', 'mission_control'] | None = None
+    enable_beta_widgets: bool | None = None
+    auto_start_backend: bool | None = None
+    stream_analysis_logs: bool | None = None
+    default_strictness: Literal['lenient', 'standard', 'strict'] | None = None
+    auto_export_format: Literal['pdf', 'pdf_html'] | None = None
+
+
 class UserBase(BaseModel):
     username: str
 
@@ -122,6 +142,7 @@ class User(UserBase):
     id: int
     is_active: bool
     is_admin: bool = False
+    preferences: UserPreferences | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

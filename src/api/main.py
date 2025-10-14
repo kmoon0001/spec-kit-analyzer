@@ -21,9 +21,12 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from jose import JWTError, jwt
+from sqlalchemy import select
 
 from src.api.dependencies import shutdown_event as api_shutdown
 from src.api.dependencies import startup_event as api_startup
+from src.auth import get_auth_service
 from src.api.routers import (
     admin,
     analysis,
@@ -35,6 +38,7 @@ from src.api.routers import (
     habits,
     health,
     meta_analytics,
+    preferences,
     users,
     rubric_router,
     individual_habits,
@@ -51,8 +55,9 @@ except ImportError:
 from src.api.global_exception_handler import global_exception_handler, http_exception_handler
 from src.config import get_settings
 from src.core.vector_store import get_vector_store
-from src.database import crud, get_async_db
+from src.database import crud, get_async_db, models
 from src.database import init_db
+from src.database.database import AsyncSessionLocal
 from src.logging_config import CorrelationIdMiddleware, configure_logging
 
 settings = get_settings()
@@ -320,6 +325,7 @@ app.include_router(habits.router, tags=["Habits"])
 app.include_router(meta_analytics.router, tags=["Meta Analytics"])
 app.include_router(feedback.router)
 app.include_router(users.router, tags=["Users"])
+app.include_router(preferences.router)
 app.include_router(rubric_router.router, prefix="/rubrics", tags=["Rubrics"])
 app.include_router(individual_habits.router)
 app.include_router(websocket.router, tags=["WebSocket"])
@@ -342,6 +348,30 @@ except ImportError:
 
 @app.websocket("/ws/logs")
 async def websocket_endpoint(websocket: WebSocket):
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=1008, reason="Authentication required")
+        return
+
+    auth_service = get_auth_service()
+    try:
+        payload = jwt.decode(token, auth_service.secret_key, algorithms=[auth_service.algorithm])
+    except JWTError:
+        await websocket.close(code=1008, reason="Invalid token")
+        return
+
+    username = payload.get("sub")
+    if not username:
+        await websocket.close(code=1008, reason="Invalid token payload")
+        return
+
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(models.User).where(models.User.username == username))
+        user = result.scalars().first()
+        if not user or not user.is_active:
+            await websocket.close(code=1008, reason="Unauthorized")
+            return
+
     await log_manager.connect(websocket)
     try:
         while True:

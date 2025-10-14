@@ -5,6 +5,7 @@ analysis reports, and findings using modern SQLAlchemy 2.0 syntax.
 """
 
 import datetime
+from typing import Any
 
 from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -27,6 +28,7 @@ class User(Base):
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
     )
+    preferences: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True, default=dict)
 
     # Habit tracking relationships
     habit_goals: Mapped[list["HabitGoal"]] = relationship(

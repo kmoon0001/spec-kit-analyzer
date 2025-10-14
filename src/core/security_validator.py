@@ -26,6 +26,9 @@ class SecurityValidator:
     # Analysis mode validation
     ALLOWED_ANALYSIS_MODES: set[str] = {"rubric", "checklist", "hybrid"}
 
+    # Strictness validation
+    ALLOWED_STRICTNESS_LEVELS: set[str] = {"lenient", "standard", "strict"}
+
     # String length limits
     MAX_USERNAME_LENGTH: int = 50
     MAX_PASSWORD_LENGTH: int = 128
@@ -124,7 +127,23 @@ class SecurityValidator:
 
         return True, None
 
+    
     @staticmethod
+    def validate_strictness(level: str) -> tuple[bool, str | None]:
+        """Validate analysis strictness level."""
+
+        if not level:
+            return False, "Strictness level is required"
+
+        normalized = level.lower()
+        if normalized not in SecurityValidator.ALLOWED_STRICTNESS_LEVELS:
+            allowed = ', '.join(sorted(SecurityValidator.ALLOWED_STRICTNESS_LEVELS))
+            return False, f"Invalid strictness. Allowed values: {allowed}"
+
+        return True, None
+
+
+@staticmethod
     def validate_analysis_mode(mode: str) -> tuple[bool, str | None]:
         """Validate analysis mode parameter.
 

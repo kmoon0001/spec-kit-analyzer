@@ -23,12 +23,13 @@ from ...core.analysis_service import AnalysisService
 from ...core.security_validator import SecurityValidator
 from ...database import crud, models, schemas
 from ...database.database import get_async_db
+from ..task_registry import analysis_task_registry
 from ..dependencies import get_analysis_service
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
-tasks: dict[str, dict[str, Any]] = {}
+tasks = analysis_task_registry.metadata
 
 uploaded_documents: dict[str, dict[str, Any]] = {}
 legacy_router = APIRouter(tags=['analysis-legacy'])
@@ -48,6 +49,7 @@ def run_analysis_and_save(
     original_filename: str,
     discipline: str,
     analysis_mode: str,
+    strictness: str,
     analysis_service: AnalysisService,
 ) -> None:
     """Background task to run document analysis on in-memory content and save results."""
@@ -72,6 +74,7 @@ def run_analysis_and_save(
                 original_filename=original_filename,
                 discipline=discipline,
                 analysis_mode=analysis_mode,
+                strictness=strictness,
                 progress_callback=_update_progress,
             )
             analysis_payload = result if isinstance(result, dict) else {}
@@ -103,6 +106,7 @@ def run_analysis_and_save(
                 "overall_score": compliance_score,
                 "document_type": document_type,
                 "report_html": report_html,
+                "strictness": strictness,
             })
             logger.info("Analysis completed for task %s", task_id)
         except (FileNotFoundError, PermissionError, OSError) as exc:
@@ -114,6 +118,7 @@ def run_analysis_and_save(
                 "timestamp": datetime.datetime.now(datetime.UTC),
                 "progress": 0,
                 "status_message": f"Analysis failed: {exc}",
+                "strictness": strictness,
             }
 
     # Run the async function in a new event loop
@@ -214,6 +219,7 @@ async def legacy_start_analysis(
         "status": "processing",
         "filename": document["filename"],
         "timestamp": datetime.datetime.now(datetime.UTC),
+        "strictness": "standard",
     }
 
     background_tasks.add_task(
@@ -223,6 +229,7 @@ async def legacy_start_analysis(
         document["filename"],
         discipline,
         analysis_mode,
+        "standard",
         analysis_service,
     )
 
@@ -252,6 +259,7 @@ async def analyze_document(
     file: UploadFile = File(...),
     discipline: str = Form("pt"),
     analysis_mode: str = Form("rubric"),
+    strictness: str = Form("standard"),
     _current_user: models.User = Depends(get_current_active_user),
     analysis_service: AnalysisService = Depends(get_analysis_service),
 ) -> dict[str, str]:
@@ -264,6 +272,8 @@ async def analyze_document(
     safe_filename = SecurityValidator.validate_and_sanitize_filename(file.filename or "")
     SecurityValidator.validate_discipline(discipline)
     SecurityValidator.validate_analysis_mode(analysis_mode)
+    SecurityValidator.validate_strictness(strictness)
+    strictness = (strictness or "standard").lower()
 
     content = await file.read()
     SecurityValidator.validate_file_size(len(content))
@@ -273,6 +283,7 @@ async def analyze_document(
         "status": "processing",
         "filename": safe_filename,
         "timestamp": datetime.datetime.now(datetime.UTC),
+        "strictness": strictness,
     }
 
     background_tasks.add_task(
@@ -288,11 +299,12 @@ async def submit_document(
     file: UploadFile = File(...),
     discipline: str = Form("pt"),
     analysis_mode: str = Form("rubric"),
+    strictness: str = Form("standard"),
     _current_user: models.User = Depends(get_current_active_user),
     analysis_service: AnalysisService = Depends(get_analysis_service),
 ) -> dict[str, str]:
     """Submit document for compliance analysis (alias for analyze_document for GUI compatibility)."""
-    return await analyze_document(background_tasks, file, discipline, analysis_mode, _current_user, analysis_service)
+    return await analyze_document(background_tasks, file, discipline, analysis_mode, strictness, _current_user, analysis_service)
 
 
 @router.get("/status/{task_id}")

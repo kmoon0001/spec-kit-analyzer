@@ -2,4 +2,7 @@
 - Just fix bugs and clean code.
 - ask if you need to change things other than that.
 - always use best practices as and industry expert.
-- always use the more advanced or enahnced like code if you need to consider it.
+- always use the more advanced or enahnced like code if you need to consider it.- Maintain PySide-equivalent features while transitioning to Electron/React; preserve functionality and interactivity.
+- Document milestones and persist progress after each major step.
+- Re-read relevant modules frequently to keep full-codebase context active.
+- Gradually retire PySide frontend assets once Electron/React reaches parity.

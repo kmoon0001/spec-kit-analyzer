@@ -163,18 +163,21 @@ class AnalysisService:
             return await obj
         return obj
 
-    def _get_analysis_cache_key(self, content_hash: str, discipline: str, analysis_mode: str | None) -> str:
+    def _get_analysis_cache_key(self, content_hash: str, discipline: str, analysis_mode: str | None, strictness: str | None) -> str:
         hasher = hashlib.sha256()
         hasher.update(content_hash.encode())
         hasher.update(discipline.encode())
         if analysis_mode:
             hasher.update(analysis_mode.encode())
+        if strictness:
+            hasher.update(strictness.encode())
         return f"analysis_report_{hasher.hexdigest()}"
 
     async def analyze_document(
         self,
         discipline: str = "pt",
         analysis_mode: str | None = None,
+        strictness: str | None = None,
         document_text: str | None = None,
         file_content: bytes | None = None,
         original_filename: str | None = None,
@@ -188,6 +191,7 @@ class AnalysisService:
 
         _update_progress(0, "Starting analysis pipeline...")
 
+        normalized_strictness = (strictness or "standard").lower()
         temp_file_path: Path | None = None
         try:
             if file_content:
@@ -197,7 +201,7 @@ class AnalysisService:
             else:
                 raise ValueError("Either file_content or document_text must be provided")
 
-            cache_key = self._get_analysis_cache_key(content_hash, discipline, analysis_mode)
+            cache_key = self._get_analysis_cache_key(content_hash, discipline, analysis_mode, normalized_strictness)
             cached_result = None
             if not self.use_mocks:
                 cached_result = cache_service.get_from_disk(cache_key)
@@ -229,6 +233,7 @@ class AnalysisService:
                     text_to_process=text_to_process,
                     discipline=discipline,
                     analysis_mode=analysis_mode,
+                    strictness=normalized_strictness,
                     original_filename=original_filename,
                     update_progress=_update_progress,
                 )
@@ -291,6 +296,11 @@ class AnalysisService:
                 doc_type=doc_type_clean,
                 checklist_service=self.checklist_service,
             )
+            metadata = enriched_result.setdefault("metadata", {})
+            if analysis_mode and not metadata.get("analysis_mode"):
+                metadata["analysis_mode"] = analysis_mode
+            metadata["strictness"] = normalized_strictness
+
 
             _update_progress(95, "Generating report...")
             # Add timeout to report generation
@@ -333,6 +343,7 @@ class AnalysisService:
         text_to_process: str,
         discipline: str,
         analysis_mode: str | None,
+        strictness: str | None,
         original_filename: str | None,
         update_progress: Callable[[int, str], None],
     ) -> AnalysisOutput:
@@ -353,6 +364,10 @@ class AnalysisService:
         await asyncio.sleep(0.2)
         base_score = 88 + (int(doc_hash[:2], 16) % 7)
         compliance_score = max(70, min(99, base_score))
+    
+        strictness_normalized = (strictness or "standard").lower()
+        offset_map = {"lenient": 4, "standard": 0, "strict": -5}
+        compliance_score = max(65, min(99, compliance_score + offset_map.get(strictness_normalized, 0)))
     
         findings = [
             {
