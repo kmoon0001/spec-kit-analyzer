@@ -3,8 +3,9 @@
 import json
 from unittest.mock import AsyncMock, Mock
 
-import numpy as np
 import pytest
+
+np = pytest.importorskip("numpy")
 
 from src.core.calibration_trainer import CalibrationTrainer, FeedbackCollector
 from src.core.compliance_analyzer import ComplianceAnalyzer

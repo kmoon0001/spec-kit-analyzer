@@ -8,6 +8,9 @@ including input validation, error handling, and bulk operations.
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
+pytest.importorskip("sqlalchemy")
+
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 

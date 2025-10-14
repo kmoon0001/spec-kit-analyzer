@@ -1,8 +1,9 @@
 import sys
 from unittest.mock import MagicMock, patch
 
-import numpy as np
 import pytest
+
+np = pytest.importorskip("numpy")
 
 # No sys.path manipulation needed if pytest runs from the root
 from src.core.guideline_service import GuidelineService

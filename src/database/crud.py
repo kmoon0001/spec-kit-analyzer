@@ -8,11 +8,19 @@ import datetime
 import logging
 import math
 import sqlite3
+from array import array
 from collections import Counter
 from datetime import date, timedelta
 from typing import Any
 
-import numpy as np
+try:  # pragma: no cover - dependency availability
+    import numpy as np
+except ModuleNotFoundError as exc:  # pragma: no cover - handled via skip logic
+    np = None  # type: ignore[assignment]
+    NUMPY_IMPORT_ERROR = exc
+else:
+    NUMPY_IMPORT_ERROR = None
+
 import sqlalchemy
 import sqlalchemy.exc
 from sqlalchemy import func, select
@@ -24,6 +32,48 @@ from ..core.vector_store import get_vector_store
 from . import models, schemas
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_mean(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    if np is not None:
+        return float(np.mean(values))
+    return float(sum(values) / len(values))
+
+
+def _safe_std(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    if np is not None:
+        return float(np.std(values))
+    mean = _safe_mean(values)
+    variance = sum((value - mean) ** 2 for value in values) / len(values)
+    return math.sqrt(variance)
+
+
+def _safe_percentile(values: list[float], percentile: float) -> float:
+    if not values:
+        return 0.0
+    if np is not None:
+        return float(np.percentile(values, percentile))
+    sorted_values = sorted(values)
+    k = (len(sorted_values) - 1) * (percentile / 100.0)
+    f = math.floor(k)
+    c = math.ceil(k)
+    if f == c:
+        return float(sorted_values[int(k)])
+    lower = sorted_values[int(f)] * (c - k)
+    upper = sorted_values[int(c)] * (k - f)
+    return float(lower + upper)
+
+
+def _buffer_to_vector(buffer: bytes | None) -> Any:
+    if buffer is None:
+        return None
+    if np is not None:
+        return np.frombuffer(buffer, dtype=np.float32)
+    return array("f", buffer)
 
 
 async def get_user(db: AsyncSession, user_id: int) -> models.User | None:
@@ -319,7 +369,7 @@ async def get_organizational_metrics(db: AsyncSession, days_back: int) -> dict[s
 
     total_analyses = len(reports)
     total_findings = sum(len(r.findings) for r in reports)
-    avg_score = np.mean([r.compliance_score for r in reports]) if reports else 0
+    avg_score = _safe_mean([float(r.compliance_score) for r in reports]) if reports else 0
 
     user_query = select(func.count(models.User.id))
     total_users = (await db.execute(user_query)).scalar_one_or_none() or 0
@@ -412,7 +462,7 @@ async def get_team_performance_trends(db: AsyncSession, days_back: int) -> list[
         week_reports = [report for report in reports if week_start <= _as_aware(report.analysis_date) < week_end]
 
         if week_reports:
-            avg_score = float(np.mean([report.compliance_score for report in week_reports]))
+            avg_score = _safe_mean([float(report.compliance_score) for report in week_reports])
             total_findings = sum(len(report.findings) for report in week_reports)
         else:
             avg_score = 0.0
@@ -483,16 +533,16 @@ async def get_benchmark_data(
 
         # Calculate percentiles using numpy
         percentiles = {
-            "p10": float(np.percentile(scores, 10)),
-            "p25": float(np.percentile(scores, 25)),
-            "p50": float(np.percentile(scores, 50)),
-            "p75": float(np.percentile(scores, 75)),
-            "p90": float(np.percentile(scores, 90)),
+            "p10": _safe_percentile(scores, 10),
+            "p25": _safe_percentile(scores, 25),
+            "p50": _safe_percentile(scores, 50),
+            "p75": _safe_percentile(scores, 75),
+            "p90": _safe_percentile(scores, 90),
         }
 
         # Calculate additional statistics
-        mean_score = float(np.mean(scores))
-        std_score = float(np.std(scores))
+        mean_score = _safe_mean(scores)
+        std_score = _safe_std(scores)
 
         benchmark_data = {
             "compliance_score_percentiles": percentiles,
@@ -655,7 +705,10 @@ async def find_similar_report(
 
         if vector_store.is_initialized:
             try:
-                query_vector = np.frombuffer(embedding, dtype=np.float32)
+                query_vector = _buffer_to_vector(embedding)
+                if query_vector is None:
+                    logger.warning("Embedding missing or NumPy unavailable; skipping similarity search.")
+                    continue
                 if query_vector.size:
                     query_vector = query_vector.reshape(1, -1)
                     for report_id, _ in vector_store.search(query_vector, k=5, threshold=threshold):
