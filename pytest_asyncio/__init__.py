@@ -110,8 +110,24 @@ class _AsyncioPlugin:
 _PLUGIN = _AsyncioPlugin()
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:  # pragma: no cover - pytest hook
+    """Register the ``asyncio_mode`` ini option so pytest accepts it."""
+
+    parser.addini(
+        "asyncio_mode",
+        "Control how the in-repo pytest-asyncio stub manages the event loop.",
+        default="auto",
+    )
+
+
 def pytest_configure(config: pytest.Config) -> None:  # pragma: no cover - pytest hook
-    config.pluginmanager.register(_PLUGIN, name="asyncio_stub")
+    if not config.pluginmanager.has_plugin("asyncio_stub"):
+        config.pluginmanager.register(_PLUGIN, name="asyncio_stub")
+
+    config.addinivalue_line(
+        "markers",
+        "asyncio: mark test to run with the shared asyncio event loop provided by the stub plugin.",
+    )
 
 
 __all__ = ["fixture"]
