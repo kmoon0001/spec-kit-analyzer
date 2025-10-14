@@ -19,7 +19,6 @@ import logging
 from abc import ABCMeta, abstractmethod
 from typing import Any, Optional
 from PySide6.QtCore import QRunnable, Slot
-from shiboken6 import wrapInstance
 
 from .worker_signals import WorkerSignals
 from .resource_monitor import ResourceMonitor
