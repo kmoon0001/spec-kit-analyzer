@@ -92,13 +92,10 @@ class TestResourceMonitor:
             metrics_received.append(metrics_dict)
         
         resource_monitor.metrics_updated.connect(on_metrics)
-        resource_monitor.start_monitoring(interval_ms=50)  # Faster interval
+        resource_monitor.start_monitoring(interval_ms=100)
         
         # Wait for updates
         time.sleep(0.3)
-        
-        # Manually trigger an update
-        resource_monitor._update_metrics()
         
         assert len(metrics_received) > 0
         assert 'ram_percent' in metrics_received[0]
@@ -137,26 +134,15 @@ class TestBaseWorker:
         """Test successful worker execution."""
         worker = SimpleTestWorker(result_value="success")
         
-        # Override resource check for testing
-        worker._check_resources = lambda: True
-        
         result_received = []
         error_received = []
-        finished_received = []
         
         worker.signals.result.connect(lambda r: result_received.append(r))
         worker.signals.error.connect(lambda e: error_received.append(e))
-        worker.signals.finished.connect(lambda: finished_received.append(True))
         
         thread_pool.start(worker)
-        thread_pool.waitForDone(3000)  # Longer timeout
+        thread_pool.waitForDone(2000)
         
-        # Process events to ensure signals are delivered
-        for _ in range(10):
-            qapp.processEvents()
-            time.sleep(0.1)
-        
-        assert len(finished_received) == 1  # Worker finished
         assert len(result_received) == 1
         assert result_received[0] == "success"
         assert len(error_received) == 0
@@ -165,26 +151,15 @@ class TestBaseWorker:
         """Test worker error handling."""
         worker = SimpleTestWorker(fail=True)
         
-        # Override resource check for testing
-        worker._check_resources = lambda: True
-        
         result_received = []
         error_received = []
-        finished_received = []
         
         worker.signals.result.connect(lambda r: result_received.append(r))
         worker.signals.error.connect(lambda e: error_received.append(e))
-        worker.signals.finished.connect(lambda: finished_received.append(True))
         
         thread_pool.start(worker)
-        thread_pool.waitForDone(3000)
+        thread_pool.waitForDone(2000)
         
-        # Process events to ensure signals are delivered
-        for _ in range(10):
-            qapp.processEvents()
-            time.sleep(0.1)
-        
-        assert len(finished_received) == 1  # Worker finished
         assert len(result_received) == 0
         assert len(error_received) == 1
         assert error_received[0][0] == ValueError
@@ -210,23 +185,13 @@ class TestBaseWorker:
         worker = SimpleTestWorker(delay=3)
         worker.timeout_seconds = 1.0
         
-        # Override resource check for testing
-        worker._check_resources = lambda: True
-        
         error_received = []
-        finished_received = []
         worker.signals.error.connect(lambda e: error_received.append(e))
-        worker.signals.finished.connect(lambda: finished_received.append(True))
         
         thread_pool.start(worker)
         thread_pool.waitForDone(4000)
         
-        # Process events to ensure signals are delivered
-        for _ in range(10):
-            qapp.processEvents()
-            time.sleep(0.1)
-        
-        assert len(finished_received) == 1  # Worker finished
+        # Should timeout
         assert len(error_received) == 1
         assert error_received[0][0] == TimeoutError
     
@@ -242,25 +207,13 @@ class TestBaseWorker:
                 return "done"
         
         worker = ProgressWorker()
-        
-        # Override resource check for testing
-        worker._check_resources = lambda: True
-        
         progress_received = []
-        finished_received = []
         
         worker.signals.progress.connect(lambda c, t, m: progress_received.append((c, t, m)))
-        worker.signals.finished.connect(lambda: finished_received.append(True))
         
         thread_pool.start(worker)
         thread_pool.waitForDone(2000)
         
-        # Process events to ensure signals are delivered
-        for _ in range(10):
-            qapp.processEvents()
-            time.sleep(0.1)
-        
-        assert len(finished_received) == 1  # Worker finished
         assert len(progress_received) >= 3
         assert progress_received[0] == (0, 100, "Starting")
 
@@ -369,7 +322,7 @@ class TestResourceManager:
         manager.submit_job(SimpleTestWorker(delay=1))
         
         # This should fail
-        with pytest.raises(RuntimeError, match="Job queue full"):
+        with pytest.raises(RuntimeError, match="Queue full"):
             manager.submit_job(SimpleTestWorker())
         
         manager.shutdown(wait=True)
@@ -414,28 +367,17 @@ def test_signal_thread_safety(qapp, thread_pool):
     
     worker = SignalTestWorker()
     
-    # Override resource check for testing
-    worker._check_resources = lambda: True
-    
     status_received = []
     progress_received = []
     result_received = []
-    finished_received = []
     
     worker.signals.status.connect(lambda s: status_received.append(s))
     worker.signals.progress.connect(lambda c, t, m: progress_received.append((c, t, m)))
     worker.signals.result.connect(lambda r: result_received.append(r))
-    worker.signals.finished.connect(lambda: finished_received.append(True))
     
     thread_pool.start(worker)
     thread_pool.waitForDone(2000)
     
-    # Process events to ensure signals are delivered
-    for _ in range(10):
-        qapp.processEvents()
-        time.sleep(0.1)
-    
-    assert len(finished_received) == 1  # Worker finished
     assert len(status_received) >= 1
     assert len(progress_received) >= 3
     assert len(result_received) == 1

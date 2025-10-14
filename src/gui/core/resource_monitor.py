@@ -51,18 +51,18 @@ class ResourceMetrics:
 @dataclass
 class ResourceLimits:
     """Resource limit thresholds."""
-    # RAM limits (percentage) - Adjusted for 8GB systems with other apps
-    ram_warning_threshold: float = 85.0    # Warn user
-    ram_critical_threshold: float = 95.0   # Deny new jobs
-    ram_danger_threshold: float = 98.0     # Kill jobs if possible
+    # RAM limits (percentage)
+    ram_warning_threshold: float = 75.0    # Warn user
+    ram_critical_threshold: float = 85.0   # Deny new jobs
+    ram_danger_threshold: float = 95.0     # Kill jobs if possible
     
-    # CPU limits (percentage) - More lenient for multi-tasking
-    cpu_warning_threshold: float = 85.0
-    cpu_critical_threshold: float = 95.0
+    # CPU limits (percentage)
+    cpu_warning_threshold: float = 80.0
+    cpu_critical_threshold: float = 90.0
     
-    # Minimum required RAM for heavy operations (MB) - Reduced for 8GB systems
-    min_ram_for_analysis: float = 200.0
-    min_ram_for_model_load: float = 500.0
+    # Minimum required RAM for heavy operations (MB)
+    min_ram_for_analysis: float = 500.0
+    min_ram_for_model_load: float = 1000.0
 
 
 class ResourceMonitor(QObject):

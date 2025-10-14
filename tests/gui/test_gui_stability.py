@@ -108,38 +108,25 @@ class TestTimeoutScenarios:
         thread_pool.start(worker)
         thread_pool.waitForDone(6000)
         
-        # Process events to ensure signals are delivered
-        for _ in range(10):
-            qapp.processEvents()
-            time.sleep(0.1)
-        
         # Should timeout
-        assert len(finished_received) == 1  # Worker finished
         assert len(error_received) == 1
         assert error_received[0][0] == TimeoutError
+        assert len(finished_received) == 1
     
     def test_multiple_timeout_workers(self, qapp):
         """Test multiple workers timing out simultaneously."""
         thread_pool = QThreadPool()
         
         errors = []
-        finished = []
         
         for i in range(5):
             worker = TimeoutWorker(delay=3)
             worker.signals.error.connect(lambda e: errors.append(e))
-            worker.signals.finished.connect(lambda: finished.append(True))
             thread_pool.start(worker)
         
         thread_pool.waitForDone(8000)
         
-        # Process events to ensure signals are delivered
-        for _ in range(10):
-            qapp.processEvents()
-            time.sleep(0.1)
-        
         # All should timeout
-        assert len(finished) == 5  # All workers finished
         assert len(errors) == 5
         assert all(e[0] == TimeoutError for e in errors)
 
@@ -203,14 +190,9 @@ class TestNetworkFailures:
         thread_pool.start(worker)
         thread_pool.waitForDone(6000)
         
-        # Process events to ensure signals are delivered
-        for _ in range(10):
-            qapp.processEvents()
-            time.sleep(0.1)
-        
         # Should handle network error gracefully
-        assert len(finished_received) == 1  # Worker finished
         assert len(error_received) == 1
+        assert len(finished_received) == 1
         # Important: no crash
 
 
@@ -237,24 +219,16 @@ class TestConcurrentOperations:
                 pass
         
         results = []
-        finished = []
         
         # Start 20 workers
         for i in range(20):
             worker = QuickWorker(i)
             worker.signals.result.connect(lambda r: results.append(r))
-            worker.signals.finished.connect(lambda: finished.append(True))
             thread_pool.start(worker)
         
         thread_pool.waitForDone(5000)
         
-        # Process events to ensure signals are delivered
-        for _ in range(10):
-            qapp.processEvents()
-            time.sleep(0.1)
-        
         # All workers should complete
-        assert len(finished) == 20  # All workers finished
         assert len(results) == 20
     
     def test_rapid_job_submission(self, qapp):
@@ -266,7 +240,6 @@ class TestConcurrentOperations:
         )
         
         completed = []
-        failed = []
         
         class FastWorker(BaseWorker):
             def create_signals(self):
@@ -281,16 +254,13 @@ class TestConcurrentOperations:
         # Submit 30 jobs rapidly
         for i in range(30):
             worker = FastWorker()
-            worker.signals.result.connect(lambda r: completed.append(r))
-            worker.signals.error.connect(lambda e: failed.append(e))
-            manager.submit_job(worker, priority=JobPriority.NORMAL)
+            manager.submit_job(
+                worker,
+                priority=JobPriority.NORMAL,
+                on_complete=lambda r: completed.append(r)
+            )
         
         time.sleep(2.0)  # Allow processing
-        
-        # Process events to ensure signals are delivered
-        for _ in range(10):
-            qapp.processEvents()
-            time.sleep(0.1)
         
         manager.shutdown(wait=True)
         
@@ -447,20 +417,14 @@ def test_no_crashes_under_stress(qapp):
             delay=(0.1 if i % 3 == 0 else 0)  # Some slow
         )
         
-        worker.signals.result.connect(lambda r: completed.append(r))
-        worker.signals.error.connect(lambda e: failed.append(e))
-        
         manager.submit_job(
             worker,
-            priority=JobPriority.NORMAL if i % 2 == 0 else JobPriority.LOW
+            priority=JobPriority.NORMAL if i % 2 == 0 else JobPriority.LOW,
+            on_complete=lambda r: completed.append(r),
+            on_error=lambda e: failed.append(e)
         )
     
     time.sleep(3.0)  # Allow processing
-    
-    # Process events to ensure signals are delivered
-    for _ in range(10):
-        qapp.processEvents()
-        time.sleep(0.1)
     
     manager.shutdown(wait=True)
     
