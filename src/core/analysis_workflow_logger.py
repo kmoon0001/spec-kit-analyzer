@@ -1,76 +1,80 @@
-"""Analysis Workflow Logger - Comprehensive logging for analysis workflow debugging.
-import requests
+"""Structured logging utilities for the document analysis workflow.
 
-This module provides detailed logging capabilities to track each step of the
-document analysis process, helping identify where workflows fail or hang.
+This module centralises logging around the analysis workflow so engineers can
+trace every significant step when diagnosing hanging or failed analyses.
 """
+
+from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
+
+
+_LOGGER_NAME: Final[str] = "analysis_workflow"
+_SENSITIVE_KEYS: Final[set[str]] = {"password", "token", "key", "secret", "auth"}
+_MAX_TEXT_LENGTH: Final[int] = 200
+
+
+@dataclass(slots=True)
+class _SessionData:
+    """Container for the in-flight analysis session."""
+
+    session_id: str
+    file_path: str
+    file_name: str
+    file_size: int
+    rubric: str
+    user_id: str
+    iso_started_at: str
+    steps: list[dict[str, Any]] = field(default_factory=list)
 
 
 class AnalysisWorkflowLogger:
-    """Comprehensive logger for analysis workflow debugging.
+    """Comprehensive logger for tracking the analysis workflow lifecycle."""
 
-    Tracks all steps of the analysis process including:
-    - Analysis initiation
-    - API requests and responses
-    - Polling attempts
-    - Workflow completion/failure
-    """
-
-    def __init__(self, logger_name: str = "analysis_workflow"):
+    def __init__(self, logger_name: str = _LOGGER_NAME) -> None:
         self.logger = logging.getLogger(logger_name)
         self.logger.setLevel(logging.DEBUG)
 
-        # Create formatter for detailed logging
-        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
-        # Add console handler if not already present
+        # Ensure the logger always has at least a NullHandler so library usage
+        # does not emit "No handler could be found" warnings.
         if not self.logger.handlers:
-            console_handler = logging.StreamHandler()
-            console_handler.setLevel(logging.DEBUG)
-            console_handler.setFormatter(formatter)
-            self.logger.addHandler(console_handler)
+            self.logger.addHandler(logging.NullHandler())
 
-        # Track current analysis session
-        self.current_session: dict[str, Any] | None = None
-        self.session_start_time: float | None = None
+        self._session: _SessionData | None = None
+        self._started_monotonic: float | None = None
 
+    # ------------------------------------------------------------------
+    # Session lifecycle helpers
+    # ------------------------------------------------------------------
     def log_analysis_start(self, file_path: str, rubric: str, user_id: str = "unknown") -> str:
-        """Log the start of an analysis workflow.
+        """Log the start of an analysis workflow and create a tracking session."""
+        session_id = f"analysis_{int(time.time() * 1000)}"
+        started_monotonic = time.perf_counter()
+        file_info = Path(file_path)
+        file_name = file_info.name
+        file_size = self._safe_file_size(file_info)
 
-        Args:
-            file_path: Path to the document being analyzed
-            rubric: Selected compliance rubric
-            user_id: ID of the user initiating analysis
-
-        Returns:
-            Session ID for tracking this analysis
-
-        """
-        session_id = f"analysis_{int(time.time())}"
-        self.session_start_time = time.time()
-
-        self.current_session = {
-            "session_id": session_id,
-            "file_path": file_path,
-            "file_name": Path(file_path).name,
-            "file_size": self._get_file_size(file_path),
-            "rubric": rubric,
-            "user_id": user_id,
-            "start_time": datetime.now().isoformat(),
-            "steps": [],
-        }
+        self._session = _SessionData(
+            session_id=session_id,
+            file_path=file_path,
+            file_name=file_name,
+            file_size=file_size,
+            rubric=rubric,
+            user_id=user_id,
+            iso_started_at=self._now_iso(),
+        )
+        self._started_monotonic = started_monotonic
 
         self.logger.info(
-            "🚀 ANALYSIS STARTED - Session: %s | File: %s (%s bytes) | Rubric: %s | User: %s",
+            "Analysis started | session=%s | file=%s | size_bytes=%s | rubric=%s | user=%s",
             session_id,
-            Path(file_path).name,
-            len(Path(file_path).read_bytes()) if Path(file_path).exists() else 0,
+            file_name,
+            file_size,
             rubric,
             user_id,
         )
@@ -78,251 +82,253 @@ class AnalysisWorkflowLogger:
         return session_id
 
     def log_api_request(self, endpoint: str, method: str = "POST", payload: dict | None = None) -> None:
-        """Log API request details.
-
-        Args:
-            endpoint: API endpoint being called
-            method: HTTP method (GET, POST, etc.)
-            payload: Request payload (sensitive data will be sanitized)
-
-        """
-        if not self.current_session:
-            self.logger.warning("API request logged without active session")
+        """Log outbound API request metadata."""
+        session = self._require_session("API request")
+        if not session:
             return
 
-        # Sanitize payload for logging (remove sensitive data)
         safe_payload = self._sanitize_payload(payload) if payload else None
+        payload_size = len(str(payload)) if payload is not None else 0
 
         step = {
             "step": "api_request",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": self._now_iso(),
             "endpoint": endpoint,
             "method": method,
-            "payload_size": len(str(payload)) if payload else 0,
+            "payload_size": payload_size,
         }
-
-        self.current_session["steps"].append(step)
+        session.steps.append(step)
 
         self.logger.info(
-            "📤 API REQUEST - %s %s | Payload size: %s chars | %s",
+            "API request | session=%s | method=%s | endpoint=%s | payload_size=%s",
+            session.session_id,
             method,
             endpoint,
-            step["payload_size"],
-            f"Session: {self.current_session['session_id']}",
+            payload_size,
         )
-
         if safe_payload:
-            self.logger.debug("Request payload: %s", safe_payload)
+            self.logger.debug("API request payload | session=%s | payload=%s", session.session_id, safe_payload)
 
     def log_api_response(self, status_code: int, response: dict | None = None, error: str | None = None) -> None:
-        """Log API response details.
-
-        Args:
-            status_code: HTTP status code
-            response: Response data
-            error: Error message if request failed
-
-        """
-        if not self.current_session:
-            self.logger.warning("API response logged without active session")
+        """Log API response metadata and outcome."""
+        session = self._require_session("API response")
+        if not session:
             return
+
+        success = 200 <= status_code < 300
+        response_size = len(str(response)) if response is not None else 0
+        truncated_error = self._truncate_text(error) if error else None
 
         step = {
             "step": "api_response",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": self._now_iso(),
             "status_code": status_code,
-            "success": 200 <= status_code < 300,
-            "response_size": len(str(response)) if response else 0,
-            "error": error,
+            "success": success,
+            "response_size": response_size,
+            "error": truncated_error,
         }
+        session.steps.append(step)
 
-        self.current_session["steps"].append(step)
-
-        if step["success"]:
+        if success:
             self.logger.info(
-                "✅ API RESPONSE - Status: %s | Response size: %s chars | ",
+                "API response | session=%s | status=%s | response_size=%s",
+                session.session_id,
                 status_code,
-                step["response_size"],
-                f"Session: {self.current_session['session_id']}",
+                response_size,
             )
-
-            # Log task ID if present
-            if response and "task_id" in response:
-                self.logger.info("📋 Task ID received: %s", response["task_id"])
         else:
             self.logger.error(
-                "❌ API ERROR - Status: %s | Error: %s | ",
+                "API error | session=%s | status=%s | error=%s",
+                session.session_id,
                 status_code,
-                error,
-                f"Session: {self.current_session['session_id']}",
+                truncated_error,
             )
 
+        if response and "task_id" in response:
+            self.logger.info("Task identifier received | session=%s | task_id=%s", session.session_id, response["task_id"])
+
     def log_polling_attempt(
-        self, task_id: str, attempt: int, status: str | None = None, progress: int | None = None
+        self,
+        task_id: str,
+        attempt: int,
+        status: str | None = None,
+        progress: int | None = None,
     ) -> None:
-        """Log polling attempt for analysis status.
-
-        Args:
-            task_id: Analysis task ID being polled
-            attempt: Polling attempt number
-            status: Current analysis status
-            progress: Analysis progress percentage
-
-        """
-        if not self.current_session:
-            self.logger.warning("Polling attempt logged without active session")
+        """Log a polling attempt while monitoring an analysis task."""
+        session = self._require_session("Polling attempt")
+        if not session:
             return
 
+        elapsed = self._elapsed_seconds()
         step = {
             "step": "polling_attempt",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": self._now_iso(),
             "task_id": task_id,
             "attempt": attempt,
             "status": status,
             "progress": progress,
+            "elapsed": elapsed,
         }
-
-        self.current_session["steps"].append(step)
-
-        elapsed = time.time() - self.session_start_time if self.session_start_time else 0
+        session.steps.append(step)
 
         self.logger.info(
-            "🔄 POLLING ATTEMPT #%s - Task: {task_id[:8]}... | Status: %s | Progress: {progress}% | ",
+            "Polling attempt | session=%s | task=%s | attempt=%s | status=%s | progress=%s | elapsed=%.2fs",
+            session.session_id,
+            task_id,
             attempt,
-            status,
-            f"Elapsed: {elapsed}s | Session: {self.current_session['session_id']}",
+            status or "unknown",
+            "?" if progress is None else progress,
+            elapsed,
         )
 
     def log_workflow_completion(self, success: bool, result: dict | None = None, error: str | None = None) -> None:
-        """Log workflow completion or failure.
-
-        Args:
-            success: Whether the workflow completed successfully
-            result: Analysis result data
-            error: Error message if workflow failed
-
-        """
-        if not self.current_session:
-            self.logger.warning("Workflow completion logged without active session")
+        """Log workflow completion, whether successful or not."""
+        session = self._require_session("Workflow completion")
+        if not session:
             return
 
-        duration = time.time() - self.session_start_time if self.session_start_time else 0
+        duration = self._elapsed_seconds()
+        result_size = len(str(result)) if result is not None else 0
+        truncated_error = self._truncate_text(error) if error else None
 
         step = {
             "step": "workflow_completion",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": self._now_iso(),
             "success": success,
             "duration": duration,
-            "result_size": len(str(result)) if result else 0,
-            "error": error,
+            "result_size": result_size,
+            "error": truncated_error,
         }
-
-        self.current_session["steps"].append(step)
+        session.steps.append(step)
 
         if success:
             self.logger.info(
-                "🎉 ANALYSIS COMPLETED - Duration: %ss | Result size: %s chars | ",
+                "Analysis completed | session=%s | duration=%.2fs | result_size=%s",
+                session.session_id,
                 duration,
-                step["result_size"],
-                f"Session: {self.current_session['session_id']}",
+                result_size,
             )
         else:
             self.logger.error(
-                "💥 ANALYSIS FAILED - Duration: %ss | Error: %s | ",
+                "Analysis failed | session=%s | duration=%.2fs | error=%s",
+                session.session_id,
                 duration,
-                error,
-                f"Session: {self.current_session['session_id']}",
+                truncated_error,
             )
 
-        # Log session summary
         self._log_session_summary()
 
     def log_workflow_timeout(self, timeout_seconds: float) -> None:
-        """Log workflow timeout.
-
-        Args:
-            timeout_seconds: Timeout threshold that was exceeded
-
-        """
-        if not self.current_session:
-            self.logger.warning("Workflow timeout logged without active session")
+        """Log when the workflow exceeds the configured timeout threshold."""
+        session = self._require_session("Workflow timeout")
+        if not session:
             return
 
-        duration = time.time() - self.session_start_time if self.session_start_time else 0
+        duration = self._elapsed_seconds()
+        step = {
+            "step": "workflow_timeout",
+            "timestamp": self._now_iso(),
+            "timeout_threshold": timeout_seconds,
+            "duration": duration,
+        }
+        session.steps.append(step)
 
         self.logger.error(
-            "⏰ ANALYSIS TIMEOUT - Duration: %ss | Timeout threshold: %ss | ",
+            "Analysis timeout | session=%s | duration=%.2fs | timeout_threshold=%.2fs",
+            session.session_id,
             duration,
             timeout_seconds,
-            f"Session: {self.current_session['session_id']}",
         )
 
         self._log_session_summary()
 
+    # ------------------------------------------------------------------
+    # Session inspection helpers
+    # ------------------------------------------------------------------
     def get_current_session(self) -> dict[str, Any] | None:
-        """Get current analysis session data."""
-        return self.current_session.copy() if self.current_session else None
+        """Return a shallow copy of the current session data."""
+        if not self._session:
+            return None
+        return {
+            "session_id": self._session.session_id,
+            "file_path": self._session.file_path,
+            "file_name": self._session.file_name,
+            "file_size": self._session.file_size,
+            "rubric": self._session.rubric,
+            "user_id": self._session.user_id,
+            "started_at": self._session.iso_started_at,
+            "steps": [step.copy() for step in self._session.steps],
+        }
 
     def reset_session(self) -> None:
-        """Reset current analysis session."""
-        if self.current_session:
-            self.logger.debug("Resetting session: %s", self.current_session["session_id"])
+        """Clear the current session state."""
+        if self._session:
+            self.logger.debug("Resetting session | session=%s", self._session.session_id)
+        self._session = None
+        self._started_monotonic = None
 
-        self.current_session = None
-        self.session_start_time = None
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    def _require_session(self, context: str) -> _SessionData | None:
+        if not self._session:
+            self.logger.warning("%s logged without an active session", context)
+            return None
+        return self._session
 
-    def _get_file_size(self, file_path: str) -> int:
-        """Get file size safely."""
+    def _elapsed_seconds(self) -> float:
+        if self._started_monotonic is None:
+            return 0.0
+        return max(0.0, time.perf_counter() - self._started_monotonic)
+
+    @staticmethod
+    def _safe_file_size(path: Path) -> int:
         try:
-            return Path(file_path).stat().st_size
-        except (PermissionError, OSError, FileNotFoundError):
+            return path.stat().st_size
+        except (FileNotFoundError, OSError, PermissionError):
             return 0
 
-    def _sanitize_payload(self, payload: dict) -> dict:
-        """Remove sensitive data from payload for logging."""
-        if not payload:
-            return {}
+    @staticmethod
+    def _sanitize_payload(payload: dict) -> dict:
+        safe_payload = {}
+        for key, value in payload.items():
+            key_lower = key.lower()
+            if key_lower in _SENSITIVE_KEYS:
+                safe_payload[key] = "***REDACTED***"
+                continue
 
-        # Create a copy and remove sensitive fields
-        safe_payload = payload.copy()
-
-        # Remove or mask sensitive fields
-        sensitive_fields = ["password", "token", "key", "secret", "auth"]
-        for field in sensitive_fields:
-            if field in safe_payload:
-                safe_payload[field] = "***REDACTED***"
-
-        # Truncate large text fields
-        if "content" in safe_payload and len(str(safe_payload["content"])) > 200:
-            safe_payload["content"] = str(safe_payload["content"])[:200] + "...[truncated]"
-
+            safe_payload[key] = AnalysisWorkflowLogger._truncate_text(value)
         return safe_payload
 
+    @staticmethod
+    def _truncate_text(value: Any) -> Any:
+        if isinstance(value, str) and len(value) > _MAX_TEXT_LENGTH:
+            return f"{value[:_MAX_TEXT_LENGTH]}...[truncated]"
+        return value
+
+    @staticmethod
+    def _now_iso() -> str:
+        return datetime.now(timezone.utc).isoformat()
+
     def _log_session_summary(self) -> None:
-        """Log a summary of the current session."""
-        if not self.current_session:
+        session = self._session
+        if not session:
             return
 
-        session = self.current_session
         step_counts: dict[str, int] = {}
+        for step in session.steps:
+            name = step.get("step", "unknown")
+            step_counts[name] = step_counts.get(name, 0) + 1
 
-        # Count step types
-        for step in session["steps"]:
-            step_type = step["step"]
-            step_counts[step_type] = step_counts.get(step_type, 0) + 1
-
-        duration = time.time() - self.session_start_time if self.session_start_time else 0
-
+        duration = self._elapsed_seconds()
         self.logger.info(
-            "📊 SESSION SUMMARY - %s | File: %s | Duration: %ss | ",
-            session["session_id"],
-            session["file_name"],
+            "Session summary | session=%s | file=%s | duration=%.2fs | steps=%s",
+            session.session_id,
+            session.file_name,
             duration,
-            f"Steps: {step_counts}",
+            step_counts,
         )
 
 
-# Global logger instance
-# Global logger instance
-# Global logger instance
+# Global singleton used throughout the PySide application.
 workflow_logger = AnalysisWorkflowLogger()
