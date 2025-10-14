@@ -108,9 +108,13 @@ class ComplianceAnalyzer:
 
         if calibrator_path.exists() and self.confidence_calibrator:
             try:
-                self.confidence_calibrator.load(calibrator_path)
+                # Suppress sklearn version warnings during loading
+                import warnings
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
+                    self.confidence_calibrator.load(calibrator_path)
                 logger.info("Loaded existing confidence calibrator")
-            except (FileNotFoundError, PermissionError, OSError) as e:
+            except (FileNotFoundError, PermissionError, OSError, Exception) as e:
                 logger.warning("Failed to load calibrator: %s. Will create new one.", e)
                 self.confidence_calibrator = ConfidenceCalibrator(method="auto")
         else:

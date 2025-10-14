@@ -30,8 +30,6 @@ def get_filtered_settings() -> dict[str, Any]:
 
 
 @router.get("/dashboard", response_class=FileResponse)
-@router.get("/dashboard", response_class=FileResponse)
-@router.get("/dashboard", response_class=FileResponse)
 async def get_admin_dashboard(admin_user: models.User = Depends(get_current_admin_user)):
     if not os.path.exists(ADMIN_HTML_PATH):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="admin.html not found")

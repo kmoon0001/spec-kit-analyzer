@@ -204,6 +204,11 @@ async def auto_warm_ai_models():
         # Initialize analysis service
         analysis_service = AnalysisService(retriever=retriever)
         
+        # Skip auto-warming if using mocks
+        if analysis_service.use_mocks:
+            logger.info("Skipping AI model auto-warming (mocks enabled)")
+            return
+        
         # Tiny warm-up prompts
         warm_prompts = [
             "Test",
@@ -218,11 +223,13 @@ async def auto_warm_ai_models():
             try:
                 logger.info(f"Auto-warming AI models with prompt {i+1}/{len(warm_prompts)}: '{prompt}'")
                 
-                # Warm up document classifier
-                await analysis_service.document_classifier.classify_document(prompt)
+                # Warm up document classifier (if available)
+                if analysis_service.document_classifier is not None:
+                    await analysis_service.document_classifier.classify_document(prompt)
                 
-                # Warm up NER (if not skipped)
-                if not settings.performance.skip_advanced_ner:
+                # Warm up NER (if not skipped and available)
+                if (not settings.performance.skip_advanced_ner and 
+                    analysis_service.clinical_ner_service is not None):
                     await analysis_service.clinical_ner_service.extract_entities(prompt)
                 
                 # Small delay between warm-ups
@@ -356,17 +363,3 @@ async def logs_stream():
 def read_root():
     """Root endpoint providing API welcome message."""
     return {"message": "Welcome to the Clinical Compliance Analyzer API"}
-
-
-@app.get("/ai/status")
-async def get_ai_status():
-    """Get AI model status (root level endpoint for GUI compatibility)"""
-    return {
-        "status": "ready",
-        "models": {
-            "llm": "loaded",
-            "embeddings": "loaded",
-            "ner": "loaded",
-        },
-        "last_updated": "2025-10-07T16:28:15Z",
-    }
