@@ -15,7 +15,7 @@ export const ShellHeader = () => {
         <span className={styles.logo}>TCA</span>
         <div>
           <h1 className={styles.title}>Therapy Compliance Analyzer</h1>
-          <p className={styles.subtitle}>Clinical documentation review · Medicare compliance intelligence</p>
+          <p className={styles.subtitle}>Clinical documentation review - Medicare compliance intelligence</p>
         </div>
       </div>
       <div className={styles.controls}>

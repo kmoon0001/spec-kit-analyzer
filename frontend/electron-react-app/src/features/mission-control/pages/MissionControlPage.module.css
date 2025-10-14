@@ -97,3 +97,15 @@ header p {
   font-size: 0.85rem;
 }
 
+.taskStatus {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  min-width: 120px;
+  justify-content: flex-end;
+}
+
+.taskStatus span {
+  font-size: 0.8rem;
+  color: rgba(148, 163, 184, 0.85);
+}

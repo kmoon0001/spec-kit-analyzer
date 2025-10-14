@@ -15,20 +15,39 @@ const TEMPLATE_NAMES = [
   'Pediatric OT Initial Evaluation',
 ];
 
+type MissionTask = {
+  id: string;
+  label: string;
+  status: string;
+  progress: number;
+};
+
+const resolveStatusVariant = (status: string): 'ready' | 'warming' | 'warning' | 'offline' => {
+  const normalized = status.toLowerCase();
+  if (normalized === 'completed') {
+    return 'ready';
+  }
+  if (normalized === 'failed' || normalized === 'cancelled') {
+    return 'warning';
+  }
+  if (normalized === 'pending' || normalized === 'processing' || normalized === 'analyzing') {
+    return 'warming';
+  }
+  return 'offline';
+};
+
 export default function MissionControlPage() {
   const token = useAppStore((state) => state.auth.token);
   const taskQuery = useTaskMonitor({ enabled: Boolean(token) });
   const logStream = useLogStream();
 
-  const tasks = useMemo(() => {
+  const tasks = useMemo<MissionTask[]>(() => {
     const entries = taskQuery.data ? Object.entries(taskQuery.data) : [];
-    if (!entries.length) {
-      return [];
-    }
     return entries.map(([id, task]) => ({
       id,
-      label: `${task.filename ?? 'Document'} · ${task.status_message ?? task.status ?? 'pending'}`,
+      label: `${task.filename ?? 'Document'} | ${task.status_message ?? task.status ?? 'pending'}`,
       status: task.status ?? 'pending',
+      progress: task.progress ?? 0,
     }));
   }, [taskQuery.data]);
 
@@ -37,7 +56,7 @@ export default function MissionControlPage() {
       <header>
         <h2>Mission Control Console</h2>
         <p>
-          Provides the same orchestration surface as the PySide mission control tab—quick actions, task telemetry, and live logs.
+          Provides the same orchestration surface as the PySide mission control tab with quick actions, task telemetry, and live logs.
         </p>
       </header>
 
@@ -59,8 +78,10 @@ export default function MissionControlPage() {
           </div>
         </Card>
 
-        <Card title="Active Tasks" subtitle="Hybrid of local + API tasks, matching ViewModel merging">
-          {!tasks.length && <p className={styles.helperText}>No tasks running. Start an analysis to populate this list.</p>}
+        <Card title="Active Tasks" subtitle="Hybrid of local and API tasks, matching ViewModel merging">
+          {tasks.length === 0 && (
+            <p className={styles.helperText}>No tasks running. Start an analysis to populate this list.</p>
+          )}
           <ul className={styles.taskList}>
             {tasks.map((task) => (
               <li key={task.id}>
@@ -68,10 +89,13 @@ export default function MissionControlPage() {
                   <span className={styles.taskId}>{task.id}</span>
                   <p>{task.label}</p>
                 </div>
-                <StatusChip
-                  label={task.status === 'completed' ? 'Completed' : task.status ?? 'Pending'}
-                  status={task.status === 'completed' ? 'ready' : task.status === 'failed' ? 'warning' : 'warming'}
-                />
+                <div className={styles.taskStatus}>
+                  <span>{`${Math.round(task.progress)}%`}</span>
+                  <StatusChip
+                    label={task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                    status={resolveStatusVariant(task.status)}
+                  />
+                </div>
               </li>
             ))}
           </ul>

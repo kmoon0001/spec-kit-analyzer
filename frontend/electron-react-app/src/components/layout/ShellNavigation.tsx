@@ -3,10 +3,10 @@ import { NavLink } from 'react-router-dom';
 import styles from './ShellNavigation.module.css';
 
 const links = [
-  { path: '/', label: 'Analysis', icon: '🧠' },
-  { path: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { path: '/mission-control', label: 'Mission Control', icon: '🚀' },
-  { path: '/settings', label: 'Settings', icon: '⚙️' },
+  { path: '/', label: 'Analysis', icon: 'A' },
+  { path: '/dashboard', label: 'Dashboard', icon: 'D' },
+  { path: '/mission-control', label: 'Mission Control', icon: 'MC' },
+  { path: '/settings', label: 'Settings', icon: 'S' },
 ];
 
 export const ShellNavigation = () => {
