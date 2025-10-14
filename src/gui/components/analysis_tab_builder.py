@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.gui.widgets.medical_theme import medical_theme
+from src.gui.components.strictness_criteria import StrictnessDescriptionWidget
 from src.gui.widgets.micro_interactions import AnimatedButton
 
 if TYPE_CHECKING:
@@ -622,13 +623,6 @@ class AnalysisTabBuilder:
         self.main_window.stop_analysis_button.setStyleSheet(medical_theme.get_button_stylesheet("error"))
         self.main_window.stop_analysis_button.setMinimumHeight(42)
         secondary_layout.addWidget(self.main_window.stop_analysis_button)
-
-        self.main_window.view_report_button = AnimatedButton("📊 View Report", section)
-        self.main_window.view_report_button.clicked.connect(self.main_window._open_report_popup)
-        self.main_window.view_report_button.setEnabled(False)
-        self.main_window.view_report_button.setStyleSheet(medical_theme.get_button_stylesheet("secondary"))
-        self.main_window.view_report_button.setMinimumHeight(42)
-        secondary_layout.addWidget(self.main_window.view_report_button)
 
         layout.addLayout(secondary_layout)
         return section

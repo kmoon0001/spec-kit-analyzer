@@ -43,7 +43,7 @@ models:
       batch_size: 2
       do_sample: false
       fast_mode: true
-      filename: meditron-7b.Q4_K_M.gguf
+      filename: mistral-7b-instruct-v0.2.Q4_K_M.gguf
       max_length: 1024
       max_system_gb: 8.0
       max_tokens: 512
@@ -56,7 +56,7 @@ models:
     clinical_q4_balanced:
       batch_size: 2
       do_sample: false
-      filename: meditron-7b.Q4_K_M.gguf
+      filename: mistral-7b-instruct-v0.2.Q4_K_M.gguf
       max_length: 1024
       max_system_gb: 16.0
       num_beams: 1

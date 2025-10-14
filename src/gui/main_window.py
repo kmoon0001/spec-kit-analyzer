@@ -47,6 +47,10 @@ from src.gui.widgets.medical_theme import medical_theme
 from src.gui.widgets.micro_interactions import AnimatedButton
 from src.gui.widgets.mission_control_widget import LogViewerWidget, MissionControlWidget, SettingsEditorWidget
 
+from src.gui.components.health_status_bar import HealthStatusBar
+from src.gui.widgets.pycharm_dark_theme import pycharm_theme
+from src.gui.core import ResourceMonitor
+
 try:
     from src.gui.widgets.meta_analytics_widget import MetaAnalyticsWidget
 except ImportError:
@@ -91,6 +95,10 @@ class MainApplicationWindow(QMainWindow):
 
         # Initialize UI attributes to prevent "defined outside __init__" warnings
         self._initialize_ui_attributes()
+        # Initialize resource monitor for health status bar
+        self.resource_monitor = ResourceMonitor()
+        self.resource_monitor.start_monitoring(interval_ms=1000)
+
 
         self._build_ui()
         self._connect_view_model()

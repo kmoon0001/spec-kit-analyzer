@@ -38,6 +38,7 @@ from src.api.routers import (
     users,
     rubric_router,
     individual_habits,
+    websocket,
 )
 
 try:
@@ -225,12 +226,9 @@ async def auto_warm_ai_models():
                 
                 # Warm up document classifier (if available)
                 if analysis_service.document_classifier is not None:
-                    await analysis_service.document_classifier.classify_document(prompt)
+                    analysis_service.document_classifier.classify_document(prompt)
                 
-                # Warm up NER (if not skipped and available)
-                if (not settings.performance.skip_advanced_ner and 
-                    analysis_service.clinical_ner_service is not None):
-                    await analysis_service.clinical_ner_service.extract_entities(prompt)
+                # Warm up NER (skip for now - heavy on CPU)
                 
                 # Small delay between warm-ups
                 await asyncio.sleep(0.5)
@@ -323,6 +321,7 @@ app.include_router(feedback.router)
 app.include_router(users.router, tags=["Users"])
 app.include_router(rubric_router.router, prefix="/rubrics", tags=["Rubrics"])
 app.include_router(individual_habits.router)
+app.include_router(websocket.router, tags=["WebSocket"])
 
 if EHR_AVAILABLE:
     app.include_router(ehr_integration.router, tags=["EHR Integration"])

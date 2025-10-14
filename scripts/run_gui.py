@@ -65,6 +65,10 @@ if __name__ == "__main__":
 
             # Show a dialog to the user
             app = QApplication(sys.argv)
+    # Apply PyCharm dark theme
+    app.setStyleSheet(pycharm_theme.get_application_stylesheet())
+    logger.info("Applied PyCharm dark theme")
+
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Warning)
             msg.setWindowTitle("API Server Required")
@@ -77,6 +81,7 @@ if __name__ == "__main__":
 
         # Use the proper authentication flow from src.gui.main
         from src.gui.main import main as gui_main
+from src.gui.widgets.pycharm_dark_theme import pycharm_theme
 
         gui_main()
 
