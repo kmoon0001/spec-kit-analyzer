@@ -289,6 +289,13 @@ async def lifespan(app: FastAPI):
 
 # --- FastAPI App Initialization --- #
 
+ALLOWED_CORS_ORIGINS = [
+    "http://127.0.0.1",
+    "http://127.0.0.1:3000",
+    "http://localhost",
+    "http://localhost:3000",
+]
+
 app = FastAPI(
     title="Therapy Compliance Analyzer API",
     description="...",
@@ -299,7 +306,7 @@ app = FastAPI(
 # CORS: allow localhost only (development)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1", "http://localhost"],
+    allow_origins=ALLOWED_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]

@@ -5,6 +5,7 @@ This script launches the FastAPI application using a Uvicorn server.
 """
 
 import importlib
+import os
 import signal
 import sys
 from pathlib import Path
@@ -59,9 +60,11 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
+    port = int(os.environ.get("API_PORT", 8100))
+
     print("Starting Therapy Compliance Analyzer API Server...")
     print("   Host: 127.0.0.1")
-    print("   Port: 8001")
+    print(f"   Port: {port}")
     print("   Press Ctrl+C to stop")
     print("-" * 50)
 
@@ -79,7 +82,7 @@ if __name__ == "__main__":
         uvicorn.run(
             app,
             host="127.0.0.1",
-            port=8001,
+            port=port,
             log_level="info",
             reload=False,  # Disable reload for stability
             access_log=True,
@@ -87,12 +90,15 @@ if __name__ == "__main__":
         )
 
     except KeyboardInterrupt:
-        print("\n✓ API server stopped by user")
+        print("\nAPI server stopped by user")
     except Exception as e:
-        print(f"\n✗ API server error: {e}")
+        print(f"\nAPI server error: {e}")
         import traceback
 
         traceback.print_exc()
         sys.exit(1)
     finally:
         print("API server cleanup complete")
+
+
+

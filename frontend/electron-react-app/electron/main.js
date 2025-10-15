@@ -1,12 +1,87 @@
 const { app, BrowserWindow, ipcMain, shell, nativeTheme } = require('electron');
-const path = require('path');
-const isDev = require('electron-is-dev');
+const path = require('node:path');
+const { taskManager } = require('./tasks');
+
+const isDev = process.env.ELECTRON_IS_DEV === '1' || !app.isPackaged;
+const defaultApiBaseUrl = process.env.COMPLIANCE_API_URL || 'http://127.0.0.1:8100';
 
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 
 let mainWindow;
 
-function createMainWindow() {
+const TASK_EVENT_CHANNELS = {
+  queued: 'tasks:queued',
+  started: 'tasks:started',
+  progress: 'tasks:progress',
+  completed: 'tasks:completed',
+  failed: 'tasks:failed',
+  cancelled: 'tasks:cancelled',
+  log: 'tasks:log',
+};
+
+const broadcastTaskEvent = (channel, payload) => {
+  const windows = BrowserWindow.getAllWindows();
+  windows.forEach((win) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send(channel, payload);
+    }
+  });
+};
+
+const setupTaskEventForwarding = () => {
+  taskManager.on('queued', (event) => broadcastTaskEvent(TASK_EVENT_CHANNELS.queued, event));
+  taskManager.on('started', (event) => broadcastTaskEvent(TASK_EVENT_CHANNELS.started, event));
+  taskManager.on('progress', (event) => broadcastTaskEvent(TASK_EVENT_CHANNELS.progress, event));
+  taskManager.on('completed', (event) => broadcastTaskEvent(TASK_EVENT_CHANNELS.completed, event));
+  taskManager.on('failed', (event) => broadcastTaskEvent(TASK_EVENT_CHANNELS.failed, event));
+  taskManager.on('cancelled', (event) => broadcastTaskEvent(TASK_EVENT_CHANNELS.cancelled, event));
+  taskManager.on('log', (event) => broadcastTaskEvent(TASK_EVENT_CHANNELS.log, event));
+};
+
+const registerTaskIpcHandlers = () => {
+  ipcMain.handle('tasks/start', (_event, request) => {
+    const { type, payload, jobId, metadata: metadataFromRenderer, timeoutMs } = request ?? {};
+    if (!type) {
+      throw new Error('Task type is required');
+    }
+    const metadata = {
+      apiBaseUrl: metadataFromRenderer?.apiBaseUrl ?? defaultApiBaseUrl,
+      token: metadataFromRenderer?.token ?? null,
+      pollIntervalMs: metadataFromRenderer?.pollIntervalMs ?? 1500,
+      timeoutMs: metadataFromRenderer?.timeoutMs ?? timeoutMs ?? 15 * 60 * 1000,
+      origin: 'renderer',
+    };
+
+    const jobIdCreated = taskManager.startTask({
+      type,
+      payload,
+      jobId,
+      metadata,
+      timeoutMs: metadata.timeoutMs,
+    });
+    return { jobId: jobIdCreated };
+  });
+
+  ipcMain.handle('tasks/cancel', (_event, request) => {
+    const { jobId, reason } = request ?? {};
+    if (!jobId) {
+      return { ok: false, error: 'jobId is required' };
+    }
+    const ok = taskManager.cancel(jobId, reason);
+    return { ok };
+  });
+
+  ipcMain.handle('tasks/list', () => ({ jobs: taskManager.listJobs() }));
+  ipcMain.handle('tasks/get', (_event, request) => {
+    const { jobId } = request ?? {};
+    if (!jobId) {
+      return { job: null };
+    }
+    return { job: taskManager.getJob(jobId) };
+  });
+};
+
+const createMainWindow = () => {
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -42,9 +117,9 @@ function createMainWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
-}
+};
 
-function setupAppEvents() {
+const setupAppEvents = () => {
   const gotLock = app.requestSingleInstanceLock();
   if (!gotLock) {
     app.quit();
@@ -75,12 +150,16 @@ function setupAppEvents() {
       app.quit();
     }
   });
-}
 
-function registerIpcHandlers() {
+  app.on('before-quit', () => {
+    taskManager.dispose();
+  });
+};
+
+const registerIpcHandlers = () => {
   ipcMain.handle('app/get-environment', () => ({
     isDev,
-    apiBaseUrl: process.env.COMPLIANCE_API_URL || 'http://127.0.0.1:8001',
+    apiBaseUrl: defaultApiBaseUrl,
   }));
 
   ipcMain.on('app/open-external', (_event, url) => {
@@ -88,7 +167,9 @@ function registerIpcHandlers() {
       shell.openExternal(url);
     }
   });
-}
+};
 
+setupTaskEventForwarding();
 setupAppEvents();
 registerIpcHandlers();
+registerTaskIpcHandlers();
