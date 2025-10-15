@@ -151,7 +151,7 @@ else:  # pragma: no cover - dependency missing
 
 if SQLALCHEMY_IMPORT_ERROR is None:
 
-    @pytest_asyncio.fixture(scope="session", autouse=True)
+    @pytest_asyncio.fixture(scope="session")
     async def setup_database():
         """Creates the test database and tables for the test session."""
         if os.path.exists("test.db"):
@@ -175,8 +175,9 @@ if SQLALCHEMY_IMPORT_ERROR is None:
                 pass
 
     @pytest_asyncio.fixture
-    async def db_session() -> AsyncSession:
+    async def db_session(setup_database) -> AsyncSession:
         """Provides a clean database session for each test."""
+        del setup_database  # ensure database is initialized before session creation
         async with TestingSessionLocal() as session:
             yield session
 

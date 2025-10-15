@@ -103,7 +103,12 @@ class _AsyncioPlugin:
             return None
 
         kwargs = pyfuncitem.funcargs
-        _run(test_function(**kwargs))
+        signature = inspect.signature(test_function)
+        if any(param.kind is inspect.Parameter.VAR_KEYWORD for param in signature.parameters.values()):
+            call_kwargs = kwargs
+        else:
+            call_kwargs = {name: kwargs[name] for name in signature.parameters if name in kwargs}
+        _run(test_function(**call_kwargs))
         return True
 
 

@@ -52,13 +52,13 @@ class ResourceMetrics:
 class ResourceLimits:
     """Resource limit thresholds."""
     # RAM limits (percentage)
-    ram_warning_threshold: float = 75.0    # Warn user
-    ram_critical_threshold: float = 85.0   # Deny new jobs
-    ram_danger_threshold: float = 95.0     # Kill jobs if possible
+    ram_warning_threshold: float = 85.0    # Warn user
+    ram_critical_threshold: float = 97.0   # Deny new jobs
+    ram_danger_threshold: float = 99.0     # Kill jobs if possible
     
     # CPU limits (percentage)
-    cpu_warning_threshold: float = 80.0
-    cpu_critical_threshold: float = 90.0
+    cpu_warning_threshold: float = 85.0
+    cpu_critical_threshold: float = 97.0
     
     # Minimum required RAM for heavy operations (MB)
     min_ram_for_analysis: float = 500.0
@@ -171,7 +171,7 @@ class ResourceMonitor(QObject):
         metrics = self.get_current_metrics()
         
         # Check RAM
-        if metrics.ram_percent >= self.limits.ram_critical_threshold:
+        if metrics.ram_percent > self.limits.ram_critical_threshold:
             return False, f"Insufficient RAM: {metrics.ram_percent:.1f}% used (critical threshold: {self.limits.ram_critical_threshold}%)"
         
         # Check job-specific RAM requirements
@@ -182,7 +182,7 @@ class ResourceMonitor(QObject):
             return False, f"Insufficient RAM for model loading: {metrics.ram_available_mb:.0f}MB available (need {self.limits.min_ram_for_model_load:.0f}MB)"
         
         # Check CPU
-        if metrics.cpu_percent >= self.limits.cpu_critical_threshold:
+        if metrics.cpu_percent > self.limits.cpu_critical_threshold:
             return False, f"CPU overloaded: {metrics.cpu_percent:.1f}% usage (critical threshold: {self.limits.cpu_critical_threshold}%)"
         
         # Warn if close to limits
