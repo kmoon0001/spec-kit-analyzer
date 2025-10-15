@@ -169,11 +169,15 @@ class ResourceManager(QObject):
             job_type=worker.job_type
         )
         
-        # Check queue capacity
-        if self._job_queue.full():
-            logger.warning(f"Job queue full ({self.max_queue_size}), denying job {job.job_id}")
+
+        # Check queue capacity (queued + active) before enqueuing to enforce hard limits.
+        current_load = self.get_total_job_count()
+        if current_load >= self.max_queue_size or self._job_queue.full():
+            logger.warning(
+                f"Job capacity reached ({current_load}/{self.max_queue_size}), denying job {job.job_id}"
+            )
             self.job_denied.emit(job.job_id, "Queue full")
-            raise RuntimeError(f"Job queue full (max: {self.max_queue_size})")
+            raise RuntimeError(f"Queue full (max: {self.max_queue_size})")
         
         # Add to queue
         try:

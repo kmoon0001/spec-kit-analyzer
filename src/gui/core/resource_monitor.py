@@ -114,6 +114,9 @@ class ResourceMonitor(QObject):
         """
         self._timer.start(interval_ms)
         logger.info(f"Resource monitoring started (interval: {interval_ms}ms)")
+
+        # Emit an initial snapshot so listeners receive data even without an event loop.
+        self._update_metrics()
     
     def stop_monitoring(self):
         """Stop resource monitoring."""
