@@ -43,7 +43,7 @@ class LegacyAnalysisRequest(BaseModel):
 
 
 
-def run_analysis_and_save(
+async def run_analysis_and_save(
     file_content: bytes,
     task_id: str,
     original_filename: str,
@@ -52,20 +52,21 @@ def run_analysis_and_save(
     strictness: str,
     analysis_service: AnalysisService,
 ) -> None:
-    """Background task to run document analysis on in-memory content and save results."""
+    """Background task coordinator that schedules the async analysis workflow."""
 
     def _update_progress(percentage: int, message: str) -> None:
-        tasks[task_id]["progress"] = percentage
-        tasks[task_id]["status_message"] = message
+        state = tasks.setdefault(task_id, {})
+        state["progress"] = percentage
+        state["status_message"] = message
         if percentage >= 100:
-            tasks[task_id]["status"] = "completed"
+            state["status"] = "completed"
         elif percentage >= 60:
-            tasks[task_id]["status"] = "analyzing"
+            state["status"] = "analyzing"
         else:
-            tasks[task_id]["status"] = "processing"
+            state["status"] = "processing"
         logger.info("Task %s progress: %d%% - %s", task_id, percentage, message)
 
-    async def _async_analysis():
+    async def _async_analysis() -> None:
         try:
             logger.info("Starting analysis for task %s", task_id)
             _update_progress(0, "Analysis started.")
@@ -109,7 +110,7 @@ def run_analysis_and_save(
                 "strictness": strictness,
             })
             logger.info("Analysis completed for task %s", task_id)
-        except (FileNotFoundError, PermissionError, OSError) as exc:
+        except Exception as exc:
             logger.exception("Analysis task failed", task_id=task_id, error=str(exc))
             tasks[task_id] = {
                 "status": "failed",
@@ -121,13 +122,7 @@ def run_analysis_and_save(
                 "strictness": strictness,
             }
 
-    # Run the async function in a new event loop
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(_async_analysis())
-    finally:
-        loop.close()
+    await analysis_task_registry.start(task_id, _async_analysis())
 
 
 @legacy_router.post("/upload-document")
@@ -269,14 +264,28 @@ async def analyze_document(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Analysis service is not ready yet."
         )
 
-    safe_filename = SecurityValidator.validate_and_sanitize_filename(file.filename or "")
-    SecurityValidator.validate_discipline(discipline)
-    SecurityValidator.validate_analysis_mode(analysis_mode)
-    SecurityValidator.validate_strictness(strictness)
+    try:
+        safe_filename = SecurityValidator.validate_and_sanitize_filename(file.filename or "")
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    discipline_valid, discipline_error = SecurityValidator.validate_discipline(discipline)
+    if not discipline_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=discipline_error)
+
+    mode_valid, mode_error = SecurityValidator.validate_analysis_mode(analysis_mode)
+    if not mode_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=mode_error)
+
+    strictness_valid, strictness_error = SecurityValidator.validate_strictness(strictness)
+    if not strictness_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=strictness_error)
     strictness = (strictness or "standard").lower()
 
     content = await file.read()
-    SecurityValidator.validate_file_size(len(content))
+    size_valid, size_error = SecurityValidator.validate_file_size(len(content))
+    if not size_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=size_error)
 
     task_id = uuid.uuid4().hex
     tasks[task_id] = {
@@ -286,8 +295,17 @@ async def analyze_document(
         "strictness": strictness,
     }
 
+
+///
     background_tasks.add_task(
-        run_analysis_and_save, content, task_id, safe_filename, discipline, analysis_mode, analysis_service
+        run_analysis_and_save,
+        content,
+        task_id,
+        safe_filename,
+        discipline,
+        analysis_mode,
+        strictness,
+        analysis_service,
     )
 
     return {"task_id": task_id, "status": "processing"}

@@ -29,9 +29,80 @@ const serializeError = (error) => ({
 
 const post = (type, data) => parentPort.postMessage({ type, data });
 
+const createExponentialDelay = ({ initialDelayMs = 500, multiplier = 2, maxDelayMs = 8000 } = {}) => {
+  let attempt = 0;
+  return () => {
+    const delay = Math.min(initialDelayMs * multiplier ** attempt, maxDelayMs);
+    attempt += 1;
+    return delay + Math.random() * Math.min(delay * 0.25, 1000);
+  };
+};
+
+const createRequestSignal = (timeoutMs, ...signals) => {
+  const validSignals = signals.filter((signal) => Boolean(signal));
+  let timeoutId = null;
+
+  if (typeof timeoutMs === 'number' && timeoutMs > 0) {
+    const timeoutController = new AbortController();
+    timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
+    validSignals.push(timeoutController.signal);
+  }
+
+  if (validSignals.length === 0) {
+    return { signal: undefined, dispose: () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    } };
+  }
+
+  if (validSignals.length === 1) {
+    return { signal: validSignals[0], dispose: () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    } };
+  }
+
+  const composite = new AbortController();
+  const abort = () => composite.abort();
+
+  for (const signal of validSignals) {
+    if (signal.aborted) {
+      composite.abort();
+      break;
+    }
+    signal.addEventListener('abort', abort, { once: true });
+  }
+
+  return {
+    signal: composite.signal,
+    dispose: () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    },
+  };
+};
+
+const createRetryNotifier = (stage, metaProvider) => (attempt, delay, error) => {
+  const seconds = Math.max(1, Math.round(delay / 1000));
+  const extraMeta = typeof metaProvider === 'function' ? metaProvider() : metaProvider;
+  post('progress', {
+    statusMessage: `${stage} retry ${attempt} in ${seconds}s`,
+    meta: {
+      stage,
+      retryAttempt: attempt,
+      retryDelayMs: delay,
+      error: serializeError(error),
+      ...extraMeta,
+    },
+  });
+};
+
 const { payload, metadata } = workerData;
 const controller = new AbortController();
-const { apiBaseUrl, token, pollIntervalMs = 1500, timeoutMs = 15 * 60 * 1000 } = metadata ?? {};
+const { apiBaseUrl, token, pollIntervalMs = 1500, timeoutMs = 15 * 60 * 1000, uploadTimeoutMs = 4 * 60 * 1000, statusTimeoutMs = 15000 } = metadata ?? {};
 
 let cancelled = false;
 
@@ -65,16 +136,94 @@ const buildFormData = async () => {
   return formData;
 };
 
-const fetchJson = async (url, options = {}) => {
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    const text = await response.text();
-    const error = new Error(`Request failed with status ${response.status}`);
-    error.status = response.status;
-    error.body = text;
-    throw error;
+const fetchJson = async (url, options = {}, retryOptions = {}) => {
+  const method = typeof options.method === 'string' ? options.method.toUpperCase() : 'GET';
+  const defaultRetryable = ['GET', 'HEAD', 'OPTIONS'].includes(method);
+  const maxRetries = typeof retryOptions.maxRetries === 'number' ? retryOptions.maxRetries : defaultRetryable ? 3 : 0;
+  const retryStatuses = new Set([408, 425, 429, ...(retryOptions.retryOnStatuses ?? [])]);
+  const allowNetworkRetry = retryOptions.retryNetworkErrors ?? defaultRetryable;
+  const nextDelay = createExponentialDelay({
+    initialDelayMs: retryOptions.initialDelayMs ?? 500,
+    maxDelayMs: retryOptions.maxDelayMs ?? 8000,
+  });
+
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    const { signal, dispose } = createRequestSignal(retryOptions.timeoutMs, controller.signal, options.signal);
+
+    try {
+      const response = await fetch(url, { ...options, signal });
+
+      if (!response.ok) {
+        const text = await response.text();
+        const error = new Error(`Request failed with status ${response.status}`);
+        error.status = response.status;
+        error.body = text;
+
+        const shouldRetryResponse =
+          attempt < maxRetries &&
+          (response.status >= 500 ||
+            retryStatuses.has(response.status) ||
+            (retryOptions.retryOnClientErrors && response.status >= 400 && response.status < 500));
+
+        if (!shouldRetryResponse) {
+          dispose();
+          throw error;
+        }
+
+        lastError = error;
+        const delay = nextDelay();
+        retryOptions.onRetry?.(attempt + 1, delay, error);
+        dispose();
+        await sleep(delay, controller.signal);
+        continue;
+      }
+
+      if (retryOptions.expectJson === false) {
+        dispose();
+        return response;
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (contentType && !contentType.includes('application/json')) {
+        dispose();
+        return response.text();
+      }
+
+      dispose();
+      return response.json();
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        dispose();
+        throw error;
+      }
+
+      const status = error?.status;
+      const isNetworkError = status === undefined;
+      const shouldRetry =
+        attempt < maxRetries &&
+        ((isNetworkError && allowNetworkRetry) ||
+          (typeof status === 'number' && status >= 500) ||
+          (typeof status === 'number' && retryStatuses.has(status)) ||
+          (retryOptions.retryOnClientErrors &&
+            typeof status === 'number' &&
+            status >= 400 &&
+            status < 500));
+
+      if (!shouldRetry) {
+        dispose();
+        throw error;
+      }
+
+      lastError = error;
+      const delay = nextDelay();
+      retryOptions.onRetry?.(attempt + 1, delay, error);
+      dispose();
+      await sleep(delay, controller.signal);
+    }
   }
-  return response.json();
+
+  throw lastError ?? new Error('Request failed after retries');
 };
 
 const buildHeaders = () => {
@@ -110,12 +259,19 @@ const run = async () => {
 
     post('progress', { progress: 10, statusMessage: 'Uploading document' });
 
-    const startResponse = await fetchJson(`${apiBaseUrl}/analysis/analyze`, {
-      method: 'POST',
-      body: formData,
-      headers: buildHeaders(),
-      signal: controller.signal,
-    });
+    const startResponse = await fetchJson(
+      `${apiBaseUrl}/analysis/analyze`,
+      {
+        method: 'POST',
+        body: formData,
+        headers: buildHeaders(),
+        signal: controller.signal,
+      },
+      {
+        maxRetries: 0,
+        timeoutMs: uploadTimeoutMs,
+      },
+    );
 
     const taskId = startResponse?.task_id;
     if (!taskId) {
@@ -134,11 +290,20 @@ const run = async () => {
 
       await sleep(pollIntervalMs, controller.signal);
 
-      const statusData = await fetchJson(`${apiBaseUrl}/analysis/status/${taskId}`, {
-        method: 'GET',
-        headers: buildHeaders(),
-        signal: controller.signal,
-      });
+      const statusData = await fetchJson(
+        `${apiBaseUrl}/analysis/status/${taskId}`,
+        {
+          method: 'GET',
+          headers: buildHeaders(),
+          signal: controller.signal,
+        },
+        {
+          maxRetries: 1,
+          retryOnStatuses: [404, 409],
+          timeoutMs: statusTimeoutMs,
+          onRetry: createRetryNotifier('Analysis status', () => ({ taskId })),
+        },
+      );
 
       const status = statusData?.status ?? 'processing';
       let progress = normalizeProgress(statusData?.progress);

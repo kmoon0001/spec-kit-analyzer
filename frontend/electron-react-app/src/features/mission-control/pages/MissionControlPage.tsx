@@ -36,6 +36,17 @@ const resolveStatusVariant = (status: string): 'ready' | 'warming' | 'warning' |
   return 'offline';
 };
 
+const formatTimestamp = (timestamp?: string) => {
+  if (!timestamp) {
+    return '?';
+  }
+  const value = new Date(timestamp);
+  if (Number.isNaN(value.getTime())) {
+    return '?';
+  }
+  return value.toLocaleTimeString([], { hour12: false });
+};
+
 export default function MissionControlPage() {
   const token = useAppStore((state) => state.auth.token);
   const taskQuery = useTaskMonitor({ enabled: Boolean(token) });
@@ -50,6 +61,22 @@ export default function MissionControlPage() {
       progress: task.progress ?? 0,
     }));
   }, [taskQuery.data]);
+
+  const formattedLogs = useMemo(() => {
+    if (!logStream.messages.length) {
+      return 'Awaiting log events...';
+    }
+
+    return logStream.messages
+      .slice(-20)
+      .map((entry) => {
+        const time = formatTimestamp(entry.timestamp);
+        const level = entry.level.toUpperCase();
+        const logger = entry.logger ? ` ${entry.logger}` : '';
+        return `[${time}][${level}${logger}] ${entry.message}`;
+      })
+      .join('\n');
+  }, [logStream.messages]);
 
   return (
     <div className={styles.mission}>
@@ -107,13 +134,11 @@ export default function MissionControlPage() {
         <Card title="Live Log Stream" subtitle="Streaming via websocket router in FastAPI">
           <div className={styles.logPane}>
             {logStream.connectionError && <p className={styles.helperText}>{logStream.connectionError}</p>}
-            {!logStream.connectionError && (
-              <pre>{logStream.messages.slice(-20).join('\n')}</pre>
-            )}
+            {!logStream.connectionError && <pre>{formattedLogs}</pre>}
           </div>
           <div className={styles.logActions}>
             <Button variant="outline">Export Logs</Button>
-            <Button variant="ghost">Clear Console</Button>
+            <Button variant="ghost" onClick={logStream.clear}>Clear Console</Button>
           </div>
         </Card>
       </section>

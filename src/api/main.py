@@ -9,6 +9,7 @@ import logging
 import sys
 import time
 from collections.abc import Coroutine
+from datetime import datetime
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -42,7 +43,7 @@ from src.api.routers import (
     users,
     rubric_router,
     individual_habits,
-    websocket,
+    websocket as websocket_routes,
 )
 
 try:
@@ -68,29 +69,8 @@ logger = structlog.get_logger(__name__)
 # --- WebSocket Log Streaming --- #
 
 
-class WebSocketManager:
-    """Manages active WebSocket connections."""
-
-    def __init__(self):
-        self.active_connections: list[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
-            await connection.send_text(message)
-
-
-log_manager = WebSocketManager()
-
-
 class WebSocketLogHandler(logging.Handler):
-    """A logging handler that broadcasts log records to WebSockets."""
+    """A logging handler that broadcasts log records to connected WebSocket clients."""
 
     def __init__(self, loop: asyncio.AbstractEventLoop | None = None) -> None:
         super().__init__()
@@ -102,8 +82,22 @@ class WebSocketLogHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         if not self.loop or self.loop.is_closed():
             return
-        log_entry = self.format(record)
-        asyncio.run_coroutine_threadsafe(log_manager.broadcast(log_entry), self.loop)
+
+        payload = {
+            "type": "log",
+            "level": record.levelname,
+            "logger": record.name,
+            "message": self.format(record),
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+        try:
+            asyncio.run_coroutine_threadsafe(
+                websocket_routes.manager.send_message("log_stream", payload),
+                self.loop,
+            )
+        except RuntimeError:
+            logger.debug("WebSocket loop unavailable; skipping log broadcast")
 
 
 # --- In-Memory Task Purging --- #
@@ -294,7 +288,13 @@ ALLOWED_CORS_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost",
     "http://localhost:3000",
+    "https://127.0.0.1",
+    "https://127.0.0.1:3000",
+    "https://localhost",
+    "https://localhost:3000",
 ]
+
+ALLOWED_CORS_REGEX = r"app://.*|file://.*|capacitor://localhost"
 
 app = FastAPI(
     title="Therapy Compliance Analyzer API",
@@ -307,9 +307,10 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_CORS_ORIGINS,
+    allow_origin_regex=ALLOWED_CORS_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
 app.add_middleware(CorrelationIdMiddleware)
@@ -335,7 +336,7 @@ app.include_router(users.router, tags=["Users"])
 app.include_router(preferences.router)
 app.include_router(rubric_router.router, prefix="/rubrics", tags=["Rubrics"])
 app.include_router(individual_habits.router)
-app.include_router(websocket.router, tags=["WebSocket"])
+app.include_router(websocket_routes.router, tags=["WebSocket"])
 
 if EHR_AVAILABLE:
     app.include_router(ehr_integration.router, tags=["EHR Integration"])
@@ -379,12 +380,21 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.close(code=1008, reason="Unauthorized")
             return
 
-    await log_manager.connect(websocket)
+    await websocket_routes.manager.connect(websocket, "log_stream")
+    await websocket.send_json({
+        "type": "connected",
+        "message": "Log stream connected",
+        "timestamp": datetime.utcnow().isoformat(),
+    })
     try:
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        log_manager.disconnect(websocket)
+        logger.info("Log stream client disconnected", username=username)
+    except Exception as exc:
+        logger.exception("Log stream error", error=str(exc))
+    finally:
+        websocket_routes.manager.disconnect(websocket, "log_stream")
 
 
 # Minimal logs stream endpoint for compatibility with GUI pollers

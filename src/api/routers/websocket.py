@@ -253,47 +253,11 @@ async def websocket_health_monitoring(websocket: WebSocket):
         manager.disconnect(websocket, channel)
 
 
-@router.websocket("/logs")
-async def websocket_log_stream(websocket: WebSocket):
-    """
-    WebSocket endpoint for real-time log streaming.
-    
-    Streams application logs in real-time.
-    
-    Message Format:
-        {
-            "type": "log",
-            "level": "INFO" | "WARNING" | "ERROR",
-            "logger": str,
-            "message": str,
-            "timestamp": str
-        }
-    """
-    channel = "log_stream"
-    await manager.connect(websocket, channel)
-    
-    try:
-        await websocket.send_json({
-            "type": "connected",
-            "message": "Connected to log stream",
-            "timestamp": datetime.utcnow().isoformat()
-        })
-        
-        # Keep connection alive
-        while True:
-            # Send heartbeat every 30 seconds
-            await asyncio.sleep(30.0)
-            await websocket.send_json({
-                "type": "heartbeat",
-                "timestamp": datetime.utcnow().isoformat()
-            })
-            
-    except WebSocketDisconnect:
-        logger.info("Log stream client disconnected")
-    except Exception as e:
-        logger.error(f"WebSocket log stream error: {e}")
-    finally:
-        manager.disconnect(websocket, channel)
+
+
+# Log streaming handled via FastAPI app-level route with shared manager.
+
+
 
 
 # Helper function to send progress updates from other parts of the app
