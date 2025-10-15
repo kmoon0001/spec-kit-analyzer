@@ -11,6 +11,8 @@ const TASK_EVENT_CHANNELS = {
   telemetry: 'tasks:telemetry',
 };
 
+const DIAGNOSTIC_CHANNEL = 'app:diagnostic';
+
 const buildTaskEventHandler = (eventName, listener) => {
   const channel = TASK_EVENT_CHANNELS[eventName];
   if (!channel) {
@@ -46,4 +48,16 @@ contextBridge.exposeInMainWorld('desktopApi', {
   openExternal: (url) => ipcRenderer.send('app/open-external', url),
   platform: process.platform,
   tasks: tasksApi,
+  onDiagnostic: (listener) => {
+    if (typeof listener !== 'function') {
+      return () => {};
+    }
+    const handler = (_event, payload) => {
+      listener(payload);
+    };
+    ipcRenderer.on(DIAGNOSTIC_CHANNEL, handler);
+    return () => {
+      ipcRenderer.removeListener(DIAGNOSTIC_CHANNEL, handler);
+    };
+  },
 });

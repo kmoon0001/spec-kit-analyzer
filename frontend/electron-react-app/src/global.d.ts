@@ -6,6 +6,16 @@ declare global {
     apiBaseUrl: string;
   }
 
+  interface DesktopDiagnosticPayload {
+    type?: string;
+    message?: string;
+    stack?: string;
+    severity?: 'info' | 'warning' | 'error' | 'critical';
+    source?: string;
+    context?: Record<string, unknown>;
+    timestamp?: number;
+  }
+
   interface DesktopTaskResult {
     [key: string]: unknown;
   }
@@ -136,9 +146,10 @@ declare global {
     openExternal: (url: string) => void;
     platform: NodeJS.Platform;
     tasks: DesktopTasksApi;
+    onDiagnostic?: (listener: (payload: DesktopDiagnosticPayload) => void) => () => void;
   }
 
   interface Window {
-    desktopApi: DesktopApi;
+    desktopApi?: DesktopApi;
   }
 }

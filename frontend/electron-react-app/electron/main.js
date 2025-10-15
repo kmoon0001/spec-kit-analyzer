@@ -20,12 +20,99 @@ const TASK_EVENT_CHANNELS = {
   telemetry: 'tasks:telemetry',
 };
 
+const DIAGNOSTIC_CHANNEL = 'app:diagnostic';
+
+const safeSerialize = (value) => {
+  if (value === undefined) {
+    return undefined;
+  }
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch (error) {
+    try {
+      return String(value);
+    } catch {
+      return undefined;
+    }
+  }
+};
+
+const broadcastDiagnostic = (payload) => {
+  const message = {
+    timestamp: Date.now(),
+    ...payload,
+  };
+  const windows = BrowserWindow.getAllWindows();
+  windows.forEach((win) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send(DIAGNOSTIC_CHANNEL, message);
+    }
+  });
+};
+
+const emitDiagnostic = ({ type, message, severity = 'error', stack, context }) => {
+  const normalizedContext =
+    context && typeof context === 'object' ? context : context === undefined ? undefined : { value: context };
+
+  broadcastDiagnostic({
+    type,
+    message,
+    severity,
+    stack,
+    source: 'main-process',
+    context: normalizedContext,
+  });
+};
+
 const broadcastTaskEvent = (channel, payload) => {
   const windows = BrowserWindow.getAllWindows();
   windows.forEach((win) => {
     if (!win.isDestroyed()) {
       win.webContents.send(channel, payload);
     }
+  });
+};
+
+const registerDiagnosticHandlers = () => {
+  process.on('uncaughtException', (error) => {
+    console.error('[main][uncaughtException]', error);
+    emitDiagnostic({
+      type: 'uncaught-exception',
+      message: error?.message ?? 'Uncaught exception',
+      stack: error?.stack,
+      context: {
+        name: error?.name,
+      },
+    });
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    console.error('[main][unhandledRejection]', reason);
+    const message =
+      reason instanceof Error
+        ? reason.message
+        : typeof reason === 'string'
+          ? reason
+          : 'Unhandled promise rejection';
+    const stack = reason instanceof Error ? reason.stack : undefined;
+
+    emitDiagnostic({
+      type: 'unhandled-rejection',
+      message,
+      stack,
+      context: {
+        reason: safeSerialize(reason),
+      },
+    });
+  });
+
+  app.on('child-process-gone', (_event, details) => {
+    emitDiagnostic({
+      type: 'child-process-gone',
+      severity: 'critical',
+      message: `Child process ${details?.type ?? 'unknown'} exited (${details?.reason ?? 'unknown'})`,
+      context: details,
+    });
   });
 };
 
@@ -116,6 +203,29 @@ const createMainWindow = () => {
     return { action: 'deny' };
   });
 
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    emitDiagnostic({
+      type: 'renderer-process-gone',
+      severity: 'critical',
+      message: `Renderer process exited (${details?.reason ?? 'unknown'})`,
+      context: details,
+    });
+  });
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    emitDiagnostic({
+      type: 'renderer-load-failed',
+      severity: 'warning',
+      message: `Renderer failed to load (${errorCode}): ${errorDescription}`,
+      context: {
+        errorCode,
+        errorDescription,
+        validatedURL,
+        isMainFrame,
+      },
+    });
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -171,6 +281,7 @@ const registerIpcHandlers = () => {
   });
 };
 
+registerDiagnosticHandlers();
 setupTaskEventForwarding();
 setupAppEvents();
 registerIpcHandlers();

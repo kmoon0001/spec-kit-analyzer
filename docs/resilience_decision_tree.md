@@ -1,57 +1,61 @@
 # Runtime Resilience Decision Tree
 
 ## Connectivity & API Reachability
-- **Verify service endpoint**: Confirm Electron runtime `desktopApi` handshake delivered expected `apiBaseUrl` (`npm run env:print`).
-- **CORS/protocol guard**:
-  - If renderer served from `file://` or `app://`, hit `GET /healthz` to check for 308/404.
-  - On mixed-content errors, ensure backend exposes TLS and update `settings.ALLOWED_ORIGINS`.
-- **Decision node: backend unreachable**
-  1. Check local firewall/VPN rules; whitelist configured port (default `8100`).
-  2. Tail FastAPI logs via `uvicorn --reload` for `Address already in use`; restart service with clean socket.
-  3. If Electron packaged build, confirm preload exposes `desktopApi.getEnvironment()`.
-- **Detection instrumentation**:
-  - `useNetworkStore` status should flip to `offline` with details. Inspect status bar ?Network? chip.
-  - Run `curl -v http://127.0.0.1:8100/health` to ensure loopback accepts connections.
-- **Code pattern**:
+- **Verify service endpoint**: Confirm the Electron handshake exposes the expected `apiBaseUrl` (`npm run env:print`), and compare with the FastAPI `settings.api_base_url`.
+- **CORS & protocol guard**: When the renderer runs from `file://`/`app://`, hit `GET /healthz`; a 308/404 implies the backend is enforcing HTTP-only origins—update `settings.ALLOWED_ORIGINS` and TLS configuration accordingly.
+- **Decision node – backend unreachable**
+  1. Inspect local firewall/VPN/proxy rules; whitelist the configured port (defaults to `8100`).
+  2. Tail FastAPI logs (`poetry run uvicorn ... --reload`) for `Address already in use`; recycle the service to clear stale sockets.
+  3. For packaged Electron builds, assert `desktopApi.getEnvironment()` returns the runtime port.
+- **Detection instrumentation**: the Status Bar `Network` chip should flip to `offline`/`degraded` with a descriptive tooltip; `useNetworkStore` now records diagnostics whenever connectivity status changes.
+- **Code pattern** (`frontend/electron-react-app/src/lib/api/client.ts`):
 
 ```ts
-// src/lib/api/client.ts
 apiClient.interceptors.response.use(
   (response) => {
-    // Success: mark network healthy
+    useNetworkStore.getState().setStatus('online');
+    return response;
   },
   async (error) => {
-    // Retry recoverable statuses with exponential backoff
+    if (shouldRetry(error, config, maxRetries)) {
+      const delay = retryState.backoff.next();
+      useNetworkStore.getState().setStatus('degraded', `Retrying in ${delay}ms`);
+      await waitFor(delay, config.signal);
+      return apiClient(config);
+    }
+    useNetworkStore.getState().setStatus('offline', deriveMessage(error));
+    return Promise.reject(error);
   }
 );
 ```
 
 ## WebSocket & Log Streaming
-- **Single connection audit**: `useLogStream` manages one socket and resets timers on token changes.
-- **Decision node: log stream silent**
-  1. Check `/ws/logs` authentication ? ensure bearer token appended.
-  2. If backend closes with 1008, confirm JWT secret/algorithm matches Electron build.
-  3. Inspect Mission Control console; structured payloads should show `[HH:MM][LEVEL logger] message`.
-- **Heartbeat monitor**: Backend emits `{type: "heartbeat"}`; hook ignores without enqueueing.
-- **Code pattern**:
+- **Single connection audit**: `useLogStream` keeps one socket per token, resets backoff after successful open, and cleans handlers on unmount.
+- **Decision node – silent console**
+  1. Confirm `/ws/logs` query string includes the bearer token; a 1008 close means JWT verification failed.
+  2. If the backend drops immediately, inspect FastAPI logs for permission errors—`WebSocketLogHandler` now runs in the API event loop.
+  3. Renderer console should render `[HH:MM][LEVEL logger] message`; parsing failures fall back to the raw payload.
+- **Heartbeat monitor**: backend emits `{ "type": "heartbeat" }`; the hook discards these so the UI does not flood.
+- **Code pattern** (`useLogStream.ts`):
 
 ```ts
-const entry = normalizeLogEntry(parsed, decoded);
-setMessages((prev) => [...prev.slice(-(MAX_MESSAGES - 1)), entry]);
+const backoff = createExponentialBackoff({ initialDelayMs: 750, maxDelayMs: 15_000 });
+const scheduleReconnect = () => {
+  const delay = backoff.next();
+  reconnectTimerRef.current = window.setTimeout(connect, delay);
+};
 ```
 
 ## Worker Threads & Task Polling
-- **Upload stage**: Worker enforces `uploadTimeoutMs` (defaults to 4 minutes) and respects cancellation via shared controller.
-- **Status polling**
-  - Retries transient 404/409 (task not yet registered) once before next poll.
-  - Emits diagnostic `progress` message on retry to keep renderer telemetry alive.
-- **Decision node: stuck polling**
-  1. Inspect worker log for `retryAttempt` metadata; if continuous, backend queue likely stalled ? run `/analysis/status/{taskId}` manually.
-  2. If timeout triggered, push task back into registry via `/analysis/analyze` and validate strictness path.
-- **Code pattern**:
+- **Upload stage**: `analysisWorker.js` wraps uploads with `createRequestSignal` and `uploadTimeoutMs` (4 min default) so stalled transfers abort cleanly.
+- **Status polling**: retries transient `404/409` once, emits structured retry telemetry, and caps total runtime via `timeoutMs`.
+- **Decision node – stuck polling**
+  1. Inspect worker telemetry logs for `retryAttempt`; continuous retries imply the backend queue is idle—query `/analysis/status/{taskId}` manually.
+  2. If `timeoutMs` expires, reset the task via `/analysis/analyze` and review `analysis_task_registry` for orphaned metadata.
+- **Code pattern** (`electron/workers/analysisWorker.js`):
 
 ```js
-const statusData = await fetchJson(url, init, {
+const statusData = await fetchJson(statusUrl, init, {
   maxRetries: 1,
   retryOnStatuses: [404, 409],
   timeoutMs: statusTimeoutMs,
@@ -59,22 +63,45 @@ const statusData = await fetchJson(url, init, {
 });
 ```
 
-## Renderer Diagnostics & ?Unknown Unknowns?
-- **Global guards**: `initializeGlobalErrorHandlers()` traps window errors and unhandled rejections, piping them to `useDiagnosticsStore`.
-- **Status bar alerts**: New ?Alerts? chip surfaces outstanding crashes/hard failures; hover to review message/stack.
-- **Memory/resource drift**
-  - Use Mission Control telemetry to watch CPU/RAM under >50 page document runs.
-  - For leaks, profile renderer heap snapshots after repeated uploads ? look for retained `ArrayBuffer` from file previews.
-- **Testing checkpoints**
-  1. `pytest tests/test_api_analysis.py -k strictness` once `transformers` dependency mocked.
-  2. `npm run lint && npm run test -- --watch=false` to ensure hooks/components remain typed.
-  3. Synthetic network chaos (drop packets / add latency) with `tnc` or `clumsy` to validate retry cadence.
-- **Future hardening ideas**
-  - Wire `useDiagnosticsStore` to desktop tray notifications via `desktopApi`.
-  - Add Playwright smoke for reconnect flows (simulate `ws` drop via `page.route`).
-  - Persist diagnostics queue to disk for post-mortem when renderer crashes.
+## Renderer & Desktop Diagnostics
+- **Global guards** (`frontend/electron-react-app/src/lib/monitoring/globalErrors.ts`): traps window errors and unhandled rejections, pushing them into `useDiagnosticsStore`.
+- **Desktop bridge** (`frontend/electron-react-app/src/lib/monitoring/desktopDiagnostics.ts`): `initializeDesktopDiagnosticsBridge()` subscribes to `desktopApi.onDiagnostic` so uncaught main-process errors, renderer crashes, and worker exits surface in the renderer alerts feed.
+- **Main-process coverage** (`frontend/electron-react-app/electron/main.js`): `registerDiagnosticHandlers()` captures `uncaughtException`, `unhandledRejection`, `child-process-gone`, and renderer load failures, broadcasting enriched diagnostics over `app:diagnostic` IPC.
+- **UI surface**: the Status Bar `Alerts` chip now reflects diagnostics count; hovering shows the most recent stack trace. Clearing the store resets the badge without muting future alerts.
+- **Code pattern** (`initializeDesktopDiagnosticsBridge`):
+
+```ts
+const unsubscribe = api.onDiagnostic((payload) => {
+  pushEvent({
+    source: 'process',
+    severity: normalizeSeverity(payload.severity),
+    message: payload.message ?? payload.type ?? 'Desktop diagnostic',
+    stack: payload.stack,
+    context: { origin: payload.source ?? 'main-process', ...payload.context },
+  });
+});
+```
+
+## Resource Governance & Large Documents
+- Route heavy analysis through worker threads (`analysisWorker.js`) so the renderer remains responsive.
+- Stream or chunk large uploads via `fetchJson` + `FormData`; enforce size checks in `src/api/routers/analysis.py` and reject 0-byte/oversized payloads early.
+- Use virtualization (`react-window`/list slicing) for >50-page renderers; memoize derived data in mission-control dashboards to prevent cascade re-renders.
+- Monitor CPU/RAM via the telemetry snapshot from the Electron main process; throttle background polls if `cpuPercent > 85` or memory pressure exceeds 80%.
 
 ## Secure Disposal & Compliance
-- Ensure worker deletes temporary buffers when analysis completes (queue for follow-up).
-- Review PDF export path for PHI redaction before writing to disk.
-- Maintain HIPAA logging: tie diagnostics events to user/session identifiers in secure storage when enabling remote monitoring.
+- Queue follow-up to purge temporary buffers once analysis completes; ensure worker threads `fs.readFile` buffers are zeroed or dropped promptly.
+- Before exporting PDFs, confirm PHI redaction pathways in `PDFExportService` and tighten file permissions in packaging scripts.
+- Maintain HIPAA-aligned audit trails: diagnostics events include timestamps, severity, and origin for centralized logging.
+
+## Regression Safety & "Unknown Unknowns"
+- **Testing cadence**:
+  1. Backend: extend `tests/test_api_analysis.py` to cover strictness propagation, file-size validation, and task-registry cancellation. Mock `transformers` if unavailable.
+  2. Frontend: add RTL coverage for `useLogStream` reconnects and network store diagnostics; stage Playwright chaos tests to simulate WebSocket drops and slow networks.
+  3. Desktop: scripted worker harness to replay large-document workloads, verifying retry telemetry and IPC health.
+- **Instrumentation**: enable verbose Structlog + WebSocket log streaming during load tests; correlate with renderer diagnostics feed to capture silent failures.
+- **Code review checklist**:
+  - Flag any new network call without timeout/backoff.
+  - Verify cleanup of timers/event listeners in hooks and workers.
+  - Ensure every IPC entry point validates payload shape and abort signals.
+- **Runtime assertions**: prefer defensive guards like `if (!token) throw new Error('Authentication required');` in async flows to expose misconfigurations early.
+- **Operational drills**: rehearse network partition, backend crash, and worker OOM scenarios; validate that retry telemetry, diagnostics alerts, and user-facing messaging remain responsive.

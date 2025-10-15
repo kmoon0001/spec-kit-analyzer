@@ -296,9 +296,7 @@ async def analyze_document(
     }
 
 
-///
-    background_tasks.add_task(
-        run_analysis_and_save,
+crudc        run_analysis_and_save,
         content,
         task_id,
         safe_filename,
