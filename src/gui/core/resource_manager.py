@@ -131,6 +131,7 @@ class ResourceManager(QObject):
         
         # State
         self._is_shutting_down = False
+        self._processing_queue = False
         
         logger.info(f"ResourceManager initialized (max_queue: {max_queue_size})")
     
@@ -180,6 +181,7 @@ class ResourceManager(QObject):
             logger.info(f"Job queued: {job.job_id} (priority: {priority.name}, type: {job.job_type})")
             self.job_queued.emit(job.job_id)
             self.queue_size_changed.emit(self._job_queue.qsize())
+            self._process_queue()
             
             return job.job_id
             
@@ -230,38 +232,45 @@ class ResourceManager(QObject):
         """Process job queue (called periodically)."""
         if self._is_shutting_down:
             return
-        
-        # Check if we can start more jobs
-        available_threads = self.thread_pool.maxThreadCount() - self.thread_pool.activeThreadCount()
-        
-        if available_threads <= 0:
-            return  # Thread pool full
-        
-        # Process jobs by priority
-        jobs_to_start = []
-        
-        while not self._job_queue.empty() and len(jobs_to_start) < available_threads:
-            try:
-                job = self._job_queue.get_nowait()
-                
-                # Skip cancelled jobs
-                if job.job_id in self._cancelled_jobs:
-                    self._cancelled_jobs.remove(job.job_id)
-                    continue
-                
-                jobs_to_start.append(job)
-                
-            except:
-                break
-        
-        # Start jobs
-        for job in jobs_to_start:
-            self._start_job(job)
-        
-        # Update queue size
-        if jobs_to_start:
-            self.queue_size_changed.emit(self._job_queue.qsize())
-    
+
+        if self._processing_queue:
+            return
+
+        self._processing_queue = True
+        try:
+            # Check if we can start more jobs
+            available_threads = self.thread_pool.maxThreadCount() - self.thread_pool.activeThreadCount()
+
+            if available_threads <= 0:
+                return  # Thread pool full
+
+            # Process jobs by priority
+            jobs_to_start = []
+
+            while not self._job_queue.empty() and len(jobs_to_start) < available_threads:
+                try:
+                    job = self._job_queue.get_nowait()
+
+                    # Skip cancelled jobs
+                    if job.job_id in self._cancelled_jobs:
+                        self._cancelled_jobs.remove(job.job_id)
+                        continue
+
+                    jobs_to_start.append(job)
+
+                except Exception:
+                    break
+
+            # Start jobs
+            for job in jobs_to_start:
+                self._start_job(job)
+
+            # Update queue size
+            if jobs_to_start:
+                self.queue_size_changed.emit(self._job_queue.qsize())
+        finally:
+            self._processing_queue = False
+
     def _start_job(self, job: Job):
         """
         Start a job in the thread pool.
@@ -307,6 +316,9 @@ class ResourceManager(QObject):
             del self._active_jobs[job.job_id]
         
         logger.info(f"Job finished: {job.job_id}")
+
+        if not self._is_shutting_down:
+            self._process_queue()
     
     def _on_job_result(self, job: Job, result: Any):
         """Handle job result."""

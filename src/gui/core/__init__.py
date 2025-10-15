@@ -76,6 +76,10 @@ from .resource_manager import (
     Job
 )
 
+from ._qt_threadpool_patch import ensure_threadpool_wait_patch
+
+ensure_threadpool_wait_patch()
+
 __all__ = [
     # Signals
     'WorkerSignals',

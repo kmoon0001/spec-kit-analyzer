@@ -5,6 +5,7 @@ for the application, including memory monitoring, cleanup strategies, and
 resource allocation optimization.
 """
 
+import atexit
 import gc
 import logging
 import threading
@@ -65,22 +66,35 @@ class MemoryMonitor:
         self._callbacks: list[Callable[[MemoryMetrics], None]] = []
         self._last_metrics: MemoryMetrics | None = None
         self._lock = threading.Lock()
+        self._stop_event = threading.Event()
 
     def start_monitoring(self) -> None:
         """Start memory monitoring in background thread."""
         if self._monitoring:
             return
 
+        self._stop_event.clear()
         self._monitoring = True
-        self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True, name="MemoryMonitor")
+        self._monitor_thread = threading.Thread(
+            target=self._monitor_loop,
+            daemon=True,
+            name="MemoryMonitor",
+        )
         self._monitor_thread.start()
         logger.info("Memory monitoring started")
 
     def stop_monitoring(self) -> None:
         """Stop memory monitoring."""
+        if not self._monitoring and not (self._monitor_thread and self._monitor_thread.is_alive()):
+            return
+
         self._monitoring = False
+        self._stop_event.set()
         if self._monitor_thread:
-            self._monitor_thread.join(timeout=1.0)
+            self._monitor_thread.join(timeout=self.check_interval + 1.0)
+            if self._monitor_thread.is_alive():
+                logger.warning("Memory monitoring thread did not exit within timeout")
+            self._monitor_thread = None
         logger.info("Memory monitoring stopped")
 
     def add_callback(self, callback: Callable[[MemoryMetrics], None]) -> None:
@@ -122,7 +136,7 @@ class MemoryMonitor:
 
     def _monitor_loop(self) -> None:
         """Main monitoring loop."""
-        while self._monitoring:
+        while self._monitoring and not self._stop_event.is_set():
             try:
                 metrics = self.get_current_metrics()
                 self._last_metrics = metrics
@@ -135,11 +149,16 @@ class MemoryMonitor:
                         except Exception as e:
                             logger.exception("Error in memory callback: %s", e)
 
-                time.sleep(self.check_interval)
+                if self._stop_event.wait(self.check_interval):
+                    break
 
             except (ValueError, TypeError, AttributeError) as e:
                 logger.exception("Error in memory monitoring: %s", e)
-                time.sleep(self.check_interval)
+                if self._stop_event.wait(self.check_interval):
+                    break
+
+        self._monitoring = False
+        self._stop_event.clear()
 
 
 class ResourceTracker:
@@ -541,6 +560,5 @@ class MemoryManager:
 
 
 # Global memory manager instance
-# Global memory manager instance
-# Global memory manager instance
 memory_manager = MemoryManager()
+atexit.register(memory_manager.stop)
