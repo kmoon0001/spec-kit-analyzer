@@ -99,7 +99,7 @@ models:
   reranker: cross-encoder/ms-marco-MiniLM-L-6-v2
   retriever: pritamdeka/S-PubMedBert-MS-MARCO
 paths:
-  api_url: http://localhost:8001
+  api_url: http://localhost:8100
   cache_dir: .cache
   logs_dir: logs
   medical_dictionary: src/resources/medical_dictionary.txt

@@ -41,6 +41,6 @@ describe('LoginOverlay', () => {
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'bad-pass' } });
     fireEvent.submit(screen.getByRole('button', { name: /sign in/i }));
 
-    await waitFor(() => expect(screen.getByText(/invalid credentials/i)).toBeInTheDocument());
+    await screen.findByText(/invalid credentials/i);
   });
 });

@@ -223,7 +223,7 @@ class Settings(BaseSettings):
     security: dict[str, Any] = {}
     features: dict[str, Any] = {}
     host: str = "127.0.0.1"
-    port: int = 8001
+    port: int = 8100
     log_level: str = "INFO"
 
 

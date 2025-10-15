@@ -1,3 +1,4 @@
+## 2025-10-15T09:18Z - Desktop Task Orchestration\n- Added worker-thread task manager with IPC wiring to offload analysis uploads/polling from the renderer.\n- Exposed desktop task API via preload bridge for progress, cancellation, and error propagation.\n- Refreshed analysis UI for responsive layout, live progress bars, and dark-mode safe styling while keeping PySide parity.\n
 ## 2025-10-14T18:24Z - Scaffold Upgrade
 - Replaced CRA starter with TypeScript-ready structure and modular layout scaffolding.
 - Introduced Electron secure main/preload processes and npm scripts.
@@ -10,3 +11,4 @@
 - Added React Query workflow for uploading documents, polling /analysis/status, and rendering compliance summaries.
 - Wired rubric dropdown to FastAPI /rubrics endpoint and mirrored strictness controls.
 - Implemented progress, findings preview, and report viewer parity with PySide handlers.
+

@@ -3,9 +3,13 @@
 Quick API server starter for development.
 """
 
+import os
 import subprocess
 import sys
 from pathlib import Path
+
+DEFAULT_HOST = "127.0.0.1"
+DEFAULT_PORT = "8100"
 
 
 def main():
@@ -16,13 +20,15 @@ def main():
         print(f"Error: API script not found at {script_path}")
         return 1
 
+    port = os.environ.get("API_PORT", DEFAULT_PORT)
+    os.environ["API_PORT"] = str(port)
+
     print("Starting Therapy Compliance Analyzer API Server...")
-    print("This will run on http://127.0.0.1:8001")
+    print(f"This will run on http://{DEFAULT_HOST}:{port}")
     print("Press Ctrl+C to stop the server")
     print("-" * 50)
 
     try:
-        # Run the API script
         subprocess.run([sys.executable, str(script_path)], check=True)
     except KeyboardInterrupt:
         print("\nAPI server stopped by user")

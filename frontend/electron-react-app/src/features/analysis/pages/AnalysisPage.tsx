@@ -37,27 +37,27 @@ export default function AnalysisPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const controller = useAnalysisController();
   const rubricsQuery = useQuery({ queryKey: ['rubrics'], queryFn: fetchRubrics });
-  const rubrics = rubricsQuery.data ?? [];
+  const rubricsData = rubricsQuery.data;
 
   const disciplineOptions = useMemo(() => {
-    const mapped = rubrics.map((rubric) => ({
-      value: rubric.discipline,
-      label: `${rubric.name} - ${rubric.discipline.toUpperCase()}`,
-    }));
-    if (!mapped.length) {
+    if (!rubricsData || rubricsData.length === 0) {
       return [
         { value: 'pt', label: 'Physical Therapy - Medicare Part B' },
         { value: 'ot', label: 'Occupational Therapy - Medicare Part A' },
         { value: 'slp', label: 'Speech-Language Pathology' },
       ];
     }
-    return mapped;
-  }, [rubrics]);
+    return rubricsData.map((rubric) => ({
+      value: rubric.discipline,
+      label: `${rubric.name} - ${rubric.discipline.toUpperCase()}`,
+    }));
+  }, [rubricsData]);
 
   const findings = controller.summary?.findings ?? [];
   const complianceScore = controller.summary?.complianceScore ?? null;
-  const statusLabel = controller.status ? controller.status.replace(/_/g, ' ') : 'idle';
   const analysisError = controller.error instanceof Error ? controller.error : null;
+  const progressPercent = Math.max(0, Math.min(100, Math.round(controller.progress ?? 0)));
+  const statusLabel = controller.status ? controller.status.replace(/_/g, ' ') : controller.isPolling ? 'running' : 'idle';
 
   return (
     <div className={styles.wrapper}>
@@ -65,8 +65,12 @@ export default function AnalysisPage() {
         <div>
           <h2>Compliance Analysis Mission Control</h2>
           <p>
-            Upload therapy documentation, select evaluation rubrics, and orchestrate AI-powered scoring that mirrors the PySide6 workflow.
+            Upload therapy documentation, select evaluation targets, and orchestrate AI-powered scoring that mirrors the PySide workflows while staying responsive on desktop.
           </p>
+          <div className={styles.runtimePillRow}>
+            <StatusChip label={controller.isDesktop ? 'Desktop Runtime' : 'Browser Runtime'} status={controller.isDesktop ? 'ready' : 'warming'} />
+            <StatusChip label={controller.isPolling ? 'Task Active' : 'Idle'} status={controller.isPolling ? 'ready' : 'offline'} />
+          </div>
         </div>
         <div className={styles.overviewStats}>
           <Card variant="muted" title="Current Session" subtitle={controller.selectedFile?.name ?? 'Awaiting document'}>
@@ -79,7 +83,7 @@ export default function AnalysisPage() {
               </div>
               <div>
                 <span className={styles.metricLabel}>Progress</span>
-                <span className={styles.metricValue}>{controller.taskId ? `${controller.progress}%` : '0%'}</span>
+                <span className={styles.metricValue}>{controller.taskId || controller.isPolling ? `${progressPercent}%` : '0%'}</span>
               </div>
               <div>
                 <span className={styles.metricLabel}>Status</span>
@@ -106,117 +110,105 @@ export default function AnalysisPage() {
               {...controller.dropzone.getRootProps()}
             >
               <input {...controller.dropzone.getInputProps()} ref={fileInputRef} />
-              <span className={styles.dropzoneIcon}>[DOC]</span>
+              <span className={styles.dropzoneIcon} aria-hidden>
+                [DOC]
+              </span>
               {controller.selectedFile ? (
                 <>
                   <p className={styles.fileName}>{controller.selectedFile.name}</p>
                   <p className={styles.dropzoneHint}>
-                    {(controller.selectedFile.size / 1024 / 1024).toFixed(2)} MB - Local only, never uploaded externally
+                    {(controller.selectedFile.size / 1024 / 1024).toFixed(2)} MB - Stored locally until you start analysis
                   </p>
                 </>
               ) : (
                 <>
                   <p>Drop PDF, DOCX, or TXT files here</p>
-                  <p className={styles.dropzoneHint}>HIPAA-safe: all processing remains local.</p>
+                  <p className={styles.dropzoneHint}>HIPAA-safe: heavy processing offloads to secure workers.</p>
                 </>
               )}
             </div>
-            {/* TODO: Connect batch queue and resume actions to mission-control orchestration. */}\n            <div className={styles.dropzoneActions}>
+
+            <div className={styles.progressWrapper}>
+              <div className={styles.progressMeta}>
+                <span>{statusLabel}</span>
+                <span>{`${progressPercent}%`}</span>
+              </div>
+              <div className={styles.progressTrack} role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100}>
+                <div className={styles.progressBar} style={{ width: `${progressPercent}%` }} />
+              </div>
+              <span className={styles.progressStatus}>{controller.statusMessage}</span>
+            </div>
+
+            {analysisError && <div className={styles.errorBanner}>{analysisError.message}</div>}
+
+            <div className={styles.dropzoneActions}>
               <Button
                 variant="primary"
-                onClick={() => controller.startAnalysis()}
+                onClick={controller.startAnalysis}
                 disabled={!controller.selectedFile || controller.isStarting || controller.isPolling}
               >
-                {controller.isStarting ? 'Starting...' : controller.taskId ? 'Re-run Analysis' : 'Start Full Analysis'}
+                {controller.isStarting ? 'Starting...' : controller.isPolling ? 'Running...' : 'Start Analysis'}
               </Button>
-              <Button variant="ghost" onClick={controller.reset} disabled={!controller.taskId && !controller.selectedFile}>
-                Reset Session
+              <Button variant="outline" onClick={controller.cancelAnalysis} disabled={!controller.isPolling || !controller.isDesktop}>
+                Cancel
+              </Button>
+              <Button variant="ghost" onClick={controller.reset} disabled={controller.isPolling && controller.isDesktop}>
+                Reset
               </Button>
             </div>
-            {(controller.isStarting || controller.taskId) && (
-              <div className={styles.progressWrapper}>
-                <div className={styles.progressTrack}>
-                  <div className={styles.progressBar} style={{ width: `${controller.progress}%` }} />
-                </div>
-                <span className={styles.progressText}>{controller.statusMessage}</span>
-              </div>
-            )}
-            {analysisError && <p className={styles.errorText}>{analysisError.message}</p>}
-          </Card>
-
-          <Card title="Rubric Selection" subtitle="Load discipline-specific compliance rubrics">
-            <label className={styles.fieldLabel} htmlFor="discipline">
-              Clinical discipline
-            </label>
-            <select
-              id="discipline"
-              className={styles.select}
-              value={controller.discipline}
-              onChange={(event) => controller.setDiscipline(event.target.value)}
-              disabled={rubricsQuery.isLoading}
-            >
-              {disciplineOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <div className={styles.rubricMeta}>
-              <StatusChip label={`${rubrics.length || 3} rule sets`} status="ready" />
-              <StatusChip label="Local cache" status="warming" />
-            </div>
-            <p className={styles.description}>
-              Rubrics sync from <code>src/resources/</code> to ensure local parity with the PySide interface.
+            <p className={styles.intakeHint}>
+              Background workers stream progress without blocking the UI. Cancel gracefully when inference takes too long.
             </p>
           </Card>
 
-          <Card title="Mission Controls" subtitle="Same quick actions as PySide6 mission control">
-            <div className={styles.actionsGrid}>
-              <Button
-                variant="outline"
-                onClick={() => controller.startAnalysis()}
-                disabled={!controller.selectedFile || controller.isStarting}
+          <Card title="Discipline" subtitle="Aligns with backend rubric catalog">
+            <div className={styles.selectRow}>
+              <select
+                className={styles.selectControl}
+                value={controller.discipline}
+                onChange={(event) => controller.setDiscipline(event.target.value)}
               >
-                Quick Risk Scan
-              </Button>
-              <Button variant="ghost">Open Batch Queue</Button>
-              <Button variant="ghost">Launch Report Viewer</Button>
+                {disciplineOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </Card>
-        </div>
 
-        <div className={styles.columnMiddle}>
-          <Card title="Strictness & Guidelines" subtitle="Map to PySide strictness toggles">
+          <Card title="Strictness" subtitle="Mirrors PySide toggle set">
             <div className={styles.strictnessList}>
-              {STRICTNESS_LEVELS.map((level, index) => (
-                <button
-                  key={level.label}
-                  type="button"
-                  className={`${styles.strictnessItem} ${controller.strictness === index ? styles.strictnessActive : ''}`}
-                  onClick={() => controller.setStrictness(index as 0 | 1 | 2)}
-                >
-                  <div className={styles.strictnessBullet}>*</div>
-                  <div>
-                    <p className={styles.strictnessTitle}>{level.label}</p>
-                    <p className={styles.strictnessBody}>{level.description}</p>
-                  </div>
-                </button>
-              ))}
+              {STRICTNESS_LEVELS.map((level, index) => {
+                const isActive = controller.strictness === index;
+                return (
+                  <button
+                    type="button"
+                    key={level.label}
+                    className={`${styles.strictnessCard} ${isActive ? styles.strictnessActive : ''}`}
+                    onClick={() => controller.setStrictness(index as 0 | 1 | 2)}
+                  >
+                    <span className={styles.strictnessBullet}>{'>'}</span>
+                    <div>
+                      <p className={styles.strictnessTitle}>{level.label}</p>
+                      <p className={styles.strictnessBody}>{level.description}</p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </Card>
 
-          {/* TODO: Wire report configuration selections into backend preferences once API closes the loop. */}\n          <Card title="Report Configuration" subtitle="Matches ReportGenerator options">
+          <Card title="Report Configuration" subtitle="Matches ReportGenerator options">
             <ul className={styles.checkboxList}>
-              {['Executive summary', 'Billing risk radar', 'Plan of care gaps', 'Narrative recommendations'].map(
-                (section) => (
-                  <li key={section}>
-                    <label className={styles.checkboxItem}>
-                      <input type="checkbox" defaultChecked />
-                      <span>{section}</span>
-                    </label>
-                  </li>
-                ),
-              )}
+              {['Executive summary', 'Billing risk radar', 'Plan of care gaps', 'Narrative recommendations'].map((section) => (
+                <li key={section}>
+                  <label className={styles.checkboxItem}>
+                    <input type="checkbox" defaultChecked />
+                    <span>{section}</span>
+                  </label>
+                </li>
+              ))}
             </ul>
             <div className={styles.reportFooter}>
               <StatusChip label="Med-branded PDF" status="ready" />
@@ -224,9 +216,9 @@ export default function AnalysisPage() {
             </div>
           </Card>
 
-          <Card title="Licenses & Safeguards" subtitle="Mirrors PySide license checks">
+          <Card title="Licenses & Safeguards" subtitle="Parity with PySide guardrails">
             <p className={styles.description}>
-              Local license validation and AI guardrails persist here; Electron bridges into the same backend services defined in <code>src/core</code>.
+              Electron reuses backend license checks and audit logging. Background workers surface crash signals so desktop ops stay stable.
             </p>
             <Button variant="outline">Manage Feature Flags</Button>
           </Card>
@@ -249,9 +241,11 @@ export default function AnalysisPage() {
           <Card title="Findings Preview" subtitle="Structured output from AnalysisService">
             {!controller.taskId && <p className={styles.description}>Run an analysis to populate clinical findings.</p>}
             {controller.taskId && !controller.analysisComplete && !controller.analysisFailed && (
-              <p className={styles.description}>Analysis running. Findings will stream in once complete.</p>
+              <p className={styles.description}>Analysis running. Findings stream in once complete.</p>
             )}
-            {controller.analysisFailed && <p className={styles.errorText}>Analysis failed. Check logs for details.</p>}
+            {controller.analysisFailed && (
+              <p className={styles.errorText}>Analysis failed. Check logs or retry when resources recover.</p>
+            )}
             {controller.summary && controller.analysisComplete && (
               <ul className={styles.findingsList}>
                 {findings.slice(0, 5).map((finding, index) => {
